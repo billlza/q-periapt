@@ -328,9 +328,17 @@ class AppleStablePublicationTests(unittest.TestCase):
             path.write_bytes(data)
             os.chmod(path, 0o600)
         log = run / publication.REMOTE_CONSUMER_LOG_NAME
+        # Realistic XCTest output: the passing grand-total line is printed once
+        # per suite level (test-class, bundle, and outer "All tests"), so it
+        # legitimately appears more than once for a clean three-test run.
         log.write_text(
             "/Users/private/RAW_PII_SENTINEL\n"
-            "Executed 3 tests, with 0 failures\n",
+            "Test Suite 'CQPeriaptTests' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n"
+            "Test Suite 'CQPeriaptPackageTests.xctest' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n"
+            "Test Suite 'All tests' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n",
             encoding="utf-8",
         )
         os.chmod(log, 0o600)

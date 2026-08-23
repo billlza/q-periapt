@@ -1245,7 +1245,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
         self.assertTrue(status.complete)
         self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
 
-    def test_policy_invalid_successor_observation_is_permanently_manual(self) -> None:
+    def test_policy_invalid_successor_observation_recovers_when_settled(self) -> None:
         remote = FakeRemote(
             self.plan, self.root / publication.JOURNAL_DIRECTORY
         )
@@ -1269,6 +1269,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             remote.mutate(plan, action, before)
             policy_invalid = True
 
+        journal = self.root / publication.JOURNAL_DIRECTORY
         with self.publisher_patches():
             with self.assertRaisesRegex(
                 publication.StableGitHubPublicationOutcomeUnknown,
@@ -1284,19 +1285,21 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     observer=observe,
                     mutator=mutate_then_expose_starter,
                 )
+            # A policy-invalid observation of a mutation that may have taken
+            # effect records reconciliation authority (not a bare trailing
+            # intent), so a later settled observation recovers it instead of
+            # wedging the publication in permanent manual review.
+            self.assertTrue((journal / "000000-intent.json").exists())
+            self.assertTrue((journal / "000000-reconciliation.json").exists())
+            self.assertFalse((journal / "000000-outcome.json").exists())
             policy_invalid = False
-            with self.assertRaisesRegex(
-                publication.StableGitHubPublicationOutcomeUnknown,
-                "manual review",
-            ):
-                self.publish(remote)
-        journal = self.root / publication.JOURNAL_DIRECTORY
-        self.assertTrue((journal / "000000-intent.json").exists())
-        self.assertFalse((journal / "000000-reconciliation.json").exists())
-        self.assertFalse((journal / "000000-outcome.json").exists())
-        self.assertEqual(1, len(remote.mutations))
+            status = self.publish(remote)
+        self.assertTrue(status.complete)
+        self.assertEqual(publication.MAX_ACTIONS, status.applied_actions)
+        self.assertTrue((journal / "000000-outcome.json").exists())
+        self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
 
-    def test_invalid_successor_is_unknown_for_create_upload_and_publish(self) -> None:
+    def test_invalid_successor_recovers_across_create_upload_and_publish(self) -> None:
         for target_index in (0, 2, 13):
             with self.subTest(target_index=target_index):
                 for leaf in (self.root / publication.JOURNAL_DIRECTORY).iterdir():
@@ -1347,24 +1350,29 @@ class StableGitHubPublicationTests(unittest.TestCase):
                             observer=observe,
                             mutator=mutate_then_invalidate,
                         )
-                    with self.assertRaisesRegex(
-                        publication.StableGitHubPublicationOutcomeUnknown,
-                        "manual review",
-                    ):
-                        self.publish(remote)
-                self.assertEqual(target_index + 1, remote.index)
-                self.assertEqual(target_index + 1, len(remote.mutations))
-                journal = self.root / publication.JOURNAL_DIRECTORY
+                    journal = self.root / publication.JOURNAL_DIRECTORY
+                    # The mutation may have taken effect while its immediate
+                    # observation was invalid; reconciliation authority is
+                    # recorded so a later settled observation recovers it.
+                    self.assertTrue(
+                        (journal / f"{target_index:06d}-intent.json").exists()
+                    )
+                    self.assertTrue(
+                        (
+                            journal
+                            / f"{target_index:06d}-reconciliation.json"
+                        ).exists()
+                    )
+                    self.assertFalse(
+                        (journal / f"{target_index:06d}-outcome.json").exists()
+                    )
+                    # A subsequent settled observation reconciles the attempted
+                    # mutation and drives the publication to completion.
+                    status = self.publish(remote)
+                self.assertTrue(status.complete)
+                self.assertEqual(publication.MAX_ACTIONS, status.applied_actions)
+                self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
                 self.assertTrue(
-                    (journal / f"{target_index:06d}-intent.json").exists()
-                )
-                self.assertFalse(
-                    (
-                        journal
-                        / f"{target_index:06d}-reconciliation.json"
-                    ).exists()
-                )
-                self.assertFalse(
                     (journal / f"{target_index:06d}-outcome.json").exists()
                 )
 

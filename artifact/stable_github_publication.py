@@ -2363,10 +2363,17 @@ def validate_exact_remote_transition(
         )
         return
     _require(action.kind == "publish", "publication action kind is unknown")
+    # ``target_commitish`` legitimately normalizes on publish: GitHub echoes the
+    # created commitish (the tag commit SHA) while the release is a draft and
+    # rewrites it to the default branch name once the tag ref is materialized.
+    # parse_mutable_release_view independently bounds it to {"main", tag_commit},
+    # so excluding it from the byte-equality here does not weaken the proof.
     _transition_release_common(
         before_release,
         after_release,
-        excluded=frozenset({"draft", "immutable", "is_latest", "published_at"}),
+        excluded=frozenset(
+            {"draft", "immutable", "is_latest", "published_at", "target_commitish"}
+        ),
         label="release publication",
     )
     expected_latest = action.domain == "apple"
@@ -3458,8 +3465,22 @@ def publish_plan(
                     StableGitHubPublicationError,
                     github_release.GitHubReleaseObservationError,
                 ) as exc:
+                    # The mutation may have taken effect while its immediate
+                    # observation was rejected (e.g. a still-propagating remote,
+                    # or a draft-shaped field). Record reconciliation authority so
+                    # a later, settled observation can prove the exact successor
+                    # instead of wedging the transaction in permanent manual review.
+                    _authorize_later_reconciliation(
+                        root,
+                        lock,
+                        journal,
+                        plan,
+                        action,
+                        intent,
+                        cli_failure=cli_failure,
+                    )
                     raise StableGitHubPublicationOutcomeUnknown(
-                        "mutation observation is policy-invalid and requires manual review"
+                        "mutation observation is policy-invalid and remains unresolved"
                     ) from exc
                 _verify_mutation_local(
                     root,
@@ -3481,6 +3502,15 @@ def publish_plan(
                     successor_state = classify_remote_state(plan, successor)
                     successor_projection = _remote_projection(successor)
                 except StableGitHubPublicationError as exc:
+                    _authorize_later_reconciliation(
+                        root,
+                        lock,
+                        journal,
+                        plan,
+                        action,
+                        intent,
+                        cli_failure=cli_failure,
+                    )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation produced an invalid or unclassifiable remote state"
                     ) from exc
@@ -3509,6 +3539,15 @@ def publish_plan(
                         successor,
                     )
                 except StableGitHubPublicationError as exc:
+                    _authorize_later_reconciliation(
+                        root,
+                        lock,
+                        journal,
+                        plan,
+                        action,
+                        intent,
+                        cli_failure=cli_failure,
+                    )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation did not produce the exact intended transition"
                     ) from exc

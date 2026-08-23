@@ -855,7 +855,9 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 "updatedAt": "2026-08-15T00:00:01Z",
                 "url": (
                     "https://github.com/"
-                    f"{observation.GITHUB_REPOSITORY}/releases/download/fixture-v1/{name}"
+                    f"{observation.GITHUB_REPOSITORY}/releases/download/"
+                    "untagged-0011223344556677889a/"
+                    f"{name}"
                 ),
             }
 
@@ -878,8 +880,11 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 "https://uploads.github.com/repos/"
                 f"{observation.GITHUB_REPOSITORY}/releases/77/assets{{?name,label}}"
             ),
+            # A draft release (and its assets) is keyed under the synthetic
+            # "untagged-<hex>" slug, not the tag form, until it is published.
             "url": (
-                f"https://github.com/{observation.GITHUB_REPOSITORY}/releases/tag/fixture-v1"
+                f"https://github.com/{observation.GITHUB_REPOSITORY}"
+                "/releases/tag/untagged-0011223344556677889a"
             ),
         }
         parsed = observation.parse_mutable_release_view(
@@ -965,7 +970,7 @@ class GitHubReleaseObservationTests(unittest.TestCase):
             ),
             "url": (
                 f"https://github.com/{observation.GITHUB_REPOSITORY}/"
-                f"releases/tag/{apple.tag}"
+                "releases/tag/untagged-0011223344556677889a"
             ),
         }
         responses = [

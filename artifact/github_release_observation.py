@@ -2742,9 +2742,31 @@ def parse_mutable_release_view(
         f"{label} identity or text differs",
     )
     repository_url = f"https://github.com/{policy.repository}"
+    # A draft release is not yet keyed to its tag ref: GitHub reports the release
+    # html url -- and every asset browser_download_url -- under a synthetic
+    # "untagged-<hex>" slug, flipping to the tag form only once the release is
+    # published. Derive the effective download slug from the observed release url
+    # so the release and its assets are validated against the same GitHub keying;
+    # the strict tag form is required for the published (non-draft) shape.
+    observed_release_url = view["url"]
+    if view["isDraft"]:
+        draft_url_match = re.fullmatch(
+            rf"{re.escape(repository_url)}/releases/tag/(untagged-[0-9a-f]+)",
+            observed_release_url if isinstance(observed_release_url, str) else "",
+        )
+        _require(
+            draft_url_match is not None,
+            f"{label} draft release URL differs",
+        )
+        download_slug = draft_url_match.group(1)
+    else:
+        _require(
+            observed_release_url == f"{repository_url}/releases/tag/{policy.tag}",
+            f"{label} release URL differs",
+        )
+        download_slug = policy.tag
     _require(
-        view["url"] == f"{repository_url}/releases/tag/{policy.tag}"
-        and view["apiUrl"]
+        view["apiUrl"]
         == f"https://api.github.com/repos/{policy.repository}/releases/{release_id}"
         and view["uploadUrl"]
         == (
@@ -2824,7 +2846,7 @@ def parse_mutable_release_view(
         _require(
             asset["label"] == ""
             and asset["url"]
-            == f"{repository_url}/releases/download/{policy.tag}/{name}"
+            == f"{repository_url}/releases/download/{download_slug}/{name}"
             and isinstance(api_url, str)
             and re.fullmatch(
                 rf"https://api\.github\.com/repos/{re.escape(policy.repository)}/"

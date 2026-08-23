@@ -125,6 +125,13 @@ MAX_RESULTS_BYTES = 16 * 1024 * 1024
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 WARNING_OR_ERROR = re.compile(r"(^|[^A-Za-z])(warning|error):", re.IGNORECASE)
+# XCTest prints the grand-total "Executed N tests, with 0 failures" line once per
+# suite level (the bundle suite, the test-class suite, and the outer "All tests"
+# suite), so a clean three-test run emits the passing summary two or three times,
+# never exactly once. Require at least one exact three-test pass and reject any
+# summary that reports a nonzero failure count.
+THREE_TEST_PASS = "Executed 3 tests, with 0 failures"
+TEST_FAILURE_SUMMARY = re.compile(r"Executed \d+ tests?, with [1-9][0-9]* failures?")
 
 Clock = Callable[[], dt.datetime]
 
@@ -1541,8 +1548,12 @@ def _emit_remote_consumer_receipt_pinned(
         "remote consumer test log contains warning/error diagnostics",
     )
     _require(
-        log_text.count("Executed 3 tests, with 0 failures") == 1,
-        "remote consumer test log does not contain one exact three-test pass",
+        log_text.count(THREE_TEST_PASS) >= 1,
+        "remote consumer test log does not contain a three-test pass",
+    )
+    _require(
+        TEST_FAILURE_SUMMARY.search(log_text) is None,
+        "remote consumer test log reports test failures",
     )
     observed = clock()
     _require(
