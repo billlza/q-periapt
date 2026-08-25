@@ -37,9 +37,11 @@ class ProofManifestTests(unittest.TestCase):
             proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
             performance_gate.PROOF_SCHEMA_VERSION,
         )
-        self.assertEqual(
-            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
-            release_publication_contract._STABLE_PERFORMANCE_PROOF_SCHEMA,
+        self.assertFalse(
+            hasattr(
+                release_publication_contract,
+                "_STABLE_PERFORMANCE_PROOF_SCHEMA",
+            )
         )
 
     def test_rust_package_schema_constants_match_the_live_contract(self) -> None:

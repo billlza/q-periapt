@@ -78,7 +78,9 @@ def _security_gate_projection(
             "commit_sha": tag_commit,
             "error": "",
             "ref": current_distribution_contract.MAIN_REF,
-            "results_count": 0,
+            "results_count": (
+                185 if _language == "python" else 14 if _language == "rust" else 0
+            ),
             "rules_count": 20 + index,
             "tool": {
                 "name": "CodeQL",
@@ -498,6 +500,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
             "failed-ct",
             "missing-codeql",
             "wrong-codeql-tool-version",
+            "open-code-scanning-alert",
             "workflow-path",
         ):
             with self.subTest(mutation=mutation):
@@ -518,6 +521,8 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                     gate["code_scanning"]["analyses"][0]["tool"]["version"] = (
                         "2.26.1"
                     )
+                elif mutation == "open-code-scanning-alert":
+                    gate["code_scanning"]["open_alerts"] = [{"number": 1}]
                 else:
                     gate["workflows"]["ci"]["workflow_path"] = (
                         ".github/workflows/other.yml"
@@ -723,6 +728,14 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
         self.assertEqual(
             contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
             "platform_v0_1_3",
+        )
+        self.assertNotIn(
+            "zero-result",
+            contract.PLATFORM_V0_1_3_PUBLICATION_BOUNDARY,
+        )
+        self.assertIn(
+            "zero unadjudicated findings",
+            contract.PLATFORM_V0_1_3_PUBLICATION_BOUNDARY,
         )
         self.assertEqual(
             contract.CANDIDATE_SUBJECT_NAMES,

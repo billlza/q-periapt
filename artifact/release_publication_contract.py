@@ -59,14 +59,18 @@ _ACTIVE_SWIFT_KEYS = _LEGACY_SWIFT_KEYS | frozenset(
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
-_SAFE_SELECTOR_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]{0,127}$")
-_STABLE_PHYSICAL_STATUS = "current_clean_tree_physical_pass"
-_STABLE_PERFORMANCE_STATUS = "current_controlled_pass"
 _STABLE_ANDROID_AAR_STATUS = "current_clean_tree_package_pass"
-_STABLE_PHYSICAL_ABI = "arm64-v8a"
+_STABLE_RUST_STATUS = "current_clean_tree_rust_package_contract_pass"
+_STABLE_ANDROID_RUNTIME_STATUS = "current_clean_tree_emulator_pass"
+_STABLE_LOCAL_INDEX_STATUS = "current_clean_tree_local_index_consumer_pass"
 _STABLE_ANDROID_AAR_MANIFEST_SCHEMA = 4
 _STABLE_ANDROID_DEVICE_PROOF_SCHEMA = 6
-_STABLE_PERFORMANCE_PROOF_SCHEMA = 8
+_STABLE_LOCAL_INDEX_SCHEMA = 5
+_STABLE_LOCAL_CONSUMER_SCHEMA = 1
+_STABLE_ANDROID_ABI = "arm64-v8a"
+_STABLE_ANDROID_SDK = 35
+_STABLE_ANDROID_PAGE_SIZE = 16_384
+_STABLE_ANDROID_BUILD_TOOLS = "36.0.0"
 _STABLE_ANDROID_AAR_PATH = (
     "target/qperiapt-android-aar/q-periapt-android-0.1.3/"
     "q-periapt-android-0.1.3.aar"
@@ -84,6 +88,10 @@ _STABLE_ANDROID_TESTS = (
     "runtimeMetadataMatches",
     "signedPolicyDecisionIsExactAndFailClosed",
     "osRandomPolicyRoundtripAndWipes",
+)
+_RUST_HANDOFF_RE = re.compile(
+    r"^target/qperiapt-rust-package-handoffs/"
+    r"transaction\.[1-9][0-9]*-[0-9a-f]{32}/rust-package-handoff\.json$"
 )
 
 
@@ -439,12 +447,12 @@ def _validate_registry_package_contract_crosslink(
 
 
 def validate_stable_source_currentness(manifest: dict[str, object]) -> None:
-    """Require the two fresh source gates added for the stable successor.
+    """Require the source-bound package closure used by stable publication.
 
     Detailed proof schemas remain owned by ``proof_manifest`` and by the raw
-    evidence verifiers.  This dependency-free aggregate check exists so every
-    publication state machine can reject a hand-authored stale results value
-    without introducing an import cycle.
+    evidence verifiers. This dependency-free aggregate rejects forged stale
+    results without turning product-readiness device or performance evidence
+    into a package-publication prerequisite.
     """
 
     if not isinstance(manifest, dict):
@@ -463,13 +471,40 @@ def validate_stable_source_currentness(manifest: dict[str, object]) -> None:
         "stable source currentness requires a canonical source digest",
     )
 
-    physical = _object(
-        manifest.get("android_physical_runtime"),
-        "stable physical Android runtime",
+    rust = _object(manifest.get("rust_publish"), "stable Rust package handoff")
+    android_aar = _object(manifest.get("android_aar"), "stable Android AAR")
+    android_runtime = _object(
+        manifest.get("android_device_runtime"),
+        "stable canonical Android runtime",
     )
-    android_aar = _object(
-        manifest.get("android_aar"),
-        "stable Android AAR",
+    local_index = _object(
+        manifest.get("local_release_index"),
+        "stable local release index",
+    )
+
+    handoff_path = rust.get("handoff_manifest_path")
+    _require(
+        rust.get("current_source_status") == _STABLE_RUST_STATUS
+        and rust.get("status") == "pass"
+        and rust.get("source_commit") == source_commit
+        and rust.get("proof_source_tree_sha256") == source_digest
+        and rust.get("source_tree_dirty") is False
+        and rust.get("upload_attempted") is False
+        and rust.get("evidence_schema") == 2
+        and rust.get("publishable_crates")
+        == list(crates_contract.PUBLISHABLE_CRATES)
+        and rust.get("package_list_pass_crates")
+        == list(crates_contract.PUBLISHABLE_CRATES)
+        and rust.get("package_verification_pass_crates")
+        == list(crates_contract.PUBLISHABLE_CRATES)
+        and isinstance(handoff_path, str)
+        and _RUST_HANDOFF_RE.fullmatch(handoff_path) is not None
+        and isinstance(rust.get("handoff_manifest_sha256"), str)
+        and _SHA256_RE.fullmatch(rust["handoff_manifest_sha256"]) is not None
+        and isinstance(rust.get("transcript_sha256"), str)
+        and _SHA256_RE.fullmatch(rust["transcript_sha256"]) is not None
+        and _present_bounded_text(rust.get("completed_at")),
+        "stable publication requires a current clean Rust package handoff",
     )
     _require(
         android_aar.get("current_source_status") == _STABLE_ANDROID_AAR_STATUS
@@ -490,68 +525,72 @@ def validate_stable_source_currentness(manifest: dict[str, object]) -> None:
         and android_aar.get("targets") == list(_STABLE_ANDROID_AAR_TARGETS),
         "stable publication requires a current clean Android AAR",
     )
+
+    android_run_id = android_runtime.get("run_id")
     _require(
-        physical.get("current_source_status") == _STABLE_PHYSICAL_STATUS
-        and physical.get("status") == "pass"
-        and physical.get("source_commit") == source_commit
-        and physical.get("proof_source_tree_sha256") == source_digest
-        and physical.get("source_tree_dirty") is False,
-        "stable publication requires current clean physical Android evidence",
-    )
-    _require(
-        physical.get("device_kind") == "physical"
-        and physical.get("device_abi") == _STABLE_PHYSICAL_ABI
-        and physical.get("proof_schema")
+        android_runtime.get("current_source_status")
+        == _STABLE_ANDROID_RUNTIME_STATUS
+        and android_runtime.get("status") == "pass"
+        and android_runtime.get("source_commit") == source_commit
+        and android_runtime.get("proof_source_tree_sha256") == source_digest
+        and android_runtime.get("source_tree_dirty") is False
+        and android_runtime.get("device_kind") == "emulator"
+        and android_runtime.get("device_abi") == _STABLE_ANDROID_ABI
+        and android_runtime.get("android_sdk") == _STABLE_ANDROID_SDK
+        and android_runtime.get("page_size") == _STABLE_ANDROID_PAGE_SIZE
+        and android_runtime.get("build_tools") == _STABLE_ANDROID_BUILD_TOOLS
+        and android_runtime.get("proof_schema")
         == _STABLE_ANDROID_DEVICE_PROOF_SCHEMA
-        and physical.get("release_candidate_mode") is True
-        and physical.get("covered_tests") == list(_STABLE_ANDROID_TESTS),
-        "stable physical Android evidence must be arm64-v8a release mode",
-    )
-    physical_run_id = physical.get("run_id")
-    _require(
-        isinstance(physical_run_id, str)
-        and _RUN_ID_RE.fullmatch(physical_run_id) is not None
-        and physical.get("proof_path")
+        and android_runtime.get("release_candidate_mode") is True
+        and android_runtime.get("covered_tests") == list(_STABLE_ANDROID_TESTS)
+        and isinstance(android_run_id, str)
+        and _RUN_ID_RE.fullmatch(android_run_id) is not None
+        and android_runtime.get("proof_path")
         == (
             "target/qperiapt-android-device-smoke-runs/"
-            f"{physical_run_id}/proof/qperiapt-android-device-proof.json"
+            f"{android_run_id}/proof/qperiapt-android-device-proof.json"
         )
-        and isinstance(physical.get("proof_sha256"), str)
-        and _SHA256_RE.fullmatch(physical["proof_sha256"]) is not None
-        and _present_bounded_text(physical.get("proof_generated_at")),
-        "stable physical Android proof identity is malformed",
-    )
-    aar_targets = android_aar.get("targets")
-    _require(
-        isinstance(aar_targets, list)
-        and all(isinstance(target, str) for target in aar_targets)
-        and physical.get("device_abi") in aar_targets,
-        "stable physical Android evidence is not covered by the selected AAR",
+        and isinstance(android_runtime.get("proof_sha256"), str)
+        and _SHA256_RE.fullmatch(android_runtime["proof_sha256"]) is not None
+        and _present_bounded_text(android_runtime.get("proof_generated_at")),
+        "stable publication requires current canonical Android runtime evidence",
     )
 
-    performance = _object(
-        manifest.get("performance"),
-        "stable performance evidence",
-    )
-    performance_path = performance.get("proof_path")
+    consumer_run_id = local_index.get("consumer_receipt_run_id")
     _require(
-        performance.get("current_source_status") == _STABLE_PERFORMANCE_STATUS
-        and performance.get("status") == "pass"
-        and performance.get("proof_schema")
-        == _STABLE_PERFORMANCE_PROOF_SCHEMA
-        and performance.get("source_commit") == source_commit
-        and performance.get("source_tree_dirty") is False
-        and performance.get("proof_source_tree_sha256") == source_digest
-        and isinstance(performance_path, str)
-        and performance_path.startswith("target/performance/")
-        and _SAFE_SELECTOR_RE.fullmatch(
-            performance_path.removeprefix("target/performance/")
+        local_index.get("current_source_status") == _STABLE_LOCAL_INDEX_STATUS
+        and local_index.get("status") == "pass"
+        and local_index.get("consumer_status") == "pass"
+        and local_index.get("source_commit") == source_commit
+        and local_index.get("proof_source_tree_sha256") == source_digest
+        and local_index.get("source_tree_dirty") is False
+        and local_index.get("channel") == "release"
+        and local_index.get("index_schema") == _STABLE_LOCAL_INDEX_SCHEMA
+        and local_index.get("consumer_receipt_schema")
+        == _STABLE_LOCAL_CONSUMER_SCHEMA
+        and local_index.get("android_runtime_run_id") == android_run_id
+        and local_index.get("android_runtime_proof_sha256")
+        == android_runtime.get("proof_sha256")
+        and local_index.get("index_path")
+        == (
+            "target/qperiapt-local-release/release/0.1.3/"
+            f"{source_commit}/index.json"
         )
+        and isinstance(local_index.get("index_sha256"), str)
+        and _SHA256_RE.fullmatch(local_index["index_sha256"]) is not None
+        and isinstance(consumer_run_id, str)
+        and _RUN_ID_RE.fullmatch(consumer_run_id) is not None
+        and local_index.get("consumer_receipt_path")
+        == (
+            "target/qperiapt-release-consumer-smoke/receipts/"
+            f"{consumer_run_id}/qperiapt-release-consumer-receipt.json"
+        )
+        and isinstance(local_index.get("consumer_receipt_sha256"), str)
+        and _SHA256_RE.fullmatch(local_index["consumer_receipt_sha256"])
         is not None
-        and isinstance(performance.get("proof_sha256"), str)
-        and _SHA256_RE.fullmatch(performance["proof_sha256"]) is not None
-        and _present_bounded_text(performance.get("proof_generated_at")),
-        "stable publication requires current controlled performance evidence",
+        and _present_bounded_text(local_index.get("generated_at"))
+        and _present_bounded_text(local_index.get("consumer_receipt_generated_at")),
+        "stable publication requires a current local release consumer receipt",
     )
 
 

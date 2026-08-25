@@ -112,8 +112,9 @@ The page-size and SDK values in that physical example are the observed Samsung A
 profile and must be changed to the explicitly intended device's real values. The physical add-on
 does not inherit the canonical AVD's SDK-35/16-KiB/release-mode constraints; its invariant is a
 clean source snapshot, the exact same AAR and manifest bytes, one explicit physical serial, and
-truthful device expectations. Results select it independently under `android_physical_runtime` with
-`current_clean_tree_physical_pass`; it can never occupy the canonical
+truthful device expectations. A separately reviewed product-readiness evidence transition may
+select it independently under `android_physical_runtime` with
+`current_clean_tree_physical_pass`; the stable package-publication assembler does not. It can never occupy the canonical
 `android_device_runtime` section.
 
 The script-owned emulator uses `-no-snapshot -read-only`; runtime writes are discarded
@@ -215,6 +216,9 @@ one evidence-only `artifact/results.json` successor, then the bound verifier. Pr
 receipt before the successor:
 
 ```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=release \
+QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0 \
+QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0 \
 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
 QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
 sh artifact/local-release-index.sh
@@ -228,9 +232,11 @@ generates one. `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` is limited to producing d
 diagnostics. A dirty proof may be inspected only with the direct verifier's explicit dirty option;
 it cannot be selected in `artifact/results.json` or passed to manifest-bound `proof-to-byte`.
 
-Complete the real physical run before the evidence successor and have that same successor select its
-exact path/hash under `android_physical_runtime`. Then verify the complete Android local production
-transaction with both non-interchangeable runtime gates enabled:
+Complete the real physical run against the same source and AAR, then use a separately reviewed
+product-readiness evidence transition to select its exact path/hash under
+`android_physical_runtime`. Stable package publication leaves this selector absent. Only after that
+separate transition may the complete Android local production transaction enable both
+non-interchangeable runtime gates:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_AAR=1 \

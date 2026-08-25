@@ -166,18 +166,19 @@ immutable run id, finish the release transaction in
 this order, without a source-changing edit between steps:
 
 ```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=release \
+QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0 \
+QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0 \
 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
 QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
 sh artifact/local-release-index.sh
 sh artifact/local-release-consumer-smoke.sh
 
-# After one evidence-only artifact/results.json successor selects the exact AAR,
-# AVD run, first index, emitted receipt, and (for production) physical proof:
+# After the stable-publication artifact/results.json successor selects the exact
+# AAR, AVD run, first index, and emitted receipt:
 QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 \
-QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1 \
 QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER=1 \
 QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json \
-QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<physical-run-id>/proof/qperiapt-android-device-proof.json \
 sh artifact/embedding-readiness.sh
 ```
 
@@ -187,11 +188,12 @@ repairs that receipt. Its Android options enter a distinct read-only final mode 
 producer or build tool runs. The script makes one bound `proof-to-byte` verification with the AAR,
 canonical AVD, and local index/receipt requirements enabled against one pinned
 `artifact/results.json` digest, prints `EMBEDDING_ANDROID_BOUND_VERIFY_PASS` with explicit
-`canonical`, `physical`, and `local_release_consumer` bits, and exits. This
+`canonical`, `physical=0`, and `local_release_consumer` bits, and exits. This
 ordering is mandatory: running `android-aar.sh` after the evidence-only successor would overwrite
 the fixed target AAR with successor-commit bytes and invalidate its selected source binding. For
-the production aggregate, also set `QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1` and
-`QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=<selected-physical-proof>` in the same invocation.
+the production aggregate, a later explicitly reviewed product-readiness evidence transition must
+first select the physical proof. Only then may the same read-only verifier enable
+`QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1` with the selected proof path.
 
 The same harness also supports an explicitly selected physical device. A clean proof over the same
 source and exact AAR is an additional production-promotion requirement; it is not the canonical
@@ -206,9 +208,11 @@ Dirty runs may set
 `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` for diagnosis, but a dirty Android proof can never be
 selected by manifest-bound `proof-to-byte`.
 
-For production, complete the real physical run before the results successor and have that same
-successor select the proof under `android_physical_runtime`. The Android production aggregate must
-then require both independent runtime gates in the same pinned-manifest invocation:
+For production, complete the real physical run against the same source and AAR, then use a
+separately reviewed product-readiness evidence transition to select it under
+`android_physical_runtime`. Stable package publication does not perform that transition. Once it
+exists, the Android production aggregate must require both independent runtime gates in the same
+pinned-manifest invocation:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_AAR=1 \
@@ -292,13 +296,16 @@ separate account or isolated runner with a read-only checkout.
 
 ## Local Release Index
 
-After the package gates have produced their artifacts, build a local hash-bound index:
+After the package gates have produced their artifacts, build a package-only diagnostic index for
+inspection without occupying the one immutable release-channel path:
 
 ```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=diagnostic \
 sh artifact/local-release-index.sh
 ```
 
-Release mode requires a clean tree and rejects dirty package manifests. For local diagnostics on an
+The stable release transaction instead uses the fully pinned release-channel command above. Release
+mode requires a clean tree and rejects dirty package manifests. For richer local diagnostics on an
 in-progress tree:
 
 ```sh
