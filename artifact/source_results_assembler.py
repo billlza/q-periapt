@@ -28,9 +28,7 @@ from typing import Any, Never, TypeVar
 
 import android_device_proof
 import android_elf
-import apple_device_proof
 import apple_publication_contract
-import performance_gate
 import platform_publication_contract
 import release_consumer_smoke
 import release_index
@@ -57,8 +55,6 @@ from proof_manifest import (
     ANDROID_AAR_MANIFEST_PATH,
     ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
     ANDROID_EXPECTED_TESTS,
-    APPLE_DEVICE_PROOF_SCHEMA_VERSION,
-    APPLE_MATRIX_PROOF_SCHEMA_VERSION,
     LOCAL_RELEASE_CONSUMER_RECEIPT_SCHEMA_VERSION,
     LOCAL_RELEASE_INDEX_SCHEMA_VERSION,
     MAX_RESULTS_MANIFEST_BYTES,
@@ -113,7 +109,6 @@ ANDROID_AAR_MANIFEST_FILE = REPOSITORY_ROOT / ANDROID_AAR_MANIFEST_PATH
 ANDROID_RUNS_ROOT = (
     REPOSITORY_ROOT / "target" / android_device_proof.ANDROID_RUNS_ROOT_LEAF
 )
-APPLE_RUNS_ROOT = REPOSITORY_ROOT / "artifact" / "device-runs"
 CONSUMER_RECEIPTS_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-release-consumer-smoke" / "receipts"
 )
@@ -240,25 +235,6 @@ ANDROID_RUNTIME_SECTION_FIELDS = frozenset(
         "status",
     }
 )
-APPLE_SECTION_FIELDS = frozenset(
-    {
-        "current_attempt",
-        "current_proof_generated_at",
-        "current_proof_path",
-        "current_proof_schema",
-        "current_proof_sha256",
-        "current_proof_source_tree_dirty",
-        "current_source_status",
-        "matrix_generated_at",
-        "matrix_proof_path",
-        "matrix_proof_schema",
-        "matrix_proof_sha256",
-        "matrix_source_status",
-        "matrix_source_tree_dirty",
-        "matrix_status",
-        "proof_source_tree_sha256",
-    }
-)
 LOCAL_INDEX_SECTION_FIELDS = frozenset(
     {
         "android_runtime_proof_sha256",
@@ -281,20 +257,6 @@ LOCAL_INDEX_SECTION_FIELDS = frozenset(
         "status",
     }
 )
-PERFORMANCE_SECTION_FIELDS = frozenset(
-    {
-        "current_source_status",
-        "proof_generated_at",
-        "proof_path",
-        "proof_schema",
-        "proof_sha256",
-        "proof_source_tree_sha256",
-        "source_commit",
-        "source_tree_dirty",
-        "status",
-    }
-)
-
 NDK_PROPERTIES_MAX_BYTES = 64 * 1024
 NDK_TOOL_MAX_BYTES = 512 * 1024 * 1024
 
@@ -366,13 +328,6 @@ class AndroidProjection:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
-class AppleProjection:
-    matrix: JsonObjectSnapshot
-    child: JsonObjectSnapshot
-    section: dict[str, object]
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
 class IndexProjection:
     verified: release_index.VerifiedReleaseIndex
     file: FileSnapshot
@@ -385,10 +340,7 @@ class SourceEvidenceSelectors:
     rust_handoff_manifest: str
     rust_handoff_sha256: str
     android_runtime_run: str
-    apple_matrix_run: str
     consumer_run: str
-    android_physical_run: str
-    performance_proof: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -397,10 +349,7 @@ class VerifiedSourceDomains:
     rust_handoff: rust_package_handoff.RustPackageHandoffSnapshot
     aar_section: dict[str, object]
     android: AndroidProjection
-    apple: AppleProjection
     index: IndexProjection
-    physical: AndroidProjection
-    performance_section: dict[str, object]
     pins: tuple[EvidencePin, ...]
 
 
@@ -432,16 +381,6 @@ def _json_equal(left: object, right: object) -> bool:
         raise SourceResultsAssemblerError(
             "results transition contains a non-JSON value"
         ) from exc
-
-
-def _short_selector(value: str, label: str) -> str:
-    _require(
-        isinstance(value, str)
-        and SAFE_SELECTOR_RE.fullmatch(value) is not None
-        and value not in {".", ".."},
-        f"{label} is not one safe short selector",
-    )
-    return value
 
 
 def _run_id(value: str, label: str) -> str:
@@ -1361,19 +1300,14 @@ def _android_proof_path(run_id: str) -> pathlib.Path:
 def _android_projection(
     run_id: str,
     source: SourceIdentity,
-    *,
-    physical: bool,
 ) -> AndroidProjection:
-    run_id = _run_id(
-        run_id,
-        "physical Android run" if physical else "canonical Android run",
-    )
+    run_id = _run_id(run_id, "canonical Android run")
     proof_path = _android_proof_path(run_id)
     try:
         snapshot = load_json_object_snapshot(
             proof_path,
             maximum=ANDROID_PROOF_MAX_BYTES,
-            label="physical Android proof" if physical else "canonical Android proof",
+            label="canonical Android proof",
         )
     except EvidenceIOError as exc:
         raise SourceResultsAssemblerError(str(exc)) from exc
@@ -1390,24 +1324,21 @@ def _android_projection(
             proof_path,
             proof,
             paths,
-            require_unique_run=not physical,
+            require_unique_run=True,
         )
         android_device_proof.verify_proof_contents(
             REPOSITORY_ROOT,
             proof,
             paths,
-            expected_device_kind="physical" if physical else "emulator",
+            expected_device_kind="emulator",
             expected_device_abi="arm64-v8a",
-            expected_page_size=None if physical else 16_384,
-            expected_device_sdk=None if physical else 35,
+            expected_page_size=16_384,
+            expected_device_sdk=35,
             require_release_mode=True,
             allow_dirty_proof=False,
         )
 
-    _domain_call(
-        "physical Android proof" if physical else "canonical Android proof",
-        verify,
-    )
+    _domain_call("canonical Android proof", verify)
     _require(
         proof.get("schema") == ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
         "Android proof schema is not current",
@@ -1421,16 +1352,11 @@ def _android_projection(
     device = _object(proof.get("device"), "Android proof device")
     android = _object(proof.get("android"), "Android proof toolchain")
     result = _object(proof.get("result"), "Android proof result")
-    status = (
-        "current_clean_tree_physical_pass"
-        if physical
-        else "current_clean_tree_emulator_pass"
-    )
     section: dict[str, object] = {
         "android_sdk": device.get("sdk"),
         "build_tools": android.get("build_tools"),
         "covered_tests": list(result.get("passed_tests", [])),
-        "current_source_status": status,
+        "current_source_status": "current_clean_tree_emulator_pass",
         "device_abi": device.get("abi"),
         "device_kind": device.get("kind"),
         "page_size": device.get("page_size"),
@@ -1452,102 +1378,6 @@ def _android_projection(
     return AndroidProjection(snapshot=snapshot, section=section)
 
 
-def _apple_projection(
-    run_selector: str,
-    source: SourceIdentity,
-) -> AppleProjection:
-    run_selector = _short_selector(run_selector, "Apple matrix run")
-    matrix_root = APPLE_RUNS_ROOT / run_selector
-    matrix_path = matrix_root / "apple-device-matrix-proof.json"
-    try:
-        matrix = load_json_object_snapshot(
-            matrix_path,
-            maximum=apple_device_proof.MAX_APPLE_PROOF_BYTES,
-            label="Apple device matrix proof",
-        )
-    except EvidenceIOError as exc:
-        raise SourceResultsAssemblerError(str(exc)) from exc
-    _domain_call(
-        "Apple device matrix proof",
-        lambda: apple_device_proof.verify_matrix_snapshot(
-            REPOSITORY_ROOT,
-            matrix,
-            matrix_root,
-            PROOF_MAX_AGE_SECONDS,
-            False,
-        ),
-    )
-    proof = matrix.value
-    _require(
-        proof.get("schema_version") == APPLE_MATRIX_PROOF_SCHEMA_VERSION
-        and proof.get("status") == "pass",
-        "Apple matrix proof is not a passing current schema",
-    )
-    _require(
-        proof.get("git_commit") == source.commit
-        and proof.get("proof_source_tree_sha256") == source.digest
-        and proof.get("source_tree_dirty") is False,
-        "Apple matrix source identity differs from HEAD",
-    )
-    devices = proof.get("devices")
-    _require(isinstance(devices, list), "Apple matrix devices are malformed")
-    ipad_entries = [
-        entry
-        for entry in devices
-        if isinstance(entry, dict) and entry.get("label") == "ipad"
-    ]
-    _require(len(ipad_entries) == 1, "Apple matrix must select exactly one ipad child")
-    ipad = ipad_entries[0]
-    child_relative = ipad.get("proof")
-    _require(
-        isinstance(child_relative, str)
-        and pathlib.PurePosixPath(child_relative).as_posix() == child_relative
-        and not pathlib.PurePosixPath(child_relative).is_absolute()
-        and ".." not in pathlib.PurePosixPath(child_relative).parts,
-        "Apple ipad child proof path is not canonical",
-    )
-    child_path = matrix_root.joinpath(*pathlib.PurePosixPath(child_relative).parts)
-    try:
-        child = load_json_object_snapshot(
-            child_path,
-            maximum=apple_device_proof.MAX_APPLE_PROOF_BYTES,
-            label="Apple ipad child proof",
-        )
-    except EvidenceIOError as exc:
-        raise SourceResultsAssemblerError(str(exc)) from exc
-    child_value = child.value
-    _require(
-        child.file.sha256 == ipad.get("proof_sha256"),
-        "Apple ipad child hash differs from the matrix",
-    )
-    _require(
-        child_value.get("schema_version") == APPLE_DEVICE_PROOF_SCHEMA_VERSION
-        and child_value.get("status") == "pass"
-        and child_value.get("git_commit") == source.commit
-        and child_value.get("proof_source_tree_sha256") == source.digest
-        and child_value.get("source_tree_dirty") is False,
-        "Apple ipad child proof identity differs",
-    )
-    section: dict[str, object] = {
-        "current_attempt": {"proof_emitted": True, "status": "pass"},
-        "current_proof_generated_at": child_value.get("generated_at"),
-        "current_proof_path": _relative(child_path),
-        "current_proof_schema": child_value.get("schema_version"),
-        "current_proof_sha256": child.file.sha256,
-        "current_proof_source_tree_dirty": False,
-        "current_source_status": "current_clean_tree_physical_pass",
-        "matrix_generated_at": proof.get("generated_at"),
-        "matrix_proof_path": _relative(matrix_path),
-        "matrix_proof_schema": proof.get("schema_version"),
-        "matrix_proof_sha256": matrix.file.sha256,
-        "matrix_source_status": "current_clean_tree_physical_pass",
-        "matrix_source_tree_dirty": False,
-        "matrix_status": "pass",
-        "proof_source_tree_sha256": source.digest,
-    }
-    return AppleProjection(matrix=matrix, child=child, section=section)
-
-
 def _index_path(source: SourceIdentity) -> pathlib.Path:
     return (
         REPOSITORY_ROOT
@@ -1564,7 +1394,6 @@ def _index_projection(
     source: SourceIdentity,
     consumer_run_id: str,
     android: AndroidProjection,
-    apple: AppleProjection,
     aar_section: dict[str, object],
 ) -> IndexProjection:
     consumer_run_id = _run_id(consumer_run_id, "release consumer run")
@@ -1606,17 +1435,15 @@ def _index_projection(
     )
     summaries = _object(index.get("proof_summaries"), "release proof summaries")
     _require(
-        set(summaries) == {"android_runtime", "apple_matrix"},
-        "release index must contain exactly Android runtime and Apple matrix summaries",
+        set(summaries) == {"android_runtime"},
+        "core release index must contain exactly the Android runtime summary",
     )
     android_summary = _object(
         summaries.get("android_runtime"), "Android runtime summary"
     )
-    apple_summary = _object(summaries.get("apple_matrix"), "Apple matrix summary")
     _require(
-        android_summary.get("sha256") == android.snapshot.file.sha256
-        and apple_summary.get("sha256") == apple.matrix.file.sha256,
-        "release index selected proof summaries differ from the source results",
+        android_summary.get("sha256") == android.snapshot.file.sha256,
+        "release index Android summary differs from the source results",
     )
     indexed_runtime_id, indexed_runtime_sha256 = (
         release_consumer_smoke.android_runtime_summary_identity(index)
@@ -1693,55 +1520,6 @@ def _index_projection(
     )
 
 
-def _performance_projection(
-    selector: str,
-    source: SourceIdentity,
-) -> tuple[dict[str, object], EvidencePin]:
-    selector = _short_selector(selector, "performance proof")
-    proof_path = REPOSITORY_ROOT / "target" / "performance" / selector
-    try:
-        snapshot = load_json_object_snapshot(
-            proof_path,
-            maximum=performance_gate.MAX_PERFORMANCE_PROOF_BYTES,
-            label="performance proof",
-        )
-    except EvidenceIOError as exc:
-        raise SourceResultsAssemblerError(str(exc)) from exc
-    args = argparse.Namespace(
-        root=REPOSITORY_ROOT,
-        proof=proof_path,
-        max_age_seconds=PROOF_MAX_AGE_SECONDS,
-        allow_dirty=False,
-        allow_uncontrolled=False,
-        results_manifest="",
-        expected_results_manifest_sha256="",
-    )
-    _domain_call("performance proof", lambda: performance_gate.verify(args))
-    proof = snapshot.value
-    _require(
-        proof.get("git_commit") == source.commit
-        and proof.get("proof_source_tree_sha256") == source.digest
-        and proof.get("source_tree_dirty") is False,
-        "performance proof source identity differs from HEAD",
-    )
-    section: dict[str, object] = {
-        "current_source_status": "current_controlled_pass",
-        "proof_generated_at": proof.get("generated_at"),
-        "proof_path": _relative(proof_path),
-        "proof_schema": proof.get("schema_version"),
-        "proof_sha256": snapshot.file.sha256,
-        "proof_source_tree_sha256": source.digest,
-        "source_commit": source.commit,
-        "source_tree_dirty": False,
-        "status": "pass",
-    }
-    return section, _pin(
-        snapshot.file,
-        maximum=performance_gate.MAX_PERFORMANCE_PROOF_BYTES,
-        label="performance proof",
-    )
-
-
 def _verify_source_domains(
     source: SourceIdentity,
     selectors: SourceEvidenceSelectors,
@@ -1757,11 +1535,7 @@ def _verify_source_domains(
     pins.extend(rust_pins)
     aar_section, aar_pins = _aar_projection(source)
     pins.extend(aar_pins)
-    android = _android_projection(
-        selectors.android_runtime_run,
-        source,
-        physical=False,
-    )
+    android = _android_projection(selectors.android_runtime_run, source)
     pins.append(
         _pin(
             android.snapshot.file,
@@ -1769,38 +1543,10 @@ def _verify_source_domains(
             label="canonical Android proof",
         )
     )
-    apple = _apple_projection(selectors.apple_matrix_run, source)
-    pins.extend(
-        (
-            _pin(
-                apple.matrix.file,
-                maximum=apple_device_proof.MAX_APPLE_PROOF_BYTES,
-                label="Apple matrix proof",
-            ),
-            _pin(
-                apple.child.file,
-                maximum=apple_device_proof.MAX_APPLE_PROOF_BYTES,
-                label="Apple ipad child proof",
-            ),
-        )
-    )
-    physical = _android_projection(
-        selectors.android_physical_run,
-        source,
-        physical=True,
-    )
-    pins.append(
-        _pin(
-            physical.snapshot.file,
-            maximum=ANDROID_PROOF_MAX_BYTES,
-            label="physical Android proof",
-        )
-    )
     index = _index_projection(
         source,
         selectors.consumer_run,
         android,
-        apple,
         aar_section,
     )
     pins.extend(
@@ -1817,22 +1563,28 @@ def _verify_source_domains(
             ),
         )
     )
-    performance_section, performance_pin = _performance_projection(
-        selectors.performance_proof,
-        source,
-    )
-    pins.append(performance_pin)
     return VerifiedSourceDomains(
         rust_section=rust_section,
         aar_section=aar_section,
         android=android,
-        apple=apple,
         index=index,
-        physical=physical,
-        performance_section=performance_section,
         pins=tuple(pins),
         rust_handoff=rust_handoff,
     )
+
+
+def _stale_optional_section(
+    previous: dict[str, Any],
+    section_name: str,
+    status_fields: tuple[str, ...],
+) -> dict[str, Any]:
+    """Preserve historical evidence while explicitly withdrawing currentness."""
+
+    section = copy.deepcopy(_object(previous.get(section_name), section_name))
+    for field in status_fields:
+        _require(field in section, f"historical {section_name} lacks {field}")
+        section[field] = "stale_requires_rerun"
+    return section
 
 
 def plan_authorized_mutations(
@@ -1841,9 +1593,8 @@ def plan_authorized_mutations(
 ) -> None:
     """Prove that assembly touched only source-bound result sections."""
 
-    allowed_added = {"android_physical_runtime"} - set(previous)
     _require(
-        set(current) == set(previous) | allowed_added,
+        set(current) == set(previous),
         "source results assembly added or removed an unauthorized top-level section",
     )
     for key in previous:
@@ -1867,7 +1618,6 @@ def plan_authorized_mutations(
     exact_sections = (
         ("android_aar", ANDROID_AAR_SECTION_FIELDS),
         ("android_device_runtime", ANDROID_RUNTIME_SECTION_FIELDS),
-        ("apple_device", APPLE_SECTION_FIELDS),
         ("local_release_index", LOCAL_INDEX_SECTION_FIELDS),
         ("rust_publish", RUST_PACKAGE_CURRENT_SECTION_FIELDS),
     )
@@ -1879,27 +1629,34 @@ def plan_authorized_mutations(
             f"missing={sorted(set(expected_fields) - set(section))}, "
             f"extra={sorted(set(section) - set(expected_fields))}",
         )
-    physical = _object(
-        current.get("android_physical_runtime"),
-        "android_physical_runtime",
+    _require(
+        _json_equal(
+            current.get("apple_device"),
+            _stale_optional_section(
+                previous,
+                "apple_device",
+                ("current_source_status", "matrix_source_status"),
+            ),
+        ),
+        "source results Apple evidence is not the deterministic stale projection",
     )
     _require(
-        set(physical) == set(ANDROID_RUNTIME_SECTION_FIELDS),
-        "physical Android projection fields differ",
+        _json_equal(
+            current.get("performance"),
+            _stale_optional_section(
+                previous,
+                "performance",
+                ("current_source_status",),
+            ),
+        ),
+        "source results performance evidence is not the deterministic stale projection",
     )
     _require(
-        physical.get("current_source_status")
-        == "current_clean_tree_physical_pass",
-        "stable source results require current physical Android evidence",
-    )
-    performance = _object(current.get("performance"), "performance")
-    _require(
-        set(performance) == set(PERFORMANCE_SECTION_FIELDS),
-        "performance projection fields differ",
-    )
-    _require(
-        performance.get("current_source_status") == "current_controlled_pass",
-        "stable source results require current performance evidence",
+        _json_equal(
+            current.get("android_physical_runtime"),
+            previous.get("android_physical_runtime"),
+        ),
+        "source results changed optional physical Android evidence",
     )
     proof_inputs = _object(
         current.get("proof_to_byte_inputs"),
@@ -1932,10 +1689,7 @@ def assemble_source_results_document(
     rust_section: dict[str, object],
     aar_section: dict[str, object],
     android_section: dict[str, object],
-    apple_section: dict[str, object],
     index_section: dict[str, object],
-    physical_section: dict[str, object],
-    performance_section: dict[str, object],
 ) -> dict[str, Any]:
     """Purely apply verified projections to one immutable baseline document."""
 
@@ -1948,11 +1702,18 @@ def assemble_source_results_document(
     current["rust_publish"] = copy.deepcopy(rust_section)
     current["android_aar"] = copy.deepcopy(aar_section)
     current["android_device_runtime"] = copy.deepcopy(android_section)
-    current["apple_device"] = copy.deepcopy(apple_section)
+    current["apple_device"] = _stale_optional_section(
+        previous,
+        "apple_device",
+        ("current_source_status", "matrix_source_status"),
+    )
     current["local_release_index"] = copy.deepcopy(index_section)
     current["swift_xcframework"] = neutral_swift_selector(previous)
-    current["android_physical_runtime"] = copy.deepcopy(physical_section)
-    current["performance"] = copy.deepcopy(performance_section)
+    current["performance"] = _stale_optional_section(
+        previous,
+        "performance",
+        ("current_source_status",),
+    )
     plan_authorized_mutations(previous, current)
     _validate_initial_publication_state(current)
     try:
@@ -1970,7 +1731,6 @@ def _validate_assembled_results(
     current: dict[str, Any],
     *,
     android: AndroidProjection,
-    physical: AndroidProjection,
 ) -> None:
     plan_authorized_mutations(previous, current)
     android_elf.verify_results_aar_projection(
@@ -1987,14 +1747,6 @@ def _validate_assembled_results(
             current,
             android.snapshot.value,
             results_binding="android_runtime",
-        ),
-    )
-    _domain_call(
-        "physical Android results projection",
-        lambda: android_device_proof.verify_results_manifest_projection(
-            current,
-            physical.snapshot.value,
-            results_binding="android_physical_runtime",
         ),
     )
 
@@ -2015,7 +1767,6 @@ def _validate_verified_domain_projections(
             current.get("android_device_runtime"),
             verified.android.section,
         ),
-        ("Apple matrix", current.get("apple_device"), verified.apple.section),
         (
             "local release index",
             current.get("local_release_index"),
@@ -2027,25 +1778,10 @@ def _validate_verified_domain_projections(
             _json_equal(selected, rechecked),
             f"{label} projection changed during full domain revalidation",
         )
-    _require(
-        _json_equal(
-            current.get("android_physical_runtime"),
-            verified.physical.section,
-        ),
-        "physical Android projection changed during full domain revalidation",
-    )
-    _require(
-        _json_equal(
-            current.get("performance"),
-            verified.performance_section,
-        ),
-        "performance projection changed during full domain revalidation",
-    )
     _validate_assembled_results(
         previous,
         current,
         android=verified.android,
-        physical=verified.physical,
     )
 
 
@@ -2075,10 +1811,7 @@ def _assemble_source_results(
     rust_handoff_manifest: str,
     rust_handoff_sha256: str,
     android_runtime_run: str,
-    apple_matrix_run: str,
     consumer_run: str,
-    android_physical_run: str,
-    performance_proof: str,
 ) -> tuple[dict[str, Any], SourceIdentity, VerifiedSourceDomains]:
     """Build and validate one complete initial source-bound successor value."""
 
@@ -2088,10 +1821,7 @@ def _assemble_source_results(
         rust_handoff_manifest=rust_handoff_manifest,
         rust_handoff_sha256=rust_handoff_sha256,
         android_runtime_run=android_runtime_run,
-        apple_matrix_run=apple_matrix_run,
         consumer_run=consumer_run,
-        android_physical_run=android_physical_run,
-        performance_proof=performance_proof,
     )
     domains = _verify_source_domains(source, selectors)
     footprint, footprint_sha256 = load_footprint_manifest_section(FOOTPRINT_PATH)
@@ -2104,10 +1834,7 @@ def _assemble_source_results(
         rust_section=domains.rust_section,
         aar_section=domains.aar_section,
         android_section=domains.android.section,
-        apple_section=domains.apple.section,
         index_section=domains.index.section,
-        physical_section=domains.physical.section,
-        performance_section=domains.performance_section,
     )
     _validate_verified_domain_projections(
         previous,
@@ -2137,10 +1864,7 @@ def assemble_source_results(
     rust_handoff_manifest: str,
     rust_handoff_sha256: str,
     android_runtime_run: str,
-    apple_matrix_run: str,
     consumer_run: str,
-    android_physical_run: str,
-    performance_proof: str,
 ) -> tuple[dict[str, Any], SourceIdentity, list[EvidencePin]]:
     """Build one successor between two bounded full proof-input snapshots."""
 
@@ -2151,10 +1875,7 @@ def assemble_source_results(
         rust_handoff_manifest=rust_handoff_manifest,
         rust_handoff_sha256=rust_handoff_sha256,
         android_runtime_run=android_runtime_run,
-        apple_matrix_run=apple_matrix_run,
         consumer_run=consumer_run,
-        android_physical_run=android_physical_run,
-        performance_proof=performance_proof,
     )
     _require(
         capture_proof_input_digests(REPOSITORY_ROOT) == proof_inputs,
@@ -2169,10 +1890,7 @@ def finalize_source_results(
     rust_handoff_manifest: str,
     rust_handoff_sha256: str,
     android_runtime_run: str,
-    apple_matrix_run: str,
     consumer_run: str,
-    android_physical_run: str,
-    performance_proof: str,
 ) -> tuple[pathlib.Path, str, SourceIdentity]:
     """Publish one complete source successor candidate without replacement."""
 
@@ -2186,10 +1904,7 @@ def finalize_source_results(
             rust_handoff_manifest=rust_handoff_manifest,
             rust_handoff_sha256=rust_handoff_sha256,
             android_runtime_run=android_runtime_run,
-            apple_matrix_run=apple_matrix_run,
             consumer_run=consumer_run,
-            android_physical_run=android_physical_run,
-            performance_proof=performance_proof,
         )
         _require(
             capture_proof_input_digests(REPOSITORY_ROOT) == proof_inputs,
@@ -2261,18 +1976,6 @@ def _installed_selectors(current: dict[str, Any]) -> SourceEvidenceSelectors:
         "installed Android runtime proof path differs from its run identity",
     )
 
-    apple = _object(current.get("apple_device"), "installed Apple matrix")
-    matrix_path = apple.get("matrix_proof_path")
-    _require(isinstance(matrix_path, str), "installed Apple matrix path is malformed")
-    matrix_parts = pathlib.PurePosixPath(matrix_path).parts
-    _require(
-        len(matrix_parts) == 4
-        and matrix_parts[:2] == ("artifact", "device-runs")
-        and matrix_parts[3] == "apple-device-matrix-proof.json",
-        "installed Apple matrix path differs from the fixed evidence root",
-    )
-    apple_run = _short_selector(matrix_parts[2], "installed Apple matrix run")
-
     index = _object(current.get("local_release_index"), "installed local index")
     consumer_run = _run_id(
         index.get("consumer_receipt_run_id"),
@@ -2288,54 +1991,11 @@ def _installed_selectors(current: dict[str, Any]) -> SourceEvidenceSelectors:
         "installed consumer receipt path differs from its run identity",
     )
 
-    physical_section = _object(
-        current.get("android_physical_runtime"),
-        "installed physical Android runtime",
-    )
-    physical_status = physical_section.get("current_source_status")
-    _require(
-        physical_status == "current_clean_tree_physical_pass",
-        "installed stable source results require current physical Android evidence",
-    )
-    physical_run = _run_id(
-        physical_section.get("run_id"),
-        "installed physical Android run",
-    )
-    _require(
-        physical_section.get("proof_path")
-        == _relative(_android_proof_path(physical_run)),
-        "installed physical Android proof path differs from its run identity",
-    )
-
-    performance = _object(current.get("performance"), "installed performance")
-    performance_status = performance.get("current_source_status")
-    _require(
-        performance_status == "current_controlled_pass",
-        "installed stable source results require current performance evidence",
-    )
-    performance_path = performance.get("proof_path")
-    _require(
-        isinstance(performance_path, str),
-        "installed performance proof path is malformed",
-    )
-    performance_parts = pathlib.PurePosixPath(performance_path).parts
-    _require(
-        len(performance_parts) == 3
-        and performance_parts[:2] == ("target", "performance"),
-        "installed performance proof path differs from the fixed evidence root",
-    )
-    performance_selector = _short_selector(
-        performance_parts[2],
-        "installed performance proof",
-    )
     return SourceEvidenceSelectors(
         rust_handoff_manifest=rust_handoff_manifest,
         rust_handoff_sha256=rust_handoff_sha256,
         android_runtime_run=android_run,
-        apple_matrix_run=apple_run,
         consumer_run=consumer_run,
-        android_physical_run=physical_run,
-        performance_proof=performance_selector,
     )
 
 
@@ -2445,10 +2105,7 @@ def _parser() -> argparse.ArgumentParser:
     finalize.add_argument("--rust-handoff-manifest", required=True)
     finalize.add_argument("--rust-handoff-sha256", required=True)
     finalize.add_argument("--android-runtime-run", required=True)
-    finalize.add_argument("--apple-matrix-run", required=True)
     finalize.add_argument("--consumer-run", required=True)
-    finalize.add_argument("--android-physical-run", required=True)
-    finalize.add_argument("--performance-proof", required=True)
     verify = commands.add_parser("verify-installed")
     verify.add_argument("expected_results_sha256")
     ci_gate = commands.add_parser("ci-source-gate")
@@ -2485,10 +2142,7 @@ def run(args: argparse.Namespace) -> None:
         rust_handoff_manifest=args.rust_handoff_manifest,
         rust_handoff_sha256=args.rust_handoff_sha256,
         android_runtime_run=args.android_runtime_run,
-        apple_matrix_run=args.apple_matrix_run,
         consumer_run=args.consumer_run,
-        android_physical_run=args.android_physical_run,
-        performance_proof=args.performance_proof,
     )
     print(
         "SOURCE_RESULTS_SUCCESSOR_PASS "
@@ -2572,7 +2226,6 @@ def main() -> int:
         EvidenceIOError,
         FinalizerError,
         android_elf.AndroidVerificationError,
-        performance_gate.GateError,
         rust_publish_contract.RustPublishContractError,
         OSError,
     ) as exc:

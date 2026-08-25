@@ -140,6 +140,14 @@ Evidence captured on a feature SHA, a pull-request synthetic merge commit, or a
 predecessor that is later merged or rebased is stale and must be recollected; it
 cannot be selected into `R`.
 
+The stable package-publication transition from `S` to `R` selects the Rust package
+handoff, Android AAR, canonical arm64-v8a/API-35/16-KiB release AVD proof, and the
+cross-linked local release index/consumer receipt. Apple physical-matrix, Android
+physical-device, and controlled-performance evidence remain separate
+product-readiness selectors. The core transition preserves their historical bytes
+only as explicit `stale_requires_rerun` or absent state; it neither treats omission
+as success nor converts a failed optional verifier into a passing result.
+
 ## Reliability and security hardening
 
 The 0.1.3 source line makes a deliberate fail-closed Rust/WASM behavior change:

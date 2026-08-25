@@ -286,9 +286,10 @@ XCFramework ZIP whose payload has no notarizable executable or bundle; only
 `artifact/results.json` plus its public release evidence may call that
 asset current. It is neither a complete remote Swift package nor a final app. A
 proof-to-byte pass does not by itself authorize production promotion or platform-binary
-distribution: every claimed platform package/index, dependency audit, clean signed or
-transparency-backed provenance, and fresh same-source device/performance proof must
-still pass. ABI1 needs explicit authorized
+distribution: every published platform package/index, dependency audit, and clean signed or
+transparency-backed provenance must still pass. Device and performance proofs are
+required only for the product-readiness or quantitative claims that select them; their
+absence never becomes an implicit pass. ABI1 needs explicit authorized
 re-enrollment/reset; a version alone cannot be converted into an exact-policy digest.
 The noncanonical Continuity research snapshot shape is unrelated and never a release substitute.
 The target-selection/source migration changed the canonical source-input digest.
@@ -296,8 +297,8 @@ Consequently, portable-derived Apple/Android device results, the controlled-host
 matched-backend proof, package artifacts, and binary-CT captures are all historical
 even if they passed on their recorded source. Existing publication receipts remain
 immutable evidence for the exact artifacts they name, not the target-selected rebuild.
-Each release-scoped package/device/performance/CT lane must be rebuilt or re-collected
-for its selected target against the new digest. Time-varying currentness is
+Each selected package, device, performance, or CT lane must be rebuilt or re-collected
+for its target against the new digest. Time-varying currentness is
 authoritative only through `artifact/results.json` plus the required live domain
 verifiers; source prose cannot promote an old proof after a source change. Even fresh
 local product-execution and single-host results will not substitute for independent
@@ -330,7 +331,7 @@ Malformed, mixed, or changing states fail; an initial-readiness failure never fa
 back to the installed path.
 
 The source authority `S` must exist on the final, non-rewritten `main` history
-*before* any release-scoped handoff, device, or performance evidence is collected.
+*before* any release-scoped handoff or package evidence is collected.
 Merge every source change first, fetch `origin/main`, require a clean checkout with
 `HEAD == refs/remotes/origin/main`, and record that 40-hex commit as `S`. Evidence
 from a feature-branch SHA, a pull-request synthetic merge commit, or any predecessor
@@ -345,11 +346,10 @@ test "$S" = "$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')"
 test -z "$(git status --porcelain=v1 --untracked-files=all)"
 ```
 
-Use this exact source-results transition after all selected domain producers have
-completed against that one clean `S`. The run IDs and performance proof filename
-below are operator-selected evidence identifiers, not examples that may be copied
-unchanged. `PERFORMANCE_PROOF` is a safe basename beneath `target/performance/`, not a
-path. First run the Rust package contract once on that same clean source checkout and
+Use this exact source-results transition after the stable package producers have
+completed against that one clean `S`. The Android runtime and consumer run IDs below
+are operator-selected evidence identifiers, not examples that may be copied unchanged.
+First run the Rust package contract once on that same clean source checkout and
 record the one controlled `RUST_PACKAGE_HANDOFF_PASS` path and digest from stderr; its
 manifest-last transaction is the only Rust transcript/archive source accepted by the
 assembler or later crates.io coordinator. A nonzero exit or anything other than one
@@ -371,21 +371,23 @@ test "$(shasum -a 256 "$RUST_HANDOFF_MANIFEST" | awk '{print $1}')" = \
   "$RUST_HANDOFF_SHA256"
 
 : "${ANDROID_RUNTIME_RUN:?set the selected Android runtime run ID}"
-: "${APPLE_MATRIX_RUN:?set the selected Apple matrix run ID}"
 : "${CONSUMER_RUN:?set the selected consumer run ID}"
-: "${ANDROID_PHYSICAL_RUN:?set the selected physical Android run ID}"
-: "${PERFORMANCE_PROOF:?set the selected performance proof filename}"
 baseline_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
 sh artifact/python-run.sh artifact/source_results_assembler.py finalize \
   "$baseline_sha256" \
   --rust-handoff-manifest "$RUST_HANDOFF_MANIFEST" \
   --rust-handoff-sha256 "$RUST_HANDOFF_SHA256" \
   --android-runtime-run "$ANDROID_RUNTIME_RUN" \
-  --apple-matrix-run "$APPLE_MATRIX_RUN" \
-  --consumer-run "$CONSUMER_RUN" \
-  --android-physical-run "$ANDROID_PHYSICAL_RUN" \
-  --performance-proof "$PERFORMANCE_PROOF"
+  --consumer-run "$CONSUMER_RUN"
 ```
+
+This core stable-publication transition deterministically marks the historical Apple
+device/matrix and performance selectors `stale_requires_rerun`; an absent physical
+Android selector remains absent. The corresponding raw verifiers and explicit
+`proof-to-byte.sh` requirement flags remain the authority for later product-readiness
+or performance claims. A failed optional verifier is never converted into stale
+success; only omission from this core transition selects the explicit stale/absent
+state.
 
 The command emits one controlled `SOURCE_RESULTS_SUCCESSOR_PASS` marker containing a
 repository-relative candidate path and SHA-256. Set the following two values from that
@@ -605,8 +607,20 @@ The Swift XCFramework gate also requires a clean tree by default; set
 require a fresh iPad+iPhone matrix proof. The Android release transaction is ordered and must remain
 on one unchanged clean source snapshot: produce the exact AAR; execute it on the script-owned
 arm64-v8a/API-35/16-KiB release-mode AVD; create the first release index with
-`QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1` and the exact
-`QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id>`; run `sh artifact/local-release-consumer-smoke.sh`
+the explicit `release` channel, dirty mode disabled, Apple matrix inclusion disabled,
+`QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1`, and the exact
+`QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id>`:
+
+```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=release \
+QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0 \
+QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0 \
+QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
+QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
+sh artifact/local-release-index.sh
+```
+
+Then run `sh artifact/local-release-consumer-smoke.sh`
 to execute the extracted dynamic and static C consumers and append one receipt; then make one
 evidence-only `artifact/results.json` successor selecting the exact AAR, AVD proof, index, and
 receipt. Only after that successor exists, set
@@ -643,10 +657,11 @@ after both extracted C consumer modes pass. The receipt binds the index, C archi
 AAR, and the index's canonical runtime identity. The results-only successor must bind the exact
 receipt path/hash and exact index path/hash before any final verifier accepts
 `current_clean_tree_local_index_consumer_pass`.
-For production promotion, capture a separate clean physical run over the same AAR and source before
-the one evidence successor, select it under `android_physical_runtime` in that successor, and invoke
-the final bound gate
-with all four Android requirements in one pinned-manifest transaction:
+For a later production promotion, capture a separate clean physical run over the same AAR and
+source. The stable package-publication assembler does not select that proof. A separately reviewed
+product-readiness evidence transition must first bind it under `android_physical_runtime`; only after
+the installed results manifest selects that exact proof may the final bound gate require all four
+Android domains in one pinned-manifest transaction:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_AAR=1 \
@@ -661,8 +676,9 @@ sh artifact/proof-to-byte.sh
 The physical verifier fixes freshness to 86,400 seconds and derives ABI, page size, SDK, build
 tools, and release-candidate mode from the results-selected proof; callers cannot weaken those
 facts. A current API-36/4-KiB non-release physical proof is valid supplemental execution evidence.
-The aggregate remains pending unless a fresh physical run is captured and selected by the same
-evidence successor; the bound marker, not this document, is the currentness authority.
+The production aggregate remains pending until a fresh physical run is captured and selected by
+that separate transition; the bound marker, not this document, is the currentness authority. Stable
+package publication must leave the physical requirement disabled and must not claim the aggregate.
 The emitter and consumer derive the repository root from their installed script location and select
 only the fixed channel pointer; arbitrary root, index, and output-path CLI overrides are not supported.
 Each `<channel>/<version>/<commit>` tree is immutable once created. A serialized emitter first builds

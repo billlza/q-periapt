@@ -2033,6 +2033,28 @@ def _validate_results_selected_handoff(
 ) -> None:
     """Bind the irreversible registry lane to R's selected clean-S handoff."""
 
+    _require(
+        isinstance(handoff_manifest_relative, str),
+        "registry handoff path is outside the fixed repository namespace",
+    )
+    handoff_relative = pathlib.PurePosixPath(handoff_manifest_relative)
+    _require(
+        handoff_relative.as_posix() == handoff_manifest_relative
+        and len(handoff_relative.parts) == 4
+        and handoff_relative.parts[:2]
+        == ("target", "qperiapt-rust-package-handoffs")
+        and _HANDOFF_TRANSACTION_RE.fullmatch(handoff_relative.parts[2])
+        is not None
+        and handoff_relative.parts[3] == RUST_PACKAGE_HANDOFF_MANIFEST_NAME
+        and ".." not in handoff_relative.parts
+        and "\\" not in handoff_manifest_relative,
+        "registry handoff path is outside the fixed repository namespace",
+    )
+    _require(
+        isinstance(handoff_manifest_sha256, str)
+        and _SHA256_RE.fullmatch(handoff_manifest_sha256) is not None,
+        "registry handoff digest is malformed",
+    )
     try:
         validate_stable_source_currentness(manifest)
     except ReleasePublicationContractError as exc:
@@ -2062,28 +2084,6 @@ def _validate_results_selected_handoff(
         == source.canonical_source_tree_sha256
         and rust_publish.get("source_tree_dirty") is False,
         "results commit R Rust package evidence is not current clean S",
-    )
-    _require(
-        isinstance(handoff_manifest_relative, str),
-        "registry handoff path is outside the fixed repository namespace",
-    )
-    handoff_relative = pathlib.PurePosixPath(handoff_manifest_relative)
-    _require(
-        handoff_relative.as_posix() == handoff_manifest_relative
-        and len(handoff_relative.parts) == 4
-        and handoff_relative.parts[:2]
-        == ("target", "qperiapt-rust-package-handoffs")
-        and _HANDOFF_TRANSACTION_RE.fullmatch(handoff_relative.parts[2])
-        is not None
-        and handoff_relative.parts[3] == RUST_PACKAGE_HANDOFF_MANIFEST_NAME
-        and ".." not in handoff_relative.parts
-        and "\\" not in handoff_manifest_relative,
-        "registry handoff path is outside the fixed repository namespace",
-    )
-    _require(
-        isinstance(handoff_manifest_sha256, str)
-        and _SHA256_RE.fullmatch(handoff_manifest_sha256) is not None,
-        "registry handoff digest is malformed",
     )
     _require(
         rust_publish.get("handoff_manifest_path") == handoff_manifest_relative

@@ -41,8 +41,11 @@ def _source_manifest() -> dict[str, object]:
     source = stable_pending_receipt()["source"]
     return {
         "android_aar": copy.deepcopy(source_manifest["android_aar"]),
-        "android_physical_runtime": copy.deepcopy(
-            source_manifest["android_physical_runtime"]
+        "android_device_runtime": copy.deepcopy(
+            source_manifest["android_device_runtime"]
+        ),
+        "local_release_index": copy.deepcopy(
+            source_manifest["local_release_index"]
         ),
         "performance": copy.deepcopy(source_manifest["performance"]),
         "proof_source_tree_sha256": source[

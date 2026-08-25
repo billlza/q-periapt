@@ -214,6 +214,25 @@ class ClaimLedgerTests(unittest.TestCase):
             migration_source,
         )
 
+    def test_prepublication_security_claim_does_not_invent_live_tag_facts(self) -> None:
+        ledger = load_json_object_snapshot(
+            REPOSITORY_ROOT / "artifact" / "claim-ledger.json",
+            maximum=claim_ledger.MAX_CLAIM_LEDGER_BYTES,
+            label="repository claim ledger",
+        ).value
+        claims = {claim["id"]: claim for claim in ledger["claims"]}
+        security = claims["SOURCE-SECURITY-CODE-SCANNING-ADJUDICATION"]
+        boundary = security["boundary"]
+        self.assertIn("eventual exact-R receipt", boundary)
+        self.assertIn("actual result count", boundary)
+        self.assertIn("zero unadjudicated findings", boundary)
+        self.assertNotIn("At the tagged commit", boundary)
+        self.assertNotIn("199 results", boundary)
+
+        android = claims["ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS"]["boundary"]
+        self.assertIn("not a prerequisite for stable package publication", android)
+        self.assertIn("production aggregate stays pending", android)
+
 
 if __name__ == "__main__":
     unittest.main()

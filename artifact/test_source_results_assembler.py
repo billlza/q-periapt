@@ -28,7 +28,6 @@ RESULTS_COMMIT = "b" * 40
 SOURCE_DIGEST = "c" * 64
 RESULTS_DIGEST = "d" * 64
 ANDROID_RUN = "1" * 32
-PHYSICAL_RUN = "2" * 32
 CONSUMER_RUN = "3" * 32
 RUST_HANDOFF_PATH = (
     "target/qperiapt-rust-package-handoffs/"
@@ -86,9 +85,10 @@ def _plan_current(previous: dict[str, Any]) -> dict[str, Any]:
         assembler.ANDROID_RUNTIME_SECTION_FIELDS,
         "android",
     )
-    current["apple_device"] = _exact_section(
-        assembler.APPLE_SECTION_FIELDS,
-        "apple",
+    current["apple_device"] = assembler._stale_optional_section(
+        previous,
+        "apple_device",
+        ("current_source_status", "matrix_source_status"),
     )
     current["local_release_index"] = _exact_section(
         assembler.LOCAL_INDEX_SECTION_FIELDS,
@@ -98,18 +98,11 @@ def _plan_current(previous: dict[str, Any]) -> dict[str, Any]:
         assembler.RUST_PACKAGE_CURRENT_SECTION_FIELDS,
         "rust",
     )
-    current["android_physical_runtime"] = _exact_section(
-        assembler.ANDROID_RUNTIME_SECTION_FIELDS,
-        "physical",
-    )
-    current["android_physical_runtime"]["current_source_status"] = (
-        "current_clean_tree_physical_pass"
-    )
-    current["performance"] = _exact_section(
-        assembler.PERFORMANCE_SECTION_FIELDS,
+    current["performance"] = assembler._stale_optional_section(
+        previous,
         "performance",
+        ("current_source_status",),
     )
-    current["performance"]["current_source_status"] = "current_controlled_pass"
     current["swift_xcframework"] = assembler.neutral_swift_selector(previous)
     return current
 
@@ -121,29 +114,21 @@ def _domain_projection_fixture() -> tuple[
         "rust_publish": {"domain": "rust"},
         "android_aar": {"domain": "aar"},
         "android_device_runtime": {"domain": "android"},
-        "apple_device": {"domain": "apple"},
         "local_release_index": {"domain": "index"},
     }
-    physical = mock.Mock(section={"domain": "physical"})
-    performance = {"domain": "performance"}
-    current["android_physical_runtime"] = copy.deepcopy(physical.section)
-    current["performance"] = copy.deepcopy(performance)
     verified = assembler.VerifiedSourceDomains(
         rust_section=copy.deepcopy(current["rust_publish"]),
         rust_handoff=mock.Mock(),
         aar_section=copy.deepcopy(current["android_aar"]),
         android=mock.Mock(section=copy.deepcopy(current["android_device_runtime"])),
-        apple=mock.Mock(section=copy.deepcopy(current["apple_device"])),
         index=mock.Mock(section=copy.deepcopy(current["local_release_index"])),
-        physical=physical,
-        performance_section=performance,
         pins=(),
     )
     return current, verified
 
 
 class SourceResultsAssemblerTests(unittest.TestCase):
-    def test_finalize_cli_requires_every_external_evidence_selector(self) -> None:
+    def test_finalize_cli_requires_the_core_publication_selectors(self) -> None:
         command = [
             "finalize",
             "a" * 64,
@@ -153,28 +138,19 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             RUST_HANDOFF_SHA256,
             "--android-runtime-run",
             ANDROID_RUN,
-            "--apple-matrix-run",
-            "matrix-1",
             "--consumer-run",
             CONSUMER_RUN,
-            "--android-physical-run",
-            PHYSICAL_RUN,
-            "--performance-proof",
-            "paired-proof.json",
         ]
         arguments = assembler._parser().parse_args(command)
         self.assertEqual(RUST_HANDOFF_PATH, arguments.rust_handoff_manifest)
         self.assertEqual(RUST_HANDOFF_SHA256, arguments.rust_handoff_sha256)
-        self.assertEqual(PHYSICAL_RUN, arguments.android_physical_run)
-        self.assertEqual("paired-proof.json", arguments.performance_proof)
+        self.assertEqual(ANDROID_RUN, arguments.android_runtime_run)
+        self.assertEqual(CONSUMER_RUN, arguments.consumer_run)
         required_flags = (
             "--rust-handoff-manifest",
             "--rust-handoff-sha256",
             "--android-runtime-run",
-            "--apple-matrix-run",
             "--consumer-run",
-            "--android-physical-run",
-            "--performance-proof",
         )
         for omitted in required_flags:
             incomplete = list(command)
@@ -187,11 +163,15 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ):
                 assembler._parser().parse_args(incomplete)
 
-    def test_internal_apis_require_physical_and_performance_selectors(self) -> None:
+    def test_internal_apis_exclude_product_readiness_selectors(self) -> None:
         selector_fields = assembler.SourceEvidenceSelectors.__dataclass_fields__
-        for name in ("android_physical_run", "performance_proof"):
+        for name in (
+            "apple_matrix_run",
+            "android_physical_run",
+            "performance_proof",
+        ):
             with self.subTest(dataclass_field=name):
-                self.assertIs(dataclasses.MISSING, selector_fields[name].default)
+                self.assertNotIn(name, selector_fields)
 
         for function in (
             assembler._assemble_source_results,
@@ -199,33 +179,66 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             assembler.finalize_source_results,
         ):
             parameters = inspect.signature(function).parameters
-            for name in ("android_physical_run", "performance_proof"):
-                with self.subTest(function=function.__name__, parameter=name):
-                    self.assertIs(inspect.Parameter.empty, parameters[name].default)
-
-    def test_short_selectors_accept_only_canonical_bounded_leaves(self) -> None:
-        for value in ("run-1", "A_1.2", "z" * 128):
-            with self.subTest(valid=value):
-                self.assertEqual(value, assembler._short_selector(value, "selector"))
-
-        invalid: tuple[object, ...] = (
-            "",
-            ".",
-            "..",
-            "-leading",
-            "contains/slash",
-            "contains\\backslash",
-            "contains space",
-            "全角",
-            "z" * 129,
-            7,
-        )
-        for value in invalid:
-            with self.subTest(invalid=value), self.assertRaisesRegex(
-                assembler.SourceResultsAssemblerError,
-                "safe short selector",
+            for name in (
+                "apple_matrix_run",
+                "android_physical_run",
+                "performance_proof",
             ):
-                assembler._short_selector(cast(str, value), "selector")
+                with self.subTest(function=function.__name__, parameter=name):
+                    self.assertNotIn(name, parameters)
+
+    def test_runbooks_keep_product_readiness_outside_the_core_successor(self) -> None:
+        documents = {
+            "artifact": (ROOT / "ARTIFACT.md").read_text(encoding="utf-8"),
+            "stable notes": (
+                ROOT / "artifact" / "stable-release-notes.md"
+            ).read_text(encoding="utf-8"),
+            "embedding": (
+                ROOT / "docs" / "EMBEDDING_READINESS.md"
+            ).read_text(encoding="utf-8"),
+            "android": (
+                ROOT / "bindings" / "android" / "README.md"
+            ).read_text(encoding="utf-8"),
+        }
+        normalized = {
+            label: " ".join(value.split()) for label, value in documents.items()
+        }
+        combined = " ".join(normalized.values())
+        for obsolete in (
+            "--apple-matrix-run",
+            "--android-physical-run",
+            "--performance-proof",
+            "selected by the same evidence successor",
+            "select it under `android_physical_runtime` in that successor",
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, combined)
+        self.assertIn(
+            "The stable package-publication assembler does not select that proof",
+            normalized["artifact"],
+        )
+        self.assertIn(
+            "separate product-readiness selectors",
+            normalized["stable notes"],
+        )
+        self.assertIn(
+            "separately reviewed product-readiness evidence transition",
+            normalized["embedding"],
+        )
+        self.assertIn(
+            "Stable package publication leaves this selector absent",
+            normalized["android"],
+        )
+        stable_index_pins = (
+            "QPERIAPT_RELEASE_INDEX_CHANNEL=release",
+            "QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0",
+            "QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0",
+            "QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1",
+        )
+        for label in ("artifact", "embedding", "android"):
+            for pin in stable_index_pins:
+                with self.subTest(document=label, index_pin=pin):
+                    self.assertIn(pin, normalized[label])
 
     def test_run_ids_require_exact_lowercase_hex(self) -> None:
         valid = "0123456789abcdef" * 2
@@ -244,14 +257,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ):
                 assembler._run_id(cast(str, value), "run")
 
-    def test_physical_android_projection_requires_arm64_release_mode(self) -> None:
+    def test_android_projection_requires_canonical_release_emulator(self) -> None:
         proof = {
             "android": {"build_tools": "36.0.0"},
             "device": {
                 "abi": "arm64-v8a",
-                "kind": "physical",
-                "page_size": 4_096,
-                "sdk": 36,
+                "kind": "emulator",
+                "page_size": 16_384,
+                "sdk": 35,
             },
             "generated_at": "2026-08-15T00:00:00Z",
             "git_commit": SOURCE_COMMIT,
@@ -295,9 +308,8 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ) as verify_contents,
         ):
             projection = assembler._android_projection(
-                PHYSICAL_RUN,
+                ANDROID_RUN,
                 assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST),
-                physical=True,
             )
 
         self.assertEqual("arm64-v8a", projection.section["device_abi"])
@@ -306,13 +318,123 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             assembler.REPOSITORY_ROOT,
             proof,
             proof_paths,
-            expected_device_kind="physical",
+            expected_device_kind="emulator",
             expected_device_abi="arm64-v8a",
-            expected_page_size=None,
-            expected_device_sdk=None,
+            expected_page_size=16_384,
+            expected_device_sdk=35,
             require_release_mode=True,
             allow_dirty_proof=False,
         )
+
+    def test_core_index_accepts_only_the_android_runtime_summary(self) -> None:
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        android_sha256 = "6" * 64
+        aar_sha256 = "7" * 64
+        index_sha256 = "8" * 64
+        receipt_sha256 = "9" * 64
+        android = assembler.AndroidProjection(
+            snapshot=mock.Mock(file=mock.Mock(sha256=android_sha256)),
+            section={"run_id": ANDROID_RUN},
+        )
+        index_value = {
+            "channel": "release",
+            "diagnostic_only": False,
+            "generated_at": "2026-08-25T00:00:00Z",
+            "git": {"commit": SOURCE_COMMIT, "source_tree_dirty": False},
+            "proof_summaries": {
+                "android_runtime": {"sha256": android_sha256}
+            },
+            "schema_version": assembler.LOCAL_RELEASE_INDEX_SCHEMA_VERSION,
+        }
+        verified = mock.Mock(
+            path=assembler._index_path(source),
+            sha256=index_sha256,
+            value=index_value,
+        )
+        receipt = mock.Mock(
+            value={"generated_at": "2026-08-25T00:01:00Z", "status": "pass"},
+            file=mock.Mock(sha256=receipt_sha256),
+        )
+        archive = mock.Mock()
+        with (
+            mock.patch.object(
+                assembler.release_index,
+                "verify_release_index_snapshot",
+                return_value=verified,
+            ),
+            mock.patch.object(
+                assembler,
+                "read_regular_snapshot",
+                return_value=mock.Mock(sha256=index_sha256),
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "android_runtime_summary_identity",
+                return_value=(ANDROID_RUN, android_sha256),
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "indexed_android_aar_sha256",
+                return_value=aar_sha256,
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "load_private_consumer_receipt",
+                return_value=receipt,
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "c_archive_entries",
+                return_value=[archive],
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "validate_consumer_receipt",
+            ) as validate_receipt,
+        ):
+            projection = assembler._index_projection(
+                source,
+                CONSUMER_RUN,
+                android,
+                {"aar_sha256": aar_sha256},
+            )
+
+        self.assertEqual(index_sha256, projection.section["index_sha256"])
+        self.assertEqual(receipt_sha256, projection.section["consumer_receipt_sha256"])
+        validate_receipt.assert_called_once()
+
+        with (
+            mock.patch.object(
+                assembler.release_index,
+                "verify_release_index_snapshot",
+                return_value=mock.Mock(
+                    path=verified.path,
+                    sha256=index_sha256,
+                    value={
+                        **index_value,
+                        "proof_summaries": {
+                            **index_value["proof_summaries"],
+                            "apple_matrix": {"sha256": "a" * 64},
+                        },
+                    },
+                ),
+            ),
+            mock.patch.object(
+                assembler,
+                "read_regular_snapshot",
+                return_value=mock.Mock(sha256=index_sha256),
+            ),
+            self.assertRaisesRegex(
+                assembler.SourceResultsAssemblerError,
+                "exactly the Android runtime summary",
+            ),
+        ):
+            assembler._index_projection(
+                source,
+                CONSUMER_RUN,
+                android,
+                {"aar_sha256": aar_sha256},
+            )
 
     def test_initial_and_installed_proof_maps_are_exactly_distinct(self) -> None:
         initial = _initial_baseline()
@@ -776,12 +898,6 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     assembler._android_proof_path(ANDROID_RUN)
                 ),
             },
-            "apple_device": {
-                "matrix_proof_path": (
-                    "artifact/device-runs/matrix-1/"
-                    "apple-device-matrix-proof.json"
-                )
-            },
             "local_release_index": {
                 "consumer_receipt_run_id": CONSUMER_RUN,
                 "consumer_receipt_path": assembler._relative(
@@ -790,27 +906,13 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     / assembler.release_consumer_smoke.CONSUMER_RECEIPT_LEAF
                 ),
             },
-            "android_physical_runtime": {
-                "current_source_status": "current_clean_tree_physical_pass",
-                "run_id": PHYSICAL_RUN,
-                "proof_path": assembler._relative(
-                    assembler._android_proof_path(PHYSICAL_RUN)
-                ),
-            },
-            "performance": {
-                "current_source_status": "current_controlled_pass",
-                "proof_path": "target/performance/paired-proof.json",
-            },
         }
         self.assertEqual(
             assembler.SourceEvidenceSelectors(
                 rust_handoff_manifest=RUST_HANDOFF_PATH,
                 rust_handoff_sha256=RUST_HANDOFF_SHA256,
                 android_runtime_run=ANDROID_RUN,
-                apple_matrix_run="matrix-1",
                 consumer_run=CONSUMER_RUN,
-                android_physical_run=PHYSICAL_RUN,
-                performance_proof="paired-proof.json",
             ),
             assembler._installed_selectors(current),
         )
@@ -823,22 +925,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         ):
             assembler._installed_selectors(mismatched)
 
-        for section, message in (
-            (
-                "android_physical_runtime",
-                "require current physical Android evidence",
-            ),
-            ("performance", "require current performance evidence"),
-        ):
-            stale = copy.deepcopy(current)
-            stale[section]["current_source_status"] = "stale_requires_rerun"
-            with self.subTest(stale_section=section), self.assertRaisesRegex(
-                assembler.SourceResultsAssemblerError,
-                message,
-            ):
-                assembler._installed_selectors(stale)
-
-    def test_assemble_document_requires_current_physical_and_performance(self) -> None:
+    def test_assemble_document_marks_optional_evidence_stale(self) -> None:
         previous = _initial_baseline()
         original = copy.deepcopy(previous)
         source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
@@ -847,17 +934,6 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         rust = _exact_section(assembler.RUST_PACKAGE_CURRENT_SECTION_FIELDS, "rust")
         aar = _exact_section(assembler.ANDROID_AAR_SECTION_FIELDS, "aar")
         android = _exact_section(assembler.ANDROID_RUNTIME_SECTION_FIELDS, "android")
-        physical = _exact_section(
-            assembler.ANDROID_RUNTIME_SECTION_FIELDS,
-            "physical",
-        )
-        physical["current_source_status"] = "current_clean_tree_physical_pass"
-        performance = _exact_section(
-            assembler.PERFORMANCE_SECTION_FIELDS,
-            "performance",
-        )
-        performance["current_source_status"] = "current_controlled_pass"
-        apple = _exact_section(assembler.APPLE_SECTION_FIELDS, "apple")
         index = _exact_section(assembler.LOCAL_INDEX_SECTION_FIELDS, "index")
         with (
             mock.patch.object(assembler, "validate_declared_currentness"),
@@ -876,10 +952,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 rust_section=rust,
                 aar_section=aar,
                 android_section=android,
-                apple_section=apple,
                 index_section=index,
-                physical_section=physical,
-                performance_section=performance,
             )
 
         stable_currentness.assert_called_once_with(current)
@@ -887,21 +960,22 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         self.assertEqual(original, previous)
         self.assertEqual(SOURCE_COMMIT, current["provenance"]["snapshot_commit"])
         self.assertEqual(SOURCE_DIGEST, current["proof_source_tree_sha256"])
-        self.assertEqual(physical, current["android_physical_runtime"])
-        self.assertEqual(performance, current["performance"])
+        self.assertNotIn("android_physical_runtime", current)
+        self.assertEqual(
+            "stale_requires_rerun",
+            current["apple_device"]["current_source_status"],
+        )
+        self.assertEqual(
+            "stale_requires_rerun",
+            current["apple_device"]["matrix_source_status"],
+        )
+        self.assertEqual(
+            "stale_requires_rerun",
+            current["performance"]["current_source_status"],
+        )
 
         aar["aar_sha256"] = "mutated after assembly"
-        physical["proof_sha256"] = "mutated after assembly"
-        performance["proof_sha256"] = "mutated after assembly"
         self.assertNotEqual("mutated after assembly", current["android_aar"]["aar_sha256"])
-        self.assertNotEqual(
-            "mutated after assembly",
-            current["android_physical_runtime"]["proof_sha256"],
-        )
-        self.assertNotEqual(
-            "mutated after assembly",
-            current["performance"]["proof_sha256"],
-        )
 
     def test_mutation_plan_rejects_top_level_and_provenance_drift(self) -> None:
         previous = _initial_baseline()
@@ -940,25 +1014,47 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 ):
                     assembler.plan_authorized_mutations(previous, candidate)
 
-    def test_mutation_plan_rejects_stale_required_domains(self) -> None:
+    def test_mutation_plan_rejects_optional_evidence_promotion(self) -> None:
         previous = _initial_baseline()
         current = _plan_current(previous)
         assembler.plan_authorized_mutations(previous, current)
 
-        for section, message in (
+        cases = (
             (
-                "android_physical_runtime",
-                "require current physical Android evidence",
+                "apple device",
+                lambda value: value["apple_device"].__setitem__(
+                    "current_source_status", "current_clean_tree_physical_pass"
+                ),
+                "Apple evidence is not the deterministic stale projection",
             ),
-            ("performance", "require current performance evidence"),
-        ):
-            stale = copy.deepcopy(current)
-            stale[section]["current_source_status"] = "stale_requires_rerun"
-            with self.subTest(stale_section=section), self.assertRaisesRegex(
+            (
+                "apple matrix",
+                lambda value: value["apple_device"].__setitem__(
+                    "matrix_source_status", "current_clean_tree_physical_pass"
+                ),
+                "Apple evidence is not the deterministic stale projection",
+            ),
+            (
+                "performance",
+                lambda value: value["performance"].__setitem__(
+                    "current_source_status", "current_controlled_pass"
+                ),
+                "performance evidence is not the deterministic stale projection",
+            ),
+            (
+                "physical Android",
+                lambda value: value.__setitem__("android_physical_runtime", {}),
+                "added or removed an unauthorized top-level section",
+            ),
+        )
+        for label, mutate, message in cases:
+            promoted = copy.deepcopy(current)
+            mutate(promoted)
+            with self.subTest(optional_domain=label), self.assertRaisesRegex(
                 assembler.SourceResultsAssemblerError,
                 message,
             ):
-                assembler.plan_authorized_mutations(previous, stale)
+                assembler.plan_authorized_mutations(previous, promoted)
 
     def test_verified_domain_projections_match_all_sections(self) -> None:
         previous = {"fixture": "previous"}
@@ -973,7 +1069,6 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             previous,
             current,
             android=verified.android,
-            physical=verified.physical,
         )
 
     def test_verified_domain_projection_mismatches_fail_closed(self) -> None:
@@ -983,10 +1078,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ("rust_publish", "Rust package projection"),
             ("android_aar", "Android AAR projection"),
             ("android_device_runtime", "canonical Android projection"),
-            ("apple_device", "Apple matrix projection"),
             ("local_release_index", "local release index projection"),
-            ("android_physical_runtime", "physical Android projection"),
-            ("performance", "performance projection"),
         )
         for key, message in cases:
             with self.subTest(section=key):
@@ -1012,10 +1104,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             rust_handoff_manifest=RUST_HANDOFF_PATH,
             rust_handoff_sha256=RUST_HANDOFF_SHA256,
             android_runtime_run=ANDROID_RUN,
-            apple_matrix_run="matrix-1",
             consumer_run=CONSUMER_RUN,
-            android_physical_run=PHYSICAL_RUN,
-            performance_proof="paired-proof.json",
         )
         source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
         with (
@@ -1176,10 +1265,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 rust_handoff_manifest=RUST_HANDOFF_PATH,
                 rust_handoff_sha256=RUST_HANDOFF_SHA256,
                 android_runtime_run=ANDROID_RUN,
-                apple_matrix_run="matrix-1",
                 consumer_run=CONSUMER_RUN,
-                android_physical_run=PHYSICAL_RUN,
-                performance_proof="paired-proof.json",
             )
 
         self.assertEqual(candidate, raised.exception.path)
@@ -1312,10 +1398,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             rust_handoff_manifest=RUST_HANDOFF_PATH,
             rust_handoff_sha256=RUST_HANDOFF_SHA256,
             android_runtime_run=ANDROID_RUN,
-            apple_matrix_run="matrix-1",
             consumer_run=CONSUMER_RUN,
-            android_physical_run=PHYSICAL_RUN,
-            performance_proof="paired-proof.json",
         )
         expected_results_sha256 = "e" * 64
         previous_bytes = assembler.canonical_json_bytes(previous)

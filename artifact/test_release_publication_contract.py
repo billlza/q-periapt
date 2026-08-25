@@ -225,7 +225,7 @@ def rebind_stable_current_source(
     source_commit: str,
     source_digest: str,
 ) -> None:
-    """Install complete synthetic physical/performance source projections."""
+    """Install the synthetic package evidence required for stable publication."""
 
     import proof_manifest
 
@@ -243,43 +243,67 @@ def rebind_stable_current_source(
         "status": "pass",
         "targets": list(proof_manifest.ANDROID_ABIS),
     }
-    physical_run = "3" * 32
-    manifest["android_physical_runtime"] = {
-        "android_sdk": 36,
+    android_run = "3" * 32
+    android_proof_sha256 = "4" * 64
+    manifest["android_device_runtime"] = {
+        "android_sdk": proof_manifest.ANDROID_RELEASE_SDK,
         "build_tools": proof_manifest.ANDROID_RELEASE_BUILD_TOOLS,
         "covered_tests": list(proof_manifest.ANDROID_EXPECTED_TESTS),
-        "current_source_status": "current_clean_tree_physical_pass",
+        "current_source_status": "current_clean_tree_emulator_pass",
         "device_abi": proof_manifest.ANDROID_RELEASE_ABI,
-        "device_kind": "physical",
-        "page_size": 4_096,
+        "device_kind": "emulator",
+        "page_size": proof_manifest.ANDROID_RELEASE_PAGE_SIZE,
         "proof_generated_at": "2026-08-15T00:01:00Z",
         "proof_path": (
             "target/qperiapt-android-device-smoke-runs/"
-            f"{physical_run}/proof/qperiapt-android-device-proof.json"
+            f"{android_run}/proof/qperiapt-android-device-proof.json"
         ),
         "proof_schema": proof_manifest.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
-        "proof_sha256": "4" * 64,
+        "proof_sha256": android_proof_sha256,
         "proof_source_tree_sha256": source_digest,
         "release_candidate_mode": True,
-        "run_id": physical_run,
+        "run_id": android_run,
         "source_commit": source_commit,
         "source_tree_dirty": False,
         "status": "pass",
     }
-    manifest["performance"] = {
-        "current_source_status": "current_controlled_pass",
-        "proof_generated_at": "2026-08-15T00:02:00Z",
-        "proof_path": "target/performance/paired-proof.json",
-        "proof_schema": proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
-        "proof_sha256": "5" * 64,
+    consumer_run = "4" * 32
+    manifest["local_release_index"] = {
+        "android_runtime_proof_sha256": android_proof_sha256,
+        "android_runtime_run_id": android_run,
+        "channel": "release",
+        "consumer_receipt_generated_at": "2026-08-15T00:03:00Z",
+        "consumer_receipt_path": (
+            "target/qperiapt-release-consumer-smoke/receipts/"
+            f"{consumer_run}/qperiapt-release-consumer-receipt.json"
+        ),
+        "consumer_receipt_run_id": consumer_run,
+        "consumer_receipt_schema": (
+            proof_manifest.LOCAL_RELEASE_CONSUMER_RECEIPT_SCHEMA_VERSION
+        ),
+        "consumer_receipt_sha256": "5" * 64,
+        "consumer_status": "pass",
+        "current_source_status": "current_clean_tree_local_index_consumer_pass",
+        "generated_at": "2026-08-15T00:02:00Z",
+        "index_path": (
+            "target/qperiapt-local-release/release/0.1.3/"
+            f"{source_commit}/index.json"
+        ),
+        "index_schema": proof_manifest.LOCAL_RELEASE_INDEX_SCHEMA_VERSION,
+        "index_sha256": "6" * 64,
         "proof_source_tree_sha256": source_digest,
         "source_commit": source_commit,
         "source_tree_dirty": False,
         "status": "pass",
     }
+    manifest.pop("android_physical_runtime", None)
+    performance = manifest.get("performance")
+    if isinstance(performance, dict):
+        performance["current_source_status"] = "stale_requires_rerun"
     apple = manifest.get("apple_device")
     if isinstance(apple, dict):
-        apple["proof_source_tree_sha256"] = source_digest
+        apple["current_source_status"] = "stale_requires_rerun"
+        apple["matrix_source_status"] = "stale_requires_rerun"
 
 
 def source_manifest_fixture(
@@ -413,42 +437,37 @@ class ReleasePublicationContractTests(unittest.TestCase):
             },
         )
 
-    def test_pending_and_verified_reject_forged_stale_source_gates(self) -> None:
+    def test_pending_and_verified_reject_forged_core_source_gates(self) -> None:
         mutations = (
             (
-                "physical status",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                "Rust status",
+                lambda manifest: manifest["rust_publish"].__setitem__(
                     "current_source_status", "stale_requires_rerun"
                 ),
-                "current clean physical",
+                "current clean Rust package handoff",
             ),
             (
-                "physical ABI",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "device_abi", "x86_64"
+                "Rust handoff path",
+                lambda manifest: manifest["rust_publish"].__setitem__(
+                    "handoff_manifest_path", "target/forged.json"
                 ),
-                "arm64-v8a release mode",
+                "current clean Rust package handoff",
             ),
             (
-                "physical release mode",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "release_candidate_mode", False
+                "Rust zero transaction sequence",
+                lambda manifest: manifest["rust_publish"].__setitem__(
+                    "handoff_manifest_path",
+                    "target/qperiapt-rust-package-handoffs/"
+                    f"transaction.0-{'7' * 32}/rust-package-handoff.json",
                 ),
-                "arm64-v8a release mode",
+                "current clean Rust package handoff",
             ),
             (
-                "physical proof schema",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "proof_schema", 5
+                "Rust upload attempted",
+                lambda manifest: manifest["rust_publish"].__setitem__(
+                    "upload_attempted", True
                 ),
-                "arm64-v8a release mode",
-            ),
-            (
-                "physical source",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "proof_source_tree_sha256", "f" * 64
-                ),
-                "current clean physical",
+                "current clean Rust package handoff",
             ),
             (
                 "AAR status",
@@ -500,88 +519,74 @@ class ReleasePublicationContractTests(unittest.TestCase):
                 "current clean Android AAR",
             ),
             (
-                "physical ABI absent from AAR",
+                "AAR target inventory",
                 lambda manifest: manifest["android_aar"].__setitem__(
                     "targets", ["x86_64"]
                 ),
-                "current clean Android AAR|covered by the selected AAR",
+                "current clean Android AAR",
             ),
             (
-                "performance status",
-                lambda manifest: manifest["performance"].__setitem__(
+                "runtime status",
+                lambda manifest: manifest["android_device_runtime"].__setitem__(
                     "current_source_status", "stale_requires_rerun"
                 ),
-                "current controlled performance",
+                "current canonical Android runtime evidence",
             ),
             (
-                "performance proof schema",
-                lambda manifest: manifest["performance"].__setitem__(
-                    "proof_schema", 5
+                "runtime device kind",
+                lambda manifest: manifest["android_device_runtime"].__setitem__(
+                    "device_kind", "physical"
                 ),
-                "current controlled performance",
+                "current canonical Android runtime evidence",
             ),
             (
-                "performance source commit",
-                lambda manifest: manifest["performance"].__setitem__(
-                    "source_commit", "f" * 40
+                "runtime SDK",
+                lambda manifest: manifest["android_device_runtime"].__setitem__(
+                    "android_sdk", 36
                 ),
-                "current controlled performance",
+                "current canonical Android runtime evidence",
             ),
             (
-                "performance dirty source",
-                lambda manifest: manifest["performance"].__setitem__(
-                    "source_tree_dirty", True
-                ),
-                "current controlled performance",
-            ),
-            (
-                "performance proof path",
-                lambda manifest: manifest["performance"].__setitem__(
-                    "proof_path", "../forged.json"
-                ),
-                "current controlled performance",
-            ),
-            (
-                "performance proof hash",
-                lambda manifest: manifest["performance"].__setitem__(
-                    "proof_sha256", "bad"
-                ),
-                "current controlled performance",
-            ),
-            (
-                "physical run identity",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
+                "runtime run identity",
+                lambda manifest: manifest["android_device_runtime"].__setitem__(
                     "run_id", "bad"
                 ),
-                "proof identity is malformed",
+                "current canonical Android runtime evidence",
             ),
             (
-                "physical proof path",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "proof_path", "target/forged.json"
+                "runtime proof path",
+                lambda manifest: manifest["android_device_runtime"].__setitem__(
+                    "proof_path", "../forged.json"
                 ),
-                "proof identity is malformed",
+                "current canonical Android runtime evidence",
             ),
             (
-                "physical proof hash",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "proof_sha256", "bad"
+                "index status",
+                lambda manifest: manifest["local_release_index"].__setitem__(
+                    "current_source_status", "stale_requires_rerun"
                 ),
-                "proof identity is malformed",
+                "current local release consumer receipt",
             ),
             (
-                "physical covered tests",
-                lambda manifest: manifest["android_physical_runtime"].__setitem__(
-                    "covered_tests", []
+                "index runtime crosslink",
+                lambda manifest: manifest["local_release_index"].__setitem__(
+                    "android_runtime_run_id", "f" * 32
                 ),
-                "arm64-v8a release mode",
+                "current local release consumer receipt",
             ),
             (
-                "performance source",
-                lambda manifest: manifest["performance"].__setitem__(
-                    "proof_source_tree_sha256", "f" * 64
+                "index path",
+                lambda manifest: manifest["local_release_index"].__setitem__(
+                    "index_path", "target/forged.json"
                 ),
-                "current controlled performance",
+                "current local release consumer receipt",
+            ),
+            (
+                "consumer receipt path",
+                lambda manifest: manifest["local_release_index"].__setitem__(
+                    "consumer_receipt_path", "target/forged.json"
+                ),
+                "current local release consumer receipt",
             ),
         )
         for state_factory in (self.pending_manifest, self.verified_manifest):
@@ -595,6 +600,24 @@ class ReleasePublicationContractTests(unittest.TestCase):
                     ):
                         contract.validate_release_publications(invalid)
 
+    def test_product_readiness_evidence_is_not_a_publication_prerequisite(self) -> None:
+        for state_factory in (self.pending_manifest, self.verified_manifest):
+            manifest = state_factory()
+            self.assertNotIn("android_physical_runtime", manifest)
+            self.assertEqual(
+                "stale_requires_rerun",
+                manifest["apple_device"]["current_source_status"],
+            )
+            self.assertEqual(
+                "stale_requires_rerun",
+                manifest["apple_device"]["matrix_source_status"],
+            )
+            self.assertEqual(
+                "stale_requires_rerun",
+                manifest["performance"]["current_source_status"],
+            )
+            contract.validate_release_publications(manifest)
+
     def test_stable_source_currentness_is_a_standalone_manifest_authority(
         self,
     ) -> None:
@@ -602,22 +625,22 @@ class ReleasePublicationContractTests(unittest.TestCase):
         contract.validate_stable_source_currentness(manifest)
         for label, section, field, value in (
             (
-                "physical path",
-                "android_physical_runtime",
+                "runtime path",
+                "android_device_runtime",
                 "proof_path",
                 "target/forged.json",
             ),
             (
-                "performance source",
-                "performance",
-                "source_commit",
-                "f" * 40,
+                "Rust handoff digest",
+                "rust_publish",
+                "handoff_manifest_sha256",
+                "bad",
             ),
             (
-                "performance path",
-                "performance",
-                "proof_path",
-                "target/performance/nested/forged.json",
+                "consumer digest",
+                "local_release_index",
+                "consumer_receipt_sha256",
+                "bad",
             ),
         ):
             with self.subTest(label=label):

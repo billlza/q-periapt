@@ -305,20 +305,15 @@ class CratesIoPublicationTests(unittest.TestCase):
             source_commit=self.source.source_parent_commit,
             source_digest=self.source.canonical_source_tree_sha256,
         )
-        manifest["rust_publish"] = {
-            "current_source_status": (
-                "current_clean_tree_rust_package_contract_pass"
-            ),
-            "handoff_manifest_path": selected_path,
-            "handoff_manifest_sha256": selected_sha256,
-            "proof_source_tree_sha256": (
-                self.source.canonical_source_tree_sha256
-            ),
-            "source_commit": self.source.source_parent_commit,
-            "source_tree_dirty": False,
-            "status": "pass",
-            "upload_attempted": False,
-        }
+        stable_fixture = release_contract_tests.source_manifest_fixture()
+        rust_publish = release_contract_tests.rebind_rust_publish_source(
+            stable_fixture["rust_publish"],
+            source_commit=self.source.source_parent_commit,
+            source_digest=self.source.canonical_source_tree_sha256,
+        )
+        rust_publish["handoff_manifest_path"] = selected_path
+        rust_publish["handoff_manifest_sha256"] = selected_sha256
+        manifest["rust_publish"] = rust_publish
         return manifest
 
     def run_publication(
