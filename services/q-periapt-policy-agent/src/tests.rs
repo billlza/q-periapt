@@ -8,7 +8,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
@@ -38,7 +38,8 @@ use crate::authority_protocol::{
 };
 use crate::authority_transport::{AuthorityTransportErrorV2, InstanceAuthorityPort};
 use crate::codec::{
-    encode_domain, read_frame, require_domain, write_frame, Decoder, Encoder, MAX_FRAME_BYTES,
+    encode_domain, read_frame, require_domain, write_frame, DeadlineStream, Decoder, Encoder,
+    MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::{open_private_file, OwnedPrivateDirectory, PrivateFileError};
@@ -437,6 +438,80 @@ fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> Tes
     Ok(())
 }
 
+#[test]
+fn authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (client_sk, client_vk) = MlDsa65::generate([15u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([16u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        Duration::from_millis(500),
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || server.serve(listener, &server_shutdown));
+
+    let result = (|| -> TestResult {
+        let mut stream = TcpStream::connect(address)?;
+        stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+        stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+        let (frame, _nonce) = crate::witness::test_support::framed_read_request(&client_sk)?;
+
+        // Trickle one byte per 100ms without ever pausing longer: every gap
+        // stays far inside the 500ms budget a per-syscall timeout would grant,
+        // so only the absolute per-connection deadline can end the connection.
+        // The server's hang-up surfaces as a reset on a subsequent write, so
+        // the disconnect must be observed while bytes are still flowing.
+        let started = Instant::now();
+        let mut disconnected_after = None;
+        for byte in frame.iter().take(40) {
+            if stream
+                .write_all(std::slice::from_ref(byte))
+                .and_then(|()| stream.flush())
+                .is_err()
+            {
+                disconnected_after = Some(started.elapsed());
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        let Some(elapsed) = disconnected_after else {
+            return Err(
+                io::Error::other("witness held the trickled connection past its deadline").into(),
+            );
+        };
+        // Well before the 4s the full trickle budget would take, and far
+        // before the hours the complete frame would need.
+        assert!(elapsed < Duration::from_secs(3));
+
+        // The single serving slot must be free again for a well-behaved client.
+        let client = AuthenticatedTcpWitness::new(
+            address,
+            ZeroizingBytes::from_bytes(MlDsa65::generate([15u8; 32]).0),
+            witness_vk,
+            Duration::from_secs(2),
+        )?;
+        assert_eq!(client.read_head()?, initial);
+        Ok(())
+    })();
+
+    shutdown.store(true, Ordering::Release);
+    let server_result = join(server_thread)?;
+    result?;
+    server_result?;
+    Ok(())
+}
+
 fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
     handle
         .join()
@@ -469,6 +544,16 @@ impl Write for FailingWriteTransport {
     }
 }
 
+impl DeadlineStream for FailingWriteTransport {
+    fn set_read_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn set_write_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+}
+
 struct CaptureTransport {
     input: Cursor<Vec<u8>>,
     output: Vec<u8>,
@@ -487,6 +572,60 @@ impl Write for CaptureTransport {
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl DeadlineStream for CaptureTransport {
+    fn set_read_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn set_write_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Yields one buffered byte per read after a short pause, mimicking a client
+/// that stays inside any per-syscall timeout while never completing a frame.
+struct TricklingTransport {
+    input: Cursor<Vec<u8>>,
+    step: Duration,
+    output: Vec<u8>,
+}
+
+impl Read for TricklingTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        thread::sleep(self.step);
+        let mut byte = [0u8; 1];
+        if self.input.read(&mut byte)? == 0 {
+            return Ok(0);
+        }
+        let Some(first) = output.first_mut() else {
+            return Ok(0);
+        };
+        *first = byte[0];
+        Ok(1)
+    }
+}
+
+impl Write for TricklingTransport {
+    fn write(&mut self, input: &[u8]) -> io::Result<usize> {
+        self.output.extend_from_slice(input);
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl DeadlineStream for TricklingTransport {
+    fn set_read_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn set_write_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
         Ok(())
     }
 }
@@ -1427,6 +1566,43 @@ fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResu
         server.agent_for_test().acceptance_counts_for_test()?,
         (0, 0)
     );
+    Ok(())
+}
+
+#[test]
+fn ipc_absolute_deadline_evicts_a_pre_auth_trickle_client() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 19)?;
+    let (_, client_verification_key) = MlDsa65::generate([93u8; 32]);
+    let (server_signing_key, _) = MlDsa65::generate([94u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+
+    // A maximum-length frame trickled one byte per 20ms would take minutes;
+    // the absolute deadline must fail the connection at ~200ms instead.
+    let mut frame = u32::try_from(MAX_FRAME_BYTES)
+        .map_err(|_| io::Error::other("IPC frame length does not fit"))?
+        .to_be_bytes()
+        .to_vec();
+    frame.resize(frame.len().saturating_add(512), 0);
+    let mut trickle = TricklingTransport {
+        input: Cursor::new(frame),
+        step: Duration::from_millis(20),
+        output: Vec::new(),
+    };
+    let started = Instant::now();
+    let deadline = started
+        .checked_add(Duration::from_millis(200))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    let result = server.handle_io_with_deadline_for_test(&mut trickle, deadline);
+    let elapsed = started.elapsed();
+    assert_eq!(result, Err(crate::ipc::IpcError::InvalidMessage));
+    assert!(elapsed >= Duration::from_millis(200));
+    assert!(elapsed < Duration::from_secs(10));
+    assert!(trickle.output.is_empty());
     Ok(())
 }
 

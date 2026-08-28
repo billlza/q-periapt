@@ -34,13 +34,40 @@ from test_platform_stable_publication_contract import (
 from test_release_publication_contract import (
     _rebind_crates,
     _rebind_platform,
-    neutral_selector_fixture,
+    frozen_v0_1_3_selector_fixture,
     rebind_rust_publish_source,
     rebind_stable_current_source,
 )
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+STABLE_COHORT_PUBLICATION_KEYS = (
+    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+    crates_contract.CRATES_IO_PUBLICATION_KEY,
+)
+
+
+def restore_source_publication_state(manifest: dict[str, object]) -> None:
+    """Rewind any committed cohort state to the exact source projection.
+
+    The live manifest permanently carries the five frozen historical
+    leaves and possibly an active v0.1.4 cohort state, and these tests
+    replay the complete source -> pending -> verified state machine from
+    synthetic receipts.  The fixture therefore rewinds the live bytes to
+    the source projection: drop only the active v0.1.4 leaves and rebind
+    the Apple selector to the frozen published apple_v0_1_3 receipt from
+    the contract's own frozen distribution bytes rather than the
+    state-dependent live selector.
+    """
+
+    publications = manifest["release_publications"]
+    assert isinstance(publications, dict)
+    for key in STABLE_COHORT_PUBLICATION_KEYS:
+        publications.pop(key, None)
+    manifest["swift_xcframework"] = frozen_v0_1_3_selector_fixture(manifest)
 
 
 class ReleaseReceiptFinalizerTests(unittest.TestCase):
@@ -74,7 +101,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             source_commit=self.source_commit,
             source_digest=self.source_digest,
         )
-        source["swift_xcframework"] = neutral_selector_fixture(source)
+        restore_source_publication_state(source)
         self._write_results(source)
         self._git("add", "artifact/results.json")
         self._git("commit", "-qm", "install source results")
@@ -287,12 +314,12 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             aggregate.publication_state(verified),
         )
         self.assertEqual(
-            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
             verified["swift_xcframework"]["active_publication_key"],
         )
         self.assertEqual(
             verified["release_publications"][
-                apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
             ]["distribution"],
             verified["swift_xcframework"]["distribution"],
         )

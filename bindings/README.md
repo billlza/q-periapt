@@ -53,7 +53,7 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ lean and signed-policy faces execute on Node/WASM | `wasm-pack test --node` for default and `--features signed-policy`; CI also builds `wasm32` |
 | **Kotlin** (`kotlin/`) | ✅ current-source JDK 22 host verification | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
-| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR release transaction `abi2-platforms-v0.1.3` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
+| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR release transaction `abi2-platforms-v0.1.4` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
 Kotlin uses a JDK ≥22 (stable FFM); the same warning-failing command is a CI gate:
 
@@ -76,8 +76,10 @@ or physical device runs instrumentation against the AAR.
 ## Stable binary publication transactions
 
 The stable prebuilt targets are the Apple XCFramework in
-`v0.1.3` and the
-Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.3`. The earlier
+`v0.1.4` and the
+Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.4`. The
+predecessor `v0.1.3` and `abi2-platforms-v0.1.3` releases are published and
+immutable; the earlier
 `v0.1.0`, `v0.1.1`, `v0.1.2`, `abi2-platforms-v0.1.0`, `abi2-platforms-v0.1.1`, and
 `abi2-platforms-v0.1.2` tags
 exist but were never published.

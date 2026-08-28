@@ -213,7 +213,8 @@ pub struct Finding {
 pub struct ScanError {
     /// File or directory path the scanner tried to inspect.
     pub path: String,
-    /// Operation that failed (`metadata`, `read_dir`, `dir_entry`, `read_file`).
+    /// Operation that failed (`metadata`, `read_dir`, `dir_entry`, `read_file`,
+    /// `too_large`, `symlink_skipped`).
     pub operation: &'static str,
     /// OS error rendered with context.
     pub message: String,
@@ -330,7 +331,7 @@ fn contains_legacy_dsa(lower: &str) -> bool {
 #[must_use]
 pub fn scan(root: &Path) -> ScanReport {
     let mut report = ScanReport::default();
-    scan_path(root, &mut report);
+    scan_path(root, &mut report, true);
     report
 }
 
@@ -347,7 +348,7 @@ fn push_scan_error(
     });
 }
 
-fn scan_path(path: &Path, report: &mut ScanReport) {
+fn scan_path(path: &Path, report: &mut ScanReport, is_root: bool) {
     let meta = match std::fs::symlink_metadata(path) {
         Ok(meta) => meta,
         Err(e) => {
@@ -356,9 +357,13 @@ fn scan_path(path: &Path, report: &mut ScanReport) {
         }
     };
     if meta.is_dir() {
-        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if SKIP_DIRS.contains(&name) || name.starts_with('.') && name != "." {
-                return;
+        // Skip rules apply only to descendants: an explicitly named root
+        // (`qperiapt scan vendor`, `qperiapt scan .config`) must always be scanned.
+        if !is_root {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if SKIP_DIRS.contains(&name) || name.starts_with('.') && name != "." {
+                    return;
+                }
             }
         }
         match std::fs::read_dir(path) {
@@ -372,7 +377,7 @@ fn scan_path(path: &Path, report: &mut ScanReport) {
                 }
                 paths.sort();
                 for p in paths {
-                    scan_path(&p, report);
+                    scan_path(&p, report, false);
                 }
             }
             Err(e) => push_scan_error(report, path, "read_dir", e),
@@ -398,6 +403,14 @@ fn scan_path(path: &Path, report: &mut ScanReport) {
             Ok(text) => scan_text(&path.display().to_string(), &text, &mut report.findings),
             Err(e) => push_scan_error(report, path, "read_file", e),
         }
+    } else if meta.is_symlink() {
+        // Fail closed: symlinks are never auto-followed (cycles, tree escapes), but
+        // silently skipping one would let the report claim a clean, complete scan.
+        report.errors.push(ScanError {
+            path: path.display().to_string(),
+            operation: "symlink_skipped",
+            message: "symlink not followed; scan its target explicitly".to_string(),
+        });
     }
 }
 
@@ -567,5 +580,60 @@ mod tests {
         assert!(report.findings.is_empty());
         assert_eq!(report.errors.len(), 1);
         assert_eq!(report.errors[0].operation, "metadata");
+    }
+
+    fn scratch_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("q-periapt-cli-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_records_symlink_as_error_so_report_is_incomplete() {
+        let dir = scratch_dir("symlink");
+        std::fs::write(dir.join("real.rs"), "use rsa::Pkcs1v15;\n").unwrap();
+        let link = dir.join("link.rs");
+        std::os::unix::fs::symlink(dir.join("real.rs"), &link).unwrap();
+
+        let report = scan(&dir);
+        assert!(report.findings.iter().any(|f| f.token == "rsa"));
+        assert_eq!(report.errors.len(), 1);
+        assert_eq!(report.errors[0].operation, "symlink_skipped");
+        assert_eq!(report.errors[0].path, link.display().to_string());
+        assert_eq!(scan_report_to_json(&report)["complete"], false);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn scan_never_skips_the_explicitly_named_root() {
+        let parent = scratch_dir("root-skip");
+        for name in ["target", ".config"] {
+            let root = parent.join(name);
+            std::fs::create_dir(&root).unwrap();
+            std::fs::write(root.join("legacy.rs"), "let s = ecdsa_sign();\n").unwrap();
+            // A skip-listed descendant is still pruned.
+            let nested = root.join("target");
+            std::fs::create_dir(&nested).unwrap();
+            std::fs::write(nested.join("gen.rs"), "let h = Md5::new();\n").unwrap();
+
+            let report = scan(&root);
+            assert!(
+                report.errors.is_empty(),
+                "scan of root {name:?} hit errors: {:?}",
+                report.errors
+            );
+            assert!(
+                report.findings.iter().any(|f| f.token == "ecdsa"),
+                "root {name:?} must be scanned even though it matches the skip rules"
+            );
+            assert!(
+                !report.findings.iter().any(|f| f.token == "md5"),
+                "descendant skip dirs under root {name:?} must still be pruned"
+            );
+        }
+        std::fs::remove_dir_all(&parent).unwrap();
     }
 }

@@ -3,14 +3,14 @@ name: ABI2 stable platform release
 on:
   push:
     tags:
-      - abi2-platforms-v0.1.3
+      - abi2-platforms-v0.1.4
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: abi2-platforms-v0.1.3
+  group: abi2-platforms-v0.1.4
   cancel-in-progress: false
 
 env:
@@ -51,7 +51,7 @@ jobs:
       - id: release
         name: Bind the annotated one-off distribution tag
         env:
-          EXPECTED_REF: refs/tags/abi2-platforms-v0.1.3
+          EXPECTED_REF: refs/tags/abi2-platforms-v0.1.4
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           test "$GITHUB_REF" = "$EXPECTED_REF"
@@ -59,7 +59,7 @@ jobs:
           source_parent=$(/usr/bin/jq -er '.provenance.snapshot_commit' artifact/results.json)
           /bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py \
             checkout-verify-release "$commit" "$source_parent"
-          test "$(/usr/bin/jq -r '.package.semver' crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)" = "0.1.3"
+          test "$(/usr/bin/jq -r '.package.semver' crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)" = "0.1.4"
           test "$(/usr/bin/jq -r '.abi.major' crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json)" = "2"
           /bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py \
             stable-source-currentness "$source_parent"
@@ -127,7 +127,7 @@ jobs:
           EXPECTED_TARGET: ${{ matrix.target }}
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          package="q-periapt-c-abi2-0.1.3-$EXPECTED_TARGET"
+          package="q-periapt-c-abi2-0.1.4-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
           archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
@@ -139,14 +139,14 @@ jobs:
           QPERIAPT_C_PACKAGE_VERIFY_ARCHIVE="$archive" \
           QPERIAPT_C_PACKAGE_EXPECTED_SHA256="$archive_sha256" \
           QPERIAPT_C_PACKAGE_EXPECTED_TARGET="$EXPECTED_TARGET" \
-          QPERIAPT_C_PACKAGE_EXPECTED_VERSION=0.1.3 \
+          QPERIAPT_C_PACKAGE_EXPECTED_VERSION=0.1.4 \
           QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256="$manifest_sha256" \
           QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$contract_sha256" \
             sh artifact/c-package.sh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-candidate-linux-${{ matrix.target }}
-          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.3-${{ matrix.target }}.tar.gz
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.4-${{ matrix.target }}.tar.gz
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -191,8 +191,8 @@ jobs:
       - name: Reconsume only the unsupported Windows diagnostic archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.4-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.4-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -282,11 +282,11 @@ jobs:
         run: sh artifact/android-aar.sh
       - name: Stage release-named Android assets
         run: |
-          source=target/qperiapt-android-aar/q-periapt-android-0.1.3
+          source=target/qperiapt-android-aar/q-periapt-android-0.1.4
           destination=target/abi2-platform-candidate
           mkdir -p "$destination"
-          install -m 0644 "$source/q-periapt-android-0.1.3.aar" "$destination/"
-          install -m 0644 "$source/MANIFEST.json" "$destination/q-periapt-android-0.1.3-MANIFEST.json"
+          install -m 0644 "$source/q-periapt-android-0.1.4.aar" "$destination/"
+          install -m 0644 "$source/MANIFEST.json" "$destination/q-periapt-android-0.1.4-MANIFEST.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-candidate-android
@@ -334,10 +334,10 @@ jobs:
         run: sh artifact/python-run.sh artifact/workflow_artifact.py platform-candidate
       - name: Validate the exact candidate asset set and checksums
         run: |
-          test -f candidate/q-periapt-android-0.1.3.aar
-          test -f candidate/q-periapt-android-0.1.3-MANIFEST.json
-          test -f candidate/q-periapt-c-abi2-0.1.3-x86_64-unknown-linux-gnu.tar.gz
-          test -f candidate/q-periapt-c-abi2-0.1.3-aarch64-unknown-linux-gnu.tar.gz
+          test -f candidate/q-periapt-android-0.1.4.aar
+          test -f candidate/q-periapt-android-0.1.4-MANIFEST.json
+          test -f candidate/q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz
+          test -f candidate/q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz
           test "$(find candidate -type f | wc -l)" -eq 4
           (cd candidate && sha256sum -- * | LC_ALL=C sort -k2 > CANDIDATE_SHA256SUMS)
       - name: Independently verify both Linux candidate archives
@@ -355,7 +355,7 @@ jobs:
           mkdir -p "$verify_root"
           trap 'rm -rf "$verify_root"' EXIT HUP INT TERM
           for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
-            package="q-periapt-c-abi2-0.1.3-$target"
+            package="q-periapt-c-abi2-0.1.4-$target"
             destination="$verify_root/$target"
             sh artifact/python-run.sh artifact/deterministic_archive.py extract-tar-gz \
               --archive "$GITHUB_WORKSPACE/candidate/$package.tar.gz" \
@@ -390,10 +390,10 @@ jobs:
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.0.0
         with:
           subject-path: |
-            candidate/q-periapt-android-0.1.3.aar
-            candidate/q-periapt-android-0.1.3-MANIFEST.json
-            candidate/q-periapt-c-abi2-0.1.3-x86_64-unknown-linux-gnu.tar.gz
-            candidate/q-periapt-c-abi2-0.1.3-aarch64-unknown-linux-gnu.tar.gz
+            candidate/q-periapt-android-0.1.4.aar
+            candidate/q-periapt-android-0.1.4-MANIFEST.json
+            candidate/q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz
+            candidate/q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz
             candidate/CANDIDATE_SHA256SUMS
             candidate/ABI2_SOURCE_SECURITY_GATE.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

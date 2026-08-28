@@ -5,7 +5,7 @@ use std::io;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use q_periapt_backends::{ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
@@ -15,8 +15,8 @@ use crate::authentication::{
     sign_envelope, verify_envelope as verify_signed_envelope, AuthenticationError,
 };
 use crate::codec::{
-    encode_domain, hash_fields, read_frame, require_domain, write_frame, CodecError, Decoder,
-    Encoder, MAX_FRAME_BYTES,
+    encode_domain, hash_fields, read_frame, read_frame_until, require_domain, write_frame,
+    write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::filesystem::open_private_file;
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
@@ -816,11 +816,13 @@ impl ReferenceWitnessServer {
     }
 
     fn handle(&self, stream: &mut TcpStream) -> Result<(), WitnessError> {
-        stream
-            .set_read_timeout(Some(self.io_timeout))
-            .and_then(|()| stream.set_write_timeout(Some(self.io_timeout)))
-            .map_err(|_| WitnessError::Unavailable)?;
-        let envelope = read_frame(stream).map_err(map_codec)?;
+        // One absolute deadline covers the whole connection: every framed read
+        // and write below derives its remaining budget from it, so a trickling
+        // client cannot hold the single serving slot past `io_timeout`.
+        let deadline = Instant::now()
+            .checked_add(self.io_timeout)
+            .ok_or(WitnessError::Unavailable)?;
+        let envelope = read_frame_until(stream, deadline).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)?;
         let request = Request::decode(request_body)?;
         let receipt = match request.kind {
@@ -843,7 +845,7 @@ impl ReferenceWitnessServer {
         let response_body = response.body()?;
         let response_envelope =
             signed_envelope(&response_body, self.witness_signing_key.as_bytes())?;
-        write_frame(stream, &response_envelope).map_err(map_codec)
+        write_frame_until(stream, &response_envelope, deadline).map_err(map_codec)
     }
 
     /// Serve authenticated single-request TCP connections until `shutdown` is set.

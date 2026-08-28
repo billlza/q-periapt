@@ -1864,13 +1864,13 @@ python3() {
             output = release_index.resolve_release_output(
                 root,
                 channel="release",
-                version="0.1.3",
+                version="0.1.4",
                 commit="a" * 40,
             )
             self.assertEqual(
                 output,
                 root
-                / "target/qperiapt-local-release/release/0.1.3"
+                / "target/qperiapt-local-release/release/0.1.4"
                 / ("a" * 40),
             )
 

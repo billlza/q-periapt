@@ -1471,6 +1471,164 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                         runner=malformed_result,
                     )
 
+    def test_github_cli_execution_error_scrubs_credential_from_stderr_tail(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_path = pathlib.Path(temporary).resolve() / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+
+                def leaking_runner(
+                    _argv: list[str], **kwargs: object
+                ) -> BoundedResult:
+                    stderr_fd = kwargs["stderr"]
+                    assert isinstance(stderr_fd, int)
+                    os.write(
+                        stderr_fd,
+                        b"gh: HTTP 401\n  token   fixture_token_123456789"
+                        b"\nwas rejected\n",
+                    )
+                    return BoundedResult(1, b"")
+
+                with self.assertRaises(
+                    observation.GitHubCliExecutionError
+                ) as leaking_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="leaking command",
+                        runner=leaking_runner,
+                    )
+                message = str(leaking_context.exception)
+                self.assertEqual(1, leaking_context.exception.returncode)
+                self.assertNotIn("fixture_token_123456789", message)
+                self.assertIn(
+                    "gh: HTTP 401 token [redacted] was rejected", message
+                )
+                self.assertEqual(
+                    "gh: HTTP 401 token [redacted] was rejected",
+                    leaking_context.exception.stderr_tail,
+                )
+
+                def truncating_runner(
+                    _argv: list[str], **kwargs: object
+                ) -> BoundedResult:
+                    stderr_fd = kwargs["stderr"]
+                    assert isinstance(stderr_fd, int)
+                    padding = b"x" * (
+                        observation.MAX_GITHUB_CLI_STDERR_BYTES - 8
+                    )
+                    os.write(
+                        stderr_fd, padding + b"fixture_token_123456789\n"
+                    )
+                    return BoundedResult(1, b"")
+
+                with self.assertRaises(
+                    observation.GitHubCliExecutionError
+                ) as truncating_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="truncating command",
+                        runner=truncating_runner,
+                    )
+                tail = truncating_context.exception.stderr_tail
+                self.assertIsNotNone(tail)
+                self.assertLessEqual(
+                    len(tail), observation.MAX_GITHUB_CLI_STDERR_TAIL_CHARS
+                )
+                self.assertNotIn("fixture_", str(truncating_context.exception))
+                self.assertTrue(tail.endswith("[redacted]"))
+
+    def test_github_cli_blanket_failures_chain_the_original_exception(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_path = pathlib.Path(temporary).resolve() / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+
+                blanket_failure = RuntimeError("fixture blanket detail")
+
+                def blanket_runner(
+                    _argv: list[str], **_kwargs: object
+                ) -> BoundedResult:
+                    raise blanket_failure
+
+                with self.assertRaises(
+                    observation.GitHubReleaseObservationError
+                ) as blanket_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="blanket failure",
+                        runner=blanket_runner,
+                    )
+                self.assertNotIn(
+                    "fixture blanket detail", str(blanket_context.exception)
+                )
+                self.assertIs(blanket_failure, blanket_context.exception.__cause__)
+
+                transport_failure = BoundedProcessError("timeout", "fixture detail")
+
+                def transport_runner(
+                    _argv: list[str], **_kwargs: object
+                ) -> BoundedResult:
+                    raise transport_failure
+
+                with self.assertRaises(
+                    observation.GitHubCliExecutionError
+                ) as transport_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="transport failure",
+                        runner=transport_runner,
+                    )
+                self.assertNotIn(
+                    "fixture detail", str(transport_context.exception)
+                )
+                self.assertIs(
+                    transport_failure, transport_context.exception.__cause__
+                )
+
     def test_stable_tag_ruleset_parser_rejects_missing_bypass_and_target_drift(
         self,
     ) -> None:

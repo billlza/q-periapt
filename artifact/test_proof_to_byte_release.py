@@ -4658,12 +4658,6 @@ with _temporary_release_test_directories(parents):
             migrated_manifest["release_publications"][
                 apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
             ] = alpha2_receipt()
-            if "active_publication_key" not in migrated_manifest["swift_xcframework"]:
-                migrated_manifest["swift_xcframework"] = (
-                    release_publication_contract.neutral_swift_selector(
-                        migrated_manifest
-                    )
-                )
             proof_to_byte_finalizer.validate_release_publication_history(
                 root, migrated_manifest
             )
@@ -5801,11 +5795,11 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
         self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
         for expected in (
-            "q-periapt-c-abi2-0.1.3-x86_64-pc-windows-msvc.zip",
-            "q-periapt-c-abi2-0.1.3-$EXPECTED_TARGET",
-            "q-periapt-c-abi2-0.1.3-${{ matrix.target }}.tar.gz",
-            "q-periapt-android-0.1.3.aar",
-            "q-periapt-android-0.1.3/MANIFEST.json",
+            "q-periapt-c-abi2-0.1.4-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.1.4-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.1.4-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.1.4.aar",
+            "q-periapt-android-0.1.4/MANIFEST.json",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)

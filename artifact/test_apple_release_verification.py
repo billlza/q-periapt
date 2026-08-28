@@ -187,7 +187,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self,
         name: str,
         *,
-        version: str = "0.1.3",
+        version: str = "0.1.4",
         kind: str = verification.COMPLETION_LEDGER_KIND,
         source_commit: str | None = None,
     ) -> tuple[pathlib.Path, dict[str, str], str]:
@@ -343,7 +343,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
         self,
         name: str,
         *,
-        version: str = "0.1.3",
+        version: str = "0.1.4",
         kind: str = verification.COMPLETION_LEDGER_KIND,
         source_commit: str | None = None,
         mutate_view_before: Any = None,
@@ -467,7 +467,14 @@ class AppleReleaseVerificationTests(unittest.TestCase):
 
         command_kinds = []
         for arguments, keyword_arguments in runner.calls:
-            self.assertEqual(subprocess.DEVNULL, keyword_arguments["stderr"])
+            if arguments[0] == verification.GIT:
+                self.assertEqual(
+                    subprocess.DEVNULL, keyword_arguments["stderr"]
+                )
+            else:
+                stderr_sink = keyword_arguments["stderr"]
+                self.assertIsInstance(stderr_sink, int)
+                self.assertGreaterEqual(stderr_sink, 0)
             if "cat-file" in arguments:
                 self.assertEqual(verification.GIT, arguments[0])
                 self.assertNotIn(
@@ -535,7 +542,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             str(self.gh_tool),
             "release",
             "view",
-            "v0.1.3",
+            "v0.1.4",
             "--repo",
             verification.GH_REPOSITORY_ARGUMENT,
             "--json",
@@ -545,7 +552,7 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             str(self.gh_tool),
             "release",
             "verify",
-            "v0.1.3",
+            "v0.1.4",
             "--repo",
             verification.GH_REPOSITORY_ARGUMENT,
             "--format",
@@ -677,10 +684,9 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             ],
             github_calls[0][0],
         )
-        self.assertEqual(
-            subprocess.DEVNULL,
-            github_calls[0][1]["stderr"],
-        )
+        stderr_sink = github_calls[0][1]["stderr"]
+        self.assertIsInstance(stderr_sink, int)
+        self.assertGreaterEqual(stderr_sink, 0)
         config_directory = pathlib.Path(
             github_calls[0][1]["environment"]["GH_CONFIG_DIR"]
         )

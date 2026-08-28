@@ -33,11 +33,11 @@ EXPECTED_ACTION_IDS = (
     "upload-apple-03-SHA256SUMS",
     "upload-platform-00-PLATFORM_DISTRIBUTION.json",
     "upload-platform-01-SHA256SUMS",
-    "upload-platform-02-q-periapt-android-0.1.3-16k-runtime-evidence.zip",
-    "upload-platform-03-q-periapt-android-0.1.3-MANIFEST.json",
-    "upload-platform-04-q-periapt-android-0.1.3.aar",
-    "upload-platform-05-q-periapt-c-abi2-0.1.3-aarch64-unknown-linux-gnu.tar.gz",
-    "upload-platform-06-q-periapt-c-abi2-0.1.3-x86_64-unknown-linux-gnu.tar.gz",
+    "upload-platform-02-q-periapt-android-0.1.4-16k-runtime-evidence.zip",
+    "upload-platform-03-q-periapt-android-0.1.4-MANIFEST.json",
+    "upload-platform-04-q-periapt-android-0.1.4.aar",
+    "upload-platform-05-q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz",
+    "upload-platform-06-q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz",
     "publish-apple",
     "publish-platform",
 )
@@ -117,7 +117,7 @@ def fixture_plan() -> publication.PublicationPlan:
         releases=(
             release(
                 "apple",
-                apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"],
+                apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
                 _hex40(5),
                 publication.APPLE_TITLE,
                 publication.APPLE_BODY,
@@ -326,7 +326,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
         base = pathlib.Path(self.temporary.name).resolve()
         authority = base / "authority"
         publication_state = authority / "publication-state"
-        self.root = publication_state / "github-stable-v0.1.3"
+        self.root = publication_state / "github-stable-v0.1.4"
         for directory in (authority, publication_state, self.root):
             directory.mkdir(mode=0o700)
             os.chmod(directory, 0o700)
@@ -556,7 +556,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 8,
                 (
-                    "upload-platform-02-q-periapt-android-0.1.3-"
+                    "upload-platform-02-q-periapt-android-0.1.4-"
                     "16k-runtime-evidence.zip"
                 ),
                 "upload",
@@ -565,14 +565,14 @@ class StableGitHubPublicationTests(unittest.TestCase):
             ),
             (
                 9,
-                "upload-platform-03-q-periapt-android-0.1.3-MANIFEST.json",
+                "upload-platform-03-q-periapt-android-0.1.4-MANIFEST.json",
                 "upload",
                 "platform",
                 3,
             ),
             (
                 10,
-                "upload-platform-04-q-periapt-android-0.1.3.aar",
+                "upload-platform-04-q-periapt-android-0.1.4.aar",
                 "upload",
                 "platform",
                 4,
@@ -580,7 +580,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 11,
                 (
-                    "upload-platform-05-q-periapt-c-abi2-0.1.3-"
+                    "upload-platform-05-q-periapt-c-abi2-0.1.4-"
                     "aarch64-unknown-linux-gnu.tar.gz"
                 ),
                 "upload",
@@ -590,7 +590,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 12,
                 (
-                    "upload-platform-06-q-periapt-c-abi2-0.1.3-"
+                    "upload-platform-06-q-periapt-c-abi2-0.1.4-"
                     "x86_64-unknown-linux-gnu.tar.gz"
                 ),
                 "upload",
@@ -613,12 +613,12 @@ class StableGitHubPublicationTests(unittest.TestCase):
         self.assertEqual(expected, actual)
 
     def test_request_bodies_match_an_independent_canonical_oracle(self) -> None:
-        apple_title = "Q-Periapt 0.1.3 Apple Distribution"
+        apple_title = "Q-Periapt 0.1.4 Apple Distribution"
         apple_body = (
             "Stable ABI 2 Apple XCFramework distribution. Verify all four "
             "assets and the immutable release attestation before use."
         )
-        platform_title = "Q-Periapt 0.1.3 ABI 2 Platform Distribution"
+        platform_title = "Q-Periapt 0.1.4 ABI 2 Platform Distribution"
         platform_body = (
             "Stable ABI 2 Android and Linux distribution. Verify all seven "
             "assets and the immutable release attestation before use."
@@ -630,14 +630,14 @@ class StableGitHubPublicationTests(unittest.TestCase):
         cases = (
             (
                 self.plan.apple,
-                "v0.1.3",
+                "v0.1.4",
                 apple_title,
                 apple_body,
                 "true",
             ),
             (
                 self.plan.platform,
-                "abi2-platforms-v0.1.3",
+                "abi2-platforms-v0.1.4",
                 platform_title,
                 platform_body,
                 "false",
@@ -1917,7 +1917,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
     def test_prepare_state_bootstrap_creates_only_fixed_private_chain(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             base = pathlib.Path(temporary).resolve()
-            expected = base / ".q-periapt" / "publication-state" / "github-stable-v0.1.3"
+            expected = base / ".q-periapt" / "publication-state" / "github-stable-v0.1.4"
             with (
                 mock.patch.object(
                     publication, "expected_state_root", return_value=expected
@@ -1945,7 +1945,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.3"
+                / "github-stable-v0.1.4"
             )
             with (
                 mock.patch.object(
@@ -1964,7 +1964,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 )
                 if identity is None:
                     self.fail("fresh state root lacked its created identity")
-                moved = expected.parent / "github-stable-v0.1.3.moved"
+                moved = expected.parent / "github-stable-v0.1.4.moved"
                 expected.rename(moved)
                 expected.mkdir(mode=0o700)
                 os.chmod(expected, 0o700)
@@ -2000,7 +2000,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.3"
+                / "github-stable-v0.1.4"
             )
             with (
                 mock.patch.object(
@@ -2047,7 +2047,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.3"
+                / "github-stable-v0.1.4"
             )
             with (
                 mock.patch.object(
@@ -2136,7 +2136,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 base
                 / ".q-periapt"
                 / "publication-state"
-                / "github-stable-v0.1.3"
+                / "github-stable-v0.1.4"
             )
             apple_snapshots = tuple(
                 publication.FileSnapshot(

@@ -37,7 +37,7 @@ MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
 BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v2"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
-PRODUCT_VERSION = "0.1.3"
+PRODUCT_VERSION = "0.1.4"
 RELEASE_REVISION = "r1"
 RELEASE_TAG = f"v{PRODUCT_VERSION}"
 RELEASE_URL = (
@@ -56,8 +56,22 @@ PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY: ReleaseIdentity = (
     "v0.1.0-alpha.2-r1",
     "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
 )
+# The 0.1.3 line published for real, so its identity is permanent history:
+# the frozen apple_v0_1_3 receipt — and the active selector, which carries
+# that frozen distribution until the v0.1.4 cohort verifies — still
+# projects the published v0.1.3 identity into trusted results.
+PUBLISHED_V0_1_3_RELEASE_IDENTITY: ReleaseIdentity = (
+    "0.1.3",
+    "r1",
+    "v0.1.3",
+    "https://github.com/billlza/q-periapt/releases/tag/v0.1.3",
+)
 TRUSTED_RESULTS_RELEASE_IDENTITIES = frozenset(
-    {CURRENT_RELEASE_IDENTITY, PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY}
+    {
+        CURRENT_RELEASE_IDENTITY,
+        PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY,
+        PUBLISHED_V0_1_3_RELEASE_IDENTITY,
+    }
 )
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
@@ -2321,9 +2335,9 @@ def project_trusted_results_candidate_distribution(
         "origin_signature_identity_class": signature["identity_class"],
         "origin_signature_team_id": signature["team_id"],
         "public_release": False,
-        "release_revision": RELEASE_REVISION,
-        "release_tag": RELEASE_TAG,
-        "release_url": RELEASE_URL,
+        "release_revision": CURRENT_RELEASE_IDENTITY[1],
+        "release_tag": CURRENT_RELEASE_IDENTITY[2],
+        "release_url": CURRENT_RELEASE_IDENTITY[3],
         "remote_consumer_verified": False,
         "remote_verification": {
             "log_sha256": None,
@@ -2333,7 +2347,7 @@ def project_trusted_results_candidate_distribution(
         "source_commit": source_commit,
         "stapled": False,
         "swiftpm_checksum": swiftpm_checksum,
-        "version": PRODUCT_VERSION,
+        "version": CURRENT_RELEASE_IDENTITY[0],
     }
     validate_trusted_results_distribution(projected)
     return projected

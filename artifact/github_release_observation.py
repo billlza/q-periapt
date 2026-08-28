@@ -17,12 +17,11 @@ import os
 import pathlib
 import re
 import stat
-import subprocess
 import sys
 import tempfile
 import urllib.parse
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Never
+from typing import IO, Any, Never
 
 from bounded_process import (
     BoundedProcessError,
@@ -121,14 +120,16 @@ GITHUB_CLI_TEMP_ROOT = pathlib.Path("/tmp")
 GITHUB_CREDENTIAL_ENVIRONMENT = ("GH_TOKEN", "GITHUB_TOKEN")
 GITHUB_REPOSITORY = "billlza/q-periapt"
 STABLE_TAG_REFS = (
-    "refs/tags/v0.1.3",
-    "refs/tags/abi2-platforms-v0.1.3",
+    "refs/tags/v0.1.4",
+    "refs/tags/abi2-platforms-v0.1.4",
 )
 # Ruleset protection must keep every stable release tag immutable, not only the
-# current one: the earlier stable tags remain permanent, tagged-unpublished
-# history, so their update/deletion protection must never silently lapse. State
-# observation (absent/apple_only/exact transitions) uses only the current
-# STABLE_TAG_REFS above, but the protection observer checks this full set.
+# current one: the earlier stable tags remain permanent history — the 0.1.0
+# through 0.1.2 pairs as tagged-unpublished history, and the v0.1.3 pair as the
+# first fully published stable line — so their update/deletion protection must
+# never silently lapse. State observation (absent/apple_only/exact transitions)
+# uses only the current STABLE_TAG_REFS above, but the protection observer
+# checks this full set.
 PROTECTED_STABLE_TAG_REFS = (
     "refs/tags/v0.1.0",
     "refs/tags/abi2-platforms-v0.1.0",
@@ -138,6 +139,8 @@ PROTECTED_STABLE_TAG_REFS = (
     "refs/tags/abi2-platforms-v0.1.2",
     "refs/tags/v0.1.3",
     "refs/tags/abi2-platforms-v0.1.3",
+    "refs/tags/v0.1.4",
+    "refs/tags/abi2-platforms-v0.1.4",
 )
 MAX_TAG_RULESETS = 32
 MAX_STABLE_TAG_MATCHES = 64
@@ -147,6 +150,9 @@ MAX_STABLE_TAG_REFERENCE_BYTES = 4 * 1024 * 1024
 MAX_STABLE_TAG_OBJECT_BYTES = 4 * 1024 * 1024
 MAX_STABLE_COMMIT_OBJECT_BYTES = 4 * 1024 * 1024
 GITHUB_API_VERSION = "2026-03-10"
+MAX_GITHUB_CLI_STDERR_BYTES = 64 * 1024
+MAX_GITHUB_CLI_STDERR_TAIL_CHARS = 500
+GITHUB_CLI_STDERR_REDACTION = "[redacted]"
 DANGEROUS_GITHUB_ENVIRONMENT = frozenset(
     {
         "ALL_PROXY",
@@ -196,10 +202,15 @@ class GitHubCliExecutionError(GitHubReleaseObservationError):
         *,
         error_kind: str | None,
         returncode: int | None,
+        stderr_tail: str | None = None,
     ) -> None:
         self.error_kind = error_kind
         self.returncode = returncode
-        super().__init__(f"{label} failed safely")
+        self.stderr_tail = stderr_tail
+        message = f"{label} failed safely"
+        if stderr_tail:
+            message = f"{message}: {stderr_tail}"
+        super().__init__(message)
 
 
 class GitHubLocalIntegrityError(GitHubReleaseObservationError):
@@ -743,6 +754,103 @@ def git_observation_environment() -> dict[str, str]:
     }
 
 
+class _GitHubCliStderrSink:
+    """Bounded, credential-scrubbed stderr capture for one ``gh`` command.
+
+    The sink is an unlinked private temporary file, so stderr bytes never
+    persist on disk, and only a capped prefix is ever read back.  The scrubbed
+    tail exists purely so ``GitHubCliExecutionError`` can carry diagnostics
+    without exposing the admitted GitHub credential.
+    """
+
+    def __init__(self, environment: Mapping[str, str]) -> None:
+        secrets = []
+        for name in GITHUB_CREDENTIAL_ENVIRONMENT:
+            value = environment.get(name)
+            if isinstance(value, str) and value:
+                secrets.append(value.encode("utf-8"))
+        self._secrets = tuple(secrets)
+        self._file: IO[bytes] | None = None
+
+    def __enter__(self) -> _GitHubCliStderrSink:
+        try:
+            sink = tempfile.TemporaryFile(dir=GITHUB_CLI_TEMP_ROOT)
+            metadata = os.fstat(sink.fileno())
+        except OSError as exc:
+            raise GitHubCliEnvironmentIntegrityError(
+                "cannot create the bounded GitHub CLI stderr sink"
+            ) from exc
+        try:
+            _require(
+                stat.S_ISREG(metadata.st_mode)
+                and metadata.st_uid == os.geteuid()
+                and stat.S_IMODE(metadata.st_mode) & 0o077 == 0
+                and metadata.st_nlink == 0
+                and metadata.st_size == 0,
+                "GitHub CLI stderr sink must be one empty unlinked private file",
+            )
+        except GitHubReleaseObservationError:
+            sink.close()
+            raise
+        self._file = sink
+        return self
+
+    def __exit__(
+        self,
+        exception_type: object,
+        exception: object,
+        traceback: object,
+    ) -> bool:
+        del exception_type, exception, traceback
+        sink = self._file
+        self._file = None
+        if sink is not None:
+            try:
+                sink.close()
+            except OSError:
+                # The sink is unlinked scratch space; a close failure must not
+                # mask the command outcome it was capturing diagnostics for.
+                pass
+        return False
+
+    @property
+    def descriptor(self) -> int:
+        _require(self._file is not None, "GitHub CLI stderr sink is closed")
+        return self._file.fileno()
+
+    def scrubbed_tail(self) -> str:
+        """Return a bounded printable stderr tail with credentials removed."""
+
+        if self._file is None:
+            return ""
+        try:
+            data = os.pread(
+                self._file.fileno(), MAX_GITHUB_CLI_STDERR_BYTES + 1, 0
+            )
+        except (OSError, ValueError):
+            return ""
+        truncated = len(data) > MAX_GITHUB_CLI_STDERR_BYTES
+        data = data[:MAX_GITHUB_CLI_STDERR_BYTES]
+        redaction = GITHUB_CLI_STDERR_REDACTION.encode("ascii")
+        for secret in self._secrets:
+            data = data.replace(secret, redaction)
+            if truncated:
+                # The byte cap can split a credential, leaving a bare prefix
+                # at the cut that plain replacement cannot match.
+                for length in range(len(secret) - 1, 0, -1):
+                    if data.endswith(secret[:length]):
+                        data = data[:-length] + redaction
+                        break
+        if any(secret in data for secret in self._secrets):
+            return "[stderr withheld: credential material detected]"
+        text = data.decode("utf-8", errors="replace")
+        printable = "".join(
+            character if character.isprintable() else " " for character in text
+        )
+        collapsed = " ".join(printable.split())
+        return collapsed[-MAX_GITHUB_CLI_STDERR_TAIL_CHARS:]
+
+
 def capture_github_cli(
     tool: GitHubCliIdentity,
     arguments: Sequence[str],
@@ -756,17 +864,21 @@ def capture_github_cli(
     """Run one bounded ``gh`` command between exact tool resamples."""
 
     argv = _github_cli_argv(tool, arguments)
-    with _isolated_github_cli_environment(environment) as selected_environment:
+    with (
+        _isolated_github_cli_environment(environment) as selected_environment,
+        _GitHubCliStderrSink(selected_environment) as stderr_sink,
+    ):
         result = _execute_github_cli(
             tool,
             lambda: runner(
                 argv,
                 timeout_seconds=timeout_seconds,
                 maximum_bytes=maximum_bytes,
-                stderr=subprocess.DEVNULL,
+                stderr=stderr_sink.descriptor,
                 environment=selected_environment,
             ),
             label=label,
+            stderr_tail=stderr_sink.scrubbed_tail,
         )
     _require(
         isinstance(result.stdout, bytes) and bool(result.stdout),
@@ -790,7 +902,10 @@ def write_github_cli_stdout_at(
     """Stream bounded ``gh`` stdout atomically between tool resamples."""
 
     argv = _github_cli_argv(tool, arguments)
-    with _isolated_github_cli_environment(environment) as selected_environment:
+    with (
+        _isolated_github_cli_environment(environment) as selected_environment,
+        _GitHubCliStderrSink(selected_environment) as stderr_sink,
+    ):
         return _execute_github_cli(
             tool,
             lambda: runner(
@@ -799,10 +914,11 @@ def write_github_cli_stdout_at(
                 output_name=output_name,
                 timeout_seconds=timeout_seconds,
                 maximum_bytes=maximum_bytes,
-                stderr=subprocess.DEVNULL,
+                stderr=stderr_sink.descriptor,
                 environment=selected_environment,
             ),
             label=label,
+            stderr_tail=stderr_sink.scrubbed_tail,
         )
 
 
@@ -896,7 +1012,10 @@ def _execute_github_api_input(
     result: BoundedResult | None = None
     primary_error: BaseException | None = None
     try:
-        with _isolated_github_cli_environment(environment) as selected_environment:
+        with (
+            _isolated_github_cli_environment(environment) as selected_environment,
+            _GitHubCliStderrSink(selected_environment) as stderr_sink,
+        ):
             result = _execute_github_cli(
                 tool,
                 lambda: runner(
@@ -904,10 +1023,11 @@ def _execute_github_api_input(
                     timeout_seconds=timeout_seconds,
                     maximum_bytes=maximum_bytes,
                     stdin_fd=input_fd,
-                    stderr=subprocess.DEVNULL,
+                    stderr=stderr_sink.descriptor,
                     environment=selected_environment,
                 ),
                 label=label,
+                stderr_tail=stderr_sink.scrubbed_tail,
             )
     except BaseException as exc:
         primary_error = exc
@@ -2242,6 +2362,7 @@ def _execute_github_cli(
     invoke: Callable[[], BoundedResult],
     *,
     label: str,
+    stderr_tail: Callable[[], str] | None = None,
 ) -> BoundedResult:
     resample_github_cli(tool)
     result: BoundedResult | None = None
@@ -2257,6 +2378,7 @@ def _execute_github_cli(
                 label,
                 error_kind=None,
                 returncode=result.returncode,
+                stderr_tail=None if stderr_tail is None else stderr_tail(),
             )
     except BoundedProcessError as exc:
         if exc.cleanup_ambiguous:
@@ -2270,13 +2392,16 @@ def _execute_github_cli(
                 label,
                 error_kind=exc.kind,
                 returncode=None,
+                stderr_tail=None if stderr_tail is None else stderr_tail(),
             )
+        execution_error.__cause__ = exc
     except GitHubReleaseObservationError as exc:
         execution_error = exc
-    except Exception:
+    except Exception as exc:
         execution_error = GitHubReleaseObservationError(
             f"{label} failed safely"
         )
+        execution_error.__cause__ = exc
     except BaseException as exc:
         execution_error = exc
     try:

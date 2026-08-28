@@ -190,14 +190,14 @@ def pending_receipt() -> dict[str, object]:
         )
     }
     return {
-        "boundary": contract.PLATFORM_V0_1_3_PUBLICATION_BOUNDARY,
+        "boundary": contract.PLATFORM_V0_1_4_PUBLICATION_BOUNDARY,
         "identity": {
             "distribution_revision": contract.DISTRIBUTION_REVISION,
             "product_version": contract.PRODUCT_VERSION,
             "release_tag": contract.RELEASE_TAG,
             "release_url": contract.RELEASE_URL,
         },
-        "kind": contract.PLATFORM_V0_1_3_PUBLICATION_KIND,
+        "kind": contract.PLATFORM_V0_1_4_PUBLICATION_KIND,
         "observation": {
             "assembly_receipt_sha256": _digest(39),
             "candidate_attestation": {
@@ -235,14 +235,14 @@ def pending_receipt() -> dict[str, object]:
                 "verifier_commit": tag_commit,
             },
         },
-        "schema_version": contract.PLATFORM_V0_1_3_PUBLICATION_SCHEMA_VERSION,
-        "status": contract.PLATFORM_V0_1_3_STATUS_PENDING,
+        "schema_version": contract.PLATFORM_V0_1_4_PUBLICATION_SCHEMA_VERSION,
+        "status": contract.PLATFORM_V0_1_4_STATUS_PENDING,
     }
 
 
 def verified_receipt() -> dict[str, object]:
     receipt = pending_receipt()
-    receipt["status"] = contract.PLATFORM_V0_1_3_STATUS_VERIFIED
+    receipt["status"] = contract.PLATFORM_V0_1_4_STATUS_VERIFIED
     observation = receipt["observation"]
     candidate_subjects = {
         subject["name"]: subject["digest"]["sha256"]
@@ -311,9 +311,9 @@ def verified_receipt() -> dict[str, object]:
     return receipt
 
 
-class PlatformV013PublicationContractTests(unittest.TestCase):
+class PlatformV014PublicationContractTests(unittest.TestCase):
     def validate(self, receipt: object) -> None:
-        contract.validate_v0_1_3_publication_receipt(receipt)
+        contract.validate_v0_1_4_publication_receipt(receipt)
 
     def test_public_utc_parser_is_exact_and_timezone_aware(self) -> None:
         parsed = contract.parse_utc_timestamp(
@@ -328,7 +328,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
         ):
             with self.subTest(value=value):
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     contract.parse_utc_timestamp(value, "test timestamp")
 
@@ -358,7 +358,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                         "runner_environment"
                     ] = "github-hosted"
                 with self.assertRaisesRegex(
-                    contract.PlatformV013PublicationContractError,
+                    contract.PlatformV014PublicationContractError,
                     "keys differ",
                 ):
                     self.validate(changed)
@@ -393,7 +393,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                         "android_runtime_evidence"
                     ]["bundle_sha256"] = _digest(151)
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -460,7 +460,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                     target = target[key]
                 target[path[-1]] = value
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -488,7 +488,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                 else:
                     subjects[0]["digest"] = {"sha512": _digest(99)}
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -528,7 +528,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                         ".github/workflows/other.yml"
                     )
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -584,7 +584,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                     else:
                         subjects[0]["uri"] += "-other"
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -639,7 +639,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                         "verifier_commit"
                     ] = "9" * 40
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -649,7 +649,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
             "verified_at"
         ] = "2026-08-14T04:00:01Z"
         with self.assertRaisesRegex(
-            contract.PlatformV013PublicationContractError,
+            contract.PlatformV014PublicationContractError,
             "postdates observation",
         ):
             self.validate(pending)
@@ -669,7 +669,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                 else:
                     receipt["observation"][field] = value
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
@@ -690,14 +690,14 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                 receipt = verified_receipt()
                 receipt["observation"]["android_runtime_evidence"][field] = value
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
         receipt = verified_receipt()
         receipt["observation"]["registries"]["crates_io"] = "published"
         with self.assertRaises(
-            contract.PlatformV013PublicationContractError
+            contract.PlatformV014PublicationContractError
         ):
             self.validate(receipt)
 
@@ -713,29 +713,36 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                 receipt = verified_receipt()
                 receipt["observation"][field] = value
                 with self.assertRaises(
-                    contract.PlatformV013PublicationContractError
+                    contract.PlatformV014PublicationContractError
                 ):
                     self.validate(receipt)
 
-    def test_v0_1_3_identity_and_current_proof_schema_authority_are_explicit(
+    def test_v0_1_4_identity_and_current_proof_schema_authority_are_explicit(
         self,
     ) -> None:
-        self.assertEqual(contract.PRODUCT_VERSION, "0.1.3")
+        # The active platform identity deliberately derives from the
+        # current candidate contract, so the version sweep that bumps
+        # platform_distribution_contract to 0.1.4 needs no change here.
+        self.assertEqual(
+            contract.PRODUCT_VERSION,
+            current_distribution_contract.PRODUCT_VERSION,
+        )
         self.assertEqual(contract.DISTRIBUTION_REVISION, "r1")
         self.assertEqual(
-            contract.RELEASE_TAG, "abi2-platforms-v0.1.3"
+            contract.RELEASE_TAG,
+            current_distribution_contract.RELEASE_TAG,
         )
         self.assertEqual(
-            contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
-            "platform_v0_1_3",
+            contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+            "platform_v0_1_4",
         )
         self.assertNotIn(
             "zero-result",
-            contract.PLATFORM_V0_1_3_PUBLICATION_BOUNDARY,
+            contract.PLATFORM_V0_1_4_PUBLICATION_BOUNDARY,
         )
         self.assertIn(
             "zero unadjudicated findings",
-            contract.PLATFORM_V0_1_3_PUBLICATION_BOUNDARY,
+            contract.PLATFORM_V0_1_4_PUBLICATION_BOUNDARY,
         )
         self.assertEqual(
             contract.CANDIDATE_SUBJECT_NAMES,
@@ -775,7 +782,7 @@ class PlatformV013PublicationContractTests(unittest.TestCase):
                 contract.ANDROID_AAR,
                 "application/octet-stream",
             )
-        self.assertEqual(contract.PLATFORM_V0_1_3_PUBLICATION_SCHEMA_VERSION, 3)
+        self.assertEqual(contract.PLATFORM_V0_1_4_PUBLICATION_SCHEMA_VERSION, 3)
         self.assertEqual(
             current_distribution_contract.ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
             android_device_proof.PROOF_SCHEMA_VERSION,
