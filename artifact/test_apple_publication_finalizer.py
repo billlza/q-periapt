@@ -11,9 +11,12 @@ import tempfile
 import unittest
 
 import apple_publication_contract as apple_contract
+import crates_io_publication_contract as crates_contract
 import platform_publication_contract as platform_contract
 import proof_to_byte_finalizer
+import release_publication_contract as release_contract
 from test_release_publication_contract import (
+    legacy_swift_manifest_fixture,
     pending_manifest_fixture,
     source_manifest_fixture,
     verified_manifest_fixture,
@@ -21,6 +24,37 @@ from test_release_publication_contract import (
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+_STABLE_COHORT_PUBLICATION_KEYS = (
+    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+    crates_contract.CRATES_IO_PUBLICATION_KEY,
+)
+
+
+def frozen_legacy_manifest_fixture(
+    live: dict[str, object],
+) -> dict[str, object]:
+    """Reconstruct the frozen pre-cohort legacy manifest from explicit bytes.
+
+    The committed results.json is state-selected: it records the stable
+    v0.1.3 cohort in either its pending or its verified selection state.
+    The history chain exercised here starts at the frozen legacy alpha.2
+    manifest, so that endpoint must come from pinned frozen bytes rather
+    than the live manifest: restore the exact legacy selector fields and
+    the frozen alpha.2 r1 distribution, and strip the stable cohort
+    receipts the pending/verified installs introduced.
+    """
+
+    legacy = legacy_swift_manifest_fixture(live)
+    swift = legacy["swift_xcframework"]
+    assert isinstance(swift, dict)
+    swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
+    publications = legacy["release_publications"]
+    assert isinstance(publications, dict)
+    for key in _STABLE_COHORT_PUBLICATION_KEYS:
+        publications.pop(key, None)
+    return legacy
 
 
 def _git(root: pathlib.Path, *arguments: str) -> None:
@@ -69,9 +103,10 @@ def _repository_with_parent_results(
 class ApplePublicationFinalizerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.legacy = json.loads(
+        cls.live = json.loads(
             (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
         )
+        cls.legacy = frozen_legacy_manifest_fixture(cls.live)
         cls.source = source_manifest_fixture(cls.legacy)
         cls.pending = pending_manifest_fixture(cls.legacy)
         cls.verified = verified_manifest_fixture(cls.legacy)
@@ -110,6 +145,25 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
 
     def test_pending_can_advance_to_coordinated_verified(self) -> None:
         self.assert_history_transition(self.pending, self.verified)
+
+    def test_live_manifest_holds_a_committed_cohort_state(self) -> None:
+        """Accept the live manifest in either committed selection state."""
+
+        state = release_contract.publication_state(self.live)
+        self.assertIn(
+            state,
+            (
+                release_contract.PUBLICATION_STATE_PENDING,
+                release_contract.PUBLICATION_STATE_VERIFIED,
+            ),
+        )
+        if state == release_contract.PUBLICATION_STATE_PENDING:
+            # The committed pending cohort must be a valid successor of the
+            # reconstructed source-results state.
+            self.assert_history_transition(self.source, self.live)
+        # Either committed state must sustain itself under the finalizer's
+        # first-parent history gate.
+        self.assert_history_transition(self.live, self.live)
 
     def test_source_cannot_skip_pending(self) -> None:
         self.assert_history_rejected(

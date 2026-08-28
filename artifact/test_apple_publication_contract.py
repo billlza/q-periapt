@@ -11,6 +11,8 @@ import unittest
 
 import apple_distribution
 import apple_publication_contract as contract
+import crates_io_publication_contract as crates_contract
+import platform_publication_contract as platform_contract
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -18,6 +20,34 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def _digest(index: int) -> str:
     return f"{index:064x}"
+
+
+def source_baseline_manifest() -> dict[str, object]:
+    """Return the live manifest reduced to the frozen source-results baseline.
+
+    The committed results.json is a state-selected manifest: the stable
+    0.1.3 cohort leaves are either absent (source state), pending, or
+    verified, and the Apple selector advances with them. Fixtures that
+    construct synthetic cohort states must start from the state-independent
+    source baseline instead of inheriting whichever cohort state happens to
+    be installed, so this strips the stable 0.1.3 cohort leaves and restores
+    the frozen legacy alpha.2-r1 selector projection.
+    """
+
+    live = json.loads(
+        (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+    )
+    publications = live["release_publications"]
+    for key in (
+        contract.APPLE_V0_1_3_PUBLICATION_KEY,
+        platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+        crates_contract.CRATES_IO_PUBLICATION_KEY,
+    ):
+        publications.pop(key, None)
+    swift = live["swift_xcframework"]
+    swift["active_publication_key"] = contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+    swift["distribution"] = contract.frozen_alpha2_r1_distribution()
+    return live
 
 
 def alpha2_receipt() -> dict[str, object]:
@@ -202,15 +232,47 @@ class ApplePublicationContractTests(unittest.TestCase):
             (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
         )
         self.assertEqual(
-            results["swift_xcframework"]["distribution"],
-            contract.frozen_alpha2_r1_distribution(),
-        )
-        self.assertEqual(
             results["release_publications"][
                 contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
             ],
             alpha2_receipt(),
         )
+        contract.validate_apple_publications(
+            {
+                "release_publications": {
+                    key: receipt
+                    for key, receipt in results[
+                        "release_publications"
+                    ].items()
+                    if key in contract.APPLE_PUBLICATION_KEYS
+                }
+            }
+        )
+        selector = results["swift_xcframework"]
+        active_key = selector["active_publication_key"]
+        if active_key == contract.APPLE_ALPHA2_R1_PUBLICATION_KEY:
+            # Legacy selection: the live projection is the frozen alpha.2-r1
+            # distribution, byte for byte.
+            self.assertEqual(
+                selector["distribution"],
+                contract.frozen_alpha2_r1_distribution(),
+            )
+        else:
+            # The selector may only ever advance to the verified 0.1.3
+            # stable receipt; it must then repeat that receipt's
+            # distribution projection exactly.
+            self.assertEqual(
+                active_key, contract.APPLE_V0_1_3_PUBLICATION_KEY
+            )
+            stable = results["release_publications"][
+                contract.APPLE_V0_1_3_PUBLICATION_KEY
+            ]
+            self.assertEqual(
+                stable["status"], contract.APPLE_STATUS_VERIFIED
+            )
+            self.assertEqual(
+                selector["distribution"], stable["distribution"]
+            )
         contract.validate_apple_publications(
             manifest((contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2_receipt()))
         )

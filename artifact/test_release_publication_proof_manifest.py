@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import copy
-import json
-import pathlib
 import unittest
 
 import apple_publication_contract as apple_contract
@@ -14,6 +12,7 @@ import platform_publication_contract as platform_contract
 import proof_manifest
 import release_publication_contract as contract
 from test_apple_publication_contract import (
+    source_baseline_manifest,
     stable_pending_receipt,
     stable_verified_receipt,
 )
@@ -30,13 +29,8 @@ from test_release_publication_contract import (
 )
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-
-
 def _source_manifest() -> dict[str, object]:
-    legacy = json.loads(
-        (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-    )
+    legacy = source_baseline_manifest()
     source_manifest = source_manifest_fixture(legacy)
     source = stable_pending_receipt()["source"]
     return {

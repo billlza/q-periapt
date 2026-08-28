@@ -75,15 +75,36 @@ LEGACY_ALPHA2_SWIFT_FIELDS: dict[str, str] = {
 }
 
 
+_STABLE_COHORT_PUBLICATION_KEYS = (
+    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+    crates_contract.CRATES_IO_PUBLICATION_KEY,
+)
+
+
+def _drop_stable_cohort_leaves(manifest: dict[str, object]) -> None:
+    publications = manifest.get("release_publications")
+    if isinstance(publications, dict):
+        for key in _STABLE_COHORT_PUBLICATION_KEYS:
+            publications.pop(key, None)
+
+
 def legacy_swift_manifest_fixture(
     manifest: dict[str, object],
 ) -> dict[str, object]:
-    """Return a manifest carrying the exact frozen legacy alpha.2 selector."""
+    """Return a manifest carrying the exact frozen legacy alpha.2 selector.
+
+    The frozen legacy baseline predates the stable v0.1.3 cohort, so the
+    reconstruction drops the live cohort leaves and restores the frozen
+    alpha.2 distribution alongside the pinned legacy selector fields.
+    """
 
     legacy = copy.deepcopy(manifest)
+    _drop_stable_cohort_leaves(legacy)
     swift = legacy["swift_xcframework"]
     assert isinstance(swift, dict)
     swift.pop("active_publication_key", None)
+    swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
     swift.update(copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS))
     return legacy
 
@@ -91,12 +112,40 @@ def legacy_swift_manifest_fixture(
 def neutral_selector_fixture(
     manifest: dict[str, object],
 ) -> dict[str, object]:
-    """Return the neutral Apple selector for either live migration state."""
+    """Return the neutral alpha.2 Apple selector for any live manifest state."""
 
     swift = manifest["swift_xcframework"]
     if isinstance(swift, dict) and "active_publication_key" in swift:
-        return copy.deepcopy(swift)
+        # The live selector is already migrated.  A verified cohort has
+        # atomically switched it to the stable v0.1.3 receipt, so rebuild
+        # the neutral pre-activation selector from the frozen alpha.2
+        # projection; in the pending state this is a byte-identical copy.
+        neutral = copy.deepcopy(swift)
+        neutral["active_publication_key"] = (
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        )
+        neutral["distribution"] = (
+            apple_contract.frozen_alpha2_r1_distribution()
+        )
+        return neutral
     return contract.neutral_swift_selector(manifest)
+
+
+def source_baseline_fixture(
+    manifest: dict[str, object],
+) -> dict[str, object]:
+    """Return the live manifest reduced to its source-results baseline.
+
+    Both committed cohort states (pending and verified) already carry the
+    stable v0.1.3 leaves and, once verified, the activated selector.  The
+    synthetic fixtures rebuild the cohort from explicit receipts, so the
+    baseline drops the live leaves and restores the neutral selector.
+    """
+
+    baseline = copy.deepcopy(manifest)
+    _drop_stable_cohort_leaves(baseline)
+    baseline["swift_xcframework"] = neutral_selector_fixture(manifest)
+    return baseline
 
 
 def _rebind_platform(
@@ -315,7 +364,7 @@ def source_manifest_fixture(
         legacy = json.loads(
             (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
         )
-    manifest = copy.deepcopy(legacy)
+    manifest = source_baseline_fixture(legacy)
     apple_pending = stable_pending_receipt()
     source = apple_pending["source"]
     manifest["provenance"]["snapshot_commit"] = source[
@@ -334,7 +383,6 @@ def source_manifest_fixture(
         source_commit=source["source_parent_commit"],
         source_digest=source["canonical_source_tree_sha256"],
     )
-    manifest["swift_xcframework"] = neutral_selector_fixture(manifest)
     return manifest
 
 
@@ -666,6 +714,10 @@ class ReleasePublicationContractTests(unittest.TestCase):
             # legacy alpha.2 selector this module pins for reconstruction.
             for field, expected in LEGACY_ALPHA2_SWIFT_FIELDS.items():
                 self.assertEqual(expected, swift[field], field)
+            self.assertEqual(
+                apple_contract.frozen_alpha2_r1_distribution(),
+                swift["distribution"],
+            )
 
         # Both states positively exercise the real migration over the exact
         # frozen legacy selector and assert its complete rewritten output.
@@ -688,11 +740,43 @@ class ReleasePublicationContractTests(unittest.TestCase):
         )
         self.assertEqual(expected_migrated, migrated)
         if installed:
-            # The reconstructed migration output is byte-identical to the
-            # live installed selector.
-            self.assertEqual(swift, migrated)
+            live_state = contract.publication_state(self.legacy)
+            active_key = swift["active_publication_key"]
+            if live_state == contract.PUBLICATION_STATE_VERIFIED:
+                # Verified state: the live selector is the reconstructed
+                # migration output after the atomic activation switch, with
+                # the distribution repeating the live verified receipt.
+                self.assertEqual(
+                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY, active_key
+                )
+                expected_live = copy.deepcopy(migrated)
+                expected_live["active_publication_key"] = active_key
+                expected_live["distribution"] = copy.deepcopy(
+                    self.legacy["release_publications"][
+                        apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+                    ]["distribution"]
+                )
+                self.assertEqual(expected_live, swift)
+            else:
+                # Source or pending state: the selector has not activated,
+                # so the reconstructed migration output is byte-identical
+                # to the live installed selector.
+                self.assertEqual(swift, migrated)
         source = self.source_manifest()
-        contract.validate_release_publication_transition(self.legacy, source)
+        if installed:
+            # The committed cohort state is a valid transition fixed point,
+            # and the synthetic source rebinding remains a legal successor
+            # of the live manifest's source-results baseline.
+            contract.validate_release_publication_transition(
+                self.legacy, self.legacy
+            )
+            contract.validate_release_publication_transition(
+                source_baseline_fixture(self.legacy), source
+            )
+        else:
+            contract.validate_release_publication_transition(
+                self.legacy, source
+            )
 
         changed = legacy_swift_manifest_fixture(self.legacy)
         changed["swift_xcframework"]["distribution"]["artifact_size"] += 1
