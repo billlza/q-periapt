@@ -4,7 +4,7 @@ use core::fmt;
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::{SocketAddr, TcpListener};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
@@ -30,8 +30,8 @@ use crate::authority_protocol::{
 };
 use crate::authority_transport::{AuthenticatedTcpAuthorityV2, InstanceAuthorityPort};
 use crate::codec::{
-    encode_domain, hash_fields, read_frame, require_domain, write_frame, CodecError, Decoder,
-    Encoder, MAX_FRAME_BYTES,
+    encode_domain, hash_fields, read_frame_until, require_domain, write_frame_until, CodecError,
+    DeadlineStream, Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::OwnedPrivateDirectory;
@@ -262,11 +262,13 @@ impl RecentNonces {
     }
 }
 
-/// Sequential, timeout-bounded authenticated Unix server.
+/// Sequential, deadline-bounded authenticated Unix server.
 ///
-/// Sequential handling deliberately caps active clients at one. A slow client
-/// can occupy that slot for at most `io_timeout`; no unbounded worker/thread
-/// creation is possible.
+/// Sequential handling deliberately caps active clients at one. Each accepted
+/// connection is bounded by one absolute deadline of `io_timeout` computed at
+/// accept: every framed read and write derives its remaining budget from that
+/// deadline, so even a client trickling one byte per interval cannot occupy
+/// the slot for longer. No unbounded worker/thread creation is possible.
 pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> {
     agent: PolicyAgent<W, A>,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
@@ -322,15 +324,18 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     }
 
     fn handle(&mut self, stream: &mut UnixStream) -> Result<(), IpcError> {
-        stream
-            .set_read_timeout(Some(self.io_timeout))
-            .and_then(|()| stream.set_write_timeout(Some(self.io_timeout)))
-            .map_err(|_| IpcError::Unavailable)?;
-        self.handle_io(stream)
+        let deadline = Instant::now()
+            .checked_add(self.io_timeout)
+            .ok_or(IpcError::Unavailable)?;
+        self.handle_io(stream, deadline)
     }
 
-    fn handle_io<T: Read + Write>(&mut self, stream: &mut T) -> Result<(), IpcError> {
-        let envelope = read_frame(stream).map_err(map_codec)?;
+    fn handle_io<T: DeadlineStream>(
+        &mut self,
+        stream: &mut T,
+        deadline: Instant,
+    ) -> Result<(), IpcError> {
+        let envelope = read_frame_until(stream, deadline).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)
             .map_err(map_authentication)?;
         let request = Request::decode(request_body)?;
@@ -353,7 +358,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         encode_response_payload(&mut encoder, payload)?;
         let response = sign_envelope(&encoder.finish(), self.server_signing_key.as_bytes())
             .map_err(map_authentication)?;
-        write_frame(stream, &response).map_err(|_| IpcError::Unavailable)
+        write_frame_until(stream, &response, deadline).map_err(|_| IpcError::Unavailable)
     }
 
     #[cfg(test)]
@@ -375,11 +380,23 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     }
 
     #[cfg(test)]
-    pub(crate) fn handle_io_for_test<T: Read + Write>(
+    pub(crate) fn handle_io_for_test<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
     ) -> Result<(), IpcError> {
-        self.handle_io(stream)
+        let deadline = Instant::now()
+            .checked_add(self.io_timeout)
+            .ok_or(IpcError::Unavailable)?;
+        self.handle_io(stream, deadline)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn handle_io_with_deadline_for_test<T: DeadlineStream>(
+        &mut self,
+        stream: &mut T,
+        deadline: Instant,
+    ) -> Result<(), IpcError> {
+        self.handle_io(stream, deadline)
     }
 
     #[cfg(test)]
@@ -904,6 +921,7 @@ mod tests {
     use std::io::Cursor;
 
     use super::*;
+    use crate::codec::read_frame;
 
     fn request_body(command: u8) -> Result<Vec<u8>, IpcError> {
         let mut encoder = Encoder::new(MAX_FRAME_BYTES);
