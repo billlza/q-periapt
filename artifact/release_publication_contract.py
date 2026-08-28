@@ -73,9 +73,8 @@ _STABLE_ANDROID_PAGE_SIZE = 16_384
 _STABLE_ANDROID_BUILD_TOOLS = "36.0.0"
 # These currentness path literals (and the local_release_index path
 # below) name the active 0.1.4 line: currentness only ever runs against
-# the v0.1.4 cohort, never against frozen history.
-# stage 4: the version-literal sweep bumps proof_manifest's producer
-# path constants to these same 0.1.4 values.
+# the v0.1.4 cohort, never against frozen history.  proof_manifest's
+# producer path constants carry these same 0.1.4 values.
 _STABLE_ANDROID_AAR_PATH = (
     "target/qperiapt-android-aar/q-periapt-android-0.1.4/"
     "q-periapt-android-0.1.4.aar"

@@ -119,8 +119,8 @@ class AppleStablePublicationTests(unittest.TestCase):
             "origin_signature_team_id": publication.APPLE_EXPECTED_TEAM_ID,
             "public_release": False,
             # The receipt's distribution cross-links to the active
-            # apple_v0_1_4 contract identity.  stage 4 bumps
-            # apple_distribution's producer literals to the same values.
+            # apple_v0_1_4 contract identity, which the producer
+            # literals in apple_distribution stamp as well.
             "release_revision": apple_contract.APPLE_V0_1_4_IDENTITY[
                 "distribution_revision"
             ],

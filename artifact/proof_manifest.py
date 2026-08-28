@@ -179,12 +179,10 @@ ANDROID_RELEASE_ABI = "arm64-v8a"
 ANDROID_RELEASE_PAGE_SIZE = 16_384
 ANDROID_RELEASE_SDK = 35
 ANDROID_RELEASE_BUILD_TOOLS = "36.0.0"
-# These canonical package paths moved to 0.1.4 with the composite
-# contract restructure, in lockstep with release_publication_contract's
-# stable currentness literals: both authorities validate the same
-# manifest fields and can never disagree.
-# stage 4: the version-literal sweep bumps the producer scripts and the
-# remaining domain modules to these same 0.1.4 paths.
+# These canonical package paths name the active 0.1.4 line, in lockstep
+# with release_publication_contract's stable currentness literals and the
+# producer scripts: every authority validates the same manifest fields
+# and can never disagree.
 ANDROID_AAR_PATH = (
     "target/qperiapt-android-aar/q-periapt-android-0.1.4/"
     "q-periapt-android-0.1.4.aar"

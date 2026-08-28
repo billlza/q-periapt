@@ -73,7 +73,7 @@ class CPackageManifestTests(unittest.TestCase):
             )
 
     def _package(self, root: pathlib.Path, target: str = "x86_64-unknown-linux-gnu") -> pathlib.Path:
-        package = root / f"q-periapt-c-abi2-0.1.3-{target}"
+        package = root / f"q-periapt-c-abi2-0.1.4-{target}"
         contract_source = self.repository / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
         contract = json.loads(contract_source.read_text(encoding="utf-8"))
         runtime = contract["package"]["platforms"]["linux"]
@@ -169,7 +169,7 @@ class CPackageManifestTests(unittest.TestCase):
         manifest = {
             "schema_version": c_package_manifest.SCHEMA_VERSION,
             "package": package.name,
-            "version": "0.1.3",
+            "version": "0.1.4",
             "host": target,
             "generated_at": dt.datetime.fromtimestamp(epoch, dt.timezone.utc).isoformat().replace("+00:00", "Z"),
             "source_date_epoch": epoch,

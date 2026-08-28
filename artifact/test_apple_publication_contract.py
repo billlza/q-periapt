@@ -204,10 +204,9 @@ def manifest(*receipts: tuple[str, dict[str, object]]) -> dict[str, object]:
 
 class ApplePublicationContractTests(unittest.TestCase):
     def test_current_stable_producer_matches_frozen_leaf_literals(self) -> None:
-        # stage 4: the version-literal sweep bumps apple_distribution's
-        # producer identity to 0.1.4; this binding then moves to
-        # APPLE_V0_1_4_IDENTITY, and the frozen v0.1.3 identity joins the
-        # producer's published-history identity set instead.
+        # The producer's current identity stamps the active apple_v0_1_4
+        # family, and the frozen v0.1.3 identity lives on in the
+        # producer's published-history identity set.
         self.assertEqual(
             {
                 "distribution_revision": apple_distribution.RELEASE_REVISION,
@@ -215,24 +214,24 @@ class ApplePublicationContractTests(unittest.TestCase):
                 "release_tag": apple_distribution.RELEASE_TAG,
                 "release_url": apple_distribution.RELEASE_URL,
             },
-            contract.APPLE_V0_1_3_IDENTITY,
+            contract.APPLE_V0_1_4_IDENTITY,
         )
         self.assertEqual(
             {
                 "distribution_revision": (
-                    apple_distribution.OPENING_V0_1_4_RELEASE_IDENTITY[1]
+                    apple_distribution.PUBLISHED_V0_1_3_RELEASE_IDENTITY[1]
                 ),
                 "product_version": (
-                    apple_distribution.OPENING_V0_1_4_RELEASE_IDENTITY[0]
+                    apple_distribution.PUBLISHED_V0_1_3_RELEASE_IDENTITY[0]
                 ),
                 "release_tag": (
-                    apple_distribution.OPENING_V0_1_4_RELEASE_IDENTITY[2]
+                    apple_distribution.PUBLISHED_V0_1_3_RELEASE_IDENTITY[2]
                 ),
                 "release_url": (
-                    apple_distribution.OPENING_V0_1_4_RELEASE_IDENTITY[3]
+                    apple_distribution.PUBLISHED_V0_1_3_RELEASE_IDENTITY[3]
                 ),
             },
-            contract.APPLE_V0_1_4_IDENTITY,
+            contract.APPLE_V0_1_3_IDENTITY,
         )
         self.assertEqual(
             apple_distribution.XCFRAMEWORK_ZIP_NAME,

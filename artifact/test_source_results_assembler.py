@@ -1254,7 +1254,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             sha256="7" * 64,
         )
         crate_file = assembler.FileSnapshot(
-            path=manifest.path.parent / "q-periapt-core-0.1.3.crate",
+            path=manifest.path.parent / "q-periapt-core-0.1.4.crate",
             data=b"crate\n",
             size=6,
             sha256="8" * 64,
@@ -1271,7 +1271,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             crates=(
                 rust_package_handoff.RustPackageHandoffCrateSnapshot(
                     name="q-periapt-core",
-                    version="0.1.3",
+                    version="0.1.4",
                     dependencies=(),
                     file=crate_file,
                 ),

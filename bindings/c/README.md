@@ -114,7 +114,7 @@ physically inaccessible.
 ## SDK archive release transaction
 
 Beyond the local host gate, the stable transaction targets the
-`abi2-platforms-v0.1.3` non-prerelease GitHub release, which becomes immutable only
+`abi2-platforms-v0.1.4` non-prerelease GitHub release, which becomes immutable only
 after publication, with Linux x86_64 and aarch64 tarballs (GLIBC 2.35 ceiling,
 fixed system-library dependency set). Each formal release asset carries
 ABI-major headers, exact-version pkg-config (Linux) and CMake configs, the frozen

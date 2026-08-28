@@ -450,7 +450,7 @@ proof is a strong internal artifact, not an external attestation.
 ### 5.4 Pre-1.0 / unaudited backends
 
 The cryptographic primitives come from external pre-1.0 sources and remain unaudited
-for this integration. The `0.1.3` stable-version source path uses target-selected `mlkem-native` v1.2.0,
+for this integration. The `0.1.4` stable-version source path uses target-selected `mlkem-native` v1.2.0,
 `fips204` 0.4.6, and `sha3` 0.10.9, removing both the failed `fips203` path and the
 earlier `libcrux`/hax/`proc-macro-error2` advisory edge. The vendored ML-KEM trust
 anchors are commit `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub

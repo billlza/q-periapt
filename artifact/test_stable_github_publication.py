@@ -33,11 +33,11 @@ EXPECTED_ACTION_IDS = (
     "upload-apple-03-SHA256SUMS",
     "upload-platform-00-PLATFORM_DISTRIBUTION.json",
     "upload-platform-01-SHA256SUMS",
-    "upload-platform-02-q-periapt-android-0.1.3-16k-runtime-evidence.zip",
-    "upload-platform-03-q-periapt-android-0.1.3-MANIFEST.json",
-    "upload-platform-04-q-periapt-android-0.1.3.aar",
-    "upload-platform-05-q-periapt-c-abi2-0.1.3-aarch64-unknown-linux-gnu.tar.gz",
-    "upload-platform-06-q-periapt-c-abi2-0.1.3-x86_64-unknown-linux-gnu.tar.gz",
+    "upload-platform-02-q-periapt-android-0.1.4-16k-runtime-evidence.zip",
+    "upload-platform-03-q-periapt-android-0.1.4-MANIFEST.json",
+    "upload-platform-04-q-periapt-android-0.1.4.aar",
+    "upload-platform-05-q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz",
+    "upload-platform-06-q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz",
     "publish-apple",
     "publish-platform",
 )
@@ -556,7 +556,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 8,
                 (
-                    "upload-platform-02-q-periapt-android-0.1.3-"
+                    "upload-platform-02-q-periapt-android-0.1.4-"
                     "16k-runtime-evidence.zip"
                 ),
                 "upload",
@@ -565,14 +565,14 @@ class StableGitHubPublicationTests(unittest.TestCase):
             ),
             (
                 9,
-                "upload-platform-03-q-periapt-android-0.1.3-MANIFEST.json",
+                "upload-platform-03-q-periapt-android-0.1.4-MANIFEST.json",
                 "upload",
                 "platform",
                 3,
             ),
             (
                 10,
-                "upload-platform-04-q-periapt-android-0.1.3.aar",
+                "upload-platform-04-q-periapt-android-0.1.4.aar",
                 "upload",
                 "platform",
                 4,
@@ -580,7 +580,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 11,
                 (
-                    "upload-platform-05-q-periapt-c-abi2-0.1.3-"
+                    "upload-platform-05-q-periapt-c-abi2-0.1.4-"
                     "aarch64-unknown-linux-gnu.tar.gz"
                 ),
                 "upload",
@@ -590,7 +590,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             (
                 12,
                 (
-                    "upload-platform-06-q-periapt-c-abi2-0.1.3-"
+                    "upload-platform-06-q-periapt-c-abi2-0.1.4-"
                     "x86_64-unknown-linux-gnu.tar.gz"
                 ),
                 "upload",
@@ -637,10 +637,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             ),
             (
                 self.plan.platform,
-                # stage 4: the version sweep bumps the platform candidate
-                # contract (and with it this independently pinned tag) to
-                # abi2-platforms-v0.1.4.
-                "abi2-platforms-v0.1.3",
+                "abi2-platforms-v0.1.4",
                 platform_title,
                 platform_body,
                 "false",
