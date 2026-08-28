@@ -17,7 +17,7 @@ workspace = true
 default = []
 # Optional, OFF-BY-DEFAULT SLH-DSA backend. `dep:` gating keeps it out of the
 # default build while preserving the verified-green core/KEM surface.
-slh-dsa = ["dep:fips205"]
+slh-dsa = ["dep:fips205", "dep:rand_core"]
 
 [dependencies]
 q-periapt-core = { version = "=0.1.3", path = "../q-periapt-core" }
@@ -35,8 +35,13 @@ x25519-dalek = { version = "=3.0.0", default-features = false, features = ["stat
 # SHA3-256 / SHAKE-256. `std` is not needed by the digest implementation.
 sha3 = { version = "=0.10.9", default-features = false }
 # --- optional backends (see [features]) ---
-# SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged) signing, KAT-able.
+# SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged, KAT-able) signing by
+# default; caller-supplied addrnd selects the hedged variant.
 fips205 = { version = "0.4.1", optional = true }
+# Feeds caller-supplied SLH-DSA hedging randomness (and, in tests, the ACVP
+# keyGen seed replay) into the fips205 `CryptoRngCore` APIs (same rand_core 0.6
+# the `fips205` dep uses). Pulled in only with the `slh-dsa` feature.
+rand_core = { version = "0.6", default-features = false, optional = true }
 
 [dev-dependencies]
 # End-to-end hybrid KEM tests exercise the real backends through q-periapt-kem.
@@ -56,11 +61,6 @@ ml-dsa = "=0.1.1"
 # Parse the vendored NIST ACVP conformance vectors (vectors/acvp-*.json).
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# Drives the SLH-DSA (FIPS 205) ACVP keyGen deterministically: a seed-replaying
-# `CryptoRngCore` feeds skSeed‖skPrf‖pkSeed into `fips205::*::try_keygen_with_rng`,
-# reproducing NIST's keys byte-for-byte (same rand_core 0.6 the `fips205` dep uses).
-# Pulled in only with the `slh-dsa` feature's ACVP test.
-rand_core = "0.6"
 # Generative property-based testing of combiner/hybrid invariants.
 proptest = "1"
 

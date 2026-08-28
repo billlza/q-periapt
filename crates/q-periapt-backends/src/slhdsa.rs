@@ -1,19 +1,58 @@
 //! SLH-DSA (FIPS 205) signature backend, enabled by the `slh-dsa` cargo feature.
 //!
 //! SLH-DSA is the conservative, hash-based signature scheme for roots / firmware /
-//! long-term keys (large, slow signatures, minimal assumptions). Signing here is
-//! FIPS 205 **deterministic (non-hedged)** — a pure function of (secret key,
-//! message) — so it is KAT-reproducible and uses no entropy at sign time; the
-//! `Signer` randomness argument is therefore intentionally unused.
+//! long-term keys (large, slow signatures, minimal assumptions). The `Signer`
+//! randomness argument selects the FIPS 205 signing variant: an all-zero value
+//! (any length, including empty) selects **deterministic (non-hedged)** signing —
+//! a pure function of (secret key, message), KAT-reproducible, no entropy at sign
+//! time — while any non-zero value requests the **hedged** variant, must be
+//! exactly `SIGN_RAND_LEN` bytes, and is used verbatim as the FIPS 205 additional
+//! randomness (`addrnd`). A non-zero value of any other length fails with
+//! [`Error::InvalidLength`]: a hedged request is never silently downgraded to
+//! deterministic signing.
 //!
 //! Backend choice: this wires the pure-Rust, stable **`fips205`** crate rather
 //! than RustCrypto `slh-dsa` (a release candidate whose bleeding-edge rand_core
-//! 0.10 keygen RNG is impractical to drive here). Both implement FIPS 205;
-//! non-hedged signing satisfies the deterministic / no-internal-RNG contract.
+//! 0.10 keygen RNG is impractical to drive here). Both implement FIPS 205; the
+//! caller supplies all signing randomness explicitly, so no internal RNG is drawn.
 
 use fips205::traits::{SerDes as _, Signer as _, Verifier as _};
 use q_periapt_core::Error;
 use q_periapt_sig::{SigAlg, Signer, Verifier};
+use rand_core::{CryptoRng, RngCore};
+
+/// Single-use `CryptoRngCore` that hands the caller's hedging randomness to
+/// `fips205::*::try_sign_with_rng`. Hedged SLH-DSA signing draws exactly one
+/// n-byte `addrnd` via `try_fill_bytes`; any other draw pattern fails the sign
+/// call (fail-closed) rather than substituting different randomness. Marked
+/// `CryptoRng` only to satisfy the bound — it is a caller-randomness feeder,
+/// NOT a generator.
+struct CallerAddrnd<'a> {
+    addrnd: &'a [u8],
+    spent: bool,
+}
+
+impl RngCore for CallerAddrnd<'_> {
+    fn next_u32(&mut self) -> u32 {
+        unreachable!("hedged SLH-DSA signing draws addrnd only via try_fill_bytes")
+    }
+    fn next_u64(&mut self) -> u64 {
+        unreachable!("hedged SLH-DSA signing draws addrnd only via try_fill_bytes")
+    }
+    fn fill_bytes(&mut self, _dest: &mut [u8]) {
+        unreachable!("hedged SLH-DSA signing draws addrnd only via try_fill_bytes")
+    }
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        if self.spent || dest.len() != self.addrnd.len() {
+            return Err(rand_core::Error::from(core::num::NonZeroU32::MIN));
+        }
+        dest.copy_from_slice(self.addrnd);
+        self.spent = true;
+        Ok(())
+    }
+}
+
+impl CryptoRng for CallerAddrnd<'_> {}
 
 macro_rules! slhdsa_backend {
     ($name:ident, $m:ident, $alg:expr, $doc:expr) => {
@@ -28,6 +67,9 @@ macro_rules! slhdsa_backend {
             pub const VK_LEN: usize = fips205::$m::PK_LEN;
             /// Signature length, bytes.
             pub const SIG_LEN: usize = fips205::$m::SIG_LEN;
+            /// Hedged-signing additional-randomness (`addrnd`) length, bytes
+            /// (FIPS 205 `n`).
+            pub const SIGN_RAND_LEN: usize = fips205::$m::N;
 
             /// Generate a key pair from the OS CSPRNG (NON-deterministic; unlike
             /// the seed-based ML-KEM/ML-DSA generators). Returns `(signing_key,
@@ -48,14 +90,29 @@ macro_rules! slhdsa_backend {
                 &self,
                 sk: &[u8],
                 msg: &[u8],
-                _randomness: &[u8], // unused: non-hedged SLH-DSA is already deterministic
+                randomness: &[u8],
                 out_sig: &mut [u8],
             ) -> Result<usize, Error> {
-                let sk_arr = crate::to_arr::<{ fips205::$m::SK_LEN }>(sk)?;
-                let key =
-                    fips205::$m::PrivateKey::try_from_bytes(&sk_arr).map_err(|_| Error::Backend)?;
-                // ctx = empty, hedged = false (deterministic, KAT-reproducible).
-                let sig = key.try_sign(msg, b"", false).map_err(|_| Error::Backend)?;
+                let sk = crate::to_zeroizing::<{ fips205::$m::SK_LEN }>(sk)?;
+                let key = fips205::$m::PrivateKey::try_from_bytes(sk.as_bytes())
+                    .map_err(|_| Error::Backend)?;
+                // ctx = empty. All-zero randomness selects deterministic
+                // (non-hedged, KAT-reproducible) signing; anything else must be
+                // an exact n-byte addrnd and selects hedged signing with that
+                // value — a hedged request is never silently dropped.
+                let sig = if randomness.iter().any(|&byte| byte != 0) {
+                    if randomness.len() != Self::SIGN_RAND_LEN {
+                        return Err(Error::InvalidLength);
+                    }
+                    let mut addrnd = CallerAddrnd {
+                        addrnd: randomness,
+                        spent: false,
+                    };
+                    key.try_sign_with_rng(&mut addrnd, msg, b"", true)
+                } else {
+                    key.try_sign(msg, b"", false)
+                }
+                .map_err(|_| Error::Backend)?;
                 crate::write_exact(out_sig, &sig)?;
                 Ok(out_sig.len())
             }
@@ -146,10 +203,58 @@ mod tests {
     }
 
     #[test]
+    fn slhdsa_128s_hedged_uses_caller_addrnd() {
+        let (sk, vk) = SlhDsaSha2_128s::generate().unwrap();
+        let s = SlhDsaSha2_128s;
+        let msg = b"hedged statement";
+        let addrnd = [0x5Au8; SlhDsaSha2_128s::SIGN_RAND_LEN];
+        let mut hedged_a = [0u8; SlhDsaSha2_128s::SIG_LEN];
+        let mut hedged_b = [0u8; SlhDsaSha2_128s::SIG_LEN];
+        let mut deterministic = [0u8; SlhDsaSha2_128s::SIG_LEN];
+        s.sign(&sk, msg, &addrnd, &mut hedged_a).unwrap();
+        s.sign(&sk, msg, &addrnd, &mut hedged_b).unwrap();
+        s.sign(&sk, msg, &[], &mut deterministic).unwrap();
+        s.verify(&vk, msg, &hedged_a).unwrap();
+        assert_eq!(
+            hedged_a, hedged_b,
+            "hedged signing must be a pure function of (sk, msg, addrnd)"
+        );
+        assert_ne!(
+            hedged_a, deterministic,
+            "caller addrnd must reach the hedged PRF, not be discarded"
+        );
+    }
+
+    #[test]
+    fn slhdsa_128s_hedged_rejects_wrong_addrnd_length() {
+        let (sk, _vk) = SlhDsaSha2_128s::generate().unwrap();
+        let s = SlhDsaSha2_128s;
+        let mut sig = [0u8; SlhDsaSha2_128s::SIG_LEN];
+        // 32 non-zero bytes request hedging but are not the 16-byte 128s addrnd:
+        // the request must fail closed, not silently degrade to deterministic.
+        assert!(matches!(
+            s.sign(&sk, b"m", &[0x5Au8; 32], &mut sig),
+            Err(Error::InvalidLength)
+        ));
+        assert!(matches!(
+            s.sign(
+                &sk,
+                b"m",
+                &[0x5Au8; SlhDsaSha2_128s::SIGN_RAND_LEN - 1],
+                &mut sig
+            ),
+            Err(Error::InvalidLength)
+        ));
+    }
+
+    #[test]
     fn slhdsa_256s_sizes_and_keygen() {
         assert_eq!(SlhDsaSha2_256s::VK_LEN, 64);
         assert_eq!(SlhDsaSha2_256s::SK_LEN, 128);
         assert_eq!(SlhDsaSha2_256s::SIG_LEN, 29792);
+        assert_eq!(SlhDsaSha2_128s::SIGN_RAND_LEN, 16);
+        assert_eq!(SlhDsaSha2_192s::SIGN_RAND_LEN, 24);
+        assert_eq!(SlhDsaSha2_256s::SIGN_RAND_LEN, 32);
         // keygen is cheap; full 256s signing is slow, so it is exercised only by 128s.
         let _ = SlhDsaSha2_256s::generate().unwrap();
     }

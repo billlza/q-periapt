@@ -152,7 +152,7 @@ macro_rules! check_slhdsa_acvp {
         }
 
         // sigGen: deterministic external/pure/empty-ctx signing reproduces NIST's
-        // signature (the `_randomness` argument is unused for non-hedged SLH-DSA).
+        // signature (all-zero/empty `randomness` selects the non-hedged variant).
         for t in &v.sig_gen {
             let mut sig = vec![0u8; $sig_len];
             $backend
