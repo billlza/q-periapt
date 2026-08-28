@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 import copy
+import json
+import pathlib
 import unittest
 
 import crates_io_publication_contract as contract
 
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 SOURCE_PARENT = "1" * 40
 TAG_COMMIT = "2" * 40
@@ -84,6 +88,48 @@ def receipt_fixture(published_count: int = 10) -> dict[str, object]:
 
 
 class CratesIoPublicationContractTests(unittest.TestCase):
+    def test_frozen_v0_1_3_receipt_freezes_the_committed_receipt(self) -> None:
+        results = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        # Every committed manifest state on and after the published 0.1.3
+        # line carries the frozen verified leaf, so a direct comparison
+        # against the live manifest is exact and self-maintaining.
+        live = results["release_publications"][
+            contract.CRATES_IO_V0_1_3_PUBLICATION_KEY
+        ]
+        frozen = contract.frozen_crates_io_v0_1_3_receipt()
+        self.assertEqual(
+            json.dumps(frozen, sort_keys=True, indent=2, ensure_ascii=True),
+            json.dumps(live, sort_keys=True, indent=2, ensure_ascii=True),
+        )
+        contract.validate_crates_io_publication_receipt(frozen)
+        self.assertEqual(
+            "crates_io_v0_1_3", contract.CRATES_IO_V0_1_3_PUBLICATION_KEY
+        )
+        self.assertEqual(
+            contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+            frozen["identity"]["publication_key"],
+        )
+        self.assertEqual(
+            contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED, frozen["status"]
+        )
+
+    def test_near_frozen_receipts_still_validate_structurally(self) -> None:
+        receipt = contract.frozen_crates_io_v0_1_3_receipt()
+        receipt["crates"][0]["crates_io_api"]["checksum"] = "f" * 64
+        with self.assertRaisesRegex(
+            contract.CratesIoPublicationContractError, "checksum differs"
+        ):
+            contract.validate_crates_io_publication_receipt(receipt)
+
+        receipt = contract.frozen_crates_io_v0_1_3_receipt()
+        receipt["crates"][9]["crates_io_api"]["yanked"] = True
+        with self.assertRaisesRegex(
+            contract.CratesIoPublicationContractError, "yanked=false"
+        ):
+            contract.validate_crates_io_publication_receipt(receipt)
+
     def test_exact_partial_and_complete_receipts_pass(self) -> None:
         for published_count in (0, 1, 5, 10):
             with self.subTest(published_count=published_count):

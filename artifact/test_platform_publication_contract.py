@@ -59,6 +59,81 @@ class PlatformPublicationContractTests(unittest.TestCase):
             {"release_publications": {"platform_v0_1_3": pending_receipt()}}
         )
 
+    def test_frozen_v0_1_3_receipt_freezes_the_committed_receipt(self) -> None:
+        results = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        # Every committed manifest state on and after the published 0.1.3
+        # line carries the frozen verified leaf, so a direct comparison
+        # against the live manifest is exact and self-maintaining.
+        live = results["release_publications"][
+            contract.PLATFORM_V0_1_3_PUBLICATION_KEY
+        ]
+        frozen = contract.frozen_platform_v0_1_3_receipt()
+        self.assertEqual(
+            json.dumps(frozen, sort_keys=True, indent=2, ensure_ascii=True),
+            json.dumps(live, sort_keys=True, indent=2, ensure_ascii=True),
+        )
+        contract.validate_release_publications(
+            {
+                "release_publications": {
+                    "platform_r2": copy.deepcopy(self.historical_r2),
+                    "platform_v0_1_3": frozen,
+                }
+            }
+        )
+
+    def test_near_frozen_receipts_still_validate_structurally(self) -> None:
+        invalid = contract.frozen_platform_v0_1_3_receipt()
+        invalid["identity"]["distribution_revision"] = "r2"
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "v0_1_3 publication identity differs",
+        ):
+            contract.validate_release_publications(
+                {"release_publications": {"platform_v0_1_3": invalid}}
+            )
+
+    def test_frozen_v0_1_3_transitions_forbid_introduce_remove_change(
+        self,
+    ) -> None:
+        empty: dict[str, object] = {}
+        frozen = {
+            "release_publications": {
+                "platform_v0_1_3": contract.frozen_platform_v0_1_3_receipt()
+            }
+        }
+        contract.validate_release_publication_transition(
+            frozen, copy.deepcopy(frozen)
+        )
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "frozen platform 0.1.3.*cannot be introduced",
+        ):
+            contract.validate_release_publication_transition(empty, frozen)
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "cannot be removed",
+        ):
+            contract.validate_release_publication_transition(frozen, empty)
+        changed = copy.deepcopy(frozen)
+        changed["release_publications"]["platform_v0_1_3"]["observation"][
+            "release_id"
+        ] += 1
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "cannot change once recorded",
+        ):
+            contract.validate_release_publication_transition(frozen, changed)
+        demoted = {
+            "release_publications": {"platform_v0_1_3": pending_receipt()}
+        }
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "cannot change once recorded",
+        ):
+            contract.validate_release_publication_transition(frozen, demoted)
+
     def test_dispatch_keys_are_exact_versioned_leaf_names(self) -> None:
         self.assertEqual(
             contract.PLATFORM_PUBLICATION_KEYS,

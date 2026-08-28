@@ -381,6 +381,155 @@ def frozen_alpha2_r1_publication() -> dict[str, object]:
     }
 
 
+def frozen_v0_1_3_distribution() -> dict[str, object]:
+    """Return the exact published 0.1.3 verified distribution projection."""
+
+    return {
+        "apple_distribution_evidence_sha256": (
+            "66451588a1335d3d155b5fc94f203964b9202f05975593ef7058fa0bf36bc635"
+        ),
+        "artifact_path": "CQPeriapt.xcframework.zip",
+        "artifact_sha256": (
+            "b66c959873a314a6a4d63f6f421b0814c35365639d59d4e6dd88a431c5e8d399"
+        ),
+        "artifact_size": 33_167_714,
+        "checksums_sha256": (
+            "e9631fc0e721aef5f6c87c5abbfffaf28cce0fd80550d64d33cf88390b17b72c"
+        ),
+        "distribution_signed": True,
+        "immutable_release": True,
+        "manifest_sha256": (
+            "61ef1c44fc73334332dcddcf9bb74a9080db8885cf9cc19bbd14863f126ffab7"
+        ),
+        "notarization_applicability": "not_applicable_static_sdk_payload",
+        "notarized": False,
+        "origin_signature_certificate_sha256": (
+            "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d"
+        ),
+        "origin_signature_identity_class": "Developer ID Application",
+        "origin_signature_team_id": "YKUPL7Z869",
+        "public_release": True,
+        "release_revision": "r1",
+        "release_tag": "v0.1.3",
+        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.3",
+        "remote_consumer_verified": True,
+        "remote_verification": {
+            "log_sha256": (
+                "939cbf6cac90d4677de24c9a355066b78126df353ec49656e39b8705f53490e7"
+            ),
+            "verified_at": "2026-08-25T22:24:27Z",
+            "verifier_commit": "e570d1a87dd0febbfe0e183277847ed24fdc7fba",
+        },
+        "source_commit": "e9ae27fcc8b66c37a700cfa0e1efbc4219eb5688",
+        "stapled": False,
+        "swiftpm_checksum": (
+            "b66c959873a314a6a4d63f6f421b0814c35365639d59d4e6dd88a431c5e8d399"
+        ),
+        "version": "0.1.3",
+    }
+
+
+def frozen_v0_1_3_source() -> dict[str, object]:
+    """Return the exact published 0.1.3 source identity."""
+
+    return {
+        "canonical_source_tree_sha256": (
+            "2a2f0961c9a6fd3e5f410d78f760365593876b5036ddcaf491e917a6bb47e8db"
+        ),
+        "source_parent_commit": "e9ae27fcc8b66c37a700cfa0e1efbc4219eb5688",
+        "tag_commit": "69e64078ea464109d7e846619e2ce493aa26934f",
+        "tag_object": "c69dff9eb5f0395bfcf8b6909f35e28f5564c6d9",
+        "tag_tree": "4c05594b8f8d305c8a22dc8a25b87685856854c5",
+    }
+
+
+def frozen_v0_1_3_publication() -> dict[str, object]:
+    """Return the exact verified 0.1.3 GitHub publication projection."""
+
+    return {
+        "draft": False,
+        "immutable_release": True,
+        "observed_at": "2026-08-25T22:28:53Z",
+        "prerelease": False,
+        "public_release": True,
+        "published_at": "2026-08-25T17:22:50Z",
+        "release_attestation": {
+            "certificate_san": "https://dotcom.releases.github.com",
+            "predicate_type": "https://in-toto.io/attestation/release/v0.2",
+            "subjects": [
+                {
+                    "digest": {
+                        "sha1": "c69dff9eb5f0395bfcf8b6909f35e28f5564c6d9",
+                    },
+                    "uri": "pkg:github/billlza/q-periapt@v0.1.3",
+                },
+                {
+                    "digest": {
+                        "sha256": (
+                            "66451588a1335d3d155b5fc94f203964b9202f05975593ef7058fa0bf36bc635"
+                        ),
+                    },
+                    "name": "APPLE_DISTRIBUTION.json",
+                },
+                {
+                    "digest": {
+                        "sha256": (
+                            "b66c959873a314a6a4d63f6f421b0814c35365639d59d4e6dd88a431c5e8d399"
+                        ),
+                    },
+                    "name": "CQPeriapt.xcframework.zip",
+                },
+                {
+                    "digest": {
+                        "sha256": (
+                            "61ef1c44fc73334332dcddcf9bb74a9080db8885cf9cc19bbd14863f126ffab7"
+                        ),
+                    },
+                    "name": "MANIFEST.json",
+                },
+                {
+                    "digest": {
+                        "sha256": (
+                            "e9631fc0e721aef5f6c87c5abbfffaf28cce0fd80550d64d33cf88390b17b72c"
+                        ),
+                    },
+                    "name": "SHA256SUMS",
+                },
+            ],
+            "verification_record_sha256": (
+                "427f9e0bd859200842b5bedefaab525aeb6957708dfbb1c28d45dbb79db9988e"
+            ),
+            "verified": True,
+            "verified_at": "2026-08-25T17:22:51Z",
+        },
+        "release_id": 376_395_658,
+        "source": {
+            "tag_commit": "69e64078ea464109d7e846619e2ce493aa26934f",
+            "tag_object": "c69dff9eb5f0395bfcf8b6909f35e28f5564c6d9",
+        },
+    }
+
+
+def _frozen_v0_1_3_receipt() -> dict[str, object]:
+    """Assemble the complete frozen published 0.1.3 verified receipt.
+
+    The 0.1.3 stable line published for real, so the committed verified
+    receipt is frozen history: the boundary, identity, and section
+    constants above pin its exact bytes.
+    """
+
+    return {
+        "boundary": APPLE_V0_1_3_BOUNDARY,
+        "distribution": frozen_v0_1_3_distribution(),
+        "identity": dict(APPLE_V0_1_3_IDENTITY),
+        "kind": APPLE_PUBLICATION_KIND,
+        "publication": frozen_v0_1_3_publication(),
+        "schema_version": APPLE_PUBLICATION_SCHEMA_VERSION,
+        "source": frozen_v0_1_3_source(),
+        "status": APPLE_STATUS_VERIFIED,
+    }
+
+
 def _validate_identity(
     identity_value: object,
     *,
@@ -591,6 +740,16 @@ def _validate_receipt(
         stable_source = None
         expected_receipt_keys = _VERIFIED_RECEIPT_KEYS
     elif key == APPLE_V0_1_3_PUBLICATION_KEY:
+        if publication_values_equal(receipt, _frozen_v0_1_3_receipt()):
+            # The 0.1.3 line published: byte equality with the frozen
+            # verified receipt is the entire frozen-history contract, and
+            # that receipt passed the full structural validation below when
+            # it was committed.
+            return
+        # The structural pending/verified machinery below stays the active
+        # path for receipts that are not the frozen publication until the
+        # 0.1.4 opening renames it to the apple_v0_1_4 family; the frozen
+        # branch above then becomes this key's only accepting path.
         if status not in {APPLE_STATUS_PENDING, APPLE_STATUS_VERIFIED}:
             _fail(f"Apple 0.1.3 stable publication status is unknown: {status!r}")
         expected_identity = APPLE_V0_1_3_IDENTITY
@@ -714,6 +873,38 @@ def validate_apple_publication_transition(
         ):
             _fail("Apple alpha.2 publication receipt cannot change")
 
+    frozen_stable = _frozen_v0_1_3_receipt()
+    if (
+        APPLE_V0_1_3_PUBLICATION_KEY not in previous_publications
+        and APPLE_V0_1_3_PUBLICATION_KEY in current_publications
+        and publication_values_equal(
+            current_publications[APPLE_V0_1_3_PUBLICATION_KEY],
+            frozen_stable,
+        )
+    ):
+        _fail(
+            "frozen Apple 0.1.3 publication receipt cannot be "
+            "introduced by a future Apple-domain transition"
+        )
+    if APPLE_V0_1_3_PUBLICATION_KEY in previous_publications and (
+        publication_values_equal(
+            previous_publications[APPLE_V0_1_3_PUBLICATION_KEY],
+            frozen_stable,
+        )
+    ):
+        if APPLE_V0_1_3_PUBLICATION_KEY not in current_publications:
+            _fail("Apple 0.1.3 stable publication receipt cannot be removed")
+        if not publication_values_equal(
+            current_publications[APPLE_V0_1_3_PUBLICATION_KEY],
+            frozen_stable,
+        ):
+            _fail("frozen Apple 0.1.3 publication receipt cannot change")
+        return
+
+    # The pending/promotion machinery below stays in place for receipts
+    # that are not the frozen publication until the 0.1.4 opening renames
+    # it to the apple_v0_1_4 family; the frozen rules above then become
+    # this key's only transition contract.
     if APPLE_V0_1_3_PUBLICATION_KEY not in previous_publications:
         if APPLE_V0_1_3_PUBLICATION_KEY in current_publications:
             current_stable = _object(

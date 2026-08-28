@@ -192,6 +192,21 @@ def stable_verified_receipt() -> dict[str, object]:
     return receipt
 
 
+def frozen_stable_receipt() -> dict[str, object]:
+    """Assemble the frozen published 0.1.3 receipt from its public constants."""
+
+    return {
+        "boundary": contract.APPLE_V0_1_3_BOUNDARY,
+        "distribution": contract.frozen_v0_1_3_distribution(),
+        "identity": copy.deepcopy(contract.APPLE_V0_1_3_IDENTITY),
+        "kind": contract.APPLE_PUBLICATION_KIND,
+        "publication": contract.frozen_v0_1_3_publication(),
+        "schema_version": contract.APPLE_PUBLICATION_SCHEMA_VERSION,
+        "source": contract.frozen_v0_1_3_source(),
+        "status": contract.APPLE_STATUS_VERIFIED,
+    }
+
+
 def manifest(*receipts: tuple[str, dict[str, object]]) -> dict[str, object]:
     return {"release_publications": dict(receipts)}
 
@@ -331,6 +346,67 @@ class ApplePublicationContractTests(unittest.TestCase):
                             )
                         )
                     )
+
+    def test_frozen_v0_1_3_family_freezes_the_committed_receipt(self) -> None:
+        results = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        # Every committed manifest state on and after the published 0.1.3
+        # line carries the frozen verified leaf, so a direct comparison
+        # against the live manifest is exact and self-maintaining.
+        live = results["release_publications"][
+            contract.APPLE_V0_1_3_PUBLICATION_KEY
+        ]
+        frozen = frozen_stable_receipt()
+        self.assertTrue(contract.publication_values_equal(frozen, live))
+        self.assertEqual(
+            json.dumps(frozen, sort_keys=True, indent=2, ensure_ascii=True),
+            json.dumps(live, sort_keys=True, indent=2, ensure_ascii=True),
+        )
+        contract.validate_apple_publications(
+            manifest(
+                (contract.APPLE_ALPHA2_R1_PUBLICATION_KEY, alpha2_receipt()),
+                (contract.APPLE_V0_1_3_PUBLICATION_KEY, frozen),
+            )
+        )
+
+    def test_frozen_v0_1_3_transitions_forbid_introduce_remove_change(
+        self,
+    ) -> None:
+        empty: dict[str, object] = {}
+        frozen = manifest(
+            (contract.APPLE_V0_1_3_PUBLICATION_KEY, frozen_stable_receipt())
+        )
+        contract.validate_apple_publication_transition(
+            frozen, copy.deepcopy(frozen)
+        )
+        with self.assertRaisesRegex(
+            contract.ApplePublicationContractError,
+            "frozen Apple 0.1.3.*cannot be introduced",
+        ):
+            contract.validate_apple_publication_transition(empty, frozen)
+        with self.assertRaisesRegex(
+            contract.ApplePublicationContractError,
+            "0.1.3 stable.*cannot be removed",
+        ):
+            contract.validate_apple_publication_transition(frozen, empty)
+        changed = copy.deepcopy(frozen)
+        changed["release_publications"][
+            contract.APPLE_V0_1_3_PUBLICATION_KEY
+        ]["distribution"]["artifact_size"] += 1
+        with self.assertRaisesRegex(
+            contract.ApplePublicationContractError,
+            "frozen Apple 0.1.3.*cannot change",
+        ):
+            contract.validate_apple_publication_transition(frozen, changed)
+        demoted = manifest(
+            (contract.APPLE_V0_1_3_PUBLICATION_KEY, stable_pending_receipt())
+        )
+        with self.assertRaisesRegex(
+            contract.ApplePublicationContractError,
+            "frozen Apple 0.1.3.*cannot change",
+        ):
+            contract.validate_apple_publication_transition(frozen, demoted)
 
     def test_stable_states_are_exact_and_cross_link_identity(self) -> None:
         for receipt in (stable_pending_receipt(), stable_verified_receipt()):
