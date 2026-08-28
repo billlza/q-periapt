@@ -194,13 +194,15 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
 # installed 237-key successors are intentionally not constrained by this value.
-# stage 5: the 0.1.4 opening installs the crafted "V-minus-47" baseline (the
-# committed verified 0.1.3 manifest with the 47 declared-missing proof-input
-# keys deleted) and repins this constant to that baseline's sha256 — the
-# first-ever repin, because 0.1.3 is the first line that published for real
-# and its verified cohort is the new frozen floor.
+# The 0.1.4 opening repinned this authority for the first time: 0.1.3 is the
+# first line that published for real, so its committed verified manifest —
+# with the 47 declared-missing proof-input keys deleted — is the new frozen
+# baseline floor carrying the five historical publication receipts and the
+# activated apple_v0_1_3 selector. The alpha.2-era baseline
+# c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50 is
+# superseded and remains valid only in the 0.1.0-0.1.3 line history.
 INITIAL_RESULTS_SHA256 = (
-    "c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50"
+    "552d63de033080314e2f502d0994c5fe4353e706a3f24c6bce13ea005316786a"
 )
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(

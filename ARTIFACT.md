@@ -324,7 +324,7 @@ delete the installed-successor and main-CI gates.
 The main CI source gate deliberately recognizes exactly two manifest states. For
 the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
-`c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50`,
+`552d63de033080314e2f502d0994c5fe4353e706a3f24c6bce13ea005316786a`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
 and fixed 47-key delta, requires a clean expected commit/tree identity, and samples
 the complete 237-key input authority twice before emitting
