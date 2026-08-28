@@ -271,7 +271,10 @@ tmp_header=$(mktemp "$ROOT/target/qperiapt-android-header.XXXXXX.h")
 cleanup() {
 	rm -f "$tmp_header"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 printf 'Q-Periapt Android AAR/JNI package\n'
 printf 'version  : %s\n' "$VERSION"

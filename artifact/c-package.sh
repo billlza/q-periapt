@@ -239,7 +239,10 @@ cleanup() {
 		[ -z "$temporary_file" ] || rm -f "$temporary_file"
 	done
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 static_libs_log=$(mktemp "$ROOT/target/qperiapt-c-package-static-libs.log.XXXXXX")
 tmp_cbom=$(mktemp "$ROOT/target/qperiapt-cbom.json.XXXXXX")
