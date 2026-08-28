@@ -43,6 +43,45 @@ from test_release_publication_contract import (
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+STABLE_COHORT_PUBLICATION_KEYS = (
+    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+    crates_contract.CRATES_IO_PUBLICATION_KEY,
+)
+
+
+def restore_source_publication_state(manifest: dict[str, object]) -> None:
+    """Rewind any committed cohort state to the exact source projection.
+
+    The live manifest is committed in one of the coordinated states —
+    source, pending, or verified — and these tests replay the complete
+    source -> pending -> verified state machine from synthetic receipts.
+    The fixture therefore rewinds the live bytes to the source projection:
+    drop the v0.1.3 stable-cohort leaves, and when the verified state has
+    already activated the stable Apple selector, rebind it to the frozen
+    alpha.2 legacy publication exactly as the source-results install left
+    it, from the contract's own frozen distribution bytes rather than the
+    state-dependent live selector.
+    """
+
+    publications = manifest["release_publications"]
+    assert isinstance(publications, dict)
+    for key in STABLE_COHORT_PUBLICATION_KEYS:
+        publications.pop(key, None)
+    swift = neutral_selector_fixture(manifest)
+    active_key = swift["active_publication_key"]
+    if active_key != apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY:
+        if active_key != apple_contract.APPLE_V0_1_3_PUBLICATION_KEY:
+            raise AssertionError(
+                "live Apple selector names an unexpected publication key"
+            )
+        swift["active_publication_key"] = (
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        )
+        swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
+    manifest["swift_xcframework"] = swift
+
+
 class ReleaseReceiptFinalizerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -74,7 +113,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             source_commit=self.source_commit,
             source_digest=self.source_digest,
         )
-        source["swift_xcframework"] = neutral_selector_fixture(source)
+        restore_source_publication_state(source)
         self._write_results(source)
         self._git("add", "artifact/results.json")
         self._git("commit", "-qm", "install source results")

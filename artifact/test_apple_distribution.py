@@ -23,6 +23,7 @@ import apple_stable_publication
 import deterministic_archive
 import platform_publication_contract
 import release_publication_contract
+from test_apple_publication_contract import source_baseline_manifest
 from test_release_publication_contract import (
     _rebind_platform,
     pending_manifest_fixture,
@@ -1378,7 +1379,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "swiftpm_checksum": self.hashes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
             "version": release_identity["product_version"],
         }
-        pending = pending_manifest_fixture()
+        pending = pending_manifest_fixture(source_baseline_manifest())
         stable = pending["release_publications"][
             apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ]

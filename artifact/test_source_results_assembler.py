@@ -16,6 +16,9 @@ from collections.abc import Callable
 from typing import Any, cast
 from unittest import mock
 
+import apple_publication_contract
+import platform_publication_contract
+import release_publication_contract as publication_contract
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
@@ -59,11 +62,25 @@ def _initial_baseline() -> dict[str, Any]:
     baseline = _live_results()
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
+    # Restore the frozen initial publication state: exactly the alpha.2-r1
+    # and platform-r2 receipts, dropping the stable v0.1.3 cohort leaves the
+    # live manifest carries in its pending and verified selection states.
+    publications = baseline["release_publications"]
+    baseline["release_publications"] = {
+        key: publications[key]
+        for key in (
+            apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+            platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+        )
+    }
     baseline["swift_xcframework"].pop("active_publication_key", None)
     # Restore the exact frozen legacy field bytes so the one-time neutral
     # selector migration keeps being exercised over its true input.
     baseline["swift_xcframework"].update(
         copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS)
+    )
+    baseline["swift_xcframework"]["distribution"] = (
+        apple_publication_contract.frozen_alpha2_r1_distribution()
     )
     return baseline
 
@@ -493,19 +510,60 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             # Installed successor state (source_ci_gate's installed dispatch).
             self.assertEqual(237, len(inputs))
             self.assertNotEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
-            assembler._validate_baseline_document_shape(
-                baseline,
-                require_initial=False,
-            )
+            for key, digest in inputs.items():
+                self.assertTrue(key.endswith("_sha256"), key)
+                self.assertIsNotNone(
+                    assembler.SHA256_RE.fullmatch(digest), key
+                )
             assembler.validate_declared_currentness(baseline)
-            with self.assertRaisesRegex(
-                assembler.SourceResultsAssemblerError,
-                "one-time proof-input migration",
-            ):
+            state = publication_contract.publication_state(baseline)
+            if state == publication_contract.PUBLICATION_STATE_SOURCE:
+                # Freshly installed successor: still the assembler's own
+                # direct baseline shape.
                 assembler._validate_baseline_document_shape(
                     baseline,
-                    require_initial=True,
+                    require_initial=False,
                 )
+                with self.assertRaisesRegex(
+                    assembler.SourceResultsAssemblerError,
+                    "one-time proof-input migration",
+                ):
+                    assembler._validate_baseline_document_shape(
+                        baseline,
+                        require_initial=True,
+                    )
+                return
+            # Receipt-finalized stable cohort: pending and verified are both
+            # valid committed states, and neither remains the assembler's
+            # direct baseline, so both shape modes must fail closed.
+            self.assertIn(
+                state,
+                (
+                    publication_contract.PUBLICATION_STATE_PENDING,
+                    publication_contract.PUBLICATION_STATE_VERIFIED,
+                ),
+            )
+            publication_contract.validate_stable_source_currentness(baseline)
+            expected_active = (
+                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+                if state == publication_contract.PUBLICATION_STATE_VERIFIED
+                else apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+            )
+            self.assertEqual(
+                expected_active,
+                baseline["swift_xcframework"]["active_publication_key"],
+            )
+            for require_initial in (True, False):
+                with self.subTest(
+                    require_initial=require_initial
+                ), self.assertRaisesRegex(
+                    assembler.SourceResultsAssemblerError,
+                    "frozen alpha.2 and platform-r2 leaves",
+                ):
+                    assembler._validate_baseline_document_shape(
+                        baseline,
+                        require_initial=require_initial,
+                    )
             return
 
         # Frozen initial baseline state (source_ci_gate's initial dispatch).

@@ -22,6 +22,7 @@ import apple_release_verification as verification
 import apple_stable_publication as publication
 import apple_distribution
 import apple_publication_contract as apple_contract
+import crates_io_publication_contract as crates_contract
 import platform_publication_contract
 import publication_receipt_io as receipt_io
 import release_publication_contract
@@ -254,6 +255,24 @@ class AppleStablePublicationTests(unittest.TestCase):
         manifest["release_publications"][
             apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         ] = copy.deepcopy(self.pending)
+        # The committed results.json is state-selected: the pending
+        # publication cohort and the verified cohort are both valid live
+        # states, and the verified state additionally records the crates.io
+        # receipt and activates the stable v0.1.3 Swift selection. This
+        # fixture models the PENDING cohort, so reconstruct that exact
+        # projection regardless of which state is installed: drop the
+        # crates.io leaf (the pending cohort records none) and rebind the
+        # selector to the frozen legacy alpha.2 publication from the
+        # contract's own frozen distribution bytes. Under the pending live
+        # state this is a no-op rewrite of the identical bytes.
+        manifest["release_publications"].pop(
+            crates_contract.CRATES_IO_PUBLICATION_KEY, None
+        )
+        swift = manifest["swift_xcframework"]
+        swift["active_publication_key"] = (
+            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+        )
+        swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
         platform = manifest["release_publications"][
             platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
         ]
