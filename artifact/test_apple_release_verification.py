@@ -467,7 +467,14 @@ class AppleReleaseVerificationTests(unittest.TestCase):
 
         command_kinds = []
         for arguments, keyword_arguments in runner.calls:
-            self.assertEqual(subprocess.DEVNULL, keyword_arguments["stderr"])
+            if arguments[0] == verification.GIT:
+                self.assertEqual(
+                    subprocess.DEVNULL, keyword_arguments["stderr"]
+                )
+            else:
+                stderr_sink = keyword_arguments["stderr"]
+                self.assertIsInstance(stderr_sink, int)
+                self.assertGreaterEqual(stderr_sink, 0)
             if "cat-file" in arguments:
                 self.assertEqual(verification.GIT, arguments[0])
                 self.assertNotIn(
@@ -677,10 +684,9 @@ class AppleReleaseVerificationTests(unittest.TestCase):
             ],
             github_calls[0][0],
         )
-        self.assertEqual(
-            subprocess.DEVNULL,
-            github_calls[0][1]["stderr"],
-        )
+        stderr_sink = github_calls[0][1]["stderr"]
+        self.assertIsInstance(stderr_sink, int)
+        self.assertGreaterEqual(stderr_sink, 0)
         config_directory = pathlib.Path(
             github_calls[0][1]["environment"]["GH_CONFIG_DIR"]
         )
