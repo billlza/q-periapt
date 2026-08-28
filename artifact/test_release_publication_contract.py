@@ -118,16 +118,30 @@ def neutral_selector_fixture(
     if isinstance(swift, dict) and "active_publication_key" in swift:
         # The live selector is already migrated.  A verified cohort has
         # atomically switched it to the stable v0.1.3 receipt, so rebuild
-        # the neutral pre-activation selector from the frozen alpha.2
-        # projection; in the pending state this is a byte-identical copy.
+        # the complete neutral pre-activation selector — the production
+        # migration's full field set over the frozen alpha.2 projection;
+        # in the pending state this is a byte-identical copy.
         neutral = copy.deepcopy(swift)
-        neutral["active_publication_key"] = (
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-        )
-        neutral["distribution"] = (
-            apple_contract.frozen_alpha2_r1_distribution()
+        neutral.update(
+            {
+                "active_publication_key": (
+                    apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+                ),
+                "boundary": contract.NEUTRAL_SWIFT_BOUNDARY,
+                "command": contract.NEUTRAL_SWIFT_COMMAND,
+                "current_local_status": contract.NEUTRAL_SWIFT_LOCAL_STATUS,
+                "current_source_status": (
+                    contract.NEUTRAL_SWIFT_SOURCE_STATUS
+                ),
+                "distribution": (
+                    apple_contract.frozen_alpha2_r1_distribution()
+                ),
+                "mode": contract.NEUTRAL_SWIFT_MODE,
+            }
         )
         return neutral
+    # A pre-migration legacy selector defers to the production one-time
+    # migration so its exact frozen input keeps being exercised.
     return contract.neutral_swift_selector(manifest)
 
 

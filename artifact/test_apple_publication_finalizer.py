@@ -147,23 +147,73 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
         self.assert_history_transition(self.pending, self.verified)
 
     def test_live_manifest_holds_a_committed_cohort_state(self) -> None:
-        """Accept the live manifest in either committed selection state."""
+        """Accept the live manifest in any committed cohort state."""
 
         state = release_contract.publication_state(self.live)
         self.assertIn(
             state,
             (
+                release_contract.PUBLICATION_STATE_SOURCE,
                 release_contract.PUBLICATION_STATE_PENDING,
                 release_contract.PUBLICATION_STATE_VERIFIED,
             ),
         )
+        if state == release_contract.PUBLICATION_STATE_SOURCE:
+            swift = self.live["swift_xcframework"]
+            if "active_publication_key" not in swift:
+                # Initial pre-migration baseline: the live bytes are exactly
+                # the frozen legacy manifest, whose only legal successor is
+                # the one-time neutral selector migration (a legacy
+                # self-transition is deliberately rejected).
+                self.assertEqual(self.legacy, self.live)
+                self.assert_history_transition(self.live, self.source)
+                return
+            # Freshly installed source results must sustain themselves under
+            # the finalizer's first-parent history gate.
+            self.assert_history_transition(self.live, self.live)
+            return
         if state == release_contract.PUBLICATION_STATE_PENDING:
             # The committed pending cohort must be a valid successor of the
             # reconstructed source-results state.
             self.assert_history_transition(self.source, self.live)
+        if state == release_contract.PUBLICATION_STATE_VERIFIED:
+            # The verified cohort must be the exact successor of its real
+            # first-parent pending manifest, so candidate drift during the
+            # promotion cannot hide behind a self-transition.
+            parent = self._first_parent_live_manifest()
+            if parent is not None and release_contract.publication_state(
+                parent
+            ) == release_contract.PUBLICATION_STATE_PENDING:
+                self.assert_history_transition(parent, self.live)
         # Either committed state must sustain itself under the finalizer's
         # first-parent history gate.
         self.assert_history_transition(self.live, self.live)
+
+    @staticmethod
+    def _first_parent_live_manifest() -> dict[str, object] | None:
+        """Return the committed first-parent results manifest when available."""
+
+        try:
+            raw = subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "core.fsmonitor=false",
+                    "show",
+                    "HEAD^:artifact/results.json",
+                ],
+                cwd=pathlib.Path(__file__).resolve().parent.parent,
+                capture_output=True,
+                timeout=30,
+                check=True,
+            ).stdout
+        except (OSError, subprocess.SubprocessError):
+            return None
+        try:
+            manifest = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return None
+        return manifest if isinstance(manifest, dict) else None
 
     def test_source_cannot_skip_pending(self) -> None:
         self.assert_history_rejected(
