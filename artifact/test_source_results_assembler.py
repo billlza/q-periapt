@@ -17,12 +17,12 @@ from typing import Any, cast
 from unittest import mock
 
 import apple_publication_contract
+import crates_io_publication_contract
 import platform_publication_contract
 import release_publication_contract as publication_contract
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
-from test_release_publication_contract import LEGACY_ALPHA2_SWIFT_FIELDS
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -62,25 +62,27 @@ def _initial_baseline() -> dict[str, Any]:
     baseline = _live_results()
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
-    # Restore the frozen initial publication state: exactly the alpha.2-r1
-    # and platform-r2 receipts, dropping the frozen published v0.1.3
-    # leaves the live manifest carries (and any active v0.1.4 state).
+    # Restore the frozen 0.1.4-opening publication state: exactly the
+    # five frozen historical leaves (dropping any active v0.1.4 cohort
+    # state) with the selector activated on the frozen published
+    # apple_v0_1_3 receipt.
     publications = baseline["release_publications"]
     baseline["release_publications"] = {
         key: publications[key]
         for key in (
             apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
             platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+            apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+            crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
         )
     }
-    baseline["swift_xcframework"].pop("active_publication_key", None)
-    # Restore the exact frozen legacy field bytes so the one-time neutral
-    # selector migration keeps being exercised over its true input.
-    baseline["swift_xcframework"].update(
-        copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS)
+    swift = baseline["swift_xcframework"]
+    swift["active_publication_key"] = (
+        apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
     )
-    baseline["swift_xcframework"]["distribution"] = (
-        apple_publication_contract.frozen_alpha2_r1_distribution()
+    swift["distribution"] = (
+        apple_publication_contract.frozen_v0_1_3_distribution()
     )
     return baseline
 
@@ -120,7 +122,9 @@ def _plan_current(previous: dict[str, Any]) -> dict[str, Any]:
         "performance",
         ("current_source_status",),
     )
-    current["swift_xcframework"] = assembler.neutral_swift_selector(previous)
+    # The retired one-time selector migration has no successor: assembly
+    # carries the previous selector byte-for-byte.
+    current["swift_xcframework"] = copy.deepcopy(previous["swift_xcframework"])
     return current
 
 
@@ -515,16 +519,28 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 self.assertIsNotNone(
                     assembler.SHA256_RE.fullmatch(digest), key
                 )
-            assembler.validate_declared_currentness(baseline)
             state = publication_contract.publication_state(baseline)
             publications = baseline["release_publications"]
-            if (
-                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
-                not in publications
-                and state == publication_contract.PUBLICATION_STATE_SOURCE
+            # The frozen five-leaf historical floor is permanent in every
+            # committed manifest on the 0.1.4 line.
+            for key in (
+                apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+                crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
             ):
-                # Freshly installed pre-0.1.3 successor: still the
-                # assembler's own direct baseline shape.
+                self.assertIn(key, publications)
+            if state == publication_contract.PUBLICATION_STATE_SOURCE:
+                # Live source manifest: exactly the five frozen leaves
+                # with the apple_v0_1_3 selector active — the assembler's
+                # own installed baseline shape (this holds for the current
+                # live bytes, whose selector activated on the published
+                # 0.1.3 line and whose v0.1.4 cohort has not recorded).
+                self.assertEqual(
+                    apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                    baseline["swift_xcframework"]["active_publication_key"],
+                )
                 assembler._validate_baseline_document_shape(
                     baseline,
                     require_initial=False,
@@ -537,23 +553,34 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                         baseline,
                         require_initial=True,
                     )
+                if (
+                    baseline["android_aar"]["aar_path"]
+                    == assembler.ANDROID_AAR_PATH
+                ):
+                    # Fresh 0.1.4-line installed successor: its declared
+                    # package currentness holds against the 0.1.4 path
+                    # authorities.
+                    assembler.validate_declared_currentness(baseline)
+                else:
+                    # The 0.1.3-line verified manifest is still installed
+                    # ahead of the stage-5 baseline swap: its sections
+                    # declare the previous line's currentness, which the
+                    # 0.1.4 path authorities reject wholesale (the crafted
+                    # initial baseline deliberately skips this validator).
+                    with self.assertRaises(assembler.ProofManifestError):
+                        assembler.validate_declared_currentness(baseline)
                 return
-            # Receipt-finalized stable manifest: the frozen published
-            # v0.1.3 cohort (and any recorded v0.1.4 cohort state) is not
-            # the assembler's direct two-leaf baseline, so both shape
-            # modes must fail closed.
-            # stage 3: publication_state now names the v0.1.4 cohort state
-            # (source while no v0.1.4 leaves are recorded); the composite
-            # restructure and the assembler's new five-leaf baseline
-            # validator re-scope this dispatch.
+            # Receipt-finalized stable manifest: the recorded v0.1.4
+            # cohort state is not the assembler's five-leaf baseline, so
+            # both shape modes must fail closed.
             self.assertIn(
                 state,
                 (
-                    publication_contract.PUBLICATION_STATE_SOURCE,
                     publication_contract.PUBLICATION_STATE_PENDING,
                     publication_contract.PUBLICATION_STATE_VERIFIED,
                 ),
             )
+            assembler.validate_declared_currentness(baseline)
             publication_contract.validate_stable_source_currentness(baseline)
             expected_active = (
                 apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
@@ -569,7 +596,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     require_initial=require_initial
                 ), self.assertRaisesRegex(
                     assembler.SourceResultsAssemblerError,
-                    "frozen alpha.2 and platform-r2 leaves",
+                    "five frozen historical leaves",
                 ):
                     assembler._validate_baseline_document_shape(
                         baseline,
@@ -577,7 +604,9 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     )
             return
 
-        # Frozen initial baseline state (source_ci_gate's initial dispatch).
+        # Frozen initial baseline state (source_ci_gate's initial dispatch;
+        # this branch selects only after the stage-5 opening installs the
+        # crafted 190-key baseline and repins INITIAL_RESULTS_SHA256).
         self.assertEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
         self.assertEqual(190, len(inputs))
         self.assertEqual(

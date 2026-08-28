@@ -24,7 +24,7 @@ from test_platform_stable_publication_contract import (
 from test_release_publication_contract import (
     _rebind_crates,
     _rebind_platform,
-    neutral_selector_fixture,
+    frozen_v0_1_3_selector_fixture,
     source_manifest_fixture,
 )
 
@@ -50,7 +50,7 @@ def _source_manifest() -> dict[str, object]:
             legacy["release_publications"]
         ),
         "rust_publish": copy.deepcopy(source_manifest["rust_publish"]),
-        "swift_xcframework": neutral_selector_fixture(legacy),
+        "swift_xcframework": frozen_v0_1_3_selector_fixture(legacy),
     }
 
 

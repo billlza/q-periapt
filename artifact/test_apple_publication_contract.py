@@ -28,15 +28,13 @@ def source_baseline_manifest() -> dict[str, object]:
 
     The committed results.json is a state-selected manifest: the active
     v0.1.4 cohort leaves are either absent (source state), pending, or
-    verified, the frozen published v0.1.3 leaves are permanent history,
-    and the Apple selector advances with the active cohort. Fixtures that
+    verified, the five frozen historical leaves are permanent, and the
+    Apple selector advances with the active cohort. Fixtures that
     construct synthetic cohort states must start from the state-independent
-    source baseline instead of inheriting whichever cohort state happens to
-    be installed, so this strips the stable cohort leaves (the frozen
-    v0.1.3 history together with any active v0.1.4 state) and restores
-    the complete neutral alpha.2-r1 selector projection: a pre-migration
-    legacy manifest defers to the production one-time migration, and an
-    already-migrated selector is rebuilt from the frozen neutral field set.
+    source baseline instead of inheriting whichever cohort state happens
+    to be installed, so this strips only the active v0.1.4 leaves and
+    rebuilds the source-state selector: the frozen neutral field set with
+    the frozen published apple_v0_1_3 receipt active.
     """
 
     live = json.loads(
@@ -44,27 +42,16 @@ def source_baseline_manifest() -> dict[str, object]:
     )
     publications = live["release_publications"]
     for key in (
-        contract.APPLE_V0_1_3_PUBLICATION_KEY,
         contract.APPLE_V0_1_4_PUBLICATION_KEY,
-        platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
         platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
         crates_contract.CRATES_IO_PUBLICATION_KEY,
-        crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
     ):
         publications.pop(key, None)
     swift = live["swift_xcframework"]
-    if "active_publication_key" not in swift:
-        # The initial baseline predates the one-time selector migration and
-        # still carries the exact frozen legacy alpha.2 selector, so the
-        # production migration itself produces the neutral projection.
-        live["swift_xcframework"] = release_contract.neutral_swift_selector(
-            live
-        )
-        return live
     swift.update(
         {
             "active_publication_key": (
-                contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+                contract.APPLE_V0_1_3_PUBLICATION_KEY
             ),
             "boundary": release_contract.NEUTRAL_SWIFT_BOUNDARY,
             "command": release_contract.NEUTRAL_SWIFT_COMMAND,
@@ -74,7 +61,7 @@ def source_baseline_manifest() -> dict[str, object]:
             "current_source_status": (
                 release_contract.NEUTRAL_SWIFT_SOURCE_STATUS
             ),
-            "distribution": contract.frozen_alpha2_r1_distribution(),
+            "distribution": contract.frozen_v0_1_3_distribution(),
             "mode": release_contract.NEUTRAL_SWIFT_MODE,
         }
     )

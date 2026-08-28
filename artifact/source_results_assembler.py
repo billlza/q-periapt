@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the initial source-bound 0.1.3 stable results-only successor.
+"""Assemble the initial source-bound 0.1.4 stable results-only successor.
 
 This module consumes fixed local producer outputs plus short run selectors.  It
 never edits ``artifact/results.json``.  A successful finalize operation emits a
@@ -29,6 +29,7 @@ from typing import Any, Never, TypeVar
 import android_device_proof
 import android_elf
 import apple_publication_contract
+import crates_io_publication_contract
 import platform_publication_contract
 import release_consumer_smoke
 import release_index
@@ -92,7 +93,6 @@ from publication_receipt_io import (
 )
 from release_publication_contract import (
     ReleasePublicationContractError,
-    neutral_swift_selector,
     validate_release_publication_transition,
     validate_release_publications,
     validate_stable_source_currentness,
@@ -194,6 +194,11 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
 # installed 237-key successors are intentionally not constrained by this value.
+# stage 5: the 0.1.4 opening installs the crafted "V-minus-47" baseline (the
+# committed verified 0.1.3 manifest with the 47 declared-missing proof-input
+# keys deleted) and repins this constant to that baseline's sha256 — the
+# first-ever repin, because 0.1.3 is the first line that published for real
+# and its verified cohort is the new frozen floor.
 INITIAL_RESULTS_SHA256 = (
     "c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50"
 )
@@ -624,25 +629,33 @@ def _validate_baseline_document_shape(
 
 
 def _validate_initial_publication_state(baseline: dict[str, Any]) -> None:
+    # The 0.1.4 line opens on the frozen five-leaf historical floor with
+    # the selector activated on the frozen published apple_v0_1_3 receipt.
+    # Both the crafted initial baseline and the installed R successor
+    # carry exactly this publication state, so one shape serves both.
     publications = _object(
         baseline.get("release_publications"), "release_publications"
     )
     required = {
         apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
         platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+        apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+        platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+        crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
     }
     _require(
         set(publications) == required,
-        "initial source successor requires exactly the frozen alpha.2 and platform-r2 leaves",
+        "initial source successor requires exactly the five frozen historical leaves",
     )
     swift = _object(baseline.get("swift_xcframework"), "swift_xcframework")
-    apple_alpha2 = _object(
-        publications[apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY],
-        "Apple alpha.2 publication",
-    )
     _require(
-        _json_equal(swift.get("distribution"), apple_alpha2.get("distribution")),
-        "initial source successor baseline has a non-alpha.2 Swift selector",
+        swift.get("active_publication_key")
+        == apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+        and _json_equal(
+            swift.get("distribution"),
+            apple_publication_contract.frozen_v0_1_3_distribution(),
+        ),
+        "initial source successor baseline must select the frozen apple_v0_1_3 publication",
     )
 
 
@@ -1112,12 +1125,12 @@ def _aar_projection(
         aar = read_regular_snapshot(
             ANDROID_AAR_FILE,
             maximum=android_elf.MAX_ARCHIVE_BYTES,
-            label="Android 0.1.3 stable AAR",
+            label="Android 0.1.4 stable AAR",
         )
         manifest_snapshot = load_json_object_snapshot(
             ANDROID_AAR_MANIFEST_FILE,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.3 stable AAR manifest",
+            label="Android 0.1.4 stable AAR manifest",
         )
         ndk = _android_ndk()
         properties_path = ndk / "source.properties"
@@ -1263,12 +1276,12 @@ def _aar_projection(
         _pin(
             aar,
             maximum=android_elf.MAX_ARCHIVE_BYTES,
-            label="Android 0.1.3 stable AAR",
+            label="Android 0.1.4 stable AAR",
         ),
         _pin(
             manifest_snapshot.file,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.3 stable AAR manifest",
+            label="Android 0.1.4 stable AAR manifest",
         ),
         _pin(
             properties_file,
@@ -1384,7 +1397,7 @@ def _index_path(source: SourceIdentity) -> pathlib.Path:
         / "target"
         / "qperiapt-local-release"
         / "release"
-        / "0.1.3"
+        / "0.1.4"
         / source.commit
         / "index.json"
     )
@@ -1671,12 +1684,15 @@ def plan_authorized_mutations(
             isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None,
             f"source results proof-input digest is malformed: {key}",
         )
+    # The one-time legacy selector migration completed on the published
+    # 0.1.3 line and is retired as this module's own boundary mandates:
+    # source assembly carries the previous selector byte-for-byte.
     _require(
         _json_equal(
             current.get("swift_xcframework"),
-            neutral_swift_selector(previous),
+            previous.get("swift_xcframework"),
         ),
-        "source results did not perform the exact one-time Swift selector migration",
+        "source results assembly changed the Apple publication selector",
     )
 
 
@@ -1708,7 +1724,7 @@ def assemble_source_results_document(
         ("current_source_status", "matrix_source_status"),
     )
     current["local_release_index"] = copy.deepcopy(index_section)
-    current["swift_xcframework"] = neutral_swift_selector(previous)
+    current["swift_xcframework"] = copy.deepcopy(previous["swift_xcframework"])
     current["performance"] = _stale_optional_section(
         previous,
         "performance",
@@ -1738,7 +1754,7 @@ def _validate_assembled_results(
         load_json_object_snapshot(
             ANDROID_AAR_MANIFEST_FILE,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.3 stable AAR manifest projection",
+            label="Android 0.1.4 stable AAR manifest projection",
         ).value,
     )
     _domain_call(

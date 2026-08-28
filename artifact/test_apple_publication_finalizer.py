@@ -25,41 +25,6 @@ from test_release_publication_contract import (
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-_STABLE_COHORT_PUBLICATION_KEYS = (
-    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
-    platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
-    crates_contract.CRATES_IO_PUBLICATION_KEY,
-    # Frozen published v0.1.3 history also predates the legacy endpoint.
-    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
-    platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
-    crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
-)
-
-
-def frozen_legacy_manifest_fixture(
-    live: dict[str, object],
-) -> dict[str, object]:
-    """Reconstruct the frozen pre-cohort legacy manifest from explicit bytes.
-
-    The committed results.json carries the frozen published v0.1.3
-    cohort and may also record an active v0.1.4 cohort state.  The
-    history chain exercised here starts at the frozen legacy alpha.2
-    manifest, so that endpoint must come from pinned frozen bytes rather
-    than the live manifest: restore the exact legacy selector fields and
-    the frozen alpha.2 r1 distribution, and strip every stable cohort
-    receipt recorded after the legacy baseline.
-    """
-
-    legacy = legacy_swift_manifest_fixture(live)
-    swift = legacy["swift_xcframework"]
-    assert isinstance(swift, dict)
-    swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
-    publications = legacy["release_publications"]
-    assert isinstance(publications, dict)
-    for key in _STABLE_COHORT_PUBLICATION_KEYS:
-        publications.pop(key, None)
-    return legacy
-
 
 def _git(root: pathlib.Path, *arguments: str) -> None:
     subprocess.run(
@@ -110,10 +75,9 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
         cls.live = json.loads(
             (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
         )
-        cls.legacy = frozen_legacy_manifest_fixture(cls.live)
-        cls.source = source_manifest_fixture(cls.legacy)
-        cls.pending = pending_manifest_fixture(cls.legacy)
-        cls.verified = verified_manifest_fixture(cls.legacy)
+        cls.source = source_manifest_fixture(cls.live)
+        cls.pending = pending_manifest_fixture(cls.live)
+        cls.verified = verified_manifest_fixture(cls.live)
 
     def assert_history_transition(
         self, previous: dict[str, object], current: dict[str, object]
@@ -141,8 +105,17 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
                     root, current
                 )
 
-    def test_exact_legacy_selector_can_migrate_to_neutral_source(self) -> None:
-        self.assert_history_transition(self.legacy, self.source)
+    def test_retired_legacy_manifest_is_no_longer_a_valid_parent(self) -> None:
+        # The one-time neutral selector migration completed on the
+        # published 0.1.3 line and was retired with the legacy alpha.2
+        # selector machinery: the exact pre-migration manifest shape now
+        # fails closed as a first-parent history endpoint.
+        legacy = legacy_swift_manifest_fixture(self.live)
+        self.assert_history_rejected(
+            legacy,
+            self.source,
+            "selector fields differ",
+        )
 
     def test_source_can_advance_to_coordinated_pending(self) -> None:
         self.assert_history_transition(self.source, self.pending)
@@ -163,19 +136,9 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
             ),
         )
         if state == release_contract.PUBLICATION_STATE_SOURCE:
-            swift = self.live["swift_xcframework"]
-            if "active_publication_key" not in swift:
-                # Initial pre-migration baseline: the live bytes are exactly
-                # the frozen legacy manifest, whose only legal successor is
-                # the one-time neutral selector migration (a legacy
-                # self-transition is deliberately rejected).
-                self.assertEqual(self.legacy, self.live)
-                self.assert_history_transition(self.live, self.source)
-                return
-            # The v0.1.4 source state (including the live frozen-verified
-            # 0.1.3 manifest, whose active cohort has not yet recorded)
-            # must sustain itself under the finalizer's first-parent
-            # history gate.
+            # The v0.1.4 source state (the live frozen-history manifest,
+            # whose active cohort has not yet recorded) must sustain
+            # itself under the finalizer's first-parent history gate.
             self.assert_history_transition(self.live, self.live)
             return
         if state == release_contract.PUBLICATION_STATE_PENDING:

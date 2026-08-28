@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import copy
 import dataclasses
 import re
 from typing import Never
@@ -43,8 +42,9 @@ NEUTRAL_SWIFT_MODE = (
     "versioned Developer ID-signed SwiftPM binaryTarget distribution selector"
 )
 
-_LEGACY_SWIFT_KEYS = frozenset(
+_ACTIVE_SWIFT_KEYS = frozenset(
     {
+        "active_publication_key",
         "boundary",
         "command",
         "current_local_status",
@@ -55,9 +55,6 @@ _LEGACY_SWIFT_KEYS = frozenset(
         "mode",
         "targets",
     }
-)
-_ACTIVE_SWIFT_KEYS = _LEGACY_SWIFT_KEYS | frozenset(
-    {"active_publication_key"}
 )
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -74,15 +71,17 @@ _STABLE_ANDROID_ABI = "arm64-v8a"
 _STABLE_ANDROID_SDK = 35
 _STABLE_ANDROID_PAGE_SIZE = 16_384
 _STABLE_ANDROID_BUILD_TOOLS = "36.0.0"
-# stage 3: these currentness path literals (and the local_release_index
-# path below) bump to 0.1.4 with the composite restructure, in lockstep
-# with proof_manifest's producer path constants.
+# These currentness path literals (and the local_release_index path
+# below) name the active 0.1.4 line: currentness only ever runs against
+# the v0.1.4 cohort, never against frozen history.
+# stage 4: the version-literal sweep bumps proof_manifest's producer
+# path constants to these same 0.1.4 values.
 _STABLE_ANDROID_AAR_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.3/"
-    "q-periapt-android-0.1.3.aar"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.4/"
+    "q-periapt-android-0.1.4.aar"
 )
 _STABLE_ANDROID_AAR_MANIFEST_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.3/MANIFEST.json"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.4/MANIFEST.json"
 )
 _STABLE_ANDROID_AAR_TARGETS = (
     "arm64-v8a",
@@ -215,63 +214,19 @@ def _swift_section(manifest: dict[str, object]) -> dict[str, object] | None:
     return _object(value, "swift_xcframework")
 
 
-def _is_legacy_alpha2_selector(
-    manifest: dict[str, object], publications: dict[str, object]
-) -> bool:
-    # stage 3: the composite restructure retires the legacy alpha.2
-    # selector machinery entirely once the 0.1.4 initial baseline (frozen
-    # v0.1.3 cohort, selector active on apple_v0_1_3) is installed.
-    swift = _swift_section(manifest)
-    return (
-        swift is not None
-        and frozenset(swift) == _LEGACY_SWIFT_KEYS
-        and apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY in publications
-        and apple_contract.APPLE_V0_1_3_PUBLICATION_KEY not in publications
-        and apple_contract.APPLE_V0_1_4_PUBLICATION_KEY not in publications
-        and apple_contract.publication_values_equal(
-            swift.get("distribution"),
-            apple_contract.frozen_alpha2_r1_distribution(),
-        )
-    )
-
-
-def neutral_swift_selector(
-    manifest: dict[str, object],
-) -> dict[str, object]:
-    """Return the one-time neutral selector migration for the frozen baseline."""
-
-    publications = _validate_leaf_dispatch(manifest)
-    _require(
-        _is_legacy_alpha2_selector(manifest, publications),
-        "neutral selector migration requires the exact legacy alpha.2 selector",
-    )
-    migrated = copy.deepcopy(_swift_section(manifest))
-    assert migrated is not None
-    migrated.update(
-        {
-            "active_publication_key": (
-                apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-            ),
-            "boundary": NEUTRAL_SWIFT_BOUNDARY,
-            "command": NEUTRAL_SWIFT_COMMAND,
-            "current_local_status": NEUTRAL_SWIFT_LOCAL_STATUS,
-            "current_source_status": NEUTRAL_SWIFT_SOURCE_STATUS,
-            "mode": NEUTRAL_SWIFT_MODE,
-        }
-    )
-    return migrated
-
-
 def _validate_active_selector(
     manifest: dict[str, object], publications: dict[str, object]
 ) -> None:
+    # The one-time legacy alpha.2 selector migration completed on the
+    # published 0.1.3 line, so its machinery is retired: every recorded
+    # selector must be the migrated active form. The NEUTRAL_SWIFT_*
+    # constants above stay authoritative because the active selector
+    # carries them verbatim.
     swift = _swift_section(manifest)
     apple_keys = set(publications) & set(apple_contract.APPLE_PUBLICATION_KEYS)
     if swift is None and not apple_keys:
         return
     _require(swift is not None, "Apple publication receipt requires a selector")
-    if _is_legacy_alpha2_selector(manifest, publications):
-        return
     _require(
         frozenset(swift) == _ACTIVE_SWIFT_KEYS,
         "active Apple selector fields differ",
@@ -308,10 +263,10 @@ def _validate_active_selector(
 
 def _stable_cohort_state(publications: dict[str, object]) -> str:
     # The coordinated state machine tracks only the ACTIVE v0_1_4 cohort;
-    # the frozen v0.1.3 leaves are history and never participate.
-    # stage 3: the composite restructure additionally requires the frozen
-    # five-leaf floor in every manifest once the new initial baseline
-    # (frozen v0.1.3 cohort installed) exists.
+    # the frozen historical leaves are excluded from the state function.
+    # Their five-leaf floor is enforced by _require_historical_unchanged
+    # on every transition and follows by induction from the assembler's
+    # initial-baseline validator, which requires exactly those leaves.
     apple = publications.get(apple_contract.APPLE_V0_1_4_PUBLICATION_KEY)
     platform = publications.get(
         stable_platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
@@ -601,7 +556,7 @@ def validate_stable_source_currentness(manifest: dict[str, object]) -> None:
         == android_runtime.get("proof_sha256")
         and local_index.get("index_path")
         == (
-            "target/qperiapt-local-release/release/0.1.3/"
+            "target/qperiapt-local-release/release/0.1.4/"
             f"{source_commit}/index.json"
         )
         and isinstance(local_index.get("index_sha256"), str)
@@ -644,26 +599,21 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
     swift = _swift_section(manifest)
     if swift is None:
         return
-    active_key = swift.get("active_publication_key")
     # The selector must name the most recent verified publication: the
     # active apple_v0_1_4 receipt once its cohort verifies, otherwise the
-    # frozen published apple_v0_1_3 receipt when it is recorded (the live
-    # manifest since the 0.1.3 line published), otherwise the historical
-    # alpha.2 prerelease.
-    # stage 3: once the 0.1.4 initial baseline installs the frozen v0.1.3
-    # cohort in every manifest, the alpha.2 fallback becomes dead and the
-    # restructure deletes it together with the legacy selector machinery.
-    if state == PUBLICATION_STATE_VERIFIED:
-        expected_active = apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
-    elif apple_contract.APPLE_V0_1_3_PUBLICATION_KEY in publications:
-        expected_active = apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
-    else:
-        expected_active = apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-    if active_key is not None:
-        _require(
-            active_key == expected_active,
-            "active Apple selector differs from the coordinated cohort state",
-        )
+    # frozen published apple_v0_1_3 receipt (the live selection since the
+    # 0.1.3 line published). The alpha.2 prerelease can never be selected
+    # again: the frozen five-leaf floor guarantees apple_v0_1_3 is
+    # recorded in every manifest on the 0.1.4 line.
+    expected_active = (
+        apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+        if state == PUBLICATION_STATE_VERIFIED
+        else apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+    )
+    _require(
+        swift.get("active_publication_key") == expected_active,
+        "active Apple selector differs from the coordinated cohort state",
+    )
 
 
 def stable_source_identity(
@@ -686,15 +636,17 @@ def publication_state(manifest: dict[str, object]) -> str:
 def _require_historical_unchanged(
     previous: dict[str, object], current: dict[str, object]
 ) -> None:
-    # The frozen Apple and platform v0.1.3 introduce/remove/change rules
-    # live in their own domain transition validators; the frozen crates.io
-    # leaf has no domain transition validator, so it is pinned here.
-    # stage 3: the restructure grows this tuple to the full five-leaf
-    # frozen floor (apple_v0_1_3 and platform_v0_1_3 join) once presence
-    # follows by induction from the new initial baseline validator.
+    # The complete five-leaf frozen floor: the Apple and platform frozen
+    # families additionally enforce introduce/remove/change rules in
+    # their own domain transition validators, and the frozen crates.io
+    # leaf is pinned only here. Presence of all five leaves in every
+    # manifest follows by induction from the assembler's initial-baseline
+    # validator plus this no-removal rule.
     for key in (
         apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
         platform_contract.PLATFORM_R2_PUBLICATION_KEY,
+        apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+        platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
         crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
     ):
         if key not in previous:
@@ -719,15 +671,6 @@ def _validate_selector_transition(
     previous = _swift_section(previous_manifest)
     current = _swift_section(current_manifest)
     _require(previous is not None and current is not None, "Apple selector is missing")
-    if _is_legacy_alpha2_selector(
-        previous_manifest, _publication_entries(previous_manifest)
-    ):
-        _require(
-            current_state == PUBLICATION_STATE_SOURCE
-            and _json_equal(current, neutral_swift_selector(previous_manifest)),
-            "legacy Apple selector may only undergo the one-time neutral migration",
-        )
-        return
     if previous_state == current_state:
         _require(
             _json_equal(previous, current),

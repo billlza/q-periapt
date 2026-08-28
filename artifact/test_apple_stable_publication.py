@@ -266,24 +266,24 @@ class AppleStablePublicationTests(unittest.TestCase):
         manifest["release_publications"][
             apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
         ] = copy.deepcopy(self.pending)
-        # The committed results.json is state-selected: the frozen
-        # published v0.1.3 cohort is permanent history, and the active
-        # v0.1.4 cohort may be absent, pending, or verified (the verified
-        # state additionally records the crates.io leaf and activates the
+        # The committed results.json is state-selected: the five frozen
+        # historical leaves are permanent, and the active v0.1.4 cohort
+        # may be absent, pending, or verified (the verified state
+        # additionally records the crates.io leaf and activates the
         # v0.1.4 Swift selection). This fixture models the PENDING v0.1.4
-        # cohort over the synthetic pre-0.1.3 baseline, so reconstruct
-        # that exact projection regardless of which state is installed:
-        # drop the crates.io leaf (the pending cohort records none) and
-        # rebind the selector to the frozen legacy alpha.2 publication
-        # from the contract's own frozen distribution bytes.
+        # cohort, so reconstruct that exact projection regardless of
+        # which state is installed: drop the crates.io leaf (the pending
+        # cohort records none) and rebind the selector to the frozen
+        # published apple_v0_1_3 receipt from the contract's own frozen
+        # distribution bytes.
         manifest["release_publications"].pop(
             crates_contract.CRATES_IO_PUBLICATION_KEY, None
         )
         swift = manifest["swift_xcframework"]
         swift["active_publication_key"] = (
-            apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         )
-        swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
+        swift["distribution"] = apple_contract.frozen_v0_1_3_distribution()
         platform = manifest["release_publications"][
             platform_publication_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
         ]
