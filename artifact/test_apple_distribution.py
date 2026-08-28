@@ -1179,6 +1179,24 @@ class ReleaseAssetVerificationTests(ZipFixture):
                 signing_evidence=self.signing,
             )
         )
+        # The staged release models the active apple_v0_1_4 publication,
+        # whose receipts bind the 0.1.4 identity; the producer still stamps
+        # its current 0.1.3 literals until the stage-4 version sweep bumps
+        # apple_distribution, so the fixture pins the active identity here.
+        self.distribution["release_identity"] = {
+            "product_version": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                "product_version"
+            ],
+            "revision": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                "distribution_revision"
+            ],
+            "tag": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                "release_tag"
+            ],
+            "url": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                "release_url"
+            ],
+        }
         self.manifest = self._manifest_fixture()
         self.results = self.root / "results.json"
         self._publish()
@@ -1209,12 +1227,24 @@ class ReleaseAssetVerificationTests(ZipFixture):
             "schema_version": 5,
             "kind": "qperiapt.swift_xcframework_manifest",
             "package": "q-periapt-swift",
-            "version": apple_distribution.PRODUCT_VERSION,
+            "version": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                "product_version"
+            ],
             "release_identity": {
-                "product_version": apple_distribution.PRODUCT_VERSION,
-                "revision": apple_distribution.RELEASE_REVISION,
-                "tag": apple_distribution.RELEASE_TAG,
-                "url": apple_distribution.RELEASE_URL,
+                "product_version": (
+                    apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                        "product_version"
+                    ]
+                ),
+                "revision": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                    "distribution_revision"
+                ],
+                "tag": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                    "release_tag"
+                ],
+                "url": apple_publication_contract.APPLE_V0_1_4_IDENTITY[
+                    "release_url"
+                ],
             },
             "type": "swiftpm-binaryTarget-xcframework",
             "git_commit": SOURCE_COMMIT,
@@ -1381,13 +1411,13 @@ class ReleaseAssetVerificationTests(ZipFixture):
         }
         pending = pending_manifest_fixture(source_baseline_manifest())
         stable = pending["release_publications"][
-            apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+            apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
         ]
         stable_source = stable["source"]
         stable_source["source_parent_commit"] = SOURCE_COMMIT
         stable["distribution"] = copy.deepcopy(trusted_distribution)
         platform_key = (
-            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
+            platform_publication_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
         )
         pending["release_publications"][platform_key] = _rebind_platform(
             pending["release_publications"][platform_key],
@@ -1412,7 +1442,7 @@ class ReleaseAssetVerificationTests(ZipFixture):
         results: dict[str, object],
     ) -> dict[str, object]:
         return results["release_publications"][
-            apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+            apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
         ]["distribution"]
 
     def verify(self, **overrides: object) -> dict[str, str]:

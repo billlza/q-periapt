@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct state, projection, and remote-receipt tests for Apple 0.1.3."""
+"""Direct state, projection, and remote-receipt tests for Apple 0.1.4."""
 
 from __future__ import annotations
 
@@ -118,9 +118,18 @@ class AppleStablePublicationTests(unittest.TestCase):
             "origin_signature_identity_class": "Developer ID Application",
             "origin_signature_team_id": publication.APPLE_EXPECTED_TEAM_ID,
             "public_release": False,
-            "release_revision": apple_distribution.RELEASE_REVISION,
-            "release_tag": apple_distribution.RELEASE_TAG,
-            "release_url": apple_distribution.RELEASE_URL,
+            # The receipt's distribution cross-links to the active
+            # apple_v0_1_4 contract identity.  stage 4 bumps
+            # apple_distribution's producer literals to the same values.
+            "release_revision": apple_contract.APPLE_V0_1_4_IDENTITY[
+                "distribution_revision"
+            ],
+            "release_tag": apple_contract.APPLE_V0_1_4_IDENTITY[
+                "release_tag"
+            ],
+            "release_url": apple_contract.APPLE_V0_1_4_IDENTITY[
+                "release_url"
+            ],
             "remote_consumer_verified": False,
             "remote_verification": {
                 "log_sha256": None,
@@ -132,12 +141,14 @@ class AppleStablePublicationTests(unittest.TestCase):
             "swiftpm_checksum": self.asset_hashes[
                 apple_distribution.XCFRAMEWORK_ZIP_NAME
             ],
-            "version": apple_distribution.PRODUCT_VERSION,
+            "version": apple_contract.APPLE_V0_1_4_IDENTITY[
+                "product_version"
+            ],
         }
         self.pending = {
-            "boundary": apple_contract.APPLE_V0_1_3_BOUNDARY,
+            "boundary": apple_contract.APPLE_V0_1_4_BOUNDARY,
             "distribution": copy.deepcopy(self.distribution),
-            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_3_IDENTITY),
+            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_4_IDENTITY),
             "kind": apple_contract.APPLE_PUBLICATION_KIND,
             "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
             "source": {
@@ -253,18 +264,18 @@ class AppleStablePublicationTests(unittest.TestCase):
             source_digest=SOURCE_DIGEST,
         )
         manifest["release_publications"][
-            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
         ] = copy.deepcopy(self.pending)
-        # The committed results.json is state-selected: the pending
-        # publication cohort and the verified cohort are both valid live
-        # states, and the verified state additionally records the crates.io
-        # receipt and activates the stable v0.1.3 Swift selection. This
-        # fixture models the PENDING cohort, so reconstruct that exact
-        # projection regardless of which state is installed: drop the
-        # crates.io leaf (the pending cohort records none) and rebind the
-        # selector to the frozen legacy alpha.2 publication from the
-        # contract's own frozen distribution bytes. Under the pending live
-        # state this is a no-op rewrite of the identical bytes.
+        # The committed results.json is state-selected: the frozen
+        # published v0.1.3 cohort is permanent history, and the active
+        # v0.1.4 cohort may be absent, pending, or verified (the verified
+        # state additionally records the crates.io leaf and activates the
+        # v0.1.4 Swift selection). This fixture models the PENDING v0.1.4
+        # cohort over the synthetic pre-0.1.3 baseline, so reconstruct
+        # that exact projection regardless of which state is installed:
+        # drop the crates.io leaf (the pending cohort records none) and
+        # rebind the selector to the frozen legacy alpha.2 publication
+        # from the contract's own frozen distribution bytes.
         manifest["release_publications"].pop(
             crates_contract.CRATES_IO_PUBLICATION_KEY, None
         )
@@ -274,7 +285,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         )
         swift["distribution"] = apple_contract.frozen_alpha2_r1_distribution()
         platform = manifest["release_publications"][
-            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
+            platform_publication_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
         ]
         platform_source = platform["observation"]["source"]
         platform_source.update(
@@ -371,9 +382,13 @@ class AppleStablePublicationTests(unittest.TestCase):
     ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
         release_id = 355_500_000
         expectation = verification.ReleaseExpectation(
-            product_version=apple_distribution.PRODUCT_VERSION,
-            revision=apple_distribution.RELEASE_REVISION,
-            tag=apple_distribution.RELEASE_TAG,
+            product_version=apple_contract.APPLE_V0_1_4_IDENTITY[
+                "product_version"
+            ],
+            revision=apple_contract.APPLE_V0_1_4_IDENTITY[
+                "distribution_revision"
+            ],
+            tag=apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
             source_parent_commit=SOURCE_COMMIT,
             tag_commit=TAG_COMMIT,
             asset_sha256=self.asset_hashes,
@@ -399,7 +414,8 @@ class AppleStablePublicationTests(unittest.TestCase):
                     "updatedAt": "2026-08-14T09:59:00Z",
                     "url": (
                         f"{verification.RELEASE_DOWNLOAD_PREFIX}"
-                        f"{apple_distribution.RELEASE_TAG}/{name}"
+                        f"{apple_contract.APPLE_V0_1_4_IDENTITY['release_tag']}"
+                        f"/{name}"
                     ),
                 }
                 for index, name in enumerate(
@@ -412,9 +428,9 @@ class AppleStablePublicationTests(unittest.TestCase):
             "isImmutable": True,
             "isPrerelease": False,
             "publishedAt": "2026-08-14T10:00:00Z",
-            "tagName": apple_distribution.RELEASE_TAG,
+            "tagName": apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
             "targetCommitish": "main",
-            "url": apple_distribution.RELEASE_URL,
+            "url": apple_contract.APPLE_V0_1_4_IDENTITY["release_url"],
         }
         parsed = verification._parse_release_view(
             _json_bytes(release_view),
@@ -655,7 +671,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -1338,12 +1354,12 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: self.pending
+                    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY: self.pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_3_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY: verified
                 }
             },
         )

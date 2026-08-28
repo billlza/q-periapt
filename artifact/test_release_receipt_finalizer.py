@@ -44,24 +44,31 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 STABLE_COHORT_PUBLICATION_KEYS = (
+    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+    crates_contract.CRATES_IO_PUBLICATION_KEY,
+    # The frozen published v0.1.3 leaves are permanent history in the live
+    # manifest; the synthetic repository replays the state machine over
+    # the pre-0.1.3 topology, so they are dropped alongside any active
+    # v0.1.4 cohort state.
     apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
     platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
-    crates_contract.CRATES_IO_PUBLICATION_KEY,
+    crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
 )
 
 
 def restore_source_publication_state(manifest: dict[str, object]) -> None:
     """Rewind any committed cohort state to the exact source projection.
 
-    The live manifest is committed in one of the coordinated states —
-    source, pending, or verified — and these tests replay the complete
-    source -> pending -> verified state machine from synthetic receipts.
-    The fixture therefore rewinds the live bytes to the source projection:
-    drop the v0.1.3 stable-cohort leaves, and when the verified state has
-    already activated the stable Apple selector, rebind it to the frozen
-    alpha.2 legacy publication exactly as the source-results install left
-    it, from the contract's own frozen distribution bytes rather than the
-    state-dependent live selector.
+    The live manifest carries the frozen published v0.1.3 cohort (its
+    selector activated on apple_v0_1_3) and possibly an active v0.1.4
+    cohort state, and these tests replay the complete source -> pending ->
+    verified state machine from synthetic receipts.  The fixture therefore
+    rewinds the live bytes to the pre-0.1.3 source projection: drop the
+    stable-cohort leaves (frozen v0.1.3 history and any active v0.1.4
+    state), and rebind the activated Apple selector to the frozen alpha.2
+    legacy publication from the contract's own frozen distribution bytes
+    rather than the state-dependent live selector.
     """
 
     publications = manifest["release_publications"]
@@ -71,7 +78,10 @@ def restore_source_publication_state(manifest: dict[str, object]) -> None:
     swift = neutral_selector_fixture(manifest)
     active_key = swift["active_publication_key"]
     if active_key != apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY:
-        if active_key != apple_contract.APPLE_V0_1_3_PUBLICATION_KEY:
+        if active_key not in (
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
+        ):
             raise AssertionError(
                 "live Apple selector names an unexpected publication key"
             )
@@ -326,12 +336,12 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             aggregate.publication_state(verified),
         )
         self.assertEqual(
-            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
             verified["swift_xcframework"]["active_publication_key"],
         )
         self.assertEqual(
             verified["release_publications"][
-                apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
             ]["distribution"],
             verified["swift_xcframework"]["distribution"],
         )

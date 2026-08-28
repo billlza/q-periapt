@@ -148,7 +148,7 @@ class CratesIoPublicationTests(unittest.TestCase):
         publication_state = qperiapt_root / "publication-state"
         publication_state.mkdir(mode=0o700)
         self.production_state_root = (
-            publication_state / "crates.io-v0.1.3"
+            publication_state / "crates.io-v0.1.4"
         )
         self.production_state_root.mkdir(mode=0o700)
         passwd_patch = mock.patch.object(
@@ -1387,7 +1387,7 @@ finalize_rust_package_handoff_for_cli(
             ("api", "checksum", "f" * 64, "API checksum differs"),
             ("sparse", "cksum", "e" * 64, "sparse checksum differs"),
             ("api", "yanked", True, "marks .* as yanked"),
-            ("api", "num", "0.1.4", "API version differs"),
+            ("api", "num", "0.1.3", "API version differs"),
         )
         first = evidence.crates[0]
         for remote, field, value, expected in mutations:
@@ -2241,7 +2241,7 @@ signal.pause()
             url: str, **_kwargs: object
         ) -> publication.HttpResponse:
             body = (
-                b'{"version":{"num":"0.1.3","num":"0.1.3",'
+                b'{"version":{"num":"0.1.4","num":"0.1.4",'
                 + f'"checksum":"{package.sha256}","yanked":false}}\n'.encode(
                     "ascii"
                 )
@@ -2679,7 +2679,7 @@ signal.pause()
                 private_root.mkdir(mode=0o700)
                 state_parent = private_root / "publication-state"
                 state_parent.mkdir(mode=0o700)
-                state_inside = state_parent / "crates.io-v0.1.3"
+                state_inside = state_parent / "crates.io-v0.1.4"
                 state_inside.mkdir(mode=0o700)
                 with (
                     self.subTest(checkout=checkout),
@@ -3174,9 +3174,9 @@ signal.pause()
         self.assertEqual(selected_handoff.path, run_transaction.call_args.args[1])
         self.assertEqual(selected_handoff.sha256, run_transaction.call_args.args[2])
         self.assertEqual(
-            "CRATES_IO_PUBLICATION_VERIFY_PASS version=0.1.3 status=partial "
+            "CRATES_IO_PUBLICATION_VERIFY_PASS version=0.1.4 status=partial "
             "receipt_path=target/qperiapt-crates-io-publication-receipts/"
-            "transaction.1-0/crates-io-v0.1.3-publication-receipt.json "
+            "transaction.1-0/crates-io-v0.1.4-publication-receipt.json "
             f"receipt_sha256={digest} upload=not-attempted\n",
             stdout.getvalue(),
         )

@@ -115,18 +115,21 @@ class CratesIoPublicationContractTests(unittest.TestCase):
             contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED, frozen["status"]
         )
 
-    def test_near_frozen_receipts_still_validate_structurally(self) -> None:
+    def test_near_frozen_receipts_fail_closed(self) -> None:
+        # A near-frozen 0.1.3 receipt falls through the deep-equality
+        # branch into the ACTIVE structural contract, which now carries the
+        # 0.1.4 boundary and version, so it fails closed there.
         receipt = contract.frozen_crates_io_v0_1_3_receipt()
         receipt["crates"][0]["crates_io_api"]["checksum"] = "f" * 64
         with self.assertRaisesRegex(
-            contract.CratesIoPublicationContractError, "checksum differs"
+            contract.CratesIoPublicationContractError, "boundary differs"
         ):
             contract.validate_crates_io_publication_receipt(receipt)
 
         receipt = contract.frozen_crates_io_v0_1_3_receipt()
         receipt["crates"][9]["crates_io_api"]["yanked"] = True
         with self.assertRaisesRegex(
-            contract.CratesIoPublicationContractError, "yanked=false"
+            contract.CratesIoPublicationContractError, "boundary differs"
         ):
             contract.validate_crates_io_publication_receipt(receipt)
 
@@ -178,7 +181,7 @@ class CratesIoPublicationContractTests(unittest.TestCase):
             ("crates_io_api", "checksum", "f" * 64, "checksum differs"),
             ("sparse_index", "checksum", "e" * 64, "checksum differs"),
             ("crates_io_api", "yanked", True, "yanked=false"),
-            ("sparse_index", "version", "0.1.4", "version differs"),
+            ("sparse_index", "version", "0.1.3", "version differs"),
         )
         for remote, field, value, expected in mutations:
             with self.subTest(remote=remote, field=field):

@@ -63,8 +63,8 @@ def _initial_baseline() -> dict[str, Any]:
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
     # Restore the frozen initial publication state: exactly the alpha.2-r1
-    # and platform-r2 receipts, dropping the stable v0.1.3 cohort leaves the
-    # live manifest carries in its pending and verified selection states.
+    # and platform-r2 receipts, dropping the frozen published v0.1.3
+    # leaves the live manifest carries (and any active v0.1.4 state).
     publications = baseline["release_publications"]
     baseline["release_publications"] = {
         key: publications[key]
@@ -517,9 +517,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 )
             assembler.validate_declared_currentness(baseline)
             state = publication_contract.publication_state(baseline)
-            if state == publication_contract.PUBLICATION_STATE_SOURCE:
-                # Freshly installed successor: still the assembler's own
-                # direct baseline shape.
+            publications = baseline["release_publications"]
+            if (
+                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+                not in publications
+                and state == publication_contract.PUBLICATION_STATE_SOURCE
+            ):
+                # Freshly installed pre-0.1.3 successor: still the
+                # assembler's own direct baseline shape.
                 assembler._validate_baseline_document_shape(
                     baseline,
                     require_initial=False,
@@ -533,21 +538,27 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                         require_initial=True,
                     )
                 return
-            # Receipt-finalized stable cohort: pending and verified are both
-            # valid committed states, and neither remains the assembler's
-            # direct baseline, so both shape modes must fail closed.
+            # Receipt-finalized stable manifest: the frozen published
+            # v0.1.3 cohort (and any recorded v0.1.4 cohort state) is not
+            # the assembler's direct two-leaf baseline, so both shape
+            # modes must fail closed.
+            # stage 3: publication_state now names the v0.1.4 cohort state
+            # (source while no v0.1.4 leaves are recorded); the composite
+            # restructure and the assembler's new five-leaf baseline
+            # validator re-scope this dispatch.
             self.assertIn(
                 state,
                 (
+                    publication_contract.PUBLICATION_STATE_SOURCE,
                     publication_contract.PUBLICATION_STATE_PENDING,
                     publication_contract.PUBLICATION_STATE_VERIFIED,
                 ),
             )
             publication_contract.validate_stable_source_currentness(baseline)
             expected_active = (
-                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+                apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
                 if state == publication_contract.PUBLICATION_STATE_VERIFIED
-                else apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+                else apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
             )
             self.assertEqual(
                 expected_active,

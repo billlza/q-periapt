@@ -56,8 +56,23 @@ PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY: ReleaseIdentity = (
     "v0.1.0-alpha.2-r1",
     "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
 )
+# stage 4: the 0.1.4 opening bumps PRODUCT_VERSION above to 0.1.4, making
+# this the CURRENT_RELEASE_IDENTITY; this forward entry exists because the
+# active apple_v0_1_4 publication family already binds its receipts to the
+# 0.1.4 identity while the producer literals still say 0.1.3.  The version
+# sweep collapses this entry into CURRENT_RELEASE_IDENTITY.
+OPENING_V0_1_4_RELEASE_IDENTITY: ReleaseIdentity = (
+    "0.1.4",
+    "r1",
+    "v0.1.4",
+    "https://github.com/billlza/q-periapt/releases/tag/v0.1.4",
+)
 TRUSTED_RESULTS_RELEASE_IDENTITIES = frozenset(
-    {CURRENT_RELEASE_IDENTITY, PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY}
+    {
+        CURRENT_RELEASE_IDENTITY,
+        PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY,
+        OPENING_V0_1_4_RELEASE_IDENTITY,
+    }
 )
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
@@ -2278,7 +2293,11 @@ def project_trusted_results_candidate_distribution(
         zip_data=zip_data,
         expected_team_id=team_id,
         expected_certificate_sha256=certificate_sha256,
-        expected_release_identity=CURRENT_RELEASE_IDENTITY,
+        # stage 4: the version sweep bumps PRODUCT_VERSION to 0.1.4 and
+        # this projector expectation returns to CURRENT_RELEASE_IDENTITY;
+        # until then the active apple_v0_1_4 publication family selects
+        # candidates carrying the opening 0.1.4 identity.
+        expected_release_identity=OPENING_V0_1_4_RELEASE_IDENTITY,
     )
     _validate_release_manifest(
         manifest,
@@ -2287,7 +2306,11 @@ def project_trusted_results_candidate_distribution(
         apple_distribution_sha256=actual_hashes[APPLE_DISTRIBUTION_NAME],
         source_commit=source_commit,
         zip_data=zip_data,
-        expected_release_identity=CURRENT_RELEASE_IDENTITY,
+        # stage 4: the version sweep bumps PRODUCT_VERSION to 0.1.4 and
+        # this projector expectation returns to CURRENT_RELEASE_IDENTITY;
+        # until then the active apple_v0_1_4 publication family selects
+        # candidates carrying the opening 0.1.4 identity.
+        expected_release_identity=OPENING_V0_1_4_RELEASE_IDENTITY,
     )
     signing = _require_object(
         distribution_evidence["origin_signature"],
@@ -2321,9 +2344,9 @@ def project_trusted_results_candidate_distribution(
         "origin_signature_identity_class": signature["identity_class"],
         "origin_signature_team_id": signature["team_id"],
         "public_release": False,
-        "release_revision": RELEASE_REVISION,
-        "release_tag": RELEASE_TAG,
-        "release_url": RELEASE_URL,
+        "release_revision": OPENING_V0_1_4_RELEASE_IDENTITY[1],
+        "release_tag": OPENING_V0_1_4_RELEASE_IDENTITY[2],
+        "release_url": OPENING_V0_1_4_RELEASE_IDENTITY[3],
         "remote_consumer_verified": False,
         "remote_verification": {
             "log_sha256": None,
@@ -2333,7 +2356,7 @@ def project_trusted_results_candidate_distribution(
         "source_commit": source_commit,
         "stapled": False,
         "swiftpm_checksum": swiftpm_checksum,
-        "version": PRODUCT_VERSION,
+        "version": OPENING_V0_1_4_RELEASE_IDENTITY[0],
     }
     validate_trusted_results_distribution(projected)
     return projected

@@ -17,7 +17,10 @@ import platform_stable_publication_contract as stable_platform_contract
 RELEASE_PUBLICATION_KEYS = frozenset(
     platform_contract.PLATFORM_PUBLICATION_KEYS
     | apple_contract.APPLE_PUBLICATION_KEYS
-    | {crates_contract.CRATES_IO_PUBLICATION_KEY}
+    | {
+        crates_contract.CRATES_IO_PUBLICATION_KEY,
+        crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+    }
 )
 
 PUBLICATION_STATE_SOURCE = "source_results_installed"
@@ -71,6 +74,9 @@ _STABLE_ANDROID_ABI = "arm64-v8a"
 _STABLE_ANDROID_SDK = 35
 _STABLE_ANDROID_PAGE_SIZE = 16_384
 _STABLE_ANDROID_BUILD_TOOLS = "36.0.0"
+# stage 3: these currentness path literals (and the local_release_index
+# path below) bump to 0.1.4 with the composite restructure, in lockstep
+# with proof_manifest's producer path constants.
 _STABLE_ANDROID_AAR_PATH = (
     "target/qperiapt-android-aar/q-periapt-android-0.1.3/"
     "q-periapt-android-0.1.3.aar"
@@ -186,6 +192,19 @@ def _validate_leaf_dispatch(manifest: dict[str, object]) -> dict[str, object]:
             )
         except crates_contract.CratesIoPublicationContractError as exc:
             raise ReleasePublicationContractError(str(exc)) from exc
+    if crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY in publications:
+        # The 0.1.3 line published: deep equality with the frozen verified
+        # receipt is the frozen crates.io key's only accepting path.
+        _require(
+            _json_equal(
+                publications[
+                    crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY
+                ],
+                crates_contract.frozen_crates_io_v0_1_3_receipt(),
+            ),
+            "frozen crates.io 0.1.3 publication receipt differs from the "
+            "published history",
+        )
     return publications
 
 
@@ -199,12 +218,16 @@ def _swift_section(manifest: dict[str, object]) -> dict[str, object] | None:
 def _is_legacy_alpha2_selector(
     manifest: dict[str, object], publications: dict[str, object]
 ) -> bool:
+    # stage 3: the composite restructure retires the legacy alpha.2
+    # selector machinery entirely once the 0.1.4 initial baseline (frozen
+    # v0.1.3 cohort, selector active on apple_v0_1_3) is installed.
     swift = _swift_section(manifest)
     return (
         swift is not None
         and frozenset(swift) == _LEGACY_SWIFT_KEYS
         and apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY in publications
         and apple_contract.APPLE_V0_1_3_PUBLICATION_KEY not in publications
+        and apple_contract.APPLE_V0_1_4_PUBLICATION_KEY not in publications
         and apple_contract.publication_values_equal(
             swift.get("distribution"),
             apple_contract.frozen_alpha2_r1_distribution(),
@@ -284,9 +307,14 @@ def _validate_active_selector(
 
 
 def _stable_cohort_state(publications: dict[str, object]) -> str:
-    apple = publications.get(apple_contract.APPLE_V0_1_3_PUBLICATION_KEY)
+    # The coordinated state machine tracks only the ACTIVE v0_1_4 cohort;
+    # the frozen v0.1.3 leaves are history and never participate.
+    # stage 3: the composite restructure additionally requires the frozen
+    # five-leaf floor in every manifest once the new initial baseline
+    # (frozen v0.1.3 cohort installed) exists.
+    apple = publications.get(apple_contract.APPLE_V0_1_4_PUBLICATION_KEY)
     platform = publications.get(
-        stable_platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
+        stable_platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
     )
     crates = publications.get(crates_contract.CRATES_IO_PUBLICATION_KEY)
     if apple is None and platform is None and crates is None:
@@ -297,7 +325,7 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
         if (
             apple_receipt.get("status") == apple_contract.APPLE_STATUS_PENDING
             and platform_receipt.get("status")
-            == stable_platform_contract.PLATFORM_V0_1_3_STATUS_PENDING
+            == stable_platform_contract.PLATFORM_V0_1_4_STATUS_PENDING
         ):
             return PUBLICATION_STATE_PENDING
     if apple is not None and platform is not None and crates is not None:
@@ -307,7 +335,7 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
         if (
             apple_receipt.get("status") == apple_contract.APPLE_STATUS_VERIFIED
             and platform_receipt.get("status")
-            == stable_platform_contract.PLATFORM_V0_1_3_STATUS_VERIFIED
+            == stable_platform_contract.PLATFORM_V0_1_4_STATUS_VERIFIED
             and crates_receipt.get("status")
             == crates_contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED
         ):
@@ -365,7 +393,7 @@ def _validate_source_crosslinks(
     domain_sources = [
         _source_identity(
             _source_object(
-                publications[apple_contract.APPLE_V0_1_3_PUBLICATION_KEY],
+                publications[apple_contract.APPLE_V0_1_4_PUBLICATION_KEY],
                 domain="Apple",
             ),
             "Apple stable",
@@ -373,7 +401,7 @@ def _validate_source_crosslinks(
         _source_identity(
             _source_object(
                 publications[
-                    stable_platform_contract.PLATFORM_V0_1_3_PUBLICATION_KEY
+                    stable_platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
                 ],
                 domain="platform",
             ),
@@ -617,11 +645,20 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
     if swift is None:
         return
     active_key = swift.get("active_publication_key")
-    expected_active = (
-        apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
-        if state == PUBLICATION_STATE_VERIFIED
-        else apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-    )
+    # The selector must name the most recent verified publication: the
+    # active apple_v0_1_4 receipt once its cohort verifies, otherwise the
+    # frozen published apple_v0_1_3 receipt when it is recorded (the live
+    # manifest since the 0.1.3 line published), otherwise the historical
+    # alpha.2 prerelease.
+    # stage 3: once the 0.1.4 initial baseline installs the frozen v0.1.3
+    # cohort in every manifest, the alpha.2 fallback becomes dead and the
+    # restructure deletes it together with the legacy selector machinery.
+    if state == PUBLICATION_STATE_VERIFIED:
+        expected_active = apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+    elif apple_contract.APPLE_V0_1_3_PUBLICATION_KEY in publications:
+        expected_active = apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+    else:
+        expected_active = apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
     if active_key is not None:
         _require(
             active_key == expected_active,
@@ -649,9 +686,16 @@ def publication_state(manifest: dict[str, object]) -> str:
 def _require_historical_unchanged(
     previous: dict[str, object], current: dict[str, object]
 ) -> None:
+    # The frozen Apple and platform v0.1.3 introduce/remove/change rules
+    # live in their own domain transition validators; the frozen crates.io
+    # leaf has no domain transition validator, so it is pinned here.
+    # stage 3: the restructure grows this tuple to the full five-leaf
+    # frozen floor (apple_v0_1_3 and platform_v0_1_3 join) once presence
+    # follows by induction from the new initial baseline validator.
     for key in (
         apple_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
         platform_contract.PLATFORM_R2_PUBLICATION_KEY,
+        crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
     ):
         if key not in previous:
             _require(

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frozen ABI-2 crates.io publication receipt for Q-Periapt 0.1.3.
+"""Frozen ABI-2 crates.io publication receipt for Q-Periapt 0.1.4.
 
 The receipt is deliberately a remote-observation domain, not an upload log.
 Only exact observations from both the crates.io API and sparse index can turn
@@ -20,14 +20,14 @@ from rust_publish_contract import RUST_PUBLISHABLE_CRATES
 
 CRATES_IO_PUBLICATION_SCHEMA_VERSION = 1
 CRATES_IO_PUBLICATION_KIND = "qperiapt.abi2_crates_io_publication_receipt"
-CRATES_IO_PUBLICATION_KEY = "crates_io_v0_1_3"
-# The 0.1.3 line published, so this key names frozen history.  It is
-# byte-identical to the active key above until the 0.1.4 opening renames
-# the active family to crates_io_v0_1_4; the frozen key never changes.
+CRATES_IO_PUBLICATION_KEY = "crates_io_v0_1_4"
+# The 0.1.3 line published, so this key names frozen history; it never
+# changes and its receipt is accepted on deep equality with the frozen
+# constant alone.
 CRATES_IO_V0_1_3_PUBLICATION_KEY = "crates_io_v0_1_3"
 CRATES_IO_REGISTRY = "https://crates.io"
 CRATES_IO_SPARSE_INDEX = "https://index.crates.io"
-PRODUCT_VERSION = "0.1.3"
+PRODUCT_VERSION = "0.1.4"
 ABI_VERSION = 2
 MAX_CRATE_SIZE_BYTES = 128 * 1024 * 1024
 MAX_TOTAL_CRATE_SIZE_BYTES = 512 * 1024 * 1024
@@ -92,10 +92,10 @@ if PUBLISHABLE_CRATES != RUST_PUBLISHABLE_CRATES:
     )
 
 CRATES_IO_PUBLICATION_BOUNDARY = (
-    "ABI 2 Q-Periapt 0.1.3 crates.io publication receipt. Local package "
+    "ABI 2 Q-Periapt 0.1.4 crates.io publication receipt. Local package "
     "digests provide Level-1 accidental-mismatch detection. A crate is "
     "published_verified only when the official crates.io API and sparse "
-    "index both report version 0.1.3, the exact local .crate SHA-256, and "
+    "index both report version 0.1.4, the exact local .crate SHA-256, and "
     "yanked=false. Published crates must form the fixed dependency-safe "
     "prefix; absent suffix entries are not a rollback claim. Upload outcome "
     "unknown is intentionally outside this public receipt and blocks an "
@@ -104,7 +104,7 @@ CRATES_IO_PUBLICATION_BOUNDARY = (
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_CRATE_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*-0\.1\.3\.crate$")
+_CRATE_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*-0\.1\.4\.crate$")
 
 _TOP_LEVEL_KEYS = frozenset(
     {
@@ -678,12 +678,11 @@ def validate_crates_io_publication_receipt(receipt_value: object) -> None:
         # The 0.1.3 line published: deep equality with the frozen verified
         # receipt is the entire frozen-history contract, and that receipt
         # passed the full structural validation below when it was
-        # committed.
+        # committed under the then-active 0.1.3 constants.  This branch is
+        # the frozen crates_io_v0_1_3 key's only accepting path.
         return
-    # The structural machinery below stays the active path for receipts
-    # that are not the frozen publication until the 0.1.4 opening renames
-    # this module's active family to crates_io_v0_1_4; the frozen branch
-    # above then becomes the frozen key's only accepting path.
+    # The structural machinery below is the active crates_io_v0_1_4
+    # contract; a near-frozen 0.1.3 receipt fails closed against it.
     receipt = _object(receipt_value, "crates.io publication receipt")
     _exact_keys(receipt, _TOP_LEVEL_KEYS, "crates.io publication receipt")
     _require(
@@ -792,4 +791,4 @@ def validate_crates_io_publication_receipt(receipt_value: object) -> None:
 
 # Stable-specific name used by the release assembler; retain the domain name as
 # the primary public API for direct callers.
-validate_v0_1_3_publication_receipt = validate_crates_io_publication_receipt
+validate_v0_1_4_publication_receipt = validate_crates_io_publication_receipt
