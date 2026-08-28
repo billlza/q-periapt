@@ -13,6 +13,7 @@ import apple_distribution
 import apple_publication_contract as contract
 import crates_io_publication_contract as crates_contract
 import platform_publication_contract as platform_contract
+import release_publication_contract as release_contract
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -31,7 +32,10 @@ def source_baseline_manifest() -> dict[str, object]:
     construct synthetic cohort states must start from the state-independent
     source baseline instead of inheriting whichever cohort state happens to
     be installed, so this strips the stable 0.1.3 cohort leaves and restores
-    the frozen legacy alpha.2-r1 selector projection.
+    the complete neutral alpha.2-r1 selector projection: a pre-migration
+    legacy manifest defers to the production one-time migration, and an
+    already-migrated selector is rebuilt from the frozen neutral field set
+    (byte-identical under the pending state).
     """
 
     live = json.loads(
@@ -45,8 +49,31 @@ def source_baseline_manifest() -> dict[str, object]:
     ):
         publications.pop(key, None)
     swift = live["swift_xcframework"]
-    swift["active_publication_key"] = contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
-    swift["distribution"] = contract.frozen_alpha2_r1_distribution()
+    if "active_publication_key" not in swift:
+        # The initial baseline predates the one-time selector migration and
+        # still carries the exact frozen legacy alpha.2 selector, so the
+        # production migration itself produces the neutral projection.
+        live["swift_xcframework"] = release_contract.neutral_swift_selector(
+            live
+        )
+        return live
+    swift.update(
+        {
+            "active_publication_key": (
+                contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+            ),
+            "boundary": release_contract.NEUTRAL_SWIFT_BOUNDARY,
+            "command": release_contract.NEUTRAL_SWIFT_COMMAND,
+            "current_local_status": (
+                release_contract.NEUTRAL_SWIFT_LOCAL_STATUS
+            ),
+            "current_source_status": (
+                release_contract.NEUTRAL_SWIFT_SOURCE_STATUS
+            ),
+            "distribution": contract.frozen_alpha2_r1_distribution(),
+            "mode": release_contract.NEUTRAL_SWIFT_MODE,
+        }
+    )
     return live
 
 
@@ -249,8 +276,16 @@ class ApplePublicationContractTests(unittest.TestCase):
             }
         )
         selector = results["swift_xcframework"]
-        active_key = selector["active_publication_key"]
-        if active_key == contract.APPLE_ALPHA2_R1_PUBLICATION_KEY:
+        active_key = selector.get("active_publication_key")
+        if active_key is None:
+            # Pre-migration legacy manifest: the initial baseline selector
+            # still carries the legacy prose, has no active publication
+            # key, and must freeze the alpha.2-r1 projection byte for byte.
+            self.assertEqual(
+                selector["distribution"],
+                contract.frozen_alpha2_r1_distribution(),
+            )
+        elif active_key == contract.APPLE_ALPHA2_R1_PUBLICATION_KEY:
             # Legacy selection: the live projection is the frozen alpha.2-r1
             # distribution, byte for byte.
             self.assertEqual(
