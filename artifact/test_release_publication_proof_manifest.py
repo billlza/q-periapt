@@ -12,7 +12,6 @@ import platform_publication_contract as platform_contract
 import proof_manifest
 import release_publication_contract as contract
 from test_apple_publication_contract import (
-    source_baseline_manifest,
     stable_pending_receipt,
     stable_verified_receipt,
 )
@@ -24,13 +23,14 @@ from test_platform_stable_publication_contract import (
 from test_release_publication_contract import (
     _rebind_crates,
     _rebind_platform,
+    frozen_baseline_manifest,
     frozen_v0_1_3_selector_fixture,
     source_manifest_fixture,
 )
 
 
 def _source_manifest() -> dict[str, object]:
-    legacy = source_baseline_manifest()
+    legacy = frozen_baseline_manifest()
     source_manifest = source_manifest_fixture(legacy)
     source = stable_pending_receipt()["source"]
     return {

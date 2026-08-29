@@ -34,6 +34,7 @@ import release_publication_contract
 from camera_ready_proof import EXPECTED_TOOLS
 from git_provenance import WorktreeInspection, git_commit
 from test_apple_publication_contract import alpha2_receipt
+from test_release_publication_contract import frozen_baseline_manifest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROOF_SCRIPT = ROOT / "artifact" / "proof-to-byte.sh"
@@ -4637,9 +4638,7 @@ with _temporary_release_test_directories(parents):
                     )
 
     def test_first_parent_publication_history_is_loaded_and_enforced(self) -> None:
-        parent_manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
+        parent_manifest = frozen_baseline_manifest()
         parent_bytes = json.dumps(
             parent_manifest,
             ensure_ascii=False,

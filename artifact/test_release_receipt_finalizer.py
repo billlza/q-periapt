@@ -34,13 +34,11 @@ from test_platform_stable_publication_contract import (
 from test_release_publication_contract import (
     _rebind_crates,
     _rebind_platform,
+    frozen_baseline_manifest,
     frozen_v0_1_3_selector_fixture,
     rebind_rust_publish_source,
     rebind_stable_current_source,
 )
-
-
-ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 STABLE_COHORT_PUBLICATION_KEYS = (
@@ -78,9 +76,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
         self.target.mkdir(mode=0o700)
         self.results = self.root / "artifact" / "results.json"
         self.results.parent.mkdir()
-        legacy = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
+        legacy = frozen_baseline_manifest()
         self._write_results(legacy)
         self._git("init", "-q")
         self._git("add", ".")

@@ -182,6 +182,32 @@ def source_baseline_fixture(
     return baseline
 
 
+# The live manifest is read exactly once, at import, and immediately
+# reduced to the state-independent source baseline. Every raw-material
+# consumer goes through frozen_baseline_manifest() below, so a release
+# install that rewrites artifact/results.json into the pending or
+# verified cohort state never leaks into synthetic fixtures.
+_FROZEN_BASELINE_MANIFEST = source_baseline_fixture(
+    json.loads(
+        (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+    )
+)
+
+
+def frozen_baseline_manifest() -> dict[str, object]:
+    """Return a fresh deep copy of the frozen source-results baseline.
+
+    This is the single fixture front door for every test that merely
+    needs "a valid manifest" as raw material for synthetic states: the
+    frozen snapshot is state-independent, so the synthetic fixtures stay
+    byte-stable across release-state installs of the live manifest.
+    Tests that verify properties of the live manifest itself must keep
+    reading artifact/results.json directly — that is their purpose.
+    """
+
+    return copy.deepcopy(_FROZEN_BASELINE_MANIFEST)
+
+
 def frozen_apple_v0_1_3_receipt() -> dict[str, object]:
     """Assemble the frozen published apple_v0_1_3 receipt from contract bytes."""
 
@@ -410,9 +436,7 @@ def source_manifest_fixture(
     """Return the exact post-migration source-results publication state."""
 
     if legacy is None:
-        legacy = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
+        legacy = frozen_baseline_manifest()
     manifest = source_baseline_fixture(legacy)
     apple_pending = stable_pending_receipt()
     source = apple_pending["source"]
@@ -480,9 +504,7 @@ def verified_manifest_fixture(
 class ReleasePublicationContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.legacy = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
+        cls.legacy = frozen_baseline_manifest()
 
     def source_manifest(self) -> dict[str, object]:
         return source_manifest_fixture(self.legacy)
@@ -770,7 +792,12 @@ class ReleasePublicationContractTests(unittest.TestCase):
             )
 
     def test_live_manifest_pins_the_complete_frozen_history(self) -> None:
-        publications = self.legacy["release_publications"]
+        # This test's purpose is the live manifest, so it reads
+        # artifact/results.json directly instead of the frozen front door.
+        live = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        publications = live["release_publications"]
         for key in _FROZEN_HISTORICAL_PUBLICATION_KEYS:
             self.assertIn(key, publications)
         for label, key, frozen in (
@@ -801,8 +828,8 @@ class ReleasePublicationContractTests(unittest.TestCase):
         # The live selector is the migrated neutral selector with the
         # state-selected activation: apple_v0_1_4 once the active cohort
         # verifies, otherwise the frozen published apple_v0_1_3 receipt.
-        state = contract.publication_state(self.legacy)
-        swift = self.legacy["swift_xcframework"]
+        state = contract.publication_state(live)
+        swift = live["swift_xcframework"]
         for field, expected in (
             ("boundary", contract.NEUTRAL_SWIFT_BOUNDARY),
             ("command", contract.NEUTRAL_SWIFT_COMMAND),
@@ -825,12 +852,35 @@ class ReleasePublicationContractTests(unittest.TestCase):
         # The committed state is a valid transition fixed point, and the
         # synthetic source rebinding remains a legal successor of the
         # live manifest's source-results baseline.
+        contract.validate_release_publication_transition(live, live)
         contract.validate_release_publication_transition(
-            self.legacy, self.legacy
+            source_baseline_fixture(live), self.source_manifest()
         )
-        contract.validate_release_publication_transition(
-            source_baseline_fixture(self.legacy), self.source_manifest()
-        )
+
+    def test_frozen_baseline_front_door_is_install_proof(self) -> None:
+        # Whichever cohort state a release install leaves in
+        # artifact/results.json — the frozen baseline itself, the pending
+        # cohort, or the verified cohort — the front-door reduction must
+        # be a fixed point that lands every raw-material fixture on the
+        # same bytes, so installs can never move the synthetic fixtures.
+        baseline = frozen_baseline_manifest()
+        self.assertEqual(baseline, source_baseline_fixture(baseline))
+        source = self.source_manifest()
+        pending = self.pending_manifest()
+        verified = self.verified_manifest()
+        for installed_state, installed in (
+            (contract.PUBLICATION_STATE_SOURCE, source),
+            (contract.PUBLICATION_STATE_PENDING, pending),
+            (contract.PUBLICATION_STATE_VERIFIED, verified),
+        ):
+            with self.subTest(installed_state=installed_state):
+                reduced = source_baseline_fixture(installed)
+                self.assertEqual(reduced, source_baseline_fixture(reduced))
+                self.assertEqual(source, source_manifest_fixture(reduced))
+                self.assertEqual(pending, pending_manifest_fixture(reduced))
+                self.assertEqual(
+                    verified, verified_manifest_fixture(reduced)
+                )
 
     def test_pending_requires_both_domains_and_never_changes_selector(self) -> None:
         source = self.source_manifest()

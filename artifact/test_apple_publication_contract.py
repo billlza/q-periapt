@@ -11,9 +11,6 @@ import unittest
 
 import apple_distribution
 import apple_publication_contract as contract
-import crates_io_publication_contract as crates_contract
-import platform_publication_contract as platform_contract
-import release_publication_contract as release_contract
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -21,51 +18,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def _digest(index: int) -> str:
     return f"{index:064x}"
-
-
-def source_baseline_manifest() -> dict[str, object]:
-    """Return the live manifest reduced to the frozen source-results baseline.
-
-    The committed results.json is a state-selected manifest: the active
-    v0.1.4 cohort leaves are either absent (source state), pending, or
-    verified, the five frozen historical leaves are permanent, and the
-    Apple selector advances with the active cohort. Fixtures that
-    construct synthetic cohort states must start from the state-independent
-    source baseline instead of inheriting whichever cohort state happens
-    to be installed, so this strips only the active v0.1.4 leaves and
-    rebuilds the source-state selector: the frozen neutral field set with
-    the frozen published apple_v0_1_3 receipt active.
-    """
-
-    live = json.loads(
-        (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-    )
-    publications = live["release_publications"]
-    for key in (
-        contract.APPLE_V0_1_4_PUBLICATION_KEY,
-        platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
-        crates_contract.CRATES_IO_PUBLICATION_KEY,
-    ):
-        publications.pop(key, None)
-    swift = live["swift_xcframework"]
-    swift.update(
-        {
-            "active_publication_key": (
-                contract.APPLE_V0_1_3_PUBLICATION_KEY
-            ),
-            "boundary": release_contract.NEUTRAL_SWIFT_BOUNDARY,
-            "command": release_contract.NEUTRAL_SWIFT_COMMAND,
-            "current_local_status": (
-                release_contract.NEUTRAL_SWIFT_LOCAL_STATUS
-            ),
-            "current_source_status": (
-                release_contract.NEUTRAL_SWIFT_SOURCE_STATUS
-            ),
-            "distribution": contract.frozen_v0_1_3_distribution(),
-            "mode": release_contract.NEUTRAL_SWIFT_MODE,
-        }
-    )
-    return live
 
 
 def alpha2_receipt() -> dict[str, object]:
@@ -319,15 +271,19 @@ class ApplePublicationContractTests(unittest.TestCase):
                 contract.frozen_alpha2_r1_distribution(),
             )
         else:
-            # The selector may only ever advance to the verified 0.1.3
-            # stable receipt; it must then repeat that receipt's
-            # distribution projection exactly.
-            self.assertEqual(
-                active_key, contract.APPLE_V0_1_3_PUBLICATION_KEY
+            # The selector may only ever advance to a verified stable
+            # receipt — the frozen published apple_v0_1_3 receipt, or the
+            # active apple_v0_1_4 receipt once its cohort verifies; it
+            # must then repeat that receipt's distribution projection
+            # exactly.
+            self.assertIn(
+                active_key,
+                (
+                    contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                    contract.APPLE_V0_1_4_PUBLICATION_KEY,
+                ),
             )
-            stable = results["release_publications"][
-                contract.APPLE_V0_1_3_PUBLICATION_KEY
-            ]
+            stable = results["release_publications"][active_key]
             self.assertEqual(
                 stable["status"], contract.APPLE_STATUS_VERIFIED
             )
