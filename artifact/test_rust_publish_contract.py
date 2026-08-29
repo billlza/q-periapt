@@ -2950,7 +2950,7 @@ class RustPublishContractTests(unittest.TestCase):
             "validated_rust_package_contract_failure_marker",
             script,
         )
-        self.assertIn("timeout_seconds=300", script)
+        self.assertIn("timeout_seconds=900", script)
         self.assertIn("maximum_stdout_bytes=MAX_TRANSCRIPT_BYTES", script)
         self.assertIn("maximum_stderr_bytes=MAX_HANDOFF_STDERR_BYTES", script)
         self.assertNotIn("stderr=None", script)
