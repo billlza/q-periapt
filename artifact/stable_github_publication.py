@@ -693,15 +693,19 @@ def classify_remote_state(
     apple, platform = remote.releases
     apple_count = len(plan.apple.assets)
     platform_count = len(plan.platform.assets)
+    predecessor_tag = apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
     if apple is None and platform is None:
         _require(
-            remote.latest_tag is None,
-            "a non-prerelease latest release exists before the first stable release",
+            remote.latest_tag == predecessor_tag,
+            "latest release differs from the published stable predecessor",
         )
         return ClassifiedRemoteState(0, "both_absent")
     _require(apple is not None, "platform release exists before Apple")
     if platform is None:
-        _require(remote.latest_tag is None, "draft Apple release became latest")
+        _require(
+            remote.latest_tag == predecessor_tag,
+            "draft Apple release changed the latest pointer",
+        )
         _require(
             apple.draft and not apple.immutable and len(apple.assets) == 0,
             "Apple-only remote state is not the empty first draft",
@@ -712,7 +716,10 @@ def classify_remote_state(
         "the two releases share one remote ID",
     )
     if apple.draft:
-        _require(remote.latest_tag is None, "a draft transaction changed latest")
+        _require(
+            remote.latest_tag == predecessor_tag,
+            "a draft transaction changed the latest pointer",
+        )
         _require(platform.draft, "platform was published before Apple")
         _require(
             not apple.immutable and not platform.immutable,
@@ -2389,9 +2396,10 @@ def validate_exact_remote_transition(
     )
     if action.domain == "apple":
         _require(
-            before_observation["latest_tag"] is None
+            before_observation["latest_tag"]
+            == apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
             and after_observation["latest_tag"] == plan.apple.tag,
-            "Apple publication did not establish the sole latest release",
+            "Apple publication did not advance latest from the predecessor",
         )
     else:
         _require(
