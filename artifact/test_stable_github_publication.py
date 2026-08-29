@@ -238,7 +238,11 @@ def fixture_snapshot(
         "repository_sha256": _digest(repository_canonical),
         "immutable_enabled": True,
         "immutable_enforced_by_owner": False,
-        "latest_tag": plan.apple.tag if apple_public else None,
+        "latest_tag": (
+            plan.apple.tag
+            if apple_public
+            else apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
+        ),
         "releases": [
             None if apple is None else json.loads(apple.canonical),
             None if platform is None else json.loads(platform.canonical),
@@ -450,29 +454,30 @@ class StableGitHubPublicationTests(unittest.TestCase):
         self.assertFalse((journal / "000001-intent.json").exists())
 
     def test_all_sixteen_states_match_an_independent_order_oracle(self) -> None:
+        predecessor_tag = apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
         expected_states = (
-            (0, "both_absent"),
-            (1, "apple_draft"),
-            (2, "apple_prefix_0"),
-            (3, "apple_prefix_1"),
-            (4, "apple_prefix_2"),
-            (5, "apple_prefix_3"),
-            (6, "platform_prefix_0"),
-            (7, "platform_prefix_1"),
-            (8, "platform_prefix_2"),
-            (9, "platform_prefix_3"),
-            (10, "platform_prefix_4"),
-            (11, "platform_prefix_5"),
-            (12, "platform_prefix_6"),
-            (13, "platform_prefix_7"),
-            (14, "apple_published"),
-            (15, "both_published"),
+            (0, "both_absent", predecessor_tag),
+            (1, "apple_draft", predecessor_tag),
+            (2, "apple_prefix_0", predecessor_tag),
+            (3, "apple_prefix_1", predecessor_tag),
+            (4, "apple_prefix_2", predecessor_tag),
+            (5, "apple_prefix_3", predecessor_tag),
+            (6, "platform_prefix_0", predecessor_tag),
+            (7, "platform_prefix_1", predecessor_tag),
+            (8, "platform_prefix_2", predecessor_tag),
+            (9, "platform_prefix_3", predecessor_tag),
+            (10, "platform_prefix_4", predecessor_tag),
+            (11, "platform_prefix_5", predecessor_tag),
+            (12, "platform_prefix_6", predecessor_tag),
+            (13, "platform_prefix_7", predecessor_tag),
+            (14, "apple_published", self.plan.apple.tag),
+            (15, "both_published", self.plan.apple.tag),
         )
         self.assertEqual(15, len(EXPECTED_ACTION_IDS))
-        for index, expected_name in expected_states:
-            state = publication.classify_remote_state(
-                self.plan, fixture_snapshot(self.plan, index)
-            )
+        for index, expected_name, expected_latest in expected_states:
+            snapshot = fixture_snapshot(self.plan, index)
+            self.assertEqual(expected_latest, snapshot.releases.latest_tag)
+            state = publication.classify_remote_state(self.plan, snapshot)
             self.assertEqual(index, state.index)
             self.assertEqual(expected_name, state.name)
 
@@ -518,6 +523,36 @@ class StableGitHubPublicationTests(unittest.TestCase):
                         self.plan,
                         foreign_latest,
                     )
+
+    def test_both_absent_without_any_latest_release_is_rejected(self) -> None:
+        source = fixture_snapshot(self.plan, 0)
+        no_latest = dataclasses.replace(
+            source,
+            releases=dataclasses.replace(
+                source.releases,
+                latest_tag=None,
+            ),
+        )
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError,
+            "latest release differs from the published stable predecessor",
+        ):
+            publication.classify_remote_state(self.plan, no_latest)
+
+    def test_both_absent_with_foreign_latest_release_is_rejected(self) -> None:
+        source = fixture_snapshot(self.plan, 0)
+        foreign_latest = dataclasses.replace(
+            source,
+            releases=dataclasses.replace(
+                source.releases,
+                latest_tag="v0.1.2",
+            ),
+        )
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError,
+            "latest release differs from the published stable predecessor",
+        ):
+            publication.classify_remote_state(self.plan, foreign_latest)
 
     def test_all_actions_match_an_independent_literal_oracle(self) -> None:
         expected = (
