@@ -19,7 +19,9 @@ use q_periapt_core::{
     combine as core_combine, encode_policy_bound_context, policy_bound_context_len, secure_wipe,
     CombineInput, Error, Profile,
 };
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 #[cfg(feature = "signed-policy")]
 use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
 use wasm_bindgen::prelude::*;
@@ -419,16 +421,32 @@ pub fn decapsulate(
             let kem =
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
                     .map_err(|_| JsError::new("policy denied"))?;
-            kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
-                .map_err(|_| JsError::new("decapsulate failed"))?
+            kem.decapsulate(
+                PqSecretKey::new(sk_pq),
+                PqCiphertext::new(ct_pq),
+                PqPublicKey::new(pk_pq),
+                TradSecretKey::new(sk_trad),
+                TradCiphertext::new(ct_trad),
+                TradPublicKey::new(pk_trad),
+                context,
+            )
+            .map_err(|_| JsError::new("decapsulate failed"))?
         }
         Profile::CompatXWing => {
             let (pq, trad) = (MlKem768XWingSeed, X25519);
             let kem =
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
                     .map_err(|_| JsError::new("policy denied"))?;
-            kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
-                .map_err(|_| JsError::new("decapsulate failed"))?
+            kem.decapsulate(
+                PqSecretKey::new(sk_pq),
+                PqCiphertext::new(ct_pq),
+                PqPublicKey::new(pk_pq),
+                TradSecretKey::new(sk_trad),
+                TradCiphertext::new(ct_trad),
+                TradPublicKey::new(pk_trad),
+                context,
+            )
+            .map_err(|_| JsError::new("decapsulate failed"))?
         }
     };
     Ok(secret.as_bytes().to_vec())

@@ -187,6 +187,12 @@ macro_rules! mlkem_backend {
             /// Deterministically generate a key pair from a 64-byte seed.
             /// Returns `(decapsulation_key, encapsulation_key)`.
             ///
+            /// The decapsulation key is returned **by value** as a plain array,
+            /// so wiping every copy the return path materializes is the
+            /// caller's responsibility. Long-term keying paths should prefer
+            /// [`Self::generate_zeroizing`], which keeps the secret inside one
+            /// zeroizing heap owner end to end.
+            ///
             /// # Errors
             ///
             /// Returns [`Error::Backend`] if the pinned primitive cannot
@@ -195,15 +201,38 @@ macro_rules! mlkem_backend {
                 seed: [u8; $seed_len],
             ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
                 let seed = ZeroizingBytes::from_bytes(seed);
+                let (decapsulation_key, encapsulation_key) =
+                    Self::generate_zeroizing(seed.as_bytes())?;
+                Ok((*decapsulation_key.as_bytes(), encapsulation_key))
+            }
+
+            /// Deterministically generate a key pair from a borrowed 64-byte
+            /// seed, returning `(decapsulation_key, encapsulation_key)` with
+            /// the secret held in one stable zeroizing heap owner.
+            ///
+            /// The seed is borrowed (no by-value copy crosses this boundary)
+            /// and the expanded decapsulation key is written by the primitive
+            /// directly into the boxed [`ZeroizingBytes`] — mirroring
+            /// [`MlKem768XWingSeed::prepare`], moving the owner afterwards
+            /// moves only the box pointer, never the secret bytes, so no
+            /// unwiped stack copy of the key is left behind.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`Error::Backend`] if the pinned primitive cannot
+            /// complete deterministic key generation.
+            pub fn generate_zeroizing(
+                seed: &[u8; $seed_len],
+            ) -> Result<(Box<ZeroizingBytes<$sk_len>>, [u8; $pk_len]), Error> {
                 let mut encapsulation_key = [0u8; $pk_len];
-                let mut decapsulation_key = ZeroizingBytes::<$sk_len>::zeroed();
+                let mut decapsulation_key = Box::new(ZeroizingBytes::<$sk_len>::zeroed());
                 $native::keypair_derand(
-                    seed.as_bytes(),
+                    seed,
                     &mut encapsulation_key,
                     decapsulation_key.as_mut_bytes(),
                 )
                 .map_err(map_mlkem_error)?;
-                Ok((*decapsulation_key.as_bytes(), encapsulation_key))
+                Ok((decapsulation_key, encapsulation_key))
             }
         }
 
@@ -1170,7 +1199,10 @@ mod tests {
     #[test]
     fn hybrid_real_roundtrip_context_bound_expanded_and_compat_seed_dk() {
         use q_periapt_core::Profile;
-        use q_periapt_kem::HybridKem;
+        use q_periapt_kem::{
+            HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey,
+            TradSecretKey,
+        };
 
         let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
@@ -1202,7 +1234,15 @@ mod tests {
                 .unwrap();
 
             let dec = kem
-                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
+                .decapsulate(
+                    PqSecretKey::new(&sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(&pk_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    ctx,
+                )
                 .unwrap();
 
             assert_eq!(
@@ -1234,10 +1274,25 @@ mod tests {
                 )
                 .unwrap();
             let dec = kem
-                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
+                .decapsulate(
+                    PqSecretKey::new(&sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(&pk_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    b"",
+                )
                 .unwrap();
             let prepared_dec = kem
-                .decapsulate_prepared(&prepared_pq, &ct_pq, &sk_trad, &ct_trad, &pk_trad, b"")
+                .decapsulate_prepared(
+                    &prepared_pq,
+                    PqCiphertext::new(&ct_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    b"",
+                )
                 .unwrap();
             assert_eq!(
                 enc.as_bytes(),
@@ -1273,7 +1328,10 @@ mod tests {
         // confined to ContextBound; the buffers are sized to the 1024 ciphertext
         // (1568, NOT the 768 length). Proves the enhanced HybridKem actually round-trips.
         use q_periapt_core::Profile;
-        use q_periapt_kem::HybridKem;
+        use q_periapt_kem::{
+            HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey,
+            TradSecretKey,
+        };
 
         let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
@@ -1305,7 +1363,15 @@ mod tests {
                 .unwrap();
 
             let dec = kem
-                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
+                .decapsulate(
+                    PqSecretKey::new(&sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(&pk_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    ctx,
+                )
                 .unwrap();
 
             assert_eq!(

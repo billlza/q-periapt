@@ -27,12 +27,16 @@
 //! - Every entry point is wrapped in `catch_unwind`; a panic becomes
 //!   [`Q_PERIAPT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
 //! - **No aliasing (checked):** within a single call, the input `(ptr, len)` buffers and the
-//!   output `(ptr, len)` buffers must not overlap — materializing the inputs as `&[u8]` and the
-//!   outputs as `&mut [u8]` at the same time would create simultaneous shared/mutable references to
-//!   the same memory (UB). Rather than rely on the caller, the multi-buffer entry points **check
-//!   the raw `(ptr, len)` ranges up front and return [`Q_PERIAPT_ERR_ALIASING`]** before any slice
-//!   is formed, turning the footgun into a defined error. Pass distinct buffers (their required
+//!   output `(ptr, len)` buffers must not overlap — writing an output while the inputs are
+//!   materialized as `&[u8]` would mutate memory behind live shared references (UB). Rather than
+//!   rely on the caller, the multi-buffer entry points **check the raw `(ptr, len)` ranges up
+//!   front and return [`Q_PERIAPT_ERR_ALIASING`]** before any slice is formed or any output byte
+//!   is written, turning the footgun into a defined error. Pass distinct buffers (their required
 //!   lengths differ in any case).
+//! - **Uninitialized outputs are fine:** output buffers are never read and never materialized as
+//!   `&mut [u8]` while possibly uninitialized. Each entry point writes them through raw-pointer
+//!   primitives (or zero-initializes first when a slice is required), so passing fresh
+//!   `malloc`-style storage is sound.
 
 use core::slice;
 use q_periapt_backends::{
@@ -49,7 +53,9 @@ use q_periapt_core::{
     encode_policy_bound_context, policy_bound_context_len, secure_wipe, Error, Profile,
     ZeroizingBytes,
 };
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
 use std::ffi::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -181,13 +187,64 @@ unsafe fn in_slice<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     }
 }
 
-/// Materialize an output buffer as `&mut [u8]`. The caller must ensure it does not overlap any
-/// input or other output buffer in the same call (see the module-level no-aliasing convention).
-unsafe fn out_slice<'a>(ptr: *mut u8, len: usize) -> Option<&'a mut [u8]> {
+/// A caller-supplied output region, held as its raw `(ptr, len)` pair.
+///
+/// The C contract lets callers pass **uninitialized** output buffers, so
+/// materializing one as `&mut [u8]` before every byte has been written would be
+/// undefined behavior by itself. This owner therefore never forms a slice over
+/// the region: writes go through raw-pointer primitives
+/// ([`core::ptr::write_bytes`] / [`core::ptr::copy_nonoverlapping`]), and the
+/// one method that does hand out `&mut [u8]` — [`OutBuf::as_zeroed_mut`] —
+/// zero-initializes the whole region first, which makes the subsequent slice
+/// sound.
+struct OutBuf {
+    ptr: *mut u8,
+    len: usize,
+}
+
+/// Wrap an output buffer. The caller must ensure `ptr` is writable for `len` bytes for the
+/// lifetime of the returned owner and does not overlap any input or other output buffer in the
+/// same call (see the module-level no-aliasing convention).
+unsafe fn out_buf(ptr: *mut u8, len: usize) -> Option<OutBuf> {
     if ptr.is_null() {
         None
     } else {
-        Some(slice::from_raw_parts_mut(ptr, len))
+        Some(OutBuf { ptr, len })
+    }
+}
+
+impl OutBuf {
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Overwrite the whole region with `value` (initializing it in the process).
+    fn fill(&mut self, value: u8) {
+        // SAFETY: `out_buf`'s caller guaranteed `ptr` writable for `len` bytes.
+        unsafe { core::ptr::write_bytes(self.ptr, value, self.len) };
+    }
+
+    /// Copy `src` over the whole region. Panics on a length mismatch, exactly
+    /// like `<[u8]>::copy_from_slice` — callers validate lengths first.
+    fn copy_from_slice(&mut self, src: &[u8]) {
+        assert_eq!(self.len, src.len(), "output length mismatch");
+        // SAFETY: `ptr` is writable for `len == src.len()` bytes; `src` is a live shared
+        // borrow, and the entry point's up-front aliasing check guarantees the output
+        // region is disjoint from every input region, so the copy cannot overlap.
+        unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), self.ptr, self.len) };
+    }
+
+    /// Zero-initialize the region, then return it as `&mut [u8]` for APIs that
+    /// fill caller buffers through a slice. Sound because after `write_bytes`
+    /// every byte of the region is initialized.
+    fn as_zeroed_mut(&mut self) -> &mut [u8] {
+        // SAFETY: `ptr` is writable for `len` bytes; the write initializes the region, so
+        // the slice is over initialized memory, and it borrows `self` mutably so no second
+        // slice can coexist.
+        unsafe {
+            core::ptr::write_bytes(self.ptr, 0, self.len);
+            slice::from_raw_parts_mut(self.ptr, self.len)
+        }
     }
 }
 
@@ -438,7 +495,8 @@ fn policy_bound_context(
 ///
 /// # Safety
 /// `toml`/`signature`/`vk`/`last_trusted_state` must be readable for their lengths;
-/// `out_decision` writable for `out_decision_len`, which must equal
+/// `out_decision` writable (it may be uninitialized — it is only written, through raw
+/// pointers) for `out_decision_len`, which must equal
 /// [`Q_PERIAPT_POLICY_DECISION_LEN`]. `last_trusted_state_len` must be zero or
 /// [`Q_PERIAPT_TRUSTED_POLICY_STATE_LEN`]. Inputs and output must not overlap.
 #[no_mangle]
@@ -468,12 +526,12 @@ pub unsafe extern "C" fn q_periapt_decision_from_signed_policy(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(toml), Some(sig), Some(vk), Some(last_state), Some(out)) = (
+        let (Some(toml), Some(sig), Some(vk), Some(last_state), Some(mut out)) = (
             in_slice(toml, toml_len),
             in_slice(signature, signature_len),
             in_slice(vk, vk_len),
             in_slice(last_trusted_state, last_trusted_state_len),
-            out_slice(out_decision, out_decision_len),
+            out_buf(out_decision, out_decision_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
@@ -553,16 +611,17 @@ unsafe fn mlkem768_keypair_raw(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(seed_in), Some(sk_o), Some(pk_o)) = (
+        let (Some(seed_in), Some(mut sk_o), Some(mut pk_o)) = (
             in_slice(seed, seed_len),
-            out_slice(out_sk, out_sk_len),
-            out_slice(out_pk, out_pk_len),
+            out_buf(out_sk, out_sk_len),
+            out_buf(out_pk, out_pk_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
         // Validate every public buffer length before constructing the local
-        // ZeroizingBytes owner. Copies created by by-value backend calls remain
-        // backend-managed and are outside this owner's Drop guarantee.
+        // ZeroizingBytes owner. The expanded key is written by the backend
+        // directly into a boxed zeroizing owner, so no unwiped by-value copy
+        // crosses the call boundary.
         if sk_o.len() != ML_KEM_768_SK_LEN || pk_o.len() != ML_KEM_768_PK_LEN {
             return Q_PERIAPT_ERR_LENGTH;
         }
@@ -570,11 +629,10 @@ unsafe fn mlkem768_keypair_raw(
             return Q_PERIAPT_ERR_LENGTH;
         };
         let seed = ZeroizingBytes::from_bytes(seed);
-        let (sk, pk) = match MlKem768::generate(*seed.as_bytes()) {
+        let (sk, pk) = match MlKem768::generate_zeroizing(seed.as_bytes()) {
             Ok(keypair) => keypair,
             Err(error) => return err_code(error),
         };
-        let sk = ZeroizingBytes::from_bytes(sk);
         sk_o.copy_from_slice(sk.as_bytes());
         pk_o.copy_from_slice(&pk);
         Q_PERIAPT_OK
@@ -612,10 +670,10 @@ unsafe fn mlkem768_xwing_keypair_raw(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(seed_in), Some(sk_o), Some(pk_o)) = (
+        let (Some(seed_in), Some(mut sk_o), Some(mut pk_o)) = (
             in_slice(seed, seed_len),
-            out_slice(out_sk_seed, out_sk_seed_len),
-            out_slice(out_pk, out_pk_len),
+            out_buf(out_sk_seed, out_sk_seed_len),
+            out_buf(out_pk, out_pk_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
@@ -663,10 +721,10 @@ unsafe fn x25519_keypair_raw(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(secret_in), Some(sk_o), Some(pk_o)) = (
+        let (Some(secret_in), Some(mut sk_o), Some(mut pk_o)) = (
             in_slice(secret, secret_len),
-            out_slice(out_sk, out_sk_len),
-            out_slice(out_pk, out_pk_len),
+            out_buf(out_sk, out_sk_len),
+            out_buf(out_pk, out_pk_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
@@ -704,7 +762,8 @@ unsafe fn x25519_keypair_raw(
 /// # Safety
 /// `decision` must be readable for `decision_len`. All four outputs must be
 /// writable for their exact published lengths and disjoint from the input and
-/// from one another.
+/// from one another; they may be uninitialized (they are only written, through
+/// raw pointers).
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn q_periapt_generate_keypair(
@@ -729,12 +788,18 @@ pub unsafe extern "C" fn q_periapt_generate_keypair(
         if outputs_alias(&[(decision, decision_len)], &outputs) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(sk_pq_out), Some(pk_pq_out), Some(sk_trad_out), Some(pk_trad_out)) = (
-            out_slice(out_sk_pq, out_sk_pq_len),
-            out_slice(out_pk_pq, out_pk_pq_len),
-            out_slice(out_sk_trad, out_sk_trad_len),
-            out_slice(out_pk_trad, out_pk_trad_len),
-        ) else {
+        let (
+            Some(mut sk_pq_out),
+            Some(mut pk_pq_out),
+            Some(mut sk_trad_out),
+            Some(mut pk_trad_out),
+        ) = (
+            out_buf(out_sk_pq, out_sk_pq_len),
+            out_buf(out_pk_pq, out_pk_pq_len),
+            out_buf(out_sk_trad, out_sk_trad_len),
+            out_buf(out_pk_trad, out_pk_trad_len),
+        )
+        else {
             return Q_PERIAPT_ERR_NULL;
         };
         if sk_pq_out.len() != Q_PERIAPT_MLKEM768_SK_LEN
@@ -766,12 +831,13 @@ pub unsafe extern "C" fn q_periapt_generate_keypair(
         {
             return Q_PERIAPT_ERR_ENTROPY;
         }
-        let (sk_pq, pk_pq) = match MlKem768::generate(*seed_pq.as_bytes()) {
+        // The 2400-byte expanded key is written by the backend directly into a boxed
+        // zeroizing owner (no unwiped by-value copy crosses the call boundary).
+        let (sk_pq, pk_pq) = match MlKem768::generate_zeroizing(seed_pq.as_bytes()) {
             Ok(keypair) => keypair,
             Err(error) => return err_code(error),
         };
         let (sk_trad, pk_trad) = X25519::generate(*seed_trad.as_bytes());
-        let sk_pq = ZeroizingBytes::from_bytes(sk_pq);
         let sk_trad = ZeroizingBytes::from_bytes(sk_trad);
 
         sk_pq_out.copy_from_slice(sk_pq.as_bytes());
@@ -794,7 +860,8 @@ pub unsafe extern "C" fn q_periapt_generate_keypair(
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region; output buffers must be
-/// writable for their lengths.
+/// writable for their lengths and may be uninitialized (each is zero-initialized
+/// or written through raw pointers before any `&mut [u8]` is formed over it).
 #[allow(clippy::too_many_arguments)]
 unsafe fn hybrid_encapsulate_raw(
     profile: u8,
@@ -859,10 +926,10 @@ unsafe fn hybrid_encapsulate_raw(
         else {
             return Q_PERIAPT_ERR_NULL;
         };
-        let (Some(ct_pq_o), Some(ct_trad_o), Some(secret_o)) = (
-            out_slice(out_ct_pq, out_ct_pq_len),
-            out_slice(out_ct_trad, out_ct_trad_len),
-            out_slice(out_secret, out_secret_len),
+        let (Some(mut ct_pq_o), Some(mut ct_trad_o), Some(mut secret_o)) = (
+            out_buf(out_ct_pq, out_ct_pq_len),
+            out_buf(out_ct_trad, out_ct_trad_len),
+            out_buf(out_secret, out_secret_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
@@ -878,7 +945,13 @@ unsafe fn hybrid_encapsulate_raw(
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version)
                     .and_then(|kem| {
                         kem.encapsulate(
-                            pk_pq, pk_trad, context, rand_pq, rand_trad, ct_pq_o, ct_trad_o,
+                            pk_pq,
+                            pk_trad,
+                            context,
+                            rand_pq,
+                            rand_trad,
+                            ct_pq_o.as_zeroed_mut(),
+                            ct_trad_o.as_zeroed_mut(),
                         )
                     })
             }
@@ -887,7 +960,13 @@ unsafe fn hybrid_encapsulate_raw(
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version)
                     .and_then(|kem| {
                         kem.encapsulate(
-                            pk_pq, pk_trad, context, rand_pq, rand_trad, ct_pq_o, ct_trad_o,
+                            pk_pq,
+                            pk_trad,
+                            context,
+                            rand_pq,
+                            rand_trad,
+                            ct_pq_o.as_zeroed_mut(),
+                            ct_trad_o.as_zeroed_mut(),
                         )
                     })
             }
@@ -915,7 +994,8 @@ unsafe fn hybrid_encapsulate_raw(
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region; `out_secret` must be
-/// writable for [`Q_PERIAPT_SECRET_LEN`].
+/// writable for [`Q_PERIAPT_SECRET_LEN`] and may be uninitialized (it is only
+/// written, through raw pointers).
 #[allow(clippy::too_many_arguments)]
 unsafe fn hybrid_decapsulate_raw(
     profile: u8,
@@ -982,7 +1062,7 @@ unsafe fn hybrid_decapsulate_raw(
         else {
             return Q_PERIAPT_ERR_NULL;
         };
-        let Some(secret_o) = out_slice(out_secret, out_secret_len) else {
+        let Some(mut secret_o) = out_buf(out_secret, out_secret_len) else {
             return Q_PERIAPT_ERR_NULL;
         };
         if secret_o.len() != Q_PERIAPT_SECRET_LEN {
@@ -996,14 +1076,30 @@ unsafe fn hybrid_decapsulate_raw(
                 let (pq, trad) = (MlKem768, X25519);
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version)
                     .and_then(|kem| {
-                        kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
+                        kem.decapsulate(
+                            PqSecretKey::new(sk_pq),
+                            PqCiphertext::new(ct_pq),
+                            PqPublicKey::new(pk_pq),
+                            TradSecretKey::new(sk_trad),
+                            TradCiphertext::new(ct_trad),
+                            TradPublicKey::new(pk_trad),
+                            context,
+                        )
                     })
             }
             Profile::CompatXWing => {
                 let (pq, trad) = (MlKem768XWingSeed, X25519);
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite, policy_version)
                     .and_then(|kem| {
-                        kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
+                        kem.decapsulate(
+                            PqSecretKey::new(sk_pq),
+                            PqCiphertext::new(ct_pq),
+                            PqPublicKey::new(pk_pq),
+                            TradSecretKey::new(sk_trad),
+                            TradCiphertext::new(ct_trad),
+                            TradPublicKey::new(pk_trad),
+                            context,
+                        )
                     })
             }
         };
@@ -1033,7 +1129,8 @@ unsafe fn hybrid_decapsulate_raw(
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region. Outputs must be writable and disjoint
-/// from every input and from each other.
+/// from every input and from each other; they may be uninitialized (they are only written,
+/// through raw pointers).
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn q_periapt_encapsulate(
@@ -1068,10 +1165,10 @@ pub unsafe extern "C" fn q_periapt_encapsulate(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(ct_pq_out), Some(ct_trad_out), Some(secret_out)) = (
-            out_slice(out_ct_pq, out_ct_pq_len),
-            out_slice(out_ct_trad, out_ct_trad_len),
-            out_slice(out_secret, out_secret_len),
+        let (Some(mut ct_pq_out), Some(mut ct_trad_out), Some(mut secret_out)) = (
+            out_buf(out_ct_pq, out_ct_pq_len),
+            out_buf(out_ct_trad, out_ct_trad_len),
+            out_buf(out_secret, out_secret_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };
@@ -1156,7 +1253,8 @@ pub unsafe extern "C" fn q_periapt_encapsulate(
 ///
 /// # Safety
 /// Every `(ptr, len)` pair must describe a valid region. `out_secret` must be writable and
-/// disjoint from every input.
+/// disjoint from every input; it may be uninitialized (it is only written, through raw
+/// pointers).
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn q_periapt_decapsulate(
@@ -1195,7 +1293,7 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let Some(secret_out) = out_slice(out_secret, out_secret_len) else {
+        let Some(mut secret_out) = out_buf(out_secret, out_secret_len) else {
             return Q_PERIAPT_ERR_NULL;
         };
         if secret_out.len() != Q_PERIAPT_SECRET_LEN {
@@ -1286,7 +1384,8 @@ pub unsafe extern "C" fn q_periapt_decapsulate(
 /// [`Q_PERIAPT_ERR_POLICY`] without changing `out_secret`.
 ///
 /// # Safety
-/// `input`/`out_secret` must be valid for `input_len` / [`Q_PERIAPT_SECRET_LEN`].
+/// `input`/`out_secret` must be valid for `input_len` / [`Q_PERIAPT_SECRET_LEN`];
+/// `out_secret` may be uninitialized (it is only written, through raw pointers).
 #[cfg(test)]
 unsafe fn combine_raw(
     profile: u8,
@@ -1303,9 +1402,9 @@ unsafe fn combine_raw(
         ) {
             return Q_PERIAPT_ERR_ALIASING;
         }
-        let (Some(input), Some(out)) = (
+        let (Some(input), Some(mut out)) = (
             in_slice(input, input_len),
-            out_slice(out_secret, out_secret_len),
+            out_buf(out_secret, out_secret_len),
         ) else {
             return Q_PERIAPT_ERR_NULL;
         };

@@ -28,7 +28,9 @@ use q_periapt_backends::{
     ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{Error as KemError, Profile, ZeroizingBytes, SHARED_SECRET_LEN};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use q_periapt_policy::{HybridSuite, PolicyResolutionError};
 
 const PQ_CLIENT_SHARE: usize = ML_KEM_768_PK_LEN; // 1184: ML-KEM encapsulation key
@@ -128,12 +130,17 @@ impl SupportedKxGroup for QPeriaptKxGroup {
             .and_then(|()| self.rng.fill(scalar.as_mut_bytes()))?;
         let pq_key = match self.profile {
             Profile::ContextBound => {
-                let (sk, pk) = MlKem768::generate(*seed.as_bytes()).map_err(|_| {
-                    Error::General("q-periapt: ML-KEM key generation failed".into())
-                })?;
+                // `generate_zeroizing` borrows the seed and writes the expanded
+                // decapsulation key straight into its boxed zeroizing owner, so
+                // neither secret crosses this boundary as an unwiped by-value
+                // stack copy.
+                let (decapsulation_key, encapsulation_key) =
+                    MlKem768::generate_zeroizing(seed.as_bytes()).map_err(|_| {
+                        Error::General("q-periapt: ML-KEM key generation failed".into())
+                    })?;
                 QPeriaptClientPqKey::ContextBound {
-                    decapsulation_key: Box::new(ZeroizingBytes::from_bytes(sk)),
-                    encapsulation_key: pk,
+                    decapsulation_key,
+                    encapsulation_key,
                 }
             }
             Profile::CompatXWing => {
@@ -305,12 +312,12 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
                 )
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate(
-                    decapsulation_key.as_bytes(),
-                    ct_pq,
-                    encapsulation_key,
-                    &self.sk_trad,
-                    ct_trad,
-                    &self.pk_trad,
+                    PqSecretKey::new(decapsulation_key.as_bytes()),
+                    PqCiphertext::new(ct_pq),
+                    PqPublicKey::new(encapsulation_key),
+                    TradSecretKey::new(&self.sk_trad),
+                    TradCiphertext::new(ct_trad),
+                    TradPublicKey::new(&self.pk_trad),
                     context,
                 )
             }
@@ -326,10 +333,10 @@ impl ActiveKeyExchange for QPeriaptActiveKx {
                 .map_err(|_| QPeriaptKxGroup::invalid_pairing())?;
                 kem.decapsulate_prepared(
                     prepared,
-                    ct_pq,
-                    &self.sk_trad,
-                    ct_trad,
-                    &self.pk_trad,
+                    PqCiphertext::new(ct_pq),
+                    TradSecretKey::new(&self.sk_trad),
+                    TradCiphertext::new(ct_trad),
+                    TradPublicKey::new(&self.pk_trad),
                     context,
                 )
             }
@@ -363,11 +370,26 @@ fn kx_groups(rng: &'static dyn SecureRandom) -> Vec<&'static dyn SupportedKxGrou
     .to_vec()
 }
 
+/// The `ring` base provider restricted to its TLS 1.3 cipher suites.
+///
+/// The Q-Periapt groups are TLS 1.3 key-share groups; a TLS 1.2 suite in the
+/// provider would advertise a protocol version these groups never serve. The
+/// documented TLS 1.3-only contract is therefore enforced mechanically here —
+/// by filtering ring's suite list — rather than left to the feature set the
+/// final binary happens to unify (`tls12` is additive across a workspace).
+fn tls13_only_base() -> CryptoProvider {
+    let mut base = rustls::crypto::ring::default_provider();
+    base.cipher_suites.retain(|suite| suite.tls13().is_some());
+    base
+}
+
 /// A rustls [`CryptoProvider`] = the `ring` base provider (cipher suites, signatures, RNG)
-/// with Q-Periapt's hybrid groups as the **only** key-exchange groups. TLS 1.3 only.
+/// with Q-Periapt's hybrid groups as the **only** key-exchange groups. TLS 1.3 only:
+/// the cipher-suite list is filtered to ring's TLS 1.3 suites, so a TLS 1.2-pinned
+/// configuration against this provider fails to build.
 #[must_use]
 pub fn provider() -> CryptoProvider {
-    let base = rustls::crypto::ring::default_provider();
+    let base = tls13_only_base();
     let kx = kx_groups(base.secure_random);
     CryptoProvider {
         kx_groups: kx,
@@ -429,7 +451,7 @@ pub fn provider_with_policy(
     if decision.policy_version() != SUPPORTED_POLICY_VERSION {
         return Err(ProviderPolicyError::UnsupportedPolicyVersion);
     }
-    let base = rustls::crypto::ring::default_provider();
+    let base = tls13_only_base();
     let want = match decision.profile() {
         Profile::ContextBound => Q_PERIAPT_CONTEXTBOUND,
         Profile::CompatXWing => Q_PERIAPT_COMPATXWING,
@@ -506,6 +528,49 @@ mod tests {
         assert_eq!(
             QPeriaptKxGroup::kem_error(KemError::PolicyDenied),
             Error::General("q-periapt: invalid profile/backend pairing".into())
+        );
+    }
+
+    #[test]
+    fn provider_ships_no_tls12_cipher_suite_and_rejects_a_tls12_pinned_config() {
+        use rustls::{ClientConfig, ProtocolVersion, SupportedProtocolVersion, ALL_VERSIONS};
+
+        for candidate in [
+            provider(),
+            provider_with_policy(&Policy::default()).unwrap(),
+        ] {
+            assert!(
+                !candidate.cipher_suites.is_empty(),
+                "the TLS 1.3 filter must not empty the suite list"
+            );
+            assert!(
+                candidate
+                    .cipher_suites
+                    .iter()
+                    .all(|suite| suite.version().version == ProtocolVersion::TLSv1_3),
+                "provider must carry only TLS 1.3 cipher suites: {:?}",
+                candidate.cipher_suites
+            );
+        }
+
+        // A TLS 1.2-pinned client configuration against this provider must fail. When
+        // the `tls12` rustls feature is compiled out entirely (this crate's default
+        // build), `ALL_VERSIONS` has no TLS 1.2 entry and such a pin cannot even be
+        // expressed; when the feature is unified in by another dependency, the pinned
+        // builder must refuse the provider ("no usable cipher suites").
+        let tls12_pin: Vec<&'static SupportedProtocolVersion> = ALL_VERSIONS
+            .iter()
+            .copied()
+            .filter(|candidate| candidate.version == ProtocolVersion::TLSv1_2)
+            .collect();
+        if tls12_pin.is_empty() {
+            return;
+        }
+        assert!(
+            ClientConfig::builder_with_provider(provider().into())
+                .with_protocol_versions(&tls12_pin)
+                .is_err(),
+            "a TLS 1.2-pinned client config must fail to build against this provider"
         );
     }
 
