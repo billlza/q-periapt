@@ -39,7 +39,10 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use q_periapt_backends::{MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, X25519, X25519_LEN};
     use q_periapt_core::{Kem, Profile};
-    use q_periapt_kem::HybridKem;
+    use q_periapt_kem::{
+        HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey,
+        TradSecretKey,
+    };
 
     #[test]
     fn welch_t_zero_for_identical() {
@@ -106,7 +109,13 @@ mod tests {
         let mut bad_ct_pq = ct_pq;
         bad_ct_pq[0] ^= 0xFF;
         let dec = kem.decapsulate(
-            &sk_pq, &bad_ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx,
+            PqSecretKey::new(&sk_pq),
+            PqCiphertext::new(&bad_ct_pq),
+            PqPublicKey::new(&pk_pq),
+            TradSecretKey::new(&sk_trad),
+            TradCiphertext::new(&ct_trad),
+            TradPublicKey::new(&pk_trad),
+            ctx,
         );
         assert!(dec.is_ok(), "corrupt PQ ct must not surface an error");
         assert_ne!(

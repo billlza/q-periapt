@@ -23,6 +23,7 @@ import release_publication_contract as publication_contract
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
+from test_release_publication_contract import frozen_baseline_manifest
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -59,7 +60,7 @@ def _proof_inputs(*, installed: bool) -> dict[str, str]:
 
 
 def _initial_baseline() -> dict[str, Any]:
-    baseline = _live_results()
+    baseline = frozen_baseline_manifest()
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
     # Restore the frozen 0.1.4-opening publication state: exactly the

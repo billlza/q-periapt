@@ -16,6 +16,7 @@ import platform_publication_contract as platform_contract
 import proof_to_byte_finalizer
 import release_publication_contract as release_contract
 from test_release_publication_contract import (
+    frozen_baseline_manifest,
     legacy_swift_manifest_fixture,
     pending_manifest_fixture,
     source_manifest_fixture,
@@ -72,12 +73,10 @@ def _repository_with_parent_results(
 class ApplePublicationFinalizerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.live = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        cls.source = source_manifest_fixture(cls.live)
-        cls.pending = pending_manifest_fixture(cls.live)
-        cls.verified = verified_manifest_fixture(cls.live)
+        cls.baseline = frozen_baseline_manifest()
+        cls.source = source_manifest_fixture(cls.baseline)
+        cls.pending = pending_manifest_fixture(cls.baseline)
+        cls.verified = verified_manifest_fixture(cls.baseline)
 
     def assert_history_transition(
         self, previous: dict[str, object], current: dict[str, object]
@@ -110,7 +109,7 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
         # published 0.1.3 line and was retired with the legacy alpha.2
         # selector machinery: the exact pre-migration manifest shape now
         # fails closed as a first-parent history endpoint.
-        legacy = legacy_swift_manifest_fixture(self.live)
+        legacy = legacy_swift_manifest_fixture(self.baseline)
         self.assert_history_rejected(
             legacy,
             self.source,
@@ -126,7 +125,12 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
     def test_live_manifest_holds_a_committed_cohort_state(self) -> None:
         """Accept the live manifest in any committed cohort state."""
 
-        state = release_contract.publication_state(self.live)
+        # This test's purpose is the live manifest, so it reads
+        # artifact/results.json directly instead of the frozen front door.
+        live = json.loads(
+            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
+        )
+        state = release_contract.publication_state(live)
         self.assertIn(
             state,
             (
@@ -139,12 +143,12 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
             # The v0.1.4 source state (the live frozen-history manifest,
             # whose active cohort has not yet recorded) must sustain
             # itself under the finalizer's first-parent history gate.
-            self.assert_history_transition(self.live, self.live)
+            self.assert_history_transition(live, live)
             return
         if state == release_contract.PUBLICATION_STATE_PENDING:
             # The committed pending cohort must be a valid successor of the
             # reconstructed source-results state.
-            self.assert_history_transition(self.source, self.live)
+            self.assert_history_transition(self.source, live)
         if state == release_contract.PUBLICATION_STATE_VERIFIED:
             # The verified cohort must be the exact successor of its real
             # first-parent pending manifest, so candidate drift during the
@@ -153,10 +157,10 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
             if parent is not None and release_contract.publication_state(
                 parent
             ) == release_contract.PUBLICATION_STATE_PENDING:
-                self.assert_history_transition(parent, self.live)
+                self.assert_history_transition(parent, live)
         # Either committed state must sustain itself under the finalizer's
         # first-parent history gate.
-        self.assert_history_transition(self.live, self.live)
+        self.assert_history_transition(live, live)
 
     @staticmethod
     def _first_parent_live_manifest() -> dict[str, object] | None:

@@ -15,7 +15,9 @@ use crate::{
 };
 use proptest::prelude::*;
 use q_periapt_core::{combine, CombineInput, Error, Profile, SHARED_SECRET_LEN};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 
 /// A `ContextBound` input with every field supplied; tests vary what they probe.
 #[allow(clippy::too_many_arguments)]
@@ -182,7 +184,15 @@ proptest! {
             .unwrap();
 
         let dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"")
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_x),
+                TradCiphertext::new(&ct_x),
+                TradPublicKey::new(&pk_x),
+                b"",
+            )
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());
@@ -224,7 +234,15 @@ proptest! {
             .unwrap();
 
         let dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, &ctx)
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_x),
+                TradCiphertext::new(&ct_x),
+                TradPublicKey::new(&pk_x),
+                &ctx,
+            )
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());

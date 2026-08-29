@@ -25,7 +25,9 @@ use q_periapt_backends::{
 #[cfg(qperiapt_performance_evidence)]
 use q_periapt_core::SHARED_SECRET_LEN;
 use q_periapt_core::{combine, CombineInput, Kem, Profile, Xof256, ZeroizingBytes};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use serde::Serialize;
 #[cfg(qperiapt_performance_evidence)]
 use sha3::{Digest, Sha3_256};
@@ -544,12 +546,12 @@ fn run_profile_once(
         Operation::Decapsulate => {
             black_box(
                 kem.decapsulate(
-                    black_box(fixture.sk_pq.as_bytes()),
-                    &entry.ct_pq,
-                    &fixture.pk_pq,
-                    fixture.sk_trad.as_bytes(),
-                    &entry.ct_trad,
-                    &fixture.pk_trad,
+                    black_box(PqSecretKey::new(fixture.sk_pq.as_bytes())),
+                    PqCiphertext::new(&entry.ct_pq),
+                    PqPublicKey::new(&fixture.pk_pq),
+                    TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                    TradCiphertext::new(&entry.ct_trad),
+                    TradPublicKey::new(&fixture.pk_trad),
                     inputs.application_context,
                 )
                 .map_err(|error| kem_error("decapsulation measurement", error))?,
@@ -936,23 +938,23 @@ fn verify_implementation_equivalence(
 
         let native_decapsulated = native
             .decapsulate(
-                fixture.sk_pq.as_bytes(),
-                &entry.ct_pq,
-                &fixture.pk_pq,
-                fixture.sk_trad.as_bytes(),
-                &entry.ct_trad,
-                &fixture.pk_trad,
+                PqSecretKey::new(fixture.sk_pq.as_bytes()),
+                PqCiphertext::new(&entry.ct_pq),
+                PqPublicKey::new(&fixture.pk_pq),
+                TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                TradCiphertext::new(&entry.ct_trad),
+                TradPublicKey::new(&fixture.pk_trad),
                 application_context,
             )
             .map_err(|error| kem_error("native equivalence decapsulation", error))?;
         let portable_decapsulated = portable
             .decapsulate(
-                fixture.sk_pq.as_bytes(),
-                &entry.ct_pq,
-                &fixture.pk_pq,
-                fixture.sk_trad.as_bytes(),
-                &entry.ct_trad,
-                &fixture.pk_trad,
+                PqSecretKey::new(fixture.sk_pq.as_bytes()),
+                PqCiphertext::new(&entry.ct_pq),
+                PqPublicKey::new(&fixture.pk_pq),
+                TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                TradCiphertext::new(&entry.ct_trad),
+                TradPublicKey::new(&fixture.pk_trad),
                 application_context,
             )
             .map_err(|error| kem_error("portable equivalence decapsulation", error))?;
@@ -1044,12 +1046,12 @@ fn run_implementation_once(
                 MeasuredImplementation::Native => black_box(
                     native
                         .decapsulate(
-                            black_box(fixture.sk_pq.as_bytes()),
-                            &entry.ct_pq,
-                            &fixture.pk_pq,
-                            fixture.sk_trad.as_bytes(),
-                            &entry.ct_trad,
-                            &fixture.pk_trad,
+                            black_box(PqSecretKey::new(fixture.sk_pq.as_bytes())),
+                            PqCiphertext::new(&entry.ct_pq),
+                            PqPublicKey::new(&fixture.pk_pq),
+                            TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                            TradCiphertext::new(&entry.ct_trad),
+                            TradPublicKey::new(&fixture.pk_trad),
                             application_context,
                         )
                         .map_err(|error| kem_error("native decapsulation measurement", error))?,
@@ -1057,12 +1059,12 @@ fn run_implementation_once(
                 MeasuredImplementation::Portable => black_box(
                     portable
                         .decapsulate(
-                            black_box(fixture.sk_pq.as_bytes()),
-                            &entry.ct_pq,
-                            &fixture.pk_pq,
-                            fixture.sk_trad.as_bytes(),
-                            &entry.ct_trad,
-                            &fixture.pk_trad,
+                            black_box(PqSecretKey::new(fixture.sk_pq.as_bytes())),
+                            PqCiphertext::new(&entry.ct_pq),
+                            PqPublicKey::new(&fixture.pk_pq),
+                            TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                            TradCiphertext::new(&entry.ct_trad),
+                            TradPublicKey::new(&fixture.pk_trad),
                             application_context,
                         )
                         .map_err(|error| kem_error("portable decapsulation measurement", error))?,

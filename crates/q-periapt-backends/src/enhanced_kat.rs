@@ -22,7 +22,9 @@
 
 use crate::{MlKem1024, Sha3_256Xof, ML_KEM_1024_CT_LEN, X25519, X25519_LEN};
 use q_periapt_core::{Kem, Profile, DOMAIN};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use sha3::{Digest, Sha3_256};
 
 const SUITE_ID: &[u8] = b"ML-KEM-1024+X25519";
@@ -106,7 +108,13 @@ fn enhanced_suite_pinned_reference_vector() {
     // --- (1) round-trip: decapsulation recovers the same secret ---
     let dec = kem
         .decapsulate(
-            &sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, CONTEXT,
+            PqSecretKey::new(&sk_pq),
+            PqCiphertext::new(&ct_pq),
+            PqPublicKey::new(&pk_pq),
+            TradSecretKey::new(&sk_trad),
+            TradCiphertext::new(&ct_trad),
+            TradPublicKey::new(&pk_trad),
+            CONTEXT,
         )
         .unwrap();
     assert_eq!(

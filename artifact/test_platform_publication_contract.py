@@ -12,6 +12,7 @@ import platform_publication_contract as contract
 import platform_release_contract as historical_contract
 from test_platform_stable_publication_contract import pending_receipt
 from test_platform_stable_publication_contract import verified_receipt
+from test_release_publication_contract import frozen_baseline_manifest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -35,9 +36,7 @@ def historical_r2_pending(receipt: dict[str, object]) -> dict[str, object]:
 class PlatformPublicationContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        results = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
+        results = frozen_baseline_manifest()
         cls.historical_r2 = results["release_publications"]["platform_r2"]
 
     def test_historical_r2_and_versioned_stable_coexist(self) -> None:

@@ -43,7 +43,9 @@ use ml_kem::{
 };
 use orion::hazardous::ecc::x25519 as ox;
 use q_periapt_core::{Error, Kem, Profile, XWING_LABEL};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use q_periapt_sig::{Signer, Verifier};
 use sha3::{Digest, Sha3_256};
 
@@ -275,7 +277,15 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
 
         // --- decapsulation: ours, and an independent reconstruction, both agree ---
         let secret_dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_trad),
+                TradCiphertext::new(&ct_trad),
+                TradPublicKey::new(&pk_trad),
+                b"",
+            )
             .unwrap();
         let ss_pq_dec: [u8; 32] = (&dk_rc.decapsulate(&ct_pq_rc).unwrap()[..])
             .try_into()

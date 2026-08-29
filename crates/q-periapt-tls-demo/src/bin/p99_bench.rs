@@ -16,6 +16,10 @@
 //!              the bytes-on-wire effect the harness is built to surface. `compat`
 //!              is rejected with `SUITE=enhanced`: the L5 expanded-key backend is
 //!              ContextBound-only.
+//!   ACCEPT_PROFILES = env var pinning the profiles the benchmark server accepts:
+//!              `both` (default; logs a warning when a client selects CompatXWing),
+//!              `bound` (ContextBound only), or `compat` (CompatXWing only). A pin
+//!              that excludes the requested PROFILE is rejected up front.
 
 #![allow(
     clippy::unwrap_used,
@@ -27,8 +31,8 @@
 
 use q_periapt_core::Profile;
 use q_periapt_tls_demo::{
-    client_handshake, client_handshake_enhanced, server_handshake, server_handshake_enhanced,
-    ServerKeys,
+    client_handshake, client_handshake_enhanced, server_handshake_enhanced_with_profiles,
+    server_handshake_with_profiles, AcceptedProfiles, ServerKeys,
 };
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -227,6 +231,11 @@ fn run() -> Result<(), String> {
             "SUITE=enhanced uses the expanded ML-KEM-1024 backend, which is ContextBound-only",
         );
     }
+    // ACCEPT_PROFILES pins the profiles the benchmark server serves (operator-side).
+    let accepted = AcceptedProfiles::from_env().unwrap_or_else(|error| usage_error(&error));
+    if !accepted.admits(profile) {
+        usage_error("ACCEPT_PROFILES pins out the requested PROFILE");
+    }
     let suite_name = if enhanced {
         "ML-KEM-1024 + X25519 / ML-DSA-87 (NIST L5)"
     } else {
@@ -234,9 +243,9 @@ fn run() -> Result<(), String> {
     };
     // Select the matching handshake pair once (fn-item -> fn-pointer coercion).
     let server_fn = if enhanced {
-        server_handshake_enhanced::<DelayStream>
+        server_handshake_enhanced_with_profiles::<DelayStream>
     } else {
-        server_handshake::<DelayStream>
+        server_handshake_with_profiles::<DelayStream>
     };
     let client_fn = if enhanced {
         client_handshake_enhanced::<DelayStream>
@@ -272,7 +281,7 @@ fn run() -> Result<(), String> {
             delay,
             io_timeout,
             &server_cancelled,
-            |stream| server_fn(stream, &server_keys).map(|_| ()),
+            |stream| server_fn(stream, &server_keys, accepted).map(|_| ()),
         )
     });
 
