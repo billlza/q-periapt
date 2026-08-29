@@ -407,7 +407,7 @@ try:
     environment["QPERIAPT_RUST_PACKAGE_HANDOFF_STAGE_INODE"] = sys.argv[4]
     result = capture_output(
         ["/bin/sh", str(root / "artifact" / "rust-publish-contract.sh")],
-        timeout_seconds=300,
+        timeout_seconds=900,
         maximum_stdout_bytes=MAX_TRANSCRIPT_BYTES,
         maximum_stderr_bytes=MAX_HANDOFF_STDERR_BYTES,
         environment=environment,
