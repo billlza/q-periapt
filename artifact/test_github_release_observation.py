@@ -1053,6 +1053,45 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 target_tags=("fixture-apple", "fixture-platform"),
             )
 
+    def test_release_list_normalizes_only_draft_zero_time_published_at(self) -> None:
+        # ``gh release list`` returns Go's zero-time value for a draft's
+        # publishedAt while ``gh release view`` returns null; the draft summary
+        # must normalize to null so the list/detail cross-check agrees. A
+        # published release's real timestamp is preserved unchanged.
+        listed = [
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": True,
+                "isImmutable": False,
+                "isLatest": False,
+                "isPrerelease": False,
+                "name": "Fixture Apple",
+                "publishedAt": observation.GITHUB_DRAFT_PUBLISHED_AT_SENTINEL,
+                "tagName": "fixture-apple",
+            },
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": False,
+                "isImmutable": True,
+                "isLatest": True,
+                "isPrerelease": False,
+                "name": "Fixture Platform",
+                "publishedAt": "2026-08-16T02:00:00Z",
+                "tagName": "fixture-platform",
+            },
+        ]
+        result = observation.parse_release_list(
+            json.dumps(listed).encode("utf-8"),
+            target_tags=("fixture-apple", "fixture-platform"),
+        )
+        by_tag = {target.tag: target for target in result.targets}
+        self.assertTrue(by_tag["fixture-apple"].draft)
+        self.assertIsNone(by_tag["fixture-apple"].published_at)
+        self.assertFalse(by_tag["fixture-platform"].draft)
+        self.assertEqual(
+            "2026-08-16T02:00:00Z", by_tag["fixture-platform"].published_at
+        )
+
     def test_published_sample_crosslinks_latest_endpoint_and_complete_assets(self) -> None:
         apple = observation.MutableReleasePolicy(
             repository=observation.GITHUB_REPOSITORY,
