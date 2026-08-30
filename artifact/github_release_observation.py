@@ -99,6 +99,11 @@ RELEASE_LIST_FIELDS = (
     "tagName",
 )
 RELEASE_LIST_KEYS = frozenset(RELEASE_LIST_FIELDS)
+# ``gh release list`` (GraphQL) serializes an unpublished draft's ``publishedAt``
+# as Go's zero-time value, while ``gh release view`` returns ``null`` for the same
+# draft. The list/detail cross-check compares the two, so the list summary must be
+# normalized to match the detail view's invariant that a draft has no publish time.
+GITHUB_DRAFT_PUBLISHED_AT_SENTINEL = "0001-01-01T00:00:00Z"
 VERIFICATION_RESULT_MEDIA_TYPE = (
     "application/vnd.dev.sigstore.verificationresult+json;version=0.1"
 )
@@ -2757,9 +2762,13 @@ def parse_release_list(
             f"{label} item {index} fields are malformed",
         )
         parse_utc_timestamp(item["createdAt"], f"{label} item {index} createdAt")
-        if item["publishedAt"] is not None:
+        published_at = item["publishedAt"]
+        if item["isDraft"] and published_at == GITHUB_DRAFT_PUBLISHED_AT_SENTINEL:
+            # Normalize the draft zero-time sentinel to the detail view's ``null``.
+            published_at = None
+        if published_at is not None:
             parse_utc_timestamp(
-                item["publishedAt"], f"{label} item {index} publishedAt"
+                published_at, f"{label} item {index} publishedAt"
             )
         tag = item["tagName"]
         if item["isLatest"]:
@@ -2777,7 +2786,7 @@ def parse_release_list(
                 immutable=item["isImmutable"],
                 latest=item["isLatest"],
                 prerelease=item["isPrerelease"],
-                published_at=item["publishedAt"],
+                published_at=published_at,
             )
     _require(
         len(latest_tags) <= 1,
