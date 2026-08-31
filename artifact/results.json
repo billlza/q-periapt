@@ -758,22 +758,22 @@
         "artifact_size": 33183657,
         "checksums_sha256": "8555cd1508dbb5a6ee25ab0e96ae1798ae482fe60e0316f4a8f562d0cf8a433e",
         "distribution_signed": true,
-        "immutable_release": false,
+        "immutable_release": true,
         "manifest_sha256": "be46c8e52bf60ad05ae9843df0624d9529d1b622228a4e888316426419ff2bec",
         "notarization_applicability": "not_applicable_static_sdk_payload",
         "notarized": false,
         "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
         "origin_signature_identity_class": "Developer ID Application",
         "origin_signature_team_id": "YKUPL7Z869",
-        "public_release": false,
+        "public_release": true,
         "release_revision": "r1",
         "release_tag": "v0.1.4",
         "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.4",
-        "remote_consumer_verified": false,
+        "remote_consumer_verified": true,
         "remote_verification": {
-          "log_sha256": null,
-          "verified_at": null,
-          "verifier_commit": null
+          "log_sha256": "11e41d37826a550d730ad1e2312024f728d132062c923b458f399e7b818e8da7",
+          "verified_at": "2026-08-30T12:46:38Z",
+          "verifier_commit": "ff7154b7e1f3b1bbd15b4af7bc6d788569b15a55"
         },
         "source_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
         "stapled": false,
@@ -787,6 +787,58 @@
         "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.4"
       },
       "kind": "qperiapt.apple_xcframework_publication_receipt",
+      "publication": {
+        "draft": false,
+        "immutable_release": true,
+        "observed_at": "2026-08-30T13:32:32Z",
+        "prerelease": false,
+        "public_release": true,
+        "published_at": "2026-08-30T03:30:02Z",
+        "release_attestation": {
+          "certificate_san": "https://dotcom.releases.github.com",
+          "predicate_type": "https://in-toto.io/attestation/release/v0.2",
+          "subjects": [
+            {
+              "digest": {
+                "sha1": "d84d451dad3631b99f389c9e4942c0a553b865b6"
+              },
+              "uri": "pkg:github/billlza/q-periapt@v0.1.4"
+            },
+            {
+              "digest": {
+                "sha256": "e3b83a577d9067d7daba001b10e72015ef74416b47faf7391629c6df86d716f0"
+              },
+              "name": "APPLE_DISTRIBUTION.json"
+            },
+            {
+              "digest": {
+                "sha256": "25d07e86c9b565181bd7e863bbdc018ff02813de7bf4ef271af45d7db873b836"
+              },
+              "name": "CQPeriapt.xcframework.zip"
+            },
+            {
+              "digest": {
+                "sha256": "be46c8e52bf60ad05ae9843df0624d9529d1b622228a4e888316426419ff2bec"
+              },
+              "name": "MANIFEST.json"
+            },
+            {
+              "digest": {
+                "sha256": "8555cd1508dbb5a6ee25ab0e96ae1798ae482fe60e0316f4a8f562d0cf8a433e"
+              },
+              "name": "SHA256SUMS"
+            }
+          ],
+          "verification_record_sha256": "1e2e00f25597910426882c0be9226d5bbec725db110c43db9b8874baa6ccf89e",
+          "verified": true,
+          "verified_at": "2026-08-30T03:30:03Z"
+        },
+        "release_id": 379030797,
+        "source": {
+          "tag_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555",
+          "tag_object": "d84d451dad3631b99f389c9e4942c0a553b865b6"
+        }
+      },
       "schema_version": 1,
       "source": {
         "canonical_source_tree_sha256": "1e9dd9f7653666e9af795c694fc17ec1ca7dcf133b6ae9727b2002bc6ea6759e",
@@ -795,7 +847,7 @@
         "tag_object": "d84d451dad3631b99f389c9e4942c0a553b865b6",
         "tag_tree": "b5ab52f5545faa1d93a6f864026d85c0977f3afc"
       },
-      "status": "signed_candidate_pending_release_verification"
+      "status": "observed_public_immutable_remote_consumer_verified"
     },
     "crates_io_v0_1_3": {
       "boundary": "ABI 2 Q-Periapt 0.1.3 crates.io publication receipt. Local package digests provide Level-1 accidental-mismatch detection. A crate is published_verified only when the official crates.io API and sparse index both report version 0.1.3, the exact local .crate SHA-256, and yanked=false. Published crates must form the fixed dependency-safe prefix; absent suffix entries are not a rollback claim. Upload outcome unknown is intentionally outside this public receipt and blocks an aggregate verified result.",
@@ -1047,6 +1099,261 @@
           "source_parent_commit": "e9ae27fcc8b66c37a700cfa0e1efbc4219eb5688",
           "tag_commit": "69e64078ea464109d7e846619e2ce493aa26934f",
           "tag_tree": "4c05594b8f8d305c8a22dc8a25b87685856854c5"
+        }
+      },
+      "schema_version": 1,
+      "status": "published_verified"
+    },
+    "crates_io_v0_1_4": {
+      "boundary": "ABI 2 Q-Periapt 0.1.4 crates.io publication receipt. Local package digests provide Level-1 accidental-mismatch detection. A crate is published_verified only when the official crates.io API and sparse index both report version 0.1.4, the exact local .crate SHA-256, and yanked=false. Published crates must form the fixed dependency-safe prefix; absent suffix entries are not a rollback claim. Upload outcome unknown is intentionally outside this public receipt and blocks an aggregate verified result.",
+      "crates": [
+        {
+          "crate_file": "q-periapt-mlkem-native-sys-0.1.4.crate",
+          "crate_sha256": "b9b7e29c52d424d16f99613c2a034220881cc9171590365e00f3d7afbb07f5d4",
+          "crate_size": 203723,
+          "crates_io_api": {
+            "checksum": "b9b7e29c52d424d16f99613c2a034220881cc9171590365e00f3d7afbb07f5d4",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [],
+          "name": "q-periapt-mlkem-native-sys",
+          "sparse_index": {
+            "checksum": "b9b7e29c52d424d16f99613c2a034220881cc9171590365e00f3d7afbb07f5d4",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:46:27Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-core-0.1.4.crate",
+          "crate_sha256": "b5fa3be3a1e98fb936bd965cac20eff18bd1602ef6af2c1c230d2e050d460dab",
+          "crate_size": 38495,
+          "crates_io_api": {
+            "checksum": "b5fa3be3a1e98fb936bd965cac20eff18bd1602ef6af2c1c230d2e050d460dab",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [],
+          "name": "q-periapt-core",
+          "sparse_index": {
+            "checksum": "b5fa3be3a1e98fb936bd965cac20eff18bd1602ef6af2c1c230d2e050d460dab",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:46:46Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-kem-0.1.4.crate",
+          "crate_sha256": "9783c811eb3e3a1946bb17d60f83d85ab2168a282f94fc89c75ba10b27ae0a5f",
+          "crate_size": 31902,
+          "crates_io_api": {
+            "checksum": "9783c811eb3e3a1946bb17d60f83d85ab2168a282f94fc89c75ba10b27ae0a5f",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core"
+          ],
+          "name": "q-periapt-kem",
+          "sparse_index": {
+            "checksum": "9783c811eb3e3a1946bb17d60f83d85ab2168a282f94fc89c75ba10b27ae0a5f",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:47:05Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-sig-0.1.4.crate",
+          "crate_sha256": "e762a02acf70465bf2d6e1ef829bda37d3253fa248c5b95e0d5493465db6cf1b",
+          "crate_size": 27483,
+          "crates_io_api": {
+            "checksum": "e762a02acf70465bf2d6e1ef829bda37d3253fa248c5b95e0d5493465db6cf1b",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core"
+          ],
+          "name": "q-periapt-sig",
+          "sparse_index": {
+            "checksum": "e762a02acf70465bf2d6e1ef829bda37d3253fa248c5b95e0d5493465db6cf1b",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:47:23Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-backends-0.1.4.crate",
+          "crate_sha256": "dff9b58072b8d3d0fa8b574a924f883cd136352731a5bf39f579f025ff3283cc",
+          "crate_size": 4955971,
+          "crates_io_api": {
+            "checksum": "dff9b58072b8d3d0fa8b574a924f883cd136352731a5bf39f579f025ff3283cc",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core",
+            "q-periapt-sig",
+            "q-periapt-mlkem-native-sys"
+          ],
+          "name": "q-periapt-backends",
+          "sparse_index": {
+            "checksum": "dff9b58072b8d3d0fa8b574a924f883cd136352731a5bf39f579f025ff3283cc",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:47:46Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-policy-0.1.4.crate",
+          "crate_sha256": "962561d9c250712b10c53448ad13ae8ab6a24ad253b9d705116acbbe5b8498cf",
+          "crate_size": 39560,
+          "crates_io_api": {
+            "checksum": "962561d9c250712b10c53448ad13ae8ab6a24ad253b9d705116acbbe5b8498cf",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core",
+            "q-periapt-sig"
+          ],
+          "name": "q-periapt-policy",
+          "sparse_index": {
+            "checksum": "962561d9c250712b10c53448ad13ae8ab6a24ad253b9d705116acbbe5b8498cf",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:48:05Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-ffi-0.1.4.crate",
+          "crate_sha256": "81dc20deafae8f01a77d9fe64c2733b76e2ab7ae782fdaede3313d6097aea915",
+          "crate_size": 52951,
+          "crates_io_api": {
+            "checksum": "81dc20deafae8f01a77d9fe64c2733b76e2ab7ae782fdaede3313d6097aea915",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core",
+            "q-periapt-kem",
+            "q-periapt-backends",
+            "q-periapt-policy"
+          ],
+          "name": "q-periapt-ffi",
+          "sparse_index": {
+            "checksum": "81dc20deafae8f01a77d9fe64c2733b76e2ab7ae782fdaede3313d6097aea915",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:48:24Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-wasm-0.1.4.crate",
+          "crate_sha256": "c83dfd2d8d231737f9a65946631431079bf8fade7848aea8e6909d29a91457b6",
+          "crate_size": 16776,
+          "crates_io_api": {
+            "checksum": "c83dfd2d8d231737f9a65946631431079bf8fade7848aea8e6909d29a91457b6",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core",
+            "q-periapt-kem",
+            "q-periapt-backends",
+            "q-periapt-policy"
+          ],
+          "name": "q-periapt-wasm",
+          "sparse_index": {
+            "checksum": "c83dfd2d8d231737f9a65946631431079bf8fade7848aea8e6909d29a91457b6",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:48:41Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-rustls-0.1.4.crate",
+          "crate_sha256": "8d1ac3e1f855afd8c4062b17ae27b0f19f504b616d4225d644cae12eeaa6c05a",
+          "crate_size": 43408,
+          "crates_io_api": {
+            "checksum": "8d1ac3e1f855afd8c4062b17ae27b0f19f504b616d4225d644cae12eeaa6c05a",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [
+            "q-periapt-core",
+            "q-periapt-kem",
+            "q-periapt-backends",
+            "q-periapt-policy"
+          ],
+          "name": "q-periapt-rustls",
+          "sparse_index": {
+            "checksum": "8d1ac3e1f855afd8c4062b17ae27b0f19f504b616d4225d644cae12eeaa6c05a",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:49:00Z",
+          "version": "0.1.4"
+        },
+        {
+          "crate_file": "q-periapt-cli-0.1.4.crate",
+          "crate_sha256": "6325631309d966db04a2dcc9d6e6c227595b4f3919c2dcb99733c206265ec63a",
+          "crate_size": 11986,
+          "crates_io_api": {
+            "checksum": "6325631309d966db04a2dcc9d6e6c227595b4f3919c2dcb99733c206265ec63a",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "dependencies": [],
+          "name": "q-periapt-cli",
+          "sparse_index": {
+            "checksum": "6325631309d966db04a2dcc9d6e6c227595b4f3919c2dcb99733c206265ec63a",
+            "version": "0.1.4",
+            "yanked": false
+          },
+          "state": "published_verified",
+          "verified_at": "2026-08-31T05:49:18Z",
+          "version": "0.1.4"
+        }
+      ],
+      "identity": {
+        "abi_version": 2,
+        "product_version": "0.1.4",
+        "publication_key": "crates_io_v0_1_4",
+        "registry": "https://crates.io"
+      },
+      "kind": "qperiapt.abi2_crates_io_publication_receipt",
+      "observation": {
+        "observed_at": "2026-08-31T05:49:18Z",
+        "package_contract": {
+          "completed_at": "2026-08-29T05:42:59Z",
+          "handoff_sha256": "da508bda5a9b58220c7e97b752ed0a1186d8feb8454b1c65a7c0ff802e6bc880",
+          "source_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
+          "transcript_sha256": "3aa2dd46d72c77586af4b14a80e0fde1dfba6c45413a2cbb396d6393eb42f4b4"
+        },
+        "source": {
+          "canonical_source_tree_sha256": "1e9dd9f7653666e9af795c694fc17ec1ca7dcf133b6ae9727b2002bc6ea6759e",
+          "source_parent_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
+          "tag_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555",
+          "tag_tree": "b5ab52f5545faa1d93a6f864026d85c0977f3afc"
         }
       },
       "schema_version": 1,
@@ -1734,7 +2041,58 @@
       },
       "kind": "qperiapt.abi2_platform_publication_receipt",
       "observation": {
+        "android_runtime_evidence": {
+          "bundle_manifest_sha256": "305d326b6c8bcd8ca49eef17b78f86dd3455f0ea4f9d72acdbc5c3c71eee22d9",
+          "bundle_schema": 2,
+          "bundle_sha256": "098fcc176ce30a4521ac93011d8c412357a5473d7fa104d30f9b128f062a58d6",
+          "device_abi": "arm64-v8a",
+          "device_kind": "emulator",
+          "device_sdk": 35,
+          "page_size": 16384,
+          "proof_schema": 6,
+          "proof_sha256": "500d9bc5f7012ef77584f96894be587f80153370154225c5446a566eab6ee426",
+          "release_mode": true,
+          "tested_aar_manifest_sha256": "e5712525f05ff02e3334896fb5db7e27feebafd4d9f8b039ba3986f7b4bddda7",
+          "tested_aar_sha256": "528fd5bd9aef5e6bf35e089a2745218ce1bad392b6b22872092cba8f65925b0c"
+        },
         "assembly_receipt_sha256": "33c2fc75e4b8c8ccc9586c6bca4a499df88ed15f002ae9eb785b25d26b0bb89f",
+        "assets": [
+          {
+            "bytes": 3929,
+            "name": "PLATFORM_DISTRIBUTION.json",
+            "sha256": "b3bd2f262759a1a74803e8027560e121793f94f21addba6e53b4ae7cbf855ede"
+          },
+          {
+            "bytes": 649,
+            "name": "SHA256SUMS",
+            "sha256": "948823b407fe3df93654ac1a408b76b6d5e06d4461c1bcce76d46a936cef1a5c"
+          },
+          {
+            "bytes": 3073800,
+            "name": "q-periapt-android-0.1.4-16k-runtime-evidence.zip",
+            "sha256": "098fcc176ce30a4521ac93011d8c412357a5473d7fa104d30f9b128f062a58d6"
+          },
+          {
+            "bytes": 3918,
+            "name": "q-periapt-android-0.1.4-MANIFEST.json",
+            "sha256": "e5712525f05ff02e3334896fb5db7e27feebafd4d9f8b039ba3986f7b4bddda7"
+          },
+          {
+            "bytes": 3525659,
+            "name": "q-periapt-android-0.1.4.aar",
+            "sha256": "528fd5bd9aef5e6bf35e089a2745218ce1bad392b6b22872092cba8f65925b0c"
+          },
+          {
+            "bytes": 1375545,
+            "name": "q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz",
+            "sha256": "c09bfc88a46e9410637b2fd8a082fc8dc368c455613f8603925607f25f8f2372"
+          },
+          {
+            "bytes": 1413601,
+            "name": "q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz",
+            "sha256": "888105a1f3284f993d6d13ce508a2c505ec7e1fcf00eb28a7321c908f3c14075"
+          }
+        ],
         "candidate_attestation": {
           "certificate_san": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.4",
           "predicate_type": "https://slsa.dev/provenance/v1",
@@ -1988,7 +2346,85 @@
           "workflow_run_attempt": 1,
           "workflow_run_id": 33242874997
         },
-        "observed_at": "2026-08-29T08:59:48Z",
+        "checksums_sha256": "948823b407fe3df93654ac1a408b76b6d5e06d4461c1bcce76d46a936cef1a5c",
+        "draft": false,
+        "fresh_download_verification": {
+          "asset_count": 7,
+          "deep_distribution_verified": true,
+          "record_sha256": "d9205e030faf92b9057583a5d4153e0781f2d8116b7b8c3ef228d38a042d57bb",
+          "verified_at": "2026-08-31T02:00:13Z",
+          "verifier_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555"
+        },
+        "immutable_release": true,
+        "observed_at": "2026-08-31T02:00:17Z",
+        "platform_distribution_sha256": "b3bd2f262759a1a74803e8027560e121793f94f21addba6e53b4ae7cbf855ede",
+        "prerelease": false,
+        "public_release": true,
+        "published_at": "2026-08-30T05:30:22Z",
+        "registries": {
+          "crates_io": "not_published",
+          "deb": "not_published",
+          "maven_central": "not_published",
+          "msix": "not_published",
+          "rpm": "not_published"
+        },
+        "release_asset_verification_count": 7,
+        "release_attestation": {
+          "certificate_san": "https://dotcom.releases.github.com",
+          "predicate_type": "https://in-toto.io/attestation/release/v0.2",
+          "subjects": [
+            {
+              "digest": {
+                "sha1": "e3e1d60c3f653b0e7c55c1aff8a41c7584a01a9c"
+              },
+              "uri": "pkg:github/billlza/q-periapt@abi2-platforms-v0.1.4"
+            },
+            {
+              "digest": {
+                "sha256": "b3bd2f262759a1a74803e8027560e121793f94f21addba6e53b4ae7cbf855ede"
+              },
+              "name": "PLATFORM_DISTRIBUTION.json"
+            },
+            {
+              "digest": {
+                "sha256": "948823b407fe3df93654ac1a408b76b6d5e06d4461c1bcce76d46a936cef1a5c"
+              },
+              "name": "SHA256SUMS"
+            },
+            {
+              "digest": {
+                "sha256": "098fcc176ce30a4521ac93011d8c412357a5473d7fa104d30f9b128f062a58d6"
+              },
+              "name": "q-periapt-android-0.1.4-16k-runtime-evidence.zip"
+            },
+            {
+              "digest": {
+                "sha256": "e5712525f05ff02e3334896fb5db7e27feebafd4d9f8b039ba3986f7b4bddda7"
+              },
+              "name": "q-periapt-android-0.1.4-MANIFEST.json"
+            },
+            {
+              "digest": {
+                "sha256": "528fd5bd9aef5e6bf35e089a2745218ce1bad392b6b22872092cba8f65925b0c"
+              },
+              "name": "q-periapt-android-0.1.4.aar"
+            },
+            {
+              "digest": {
+                "sha256": "c09bfc88a46e9410637b2fd8a082fc8dc368c455613f8603925607f25f8f2372"
+              },
+              "name": "q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz"
+            },
+            {
+              "digest": {
+                "sha256": "888105a1f3284f993d6d13ce508a2c505ec7e1fcf00eb28a7321c908f3c14075"
+              },
+              "name": "q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz"
+            }
+          ],
+          "verification_record_sha256": "2c9d1e2db2cb1867653468f8b2f533af53b3721392ef4710dcd7c400b6b37052",
+          "verified": true
+        },
         "release_candidate": {
           "android_runtime_evidence": {
             "bundle_manifest_sha256": "305d326b6c8bcd8ca49eef17b78f86dd3455f0ea4f9d72acdbc5c3c71eee22d9",
@@ -2051,6 +2487,7 @@
           "checksums_sha256": "948823b407fe3df93654ac1a408b76b6d5e06d4461c1bcce76d46a936cef1a5c",
           "platform_distribution_sha256": "b3bd2f262759a1a74803e8027560e121793f94f21addba6e53b4ae7cbf855ede"
         },
+        "release_id": 379042922,
         "source": {
           "canonical_source_tree_sha256": "1e9dd9f7653666e9af795c694fc17ec1ca7dcf133b6ae9727b2002bc6ea6759e",
           "source_date_epoch": 1787987157,
@@ -2062,7 +2499,7 @@
         }
       },
       "schema_version": 3,
-      "status": "candidate_verified_pending_release_verification"
+      "status": "observed_public_immutable_fresh_download_verified"
     }
   },
   "rust_publish": {
@@ -2186,21 +2623,21 @@
     ]
   },
   "swift_xcframework": {
-    "active_publication_key": "apple_v0_1_3",
+    "active_publication_key": "apple_v0_1_4",
     "boundary": "Versioned Apple distribution selector. It names exactly one verified publication receipt and repeats that receipt's distribution projection. A pending receipt is never active. This selector is not independent source, device, notarization, App Store, or hostile-host evidence.",
     "command": "Use artifact/release_receipt_finalizer.py and the stable publication runbook in ARTIFACT.md; never edit this selector by hand.",
     "current_local_status": "selected_verified_publication_receipt",
     "current_source_status": "active_verified_publication",
     "dirty_diagnostic_command": "QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1 sh artifact/swift-xcframework.sh",
     "distribution": {
-      "apple_distribution_evidence_sha256": "66451588a1335d3d155b5fc94f203964b9202f05975593ef7058fa0bf36bc635",
+      "apple_distribution_evidence_sha256": "e3b83a577d9067d7daba001b10e72015ef74416b47faf7391629c6df86d716f0",
       "artifact_path": "CQPeriapt.xcframework.zip",
-      "artifact_sha256": "b66c959873a314a6a4d63f6f421b0814c35365639d59d4e6dd88a431c5e8d399",
-      "artifact_size": 33167714,
-      "checksums_sha256": "e9631fc0e721aef5f6c87c5abbfffaf28cce0fd80550d64d33cf88390b17b72c",
+      "artifact_sha256": "25d07e86c9b565181bd7e863bbdc018ff02813de7bf4ef271af45d7db873b836",
+      "artifact_size": 33183657,
+      "checksums_sha256": "8555cd1508dbb5a6ee25ab0e96ae1798ae482fe60e0316f4a8f562d0cf8a433e",
       "distribution_signed": true,
       "immutable_release": true,
-      "manifest_sha256": "61ef1c44fc73334332dcddcf9bb74a9080db8885cf9cc19bbd14863f126ffab7",
+      "manifest_sha256": "be46c8e52bf60ad05ae9843df0624d9529d1b622228a4e888316426419ff2bec",
       "notarization_applicability": "not_applicable_static_sdk_payload",
       "notarized": false,
       "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
@@ -2208,18 +2645,18 @@
       "origin_signature_team_id": "YKUPL7Z869",
       "public_release": true,
       "release_revision": "r1",
-      "release_tag": "v0.1.3",
-      "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.3",
+      "release_tag": "v0.1.4",
+      "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.4",
       "remote_consumer_verified": true,
       "remote_verification": {
-        "log_sha256": "939cbf6cac90d4677de24c9a355066b78126df353ec49656e39b8705f53490e7",
-        "verified_at": "2026-08-25T22:24:27Z",
-        "verifier_commit": "e570d1a87dd0febbfe0e183277847ed24fdc7fba"
+        "log_sha256": "11e41d37826a550d730ad1e2312024f728d132062c923b458f399e7b818e8da7",
+        "verified_at": "2026-08-30T12:46:38Z",
+        "verifier_commit": "ff7154b7e1f3b1bbd15b4af7bc6d788569b15a55"
       },
-      "source_commit": "e9ae27fcc8b66c37a700cfa0e1efbc4219eb5688",
+      "source_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
       "stapled": false,
-      "swiftpm_checksum": "b66c959873a314a6a4d63f6f421b0814c35365639d59d4e6dd88a431c5e8d399",
-      "version": "0.1.3"
+      "swiftpm_checksum": "25d07e86c9b565181bd7e863bbdc018ff02813de7bf4ef271af45d7db873b836",
+      "version": "0.1.4"
     },
     "historical_releases": [
       {
