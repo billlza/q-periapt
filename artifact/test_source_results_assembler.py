@@ -23,7 +23,11 @@ import release_publication_contract as publication_contract
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
-from test_release_publication_contract import frozen_baseline_manifest
+from test_release_publication_contract import (
+    frozen_baseline_manifest,
+    pending_manifest_fixture,
+    verified_manifest_fixture,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -1602,6 +1606,87 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         ):
             assembler.verify_installed_source_successor("e" * 64)
         self.assertIs(failure, raised.exception.__cause__)
+
+
+class ReopenSourceTests(unittest.TestCase):
+    """Cover the current-to-current reopen reverse transform.
+
+    Inputs are the real coordinated publication fixtures (a valid pending or
+    verified installed manifest), expanded to the 237-key proof-input set. The
+    transform must reduce a valid pending installed manifest to the exact
+    190-key/five-frozen-leaf initial baseline, and refuse fail-closed a
+    non-installed input, dropping a verified (published-immutable) leaf, or an
+    installed manifest whose publication leaves do not validate.
+    """
+
+    def _installed_237(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        installed = copy.deepcopy(manifest)
+        installed["proof_to_byte_inputs"] = {
+            key: "a" * 64 for key in assembler.PROOF_TO_BYTE_INPUT_PATHS
+        }
+        return installed
+
+    def _current_digests(self) -> dict[str, str]:
+        return {key: "b" * 64 for key in assembler.PROOF_TO_BYTE_INPUT_PATHS}
+
+    def test_reopen_reverses_pending_installed_to_initial(self) -> None:
+        installed = self._installed_237(
+            pending_manifest_fixture(frozen_baseline_manifest())
+        )
+        candidate = assembler._build_reopen_candidate(
+            installed, self._current_digests()
+        )
+        # 237 -> 190 proof inputs, 7 -> the five frozen historical leaves.
+        self.assertEqual(len(candidate["proof_to_byte_inputs"]), 190)
+        self.assertEqual(
+            set(candidate["release_publications"]),
+            {
+                apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+                crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+            },
+        )
+        # Source identity is carried over from the installed manifest, unchanged.
+        self.assertEqual(
+            candidate["proof_source_tree_sha256"],
+            installed["proof_source_tree_sha256"],
+        )
+        # The result is an exact valid initial baseline (no exception).
+        assembler._validate_baseline_document_shape(candidate, require_initial=True)
+
+    def test_reopen_requires_a_fully_installed_237_key_input(self) -> None:
+        # A valid pending fixture carries only the 190-key baseline.
+        installed = pending_manifest_fixture(frozen_baseline_manifest())
+        with self.assertRaisesRegex(
+            assembler.SourceResultsAssemblerError, "237-key"
+        ):
+            assembler._build_reopen_candidate(installed, self._current_digests())
+
+    def test_reopen_refuses_dropping_a_verified_leaf(self) -> None:
+        # A fully verified cohort's v0.1.4 leaves are published-immutable, not
+        # in-flight candidates: the reopen must refuse to drop them.
+        installed = self._installed_237(
+            verified_manifest_fixture(frozen_baseline_manifest())
+        )
+        with self.assertRaisesRegex(
+            assembler.SourceResultsAssemblerError,
+            "refusing to drop non-pending publication leaf",
+        ):
+            assembler._build_reopen_candidate(installed, self._current_digests())
+
+    def test_reopen_validates_leaves_before_dropping(self) -> None:
+        # A pending leaf with a corrupted schema must be rejected, not silently
+        # discarded (validated fail-closed before any leaf is removed).
+        installed = self._installed_237(
+            pending_manifest_fixture(frozen_baseline_manifest())
+        )
+        installed["release_publications"][
+            apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
+        ]["unexpected_forged_key"] = "tampered"
+        with self.assertRaises(assembler.SourceResultsAssemblerError):
+            assembler._build_reopen_candidate(installed, self._current_digests())
 
 
 if __name__ == "__main__":
