@@ -1,0 +1,707 @@
+#!/usr/bin/env -S /opt/homebrew/bin/python3 -I -S -B
+# GENERATED TEMPLATE -- do not edit the @PLACEHOLDER@ spots by hand and do
+# not install this file directly. crates_io_uploader_build.py materializes a
+# release-pinned uploader from this template plus a rust package handoff.
+"""Fixed-cohort exact-byte uploader for Q-Periapt ABI-2 version @PRODUCT_VERSION@.
+
+The release coordinator owns authorization, ordering, durable intent,
+reconciliation, and recovery. This adapter performs exactly one streaming PUT
+and never retries.
+"""
+
+from __future__ import annotations
+
+import base64
+import dataclasses
+import hashlib
+import http.client
+import json
+import lzma
+import os
+import re
+import signal
+import socket
+import ssl
+import stat
+import struct
+import sys
+import time
+import urllib.parse
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
+from typing import BinaryIO, Never, TextIO
+
+
+PRODUCT_VERSION = "@PRODUCT_VERSION@"
+PRODUCTION_UPLOAD_URL = "https://crates.io/api/v1/crates/new"
+USER_AGENT = "qperiapt-crates-io-uploader/@PRODUCT_VERSION@"
+FIXED_CARGO_VERSION = "@CARGO_VERSION@"
+FIXED_HANDOFF_MANIFEST_SHA256 = (
+    "@HANDOFF_SHA256@"
+)
+
+MAX_CRATE_BYTES = 128 * 1024 * 1024
+MAX_METADATA_BYTES = 16 * 1024 * 1024
+MAX_RESPONSE_BYTES = 1024 * 1024
+UPLOAD_TOTAL_TIMEOUT_SECONDS = 240.0
+STREAM_CHUNK_BYTES = 1024 * 1024
+RESPONSE_CHUNK_BYTES = 64 * 1024
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_TOKEN_RE = re.compile(r"^[\x21-\x7e]{16,512}$")
+_DECIMAL_RE = re.compile(r"^[1-9][0-9]*$")
+_DANGEROUS_NETWORK_ENVIRONMENT = frozenset(
+    {
+        "ALL_PROXY",
+        "CURL_CA_BUNDLE",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "NODE_EXTRA_CA_CERTS",
+        "NO_PROXY",
+        "PYTHONHTTPSVERIFY",
+        "REQUESTS_CA_BUNDLE",
+        "SSLKEYLOGFILE",
+        "SSL_CERT_DIR",
+        "SSL_CERT_FILE",
+        "all_proxy",
+        "http_proxy",
+        "https_proxy",
+        "no_proxy",
+    }
+)
+_METADATA_KEYS = frozenset(
+    {
+        "authors",
+        "badges",
+        "categories",
+        "deps",
+        "description",
+        "documentation",
+        "features",
+        "homepage",
+        "keywords",
+        "license",
+        "license_file",
+        "links",
+        "name",
+        "readme",
+        "readme_file",
+        "repository",
+        "rust_version",
+        "vers",
+    }
+)
+_DEPENDENCY_REQUIRED_KEYS = frozenset(
+    {
+        "default_features",
+        "features",
+        "kind",
+        "name",
+        "optional",
+        "target",
+        "version_req",
+    }
+)
+_DEPENDENCY_OPTIONAL_KEYS = frozenset(
+    {
+        "artifact",
+        "bindep_target",
+        "explicit_name_in_toml",
+        "lib",
+        "registry",
+    }
+)
+
+EXPECTED_CRATE_IDENTITIES = MappingProxyType(
+    {}
+)
+
+_FIXED_DEPENDENCY_COUNT = -1
+_FIXED_CONTRACT_XZ_SHA256 = "@CONTRACT_XZ_SHA256@"
+_FIXED_CONTRACT_B85 = (
+    "@CONTRACT_B85@",
+)
+
+
+class UploaderError(RuntimeError):
+    """A classified failure safe to report without external data."""
+
+    def __init__(self, category: str) -> None:
+        self.category = category
+        super().__init__(category)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class CrateContract:
+    size: int
+    sha256: str
+    metadata_json: bytes
+    metadata_sha256: str
+
+
+@dataclasses.dataclass(slots=True)
+class _AlarmState:
+    previous_handler: object | None = None
+    handler_installed: bool = False
+
+
+def _fail(category: str) -> Never:
+    raise UploaderError(category)
+
+
+def _require(condition: bool, category: str) -> None:
+    if not condition:
+        _fail(category)
+
+
+def _load_fixed_contracts() -> dict[str, CrateContract]:
+    if "@" in PRODUCT_VERSION:
+        raise RuntimeError(
+            "crates_io_uploader_template.py.in must be materialized by "
+            "crates_io_uploader_build.py before use"
+        )
+    try:
+        compressed = base64.b85decode("".join(_FIXED_CONTRACT_B85))
+        if hashlib.sha256(compressed).hexdigest() != _FIXED_CONTRACT_XZ_SHA256:
+            raise ValueError("embedded compressed digest differs")
+        raw = lzma.decompress(compressed, format=lzma.FORMAT_XZ)
+        document = json.loads(raw.decode("utf-8"))
+    except (
+        UnicodeDecodeError,
+        ValueError,
+        lzma.LZMAError,
+        json.JSONDecodeError,
+        RecursionError,
+    ) as exc:
+        raise RuntimeError("embedded crates.io contract is invalid") from exc
+
+    if type(document) is not dict or set(document) != set(EXPECTED_CRATE_IDENTITIES):
+        raise RuntimeError("embedded crates.io cohort differs")
+
+    contracts: dict[str, CrateContract] = {}
+    dependency_count = 0
+    for name in sorted(document):
+        record = document[name]
+        if type(record) is not dict or set(record) != {
+            "metadata_json",
+            "metadata_sha256",
+            "sha256",
+            "size",
+        }:
+            raise RuntimeError("embedded crates.io record is invalid")
+        size = record["size"]
+        sha256 = record["sha256"]
+        metadata_text = record["metadata_json"]
+        metadata_sha256 = record["metadata_sha256"]
+        if (
+            type(size) is not int
+            or type(sha256) is not str
+            or type(metadata_text) is not str
+            or type(metadata_sha256) is not str
+            or EXPECTED_CRATE_IDENTITIES[name] != (size, sha256)
+            or _SHA256_RE.fullmatch(sha256) is None
+            or _SHA256_RE.fullmatch(metadata_sha256) is None
+        ):
+            raise RuntimeError("embedded crates.io identity is invalid")
+        metadata_json = metadata_text.encode("utf-8")
+        if (
+            not 0 < len(metadata_json) <= MAX_METADATA_BYTES
+            or hashlib.sha256(metadata_json).hexdigest() != metadata_sha256
+        ):
+            raise RuntimeError("embedded crates.io metadata digest differs")
+        try:
+            metadata = json.loads(metadata_json)
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
+            raise RuntimeError("embedded crates.io metadata is invalid") from exc
+        if (
+            type(metadata) is not dict
+            or set(metadata) != _METADATA_KEYS
+            or metadata["name"] != name
+            or metadata["vers"] != PRODUCT_VERSION
+            or type(metadata["deps"]) is not list
+        ):
+            raise RuntimeError("embedded crates.io metadata contract differs")
+        for dependency in metadata["deps"]:
+            if (
+                type(dependency) is not dict
+                or not _DEPENDENCY_REQUIRED_KEYS.issubset(dependency)
+                or not set(dependency).issubset(
+                    _DEPENDENCY_REQUIRED_KEYS | _DEPENDENCY_OPTIONAL_KEYS
+                )
+                or dependency.get("registry") is not None
+                or dependency.get("kind") not in {"normal", "build", "dev"}
+            ):
+                raise RuntimeError("embedded crates.io dependency is invalid")
+        dependency_count += len(metadata["deps"])
+        contracts[name] = CrateContract(
+            size=size,
+            sha256=sha256,
+            metadata_json=metadata_json,
+            metadata_sha256=metadata_sha256,
+        )
+    if dependency_count != _FIXED_DEPENDENCY_COUNT:
+        raise RuntimeError("embedded crates.io dependency count differs")
+    return contracts
+
+
+COHORT_CONTRACTS = MappingProxyType(_load_fixed_contracts())
+
+
+def _parse_protocol(
+    arguments: Sequence[str],
+    contracts: Mapping[str, CrateContract],
+) -> tuple[str, CrateContract]:
+    _require(
+        len(arguments) == 9
+        and arguments[0] == "--crate-stdin"
+        and arguments[1] == "--name"
+        and arguments[3] == "--version"
+        and arguments[5] == "--size"
+        and arguments[7] == "--sha256",
+        "protocol",
+    )
+    name = arguments[2]
+    version = arguments[4]
+    size_text = arguments[6]
+    sha256 = arguments[8]
+    contract = contracts.get(name)
+
+    maximum_size_text = str(MAX_CRATE_BYTES)
+    _require(type(contract) is CrateContract, "protocol")
+    _require(version == PRODUCT_VERSION, "protocol")
+    _require(
+        type(size_text) is str
+        and 0 < len(size_text) <= len(maximum_size_text)
+        and _DECIMAL_RE.fullmatch(size_text) is not None
+        and (
+            len(size_text) < len(maximum_size_text)
+            or size_text <= maximum_size_text
+        ),
+        "protocol",
+    )
+    size = int(size_text)
+    _require(str(size) == size_text and size == contract.size, "protocol")
+    _require(
+        type(sha256) is str
+        and _SHA256_RE.fullmatch(sha256) is not None
+        and sha256 == contract.sha256,
+        "protocol",
+    )
+    return name, contract
+
+
+def _credential(environment: Mapping[str, str]) -> str:
+    _require(
+        not any(name in environment for name in _DANGEROUS_NETWORK_ENVIRONMENT),
+        "environment",
+    )
+    token = environment.get("CARGO_REGISTRY_TOKEN")
+    _require(
+        type(token) is str and _TOKEN_RE.fullmatch(token) is not None,
+        "credential",
+    )
+    return token
+
+
+def _rewind(stream: BinaryIO) -> None:
+    try:
+        position = stream.tell()
+        stream.seek(0, os.SEEK_SET)
+    except (OSError, ValueError) as exc:
+        raise UploaderError("input") from exc
+    _require(position == 0, "input")
+
+
+def _read_stream_chunk(stream: BinaryIO, maximum: int) -> bytes:
+    try:
+        chunk = stream.read(maximum)
+    except (OSError, ValueError) as exc:
+        raise UploaderError("input") from exc
+    _require(type(chunk) is bytes, "input")
+    return chunk
+
+
+def _validate_stdin(
+    stream: BinaryIO,
+    contract: CrateContract,
+    *,
+    allow_memory_stdin: bool,
+) -> None:
+    _rewind(stream)
+    if not allow_memory_stdin:
+        try:
+            descriptor = stream.fileno()
+            metadata = os.fstat(descriptor)
+        except (AttributeError, OSError, ValueError) as exc:
+            raise UploaderError("input") from exc
+        _require(
+            stat.S_ISREG(metadata.st_mode)
+            and metadata.st_uid == os.geteuid()
+            and metadata.st_nlink == 1
+            and stat.S_IMODE(metadata.st_mode) == 0o600
+            and metadata.st_size == contract.size,
+            "input",
+        )
+
+    digest = hashlib.sha256()
+    remaining = contract.size
+    while remaining:
+        chunk = _read_stream_chunk(stream, min(STREAM_CHUNK_BYTES, remaining))
+        _require(0 < len(chunk) <= remaining, "input")
+        digest.update(chunk)
+        remaining -= len(chunk)
+    _require(_read_stream_chunk(stream, 1) == b"", "input")
+    _require(digest.hexdigest() == contract.sha256, "input")
+    try:
+        stream.seek(0, os.SEEK_SET)
+    except (OSError, ValueError) as exc:
+        raise UploaderError("input") from exc
+
+
+def _endpoint(
+    upload_url: str,
+    *,
+    allow_loopback_test: bool,
+) -> tuple[str, str, int, str]:
+    if upload_url == PRODUCTION_UPLOAD_URL:
+        return "https", "crates.io", 443, "/api/v1/crates/new"
+    _require(allow_loopback_test, "endpoint")
+    try:
+        parsed = urllib.parse.urlsplit(upload_url)
+        port = parsed.port
+    except ValueError as exc:
+        raise UploaderError("endpoint") from exc
+    _require(
+        parsed.scheme == "http"
+        and parsed.hostname in {"127.0.0.1", "::1"}
+        and port is not None
+        and parsed.path == "/api/v1/crates/new"
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.query
+        and not parsed.fragment,
+        "endpoint",
+    )
+    return parsed.scheme, parsed.hostname, port, parsed.path
+
+
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    _require(remaining > 0.0, "timeout")
+    return remaining
+
+
+def _deadline_signal(
+    signal_number: int,
+    frame: object,
+) -> Never:
+    del signal_number, frame
+    _fail("timeout")
+
+
+def _require_hard_deadline_signal_available() -> None:
+    try:
+        blocked_signals = signal.pthread_sigmask(signal.SIG_BLOCK, frozenset())
+        pending_signals = signal.sigpending()
+    except (OSError, ValueError) as exc:
+        raise UploaderError("timeout") from exc
+    _require(
+        signal.SIGALRM not in blocked_signals
+        and signal.SIGALRM not in pending_signals,
+        "timeout",
+    )
+
+
+def _arm_hard_deadline(
+    state: _AlarmState,
+    timeout_seconds: float,
+) -> None:
+    try:
+        _require_hard_deadline_signal_available()
+        previous_timer = signal.getitimer(signal.ITIMER_REAL)
+        _require(previous_timer == (0.0, 0.0), "timeout")
+        state.previous_handler = signal.getsignal(signal.SIGALRM)
+        signal.signal(signal.SIGALRM, _deadline_signal)
+        state.handler_installed = True
+        signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
+    except UploaderError:
+        raise
+    except (OSError, ValueError) as exc:
+        if state.handler_installed:
+            signal.signal(signal.SIGALRM, state.previous_handler)
+            state.handler_installed = False
+        raise UploaderError("timeout") from exc
+
+
+def _disarm_hard_deadline(state: _AlarmState) -> BaseException | None:
+    if not state.handler_installed:
+        return None
+    first_error: BaseException | None = None
+    try:
+        signal.setitimer(signal.ITIMER_REAL, 0.0)
+    except BaseException as exc:
+        first_error = exc
+    try:
+        signal.signal(signal.SIGALRM, state.previous_handler)
+    except BaseException as exc:
+        if first_error is None:
+            first_error = exc
+    state.handler_installed = False
+    return first_error
+
+
+def _set_socket_timeout(
+    network_socket: socket.socket,
+    deadline: float,
+) -> None:
+    network_socket.settimeout(_remaining(deadline))
+
+
+def _send(
+    connection: http.client.HTTPConnection,
+    network_socket: socket.socket,
+    data: bytes,
+    deadline: float,
+) -> None:
+    _set_socket_timeout(network_socket, deadline)
+    connection.send(data)
+    _remaining(deadline)
+
+
+def _read_response(
+    response: http.client.HTTPResponse,
+    network_socket: socket.socket,
+    deadline: float,
+) -> bytes:
+    body = bytearray()
+    while True:
+        _set_socket_timeout(network_socket, deadline)
+        chunk = response.read1(
+            min(RESPONSE_CHUNK_BYTES, MAX_RESPONSE_BYTES + 1 - len(body))
+        )
+        _remaining(deadline)
+        _require(type(chunk) is bytes, "response")
+        if not chunk:
+            break
+        body.extend(chunk)
+        _require(len(body) <= MAX_RESPONSE_BYTES, "response")
+    return bytes(body)
+
+
+def _validate_response(body: bytes) -> None:
+    if not body:
+        return
+    try:
+        document = json.loads(body.decode("utf-8"))
+    except (
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        RecursionError,
+    ) as exc:
+        raise UploaderError("response") from exc
+    _require(type(document) is dict, "response")
+    errors = document.get("errors")
+    if errors is not None:
+        _require(type(errors) is list and not errors, "response")
+
+
+def _upload_once(
+    stream: BinaryIO,
+    contract: CrateContract,
+    token: str,
+    *,
+    upload_url: str,
+    allow_loopback_test: bool,
+    timeout_seconds: float,
+) -> None:
+    scheme, host, port, path = _endpoint(
+        upload_url,
+        allow_loopback_test=allow_loopback_test,
+    )
+    _require(
+        type(timeout_seconds) in {int, float}
+        and 0.0 < timeout_seconds <= UPLOAD_TOTAL_TIMEOUT_SECONDS,
+        "timeout",
+    )
+    _require(
+        hashlib.sha256(contract.metadata_json).hexdigest()
+        == contract.metadata_sha256,
+        "protocol",
+    )
+    deadline = time.monotonic() + float(timeout_seconds)
+    alarm_state = _AlarmState()
+    connection: http.client.HTTPConnection | None = None
+    network_socket: socket.socket | None = None
+    response: http.client.HTTPResponse | None = None
+    try:
+        _arm_hard_deadline(alarm_state, float(timeout_seconds))
+        if scheme == "https":
+            context = ssl.create_default_context()
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            connection = http.client.HTTPSConnection(
+                host,
+                port,
+                timeout=_remaining(deadline),
+                context=context,
+            )
+        else:
+            connection = http.client.HTTPConnection(
+                host,
+                port,
+                timeout=_remaining(deadline),
+            )
+        connection.connect()
+        _require(connection.sock is not None, "transport")
+        network_socket = connection.sock
+        _set_socket_timeout(network_socket, deadline)
+
+        content_length = (
+            4 + len(contract.metadata_json) + 4 + contract.size
+        )
+        connection.putrequest("PUT", path, skip_accept_encoding=True)
+        connection.putheader("Accept", "application/json")
+        connection.putheader("Authorization", token)
+        connection.putheader("Content-Type", "application/octet-stream")
+        connection.putheader("Content-Length", str(content_length))
+        connection.putheader("User-Agent", USER_AGENT)
+        _set_socket_timeout(network_socket, deadline)
+        connection.endheaders()
+        _remaining(deadline)
+
+        prefix = (
+            struct.pack("<I", len(contract.metadata_json))
+            + contract.metadata_json
+            + struct.pack("<I", contract.size)
+        )
+        _send(connection, network_socket, prefix, deadline)
+
+        digest = hashlib.sha256()
+        remaining = contract.size
+        while remaining:
+            chunk = _read_stream_chunk(
+                stream,
+                min(STREAM_CHUNK_BYTES, remaining),
+            )
+            _require(0 < len(chunk) <= remaining, "input")
+            digest.update(chunk)
+            _send(connection, network_socket, chunk, deadline)
+            remaining -= len(chunk)
+        _require(_read_stream_chunk(stream, 1) == b"", "input")
+        _require(digest.hexdigest() == contract.sha256, "input")
+
+        _set_socket_timeout(network_socket, deadline)
+        response = connection.response_class(network_socket, method="PUT")
+        response.begin()
+        _remaining(deadline)
+        status = response.status
+        response_body = _read_response(response, network_socket, deadline)
+        _require(type(status) is int, "response")
+        if 300 <= status <= 399:
+            _fail("redirect")
+        _require(200 <= status <= 299, "response")
+        _validate_response(response_body)
+    except UploaderError:
+        raise
+    except TimeoutError as exc:
+        raise UploaderError("timeout") from exc
+    except (
+        OSError,
+        ssl.SSLError,
+        http.client.HTTPException,
+    ) as exc:
+        raise UploaderError("transport") from exc
+    finally:
+        deadline_cleanup_error = _disarm_hard_deadline(alarm_state)
+        active_exception = sys.exc_info()[0] is not None
+        cleanup_error: BaseException | None = deadline_cleanup_error
+        if response is not None:
+            try:
+                response.close()
+            except BaseException as exc:
+                cleanup_error = exc
+        if connection is not None:
+            try:
+                connection.close()
+            except BaseException as exc:
+                if cleanup_error is None:
+                    cleanup_error = exc
+        if cleanup_error is not None and not active_exception:
+            if isinstance(cleanup_error, Exception):
+                raise UploaderError("transport") from cleanup_error
+            raise cleanup_error
+
+
+def run(
+    arguments: Sequence[str],
+    *,
+    stdin: BinaryIO,
+    environment: Mapping[str, str],
+    upload_url: str = PRODUCTION_UPLOAD_URL,
+    allow_loopback_test: bool = False,
+    contracts: Mapping[str, CrateContract] | None = None,
+    timeout_seconds: float = UPLOAD_TOTAL_TIMEOUT_SECONDS,
+) -> None:
+    _require(
+        allow_loopback_test
+        or (
+            contracts is None
+            and upload_url == PRODUCTION_UPLOAD_URL
+            and timeout_seconds == UPLOAD_TOTAL_TIMEOUT_SECONDS
+        ),
+        "endpoint",
+    )
+    selected_contracts = COHORT_CONTRACTS if contracts is None else contracts
+    _name, contract = _parse_protocol(arguments, selected_contracts)
+    _validate_stdin(
+        stdin,
+        contract,
+        allow_memory_stdin=allow_loopback_test,
+    )
+    token = _credential(environment)
+    _upload_once(
+        stdin,
+        contract,
+        token,
+        upload_url=upload_url,
+        allow_loopback_test=allow_loopback_test,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def main(
+    arguments: Sequence[str] | None = None,
+    *,
+    stdin: BinaryIO | None = None,
+    environment: Mapping[str, str] | None = None,
+    stderr: TextIO | None = None,
+    upload_url: str = PRODUCTION_UPLOAD_URL,
+    allow_loopback_test: bool = False,
+    contracts: Mapping[str, CrateContract] | None = None,
+    timeout_seconds: float = UPLOAD_TOTAL_TIMEOUT_SECONDS,
+) -> int:
+    selected_arguments = sys.argv[1:] if arguments is None else arguments
+    selected_stdin = sys.stdin.buffer if stdin is None else stdin
+    selected_environment = os.environ if environment is None else environment
+    selected_stderr = sys.stderr if stderr is None else stderr
+    try:
+        run(
+            selected_arguments,
+            stdin=selected_stdin,
+            environment=selected_environment,
+            upload_url=upload_url,
+            allow_loopback_test=allow_loopback_test,
+            contracts=contracts,
+            timeout_seconds=timeout_seconds,
+        )
+    except UploaderError as exc:
+        selected_stderr.write(
+            "error: q-periapt crates.io uploader failed safely: "
+            + exc.category
+            + "\n"
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

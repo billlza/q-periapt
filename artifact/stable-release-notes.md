@@ -1057,8 +1057,23 @@ publication_state_parent=$publication_account_home/.q-periapt/publication-state
 publication_state_root=$publication_state_parent/crates.io-v0.1.4
 (umask 077 && mkdir -p "$publication_state_root")
 
-# Install the separately reviewed exact-byte uploader as this fixed 0700 child.
+# Materialize the release-pinned exact-byte uploader from the reviewed template
+# and the rust package handoff, then install it as this fixed 0700 child. The
+# generator derives each crate's registry metadata from the packaged .crate
+# (crates_io_registry_metadata, proven byte-identical to cargo's output), binds
+# every crate to the handoff by size and sha256, and embeds the compressed cohort
+# contract table; the emitted uploader's logic is byte-identical to the template
+# and differs only in its per-release data. Regenerating for a new version is a
+# single reviewed command instead of a manual reconstruction.
 uploader_command=$publication_state_root/qperiapt-crates-io-uploader
+# The Cargo version that packaged the crates, taken from the validated
+# rust_publish results section (embedded in the uploader only for provenance).
+cargo_version_that_packaged_the_crates=$(python3 -I -S -c \
+  'import json; print(json.load(open("artifact/results.json"))["rust_publish"]["cargo_version"])')
+sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
+  "$rust_handoff_manifest" "$uploader_command" \
+  --crate-dir "$(dirname "$rust_handoff_manifest")" \
+  --cargo-version "$cargo_version_that_packaged_the_crates"
 test -f "$uploader_command" && test ! -L "$uploader_command"
 
 # Only an authorized operator on the isolated publication host may run this.
