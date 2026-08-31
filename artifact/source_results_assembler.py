@@ -31,6 +31,7 @@ import android_elf
 import apple_publication_contract
 import crates_io_publication_contract
 import platform_publication_contract
+import platform_stable_publication_contract
 import release_consumer_smoke
 import release_index
 import rust_package_handoff
@@ -198,11 +199,14 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 # first line that published for real, so its committed verified manifest —
 # with the 47 declared-missing proof-input keys deleted — is the new frozen
 # baseline floor carrying the five historical publication receipts and the
-# activated apple_v0_1_3 selector. The alpha.2-era baseline
-# c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50 is
-# superseded and remains valid only in the 0.1.0-0.1.3 line history.
+# activated apple_v0_1_3 selector. Superseded predecessors remain valid only in
+# their own line history: the alpha.2-era baseline
+# c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50 (0.1.0-0.1.3)
+# and the 0.1.4-line-open baseline
+# 552d63de033080314e2f502d0994c5fe4353e706a3f24c6bce13ea005316786a, both
+# succeeded by this current-to-current reopen baseline emitted by reopen-source.
 INITIAL_RESULTS_SHA256 = (
-    "552d63de033080314e2f502d0994c5fe4353e706a3f24c6bce13ea005316786a"
+    "61101393105ca4a8b32ce5c70a5d7e53b6a3c4884cf0ef064887bda9c7033c88"
 )
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(
@@ -2115,6 +2119,158 @@ def verify_installed_source_successor(expected_results_sha256: str) -> str:
     return results_commit
 
 
+# The five frozen historical publication leaves the source line always opens on.
+_INITIAL_PUBLICATION_FLOOR_KEYS = frozenset(
+    {
+        apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+        platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+        apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+        platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+        crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+    }
+)
+# A reopen may drop a publication leaf ONLY while it is an in-flight candidate.
+# A published-immutable receipt (observed_public_immutable_* / *_verified that is
+# not a pending candidate) is never droppable; the reopen refuses fail-closed.
+_DROPPABLE_PENDING_PUBLICATION_STATUSES = frozenset(
+    {
+        apple_publication_contract.APPLE_STATUS_PENDING,
+        platform_stable_publication_contract.PLATFORM_V0_1_4_STATUS_PENDING,
+    }
+)
+
+
+def _build_reopen_candidate(
+    installed: dict[str, Any],
+    current_digests: dict[str, str],
+) -> dict[str, Any]:
+    """Pure reverse transform: a fully installed manifest -> an initial baseline.
+
+    Requires a 237-key installed input; returns a 190-key/five-leaf initial
+    candidate. The source identity (proof_source_tree_sha256 / snapshot_commit)
+    is carried over UNCHANGED from the installed manifest: it names the frozen
+    stable source S the line descends from -- a reachable, tree-consistent
+    ancestor. Recording the reopen commit's own tree would be circular
+    (proof_source_tree_sha256 feeds INITIAL_RESULTS_SHA256, itself a source input
+    to that very tree), and recording the run-time assembly commit would name an
+    object orphaned by the atomic repin commit. Every publication leaf (including
+    the pending candidates this drops) is validated fail-closed BEFORE any is
+    removed. Refuses fail-closed if a publication leaf outside the frozen floor is
+    not an in-flight pending candidate, or if the result is not an exact valid
+    initial baseline.
+    """
+
+    canonical_keys = set(PROOF_TO_BYTE_INPUT_PATHS)
+    installed_inputs = _object(
+        installed.get("proof_to_byte_inputs"), "installed proof_to_byte_inputs"
+    )
+    _require(
+        set(installed_inputs) == canonical_keys,
+        "reopen requires a fully installed 237-key results baseline",
+    )
+    _require(
+        set(current_digests) == canonical_keys,
+        "current source tree proof-input set differs from the canonical keys",
+    )
+    # Validate EVERY publication leaf -- including the pending candidates this
+    # reopen will drop -- fail-closed BEFORE removing any. A leaf with a droppable
+    # status but a corrupted schema, altered digest, or unexpected key must be
+    # rejected, never silently discarded. This is structural leaf validation only
+    # (validate_stable_source_currentness checks the manifest's own declared
+    # fields, no producer evidence), so the no-build-pipeline property holds.
+    try:
+        validate_release_publications(installed)
+    except (ProofManifestError, ReleasePublicationContractError) as exc:
+        raise SourceResultsAssemblerError(str(exc)) from exc
+
+    candidate = copy.deepcopy(installed)
+
+    # 1) proof_to_byte_inputs 237 -> 190, faithfully from the current tree.
+    candidate["proof_to_byte_inputs"] = {
+        key: current_digests[key]
+        for key in current_digests
+        if key not in INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS
+    }
+
+    # 2) release_publications -> the five frozen historical leaves; drop only
+    #    in-flight pending candidates, never a published-immutable receipt.
+    publications = _object(
+        candidate.get("release_publications"), "release_publications"
+    )
+    _require(
+        _INITIAL_PUBLICATION_FLOOR_KEYS <= set(publications),
+        "installed baseline is missing a frozen historical publication leaf",
+    )
+    for key in sorted(set(publications) - _INITIAL_PUBLICATION_FLOOR_KEYS):
+        leaf = _object(publications[key], f"publication leaf {key}")
+        status = leaf.get("status")
+        _require(
+            status in _DROPPABLE_PENDING_PUBLICATION_STATUSES,
+            f"refusing to drop non-pending publication leaf {key} (status={status!r})",
+        )
+        del publications[key]
+
+    # 3) self-check: an exact, valid initial baseline (190 keys, five leaves,
+    #    apple_v0_1_3 selector) that source_ci_gate will accept as "initial".
+    #    proof_source_tree_sha256 / provenance.snapshot_commit are left as the
+    #    installed manifest recorded them (the reachable stable source S).
+    _validate_baseline_document_shape(candidate, require_initial=True)
+    try:
+        validate_release_publications(candidate)
+    except (ProofManifestError, ReleasePublicationContractError) as exc:
+        raise SourceResultsAssemblerError(str(exc)) from exc
+    return candidate
+
+
+def reopen_source_results(
+    expected_current_results_sha256: str,
+) -> tuple[pathlib.Path, str, SourceIdentity]:
+    """Emit an initial (dev-open) baseline candidate from the installed manifest.
+
+    This is the reverse of ``finalize`` and the reviewed replacement for its
+    retired one-time forward migration: it returns a frozen, fully installed
+    237-key results manifest to the 190-key source-transition-ready baseline for
+    the CURRENT source tree, reopening development for the next line. It needs no
+    producer evidence because the initial baseline is validated without
+    ``validate_declared_currentness`` -- the carried-over declared sections are
+    never re-checked in initial mode.
+
+    Exactly two things change relative to the installed manifest:
+      * ``proof_to_byte_inputs`` 237 -> 190 (drop the 47
+        INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, recomputed from the current
+        tree so the retained 190 are faithful to it);
+      * ``release_publications`` reduced to exactly the five frozen historical
+        leaves, dropping ONLY in-flight pending candidates (refused otherwise).
+    The source identity (``proof_source_tree_sha256`` / ``snapshot_commit``) is
+    carried over unchanged from the installed manifest -- see
+    _build_reopen_candidate for why recording the reopen commit's own tree is
+    circular and the assembly commit's is orphaned.
+
+    The candidate is emitted no-replace under ``target/source-results-successors``
+    and must be installed as ``artifact/results.json`` in one atomic commit that
+    also repins ``INITIAL_RESULTS_SHA256`` to the returned digest.
+    """
+
+    current = _load_pinned_baseline(expected_current_results_sha256)
+    source = _source_identity()  # clean-tree guard + assembly-race sentinel
+    current_digests = capture_proof_input_digests(REPOSITORY_ROOT)
+    candidate = _build_reopen_candidate(current, current_digests)
+    _require(
+        capture_proof_input_digests(REPOSITORY_ROOT) == current_digests,
+        "proof inputs changed while the reopen baseline was assembled",
+    )
+    path, digest = create_private_transaction_json(
+        safe_root=SOURCE_RESULTS_ROOT,
+        transaction_prefix="transaction.",
+        expected_leaf=SOURCE_RESULTS_LEAF,
+        value=candidate,
+        label="source results reopen",
+        maximum=RESULTS_MAX_BYTES,
+    )
+    _stable_source_identity(source)
+    return path, digest, source
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
@@ -2129,6 +2285,8 @@ def _parser() -> argparse.ArgumentParser:
     ci_gate = commands.add_parser("ci-source-gate")
     ci_gate.add_argument("expected_results_sha256")
     ci_gate.add_argument("expected_commit")
+    reopen = commands.add_parser("reopen-source")
+    reopen.add_argument("expected_results_sha256")
     return parser
 
 
@@ -2154,6 +2312,14 @@ def run(args: argparse.Namespace) -> None:
     if args.command == "verify-installed":
         commit = verify_installed_source_successor(args.expected_results_sha256)
         print(f"SOURCE_RESULTS_INSTALLED_VERIFY_PASS commit={commit}")
+        return
+    if args.command == "reopen-source":
+        path, digest, source = reopen_source_results(args.expected_results_sha256)
+        print(
+            "SOURCE_RESULTS_REOPEN_PASS "
+            f"path={_relative(path)} sha256={digest} "
+            f"source_commit={source.commit} source_sha256={source.digest}"
+        )
         return
     path, digest, source = finalize_source_results(
         args.expected_results_sha256,

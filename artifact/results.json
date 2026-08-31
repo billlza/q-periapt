@@ -331,13 +331,6 @@
     "apple_distribution_tests_sha256": "3cc02268ecb3de67491f5ca36c916e5393218f9a3c4397c2eb928a4bf27a5551",
     "apple_distribution_verifier_sha256": "310ee49424c466f09b6abe4f2a8379238a03370c097c37136de60a2f4c2fc8ed",
     "apple_proof_contract_sha256": "b6d3f08ce995897d6dcde9eb90ee6aa69789be820ad649208ff4df73f06b4a40",
-    "apple_publication_contract_sha256": "18d4de2e4f5dceb1cf98522b7fd89c9480886113dc7f3aca8b1c3d98f6a34ec7",
-    "apple_publication_contract_tests_sha256": "b8166aa13cb8caad75ca9b5c97c6769a75b729b65e7df49cd1234e54352ddfad",
-    "apple_publication_finalizer_tests_sha256": "36c50e91b9b4aa2e8d41add0e30cdb8213116d4dfc6dfac85f884fe0228b7044",
-    "apple_release_verification_sha256": "4b2a15dd1f596cd90dd11226acff08e600bf3c470b94b28ce4e722382bd2e067",
-    "apple_release_verification_tests_sha256": "5b04ff8ff4ad13b239306fdc4f29f6f6962d9027af1ccc5c7cfcabee10b59abb",
-    "apple_stable_publication_sha256": "3d05648a7c29b5674085c6bf504719e8a2a65dfe6fd78a8c5f0d510e0c6ce6ce",
-    "apple_stable_publication_tests_sha256": "6da1277b45ada58c0a3d5e633daedefb70278e0f69201d09871a54c80708f150",
     "apple_toolchain_tests_sha256": "88e53dc03bbb5d7492e1f608064ec50d0dcdbd4c173f79dc8a98f7e4f8ae0fe9",
     "apple_toolchain_verifier_sha256": "881975c5ac705230f8c60dde5d8bbf650be530ec1c3584db0243a726e06d23ab",
     "bounded_process_sha256": "b0fd909839cfadf0504f196ed96001f8b6dea05badfa43862b7d9cf602068c1d",
@@ -390,10 +383,6 @@
     "continuity_prekey_vectors_sha256": "2157fbfacdff8d326061dbe7b1fd8c0b18aabb7f3ba77469a1bcea8a4b6dc7b8",
     "continuity_prekey_verifier_sha256": "2f1f6e8cb30aeefffbb0441f4b9db9806d5f11c1e3808ab48ec4fb17d325a345",
     "continuity_prekey_verifier_tests_sha256": "77e2c558ae48063ae39600e80efc9e2b0a2424a6a7e8226583f69ae147e28176",
-    "crates_io_publication_contract_sha256": "389d1d7d426f79b0a541b9e9eca85e241d826d0f0ae4da53c6ac51f9d9e3114e",
-    "crates_io_publication_contract_tests_sha256": "8340214a78911614282f9f602b3fecc9c47ac61e285dcc36ae84ac005f989bcc",
-    "crates_io_publication_sha256": "a2211d0b44b54eaad447149e1f206502dd699c6a0664dfe675b42e95560c7b3a",
-    "crates_io_publication_tests_sha256": "30d3179474e2fbf6f38a13474ba11ae4c0ddbaa1367903663fb838e27add4e7c",
     "dependabot_config_sha256": "b0e35be6ad3eac9133edf4fe973d04766ea8d16d35940cd8ebb48edb6a12b1ad",
     "deterministic_archive_sha256": "96319bc86f4e01aa7f74064213e0491d869723880857fd765c1b23a1e4b5a1e6",
     "deterministic_archive_tests_sha256": "c794b68f052603cd9828692c4e1b282d84159e1d3eee9e4f9194a59d67787539",
@@ -403,15 +392,10 @@
     "easycrypt_negative_controls_sha256": "089a1fbd6dbb3e84f5762ee75b95de6918b4f6a2c12d3e6377f0201adf2dfd0f",
     "evidence_io_sha256": "66a7158df3ba3f87f0d870457554f6fb8d0be3d87ad86848027389e35bc4b2e0",
     "evidence_io_tests_sha256": "2b68a840040d5321c400270a63e2c8cd632080ab0b7e9ddf57227d970b1fc465",
-    "formal_easycrypt_dockerfile_sha256": "e8f402a2a6f42852132911d1220fa297adc4ef83f41e06616ca0686e292e7aba",
     "formal_tool_asset_sha256": "de29bc9633f99eccbd8d1a1067eed3e3468573b706874fd843bd54e6fd0783db",
     "formal_tool_asset_tests_sha256": "7218d20319376e1338d4b96a260ceeedc3a3f4e1551908f64e87ab18d5672bff",
-    "formal_toolchain_contract_sha256": "62ac3d3f9e33d77243786a3f5ad52699556488490bf87d53825c534fcb0b7f4f",
-    "formal_toolchain_contract_tests_sha256": "27394eef84f3ed76ed3de5971e857a350659f6cc8251e5830e18eff2208fa71f",
     "git_provenance_sha256": "f5114198f95e8e01a289c8da501a301720f3376863ce9d207ed0d553cb31ca25",
     "git_provenance_tests_sha256": "5470449ea9cb61ca34d198c6a7c61ba642b39abc2316ecba143f0f9faec91a6c",
-    "github_release_observation_sha256": "71046ff7251389f95dca6de267029493edcdab88b9c4b20a3f5243b665be9868",
-    "github_release_observation_tests_sha256": "9e0a0f859897d975f7fc74ae6573fa088358ee376ef29fc82ecc4475c4405f34",
     "hqc_candidate_adapter_sha256": "2c2f1586624c3157d637165b9ab36142c7e5bc7e2000664f9697a4fe916cf5bd",
     "hqc_candidate_lock_sha256": "2b6cafa6fc5ad45fb4638530759037399158d9d2aea364c11db3a581baafab49",
     "hqc_candidate_manifest_sha256": "13b806b08d83b14095d0494bb89e08700487d66c5fad62666d1b71ada549e4d3",
@@ -424,11 +408,6 @@
     "local_release_consumer_smoke_script_sha256": "ecb290f816d0892f223f04d6750425458a593bf909cb36d3780afd8fed8c289e",
     "local_release_index_script_sha256": "28ce08621eb432adecb3bfa05d41c7605c7d7e463fb1422de2163e8beaf63425",
     "migration_agent_authentication_sha256": "c94f335e5964e8296fb20dc549d4cbe1a17c2ab26f2128c97a92939a43ddee40",
-    "migration_agent_authority_codec_sha256": "95802b400b65c4c17e69f17040dbd72b80243910456fdf9d70804f7665d3f7e2",
-    "migration_agent_authority_protocol_sha256": "39c5587fb1cc3598f3603e8e1a86500358e3b37c008744702d535d7c02105268",
-    "migration_agent_authority_sha256": "692cb2697e38721ff2a970e065dd58151d9a47c4deed0b00200d3b88dad4fa76",
-    "migration_agent_authority_store_sha256": "010afc5b7acd00f0ce7a79b770e8e524df457365b68b84a6f9ad8e78788bd9dd",
-    "migration_agent_authority_transport_sha256": "7e5b57a238da3e1bda74571ccba0838b928401b123e2d296464b307774721118",
     "migration_agent_codec_sha256": "c7dd14bc40b06eb641ae74022ee1025f5fb3f6cbbad896f2e767b1347bde46a9",
     "migration_agent_crypto_sha256": "ac13d5d7714c317c603ac0ad83255a2c4f3cfae00b42dfa894ff46b9bac390b1",
     "migration_agent_filesystem_sha256": "a5b1d59c1ae64e8e4bdf86b14936376b86b0f2538c21102b6d23d415e5624164",
@@ -462,31 +441,17 @@
     "performance_budgets_sha256": "30499d42b3221587bf792d12c158375276a148325dfbba1533322f7da403cb52",
     "performance_gate_sha256": "1d17b1671bc2622eededa1b178ee6ba2ae2d34beb00ea9f177758bddda2ae766",
     "performance_gate_tests_sha256": "98408145400fcbdafc5c81472ebb70d80eabf0c24f090a4434da21edd52d930f",
-    "platform_candidate_attestation_sha256": "abc734252fb682212df2fb21e1d3c4b4d507232ad88625c74954b40cdde09571",
-    "platform_candidate_attestation_tests_sha256": "45521933b8367cfba9b142f3f44126f346f5b82368a6ba0bc6453e5e1c2a189c",
-    "platform_distribution_contract_sha256": "726034681fba4f156c01a771e4c7fe5e3dee16f9ed69a04afd06e673e372f6eb",
     "platform_distribution_tests_sha256": "9122ae368daa58e45a8f9300f139f5839608ee9c6c9f2aff637907964a660178",
     "platform_distribution_verifier_sha256": "3e5348c6e64f20166481cb65a69903a62ef9935040bb8d96f981ca5df4e0a4f3",
-    "platform_publication_contract_sha256": "2cad47e9977c03053883e5bae32f3459db2327ebb00bc5394ed5d841283ce3aa",
-    "platform_publication_contract_tests_sha256": "646ce4baecf17522ae9306dc6e0a13a46af4abee367ad4ad4c8f40b361ddf6d5",
     "platform_release_contract_sha256": "e9d279d68d7219551ebb50afd511270526f4eea2d2233851292dce8dd520f662",
     "platform_release_contract_tests_sha256": "620471e454d8765dbebe31d17ac965c3b18d7a03d54d6c1047fcc1ed1e444dcf",
-    "platform_stable_publication_contract_sha256": "d5ac20b70f36bb72424028cb0982e8a9ed90ee99f0c2d82b153880ce43ef2ae4",
-    "platform_stable_publication_contract_tests_sha256": "4d9f59b42613fc7d213a65094abe4ebabece0a615337421a145b85f09a8b194f",
-    "platform_stable_publication_sha256": "870cbe1041655d43cc91ef2a90021a1fa77dd01b2c52bdadcda69ec38cac7276",
-    "platform_stable_publication_tests_sha256": "79862abe2c0625a19724560be0b7b7940c09b48e89193d6767646209855f6a88",
     "process_identity_sha256": "798dfea27cd52a74b0330252746f66cb07c1cd6bb6e3d61eeee8d8865684a0de",
     "proof_manifest_sha256": "38de5ea0af69a5ae6f381f80a4cb55be4682e5a8e7d7c60ec2f1f160397b510a",
     "proof_manifest_tests_sha256": "1bdfc7ae461f1cc1a0453cd4d363c5d4cb10ab76aac512ec38a2004172c7a4bd",
     "proof_to_byte_finalizer_sha256": "28c23358003eaa530f07e8b1bd8c7f73b7b07423d5daae338437198b25976b9c",
-    "proof_to_byte_inputs_sha256": "bc691d832b540c432bfd23ff6615d71020f003a55aa727fede2abc38f086fe18",
-    "proof_to_byte_inputs_tests_sha256": "4788b7595a675a173e5ce489e9ae9ee230334f38e91564cc7e441f36a9b0c307",
     "proof_to_byte_release_tests_sha256": "d7ae9ea1fad9a6e7fbf44027256032cdbd04117a7003d66cbf12cb41bc57a9e7",
     "proof_to_byte_script_sha256": "f43bbec98dc4782461af462e4f3ecb0fe7cbfc7fa376e267e77860bb1539f584",
-    "proverif_makefile_sha256": "fcacfc72066e29c717cab97203b152d358b5df5d34ac123fc0cb052477827379",
     "proverif_model_sha256": "1cc3e2a48a9eab163652152a2922de53ac61421d4a17ca92f46653e54921b44a",
-    "publication_receipt_io_sha256": "3430d9596e4ce5d9e875e724e0c3366734c1760099c4250e1fbcc23f560922e1",
-    "publication_receipt_io_tests_sha256": "3743d83ba06631dc794642b90a87b2921dee12463523e19a4de6356534eb9f40",
     "python_bootstrap_sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
     "python_env_sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
     "python_runner_sha256": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
@@ -502,29 +467,17 @@
     "release_consumer_smoke_verifier_sha256": "a1935cb7167852e47c9f79a2fd80546cb8e9c4889d7e05073dd7446b55b7ca7b",
     "release_index_tests_sha256": "49b2bd04688fc46ecd622d54333c33751ef4443f56b23ab73eb3a168ae1a1c3a",
     "release_index_verifier_sha256": "3dd0584f452ce680b20a51621caafa6461a73a0b505c61e3c0ac8be202f91a85",
-    "release_publication_contract_sha256": "1eb0df3c1e764d0d0e6fc0cd74f02606e67afa88bc6bf33943906f90843e0d73",
-    "release_publication_contract_tests_sha256": "7171cc4e1c92d51efb434314e723534ba97179789fe019b616506db5b6ef5ccf",
-    "release_publication_proof_manifest_tests_sha256": "cc1ea8fccbc983d0df5eff2426d08864f6fd1353fad11edc79d2878252fefdcf",
-    "release_receipt_finalizer_sha256": "a4e9cf65c101ca6cb6c4f7dbb0104842cb9fe6b717303d6dfa13ae57d1855bf9",
-    "release_receipt_finalizer_tests_sha256": "5b8f2d173dddf752bcd88b4c9aa389f37f6e0b33d0fc57b58f434717db394ecc",
-    "rust_package_handoff_sha256": "a38b74b0a086a03d5086c58d61d4a568228934f42a681fc3863bf18039462e0a",
-    "rust_package_handoff_tests_sha256": "5e814c25ec4c8e9f3cc898cf4ccde1ffb7c0615191363bd76945125ef8cc0374",
     "rust_publish_contract_script_sha256": "ae8a6f095e7bbff7625bdbce1e70b336085c2dd708abd4a27e9900a9133306db",
     "rust_publish_contract_sha256": "23970a5b450b4d9dfeeb0f185969b89b9782c21faae249503555ec976c0daa9d",
     "rust_publish_contract_tests_sha256": "4027ac3eb48fb6dbfc0f442b51de0cb5a7ab6eaff27a95ffba6d00cffeabadef",
     "security_policy_sha256": "17b5a9e5292539462194aff70b9dd2613019a93b2cf0269435cf22cdf577f0aa",
     "shared_vectors_sha256": "230c0246b0c6a79cb96b3bd68641d0cb574ee237cb626626965b2db1b1ebd2f3",
     "signed_policy_vectors_sha256": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5",
-    "source_results_assembler_sha256": "145e450335b98ac229b8564e93fea90f2359cae96f7c03b8a16600de57d14832",
-    "source_results_assembler_tests_sha256": "98fddeb1b3f44987102980cb248767f744e07fff190be334c0c39882096a86ab",
-    "stable_github_publication_sha256": "92f32d97ce19fcdedcbed072f91dbe9bedae4829e8cdf306737705b582939a60",
-    "stable_github_publication_tests_sha256": "aeef12e32af566a13fca55a95b18421f70b4124a99bb026a01d4a740bd6df6e5",
-    "stable_release_notes_sha256": "9232d684f997232405642500259c42b6b27a712ce6439dcfd35de180d4ba5ece",
     "swift_binary_consumer_link_probe_sha256": "33c0b6fe14a4f54d88b13b5cc6edba65cdfb139733b6f7ef8696a224d7b65aac",
     "swift_binary_consumer_tests_sha256": "642b6f07cf79c0cd7bd6e1161077f0d68af9d6492fcb7553922e90914068fca0",
     "swift_xcframework_consumer_check_script_sha256": "4fbe53853c029560171fee42bfdc0c9edeee97b5972368b851a98b9e8f2800b5",
     "swift_xcframework_release_script_sha256": "05a76c40b0ce9d03380ebcaf9e402e66b25d8d2ca1425f23c4db77b1fcf704e9",
-    "swift_xcframework_remote_consumer_script_sha256": "4e6c2f8eae2e14dd891deffeca3b9360562d37202ae33fe0535431b1ca99f505",
+    "swift_xcframework_remote_consumer_script_sha256": "d71c605832a9f3f74477c8c9ea65152386ca045182894c6c7d1f1456c8bcbfec",
     "swift_xcframework_script_sha256": "37ed865173ec8ab84e7cce58acd75b00f3bb6d66eab623d4a68268c6df8dc2d1",
     "tamarin_makefile_sha256": "cf4235b5937f48f6582867a92eb7e8fce7a47c393a569525917c0641e6da8650",
     "tamarin_migration_agreement_v2_sha256": "74a7f9ebeab74f5a234c0e7147087599582dda1f93313e55dfd5589796879928",
@@ -748,54 +701,6 @@
         "tag_tree": "4c05594b8f8d305c8a22dc8a25b87685856854c5"
       },
       "status": "observed_public_immutable_remote_consumer_verified"
-    },
-    "apple_v0_1_4": {
-      "boundary": "Frozen ABI 2 Apple 0.1.4 stable publication receipt. The pending state binds the exact signed static XCFramework candidate to source parent S, the results-only annotated-tag commit R and tree, the canonical source digest, Developer ID identity, and four candidate asset digests without claiming publication. The verified state additionally binds the exact five-subject GitHub release attestation, public immutable GitHub release, and fresh remote SwiftPM consumer verification. It is not notarization, App Store, physical-device, or hostile-host evidence.",
-      "distribution": {
-        "apple_distribution_evidence_sha256": "e3b83a577d9067d7daba001b10e72015ef74416b47faf7391629c6df86d716f0",
-        "artifact_path": "CQPeriapt.xcframework.zip",
-        "artifact_sha256": "25d07e86c9b565181bd7e863bbdc018ff02813de7bf4ef271af45d7db873b836",
-        "artifact_size": 33183657,
-        "checksums_sha256": "8555cd1508dbb5a6ee25ab0e96ae1798ae482fe60e0316f4a8f562d0cf8a433e",
-        "distribution_signed": true,
-        "immutable_release": false,
-        "manifest_sha256": "be46c8e52bf60ad05ae9843df0624d9529d1b622228a4e888316426419ff2bec",
-        "notarization_applicability": "not_applicable_static_sdk_payload",
-        "notarized": false,
-        "origin_signature_certificate_sha256": "806673908a3ddcd558dcc8d3ef055085f1fff100bda0acfb2e1315afd652ac8d",
-        "origin_signature_identity_class": "Developer ID Application",
-        "origin_signature_team_id": "YKUPL7Z869",
-        "public_release": false,
-        "release_revision": "r1",
-        "release_tag": "v0.1.4",
-        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.4",
-        "remote_consumer_verified": false,
-        "remote_verification": {
-          "log_sha256": null,
-          "verified_at": null,
-          "verifier_commit": null
-        },
-        "source_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
-        "stapled": false,
-        "swiftpm_checksum": "25d07e86c9b565181bd7e863bbdc018ff02813de7bf4ef271af45d7db873b836",
-        "version": "0.1.4"
-      },
-      "identity": {
-        "distribution_revision": "r1",
-        "product_version": "0.1.4",
-        "release_tag": "v0.1.4",
-        "release_url": "https://github.com/billlza/q-periapt/releases/tag/v0.1.4"
-      },
-      "kind": "qperiapt.apple_xcframework_publication_receipt",
-      "schema_version": 1,
-      "source": {
-        "canonical_source_tree_sha256": "1e9dd9f7653666e9af795c694fc17ec1ca7dcf133b6ae9727b2002bc6ea6759e",
-        "source_parent_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
-        "tag_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-        "tag_object": "d84d451dad3631b99f389c9e4942c0a553b865b6",
-        "tag_tree": "b5ab52f5545faa1d93a6f864026d85c0977f3afc"
-      },
-      "status": "signed_candidate_pending_release_verification"
     },
     "crates_io_v0_1_3": {
       "boundary": "ABI 2 Q-Periapt 0.1.3 crates.io publication receipt. Local package digests provide Level-1 accidental-mismatch detection. A crate is published_verified only when the official crates.io API and sparse index both report version 0.1.3, the exact local .crate SHA-256, and yanked=false. Published crates must form the fixed dependency-safe prefix; absent suffix entries are not a rollback claim. Upload outcome unknown is intentionally outside this public receipt and blocks an aggregate verified result.",
@@ -1723,346 +1628,6 @@
       },
       "schema_version": 3,
       "status": "observed_public_immutable_fresh_download_verified"
-    },
-    "platform_v0_1_4": {
-      "boundary": "Frozen ABI 2 0.1.4 stable platform publication receipt. The pending state binds the annotated tag, exact source identity, the final seven-asset local release candidate, and one verified four-product candidate attestation covering exact-R binary-CT and six-language CodeQL runs with their actual analysis result counts, plus an empty main-ref open-alert observation establishing zero unadjudicated findings; absent remote fields are unrecorded, not evidence of non-publication. The verified state additionally binds the exact seven public immutable GitHub release assets, release attestation, fresh redownload and deep verification, API 35 arm64-v8a 16 KiB emulator runtime evidence and unpublished external registries. Windows is excluded from the formal stable asset set until a signed publication boundary exists. It does not claim registry or store publication, Windows support, physical-device coverage, or anonymous download availability; the GitHub CLI observation uses the source-pinned executable, exactly one bounded credential, a minimal environment, and empty private configuration. Dynamic digests provide Level-1 accidental-mismatch detection within repository-trusted evidence; they do not attest a hostile builder or host.",
-      "identity": {
-        "distribution_revision": "r1",
-        "product_version": "0.1.4",
-        "release_tag": "abi2-platforms-v0.1.4",
-        "release_url": "https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.4"
-      },
-      "kind": "qperiapt.abi2_platform_publication_receipt",
-      "observation": {
-        "assembly_receipt_sha256": "33c2fc75e4b8c8ccc9586c6bca4a499df88ed15f002ae9eb785b25d26b0bb89f",
-        "candidate_attestation": {
-          "certificate_san": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.4",
-          "predicate_type": "https://slsa.dev/provenance/v1",
-          "security_gate": {
-            "code_scanning": {
-              "analyses": [
-                {
-                  "analysis_id": 1691127915,
-                  "analysis_key": ".github/workflows/codeql.yml:analyze",
-                  "category": "/language:actions",
-                  "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                  "error": "",
-                  "ref": "refs/heads/main",
-                  "results_count": 0,
-                  "rules_count": 23,
-                  "tool": {
-                    "name": "CodeQL",
-                    "version": "2.26.2"
-                  },
-                  "warning": ""
-                },
-                {
-                  "analysis_id": 1691128905,
-                  "analysis_key": ".github/workflows/codeql.yml:analyze",
-                  "category": "/language:c-cpp",
-                  "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                  "error": "",
-                  "ref": "refs/heads/main",
-                  "results_count": 0,
-                  "rules_count": 95,
-                  "tool": {
-                    "name": "CodeQL",
-                    "version": "2.26.2"
-                  },
-                  "warning": ""
-                },
-                {
-                  "analysis_id": 1691132077,
-                  "analysis_key": ".github/workflows/codeql.yml:analyze",
-                  "category": "/language:java-kotlin",
-                  "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                  "error": "",
-                  "ref": "refs/heads/main",
-                  "results_count": 0,
-                  "rules_count": 120,
-                  "tool": {
-                    "name": "CodeQL",
-                    "version": "2.26.2"
-                  },
-                  "warning": ""
-                },
-                {
-                  "analysis_id": 1691130401,
-                  "analysis_key": ".github/workflows/codeql.yml:analyze",
-                  "category": "/language:python",
-                  "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                  "error": "",
-                  "ref": "refs/heads/main",
-                  "results_count": 185,
-                  "rules_count": 50,
-                  "tool": {
-                    "name": "CodeQL",
-                    "version": "2.26.2"
-                  },
-                  "warning": ""
-                },
-                {
-                  "analysis_id": 1691145268,
-                  "analysis_key": ".github/workflows/codeql.yml:analyze",
-                  "category": "/language:rust",
-                  "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                  "error": "",
-                  "ref": "refs/heads/main",
-                  "results_count": 26,
-                  "rules_count": 27,
-                  "tool": {
-                    "name": "CodeQL",
-                    "version": "2.26.2"
-                  },
-                  "warning": ""
-                },
-                {
-                  "analysis_id": 1691161235,
-                  "analysis_key": ".github/workflows/codeql.yml:analyze",
-                  "category": "/language:swift",
-                  "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                  "error": "",
-                  "ref": "refs/heads/main",
-                  "results_count": 0,
-                  "rules_count": 28,
-                  "tool": {
-                    "name": "CodeQL",
-                    "version": "2.26.2"
-                  },
-                  "warning": ""
-                }
-              ],
-              "main_ref": {
-                "commit_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                "ref": "refs/heads/main"
-              },
-              "open_alerts": []
-            },
-            "kind": "qperiapt.abi2_source_security_gate",
-            "observation_tools": {
-              "github_cli": {
-                "name": "gh",
-                "path": "/usr/bin/gh",
-                "sha256": "62885b97de6a0cd85e616cdd94bcda908bf5cf1018094385892b05cea3537163",
-                "version": "gh version 2.98.0 (2026-08-20)"
-              }
-            },
-            "receipt_sha256": "b49b3437e7d7e5aac4e9594f71d0803ad7723674c82aa430499f30e99c5aa8f2",
-            "repository": "billlza/q-periapt",
-            "schema_version": 2,
-            "source_parent_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
-            "tag_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-            "workflows": {
-              "ci": {
-                "conclusion": "success",
-                "event": "push",
-                "head_branch": "main",
-                "head_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                "jobs": [
-                  {
-                    "architecture": "x86_64",
-                    "conclusion": "success",
-                    "implementation": "portable-c",
-                    "job_id": 99067690465,
-                    "name": "Binary CT [x86_64-portable]",
-                    "status": "completed"
-                  },
-                  {
-                    "architecture": "aarch64",
-                    "conclusion": "success",
-                    "implementation": "aarch64-native",
-                    "job_id": 99067690359,
-                    "name": "Binary CT [aarch64-native]",
-                    "status": "completed"
-                  }
-                ],
-                "run_attempt": 1,
-                "run_id": 33240040391,
-                "status": "completed",
-                "workflow_name": "ci",
-                "workflow_path": ".github/workflows/ci.yml",
-                "workflow_sha256": "156c471cb8f442d6cd79ae52dc794b7e7043e657b2fec1a3a3db67262935aed4"
-              },
-              "codeql": {
-                "conclusion": "success",
-                "event": "push",
-                "head_branch": "main",
-                "head_sha": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-                "jobs": [
-                  {
-                    "conclusion": "success",
-                    "job_id": 99067690252,
-                    "language": "actions",
-                    "name": "Analyze (actions)",
-                    "status": "completed"
-                  },
-                  {
-                    "conclusion": "success",
-                    "job_id": 99067690258,
-                    "language": "c-cpp",
-                    "name": "Analyze (c-cpp)",
-                    "status": "completed"
-                  },
-                  {
-                    "conclusion": "success",
-                    "job_id": 99067690416,
-                    "language": "java-kotlin",
-                    "name": "Analyze (java-kotlin)",
-                    "status": "completed"
-                  },
-                  {
-                    "conclusion": "success",
-                    "job_id": 99067690287,
-                    "language": "python",
-                    "name": "Analyze (python)",
-                    "status": "completed"
-                  },
-                  {
-                    "conclusion": "success",
-                    "job_id": 99067690232,
-                    "language": "rust",
-                    "name": "Analyze (rust)",
-                    "status": "completed"
-                  },
-                  {
-                    "conclusion": "success",
-                    "job_id": 99067690259,
-                    "language": "swift",
-                    "name": "Analyze (swift)",
-                    "status": "completed"
-                  }
-                ],
-                "run_attempt": 1,
-                "run_id": 33240040387,
-                "status": "completed",
-                "workflow_name": "CodeQL",
-                "workflow_path": ".github/workflows/codeql.yml",
-                "workflow_sha256": "3cf881d8731c50d9237eca41dd7d05d6d1af0188e958baa3109ab957802884c5"
-              }
-            }
-          },
-          "signer_workflow": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.4",
-          "source_digest": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-          "source_ref": "refs/tags/abi2-platforms-v0.1.4",
-          "subjects": [
-            {
-              "digest": {
-                "sha256": "528fd5bd9aef5e6bf35e089a2745218ce1bad392b6b22872092cba8f65925b0c"
-              },
-              "name": "q-periapt-android-0.1.4.aar"
-            },
-            {
-              "digest": {
-                "sha256": "e5712525f05ff02e3334896fb5db7e27feebafd4d9f8b039ba3986f7b4bddda7"
-              },
-              "name": "q-periapt-android-0.1.4-MANIFEST.json"
-            },
-            {
-              "digest": {
-                "sha256": "888105a1f3284f993d6d13ce508a2c505ec7e1fcf00eb28a7321c908f3c14075"
-              },
-              "name": "q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz"
-            },
-            {
-              "digest": {
-                "sha256": "c09bfc88a46e9410637b2fd8a082fc8dc368c455613f8603925607f25f8f2372"
-              },
-              "name": "q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz"
-            },
-            {
-              "digest": {
-                "sha256": "2bd3706a50e949e97871fcadd7347a8d4f2ba6fafc4149d36d6659c888a65d2b"
-              },
-              "name": "CANDIDATE_SHA256SUMS"
-            },
-            {
-              "digest": {
-                "sha256": "b49b3437e7d7e5aac4e9594f71d0803ad7723674c82aa430499f30e99c5aa8f2"
-              },
-              "name": "ABI2_SOURCE_SECURITY_GATE.json"
-            }
-          ],
-          "verification_record_sha256": "e25f24d76c0cb2a3a14d4c2b9481b86bdcba8fe168b61822c157cc4bd1f35a06",
-          "verified": true,
-          "verified_at": "2026-08-29T08:26:16Z",
-          "workflow_run_attempt": 1,
-          "workflow_run_id": 33242874997
-        },
-        "observed_at": "2026-08-29T08:59:48Z",
-        "release_candidate": {
-          "android_runtime_evidence": {
-            "bundle_manifest_sha256": "305d326b6c8bcd8ca49eef17b78f86dd3455f0ea4f9d72acdbc5c3c71eee22d9",
-            "bundle_schema": 2,
-            "bundle_sha256": "098fcc176ce30a4521ac93011d8c412357a5473d7fa104d30f9b128f062a58d6",
-            "device_abi": "arm64-v8a",
-            "device_kind": "emulator",
-            "device_sdk": 35,
-            "page_size": 16384,
-            "proof_schema": 6,
-            "proof_sha256": "500d9bc5f7012ef77584f96894be587f80153370154225c5446a566eab6ee426",
-            "release_mode": true,
-            "tested_aar_manifest_sha256": "e5712525f05ff02e3334896fb5db7e27feebafd4d9f8b039ba3986f7b4bddda7",
-            "tested_aar_sha256": "528fd5bd9aef5e6bf35e089a2745218ce1bad392b6b22872092cba8f65925b0c"
-          },
-          "assets": [
-            {
-              "bytes": 3929,
-              "content_type": "application/json",
-              "name": "PLATFORM_DISTRIBUTION.json",
-              "sha256": "b3bd2f262759a1a74803e8027560e121793f94f21addba6e53b4ae7cbf855ede"
-            },
-            {
-              "bytes": 649,
-              "content_type": "application/octet-stream",
-              "name": "SHA256SUMS",
-              "sha256": "948823b407fe3df93654ac1a408b76b6d5e06d4461c1bcce76d46a936cef1a5c"
-            },
-            {
-              "bytes": 3073800,
-              "content_type": "application/zip",
-              "name": "q-periapt-android-0.1.4-16k-runtime-evidence.zip",
-              "sha256": "098fcc176ce30a4521ac93011d8c412357a5473d7fa104d30f9b128f062a58d6"
-            },
-            {
-              "bytes": 3918,
-              "content_type": "application/json",
-              "name": "q-periapt-android-0.1.4-MANIFEST.json",
-              "sha256": "e5712525f05ff02e3334896fb5db7e27feebafd4d9f8b039ba3986f7b4bddda7"
-            },
-            {
-              "bytes": 3525659,
-              "content_type": "application/octet-stream",
-              "name": "q-periapt-android-0.1.4.aar",
-              "sha256": "528fd5bd9aef5e6bf35e089a2745218ce1bad392b6b22872092cba8f65925b0c"
-            },
-            {
-              "bytes": 1375545,
-              "content_type": "application/x-gtar",
-              "name": "q-periapt-c-abi2-0.1.4-aarch64-unknown-linux-gnu.tar.gz",
-              "sha256": "c09bfc88a46e9410637b2fd8a082fc8dc368c455613f8603925607f25f8f2372"
-            },
-            {
-              "bytes": 1413601,
-              "content_type": "application/x-gtar",
-              "name": "q-periapt-c-abi2-0.1.4-x86_64-unknown-linux-gnu.tar.gz",
-              "sha256": "888105a1f3284f993d6d13ce508a2c505ec7e1fcf00eb28a7321c908f3c14075"
-            }
-          ],
-          "checksums_sha256": "948823b407fe3df93654ac1a408b76b6d5e06d4461c1bcce76d46a936cef1a5c",
-          "platform_distribution_sha256": "b3bd2f262759a1a74803e8027560e121793f94f21addba6e53b4ae7cbf855ede"
-        },
-        "source": {
-          "canonical_source_tree_sha256": "1e9dd9f7653666e9af795c694fc17ec1ca7dcf133b6ae9727b2002bc6ea6759e",
-          "source_date_epoch": 1787987157,
-          "source_parent_commit": "cc7e03af402fd6fad1b86f61b2d15fd2e1fb0c8b",
-          "tag_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555",
-          "tag_object": "e3e1d60c3f653b0e7c55c1aff8a41c7584a01a9c",
-          "tag_tree": "b5ab52f5545faa1d93a6f864026d85c0977f3afc",
-          "verifier_commit": "d8d7f883f5f418db494ae3edc27cc326f635e555"
-        }
-      },
-      "schema_version": 3,
-      "status": "candidate_verified_pending_release_verification"
     }
   },
   "rust_publish": {
