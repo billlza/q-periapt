@@ -17,7 +17,7 @@ use crate::codec::{
     accept_error_is_transient, encode_domain, hash_fields, read_frame, read_frame_until,
     require_domain, write_frame, write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
-use crate::filesystem::open_private_file;
+use crate::filesystem::{open_private_file, provision_private_file};
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
 
 const WITNESS_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-WITNESS-REQUEST/v1";
@@ -602,33 +602,38 @@ struct WitnessStore {
 
 impl WitnessStore {
     fn provision(path: &Path, initial_head: StateHead) -> Result<Self, WitnessError> {
-        let file = open_private_file(path, true).map_err(|_| WitnessError::Persistence)?;
-        let database = Database::builder()
-            .create_file(file)
-            .map_err(|_| WitnessError::Persistence)?;
-        let mut transaction = database
-            .begin_write()
-            .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
-        transaction.set_two_phase_commit(true);
-        {
-            let mut meta = transaction
-                .open_table(META_TABLE)
-                .map_err(|_| WitnessError::Persistence)?;
-            meta.insert(META_SCHEMA, WITNESS_STORE_SCHEMA.as_slice())
-                .map_err(|_| WitnessError::Persistence)?;
-            meta.insert(META_HEAD, initial_head.to_bytes().as_slice())
-                .map_err(|_| WitnessError::Persistence)?;
-            meta.insert(META_OPERATION_COUNT, 0u64.to_be_bytes().as_slice())
-                .map_err(|_| WitnessError::Persistence)?;
-            transaction
-                .open_table(OPERATION_TABLE)
-                .map_err(|_| WitnessError::Persistence)?;
-        }
-        transaction
-            .commit()
-            .map_err(|_| WitnessError::Persistence)?;
-        Ok(Self { database })
+        provision_private_file(
+            path,
+            |_| WitnessError::Persistence,
+            |file| {
+                let database = Database::builder()
+                    .create_file(file)
+                    .map_err(|_| WitnessError::Persistence)?;
+                let mut transaction = database
+                    .begin_write()
+                    .map_err(|_| WitnessError::Persistence)?;
+                transaction.set_durability(Durability::Immediate);
+                transaction.set_two_phase_commit(true);
+                {
+                    let mut meta = transaction
+                        .open_table(META_TABLE)
+                        .map_err(|_| WitnessError::Persistence)?;
+                    meta.insert(META_SCHEMA, WITNESS_STORE_SCHEMA.as_slice())
+                        .map_err(|_| WitnessError::Persistence)?;
+                    meta.insert(META_HEAD, initial_head.to_bytes().as_slice())
+                        .map_err(|_| WitnessError::Persistence)?;
+                    meta.insert(META_OPERATION_COUNT, 0u64.to_be_bytes().as_slice())
+                        .map_err(|_| WitnessError::Persistence)?;
+                    transaction
+                        .open_table(OPERATION_TABLE)
+                        .map_err(|_| WitnessError::Persistence)?;
+                }
+                transaction
+                    .commit()
+                    .map_err(|_| WitnessError::Persistence)?;
+                Ok(Self { database })
+            },
+        )
     }
 
     fn open(path: &Path) -> Result<Self, WitnessError> {
