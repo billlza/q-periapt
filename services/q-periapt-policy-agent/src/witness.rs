@@ -551,6 +551,10 @@ impl WitnessPort for AuthenticatedTcpWitness {
 
     fn compare_and_advance(&self, intent: WitnessIntent) -> Result<WitnessOutcome, WitnessError> {
         let request = Request::compare(random_nonce()?, intent);
+        // Encode here so a failure to build the request is reported as a
+        // definite failure, before anything is transmitted. Past this point the
+        // request may reach the witness, and the witness may commit the advance.
+        let _ = request.body()?;
         match self.exchange(&request) {
             Ok(response) => {
                 let receipt = response.receipt;
@@ -561,8 +565,18 @@ impl WitnessPort for AuthenticatedTcpWitness {
                 }
                 Ok(WitnessOutcome::Known(Box::new(receipt)))
             }
-            Err(WitnessError::Unavailable) => Ok(WitnessOutcome::Unknown),
-            Err(error) => Err(error),
+            // This is a state-changing request, so every remaining failure is
+            // INDETERMINATE, not a definite failure. A response that fails
+            // authentication, does not decode, or does not match the request
+            // still leaves the possibility that the witness applied the advance
+            // and only the answer was lost or tampered with. Reporting those as
+            // errors would invite the caller to retry or roll back against a
+            // state that actually moved. The caller resolves it the way the
+            // protocol intends -- by querying the same unpredictable operation
+            // id -- which is exactly what `Unknown` asks it to do. Read-only
+            // requests keep reporting definite failures, because no state can
+            // have changed underneath them.
+            Err(_) => Ok(WitnessOutcome::Unknown),
         }
     }
 

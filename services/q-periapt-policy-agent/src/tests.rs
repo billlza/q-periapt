@@ -715,6 +715,57 @@ fn witness_rejects_one_key_pair_serving_both_directions() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn cas_with_an_unverifiable_response_is_indeterminate_not_a_failure() -> TestResult {
+    // The request has already gone out, so the witness may have committed the
+    // advance and only the answer was lost or tampered with. Reporting a
+    // definite failure would invite the caller to retry or roll back against a
+    // state that actually moved.
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let (_witness_sk, witness_vk) = MlDsa65::generate([61u8; 32]);
+
+    let hostile = thread::spawn(move || -> TestResult {
+        let (mut stream, _peer) = listener.accept()?;
+        stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+        // Consume the request, then answer with a well-framed but unverifiable
+        // envelope: signed by nobody the client trusts.
+        let mut scratch = [0u8; 4096];
+        let _ = stream.read(&mut scratch);
+        let junk = [0x5Au8; 64];
+        let mut framed = Vec::new();
+        framed.extend_from_slice(&(junk.len() as u32).to_be_bytes());
+        framed.extend_from_slice(&junk);
+        let _ = stream.write_all(&framed);
+        let _ = stream.flush();
+        Ok(())
+    });
+
+    let client = AuthenticatedTcpWitness::new(
+        address,
+        ZeroizingBytes::from_bytes(MlDsa65::generate([62u8; 32]).0),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    let outcome = client.compare_and_advance(WitnessIntent::new(
+        OperationId::generate()?,
+        StateAdvance::new(
+            TransitionKind::Advance,
+            StateRevision::new(1, 1, [5u8; 32])?,
+            StateRevision::new(2, 2, [2u8; 32])?,
+        )?,
+        FenceToken::generate()?,
+        FenceToken::generate()?,
+    )?);
+
+    assert!(
+        matches!(outcome, Ok(WitnessOutcome::Unknown)),
+        "an unverifiable response to a state-changing request must be indeterminate; got {outcome:?}"
+    );
+    let _ = hostile.join();
+    Ok(())
+}
+
 fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
     handle
         .join()
