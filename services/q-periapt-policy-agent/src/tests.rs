@@ -1796,6 +1796,14 @@ fn an_operation_that_outlives_its_proven_lease_coverage_retains_nothing() -> Tes
     // the renew succeeded, and time passed before the agent learned the expiry.
     pair.initiator_authority
         .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
+    // Spend that last millisecond inside the snapshot, so the coverage has
+    // provably lapsed by the time the operation checks it. Without this the
+    // test would be racing the real work between the snapshot and the check --
+    // key generation, the witness round trip, the contract's signature
+    // verifications -- and would start passing for the wrong reason, or fail
+    // outright, once a release build brings that work under a millisecond.
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(20));
 
     let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization,

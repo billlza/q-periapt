@@ -19,7 +19,7 @@ weaker socket.
 | --- | --- | --- |
 | Owner-only service/config/state paths (`0700`/`0600`, `O_NOFOLLOW`, descriptor-pinned) | daemon | all platforms |
 | IPC socket existence, owner, group and mode (`0660`, daemon owner, client group) | service manager | `q-periapt-policy-agent.socket`, `com.qperiapt.policy-agent.plist` |
-| Socket parent directory `0710` — the enforced admission boundary | tmpfiles.d | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs) |
+| Socket parent directory `0710` — the enforced admission boundary | tmpfiles.d on Linux; **the deployment itself on macOS** | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs). macOS clears `/private/var/run` at boot too, and ships no tmpfiles equivalent — see the non-claim below |
 | Refusal to serve without a matching activated listener; no self-bind fallback | daemon | all platforms |
 | macOS extended-ACL rejection on protected paths | daemon | macOS |
 | Pinned-key mutual authentication (IPC, witness, authority) + replay windows | daemon | all platforms |
@@ -50,6 +50,20 @@ weaker socket.
   never infers that an existing socket is dead, and nothing here removes one
   with `rm -f` or an `ExecStartPre`: the socket unit owns the node across
   restarts on Linux, as does the launchd `Sockets` entry on macOS.
+- **On macOS the socket's parent directory has no boot-time owner, and nothing
+  here supplies one.** `/private/var/run` is cleared on every boot exactly as
+  `/run` is on Linux, but launchd has no `tmpfiles.d` equivalent: it creates the
+  `SockPathName` node itself and will not create the directory containing it.
+  So `/private/var/run/qperiapt-agent` — and with it the `0710` mode that is the
+  daemon's only enforced admission boundary — disappears at every reboot. The
+  daemon fails closed when that happens (`launch_activate_socket` cannot bind,
+  activation is absent, and with no self-bind fallback the service simply does
+  not start), but it stays down until something recreates the directory. The
+  deployment owns that step: recreate it at boot with the right owner, group and
+  mode, from a `RunAtLoad` job ordered ahead of the agent or from the same
+  configuration management that installs the templates. Recreating it with a
+  default mode is the dangerous outcome, because the daemon then starts
+  normally and cannot tell that the boundary is gone.
 - These are reviewed deployment templates, not measured attestations: no gate
   in this repository verifies that a production host actually loaded them.
   Treat host provisioning as release evidence to be captured per deployment.
@@ -77,7 +91,13 @@ weaker socket.
    hand: `/run` is a tmpfs, so it is recreated on every boot, and without that
    entry systemd makes it on demand as `0755 root:root`. That directory mode,
    not the socket's own, is the admission boundary the daemon can actually rely
-   on.
+   on. **On macOS this step is yours to automate.** `/private/var/run` is
+   cleared at boot there as well, and launchd creates only the `SockPathName`
+   node, never its parent — so recreate `/private/var/run/qperiapt-agent` as
+   `0710` owned by the daemon account with the transport group on every boot,
+   ahead of the agent job. There is no shipped macOS template for this, and a
+   directory recreated with a default mode leaves the daemon starting happily
+   with no admission boundary at all.
 4. Provision the repository, witness, and authority stores explicitly
    (`StateRepository::provision_new`, `ReferenceWitnessServer::provision`,
    `ReferenceAuthorityServerV2::provision`); the runtime never bootstraps a
