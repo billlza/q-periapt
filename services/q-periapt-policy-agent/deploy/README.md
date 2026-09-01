@@ -22,7 +22,7 @@ other way does not get those guarantees.
 | Read-only OS, private `/tmp`/`/dev`, hidden `/proc`, no home, single writable state tree | systemd | Linux only |
 | `NoNewPrivileges`, empty capability bounding set, no SUID/SGID, no new namespaces, W^X memory | systemd | Linux only |
 | Seccomp syscall filter (`@system-service` minus `@privileged`/`@resources`) | systemd | Linux only |
-| Socket-family and localhost-only IP restriction | systemd | Linux only |
+| Socket-family restriction, and deny-by-default egress with a deployment-supplied allowance | systemd | Linux only |
 
 ## Explicit non-claims
 
@@ -53,6 +53,14 @@ other way does not get those guarantees.
    missing store.
 4. Host the witness and the instance-lease authority outside the agent
    host's rollback/restore domain, or their rollback protection is void.
+   On Linux this requires the drop-in described in
+   `q-periapt-policy-agent.service.d/10-endpoints.conf.example`: the base unit
+   denies all egress and ships no allowance, so the endpoints and the matching
+   `IPAddressAllow` entries are both deployment-supplied and must agree. The
+   unit deliberately does not default to localhost, because that would make the
+   only topology satisfying this requirement unreachable while appearing to
+   work. Co-locating them behind a protected local relay is a valid choice, but
+   it voids this rollback claim and has to be recorded as an accepted risk.
 5. Install the template, adjust paths/endpoints, and start the service. The
    agent acquires the exclusive instance lease at startup and fails closed
    while another unexpired instance holds it.

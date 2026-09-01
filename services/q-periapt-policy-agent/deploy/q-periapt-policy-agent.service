@@ -22,11 +22,15 @@ Wants=network-online.target
 Type=exec
 User=qperiapt-agent
 Group=qperiapt-agent
+# The witness and authority endpoints are deployment-provided; see the required
+# drop-in below. They are NOT hardcoded to localhost, because the deployment
+# contract requires hosting them outside this host's rollback/restore domain.
+EnvironmentFile=/etc/qperiapt-agent/endpoints.conf
 ExecStart=/opt/qperiapt/bin/q-periapt-policy-agent serve-agent \
     /var/lib/qperiapt-agent/service \
     /var/lib/qperiapt-agent/state/agent.redb \
-    127.0.0.1:7841 \
-    127.0.0.1:7842 \
+    ${QPERIAPT_WITNESS_ENDPOINT} \
+    ${QPERIAPT_AUTHORITY_ENDPOINT} \
     /var/lib/qperiapt-agent/config
 Restart=no
 
@@ -62,8 +66,22 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 
 # Network: the Unix IPC socket plus the TCP witness/authority clients only.
+#
+# Deny-by-default is deliberate and stays. What this unit does NOT do is ship a
+# localhost allowance, because that silently contradicts the deployment
+# contract: README.md requires the witness and the instance-lease authority to
+# live outside this host's rollback/restore domain, and `IPAddressAllow=localhost`
+# makes exactly that configuration unreachable. Shipping both would let an
+# operator believe the rollback protection holds while the unit forbids the only
+# topology that provides it.
+#
+# The deployment MUST supply a drop-in that allows precisely the endpoints it
+# configured, and nothing wider. See the worked example in
+# q-periapt-policy-agent.service.d/10-endpoints.conf.example. Choosing to run
+# the witness and authority on this host behind a protected local relay is a
+# valid decision, but it is an explicit decision that voids the rollback claim
+# and must be recorded as such -- not the accidental default.
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-IPAddressAllow=localhost
 IPAddressDeny=any
 
 # Syscall filter: the service-manager-enforced seccomp boundary.

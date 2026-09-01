@@ -11,6 +11,11 @@
     sudo launchctl bootstrap system \
       /Library/LaunchDaemons/com.qperiapt.policy-agent.plist
 
+  Every path below is written canonically under /private/var. On macOS /var is
+  a symlink to private/var, and the daemon opens each path component with
+  O_NOFOLLOW, so a template written as /var/lib/... cannot start: the daemon
+  refuses to traverse the symlink rather than silently resolving it.
+
   launchd offers no seccomp-equivalent syscall filter, and App Sandbox
   requires a signed bundle with entitlements, so the kernel-level syscall
   boundary documented for Linux does not exist here; the macOS boundary is
@@ -26,11 +31,11 @@
     <array>
         <string>/opt/qperiapt/bin/q-periapt-policy-agent</string>
         <string>serve-agent</string>
-        <string>/var/lib/qperiapt-agent/service</string>
-        <string>/var/lib/qperiapt-agent/state/agent.redb</string>
+        <string>/private/var/lib/qperiapt-agent/service</string>
+        <string>/private/var/lib/qperiapt-agent/state/agent.redb</string>
         <string>127.0.0.1:7841</string>
         <string>127.0.0.1:7842</string>
-        <string>/var/lib/qperiapt-agent/config</string>
+        <string>/private/var/lib/qperiapt-agent/config</string>
     </array>
     <key>UserName</key>
     <string>_qperiaptagent</string>
