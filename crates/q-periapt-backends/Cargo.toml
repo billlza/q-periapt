@@ -34,15 +34,18 @@ fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44
 x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
 # SHA3-256 / SHAKE-256. `std` is not needed by the digest implementation.
 # Held at 0.10.9 deliberately. sha3 0.12 removed SHAKE into a separate, brand-new
-# `shake` 0.1.0 crate, and SHAKE-256 is the combiner XOF -- the single primitive
-# assumption under the binding proof (docs/THREAT_MODEL.md §3). Moving it to a
-# 0.1.0 crate would change that assumption's implementation for no cryptographic
-# gain: SHA3/SHAKE outputs are standardized and unchanged, so 0.12 is an API and
-# packaging reshuffle only. It would also strictly ADD surface rather than
-# replace it, because fips204 (a production dependency already at its latest
-# 0.4.6) pins sha3 ^0.10.2, so 0.10.x stays in the graph either way -- the result
-# would be two sha3 major versions plus `shake`. Revisit when the SHAKE split has
-# a track record and the FIPS backends have moved.
+# `shake` 0.1.0 crate. Both primitives this crate draws from `sha3` are covered by
+# the binding proof's single primitive assumption (docs/THREAT_MODEL.md §3, which
+# names SHA3-256 / SHAKE-256 jointly): SHA3-256 finalizes the combiner XOF
+# (`Sha3_256Xof::squeeze32`), and SHAKE-256 derives the X-Wing d||z seed
+# (`mlkem768_xwing_dz`). It is SHAKE -- the one the split re-homes -- that would
+# move onto a 0.1.0 crate, changing that assumption's implementation for no
+# cryptographic gain: SHA3/SHAKE outputs are standardized and unchanged, so 0.12
+# is an API and packaging reshuffle only. It would also strictly ADD surface
+# rather than replace it, because fips204 (a production dependency already at its
+# latest 0.4.6) pins sha3 ^0.10.2, so 0.10.x stays in the graph either way -- the
+# result would be two sha3 major versions plus `shake`. Revisit when the SHAKE
+# split has a track record and the FIPS backends have moved.
 sha3 = { version = "=0.10.9", default-features = false }
 # --- optional backends (see [features]) ---
 # SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged, KAT-able) signing by
