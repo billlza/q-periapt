@@ -313,10 +313,17 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         for accepted in listener.incoming() {
             // A transient accept failure (descriptor pressure, a signal, a peer
             // that reset before we got here) must not end the daemon; only a
-            // listener that is genuinely unusable is fatal.
+            // listener that is genuinely unusable is fatal. This listener is
+            // blocking, so a resource-exhaustion error returns immediately;
+            // retrying without pause would spin at full CPU until the condition
+            // clears and worsen an already degraded host. Back off the same
+            // 5ms the TCP loops use.
             let mut stream = match accepted {
                 Ok(stream) => stream,
-                Err(error) if accept_error_is_transient(&error) => continue,
+                Err(error) if accept_error_is_transient(&error) => {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
                 Err(_) => return Err(IpcError::Unavailable),
             };
             match self.handle(&mut stream) {
