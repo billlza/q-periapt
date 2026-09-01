@@ -231,8 +231,17 @@ Three linked mechanisms, all fail-closed at the signed-policy execution boundary
 
 - **Validated floor and closed suites.** `Policy::try_new` / `from_toml` reject zero
   versions, invalid NIST floors, unknown/duplicate identifiers, unknown TOML fields,
-  and unsatisfiable documents. `meets_floor`, `kem_allowed`, and `sig_allowed` reject
-  below-floor or deprecated algorithms. `resolve_suite` then intersects the policy
+  and unsatisfiable documents. Role is validated separately from strength: the NIST
+  level table is shared by KEMs and signatures (`ML-KEM-1024` and `ML-DSA-87` are both
+  level 5), so `is_kem` / `is_signature` reject a signature listed in `allowed_kems`
+  or a KEM listed in `allowed_sigs` (`PolicyError::RoleMismatch`) even when the entry
+  clears the floor. `meets_floor`, `kem_allowed`, and `sig_allowed` reject below-floor
+  or deprecated algorithms. Note the enforcement asymmetry: `kem_allowed` gates the
+  runtime key-establishment decision through `resolve_suite`, whereas the signature
+  allow-list is a load-time validation input — the signature algorithm actually
+  accepted at runtime is fixed by the caller's injected `q_periapt_sig::Verifier`
+  (a typed `SigAlg`, so a KEM can never be substituted there), not selected from
+  `allowed_sigs`. `resolve_suite` then intersects the policy
   with concrete locally implemented [`HybridSuite`](../crates/q-periapt-policy/src/lib.rs)
   variants and returns one private-field `ResolvedSuite` containing suite, profile,
   key format, and policy version. If no complete local suite satisfies the document,
