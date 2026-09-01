@@ -20,6 +20,8 @@ use q_periapt_migration::{
     EndpointRole, InitiatorFinishedV1, MigrationAuthorityKeyId, MigrationIdentityKeyId,
     ResponderFinishedV1,
 };
+use rustix::event::{poll, PollFd, PollFlags, Timespec};
+use rustix::io::Errno;
 
 use crate::activation::{activated_listener, ActivationError};
 use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError};
@@ -299,6 +301,31 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> fmt::Debug for Un
 /// directions of this protocol are carried by different key pairs.
 const IPC_DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-IPC-DIRECTION-PROBE/v1";
 
+/// How long the serving loop waits for a connection before sweeping expired
+/// sessions. This is the granularity of the session TTL on an idle daemon, not
+/// a poll interval in the busy-wait sense: the wait is a real blocking `poll`,
+/// so a connection is still accepted the moment it arrives.
+const IDLE_MAINTENANCE_INTERVAL: Timespec = Timespec {
+    tv_sec: 1,
+    tv_nsec: 0,
+};
+
+/// Wait for a connection to accept, or for the maintenance interval to elapse.
+///
+/// `false` means the wait timed out and the caller should run one maintenance
+/// pass. A signal that interrupts the wait reports the same thing: sweeping and
+/// waiting again is both correct and cheap, and it keeps a routine `EINTR` from
+/// being mistaken for a dead listener.
+fn wait_for_connection(listener: &UnixListener) -> Result<bool, IpcError> {
+    let mut descriptors = [PollFd::new(listener, PollFlags::IN)];
+    match poll(&mut descriptors, Some(&IDLE_MAINTENANCE_INTERVAL)) {
+        Ok(0) => Ok(false),
+        Ok(_) => Ok(true),
+        Err(Errno::INTR) => Ok(false),
+        Err(_) => Err(IpcError::Unavailable),
+    }
+}
+
 /// Reject a configuration whose request and response directions share one key
 /// pair, and prove the server signing key can actually produce a signature.
 ///
@@ -346,22 +373,45 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
 
     /// Serve one request per accepted connection with bounded sequential resources.
     fn serve(mut self, listener: UnixListener) -> Result<(), IpcError> {
-        for accepted in listener.incoming() {
-            // A transient accept failure (descriptor pressure, a signal, a peer
-            // that reset before we got here) must not end the daemon; only a
-            // listener that is genuinely unusable is fatal. This listener is
-            // blocking, so a resource-exhaustion error returns immediately;
-            // retrying without pause would spin at full CPU until the condition
-            // clears and worsen an already degraded host. Back off the same
-            // 5ms the TCP loops use.
-            let mut stream = match accepted {
-                Ok(stream) => stream,
+        // Wait in `poll` rather than in `accept`, for two reasons. A daemon
+        // nobody is talking to still has to run its session TTL sweep, and only
+        // a bounded wait gives it the chance. And a blocking `accept` can still
+        // block after a readiness report, if the queued peer resets in between;
+        // on this single-threaded loop that stalls the daemon until some other
+        // client happens to connect. A non-blocking listener turns that case
+        // into a `WouldBlock` the loop can simply retry.
+        listener
+            .set_nonblocking(true)
+            .map_err(|_| IpcError::Unavailable)?;
+        loop {
+            if !wait_for_connection(&listener)? {
+                self.agent.expire_idle_sessions();
+                continue;
+            }
+            let mut stream = match listener.accept() {
+                Ok((stream, _)) => stream,
+                // Reported readable, but the connection is already gone. `poll`
+                // did the waiting, so go straight back to it without a pause.
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => continue,
+                // A transient accept failure (descriptor pressure, a signal, a
+                // peer that reset before we got here) must not end the daemon;
+                // only a listener that is genuinely unusable is fatal. Resource
+                // exhaustion returns immediately, and retrying without pause
+                // would spin at full CPU until the condition clears and worsen
+                // an already degraded host. Back off the same 5ms the TCP loops
+                // use.
                 Err(error) if accept_error_is_transient(&error) => {
                     std::thread::sleep(Duration::from_millis(5));
                     continue;
                 }
                 Err(_) => return Err(IpcError::Unavailable),
             };
+            // An accepted socket inherits the listener's non-blocking mode on
+            // the BSDs but not on Linux. Set it explicitly so the request
+            // handler's deadline reads block identically on both.
+            stream
+                .set_nonblocking(false)
+                .map_err(|_| IpcError::Unavailable)?;
             match self.handle(&mut stream) {
                 Ok(())
                 | Err(IpcError::InvalidMessage)
@@ -370,7 +420,6 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 Err(error) => return Err(error),
             }
         }
-        Err(IpcError::Unavailable)
     }
 
     fn handle(&mut self, stream: &mut UnixStream) -> Result<(), IpcError> {
@@ -957,6 +1006,35 @@ mod tests {
 
     use super::*;
     use crate::codec::read_frame;
+
+    #[test]
+    fn the_accept_wait_times_out_when_idle_and_reports_a_waiting_client() {
+        let directory =
+            std::env::temp_dir().join(format!("qperiapt-accept-wait-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).expect("temporary directory");
+        let path = directory.join("accept-wait.sock");
+        let _ = std::fs::remove_file(&path);
+        let listener = UnixListener::bind(&path).expect("listener");
+        listener.set_nonblocking(true).expect("non-blocking");
+
+        // Nothing is connected, so the wait must return control rather than
+        // parking until a client shows up. This is what gives an idle daemon
+        // the chance to sweep expired sessions.
+        let waited = Instant::now();
+        assert_eq!(wait_for_connection(&listener), Ok(false));
+        assert!(waited.elapsed() >= Duration::from_millis(500));
+
+        // A waiting client is reported, and the accept that follows does not
+        // block -- the listener is non-blocking, so a report that turned out to
+        // be stale would surface as `WouldBlock` instead of stalling the loop.
+        let client = UnixStream::connect(&path).expect("client");
+        assert_eq!(wait_for_connection(&listener), Ok(true));
+        assert!(listener.accept().is_ok());
+
+        drop(client);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir(&directory);
+    }
 
     fn request_body(command: u8) -> Result<Vec<u8>, IpcError> {
         let mut encoder = Encoder::new(MAX_FRAME_BYTES);

@@ -1045,6 +1045,42 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ))
     }
 
+    /// Erase every pending session whose TTL has already elapsed.
+    ///
+    /// Every request path purges before it acts, so this covers only the idle
+    /// case. Without it the TTL means "erased when the agent is next used"
+    /// rather than "erased on time", and a daemon that stops receiving requests
+    /// keeps expired session key material in memory for as long as it stays
+    /// quiet. The serving loop calls this whenever its accept wait times out.
+    ///
+    /// This is cleanup, so it requires nothing and reports nothing. It takes no
+    /// instance lease, because releasing a secret must not depend on holding
+    /// one, and it does not check liveness, because a poisoned agent is
+    /// precisely when the secrets should still go. `erase_pending` drops the
+    /// key material before it touches the repository, so a session whose
+    /// durable reservation fails to release has still lost its secret and the
+    /// sweep continues rather than stranding every session behind it.
+    pub fn expire_idle_sessions(&self) {
+        let Ok(mut inner) = self.lock() else {
+            return;
+        };
+        for handle in expired_handles(&inner, Instant::now()) {
+            let _ = erase_pending(&mut inner, handle);
+        }
+    }
+
+    /// Number of pending sessions currently held, expired or not.
+    ///
+    /// Every request path purges before it acts, so the idle sweep cannot be
+    /// observed through the public API: by the time a caller could ask, the
+    /// question has already answered itself. This exists so the tests can see
+    /// that an expired session really does survive until something sweeps it,
+    /// and really does go when the sweep runs.
+    #[cfg(test)]
+    pub(crate) fn pending_session_count(&self) -> usize {
+        self.lock().map_or(0, |inner| inner.pending_sessions.len())
+    }
+
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
     }
@@ -1430,16 +1466,21 @@ fn erase_pending<W: WitnessPort, A: InstanceAuthorityPort>(
     }
 }
 
-fn purge_expired<W: WitnessPort, A: InstanceAuthorityPort>(
-    inner: &mut Inner<W, A>,
-) -> Result<(), AgentError> {
-    let now = Instant::now();
-    let expired: Vec<_> = inner
+fn expired_handles<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+    now: Instant,
+) -> Vec<PendingSessionHandle> {
+    inner
         .pending_sessions
         .iter()
         .filter_map(|(handle, pending)| pending.is_expired(now).then_some(*handle))
-        .collect();
-    for handle in expired {
+        .collect()
+}
+
+fn purge_expired<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
+    for handle in expired_handles(inner, Instant::now()) {
         erase_pending(inner, handle)?;
     }
     Ok(())

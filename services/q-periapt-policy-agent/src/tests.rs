@@ -1333,6 +1333,14 @@ struct AgentPair {
 }
 
 fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPair> {
+    agent_pair_with_session_ttl(directory, session_byte, Duration::from_secs(60))
+}
+
+fn agent_pair_with_session_ttl(
+    directory: &TestDirectory,
+    session_byte: u8,
+    session_ttl: Duration,
+) -> TestResult<AgentPair> {
     use std::os::unix::fs::PermissionsExt;
 
     let policy = policy_material(20)?;
@@ -1360,7 +1368,7 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
     let (responder_identity_sk, responder_identity_vk) = MlDsa65::generate([52u8; 32]);
     let initiator_identity_id = MigrationIdentityKeyId::from_bytes([61u8; 32]);
     let responder_identity_id = MigrationIdentityKeyId::from_bytes([62u8; 32]);
-    let limits = AgentLimits::new(16, 16, Duration::from_secs(60))?;
+    let limits = AgentLimits::new(16, 16, session_ttl)?;
     let initiator_config = AgentConfig::new(
         limits,
         EndpointRole::Initiator,
@@ -1524,6 +1532,35 @@ fn responder_decapsulation(
             Err(io::Error::other("responder returned initiator begin state").into())
         }
     }
+}
+
+#[test]
+fn an_idle_agent_erases_expired_session_secrets_without_being_asked() -> TestResult {
+    let directory = TestDirectory::new()?;
+    // Short enough that the session is past its deadline almost immediately, so
+    // the test observes the expiry rather than waiting out a realistic TTL.
+    let pair = agent_pair_with_session_ttl(&directory, 9, Duration::from_millis(1))?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    thread::sleep(Duration::from_millis(20));
+
+    // The deadline has passed and the session is still here. That is the whole
+    // problem: every purge so far has been a side effect of some request, so an
+    // agent nobody is talking to holds its expired key material indefinitely.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // This is what the serving loop calls when its accept wait times out.
+    pair.initiator.expire_idle_sessions();
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+
+    // The sweep releases the durable reservation too, so the freed capacity is
+    // real and not just a forgotten map entry.
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
 }
 
 #[test]
