@@ -432,9 +432,9 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     fn handle_io<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
-        deadline: Instant,
+        read_deadline: Instant,
     ) -> Result<(), IpcError> {
-        let envelope = read_frame_until(stream, deadline).map_err(map_codec)?;
+        let envelope = read_frame_until(stream, read_deadline).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)
             .map_err(map_authentication)?;
         let request = Request::decode(request_body)?;
@@ -457,7 +457,20 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         encode_response_payload(&mut encoder, payload)?;
         let response = sign_envelope(&encoder.finish(), self.server_signing_key.as_bytes())
             .map_err(map_authentication)?;
-        write_frame_until(stream, &response, deadline).map_err(|_| IpcError::Unavailable)
+        // The response gets its own budget rather than whatever is left of the
+        // request's. Reading is paced by the client, so it must be bounded to
+        // keep a slow one from holding this single-threaded loop. Execution is
+        // not: it is bounded by the witness and authority timeouts, and those
+        // together already exceed one IPC timeout, so a state advance would
+        // routinely exhaust a shared deadline before it produced a response.
+        // The client would then be told nothing about an operation that had
+        // already committed -- the one outcome this protocol most needs to
+        // avoid. Both phases stay separately bounded, so the connection as a
+        // whole is still bounded.
+        let write_deadline = Instant::now()
+            .checked_add(self.io_timeout)
+            .ok_or(IpcError::Unavailable)?;
+        write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
     }
 
     #[cfg(test)]

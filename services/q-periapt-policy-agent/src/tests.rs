@@ -797,6 +797,42 @@ impl DeadlineStream for CaptureTransport {
     }
 }
 
+/// Records the write timeout the framing layer asks for, so a test can see
+/// which budget the response was actually given.
+struct WriteBudgetTransport {
+    input: Cursor<Vec<u8>>,
+    output: Vec<u8>,
+    write_timeout: std::cell::Cell<Option<Duration>>,
+}
+
+impl Read for WriteBudgetTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.input.read(output)
+    }
+}
+
+impl Write for WriteBudgetTransport {
+    fn write(&mut self, input: &[u8]) -> io::Result<usize> {
+        self.output.extend_from_slice(input);
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl DeadlineStream for WriteBudgetTransport {
+    fn set_read_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn set_write_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        self.write_timeout.set(timeout);
+        Ok(())
+    }
+}
+
 /// Yields one buffered byte per read after a short pause, mimicking a client
 /// that stays inside any per-syscall timeout while never completing a frame.
 struct TricklingTransport {
@@ -1754,6 +1790,58 @@ fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
         .is_err(),
         "one key pair must not carry both IPC directions"
     );
+    Ok(())
+}
+
+#[test]
+fn the_response_write_budget_does_not_come_out_of_the_request_deadline() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 23)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([93u8; 32]);
+    let (server_signing_key, _) = MlDsa65::generate([94u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+
+    let mut transport = WriteBudgetTransport {
+        input: Cursor::new(framed_accept_initiator_request(
+            &client_signing_key,
+            [24u8; 32],
+            decapsulated.handle,
+            encapsulated.initiator_finished,
+        )?),
+        output: Vec::new(),
+        write_timeout: std::cell::Cell::new(None),
+    };
+    // A request deadline with almost nothing left on it, standing in for an
+    // operation whose execution consumed the budget. A real advance does this
+    // routinely: the witness and authority timeouts together outlast a single
+    // IPC timeout.
+    let read_deadline = Instant::now()
+        .checked_add(Duration::from_millis(50))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    server.handle_io_with_deadline_for_test(&mut transport, read_deadline)?;
+
+    // The response was written on a fresh budget, not on the sliver left of the
+    // request's. Sharing the deadline would have failed the write outright and
+    // left the client unable to learn the outcome of a committed operation.
+    let granted = transport
+        .write_timeout
+        .get()
+        .ok_or_else(|| io::Error::other("no write timeout was set"))?;
+    assert!(
+        granted > Duration::from_millis(50),
+        "response write budget {granted:?} came out of the request deadline"
+    );
+    assert!(!transport.output.is_empty());
     Ok(())
 }
 
