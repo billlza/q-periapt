@@ -8,7 +8,6 @@ use std::time::{Duration, Instant};
 
 use q_periapt_backends::Sha3_256Xof;
 use q_periapt_core::Xof256;
-use rustix::io::Errno;
 
 pub(crate) const MAX_FRAME_BYTES: usize = 16 * 1024;
 
@@ -216,22 +215,35 @@ impl DeadlineStream for UnixStream {
 /// states that make the listener itself unusable (EBADF, EINVAL, ENOTSOCK) are
 /// fatal, and those fall through to `false`.
 pub(crate) fn accept_error_is_transient(error: &io::Error) -> bool {
-    if matches!(
+    matches!(
         error.kind(),
         io::ErrorKind::WouldBlock
             | io::ErrorKind::Interrupted
             | io::ErrorKind::ConnectionAborted
             | io::ErrorKind::OutOfMemory
-    ) {
-        return true;
+    ) || transient_accept_errno(error)
+}
+
+/// EMFILE/ENFILE/ENOBUFS carry no stable [`io::ErrorKind`] on this toolchain,
+/// so they are matched by code. These are unix errno values and `rustix` is a
+/// unix-only dependency of this crate, so the lookup exists only there.
+#[cfg(unix)]
+fn transient_accept_errno(error: &io::Error) -> bool {
+    use rustix::io::Errno;
+
+    match error.raw_os_error() {
+        Some(code) => {
+            code == Errno::MFILE.raw_os_error()
+                || code == Errno::NFILE.raw_os_error()
+                || code == Errno::NOBUFS.raw_os_error()
+        }
+        None => false,
     }
-    // EMFILE/ENFILE/ENOBUFS carry no stable `ErrorKind` on this toolchain.
-    let Some(code) = error.raw_os_error() else {
-        return false;
-    };
-    code == Errno::MFILE.raw_os_error()
-        || code == Errno::NFILE.raw_os_error()
-        || code == Errno::NOBUFS.raw_os_error()
+}
+
+#[cfg(not(unix))]
+fn transient_accept_errno(_error: &io::Error) -> bool {
+    false
 }
 
 fn remaining_budget(deadline: Instant) -> Result<Duration, CodecError> {
