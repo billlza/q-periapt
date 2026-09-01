@@ -140,7 +140,7 @@ fn linux_activation_environment(name: &str) -> Result<(), ActivationError> {
     let (Some(listen_pid), Some(listen_fds)) = (listen_pid, listen_fds) else {
         return Err(ActivationError::NotActivated);
     };
-    let listen_pid: u32 = listen_pid
+    let listen_pid: i32 = listen_pid
         .parse()
         .map_err(|_| ActivationError::NotActivated)?;
     if listen_pid != rustix::process::getpid().as_raw_nonzero().get() {
@@ -196,7 +196,9 @@ pub(crate) fn adopted_listener(
     // provenance. See the module documentation.
     #[cfg(target_os = "linux")]
     {
-        if !rustix::net::sockopt::acceptconn(borrowed).map_err(|_| ActivationError::Descriptor)? {
+        if !rustix::net::sockopt::socket_acceptconn(borrowed)
+            .map_err(|_| ActivationError::Descriptor)?
+        {
             return Err(ActivationError::Mismatch);
         }
     }
