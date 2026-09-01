@@ -148,7 +148,7 @@ remains, so recovery requires a new authenticated session rather than reuse.
 The executable accepts exactly one of these command shapes:
 
 ```text
-q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
+q-periapt-policy-agent serve-agent SOCKET_PATH REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
 q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY
 ```
 
@@ -157,6 +157,14 @@ to. The daemon compares it against the descriptor's own bound address and
 refuses to serve on a mismatch; it never binds the path itself. Its directory
 must live in a stable, trusted namespace, so that an untrusted UID cannot rename
 an ancestor and substitute a different client-visible pathname.
+
+Every address argument -- `WITNESS_ADDRESS`, `AUTHORITY_ADDRESS`, and
+`serve-witness`'s `LISTEN_ADDRESS` -- is a numeric `IP:port`. They are parsed as
+a `SocketAddr`, which performs no name resolution, so a hostname is rejected at
+start as an invalid configuration rather than resolved. That is deliberate: the
+Linux template pairs each endpoint with an `IPAddressAllow` entry that systemd
+resolves once at unit load and never re-checks, so a name would be the wrong
+thing on both sides of the same pairing.
 
 A stale socket is not the daemon's problem to solve, and it does not try: it
 never unlinks a path it did not create, and it cannot safely infer that an

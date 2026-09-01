@@ -28,7 +28,10 @@ Group=qperiapt-agent
 # The witness and authority endpoints are deployment-provided; see the required
 # drop-in below. They are NOT hardcoded to localhost, because the deployment
 # contract requires hosting them outside this host's rollback/restore domain.
-EnvironmentFile=/etc/qperiapt-agent/endpoints.conf
+# Optional, so a deployment may instead set both variables in the required
+# drop-in with Environment=. Without the leading '-' a missing file fails the
+# unit, which would block the drop-in-only path the example offers.
+-EnvironmentFile=/etc/qperiapt-agent/endpoints.conf
 # The first argument is the socket path the activated listener must be bound to,
 # not a directory to bind inside: the daemon compares it against getsockname on
 # the descriptor systemd passes. It must equal ListenStream= in the socket unit.
@@ -51,7 +54,11 @@ ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
-ReadWritePaths=/var/lib/qperiapt-agent
+# Only the durable state is writable. The configuration directory holds the
+# pinned peer keys, the signed policy bundles and the authority identity, and
+# the daemon only ever reads them -- leaving it writable would let a
+# compromised process rewrite the very material that constrains it.
+ReadWritePaths=/var/lib/qperiapt-agent/state
 
 # Kernel and process isolation.
 ProtectKernelTunables=yes

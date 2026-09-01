@@ -33,6 +33,19 @@
         <string>serve-agent</string>
         <string>/private/var/run/qperiapt-agent/agent.sock</string>
         <string>/private/var/lib/qperiapt-agent/state/agent.redb</string>
+        <!-- REPLACE BOTH. Numeric IP:port only: these are parsed as a
+             SocketAddr and a hostname is rejected at start.
+
+             These placeholders are localhost, which is NOT the supported
+             topology. README.md requires the witness and the instance-lease
+             authority to live outside this host's rollback/restore domain; a
+             restore of this host would otherwise roll back the witness and the
+             lease authority with it, voiding the rollback protection they
+             exist to provide. The Linux template enforces this by denying all
+             egress until a drop-in names the real endpoints. launchd has no
+             equivalent, so on macOS it rests on this instruction: point both at
+             off-host addresses, or record the co-location as an accepted risk
+             in the deployment evidence. -->
         <string>127.0.0.1:7841</string>
         <string>127.0.0.1:7842</string>
         <string>/private/var/lib/qperiapt-agent/config</string>
@@ -73,10 +86,16 @@
             <string>Unix</string>
             <key>SockType</key>
             <string>stream</string>
+            <!-- REPLACE BOTH. These are placeholders, not defaults: 0/0 is
+                 root/wheel, which is neither the daemon account nor the
+                 transport group. Left as shipped, the socket is owned by root
+                 with mode 0660 and the daemon's own clients cannot reach it,
+                 so this fails closed rather than open -- but it does fail.
+                 Resolve the uid and gid at install time and template them. -->
             <key>SockPathOwner</key>
-            <integer>0</integer><!-- uid of the daemon account; templated at install -->
+            <integer>0</integer><!-- uid of the daemon account -->
             <key>SockPathGroup</key>
-            <integer>0</integer><!-- gid of the transport group; templated at install -->
+            <integer>0</integer><!-- gid of the transport group -->
             <key>SockPathMode</key>
             <integer>432</integer><!-- 0660 -->
         </dict>

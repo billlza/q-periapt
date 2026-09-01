@@ -304,24 +304,26 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> fmt::Debug for Un
 /// directions of this protocol are carried by different key pairs.
 const IPC_DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-IPC-DIRECTION-PROBE/v1";
 
-/// How long the serving loop waits for a connection before sweeping expired
-/// sessions. This is the granularity of the session TTL on an idle daemon, not
-/// a poll interval in the busy-wait sense: the wait is a real blocking `poll`,
-/// so a connection is still accepted the moment it arrives.
-const IDLE_MAINTENANCE_INTERVAL: Timespec = Timespec {
+/// How often the serving loop runs maintenance. This is the granularity of the
+/// session TTL, not a poll interval in the busy-wait sense: the wait is a real
+/// blocking `poll`, so a connection is still accepted the moment it arrives.
+const MAINTENANCE_INTERVAL: Duration = Duration::from_secs(1);
+
+/// The same interval as the `poll` timeout. `maintenance_interval_agrees_with_
+/// the_poll_timeout` pins the two together.
+const MAINTENANCE_TIMEOUT: Timespec = Timespec {
     tv_sec: 1,
     tv_nsec: 0,
 };
 
 /// Wait for a connection to accept, or for the maintenance interval to elapse.
 ///
-/// `false` means the wait timed out and the caller should run one maintenance
-/// pass. A signal that interrupts the wait reports the same thing: sweeping and
-/// waiting again is both correct and cheap, and it keeps a routine `EINTR` from
-/// being mistaken for a dead listener.
+/// `false` means nothing is waiting. A signal that interrupts the wait reports
+/// the same thing, which keeps a routine `EINTR` from being mistaken for a dead
+/// listener; the caller loops and waits again.
 fn wait_for_connection(listener: &UnixListener) -> Result<bool, IpcError> {
     let mut descriptors = [PollFd::new(listener, PollFlags::IN)];
-    match poll(&mut descriptors, Some(&IDLE_MAINTENANCE_INTERVAL)) {
+    match poll(&mut descriptors, Some(&MAINTENANCE_TIMEOUT)) {
         Ok(0) => Ok(false),
         Ok(_) => Ok(true),
         Err(Errno::INTR) => Ok(false),
@@ -380,7 +382,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// The daemon never sets the flag; it exists so the loop is reachable from a
     /// test, matching the witness and authority servers. It is read once per
     /// accept wait, so a shutdown is observed within one maintenance interval.
-    fn serve(mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
+    fn serve(&mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
         // Wait in `poll` rather than in `accept`, for two reasons. A daemon
         // nobody is talking to still has to run its session TTL sweep, and only
         // a bounded wait gives it the chance. And a blocking `accept` can still
@@ -391,9 +393,22 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         listener
             .set_nonblocking(true)
             .map_err(|_| IpcError::Unavailable)?;
+        let mut swept = Instant::now();
         while !shutdown.load(Ordering::Acquire) {
-            if !wait_for_connection(&listener)? {
+            let waiting = wait_for_connection(&listener)?;
+            // Maintenance runs on a schedule, not on idleness. Tying it to a
+            // timed-out wait meant any client that keeps the listener readable
+            // -- a loop of cheap requests, or a loop of connections that fail
+            // authentication -- starved the session sweep indefinitely, and a
+            // busy daemon is precisely the one holding the most expired key
+            // material. The sweep is cheap and takes the same lock the request
+            // path already takes, so running it between connections costs a
+            // bounded scan of at most `max_pending_sessions` entries.
+            if swept.elapsed() >= MAINTENANCE_INTERVAL {
                 self.agent.expire_idle_sessions();
+                swept = Instant::now();
+            }
+            if !waiting {
                 continue;
             }
             let mut stream = match listener.accept() {
@@ -490,7 +505,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// The module is already `cfg(unix)`, so `cfg(test)` is enough here.
     #[cfg(test)]
     pub(crate) fn serve_for_test(
-        self,
+        &mut self,
         listener: UnixListener,
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
@@ -817,6 +832,7 @@ fn serve_agent(
     )?;
     // The daemon runs until the service manager stops it; nothing sets this.
     let shutdown = AtomicBool::new(false);
+    let mut server = server;
     server.serve(listener, &shutdown)
 }
 
@@ -1049,6 +1065,41 @@ mod tests {
 
     use super::*;
     use crate::codec::read_frame;
+
+    #[test]
+    fn endpoint_addresses_are_numeric_only() {
+        // Both deployment templates and README.md state this, because the Linux
+        // template pairs each endpoint with an IPAddressAllow entry that systemd
+        // resolves once at unit load and never re-checks. A name would be the
+        // wrong thing on both sides of that pairing, so it is refused at start
+        // rather than resolved.
+        assert!(parse_socket_address(OsString::from("203.0.113.10:7841")).is_ok());
+        assert!(parse_socket_address(OsString::from("[2001:db8::1]:7841")).is_ok());
+        assert_eq!(
+            parse_socket_address(OsString::from("witness.example.internal:7841")),
+            Err(IpcError::InvalidConfiguration)
+        );
+        assert_eq!(
+            parse_socket_address(OsString::from("localhost:7841")),
+            Err(IpcError::InvalidConfiguration)
+        );
+        assert_eq!(
+            parse_socket_address(OsString::from("203.0.113.10")),
+            Err(IpcError::InvalidConfiguration)
+        );
+    }
+
+    #[test]
+    fn the_maintenance_interval_agrees_with_the_poll_timeout() {
+        // The loop waits for one and schedules on the other; if they drift, the
+        // sweep either runs twice per wait or skips a wait entirely.
+        assert_eq!(
+            u64::try_from(MAINTENANCE_TIMEOUT.tv_sec).expect("timeout seconds fit in u64"),
+            MAINTENANCE_INTERVAL.as_secs()
+        );
+        assert_eq!(MAINTENANCE_TIMEOUT.tv_nsec, 0);
+        assert_eq!(MAINTENANCE_INTERVAL.subsec_nanos(), 0);
+    }
 
     #[test]
     fn the_accept_wait_times_out_when_idle_and_reports_a_waiting_client() {

@@ -1877,6 +1877,70 @@ fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
 }
 
 #[test]
+fn a_busy_listener_does_not_starve_the_session_sweep() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair_with_session_ttl(&directory, 53, Duration::from_millis(1))?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization,
+        encapsulated.ciphertexts,
+    ))?)?;
+    assert_eq!(pair.responder.pending_session_count(), 1);
+
+    let (_, client_verification_key) = MlDsa65::generate([97u8; 32]);
+    let (server_signing_key, _) = MlDsa65::generate([98u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+
+    let socket_path = directory.join("busy.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = AtomicBool::new(false);
+
+    thread::scope(|scope| -> TestResult {
+        let serving = scope.spawn(|| {
+            let mut server = server;
+            let outcome = server.serve_for_test(listener, &shutdown);
+            (server, outcome)
+        });
+
+        // Keep the listener continuously readable for longer than one
+        // maintenance interval. Each connection is dropped without sending a
+        // request, which is the cheapest way a client can hold the loop's
+        // attention -- and exactly what an unauthenticated peer can do.
+        let hammering = Instant::now();
+        while hammering.elapsed() < Duration::from_millis(1_400) {
+            if let Ok(connection) = std::os::unix::net::UnixStream::connect(&socket_path) {
+                drop(connection);
+            }
+        }
+        shutdown.store(true, Ordering::Release);
+        // Unblock the final wait so the loop observes the flag promptly.
+        let _ = std::os::unix::net::UnixStream::connect(&socket_path);
+        let (returned, outcome) = serving
+            .join()
+            .map_err(|_| io::Error::other("serving thread panicked"))?;
+        outcome?;
+
+        // The session expired 1.4s ago. Tying the sweep to an idle wait would
+        // leave it here forever, because the wait never timed out.
+        assert_eq!(
+            returned.agent_for_test().pending_session_count(),
+            0,
+            "a continuously busy listener starved the session sweep"
+        );
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
 fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 31)?;
@@ -1898,7 +1962,10 @@ fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestRe
     let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
     let shutdown = Arc::new(AtomicBool::new(false));
     let server_shutdown = Arc::clone(&shutdown);
-    let server_thread = thread::spawn(move || server.serve_for_test(listener, &server_shutdown));
+    let server_thread = thread::spawn(move || {
+        let mut server = server;
+        server.serve_for_test(listener, &server_shutdown)
+    });
 
     // The only test that drives the accept path itself: the non-blocking
     // listener, the poll readiness report, and putting the accepted stream back

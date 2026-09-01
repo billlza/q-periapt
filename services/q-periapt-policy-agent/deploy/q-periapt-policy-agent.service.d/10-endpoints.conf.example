@@ -6,11 +6,17 @@
 # cannot reach its witness or authority and will fail closed rather than run in a
 # silently degraded configuration.
 #
-# The two halves must agree. `IPAddressAllow` is what the kernel enforces;
-# `QPERIAPT_*_ENDPOINT` is what the daemon dials. Allowing a wider prefix than
-# the endpoints actually used gives the service reachability it does not need,
-# and allowing a narrower one makes the daemon fail at its first witness call
-# rather than at start.
+# Both halves must be numeric `IP:port`. The daemon parses these with Rust's
+# `SocketAddr`, which does not resolve names: a hostname here fails at start with
+# "IPC configuration invalid". That matches `IPAddressAllow`, which systemd
+# resolves once when the unit is loaded and never re-checks, so a name would be
+# the wrong thing on both sides.
+#
+# The two halves must also agree with each other. `IPAddressAllow` is what the
+# kernel enforces; `QPERIAPT_*_ENDPOINT` is what the daemon dials. Allowing a
+# wider prefix than the endpoints actually used gives the service reachability it
+# does not need, and allowing a narrower one makes the daemon fail at its first
+# witness call rather than at start.
 #
 # README.md requires the witness and the instance-lease authority to live outside
 # this host's rollback/restore domain. Addresses on this host do not satisfy that
@@ -20,13 +26,11 @@
 # --- Endpoints the daemon dials -------------------------------------------
 # Written to /etc/qperiapt-agent/endpoints.conf (referenced by EnvironmentFile),
 # or set here directly:
-Environment=QPERIAPT_WITNESS_ENDPOINT=witness.example.internal:7841
-Environment=QPERIAPT_AUTHORITY_ENDPOINT=authority.example.internal:7842
+Environment=QPERIAPT_WITNESS_ENDPOINT=203.0.113.10:7841
+Environment=QPERIAPT_AUTHORITY_ENDPOINT=203.0.113.11:7842
 
 # --- Matching kernel-level allowance --------------------------------------
-# List exactly the hosts above. Use addresses, not names: IPAddressAllow is
-# resolved when the unit is loaded, so a name that later resolves elsewhere is
-# not re-checked.
+# Exactly the hosts above.
 IPAddressAllow=203.0.113.10
 IPAddressAllow=203.0.113.11
 
