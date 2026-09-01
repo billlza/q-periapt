@@ -5,6 +5,12 @@ execution path, KEM private keys, pending secrets, and key-confirmation state.
 Applications receive random opaque handles; they never receive a writable ABI 2
 decision, a KEM private key, or an unconfirmed session secret.
 
+> **Authority Wire V3 status: pending, isolated prototype.** The V3 wire,
+> repository schema, and three-domain coordinator described below exist only on
+> the unreleased development branch. They are not evidence about published
+> v0.1.4 artifacts and must not be cited as the current paper implementation
+> until independent review and release evidence close that gap.
+
 Migration-state ownership and ABI 2 execution availability are deliberately
 separate. The agent authenticates and commits any migration-authority-valid
 state, including a post-quantum-only state, a state with a different execution
@@ -20,6 +26,20 @@ MSRV 1.85, and licensed `MIT OR Apache-2.0`. It is deliberately not treated as a
 rollback anchor: restoring the whole database file restores all of its history.
 Every open, transition, and key release therefore requires an authenticated
 external `WitnessPort`. There is no local-only fallback.
+
+The repository storage schema is V3. A V1 store is never opened through the
+normal service path. The offline executable command
+`migrate-agent-repository-v1-to-v3` replays authenticated history, validates the
+head, capability and complete session tables, rejects any legacy pending
+transition, and inspects an actually pristine Authority Store (version one,
+fresh epoch, exact projected head/config, no lease, receipt, capability, or key)
+before one transaction creates the V3 journal, binds that exact authority, and
+advances the schema. Repeating the command on the exact V3 binding is
+idempotent. The same command recovers the sole fresh-provisioning cut where a
+V3 repository committed its empty journal before the pristine authority was
+bound; it holds the actual authority store lock through the binding transaction.
+There is no V1/V2 runtime decoder, compatibility wrapper, inferred
+epoch, or historical receipt backfill.
 
 Both durable-file paths must be absolute, contain only normal path components,
 live in an owner-owned exact-`0700` service directory, and identify an
@@ -39,15 +59,17 @@ mode checks. Other Unix ACL models are not assumed equivalent and fail closed
 until a platform adapter is reviewed.
 
 A signed state or reset envelope is first authenticated and replayed by the
-migration state machine. The repository then durably records one operation ID,
-the exact old head and fence, the exact next revision and fence, and the
-canonical signed envelope. Only then may the mandatory witness perform the
-exact CAS. An authenticated applied receipt permits the final local transaction.
-An unknown transport result leaves that same operation pending: new operations
-are refused and recovery may only query that operation ID. On open, the complete
-canonical journal is decoded and reverified before the local head is compared
-with the witness. Missing, duplicate, forked, trailing, corrupt, or rolled-back
-state has no implicit-genesis repair path.
+migration state machine. One Agent-redb transaction then stores the canonical
+certificate, exact witness CAS intent, exact Authority `AdvanceState` intent,
+and authority-journal `Prepared` state. The authority result is recovered only
+by the exact operation ID and becomes durable `Resolved` before ACK. Only an
+applied authority receipt permits witness CAS; only exact witness application
+permits the final local transaction that advances history/head, clears sessions
+and capabilities, deletes pending state, and advances the durable authority
+binding. The in-process wire head moves by exact compare-and-swap only after that
+commit, then a new instance lease is acquired. Unknown results preserve the
+single pending operation. Missing, duplicate, forked, non-successor, or
+old/new/foreign-head combinations fail closed.
 
 Transitions are allowed to advance while sessions exist. The final local commit
 changes the fence and transactionally removes durable reservations and replay
@@ -95,6 +117,22 @@ For the rollback claim, that server must run outside the rollback domain of the
 agent host. Running both databases on one restorable disk is useful for tests but
 does not provide rollback resistance.
 
+The product-side authority protocol has a separate, bounded single-slot
+`authority_journal` inside the Agent repository. The repository binds it once to the complete
+Authority Wire identity `(client, server, epoch, state head, configuration)`. An
+exact lease or state-advance intent reaches durable `Prepared` before any dispatch. A known or
+exact-query-reconciled receipt replaces it with durable `Resolved`; only that
+state can create the acknowledgement capability. A successful or already-absent
+acknowledgement atomically clears the active slot and supersedes one exact terminal
+checkpoint. The coordinator separately records whether its retained
+`AdvanceState` result reached ACK-terminal, so a later lease checkpoint cannot
+erase that transition phase. Unknown query or acknowledgement results leave the slot intact and
+block another authority operation. An uncertain local commit poisons the live
+repository instance so recovery must reopen and inspect the committed old-or-new
+state. There is no RAM acknowledgement queue, silent eviction, or default-success
+path. The one checkpoint is recovery evidence for the latest terminal authority
+operation, not an append-only audit log.
+
 TCP witness messages are authenticated and transcript-bound but are not
 encrypted; deployment must provide a network boundary when state metadata is
 confidential. The reference server processes one connection at a time with a
@@ -137,6 +175,7 @@ The executable accepts exactly one of these command shapes:
 ```text
 q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
 q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY
+q-periapt-policy-agent migrate-agent-repository-v1-to-v3 REPOSITORY AUTHORITY_DATABASE CONFIG_DIRECTORY
 ```
 
 `SERVICE_DIRECTORY` is an absolute owner-owned exact-`0700` directory. The
@@ -180,6 +219,9 @@ state:
 | Durable capability replay tombstones | 4096 per committed state |
 | Canonical migration history / generation | 4096 |
 | Witness operation receipts | 4096 |
+| Active durable authority operation | 1 (`Prepared` or `Resolved`) |
+| Terminal authority checkpoint | 1, exact latest receipt supersedes the previous checkpoint |
+| Authority-server retained receipts | Configured bound; hard maximum 4096 |
 | IPC replay nonces | 4096 within a 10-minute window |
 
 Capacity exhaustion is a typed rejection. Pruning, authority rotation, online

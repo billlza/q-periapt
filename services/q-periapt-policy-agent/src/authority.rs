@@ -35,6 +35,48 @@ use crate::authority_codec::{
     HARD_MIN_LEASE_TTL_MILLIS,
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProductAuthorityMutationKindV2 {
+    AcquireLease,
+    RenewLease,
+    ReleaseLease,
+    AdvanceState,
+}
+
+pub(crate) fn reachable_product_receipt_kind(
+    receipt: &AuthorityReceiptV2,
+) -> Option<ProductAuthorityMutationKindV2> {
+    if let Some(kind) = reachable_lease_receipt_kind(receipt) {
+        return Some(match kind {
+            LeaseMutationKindV2::Acquire => ProductAuthorityMutationKindV2::AcquireLease,
+            LeaseMutationKindV2::Renew => ProductAuthorityMutationKindV2::RenewLease,
+            LeaseMutationKindV2::Release => ProductAuthorityMutationKindV2::ReleaseLease,
+        });
+    }
+    let intent = receipt.intent();
+    let expected_version = intent.expected_authority_version();
+    match (intent.mutation(), receipt.disposition()) {
+        (
+            AuthorityMutationV2::AdvanceState { fence, .. },
+            AuthorityDispositionV2::Applied
+            | AuthorityDispositionV2::Rejected(AuthorityRejectionV2::StateMismatch),
+        ) if fence.generation() < expected_version => {
+            Some(ProductAuthorityMutationKindV2::AdvanceState)
+        }
+        (
+            AuthorityMutationV2::AdvanceState { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseAbsent),
+        ) => Some(ProductAuthorityMutationKindV2::AdvanceState),
+        (
+            AuthorityMutationV2::AdvanceState { .. },
+            AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseExpired | AuthorityRejectionV2::FenceMismatch,
+            ),
+        ) if expected_version >= 2 => Some(ProductAuthorityMutationKindV2::AdvanceState),
+        _ => None,
+    }
+}
+
 /// Public bounded projection of current pure authority state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AuthoritySnapshotV2 {
@@ -865,6 +907,7 @@ impl AuthorityStateV2 {
             }
             PlannedMutationV2::AdvanceState(next) => {
                 self.state_head = next;
+                self.lease = None;
                 self.capabilities.clear();
                 self.keys.clear();
             }
@@ -2204,13 +2247,15 @@ mod tests {
         assert_eq!(snapshot.capability_count(), 0);
         assert_eq!(snapshot.retained_key_count(), 0);
         assert_eq!(snapshot.active_key_count(), 0);
-        assert_eq!(require_lease(snapshot)?.fence(), fence);
+        assert_eq!(snapshot.active_lease(), None);
+        let next_fence = acquire(&mut state, &clock, 5, 12)?;
+        assert_ne!(next_fence, fence);
         let new_state_scope = apply_current(
             &mut state,
             &clock,
-            5,
+            6,
             AuthorityMutationV2::ConsumeCapability {
-                fence,
+                fence: next_fence,
                 capability_id: capability(1)?,
             },
         )?;
@@ -2222,9 +2267,9 @@ mod tests {
         let stale_key_id = current_intent(
             &mut state,
             &clock,
-            6,
+            7,
             AuthorityMutationV2::RegisterKey {
-                fence,
+                fence: next_fence,
                 capability_id: capability(1)?,
                 key_id: old_state_key,
             },
@@ -2235,16 +2280,16 @@ mod tests {
             stale_key_id,
             AuthorityRejectionV2::KeyStateGenerationMismatch,
         )?;
-        let new_state_key = key_for_scope(2, fence.generation(), 1)?;
+        let new_state_key = key_for_scope(2, next_fence.generation(), 1)?;
         assert_ne!(old_state_key, new_state_key);
         assert_eq!(new_state_key.state_global_generation(), 2);
-        assert_eq!(new_state_key.lease_generation(), fence.generation());
+        assert_eq!(new_state_key.lease_generation(), next_fence.generation());
         let registered = apply_current(
             &mut state,
             &clock,
-            7,
+            8,
             AuthorityMutationV2::RegisterKey {
-                fence,
+                fence: next_fence,
                 capability_id: capability(1)?,
                 key_id: new_state_key,
             },

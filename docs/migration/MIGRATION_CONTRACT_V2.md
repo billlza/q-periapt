@@ -7,6 +7,11 @@
 > byte-for-byte unchanged. Deployment claims remain conditional on a separately
 > protected, authenticated external witness and an owner-protected Agent process.
 
+> **Pending V3 prototype note.** Authority Wire V3, repository schema V3, and
+> the three-domain transition coordinator are unreleased branch work. They do
+> not describe published v0.1.4 bytes and are not current-paper evidence until
+> independent review and release provenance exist.
+
 ## 1. Frozen lower boundary
 
 V2 does not add a C export or reinterpret an ABI 2 value. The following remain
@@ -252,17 +257,37 @@ transactions. It persists the complete canonical signed history, not just a
 counter. Opening a store replays and re-verifies genesis through the current
 head. The database file is exclusively locked while open.
 
-A transition follows this order:
+Normal open accepts repository storage schema V3 only. Migration from storage
+schema V1 is the explicit offline executable command
+`migrate-agent-repository-v1-to-v3 REPOSITORY AUTHORITY_DATABASE CONFIG_DIRECTORY`.
+Before any schema transaction it replays authenticated history, validates the
+head, capability and complete session tables, rejects legacy pending state, and
+inspects the named Authority Store as actually pristine: authority version one,
+the configured fresh epoch, exact projected repository head/config, and no
+lease, receipt, capability, or key. One immediate-durability transaction then
+creates the V3 authority journal, binds that exact identity, and advances the
+schema. Repetition on the exact V3 binding is idempotent. If fresh provisioning
+committed schema V3 and empty journal tables but crashed before binding, the
+same executable admits only that fully authenticated unbound repository plus
+the actual pristine authority and holds both exclusive stores through the
+binding transaction. For an already-bound V3 repository it holds and validates
+both current stores rather than trusting the configured historical head. There is no V1/V2
+runtime decoder, compatibility fallback, operator-asserted epoch, or historical
+receipt reconstruction.
+
+A V3-coordinated transition follows this order:
 
 1. verify the signed envelope and derive an unforgeable pending token;
-2. durably persist one exact operation ID, predecessor/successor, fence change,
-   and canonical envelope;
-3. send that same intent to the mandatory authenticated witness;
-4. on an unknown transport outcome, query only that operation ID;
-5. accept only an exact applied receipt whose authoritative head is the exact
-   successor; and
-6. commit the local history/head and invalidate older sessions in one local
-   transaction.
+2. in one Agent-redb transaction persist the canonical envelope, exact witness
+   intent, exact Authority `AdvanceState` intent, and journal `Prepared` state;
+3. dispatch/reconcile only that authority operation ID, persist its exact result
+   as `Resolved`, and reach ACK-terminal before witness CAS;
+4. accept only applied `AdvanceState`; an exact lease-expiry/absence/fence
+   rejection is ACKed, followed by a new lease and atomically replaced attempt;
+5. dispatch/reconcile only the exact witness operation ID; and
+6. in one transaction commit history/head, clear sessions/capabilities, delete
+   pending state, and advance the durable authority binding, then CAS the
+   process-local wire head and acquire the new-state lease.
 
 Conflict, ahead, equivocation, unauthenticated response, missing history, or a
 different receipt suspends progress. There is no local-file witness fallback.
@@ -280,7 +305,7 @@ monotonic facility with equivalent semantics. The reference witness server is
 useful for protocol and crash testing; placing both databases on the same
 restorable disk does not meet that deployment assumption.
 
-### Key-use authority, instance leases, and Authority Wire V2
+### Key-use authority, instance leases, and Authority Wire V3
 
 Beyond the migration-head witness, the repository implements a separate
 key-use authority subsystem that answers the recovery-clone and multi-instance
@@ -291,7 +316,7 @@ widening that CAS boundary would couple replay, configuration, and key-use
 failure domains to the head-transition path; those domains are instead
 protected by this dedicated authority, which binds each of them to the exact
 head, configuration revision, and lease generation, and fences them on every
-advance. It is layered as four modules with explicit stage
+advance. It is layered as five modules with explicit stage
 boundaries:
 
 - `authority` (Stage 1) is a pure deterministic transition model over one
@@ -311,23 +336,41 @@ boundaries:
   immediate-durability, two-phase discipline as the migration store. A commit
   whose durability is uncertain quarantines the whole database path; there is
   no V1 decoder or fallback.
-- `authority_protocol` freezes the closed Authority Wire V2 grammar: six
-  commands (snapshot, acquire, renew, release, query, acknowledge) under
+- `authority_protocol` freezes the closed Authority Wire V3 grammar: seven
+  commands (snapshot, acquire, renew, release, advance-state, query,
+  acknowledge) under
   dedicated request/response/digest domains, with fixture-pinned encodings.
 - `authority_transport` runs that grammar over a mutually authenticated,
   deadline-bounded, one-request-per-connection TCP loop. Both directions sign
   with pinned ML-DSA-65 keys; endpoint construction rejects a signing key that
   matches the peer verification key, so one key cannot serve both roles. The
   client pins the server address, both principals, the authority epoch, and
-  the exact expected state head and configuration, and accepts only a response
+  configuration. Mutations require the exact server-current head; snapshot,
+  exact query, and exact acknowledgement remain recoverable across the unique
+  old-to-next cut. Client head comes from the repository binding and moves only
+  after local commit; server head comes from its durable store. The client accepts only a response
   that echoes its request digest and nonce. The server keeps a bounded
   time-to-live nonce cache and answers an exhausted cache with an explicit
   rate-limit failure instead of evicting replay history. An unknown transport
   outcome is resolved by querying the exact operation ID, and an acknowledged
   receipt is pruned from the server table only after the client reports it
   durably retained; acknowledgement is idempotent. On open, the server
-  re-verifies the exact epoch, head, configuration, and a lease-only history
+  re-verifies the exact epoch, current head, configuration, and a supported
+  lease/state-advance history
   before serving, and any fatal store result quarantines the instance.
+- `authority_journal` is the product-side complement to the bounded server receipt
+  table. It is a single active slot bound to the complete Authority Wire
+  identity (client, server, epoch, state head, and configuration). An exact
+  lease or state-advance intent is committed as `Prepared` before dispatch; an authenticated
+  direct or exact-query result is committed as `Resolved`; and only that exact
+  resolved receipt may be acknowledged. `Removed` and `AlreadyAbsent` are the
+  two ACK-terminal results and atomically clear the slot while superseding one
+  exact latest terminal checkpoint. The coordinator pending record separately
+  retains whether its exact `AdvanceState` receipt reached ACK-terminal, so a
+  subsequent lease receipt cannot erase that transition phase. An unknown query or ACK leaves the exact
+  state durable and blocks a new operation. A local commit with uncertain
+  outcome poisons the live repository object and requires close/reopen
+  reconciliation. This is a bounded recovery journal, not full audit history.
 
 A restored disk clone or a concurrently started second instance therefore
 cannot silently share key-use authority: at most one fence is valid, a stale
@@ -337,7 +380,7 @@ fencing across instances, replay rejection, lost-response recovery, nonce
 exhaustion, role separation, reopen validation, and unresponsive endpoints
 over real sockets.
 
-The product Agent consumes this boundary as a mandatory lease client.
+The product Agent consumes this boundary as a mandatory lease and state client.
 Construction acquires the exclusive instance lease and fails closed with
 `InstanceFenced` while another unexpired instance holds it; a lost acquire
 response is reconciled by exact-operation query or by adopting the lease the
@@ -348,15 +391,21 @@ touch a pending or accepted secret; the fenced instance erases every
 in-process pending and accepted secret first and permanently refuses
 lease-guarded operations. The client's fence view is deliberately RAM-only —
 a restored clone of this host cannot replay the live fence, and a process
-restart always starts a new acquire cycle. Graceful shutdown releases the
-lease idempotently so a successor can acquire without waiting out the
+restart always starts a new acquire cycle — while its lease-operation intent
+and exact result are deliberately durable in the single-slot journal. Graceful
+shutdown releases the lease idempotently so a successor can acquire without waiting out the
 time-to-live. Agent-level tests cover second-instance construction fencing,
 expired-lease takeover with secret erasure, release handover, lost-response
-reconciliation, and a concurrent two-instance acquisition race resolving to
-exactly one lease.
+reconciliation, durable `Prepared`/`Resolved` reopen recovery, commit-uncertain
+poisoning at the `Prepared`, `Resolved`, and ACK-terminal cuts, explicit
+idempotent V1-to-V3 migration, abrupt process exit after durable `Prepared`,
+real TCP authority+witness+redb advance/reset/restart, lost authority response
+after durable server commit, exact lease-expiry attempt replacement, fatal
+secret erasure and repository-lock release, and a concurrent two-instance
+acquisition race resolving to exactly one lease.
 
 Two boundaries remain explicit rather than implied. First, the product Agent
-service routes only the lease lifecycle through this authority; capability
+service routes lease and migration-state advance/reset through this authority; capability
 consumption and accepted-key registration are not yet routed, and remain
 tracked as deployment work, not claimed here. Second, the authority server
 inherits the same rollback-domain assumption as the witness: hosting it on

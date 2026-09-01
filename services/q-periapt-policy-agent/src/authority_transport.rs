@@ -1,4 +1,4 @@
-//! Mutually authenticated, deadline-bounded Authority Wire V2 TCP transport.
+//! Mutually authenticated, deadline-bounded Authority Wire V3 TCP transport.
 
 use core::fmt;
 use std::collections::{HashSet, VecDeque};
@@ -6,6 +6,7 @@ use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
 use q_periapt_backends::{ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN};
@@ -15,15 +16,15 @@ use crate::authentication::{
     sign_envelope, signing_key_matches_verification_key, verify_envelope, AuthenticationError,
 };
 use crate::authority::{
-    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityQueryResultV2,
-    AuthorityReceiptV2, AuthoritySnapshotV2, DeploymentConfigRevisionV2, OperationIdV2,
-    ReceiptAckDispositionV2,
+    AuthorityDispositionV2, AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2,
+    AuthorityMutationV2, AuthorityQueryResultV2, AuthorityReceiptV2, AuthoritySnapshotV2,
+    DeploymentConfigRevisionV2, OperationIdV2, ReceiptAckDispositionV2,
 };
 use crate::authority_protocol::{
-    receipt_command, AuthorityClientIdV2, AuthorityCommandV2, AuthorityKnownFailureV2,
-    AuthorityOutcomeV2, AuthorityProtocolErrorV2, AuthorityRequestPayloadV2, AuthorityRequestV2,
-    AuthorityResponseDispositionV2, AuthorityResponseV2, AuthorityServerIdV2, AuthoritySuccessV2,
-    AuthorityUnknownV2, AuthorityWireIdentityV2, DurablyRetainedAuthorityReceiptV2,
+    receipt_command, AuthorityClientIdV3, AuthorityCommandV3, AuthorityKnownFailureV3,
+    AuthorityOutcomeV3, AuthorityProtocolErrorV3, AuthorityRequestPayloadV3, AuthorityRequestV3,
+    AuthorityResponseDispositionV3, AuthorityResponseV3, AuthorityServerIdV3, AuthoritySuccessV3,
+    AuthorityUnknownV3, AuthorityWireIdentityV3, DurablyRetainedAuthorityReceiptV3,
     AUTHORITY_REQUEST_DIGEST_DOMAIN,
 };
 use crate::authority_store::{AuthorityStoreErrorV2, AuthorityStoreV2};
@@ -34,11 +35,11 @@ const HARD_MIN_TOTAL_DEADLINE: Duration = Duration::from_millis(1);
 const HARD_MAX_TOTAL_DEADLINE: Duration = Duration::from_secs(30);
 const HARD_MIN_NONCE_TTL: Duration = Duration::from_millis(1);
 const HARD_MAX_NONCE_TTL: Duration = Duration::from_secs(10 * 60);
-const ROLE_SEPARATION_CHALLENGE: &[u8] = b"Q-PERIAPT-AUTHORITY-WIRE-ROLE-SEPARATION/v2";
+const ROLE_SEPARATION_CHALLENGE: &[u8] = b"Q-PERIAPT-AUTHORITY-WIRE-ROLE-SEPARATION/v3";
 
 /// Transport failures that prove no request byte was accepted by the socket.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AuthorityTransportErrorV2 {
+pub enum AuthorityTransportErrorV3 {
     /// Endpoint identity, key-role separation, or a resource bound was invalid.
     InvalidConfiguration,
     /// The requested typed method did not match its complete authority intent.
@@ -51,7 +52,7 @@ pub enum AuthorityTransportErrorV2 {
     NotSent,
 }
 
-impl fmt::Display for AuthorityTransportErrorV2 {
+impl fmt::Display for AuthorityTransportErrorV3 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::InvalidConfiguration => "authority transport configuration invalid",
@@ -63,11 +64,11 @@ impl fmt::Display for AuthorityTransportErrorV2 {
     }
 }
 
-impl std::error::Error for AuthorityTransportErrorV2 {}
+impl std::error::Error for AuthorityTransportErrorV3 {}
 
 /// Server-side setup, listener, or fatal-store failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AuthorityServerErrorV2 {
+pub enum AuthorityServerErrorV3 {
     /// The pinned identity, keys, deadline, or resource limits were invalid.
     InvalidConfiguration,
     /// The store could not be provisioned, opened, or read before serving.
@@ -78,7 +79,7 @@ pub enum AuthorityServerErrorV2 {
     ListenerUnavailable,
 }
 
-impl fmt::Display for AuthorityServerErrorV2 {
+impl fmt::Display for AuthorityServerErrorV3 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::InvalidConfiguration => "authority server configuration invalid",
@@ -89,23 +90,23 @@ impl fmt::Display for AuthorityServerErrorV2 {
     }
 }
 
-impl std::error::Error for AuthorityServerErrorV2 {}
+impl std::error::Error for AuthorityServerErrorV3 {}
 
 /// Bounded server transport and authenticated replay-window configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct AuthorityTransportLimitsV2 {
+pub struct AuthorityTransportLimitsV3 {
     total_deadline: Duration,
     nonce_ttl: Duration,
     max_nonces: usize,
 }
 
-impl AuthorityTransportLimitsV2 {
+impl AuthorityTransportLimitsV3 {
     /// Construct nonzero bounds with no more than 4096 live authenticated nonces.
     pub fn new(
         total_deadline: Duration,
         nonce_ttl: Duration,
         max_nonces: usize,
-    ) -> Result<Self, AuthorityTransportErrorV2> {
+    ) -> Result<Self, AuthorityTransportErrorV3> {
         if !(HARD_MIN_TOTAL_DEADLINE..=HARD_MAX_TOTAL_DEADLINE).contains(&total_deadline)
             || !(HARD_MIN_NONCE_TTL..=HARD_MAX_NONCE_TTL).contains(&nonce_ttl)
             || max_nonces == 0
@@ -113,7 +114,7 @@ impl AuthorityTransportLimitsV2 {
             || Instant::now().checked_add(total_deadline).is_none()
             || Instant::now().checked_add(nonce_ttl).is_none()
         {
-            return Err(AuthorityTransportErrorV2::InvalidConfiguration);
+            return Err(AuthorityTransportErrorV3::InvalidConfiguration);
         }
         Ok(Self {
             total_deadline,
@@ -143,25 +144,25 @@ impl AuthorityTransportLimitsV2 {
 
 /// Inputs for explicitly provisioning a new Authority Store V2 server.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct AuthorityServerProvisionV2 {
-    client_id: AuthorityClientIdV2,
-    server_id: AuthorityServerIdV2,
+pub struct AuthorityServerProvisionV3 {
+    client_id: AuthorityClientIdV3,
+    server_id: AuthorityServerIdV3,
     state_head: crate::authority::StateHeadV2,
     config: DeploymentConfigRevisionV2,
     store_limits: AuthorityLimitsV2,
 }
 
-impl AuthorityServerProvisionV2 {
+impl AuthorityServerProvisionV3 {
     /// Bind a new store to distinct endpoint identities and exact initial state.
     pub fn new(
-        client_id: AuthorityClientIdV2,
-        server_id: AuthorityServerIdV2,
+        client_id: AuthorityClientIdV3,
+        server_id: AuthorityServerIdV3,
         state_head: crate::authority::StateHeadV2,
         config: DeploymentConfigRevisionV2,
         store_limits: AuthorityLimitsV2,
-    ) -> Result<Self, AuthorityTransportErrorV2> {
+    ) -> Result<Self, AuthorityTransportErrorV3> {
         if client_id.as_bytes() == server_id.as_bytes() {
-            return Err(AuthorityTransportErrorV2::InvalidConfiguration);
+            return Err(AuthorityTransportErrorV3::InvalidConfiguration);
         }
         Ok(Self {
             client_id,
@@ -173,30 +174,30 @@ impl AuthorityServerProvisionV2 {
     }
 }
 
-/// Typed mutually authenticated client for the six Authority Wire V2 commands.
-pub struct AuthenticatedTcpAuthorityV2 {
+/// Typed mutually authenticated client for the seven Authority Wire V3 commands.
+pub struct AuthenticatedTcpAuthorityV3 {
     address: SocketAddr,
-    identity: AuthorityWireIdentityV2,
+    identity: RwLock<AuthorityWireIdentityV3>,
     client_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
     server_verification_key: [u8; ML_DSA_65_VK_LEN],
     total_deadline: Duration,
 }
 
-impl fmt::Debug for AuthenticatedTcpAuthorityV2 {
+impl fmt::Debug for AuthenticatedTcpAuthorityV3 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("AuthenticatedTcpAuthorityV2([redacted])")
+        formatter.write_str("AuthenticatedTcpAuthorityV3([redacted])")
     }
 }
 
-impl AuthenticatedTcpAuthorityV2 {
+impl AuthenticatedTcpAuthorityV3 {
     /// Configure one exact server, client principal, authority state, and key direction.
     pub fn new(
         address: SocketAddr,
-        identity: AuthorityWireIdentityV2,
+        identity: AuthorityWireIdentityV3,
         client_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
         server_verification_key: [u8; ML_DSA_65_VK_LEN],
         total_deadline: Duration,
-    ) -> Result<Self, AuthorityTransportErrorV2> {
+    ) -> Result<Self, AuthorityTransportErrorV3> {
         validate_authentication_material(
             client_signing_key.as_bytes(),
             &server_verification_key,
@@ -204,44 +205,78 @@ impl AuthenticatedTcpAuthorityV2 {
         )?;
         Ok(Self {
             address,
-            identity,
+            identity: RwLock::new(identity),
             client_signing_key,
             server_verification_key,
             total_deadline,
         })
     }
 
+    /// Return the exact client, server, epoch, state, and configuration binding.
+    pub fn identity(&self) -> Result<AuthorityWireIdentityV3, AuthorityTransportErrorV3> {
+        self.identity
+            .read()
+            .map(|identity| *identity)
+            .map_err(|_| AuthorityTransportErrorV3::InvalidConfiguration)
+    }
+
+    /// Advance the process-local wire head only after the local repository commit.
+    pub fn advance_identity(
+        &self,
+        expected: AuthorityWireIdentityV3,
+        next: AuthorityWireIdentityV3,
+    ) -> Result<(), AuthorityTransportErrorV3> {
+        if expected.client_id() != next.client_id()
+            || expected.server_id() != next.server_id()
+            || expected.authority_epoch() != next.authority_epoch()
+            || expected.config() != next.config()
+            || expected.state_head() == next.state_head()
+        {
+            return Err(AuthorityTransportErrorV3::InvalidConfiguration);
+        }
+        let mut identity = self
+            .identity
+            .write()
+            .map_err(|_| AuthorityTransportErrorV3::InvalidConfiguration)?;
+        if *identity != expected {
+            return Err(AuthorityTransportErrorV3::InvalidConfiguration);
+        }
+        *identity = next;
+        Ok(())
+    }
+
     /// Read the exact current authority projection.
     pub fn snapshot(
         &self,
-    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthoritySnapshotV2>, AuthorityTransportErrorV3> {
+        let identity = self.identity()?;
         let request = self.request(
-            AuthorityCommandV2::Snapshot,
-            AuthorityRequestPayloadV2::Snapshot,
+            identity,
+            AuthorityCommandV3::Snapshot,
+            AuthorityRequestPayloadV3::Snapshot,
         )?;
         match self.exchange(request)? {
-            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV2::Unknown(reason)),
+            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV3::Unknown(reason)),
             ClientExchangeV2::Response(response) => match response.disposition {
-                AuthorityResponseDispositionV2::Success(AuthoritySuccessV2::Snapshot(snapshot))
-                    if snapshot.config() == self.identity.config()
-                        && snapshot.state_head() == self.identity.state_head()
+                AuthorityResponseDispositionV3::Success(AuthoritySuccessV3::Snapshot(snapshot))
+                    if snapshot.config() == identity.config()
                         && snapshot.capability_count() == 0
                         && snapshot.retained_key_count() == 0
                         && snapshot.active_key_count() == 0 =>
                 {
-                    Ok(AuthorityOutcomeV2::Known(*snapshot))
+                    Ok(AuthorityOutcomeV3::Known(*snapshot))
                 }
-                AuthorityResponseDispositionV2::KnownFailure(failure) => {
-                    Ok(AuthorityOutcomeV2::KnownFailure(failure))
+                AuthorityResponseDispositionV3::KnownFailure(failure) => {
+                    Ok(AuthorityOutcomeV3::KnownFailure(failure))
                 }
-                AuthorityResponseDispositionV2::ReplayDetected => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ReplayDetected,
+                AuthorityResponseDispositionV3::ReplayDetected => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ReplayDetected,
                 )),
-                AuthorityResponseDispositionV2::ServerQuarantined => Ok(
-                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ServerQuarantined),
+                AuthorityResponseDispositionV3::ServerQuarantined => Ok(
+                    AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ServerQuarantined),
                 ),
-                _ => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ResponseInvalid,
+                _ => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ResponseInvalid,
                 )),
             },
         }
@@ -251,54 +286,64 @@ impl AuthenticatedTcpAuthorityV2 {
     pub fn acquire(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        self.lease_operation(AuthorityCommandV2::Acquire, intent)
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        self.lease_operation(AuthorityCommandV3::Acquire, intent)
     }
 
     /// Apply one complete renew-lease intent.
     pub fn renew(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        self.lease_operation(AuthorityCommandV2::Renew, intent)
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        self.lease_operation(AuthorityCommandV3::Renew, intent)
     }
 
     /// Apply one complete release-lease intent.
     pub fn release(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        self.lease_operation(AuthorityCommandV2::Release, intent)
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        self.lease_operation(AuthorityCommandV3::Release, intent)
+    }
+
+    /// Apply one complete exact migration-state advance intent.
+    pub fn advance_state(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        self.lease_operation(AuthorityCommandV3::AdvanceState, intent)
     }
 
     /// Query one exact operation after an uncertain lease result.
     pub fn query(
         &self,
         operation_id: OperationIdV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityQueryResultV2>, AuthorityTransportErrorV3> {
+        let identity = self.identity()?;
         let request = self.request(
-            AuthorityCommandV2::Query,
-            AuthorityRequestPayloadV2::Query(operation_id),
+            identity,
+            AuthorityCommandV3::Query,
+            AuthorityRequestPayloadV3::Query(operation_id),
         )?;
         match self.exchange(request)? {
-            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV2::Unknown(reason)),
+            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV3::Unknown(reason)),
             ClientExchangeV2::Response(response) => match response.disposition {
-                AuthorityResponseDispositionV2::Success(AuthoritySuccessV2::Query(result))
-                    if query_result_matches(&result, operation_id, self.identity.config()) =>
+                AuthorityResponseDispositionV3::Success(AuthoritySuccessV3::Query(result))
+                    if query_result_matches(&result, operation_id, identity.config()) =>
                 {
-                    Ok(AuthorityOutcomeV2::Known(result))
+                    Ok(AuthorityOutcomeV3::Known(result))
                 }
-                AuthorityResponseDispositionV2::KnownFailure(failure) => {
-                    Ok(AuthorityOutcomeV2::KnownFailure(failure))
+                AuthorityResponseDispositionV3::KnownFailure(failure) => {
+                    Ok(AuthorityOutcomeV3::KnownFailure(failure))
                 }
-                AuthorityResponseDispositionV2::ReplayDetected => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ReplayDetected,
+                AuthorityResponseDispositionV3::ReplayDetected => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ReplayDetected,
                 )),
-                AuthorityResponseDispositionV2::ServerQuarantined => Ok(
-                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ServerQuarantined),
+                AuthorityResponseDispositionV3::ServerQuarantined => Ok(
+                    AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ServerQuarantined),
                 ),
-                _ => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ResponseInvalid,
+                _ => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ResponseInvalid,
                 )),
             },
         }
@@ -310,29 +355,31 @@ impl AuthenticatedTcpAuthorityV2 {
     /// no longer retains returns [`ReceiptAckDispositionV2::AlreadyAbsent`].
     pub fn acknowledge(
         &self,
-        retained: &DurablyRetainedAuthorityReceiptV2,
-    ) -> Result<AuthorityOutcomeV2<ReceiptAckDispositionV2>, AuthorityTransportErrorV2> {
+        retained: &DurablyRetainedAuthorityReceiptV3,
+    ) -> Result<AuthorityOutcomeV3<ReceiptAckDispositionV2>, AuthorityTransportErrorV3> {
+        let identity = self.identity()?;
         let request = self.request(
-            AuthorityCommandV2::Ack,
-            AuthorityRequestPayloadV2::Ack(retained.locator()),
+            identity,
+            AuthorityCommandV3::Ack,
+            AuthorityRequestPayloadV3::Ack(retained.locator()),
         )?;
         match self.exchange(request)? {
-            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV2::Unknown(reason)),
+            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV3::Unknown(reason)),
             ClientExchangeV2::Response(response) => match response.disposition {
-                AuthorityResponseDispositionV2::Success(AuthoritySuccessV2::Ack(disposition)) => {
-                    Ok(AuthorityOutcomeV2::Known(disposition))
+                AuthorityResponseDispositionV3::Success(AuthoritySuccessV3::Ack(disposition)) => {
+                    Ok(AuthorityOutcomeV3::Known(disposition))
                 }
-                AuthorityResponseDispositionV2::KnownFailure(failure) => {
-                    Ok(AuthorityOutcomeV2::KnownFailure(failure))
+                AuthorityResponseDispositionV3::KnownFailure(failure) => {
+                    Ok(AuthorityOutcomeV3::KnownFailure(failure))
                 }
-                AuthorityResponseDispositionV2::ReplayDetected => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ReplayDetected,
+                AuthorityResponseDispositionV3::ReplayDetected => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ReplayDetected,
                 )),
-                AuthorityResponseDispositionV2::ServerQuarantined => Ok(
-                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ServerQuarantined),
+                AuthorityResponseDispositionV3::ServerQuarantined => Ok(
+                    AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ServerQuarantined),
                 ),
-                _ => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ResponseInvalid,
+                _ => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ResponseInvalid,
                 )),
             },
         }
@@ -340,31 +387,36 @@ impl AuthenticatedTcpAuthorityV2 {
 
     fn lease_operation(
         &self,
-        command: AuthorityCommandV2,
+        command: AuthorityCommandV3,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        let request = self.request(command, AuthorityRequestPayloadV2::LeaseIntent(intent))?;
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        let identity = self.identity()?;
+        let request = self.request(
+            identity,
+            command,
+            AuthorityRequestPayloadV3::MutationIntent(intent),
+        )?;
         match self.exchange(request)? {
-            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV2::Unknown(reason)),
+            ClientExchangeV2::Unknown(reason) => Ok(AuthorityOutcomeV3::Unknown(reason)),
             ClientExchangeV2::Response(response) => match response.disposition {
-                AuthorityResponseDispositionV2::Success(AuthoritySuccessV2::Receipt(receipt))
+                AuthorityResponseDispositionV3::Success(AuthoritySuccessV3::Receipt(receipt))
                     if receipt.intent() == intent
-                        && receipt.intent().expected_config() == self.identity.config()
+                        && receipt.intent().expected_config() == identity.config()
                         && receipt_command(&receipt) == Some(command) =>
                 {
-                    Ok(AuthorityOutcomeV2::Known(*receipt))
+                    Ok(AuthorityOutcomeV3::Known(*receipt))
                 }
-                AuthorityResponseDispositionV2::KnownFailure(failure) => {
-                    Ok(AuthorityOutcomeV2::KnownFailure(failure))
+                AuthorityResponseDispositionV3::KnownFailure(failure) => {
+                    Ok(AuthorityOutcomeV3::KnownFailure(failure))
                 }
-                AuthorityResponseDispositionV2::ReplayDetected => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ReplayDetected,
+                AuthorityResponseDispositionV3::ReplayDetected => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ReplayDetected,
                 )),
-                AuthorityResponseDispositionV2::ServerQuarantined => Ok(
-                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ServerQuarantined),
+                AuthorityResponseDispositionV3::ServerQuarantined => Ok(
+                    AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ServerQuarantined),
                 ),
-                _ => Ok(AuthorityOutcomeV2::Unknown(
-                    AuthorityUnknownV2::ResponseInvalid,
+                _ => Ok(AuthorityOutcomeV3::Unknown(
+                    AuthorityUnknownV3::ResponseInvalid,
                 )),
             },
         }
@@ -372,53 +424,54 @@ impl AuthenticatedTcpAuthorityV2 {
 
     fn request(
         &self,
-        command: AuthorityCommandV2,
-        payload: AuthorityRequestPayloadV2,
-    ) -> Result<AuthorityRequestV2, AuthorityTransportErrorV2> {
-        AuthorityRequestV2::new(self.identity, random_nonce()?, command, payload)
+        identity: AuthorityWireIdentityV3,
+        command: AuthorityCommandV3,
+        payload: AuthorityRequestPayloadV3,
+    ) -> Result<AuthorityRequestV3, AuthorityTransportErrorV3> {
+        AuthorityRequestV3::new(identity, random_nonce()?, command, payload)
             .map_err(map_protocol_request)
     }
 
     fn exchange(
         &self,
-        request: AuthorityRequestV2,
-    ) -> Result<ClientExchangeV2, AuthorityTransportErrorV2> {
+        request: AuthorityRequestV3,
+    ) -> Result<ClientExchangeV2, AuthorityTransportErrorV3> {
         let deadline = Instant::now()
             .checked_add(self.total_deadline)
-            .ok_or(AuthorityTransportErrorV2::InvalidConfiguration)?;
+            .ok_or(AuthorityTransportErrorV3::InvalidConfiguration)?;
         let request_body = request.body().map_err(map_protocol_request)?;
         let request_digest = hash_fields(AUTHORITY_REQUEST_DIGEST_DOMAIN, &[&request_body])
-            .map_err(|_| AuthorityTransportErrorV2::EncodingFailed)?;
+            .map_err(|_| AuthorityTransportErrorV3::EncodingFailed)?;
         let request_envelope = sign_envelope(&request_body, self.client_signing_key.as_bytes())
             .map_err(map_request_authentication)?;
-        let connect_budget = remaining(deadline).map_err(|_| AuthorityTransportErrorV2::NotSent)?;
+        let connect_budget = remaining(deadline).map_err(|_| AuthorityTransportErrorV3::NotSent)?;
         let mut stream = TcpStream::connect_timeout(&self.address, connect_budget)
-            .map_err(|_| AuthorityTransportErrorV2::NotSent)?;
+            .map_err(|_| AuthorityTransportErrorV3::NotSent)?;
         if let Err(error) = write_frame_until(&mut stream, &request_envelope, deadline) {
             return if error.wrote_any {
                 Ok(ClientExchangeV2::Unknown(
-                    AuthorityUnknownV2::RequestWriteIndeterminate,
+                    AuthorityUnknownV3::RequestWriteIndeterminate,
                 ))
             } else {
-                Err(AuthorityTransportErrorV2::NotSent)
+                Err(AuthorityTransportErrorV3::NotSent)
             };
         }
         let response_envelope = match read_frame_until(&mut stream, deadline) {
             Ok(envelope) => envelope,
             Err(FrameReadErrorV2::Invalid) => {
                 return Ok(ClientExchangeV2::Unknown(
-                    AuthorityUnknownV2::ResponseInvalid,
+                    AuthorityUnknownV3::ResponseInvalid,
                 ));
             }
             Err(FrameReadErrorV2::Unavailable | FrameReadErrorV2::Allocation) => {
                 return Ok(ClientExchangeV2::Unknown(
-                    AuthorityUnknownV2::ResponseUnavailable,
+                    AuthorityUnknownV3::ResponseUnavailable,
                 ));
             }
         };
         if remaining(deadline).is_err() {
             return Ok(ClientExchangeV2::Unknown(
-                AuthorityUnknownV2::ResponseUnavailable,
+                AuthorityUnknownV3::ResponseUnavailable,
             ));
         }
         let response_body = match verify_envelope(&response_envelope, &self.server_verification_key)
@@ -426,32 +479,32 @@ impl AuthenticatedTcpAuthorityV2 {
             Ok(body) => body,
             Err(_) => {
                 return Ok(ClientExchangeV2::Unknown(
-                    AuthorityUnknownV2::ResponseAuthenticationFailed,
+                    AuthorityUnknownV3::ResponseAuthenticationFailed,
                 ));
             }
         };
-        let response = match AuthorityResponseV2::decode(response_body) {
+        let response = match AuthorityResponseV3::decode(response_body) {
             Ok(response) => response,
             Err(_) => {
                 return Ok(ClientExchangeV2::Unknown(
-                    AuthorityUnknownV2::ResponseInvalid,
+                    AuthorityUnknownV3::ResponseInvalid,
                 ));
             }
         };
         if remaining(deadline).is_err() {
             return Ok(ClientExchangeV2::Unknown(
-                AuthorityUnknownV2::ResponseUnavailable,
+                AuthorityUnknownV3::ResponseUnavailable,
             ));
         }
-        if response.server_id != self.identity.server_id()
-            || response.client_id != self.identity.client_id()
-            || response.authority_epoch != self.identity.authority_epoch()
+        if response.server_id != request.server_id
+            || response.client_id != request.client_id
+            || response.authority_epoch != request.authority_epoch
             || response.nonce != request.nonce
             || response.command != request.command
             || response.request_digest != request_digest
         {
             return Ok(ClientExchangeV2::Unknown(
-                AuthorityUnknownV2::ResponseInvalid,
+                AuthorityUnknownV3::ResponseInvalid,
             ));
         }
         Ok(ClientExchangeV2::Response(response))
@@ -459,132 +512,167 @@ impl AuthenticatedTcpAuthorityV2 {
 }
 
 enum ClientExchangeV2 {
-    Response(AuthorityResponseV2),
-    Unknown(AuthorityUnknownV2),
+    Response(AuthorityResponseV3),
+    Unknown(AuthorityUnknownV3),
 }
 
 /// Mandatory instance-lease authority boundary consumed by the product service.
 ///
 /// The product Agent uses this port to serialize key-use behind exactly one
 /// witness-clock-bounded instance lease. Implementations must preserve the
-/// Authority Wire V2 outcome discipline: `Known` only for an authenticated
+/// Authority Wire V3 outcome discipline: `Known` only for an authenticated
 /// exact result, `KnownFailure` only for a closed no-mutation failure, and
 /// `Unknown` whenever the request may have reached dispatch.
 pub trait InstanceAuthorityPort: Send + Sync {
+    /// Return the complete wire identity every durable operation must bind.
+    fn wire_identity(&self) -> Result<AuthorityWireIdentityV3, AuthorityTransportErrorV3>;
+
+    /// Move the in-process request head by exact compare-and-swap after local commit.
+    fn advance_wire_identity(
+        &self,
+        expected: AuthorityWireIdentityV3,
+        next: AuthorityWireIdentityV3,
+    ) -> Result<(), AuthorityTransportErrorV3>;
+
     /// Return the exact deployment-configuration revision every intent must name.
-    fn wire_config(&self) -> DeploymentConfigRevisionV2;
+    fn wire_config(&self) -> Result<DeploymentConfigRevisionV2, AuthorityTransportErrorV3> {
+        Ok(self.wire_identity()?.config())
+    }
 
     /// Read the exact current authority projection.
     fn snapshot(
         &self,
-    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2>;
+    ) -> Result<AuthorityOutcomeV3<AuthoritySnapshotV2>, AuthorityTransportErrorV3>;
 
     /// Apply one complete acquire-lease intent.
     fn acquire(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2>;
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3>;
 
     /// Apply one complete renew-lease intent.
     fn renew(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2>;
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3>;
 
     /// Apply one complete release-lease intent.
     fn release(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2>;
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3>;
+
+    /// Apply the exact state-head transition coordinated with repository and witness.
+    fn advance_state(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3>;
 
     /// Query one exact operation after an uncertain lease result.
     fn query(
         &self,
         operation_id: OperationIdV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2>;
+    ) -> Result<AuthorityOutcomeV3<AuthorityQueryResultV2>, AuthorityTransportErrorV3>;
 
     /// Let the authority prune one receipt the caller has already retained.
     fn acknowledge(
         &self,
-        retained: &DurablyRetainedAuthorityReceiptV2,
-    ) -> Result<AuthorityOutcomeV2<ReceiptAckDispositionV2>, AuthorityTransportErrorV2>;
+        retained: &DurablyRetainedAuthorityReceiptV3,
+    ) -> Result<AuthorityOutcomeV3<ReceiptAckDispositionV2>, AuthorityTransportErrorV3>;
 }
 
-impl InstanceAuthorityPort for AuthenticatedTcpAuthorityV2 {
-    fn wire_config(&self) -> DeploymentConfigRevisionV2 {
-        self.identity.config()
+impl InstanceAuthorityPort for AuthenticatedTcpAuthorityV3 {
+    fn wire_identity(&self) -> Result<AuthorityWireIdentityV3, AuthorityTransportErrorV3> {
+        self.identity()
+    }
+
+    fn advance_wire_identity(
+        &self,
+        expected: AuthorityWireIdentityV3,
+        next: AuthorityWireIdentityV3,
+    ) -> Result<(), AuthorityTransportErrorV3> {
+        self.advance_identity(expected, next)
     }
 
     fn snapshot(
         &self,
-    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthoritySnapshotV2>, AuthorityTransportErrorV3> {
         Self::snapshot(self)
     }
 
     fn acquire(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         Self::acquire(self, intent)
     }
 
     fn renew(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         Self::renew(self, intent)
     }
 
     fn release(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         Self::release(self, intent)
+    }
+
+    fn advance_state(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        Self::advance_state(self, intent)
     }
 
     fn query(
         &self,
         operation_id: OperationIdV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityQueryResultV2>, AuthorityTransportErrorV3> {
         Self::query(self, operation_id)
     }
 
     fn acknowledge(
         &self,
-        retained: &DurablyRetainedAuthorityReceiptV2,
-    ) -> Result<AuthorityOutcomeV2<ReceiptAckDispositionV2>, AuthorityTransportErrorV2> {
+        retained: &DurablyRetainedAuthorityReceiptV3,
+    ) -> Result<AuthorityOutcomeV3<ReceiptAckDispositionV2>, AuthorityTransportErrorV3> {
         Self::acknowledge(self, retained)
     }
 }
 
 /// Sequential reference server that exclusively owns one authority store.
-pub struct ReferenceAuthorityServerV2 {
+pub struct ReferenceAuthorityServerV3 {
     store: AuthorityStoreV2,
-    identity: AuthorityWireIdentityV2,
+    identity: AuthorityWireIdentityV3,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
     server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
-    limits: AuthorityTransportLimitsV2,
+    limits: AuthorityTransportLimitsV3,
     nonces: NonceCacheV2,
     quarantined: bool,
     #[cfg(all(test, unix))]
     fail_next_response: bool,
+    #[cfg(all(test, unix))]
+    stop_after_next_advance_without_response: bool,
 }
 
-impl fmt::Debug for ReferenceAuthorityServerV2 {
+impl fmt::Debug for ReferenceAuthorityServerV3 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("ReferenceAuthorityServerV2([redacted])")
+        formatter.write_str("ReferenceAuthorityServerV3([redacted])")
     }
 }
 
-impl ReferenceAuthorityServerV2 {
+impl ReferenceAuthorityServerV3 {
     /// Provision a fresh Store V2 and pin one client principal and response key.
     pub fn provision(
         path: &Path,
-        provision: AuthorityServerProvisionV2,
+        provision: AuthorityServerProvisionV3,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
-        limits: AuthorityTransportLimitsV2,
-    ) -> Result<Self, AuthorityServerErrorV2> {
+        limits: AuthorityTransportLimitsV3,
+    ) -> Result<Self, AuthorityServerErrorV3> {
         validate_authentication_material(
             server_signing_key.as_bytes(),
             &client_verification_key,
@@ -599,14 +687,14 @@ impl ReferenceAuthorityServerV2 {
             provision.store_limits,
         )
         .map_err(map_store_setup)?;
-        let identity = AuthorityWireIdentityV2::new(
+        let identity = AuthorityWireIdentityV3::new(
             provision.client_id,
             provision.server_id,
             store.authority_epoch(),
             provision.state_head,
             provision.config,
         )
-        .map_err(|_| AuthorityServerErrorV2::InvalidConfiguration)?;
+        .map_err(|_| AuthorityServerErrorV3::InvalidConfiguration)?;
         Self::from_store(
             store,
             identity,
@@ -617,14 +705,14 @@ impl ReferenceAuthorityServerV2 {
         )
     }
 
-    /// Open an existing Store V2 only if its epoch exactly matches the pinned identity.
+    /// Open an existing store at its durable current head and exact pinned epoch/config.
     pub fn open(
         path: &Path,
-        identity: AuthorityWireIdentityV2,
+        identity: AuthorityWireIdentityV3,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
-        limits: AuthorityTransportLimitsV2,
-    ) -> Result<Self, AuthorityServerErrorV2> {
+        limits: AuthorityTransportLimitsV3,
+    ) -> Result<Self, AuthorityServerErrorV3> {
         validate_authentication_material(
             server_signing_key.as_bytes(),
             &client_verification_key,
@@ -632,10 +720,15 @@ impl ReferenceAuthorityServerV2 {
         )
         .map_err(map_server_configuration)?;
         let nonces = NonceCacheV2::new(limits)?;
-        let store = AuthorityStoreV2::open(path).map_err(map_store_setup)?;
+        let mut store = AuthorityStoreV2::open(path).map_err(map_store_setup)?;
         if store.authority_epoch() != identity.authority_epoch() {
-            return Err(AuthorityServerErrorV2::InvalidConfiguration);
+            return Err(AuthorityServerErrorV3::InvalidConfiguration);
         }
+        let snapshot = store.snapshot().map_err(map_store_setup)?;
+        if snapshot.config() != identity.config() {
+            return Err(AuthorityServerErrorV3::InvalidConfiguration);
+        }
+        let identity = identity.at_state_head(snapshot.state_head());
         Self::from_store(
             store,
             identity,
@@ -648,12 +741,12 @@ impl ReferenceAuthorityServerV2 {
 
     fn from_store(
         store: AuthorityStoreV2,
-        identity: AuthorityWireIdentityV2,
+        identity: AuthorityWireIdentityV3,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
-        limits: AuthorityTransportLimitsV2,
+        limits: AuthorityTransportLimitsV3,
         nonces: NonceCacheV2,
-    ) -> Result<Self, AuthorityServerErrorV2> {
+    ) -> Result<Self, AuthorityServerErrorV3> {
         let mut server = Self {
             store,
             identity,
@@ -664,6 +757,8 @@ impl ReferenceAuthorityServerV2 {
             quarantined: false,
             #[cfg(all(test, unix))]
             fail_next_response: false,
+            #[cfg(all(test, unix))]
+            stop_after_next_advance_without_response: false,
         };
         server.preflight()?;
         Ok(server)
@@ -671,7 +766,7 @@ impl ReferenceAuthorityServerV2 {
 
     /// Return the exact identity clients must pin, including the fresh store epoch.
     #[must_use]
-    pub const fn identity(&self) -> AuthorityWireIdentityV2 {
+    pub const fn identity(&self) -> AuthorityWireIdentityV3 {
         self.identity
     }
 
@@ -680,33 +775,38 @@ impl ReferenceAuthorityServerV2 {
         &mut self,
         listener: TcpListener,
         shutdown: &AtomicBool,
-    ) -> Result<(), AuthorityServerErrorV2> {
+    ) -> Result<(), AuthorityServerErrorV3> {
         self.preflight()?;
         listener
             .set_nonblocking(true)
-            .map_err(|_| AuthorityServerErrorV2::ListenerUnavailable)?;
+            .map_err(|_| AuthorityServerErrorV3::ListenerUnavailable)?;
         while !shutdown.load(Ordering::Acquire) {
             match listener.accept() {
                 Ok((mut stream, _)) => {
                     if stream.set_nonblocking(false).is_err() {
                         continue;
                     }
-                    if self.handle(&mut stream) == HandleResultV2::Quarantined {
-                        return Err(AuthorityServerErrorV2::Quarantined);
+                    match self.handle(&mut stream) {
+                        HandleResultV2::Quarantined => {
+                            return Err(AuthorityServerErrorV3::Quarantined);
+                        }
+                        #[cfg(all(test, unix))]
+                        HandleResultV2::TestStopped => return Ok(()),
+                        HandleResultV2::Continue => {}
                     }
                 }
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(5));
                 }
-                Err(_) => return Err(AuthorityServerErrorV2::ListenerUnavailable),
+                Err(_) => return Err(AuthorityServerErrorV3::ListenerUnavailable),
             }
         }
         Ok(())
     }
 
-    fn preflight(&mut self) -> Result<(), AuthorityServerErrorV2> {
+    fn preflight(&mut self) -> Result<(), AuthorityServerErrorV3> {
         if self.quarantined || self.store.authority_epoch() != self.identity.authority_epoch() {
-            return Err(AuthorityServerErrorV2::Quarantined);
+            return Err(AuthorityServerErrorV3::Quarantined);
         }
         let snapshot = match self.store.snapshot() {
             Ok(snapshot) => snapshot,
@@ -718,17 +818,17 @@ impl ReferenceAuthorityServerV2 {
             || snapshot.retained_key_count() != 0
             || snapshot.active_key_count() != 0
         {
-            return Err(AuthorityServerErrorV2::InvalidConfiguration);
+            return Err(AuthorityServerErrorV3::InvalidConfiguration);
         }
         let safe = match self
             .store
-            .wire_v2_history_is_lease_only(self.identity.config())
+            .wire_v3_history_is_supported(self.identity.config())
         {
             Ok(safe) => safe,
             Err(error) => return self.preflight_store_error(error),
         };
         if !safe {
-            return Err(AuthorityServerErrorV2::InvalidConfiguration);
+            return Err(AuthorityServerErrorV3::InvalidConfiguration);
         }
         Ok(())
     }
@@ -736,12 +836,12 @@ impl ReferenceAuthorityServerV2 {
     fn preflight_store_error(
         &mut self,
         error: AuthorityStoreErrorV2,
-    ) -> Result<(), AuthorityServerErrorV2> {
+    ) -> Result<(), AuthorityServerErrorV3> {
         match classify_store_error(error) {
-            StoreDispositionV2::KnownFailure(_) => Err(AuthorityServerErrorV2::StoreUnavailable),
+            StoreDispositionV2::KnownFailure(_) => Err(AuthorityServerErrorV3::StoreUnavailable),
             StoreDispositionV2::Fatal => {
                 self.quarantined = true;
-                Err(AuthorityServerErrorV2::Quarantined)
+                Err(AuthorityServerErrorV3::Quarantined)
             }
         }
     }
@@ -758,7 +858,7 @@ impl ReferenceAuthorityServerV2 {
             Ok(body) => body,
             Err(_) => return HandleResultV2::Continue,
         };
-        let request = match AuthorityRequestV2::decode(request_body) {
+        let request = match AuthorityRequestV3::decode(request_body) {
             Ok(request) => request,
             Err(_) => return HandleResultV2::Continue,
         };
@@ -768,8 +868,14 @@ impl ReferenceAuthorityServerV2 {
         if request.client_id != self.identity.client_id()
             || request.server_id != self.identity.server_id()
             || request.authority_epoch != self.identity.authority_epoch()
-            || request.expected_state_head != self.identity.state_head()
             || request.expected_config != self.identity.config()
+            || (matches!(
+                request.command,
+                AuthorityCommandV3::Acquire
+                    | AuthorityCommandV3::Renew
+                    | AuthorityCommandV3::Release
+                    | AuthorityCommandV3::AdvanceState
+            ) && request.expected_state_head != self.identity.state_head())
         {
             return HandleResultV2::Continue;
         }
@@ -782,28 +888,28 @@ impl ReferenceAuthorityServerV2 {
         }
         let nonce_decision = self.nonces.observe(request.nonce, Instant::now());
         let disposition = match nonce_decision {
-            NonceDecisionV2::Duplicate => AuthorityResponseDispositionV2::ReplayDetected,
+            NonceDecisionV2::Duplicate => AuthorityResponseDispositionV3::ReplayDetected,
             NonceDecisionV2::Capacity => {
-                AuthorityResponseDispositionV2::KnownFailure(AuthorityKnownFailureV2::RateLimited)
+                AuthorityResponseDispositionV3::KnownFailure(AuthorityKnownFailureV3::RateLimited)
             }
             NonceDecisionV2::Invariant => {
                 self.quarantined = true;
-                AuthorityResponseDispositionV2::ServerQuarantined
+                AuthorityResponseDispositionV3::ServerQuarantined
             }
             NonceDecisionV2::Inserted => match self.dispatch(request) {
                 StoreDispatchV2::Success(success) => {
-                    AuthorityResponseDispositionV2::Success(success)
+                    AuthorityResponseDispositionV3::Success(success)
                 }
                 StoreDispatchV2::KnownFailure(failure) => {
-                    AuthorityResponseDispositionV2::KnownFailure(failure)
+                    AuthorityResponseDispositionV3::KnownFailure(failure)
                 }
                 StoreDispatchV2::Fatal => {
                     self.quarantined = true;
-                    AuthorityResponseDispositionV2::ServerQuarantined
+                    AuthorityResponseDispositionV3::ServerQuarantined
                 }
             },
         };
-        let response = AuthorityResponseV2 {
+        let response = AuthorityResponseV3 {
             server_id: self.identity.server_id(),
             client_id: self.identity.client_id(),
             authority_epoch: self.identity.authority_epoch(),
@@ -820,7 +926,18 @@ impl ReferenceAuthorityServerV2 {
         };
         #[cfg(not(all(test, unix)))]
         let fail_response = false;
-        if !fail_response {
+        #[cfg(all(test, unix))]
+        let stop_without_response = {
+            let stop = self.stop_after_next_advance_without_response
+                && request.command == AuthorityCommandV3::AdvanceState;
+            if stop {
+                self.stop_after_next_advance_without_response = false;
+            }
+            stop
+        };
+        #[cfg(not(all(test, unix)))]
+        let stop_without_response = false;
+        if !fail_response && !stop_without_response {
             let _ = send_response(
                 stream,
                 deadline,
@@ -830,37 +947,60 @@ impl ReferenceAuthorityServerV2 {
         }
         if self.quarantined {
             HandleResultV2::Quarantined
+        } else if stop_without_response {
+            #[cfg(all(test, unix))]
+            {
+                HandleResultV2::TestStopped
+            }
+            #[cfg(not(all(test, unix)))]
+            {
+                HandleResultV2::Continue
+            }
         } else {
             HandleResultV2::Continue
         }
     }
 
-    fn dispatch(&mut self, request: AuthorityRequestV2) -> StoreDispatchV2 {
+    fn dispatch(&mut self, request: AuthorityRequestV3) -> StoreDispatchV2 {
         let result = match request.payload {
-            AuthorityRequestPayloadV2::Snapshot => self
+            AuthorityRequestPayloadV3::Snapshot => self
                 .store
                 .snapshot()
-                .map(|snapshot| AuthoritySuccessV2::Snapshot(Box::new(snapshot))),
-            AuthorityRequestPayloadV2::LeaseIntent(intent) => self
+                .map(|snapshot| AuthoritySuccessV3::Snapshot(Box::new(snapshot))),
+            AuthorityRequestPayloadV3::MutationIntent(intent) => self
                 .store
                 .apply(intent)
-                .map(|receipt| AuthoritySuccessV2::Receipt(Box::new(receipt))),
-            AuthorityRequestPayloadV2::Query(operation_id) => {
+                .map(|receipt| AuthoritySuccessV3::Receipt(Box::new(receipt))),
+            AuthorityRequestPayloadV3::Query(operation_id) => {
                 self.store.query(operation_id).and_then(|result| {
                     if query_result_matches(&result, operation_id, self.identity.config()) {
-                        Ok(AuthoritySuccessV2::Query(result))
+                        Ok(AuthoritySuccessV3::Query(result))
                     } else {
                         Err(AuthorityStoreErrorV2::CorruptStore)
                     }
                 })
             }
-            AuthorityRequestPayloadV2::Ack(locator) => self
+            AuthorityRequestPayloadV3::Ack(locator) => self
                 .store
                 .acknowledge_receipt(locator)
-                .map(AuthoritySuccessV2::Ack),
+                .map(AuthoritySuccessV3::Ack),
         };
         match result {
-            Ok(success) => StoreDispatchV2::Success(success),
+            Ok(success) => {
+                if let AuthoritySuccessV3::Receipt(receipt) = &success {
+                    if let (
+                        AuthorityDispositionV2::Applied,
+                        AuthorityMutationV2::AdvanceState { advance, .. },
+                    ) = (receipt.disposition(), receipt.intent().mutation())
+                    {
+                        if advance.expected() != self.identity.state_head() {
+                            return StoreDispatchV2::Fatal;
+                        }
+                        self.identity = self.identity.at_state_head(advance.next());
+                    }
+                }
+                StoreDispatchV2::Success(success)
+            }
             Err(error) => match classify_store_error(error) {
                 StoreDispositionV2::KnownFailure(failure) => StoreDispatchV2::KnownFailure(failure),
                 StoreDispositionV2::Fatal => StoreDispatchV2::Fatal,
@@ -872,22 +1012,29 @@ impl ReferenceAuthorityServerV2 {
     fn fail_next_response_for_test(&mut self) {
         self.fail_next_response = true;
     }
+
+    #[cfg(all(test, unix))]
+    pub(crate) fn stop_after_next_advance_without_response_for_test(&mut self) {
+        self.stop_after_next_advance_without_response = true;
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HandleResultV2 {
     Continue,
     Quarantined,
+    #[cfg(all(test, unix))]
+    TestStopped,
 }
 
 enum StoreDispatchV2 {
-    Success(AuthoritySuccessV2),
-    KnownFailure(AuthorityKnownFailureV2),
+    Success(AuthoritySuccessV3),
+    KnownFailure(AuthorityKnownFailureV3),
     Fatal,
 }
 
 enum StoreDispositionV2 {
-    KnownFailure(AuthorityKnownFailureV2),
+    KnownFailure(AuthorityKnownFailureV3),
     Fatal,
 }
 
@@ -895,25 +1042,25 @@ fn classify_store_error(error: AuthorityStoreErrorV2) -> StoreDispositionV2 {
     match error {
         AuthorityStoreErrorV2::AllocationFailed
         | AuthorityStoreErrorV2::Authority(AuthorityErrorV2::AllocationFailed) => {
-            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV2::AllocationFailed)
+            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV3::AllocationFailed)
         }
         AuthorityStoreErrorV2::Authority(AuthorityErrorV2::ClockUnavailable) => {
-            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV2::ClockUnavailable)
+            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV3::ClockUnavailable)
         }
         AuthorityStoreErrorV2::Authority(AuthorityErrorV2::OperationConflict) => {
-            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV2::OperationConflict)
+            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV3::OperationConflict)
         }
         AuthorityStoreErrorV2::Authority(AuthorityErrorV2::AuthorityVersionMismatch) => {
-            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)
+            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV3::AuthorityVersionMismatch)
         }
         AuthorityStoreErrorV2::Authority(AuthorityErrorV2::AuthorityVersionExhausted) => {
-            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionExhausted)
+            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV3::AuthorityVersionExhausted)
         }
         AuthorityStoreErrorV2::Authority(AuthorityErrorV2::ReceiptCapacityExceeded) => {
-            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV2::ReceiptCapacityExceeded)
+            StoreDispositionV2::KnownFailure(AuthorityKnownFailureV3::ReceiptCapacityExceeded)
         }
         AuthorityStoreErrorV2::ReceiptAcknowledgement(_) => StoreDispositionV2::KnownFailure(
-            AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
+            AuthorityKnownFailureV3::ReceiptAcknowledgementMismatch,
         ),
         AuthorityStoreErrorV2::InsecureOrMissingStore
         | AuthorityStoreErrorV2::AlreadyOpen
@@ -944,7 +1091,7 @@ fn query_result_matches(
 fn send_response(
     stream: &mut TcpStream,
     deadline: Instant,
-    response: &AuthorityResponseV2,
+    response: &AuthorityResponseV3,
     signing_key: &[u8],
 ) -> Result<(), ()> {
     let body = response.body().map_err(|_| ())?;
@@ -956,13 +1103,13 @@ fn validate_authentication_material(
     signing_key: &[u8],
     verification_key: &[u8],
     total_deadline: Duration,
-) -> Result<(), AuthorityTransportErrorV2> {
+) -> Result<(), AuthorityTransportErrorV3> {
     if !(HARD_MIN_TOTAL_DEADLINE..=HARD_MAX_TOTAL_DEADLINE).contains(&total_deadline)
         || Instant::now().checked_add(total_deadline).is_none()
         || signing_key.iter().all(|byte| *byte == 0)
         || verification_key.iter().all(|byte| *byte == 0)
     {
-        return Err(AuthorityTransportErrorV2::InvalidConfiguration);
+        return Err(AuthorityTransportErrorV3::InvalidConfiguration);
     }
     match signing_key_matches_verification_key(
         ROLE_SEPARATION_CHALLENGE,
@@ -970,18 +1117,18 @@ fn validate_authentication_material(
         verification_key,
     ) {
         Ok(false) => Ok(()),
-        Ok(true) | Err(_) => Err(AuthorityTransportErrorV2::InvalidConfiguration),
+        Ok(true) | Err(_) => Err(AuthorityTransportErrorV3::InvalidConfiguration),
     }
 }
 
-fn map_server_configuration(_: AuthorityTransportErrorV2) -> AuthorityServerErrorV2 {
-    AuthorityServerErrorV2::InvalidConfiguration
+fn map_server_configuration(_: AuthorityTransportErrorV3) -> AuthorityServerErrorV3 {
+    AuthorityServerErrorV3::InvalidConfiguration
 }
 
-fn map_store_setup(error: AuthorityStoreErrorV2) -> AuthorityServerErrorV2 {
+fn map_store_setup(error: AuthorityStoreErrorV2) -> AuthorityServerErrorV3 {
     match error {
         AuthorityStoreErrorV2::CommitUncertain | AuthorityStoreErrorV2::Poisoned => {
-            AuthorityServerErrorV2::Quarantined
+            AuthorityServerErrorV3::Quarantined
         }
         AuthorityStoreErrorV2::InsecureOrMissingStore
         | AuthorityStoreErrorV2::AlreadyOpen
@@ -991,36 +1138,36 @@ fn map_store_setup(error: AuthorityStoreErrorV2) -> AuthorityServerErrorV2 {
         | AuthorityStoreErrorV2::EntropyUnavailable
         | AuthorityStoreErrorV2::Authority(_)
         | AuthorityStoreErrorV2::ReceiptAcknowledgement(_) => {
-            AuthorityServerErrorV2::StoreUnavailable
+            AuthorityServerErrorV3::StoreUnavailable
         }
     }
 }
 
-fn map_protocol_request(error: AuthorityProtocolErrorV2) -> AuthorityTransportErrorV2 {
+fn map_protocol_request(error: AuthorityProtocolErrorV3) -> AuthorityTransportErrorV3 {
     match error {
-        AuthorityProtocolErrorV2::Allocation => AuthorityTransportErrorV2::EncodingFailed,
-        AuthorityProtocolErrorV2::Invalid => AuthorityTransportErrorV2::InvalidRequest,
+        AuthorityProtocolErrorV3::Allocation => AuthorityTransportErrorV3::EncodingFailed,
+        AuthorityProtocolErrorV3::Invalid => AuthorityTransportErrorV3::InvalidRequest,
     }
 }
 
-fn map_request_authentication(error: AuthenticationError) -> AuthorityTransportErrorV2 {
+fn map_request_authentication(error: AuthenticationError) -> AuthorityTransportErrorV3 {
     match error {
-        AuthenticationError::Entropy => AuthorityTransportErrorV2::EntropyUnavailable,
+        AuthenticationError::Entropy => AuthorityTransportErrorV3::EntropyUnavailable,
         AuthenticationError::Authentication | AuthenticationError::InvalidEnvelope => {
-            AuthorityTransportErrorV2::EncodingFailed
+            AuthorityTransportErrorV3::EncodingFailed
         }
     }
 }
 
-fn random_nonce() -> Result<[u8; 32], AuthorityTransportErrorV2> {
+fn random_nonce() -> Result<[u8; 32], AuthorityTransportErrorV3> {
     for _ in 0..4 {
         let mut nonce = [0u8; 32];
-        getrandom::fill(&mut nonce).map_err(|_| AuthorityTransportErrorV2::EntropyUnavailable)?;
+        getrandom::fill(&mut nonce).map_err(|_| AuthorityTransportErrorV3::EntropyUnavailable)?;
         if nonce.iter().any(|byte| *byte != 0) {
             return Ok(nonce);
         }
     }
-    Err(AuthorityTransportErrorV2::EntropyUnavailable)
+    Err(AuthorityTransportErrorV3::EntropyUnavailable)
 }
 
 struct NonceEntryV2 {
@@ -1036,15 +1183,15 @@ struct NonceCacheV2 {
 }
 
 impl NonceCacheV2 {
-    fn new(limits: AuthorityTransportLimitsV2) -> Result<Self, AuthorityServerErrorV2> {
+    fn new(limits: AuthorityTransportLimitsV3) -> Result<Self, AuthorityServerErrorV3> {
         let mut entries = VecDeque::new();
         entries
             .try_reserve(limits.max_nonces)
-            .map_err(|_| AuthorityServerErrorV2::InvalidConfiguration)?;
+            .map_err(|_| AuthorityServerErrorV3::InvalidConfiguration)?;
         let mut values = HashSet::new();
         values
             .try_reserve(limits.max_nonces)
-            .map_err(|_| AuthorityServerErrorV2::InvalidConfiguration)?;
+            .map_err(|_| AuthorityServerErrorV3::InvalidConfiguration)?;
         Ok(Self {
             entries,
             values,
@@ -1222,7 +1369,7 @@ mod tests {
         AuthorityValueErrorV2, InstanceFenceV2, ProcessInstanceIdV2, StateAdvanceV2, StateFenceV2,
         StateHeadV2, StateRevisionV2, StateTransitionKindV2,
     };
-    use crate::authority_protocol::DurablyRetainedAuthorityReceiptV2;
+    use crate::authority_protocol::DurablyRetainedAuthorityReceiptV3;
 
     type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -1255,12 +1402,12 @@ mod tests {
         }
     }
 
-    fn client_id() -> Result<AuthorityClientIdV2, AuthorityValueErrorV2> {
-        AuthorityClientIdV2::from_bytes([0x11; 32])
+    fn client_id() -> Result<AuthorityClientIdV3, AuthorityValueErrorV2> {
+        AuthorityClientIdV3::from_bytes([0x11; 32])
     }
 
-    fn server_id() -> Result<AuthorityServerIdV2, AuthorityValueErrorV2> {
-        AuthorityServerIdV2::from_bytes([0x12; 32])
+    fn server_id() -> Result<AuthorityServerIdV3, AuthorityValueErrorV2> {
+        AuthorityServerIdV3::from_bytes([0x12; 32])
     }
 
     fn head() -> Result<StateHeadV2, AuthorityValueErrorV2> {
@@ -1278,8 +1425,8 @@ mod tests {
         AuthorityLimitsV2::new(8, 4, 4, 60_000)
     }
 
-    fn transport_limits() -> Result<AuthorityTransportLimitsV2, AuthorityTransportErrorV2> {
-        AuthorityTransportLimitsV2::new(Duration::from_secs(2), Duration::from_secs(60), 64)
+    fn transport_limits() -> Result<AuthorityTransportLimitsV3, AuthorityTransportErrorV3> {
+        AuthorityTransportLimitsV3::new(Duration::from_secs(2), Duration::from_secs(60), 64)
     }
 
     fn instance(byte: u8) -> Result<ProcessInstanceIdV2, AuthorityValueErrorV2> {
@@ -1335,17 +1482,17 @@ mod tests {
         )
     }
 
-    fn provisioned_server(path: &Path) -> TestResult<ReferenceAuthorityServerV2> {
+    fn provisioned_server(path: &Path) -> TestResult<ReferenceAuthorityServerV3> {
         let (_, client_vk) = MlDsa65::generate(CLIENT_SEED);
         let (server_sk, _) = MlDsa65::generate(SERVER_SEED);
-        let provision = AuthorityServerProvisionV2::new(
+        let provision = AuthorityServerProvisionV3::new(
             client_id()?,
             server_id()?,
             head()?,
             config()?,
             store_limits()?,
         )?;
-        Ok(ReferenceAuthorityServerV2::provision(
+        Ok(ReferenceAuthorityServerV3::provision(
             path,
             provision,
             client_vk,
@@ -1356,11 +1503,11 @@ mod tests {
 
     fn pinned_client(
         address: SocketAddr,
-        identity: AuthorityWireIdentityV2,
-    ) -> TestResult<AuthenticatedTcpAuthorityV2> {
+        identity: AuthorityWireIdentityV3,
+    ) -> TestResult<AuthenticatedTcpAuthorityV3> {
         let (client_sk, _) = MlDsa65::generate(CLIENT_SEED);
         let (_, server_vk) = MlDsa65::generate(SERVER_SEED);
-        Ok(AuthenticatedTcpAuthorityV2::new(
+        Ok(AuthenticatedTcpAuthorityV3::new(
             address,
             identity,
             ZeroizingBytes::from_bytes(client_sk),
@@ -1372,10 +1519,10 @@ mod tests {
     type SpawnedServer = (
         SocketAddr,
         Arc<AtomicBool>,
-        thread::JoinHandle<Result<(), AuthorityServerErrorV2>>,
+        thread::JoinHandle<Result<(), AuthorityServerErrorV3>>,
     );
 
-    fn spawn_server(mut server: ReferenceAuthorityServerV2) -> TestResult<SpawnedServer> {
+    fn spawn_server(mut server: ReferenceAuthorityServerV3) -> TestResult<SpawnedServer> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         let address = listener.local_addr()?;
         let shutdown = Arc::new(AtomicBool::new(false));
@@ -1391,10 +1538,10 @@ mod tests {
     }
 
     fn known_receipt(
-        outcome: AuthorityOutcomeV2<AuthorityReceiptV2>,
+        outcome: AuthorityOutcomeV3<AuthorityReceiptV2>,
     ) -> TestResult<AuthorityReceiptV2> {
         match outcome {
-            AuthorityOutcomeV2::Known(receipt) => Ok(receipt),
+            AuthorityOutcomeV3::Known(receipt) => Ok(receipt),
             other => Err(format!("expected a known lease receipt, got {other:?}").into()),
         }
     }
@@ -1409,7 +1556,7 @@ mod tests {
         let client = pinned_client(address, identity)?;
 
         let snapshot = match client.snapshot()? {
-            AuthorityOutcomeV2::Known(snapshot) => snapshot,
+            AuthorityOutcomeV3::Known(snapshot) => snapshot,
             other => return Err(format!("expected a known snapshot, got {other:?}").into()),
         };
         assert_eq!(snapshot.authority_version(), 1);
@@ -1425,14 +1572,16 @@ mod tests {
         );
         assert_eq!(acquire_receipt.resulting_authority_version(), 2);
 
-        let retained = DurablyRetainedAuthorityReceiptV2::after_durable_commit(acquire_receipt)?;
+        // Protocol-only fixture: client-journal durability is covered by the
+        // service/repository crash tests, while this test isolates ACK framing.
+        let retained = DurablyRetainedAuthorityReceiptV3::after_repository_commit(acquire_receipt)?;
         assert_eq!(
             client.acknowledge(&retained)?,
-            AuthorityOutcomeV2::Known(ReceiptAckDispositionV2::Removed)
+            AuthorityOutcomeV3::Known(ReceiptAckDispositionV2::Removed)
         );
         assert_eq!(
             client.acknowledge(&retained)?,
-            AuthorityOutcomeV2::Known(ReceiptAckDispositionV2::AlreadyAbsent)
+            AuthorityOutcomeV3::Known(ReceiptAckDispositionV2::AlreadyAbsent)
         );
 
         let renew_a = renew_intent(2, 1, 0x41, 0x52)?;
@@ -1448,11 +1597,11 @@ mod tests {
 
         assert_eq!(
             client.query(renew_a.operation_id())?,
-            AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(Box::new(renew_receipt)))
+            AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(Box::new(renew_receipt)))
         );
         assert_eq!(
             client.query(acquire_a.operation_id())?,
-            AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+            AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
                 authority_version: 4
             })
         );
@@ -1460,11 +1609,11 @@ mod tests {
         let stale = acquire_intent(1, 1, 0x42, 0x54)?;
         assert_eq!(
             client.acquire(stale)?,
-            AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)
+            AuthorityOutcomeV3::KnownFailure(AuthorityKnownFailureV3::AuthorityVersionMismatch)
         );
 
         let refreshed = match client.snapshot()? {
-            AuthorityOutcomeV2::Known(snapshot) => snapshot,
+            AuthorityOutcomeV3::Known(snapshot) => snapshot,
             other => return Err(format!("expected a refreshed snapshot, got {other:?}").into()),
         };
         assert_eq!(refreshed.authority_version(), 4);
@@ -1488,7 +1637,7 @@ mod tests {
 
         let (_, client_vk) = MlDsa65::generate(CLIENT_SEED);
         let (server_sk, _) = MlDsa65::generate(SERVER_SEED);
-        let reopened = ReferenceAuthorityServerV2::open(
+        let reopened = ReferenceAuthorityServerV3::open(
             &path,
             identity,
             client_vk,
@@ -1512,7 +1661,7 @@ mod tests {
         address: SocketAddr,
         envelope: &[u8],
         server_verification_key: &[u8; ML_DSA_65_VK_LEN],
-    ) -> TestResult<AuthorityResponseV2> {
+    ) -> TestResult<AuthorityResponseV3> {
         let deadline = Instant::now()
             .checked_add(Duration::from_secs(2))
             .ok_or("test deadline overflowed")?;
@@ -1523,7 +1672,7 @@ mod tests {
             read_frame_until(&mut stream, deadline).map_err(|_| "raw response read failed")?;
         let body = verify_envelope(&response_envelope, server_verification_key)
             .map_err(|_| "raw response authentication failed")?;
-        AuthorityResponseV2::decode(body).map_err(|_| "raw response decode failed".into())
+        AuthorityResponseV3::decode(body).map_err(|_| "raw response decode failed".into())
     }
 
     #[test]
@@ -1537,11 +1686,11 @@ mod tests {
         let (client_sk, _) = MlDsa65::generate(CLIENT_SEED);
         let (_, server_vk) = MlDsa65::generate(SERVER_SEED);
         let intent = acquire_intent(1, 0, 0x43, 0x61)?;
-        let request = AuthorityRequestV2::new(
+        let request = AuthorityRequestV3::new(
             identity,
             [0x71; 32],
-            AuthorityCommandV2::Acquire,
-            AuthorityRequestPayloadV2::LeaseIntent(intent),
+            AuthorityCommandV3::Acquire,
+            AuthorityRequestPayloadV3::MutationIntent(intent),
         )
         .map_err(|_| "raw request construction failed")?;
         let request_body = request.body().map_err(|_| "raw request encoding failed")?;
@@ -1550,7 +1699,7 @@ mod tests {
 
         let first = raw_exchange(address, &envelope, &server_vk)?;
         match first.disposition {
-            AuthorityResponseDispositionV2::Success(AuthoritySuccessV2::Receipt(receipt)) => {
+            AuthorityResponseDispositionV3::Success(AuthoritySuccessV3::Receipt(receipt)) => {
                 assert_eq!(receipt.intent(), intent);
                 assert_eq!(receipt.disposition(), AuthorityDispositionV2::Applied);
             }
@@ -1560,19 +1709,19 @@ mod tests {
         let replayed = raw_exchange(address, &envelope, &server_vk)?;
         assert_eq!(
             replayed.disposition,
-            AuthorityResponseDispositionV2::ReplayDetected
+            AuthorityResponseDispositionV3::ReplayDetected
         );
 
         let client = pinned_client(address, identity)?;
         let queried = match client.query(intent.operation_id())? {
-            AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt)) => *receipt,
+            AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(receipt)) => *receipt,
             other => return Err(format!("expected the retained receipt, got {other:?}").into()),
         };
         assert_eq!(queried.resulting_authority_version(), 2);
-        let retained = DurablyRetainedAuthorityReceiptV2::after_durable_commit(queried)?;
+        let retained = DurablyRetainedAuthorityReceiptV3::after_repository_commit(queried)?;
         assert_eq!(
             client.acknowledge(&retained)?,
-            AuthorityOutcomeV2::Known(ReceiptAckDispositionV2::Removed)
+            AuthorityOutcomeV3::Known(ReceiptAckDispositionV2::Removed)
         );
 
         shutdown.store(true, Ordering::Release);
@@ -1581,14 +1730,15 @@ mod tests {
     }
 
     #[test]
-    fn mismatched_identity_or_unpinned_key_receives_no_authority_response() -> TestResult {
+    fn immutable_identity_mismatch_is_rejected_but_read_only_head_recovery_is_allowed() -> TestResult
+    {
         let directory = PrivateDirectory::new()?;
         let path = directory.join("authority-binding.redb");
         let server = provisioned_server(&path)?;
         let identity = server.identity();
         let (address, shutdown, handle) = spawn_server(server)?;
 
-        let wrong_config = AuthorityWireIdentityV2::new(
+        let wrong_config = AuthorityWireIdentityV3::new(
             identity.client_id(),
             identity.server_id(),
             identity.authority_epoch(),
@@ -1597,10 +1747,10 @@ mod tests {
         )?;
         assert_eq!(
             pinned_client(address, wrong_config)?.snapshot()?,
-            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+            AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
         );
 
-        let wrong_head = AuthorityWireIdentityV2::new(
+        let wrong_head = AuthorityWireIdentityV3::new(
             identity.client_id(),
             identity.server_id(),
             identity.authority_epoch(),
@@ -1610,12 +1760,14 @@ mod tests {
             ),
             identity.config(),
         )?;
-        assert_eq!(
-            pinned_client(address, wrong_head)?.snapshot()?,
-            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
-        );
+        match pinned_client(address, wrong_head)?.snapshot()? {
+            AuthorityOutcomeV3::Known(snapshot) => {
+                assert_eq!(snapshot.state_head(), identity.state_head());
+            }
+            other => return Err(format!("expected recovery snapshot, got {other:?}").into()),
+        }
 
-        let wrong_epoch = AuthorityWireIdentityV2::new(
+        let wrong_epoch = AuthorityWireIdentityV3::new(
             identity.client_id(),
             identity.server_id(),
             AuthorityEpochV2::from_bytes([0xEE; 32])?,
@@ -1624,12 +1776,12 @@ mod tests {
         )?;
         assert_eq!(
             pinned_client(address, wrong_epoch)?.snapshot()?,
-            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+            AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
         );
 
         let (foreign_sk, _) = MlDsa65::generate(FOREIGN_SEED);
         let (_, server_vk) = MlDsa65::generate(SERVER_SEED);
-        let unpinned = AuthenticatedTcpAuthorityV2::new(
+        let unpinned = AuthenticatedTcpAuthorityV3::new(
             address,
             identity,
             ZeroizingBytes::from_bytes(foreign_sk),
@@ -1638,11 +1790,11 @@ mod tests {
         )?;
         assert_eq!(
             unpinned.snapshot()?,
-            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+            AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
         );
 
         let pinned = pinned_client(address, identity)?;
-        assert!(matches!(pinned.snapshot()?, AuthorityOutcomeV2::Known(_)));
+        assert!(matches!(pinned.snapshot()?, AuthorityOutcomeV3::Known(_)));
 
         shutdown.store(true, Ordering::Release);
         join(handle)??;
@@ -1662,20 +1814,20 @@ mod tests {
         let intent = acquire_intent(1, 0, 0x44, 0x62)?;
         assert_eq!(
             client.acquire(intent)?,
-            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+            AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
         );
 
         let recovered = match client.query(intent.operation_id())? {
-            AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt)) => *receipt,
+            AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(receipt)) => *receipt,
             other => return Err(format!("expected the committed receipt, got {other:?}").into()),
         };
         assert_eq!(recovered.intent(), intent);
         assert_eq!(recovered.disposition(), AuthorityDispositionV2::Applied);
 
-        let retained = DurablyRetainedAuthorityReceiptV2::after_durable_commit(recovered)?;
+        let retained = DurablyRetainedAuthorityReceiptV3::after_repository_commit(recovered)?;
         assert_eq!(
             client.acknowledge(&retained)?,
-            AuthorityOutcomeV2::Known(ReceiptAckDispositionV2::Removed)
+            AuthorityOutcomeV3::Known(ReceiptAckDispositionV2::Removed)
         );
 
         shutdown.store(true, Ordering::Release);
@@ -1689,28 +1841,28 @@ mod tests {
         let path = directory.join("authority-rate-limit.redb");
         let (_, client_vk) = MlDsa65::generate(CLIENT_SEED);
         let (server_sk, _) = MlDsa65::generate(SERVER_SEED);
-        let provision = AuthorityServerProvisionV2::new(
+        let provision = AuthorityServerProvisionV3::new(
             client_id()?,
             server_id()?,
             head()?,
             config()?,
             store_limits()?,
         )?;
-        let server = ReferenceAuthorityServerV2::provision(
+        let server = ReferenceAuthorityServerV3::provision(
             &path,
             provision,
             client_vk,
             ZeroizingBytes::from_bytes(server_sk),
-            AuthorityTransportLimitsV2::new(Duration::from_secs(2), Duration::from_secs(60), 1)?,
+            AuthorityTransportLimitsV3::new(Duration::from_secs(2), Duration::from_secs(60), 1)?,
         )?;
         let identity = server.identity();
         let (address, shutdown, handle) = spawn_server(server)?;
         let client = pinned_client(address, identity)?;
 
-        assert!(matches!(client.snapshot()?, AuthorityOutcomeV2::Known(_)));
+        assert!(matches!(client.snapshot()?, AuthorityOutcomeV3::Known(_)));
         assert_eq!(
             client.snapshot()?,
-            AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::RateLimited)
+            AuthorityOutcomeV3::KnownFailure(AuthorityKnownFailureV3::RateLimited)
         );
 
         shutdown.store(true, Ordering::Release);
@@ -1721,53 +1873,53 @@ mod tests {
     #[test]
     fn endpoint_configuration_and_key_role_separation_fail_closed() -> TestResult {
         assert_eq!(
-            AuthorityTransportLimitsV2::new(Duration::ZERO, Duration::from_secs(1), 1).err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            AuthorityTransportLimitsV3::new(Duration::ZERO, Duration::from_secs(1), 1).err(),
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
         assert_eq!(
-            AuthorityTransportLimitsV2::new(Duration::from_secs(31), Duration::from_secs(1), 1)
+            AuthorityTransportLimitsV3::new(Duration::from_secs(31), Duration::from_secs(1), 1)
                 .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
         assert_eq!(
-            AuthorityTransportLimitsV2::new(Duration::from_secs(1), Duration::ZERO, 1).err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            AuthorityTransportLimitsV3::new(Duration::from_secs(1), Duration::ZERO, 1).err(),
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
         assert_eq!(
-            AuthorityTransportLimitsV2::new(
+            AuthorityTransportLimitsV3::new(
                 Duration::from_secs(1),
                 Duration::from_secs(11 * 60),
                 1
             )
             .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
         assert_eq!(
-            AuthorityTransportLimitsV2::new(Duration::from_secs(1), Duration::from_secs(1), 0)
+            AuthorityTransportLimitsV3::new(Duration::from_secs(1), Duration::from_secs(1), 0)
                 .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
         assert_eq!(
-            AuthorityTransportLimitsV2::new(Duration::from_secs(1), Duration::from_secs(1), 4097)
+            AuthorityTransportLimitsV3::new(Duration::from_secs(1), Duration::from_secs(1), 4097)
                 .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
 
-        let same_identity = AuthorityClientIdV2::from_bytes([0x11; 32])?;
+        let same_identity = AuthorityClientIdV3::from_bytes([0x11; 32])?;
         assert_eq!(
-            AuthorityServerProvisionV2::new(
+            AuthorityServerProvisionV3::new(
                 same_identity,
-                AuthorityServerIdV2::from_bytes([0x11; 32])?,
+                AuthorityServerIdV3::from_bytes([0x11; 32])?,
                 head()?,
                 config()?,
                 store_limits()?,
             )
             .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
 
         let address: SocketAddr = "127.0.0.1:1".parse()?;
-        let identity = AuthorityWireIdentityV2::new(
+        let identity = AuthorityWireIdentityV3::new(
             client_id()?,
             server_id()?,
             AuthorityEpochV2::from_bytes([0x13; 32])?,
@@ -1776,7 +1928,7 @@ mod tests {
         )?;
         let (server_sk, server_vk) = MlDsa65::generate(SERVER_SEED);
         assert_eq!(
-            AuthenticatedTcpAuthorityV2::new(
+            AuthenticatedTcpAuthorityV3::new(
                 address,
                 identity,
                 ZeroizingBytes::from_bytes(server_sk),
@@ -1784,12 +1936,12 @@ mod tests {
                 Duration::from_secs(1),
             )
             .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
 
         let (client_sk, _) = MlDsa65::generate(CLIENT_SEED);
         assert_eq!(
-            AuthenticatedTcpAuthorityV2::new(
+            AuthenticatedTcpAuthorityV3::new(
                 address,
                 identity,
                 ZeroizingBytes::from_bytes(client_sk),
@@ -1797,15 +1949,15 @@ mod tests {
                 Duration::from_secs(1),
             )
             .err(),
-            Some(AuthorityTransportErrorV2::InvalidConfiguration)
+            Some(AuthorityTransportErrorV3::InvalidConfiguration)
         );
 
         let directory = PrivateDirectory::new()?;
         let (role_crossed_sk, role_crossed_vk) = MlDsa65::generate(FOREIGN_SEED);
         assert_eq!(
-            ReferenceAuthorityServerV2::provision(
+            ReferenceAuthorityServerV3::provision(
                 &directory.join("authority-role-crossed.redb"),
-                AuthorityServerProvisionV2::new(
+                AuthorityServerProvisionV3::new(
                     client_id()?,
                     server_id()?,
                     head()?,
@@ -1817,13 +1969,13 @@ mod tests {
                 transport_limits()?,
             )
             .err(),
-            Some(AuthorityServerErrorV2::InvalidConfiguration)
+            Some(AuthorityServerErrorV3::InvalidConfiguration)
         );
         Ok(())
     }
 
     #[test]
-    fn server_open_requires_exact_epoch_and_lease_only_history() -> TestResult {
+    fn server_open_requires_exact_epoch_and_accepts_v3_state_advance_history() -> TestResult {
         let directory = PrivateDirectory::new()?;
         let (_, client_vk) = MlDsa65::generate(CLIENT_SEED);
         let (server_sk, _) = MlDsa65::generate(SERVER_SEED);
@@ -1832,7 +1984,7 @@ mod tests {
         let server = provisioned_server(&wire_path)?;
         let identity = server.identity();
         drop(server);
-        let wrong_epoch = AuthorityWireIdentityV2::new(
+        let wrong_epoch = AuthorityWireIdentityV3::new(
             identity.client_id(),
             identity.server_id(),
             AuthorityEpochV2::from_bytes([0xEF; 32])?,
@@ -1840,7 +1992,7 @@ mod tests {
             identity.config(),
         )?;
         assert_eq!(
-            ReferenceAuthorityServerV2::open(
+            ReferenceAuthorityServerV3::open(
                 &wire_path,
                 wrong_epoch,
                 client_vk,
@@ -1848,7 +2000,7 @@ mod tests {
                 transport_limits()?,
             )
             .err(),
-            Some(AuthorityServerErrorV2::InvalidConfiguration)
+            Some(AuthorityServerErrorV3::InvalidConfiguration)
         );
 
         let direct_path = directory.join("authority-non-lease.redb");
@@ -1880,25 +2032,22 @@ mod tests {
         );
         drop(store);
 
-        let advanced_identity =
-            AuthorityWireIdentityV2::new(client_id()?, server_id()?, epoch, next_head, config()?)?;
-        assert_eq!(
-            ReferenceAuthorityServerV2::open(
-                &direct_path,
-                advanced_identity,
-                client_vk,
-                ZeroizingBytes::from_bytes(server_sk),
-                transport_limits()?,
-            )
-            .err(),
-            Some(AuthorityServerErrorV2::InvalidConfiguration)
-        );
+        let bootstrap_identity =
+            AuthorityWireIdentityV3::new(client_id()?, server_id()?, epoch, head()?, config()?)?;
+        let reopened = ReferenceAuthorityServerV3::open(
+            &direct_path,
+            bootstrap_identity,
+            client_vk,
+            ZeroizingBytes::from_bytes(server_sk),
+            transport_limits()?,
+        )?;
+        assert_eq!(reopened.identity().state_head(), next_head);
         Ok(())
     }
 
     #[test]
     fn unresponsive_or_refused_endpoints_stay_within_the_deadline_contract() -> TestResult {
-        let identity = AuthorityWireIdentityV2::new(
+        let identity = AuthorityWireIdentityV3::new(
             client_id()?,
             server_id()?,
             AuthorityEpochV2::from_bytes([0x13; 32])?,
@@ -1916,7 +2065,7 @@ mod tests {
                 drop(stream);
             }
         });
-        let silent_client = AuthenticatedTcpAuthorityV2::new(
+        let silent_client = AuthenticatedTcpAuthorityV3::new(
             silent_address,
             identity,
             ZeroizingBytes::from_bytes(client_sk),
@@ -1925,7 +2074,7 @@ mod tests {
         )?;
         assert_eq!(
             silent_client.snapshot()?,
-            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+            AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
         );
         join(silent_thread)?;
 
@@ -1936,18 +2085,18 @@ mod tests {
             silent_client_at(refused_address, identity)?
                 .snapshot()
                 .err(),
-            Some(AuthorityTransportErrorV2::NotSent)
+            Some(AuthorityTransportErrorV3::NotSent)
         );
         Ok(())
     }
 
     fn silent_client_at(
         address: SocketAddr,
-        identity: AuthorityWireIdentityV2,
-    ) -> TestResult<AuthenticatedTcpAuthorityV2> {
+        identity: AuthorityWireIdentityV3,
+    ) -> TestResult<AuthenticatedTcpAuthorityV3> {
         let (client_sk, _) = MlDsa65::generate(CLIENT_SEED);
         let (_, server_vk) = MlDsa65::generate(SERVER_SEED);
-        Ok(AuthenticatedTcpAuthorityV2::new(
+        Ok(AuthenticatedTcpAuthorityV3::new(
             address,
             identity,
             ZeroizingBytes::from_bytes(client_sk),

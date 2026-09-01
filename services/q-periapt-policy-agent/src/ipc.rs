@@ -26,16 +26,17 @@ use crate::authority::{
     AuthorityEpochV2, DeploymentConfigRevisionV2, StateFenceV2, StateHeadV2, StateRevisionV2,
 };
 use crate::authority_protocol::{
-    AuthorityClientIdV2, AuthorityServerIdV2, AuthorityWireIdentityV2,
+    AuthorityClientIdV3, AuthorityServerIdV3, AuthorityWireIdentityV3,
 };
-use crate::authority_transport::{AuthenticatedTcpAuthorityV2, InstanceAuthorityPort};
+use crate::authority_store::AuthorityStoreV2;
+use crate::authority_transport::{AuthenticatedTcpAuthorityV3, InstanceAuthorityPort};
 use crate::codec::{
     encode_domain, hash_fields, read_frame_until, require_domain, write_frame_until, CodecError,
     DeadlineStream, Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::OwnedPrivateDirectory;
-use crate::repository::{MigrationTrustRoots, StateRepository};
+use crate::repository::{MigrationTrustRoots, RepositoryError, StateRepository};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
@@ -602,10 +603,11 @@ pub(crate) fn bind_private_socket(
     Ok(listener)
 }
 
-/// Run the Unix executable from one of two exact command shapes:
+/// Run the Unix executable from one of three exact command shapes:
 ///
 /// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
 /// `serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY`
+/// `migrate-agent-repository-v1-to-v3 REPOSITORY AUTHORITY_DATABASE CONFIG_DIRECTORY`
 ///
 /// A successful `serve-agent` startup permanently pins `SERVICE_DIRECTORY` as
 /// the process working directory before entering the server loop. This entry
@@ -648,7 +650,90 @@ where
         }
         return serve_witness(listen, &database, &configuration);
     }
+    if mode == "migrate-agent-repository-v1-to-v3" {
+        let repository = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
+        let authority_database =
+            PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
+        let configuration = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
+        if arguments.next().is_some() {
+            return Err(IpcError::InvalidConfiguration);
+        }
+        return migrate_agent_repository_v1_to_v3(&repository, &authority_database, &configuration);
+    }
     Err(IpcError::InvalidConfiguration)
+}
+
+fn migrate_agent_repository_v1_to_v3(
+    repository: &Path,
+    authority_database: &Path,
+    configuration: &Path,
+) -> Result<(), IpcError> {
+    let configuration =
+        OwnedPrivateDirectory::open(configuration).map_err(|_| IpcError::InvalidConfiguration)?;
+    let roots = load_migration_roots(&configuration)?;
+    let identity = load_authority_identity(&configuration)?;
+    let already_v3 = StateRepository::has_v3_storage_schema(repository)
+        .map_err(|_| IpcError::InvalidConfiguration)?;
+    if already_v3 {
+        let repository = match StateRepository::open_existing(repository, roots.clone()) {
+            Ok(repository) => repository,
+            Err(RepositoryError::AuthorityBindingMismatch) => {
+                let mut authority = AuthorityStoreV2::open(authority_database)
+                    .map_err(|_| IpcError::InvalidConfiguration)?;
+                if authority.authority_epoch() != identity.authority_epoch()
+                    || !authority
+                        .wire_v3_is_pristine_for_binding(identity.state_head(), identity.config())
+                        .map_err(|_| IpcError::InvalidConfiguration)?
+                {
+                    return Err(IpcError::InvalidConfiguration);
+                }
+                // The actual pristine authority remains exclusively locked
+                // across the idempotent repository binding transaction.
+                return StateRepository::finalize_unbound_v3_binding(repository, roots, identity)
+                    .map_err(|_| IpcError::InvalidConfiguration);
+            }
+            Err(_) => return Err(IpcError::InvalidConfiguration),
+        };
+        let durable_identity = repository
+            .authority_identity()
+            .map_err(|_| IpcError::InvalidConfiguration)?;
+        if identity.client_id() != durable_identity.client_id()
+            || identity.server_id() != durable_identity.server_id()
+            || identity.authority_epoch() != durable_identity.authority_epoch()
+            || identity.config() != durable_identity.config()
+        {
+            return Err(IpcError::InvalidConfiguration);
+        }
+        let mut authority = AuthorityStoreV2::open(authority_database)
+            .map_err(|_| IpcError::InvalidConfiguration)?;
+        if authority.authority_epoch() != durable_identity.authority_epoch()
+            || !authority
+                .wire_v3_matches_binding(durable_identity.state_head(), durable_identity.config())
+                .map_err(|_| IpcError::InvalidConfiguration)?
+            || !authority
+                .wire_v3_history_is_supported(durable_identity.config())
+                .map_err(|_| IpcError::InvalidConfiguration)?
+        {
+            return Err(IpcError::InvalidConfiguration);
+        }
+        // Both exclusive redb handles remain live until this already-migrated
+        // admission check returns; neither side can move between validation.
+        return Ok(());
+    }
+    let mut authority =
+        AuthorityStoreV2::open(authority_database).map_err(|_| IpcError::InvalidConfiguration)?;
+    if authority.authority_epoch() != identity.authority_epoch()
+        || !authority
+            .wire_v3_is_pristine_for_binding(identity.state_head(), identity.config())
+            .map_err(|_| IpcError::InvalidConfiguration)?
+    {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    // Keep the authority store's exclusive file lock through the repository
+    // schema transaction. This closes the check-to-bind window without a
+    // cross-database transaction or an operator-asserted epoch.
+    StateRepository::migrate_v1_to_v3(repository, roots, identity)
+        .map_err(|_| IpcError::InvalidConfiguration)
 }
 
 fn serve_agent(
@@ -665,6 +750,17 @@ fn serve_agent(
     let roots = load_migration_roots(&configuration)?;
     let repository = StateRepository::open_existing(repository_path, roots)
         .map_err(|_| IpcError::InvalidConfiguration)?;
+    let configured_authority = load_authority_identity(&configuration)?;
+    let durable_authority = repository
+        .authority_identity()
+        .map_err(|_| IpcError::InvalidConfiguration)?;
+    if configured_authority.client_id() != durable_authority.client_id()
+        || configured_authority.server_id() != durable_authority.server_id()
+        || configured_authority.authority_epoch() != durable_authority.authority_epoch()
+        || configured_authority.config() != durable_authority.config()
+    {
+        return Err(IpcError::InvalidConfiguration);
+    }
     let witness = AuthenticatedTcpWitness::new(
         witness_address,
         read_secret(&configuration, "witness-client-sk.bin")?,
@@ -672,9 +768,9 @@ fn serve_agent(
         WITNESS_IO_TIMEOUT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
-    let authority = AuthenticatedTcpAuthorityV2::new(
+    let authority = AuthenticatedTcpAuthorityV3::new(
         authority_address,
-        load_authority_identity(&configuration)?,
+        durable_authority,
         read_secret(&configuration, "authority-client-sk.bin")?,
         read_array(&configuration, "authority-server-vk.bin")?,
         AUTHORITY_IO_TIMEOUT,
@@ -732,14 +828,15 @@ fn load_migration_roots(
     .map_err(|_| IpcError::InvalidConfiguration)
 }
 
-/// Load the exact pinned Authority Wire V2 endpoint identity.
+/// Load the immutable Authority Wire V3 bootstrap identity.
 ///
 /// The state head and configuration are pinned deployment facts read from the
-/// protected configuration directory, exactly like the pinned keys: the client
-/// accepts only an authority whose provisioned head/config equal these bytes.
+/// protected configuration directory. Runtime state-head authority comes only
+/// from the repository's durable binding; endpoint, epoch, and config must
+/// remain exact to this bootstrap anchor.
 fn load_authority_identity(
     configuration: &OwnedPrivateDirectory,
-) -> Result<AuthorityWireIdentityV2, IpcError> {
+) -> Result<AuthorityWireIdentityV3, IpcError> {
     let head = read_array::<112>(configuration, "authority-state-head.bin")?;
     let mut global_generation = [0u8; 8];
     global_generation.copy_from_slice(&head[0..8]);
@@ -770,10 +867,10 @@ fn load_authority_identity(
     let config =
         DeploymentConfigRevisionV2::new(u64::from_be_bytes(config_generation), config_digest)
             .map_err(|_| IpcError::InvalidConfiguration)?;
-    AuthorityWireIdentityV2::new(
-        AuthorityClientIdV2::from_bytes(read_array(configuration, "authority-client-id.bin")?)
+    AuthorityWireIdentityV3::new(
+        AuthorityClientIdV3::from_bytes(read_array(configuration, "authority-client-id.bin")?)
             .map_err(|_| IpcError::InvalidConfiguration)?,
-        AuthorityServerIdV2::from_bytes(read_array(configuration, "authority-server-id.bin")?)
+        AuthorityServerIdV3::from_bytes(read_array(configuration, "authority-server-id.bin")?)
             .map_err(|_| IpcError::InvalidConfiguration)?,
         AuthorityEpochV2::from_bytes(read_array(configuration, "authority-epoch.bin")?)
             .map_err(|_| IpcError::InvalidConfiguration)?,

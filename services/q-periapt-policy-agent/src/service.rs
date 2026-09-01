@@ -1,7 +1,7 @@
 //! Single-linearizer policy, transition, KEM, and mutual-confirmation service.
 
 use core::fmt;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -19,16 +19,17 @@ use q_periapt_policy::{AuthenticatedPolicy, HybridSuite, KeyFormat, Policy};
 use crate::authority::{
     AuthorityDispositionV2, AuthorityIntentV2, AuthorityMutationV2, AuthorityQueryResultV2,
     AuthorityReceiptV2, AuthorityRejectionV2, AuthoritySnapshotV2, DeploymentConfigRevisionV2,
-    InstanceFenceV2, OperationIdV2, ProcessInstanceIdV2,
+    InstanceFenceV2, OperationIdV2, ProcessInstanceIdV2, ReceiptAckDispositionV2,
 };
-use crate::authority_protocol::{
-    AuthorityKnownFailureV2, AuthorityOutcomeV2, DurablyRetainedAuthorityReceiptV2,
-};
-use crate::authority_transport::InstanceAuthorityPort;
+use crate::authority_journal::DurableAuthorityOperation;
+use crate::authority_protocol::{AuthorityKnownFailureV3, AuthorityOutcomeV3};
+use crate::authority_transport::{AuthorityTransportErrorV3, InstanceAuthorityPort};
 use crate::crypto::{
     Abi2Engine, Abi2EngineError, EncapsulationCiphertexts, EncapsulationPublicKeys,
 };
-use crate::repository::{RepositoryError, StateRepository};
+use crate::repository::{
+    CommittedTransition, CoordinatedTransition, RepositoryError, StateRepository,
+};
 use crate::types::{SessionId, StateHead};
 use crate::witness::{
     WitnessDisposition, WitnessError, WitnessOutcome, WitnessPort, WitnessReceipt,
@@ -38,7 +39,6 @@ const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
 const HARD_MAX_SESSIONS: usize = 1024;
 const HARD_MAX_CONFIRMED_KEYS: usize = 1024;
 const MAX_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
-const MAX_UNACKNOWLEDGED_LEASE_RECEIPTS: usize = 64;
 const LEASE_VERSION_RESYNC_ATTEMPTS: usize = 2;
 
 /// One exact signed policy document and its pinned ML-DSA-65 root.
@@ -442,6 +442,9 @@ impl From<RepositoryError> for AgentError {
             RepositoryError::SessionNotFound => Self::UnknownHandle,
             RepositoryError::CapabilityReplay => Self::AuthorizationRejected,
             RepositoryError::StaleReservation => Self::StaleSession,
+            RepositoryError::CommitUncertain | RepositoryError::RepositoryPoisoned => {
+                Self::InternalPoisoned
+            }
             other => Self::Repository(other),
         }
     }
@@ -466,6 +469,18 @@ impl From<Abi2EngineError> for AgentError {
             Abi2EngineError::AbiVersionMismatch | Abi2EngineError::LocalCryptoFailure => {
                 Self::LocalCryptoFailure
             }
+        }
+    }
+}
+
+impl From<AuthorityTransportErrorV3> for AgentError {
+    fn from(error: AuthorityTransportErrorV3) -> Self {
+        match error {
+            AuthorityTransportErrorV3::InvalidConfiguration => Self::InvalidConfiguration,
+            AuthorityTransportErrorV3::InvalidRequest
+            | AuthorityTransportErrorV3::EntropyUnavailable
+            | AuthorityTransportErrorV3::EncodingFailed
+            | AuthorityTransportErrorV3::NotSent => Self::InstanceLeaseUnavailable,
         }
     }
 }
@@ -535,7 +550,6 @@ struct InstanceLeaseState {
     fence: Option<InstanceFenceV2>,
     authority_version: u64,
     fenced: bool,
-    unacknowledged: VecDeque<DurablyRetainedAuthorityReceiptV2>,
 }
 
 struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
@@ -578,22 +592,21 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         authority: A,
         config: AgentConfig,
     ) -> Result<Self, AgentError> {
-        let lease = acquire_instance_lease(&authority)?;
-        align_repository(&mut repository, &witness)?;
+        if repository.authority_identity()? != authority.wire_identity()? {
+            return Err(AgentError::InvalidConfiguration);
+        }
+        if repository.coordinated_transition().is_some() {
+            drive_coordinated_transition(&mut repository, &witness, &authority)?;
+        }
+        align_repository(&mut repository, &witness, &authority)?;
+        recover_durable_lease_operation(&mut repository, &authority)?;
+        let lease = acquire_instance_lease(&mut repository, &authority)?;
+        align_repository(&mut repository, &witness, &authority)?;
         let committed = repository.committed_state();
         let engine = executor_for(&config.execution_policy, committed.state())?;
         let local_policy = config.local_endpoint_policy.authenticate()?;
         let peer_policy = config.peer_endpoint_policy.authenticate()?;
-        let pending_engine = if repository.pending_intent().is_some() {
-            Some(executor_for(
-                &config.execution_policy,
-                repository
-                    .pending_next_state()
-                    .ok_or(AgentError::InternalPoisoned)?,
-            )?)
-        } else {
-            None
-        };
+        let pending_engine = None;
         Ok(Self {
             inner: Mutex::new(Inner {
                 repository,
@@ -627,46 +640,53 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     pub fn apply_advance(&self, canonical_signed_state: &[u8]) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_no_transition(&inner)?;
         ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
-        let intent = inner.repository.prepare_advance(canonical_signed_state)?;
-        let replacement = executor_for(
-            &inner.config.execution_policy,
+        let fence = inner.lease.fence.ok_or(AgentError::InstanceFenced)?;
+        let authority_version = inner.lease.authority_version;
+        let prepared =
             inner
                 .repository
-                .pending_next_state()
-                .ok_or(AgentError::InternalPoisoned)?,
-        )?;
+                .prepare_advance(canonical_signed_state, authority_version, fence);
+        let transition = repository_result_or_fatal(&mut inner, prepared)?;
+        let Some(next_state) = inner.repository.pending_next_state() else {
+            return fatalize(&mut inner);
+        };
+        let replacement = executor_for(&inner.config.execution_policy, next_state)?;
         inner.pending_engine = Some(replacement);
-        execute_transition(&mut inner, intent)
+        execute_transition(&mut inner, transition)
     }
 
     /// Authenticate and execute a separately authorized lineage reset.
     pub fn apply_reset(&self, canonical_signed_reset: &[u8]) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_no_transition(&inner)?;
         ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
-        let intent = inner.repository.prepare_reset(canonical_signed_reset)?;
-        let replacement = executor_for(
-            &inner.config.execution_policy,
+        let fence = inner.lease.fence.ok_or(AgentError::InstanceFenced)?;
+        let authority_version = inner.lease.authority_version;
+        let prepared =
             inner
                 .repository
-                .pending_next_state()
-                .ok_or(AgentError::InternalPoisoned)?,
-        )?;
+                .prepare_reset(canonical_signed_reset, authority_version, fence);
+        let transition = repository_result_or_fatal(&mut inner, prepared)?;
+        let Some(next_state) = inner.repository.pending_next_state() else {
+            return fatalize(&mut inner);
+        };
+        let replacement = executor_for(&inner.config.execution_policy, next_state)?;
         inner.pending_engine = Some(replacement);
-        execute_transition(&mut inner, intent)
+        execute_transition(&mut inner, transition)
     }
 
     /// Reconcile only the durable operation ID retained after an unknown outcome.
     pub fn reconcile_transition(&self) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
-        let intent = inner
+        let transition = inner
             .repository
-            .pending_intent()
+            .coordinated_transition()
             .ok_or(RepositoryError::NoPendingTransition)?;
         if inner.pending_engine.is_none() {
             inner.pending_engine = Some(executor_for(
@@ -677,16 +697,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     .ok_or(AgentError::InternalPoisoned)?,
             )?);
         }
-        match inner.witness.query(intent.operation_id())? {
-            WitnessOutcome::Unknown => Err(AgentError::TransitionIndeterminate),
-            WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => {
-                finish_transition(&mut inner, *receipt)
-            }
-            WitnessOutcome::Known(receipt) => {
-                let same_intent = inner.repository.validate_unapplied(*receipt)?;
-                execute_transition(&mut inner, same_intent)
-            }
-        }
+        execute_transition(&mut inner, transition)
     }
 
     /// Begin encapsulation from signed capability envelopes; no raw context is accepted.
@@ -696,6 +707,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     ) -> Result<BeginEncapsulationResult, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_no_transition(&inner)?;
         ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
         ensure_session_capacity(&inner)?;
@@ -771,6 +783,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     ) -> Result<BeginDecapsulationResult, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_no_transition(&inner)?;
         ensure_instance_lease(&mut inner)?;
         purge_expired(&mut inner)?;
         ensure_session_capacity(&inner)?;
@@ -845,6 +858,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     ) -> Result<ResponderAcceptanceResult, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_no_transition(&inner)?;
         ensure_instance_lease(&mut inner)?;
         if let Some(completed) = inner.completed_acceptances.get(&handle) {
             return match completed {
@@ -904,6 +918,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     ) -> Result<ConfirmedKeyHandle, AgentError> {
         let mut inner = self.lock()?;
         ensure_live(&inner)?;
+        ensure_no_transition(&inner)?;
         ensure_instance_lease(&mut inner)?;
         if let Some(completed) = inner.completed_acceptances.get(&handle) {
             return match completed {
@@ -984,25 +999,28 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         let mut inner = self.lock()?;
         let inner = &mut *inner;
         ensure_live(inner)?;
+        ensure_no_transition(inner)?;
+        let recovery = recover_durable_lease_operation(&mut inner.repository, &inner.authority);
+        repository_agent_result_or_fatal(inner, recovery)?;
         let Some(fence) = inner.lease.fence else {
             return Ok(());
         };
         fence_out(inner)?;
-        drain_acknowledgements(&inner.authority, &mut inner.lease);
         for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
             let intent = lease_intent(
                 &inner.lease,
-                inner.authority.wire_config(),
+                inner.authority.wire_config()?,
                 AuthorityMutationV2::ReleaseLease { fence },
             )?;
-            match lease_exchange(
+            let exchange = lease_exchange(
+                &mut inner.repository,
                 &inner.authority,
                 &mut inner.lease,
                 LeaseCall::Release,
                 intent,
-            )? {
+            );
+            match repository_agent_result_or_fatal(inner, exchange)? {
                 LeaseExchange::Receipt(receipt) => {
-                    drain_acknowledgements(&inner.authority, &mut inner.lease);
                     return match receipt.disposition() {
                         AuthorityDispositionV2::Applied
                         | AuthorityDispositionV2::Rejected(
@@ -1045,34 +1063,71 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ))
     }
 
+    #[cfg(all(test, unix))]
+    pub(crate) fn fatal_state_for_test(&self) -> Result<(bool, usize, usize, bool), AgentError> {
+        let inner = self.lock()?;
+        Ok((
+            inner.poisoned,
+            inner.pending_sessions.len(),
+            inner.confirmed_keys.len(),
+            matches!(inner.engine, ExecutorState::Blocked)
+                && inner.pending_engine.is_none()
+                && inner.lease.fence.is_none()
+                && inner.lease.fenced,
+        ))
+    }
+
+    #[cfg(all(test, unix))]
+    pub(crate) fn fail_after_next_authority_journal_commit_for_test(
+        &self,
+    ) -> Result<(), AgentError> {
+        let mut inner = self.lock()?;
+        ensure_live(&inner)?;
+        inner
+            .repository
+            .fail_after_next_authority_journal_commit_for_test();
+        Ok(())
+    }
+
+    #[cfg(all(test, unix))]
+    pub(crate) fn fail_after_authority_journal_commits_for_test(
+        &self,
+        commits: usize,
+    ) -> Result<(), AgentError> {
+        if commits == 0 {
+            return Err(AgentError::InvalidConfiguration);
+        }
+        let mut inner = self.lock()?;
+        ensure_live(&inner)?;
+        inner
+            .repository
+            .fail_after_authority_journal_commits_for_test(commits);
+        Ok(())
+    }
+
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
     }
 }
 
-fn align_repository<W: WitnessPort>(
+fn align_repository<W: WitnessPort, A: InstanceAuthorityPort>(
     repository: &mut StateRepository,
     witness: &W,
+    authority: &A,
 ) -> Result<(), AgentError> {
-    let Some(intent) = repository.pending_intent() else {
-        return (witness.read_head()? == repository.head()?)
-            .then_some(())
-            .ok_or(AgentError::RollbackOrFork);
-    };
-    match witness.query(intent.operation_id())? {
-        WitnessOutcome::Unknown => Ok(()),
-        WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => {
-            repository.commit_applied(*receipt)?;
-            Ok(())
-        }
-        WitnessOutcome::Known(receipt)
-            if receipt.disposition() == WitnessDisposition::NotApplied =>
-        {
-            repository.validate_unapplied(*receipt)?;
-            Ok(())
-        }
-        WitnessOutcome::Known(_) => Err(AgentError::RollbackOrFork),
+    if repository.coordinated_transition().is_some() {
+        return Err(AgentError::TransitionPending);
     }
+    let local = repository.head()?;
+    let identity = repository.authority_identity()?;
+    if witness.read_head()? != local || authority.wire_identity()? != identity {
+        return Err(AgentError::RollbackOrFork);
+    }
+    let snapshot = authority_snapshot(authority)?;
+    if snapshot.state_head() != identity.state_head() || snapshot.config() != identity.config() {
+        return Err(AgentError::RollbackOrFork);
+    }
+    Ok(())
 }
 
 fn executor_for(
@@ -1109,35 +1164,184 @@ fn executor_for(
 
 fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
-    intent: crate::witness::WitnessIntent,
+    transition: CoordinatedTransition,
 ) -> Result<(), AgentError> {
-    match inner.witness.compare_and_advance(intent)? {
-        WitnessOutcome::Unknown => Err(AgentError::TransitionIndeterminate),
-        WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => {
-            finish_transition(inner, *receipt)
-        }
-        WitnessOutcome::Known(_) => Err(AgentError::RollbackOrFork),
+    if inner.repository.coordinated_transition() != Some(transition) {
+        return Err(AgentError::RollbackOrFork);
     }
-}
-
-fn finish_transition<W: WitnessPort, A: InstanceAuthorityPort>(
-    inner: &mut Inner<W, A>,
-    receipt: WitnessReceipt,
-) -> Result<(), AgentError> {
-    if inner.repository.commit_applied(receipt).is_err() {
-        inner.poisoned = true;
-        return Err(AgentError::InternalPoisoned);
+    if let Err(error) =
+        drive_coordinated_transition(&mut inner.repository, &inner.witness, &inner.authority)
+    {
+        if matches!(
+            error,
+            AgentError::Repository(_) | AgentError::InternalPoisoned
+        ) {
+            return fatalize(inner);
+        }
+        return Err(error);
     }
     // The durable commit already erased all reservations. Dropping these maps
     // erases every in-process pending/accepted secret before any new request.
     inner.pending_sessions.clear();
     inner.confirmed_keys.clear();
     inner.completed_acceptances.clear();
-    inner.engine = inner.pending_engine.take().ok_or_else(|| {
-        inner.poisoned = true;
-        AgentError::InternalPoisoned
-    })?;
+    let Some(replacement) = inner.pending_engine.take() else {
+        return fatalize(inner);
+    };
+    inner.engine = replacement;
+    inner.lease = match acquire_instance_lease(&mut inner.repository, &inner.authority) {
+        Ok(lease) => lease,
+        Err(_) => return fatalize(inner),
+    };
     Ok(())
+}
+
+fn drive_coordinated_transition<W: WitnessPort, A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
+    witness: &W,
+    authority: &A,
+) -> Result<CommittedTransition, AgentError> {
+    let mut transition = repository
+        .coordinated_transition()
+        .ok_or(RepositoryError::NoPendingTransition)?;
+    let mut authority_applied = false;
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        let authority_receipt = reconcile_transition_authority(repository, authority, transition)?;
+        match authority_receipt.disposition() {
+            AuthorityDispositionV2::Applied => {
+                authority_applied = true;
+                break;
+            }
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::StateMismatch) => {
+                return Err(AgentError::RollbackOrFork);
+            }
+            AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseAbsent
+                | AuthorityRejectionV2::LeaseExpired
+                | AuthorityRejectionV2::FenceMismatch,
+            ) => {
+                // A previous attempt may have crashed at the replacement
+                // lease's Prepared or Resolved cut. The transition receipt is
+                // already durably ACK-terminal here, so the active journal
+                // slot can only belong to that non-AdvanceState lease attempt.
+                recover_durable_lease_operation(repository, authority)?;
+                let replacement_lease = acquire_instance_lease(repository, authority)?;
+                let replacement_fence = replacement_lease
+                    .fence
+                    .ok_or(AgentError::InstanceLeaseUnavailable)?;
+                transition = repository.replace_rejected_transition_authority_attempt(
+                    authority_receipt,
+                    replacement_lease.authority_version,
+                    replacement_fence,
+                )?;
+            }
+            AuthorityDispositionV2::Rejected(_) => {
+                return Err(AgentError::InstanceLeaseUnavailable);
+            }
+        }
+    }
+    if !authority_applied {
+        return Err(AgentError::InstanceLeaseIndeterminate);
+    }
+    let witness_intent = transition.witness_intent();
+    let witness_receipt = match witness.query(witness_intent.operation_id())? {
+        WitnessOutcome::Known(receipt) if receipt.is_exact_applied(witness_intent) => *receipt,
+        WitnessOutcome::Known(receipt)
+            if receipt.disposition() == WitnessDisposition::NotApplied
+                && receipt.authoritative_head() == witness_intent.expected() =>
+        {
+            dispatch_witness_transition(witness, witness_intent)?
+        }
+        WitnessOutcome::Unknown => dispatch_witness_transition(witness, witness_intent)?,
+        WitnessOutcome::Known(_) => return Err(AgentError::RollbackOrFork),
+    };
+    let committed = repository.commit_applied(witness_receipt)?;
+    authority
+        .advance_wire_identity(committed.expected_identity, committed.next_identity)
+        .map_err(|_| AgentError::InternalPoisoned)?;
+    Ok(committed)
+}
+
+fn dispatch_witness_transition<W: WitnessPort>(
+    witness: &W,
+    intent: crate::witness::WitnessIntent,
+) -> Result<WitnessReceipt, AgentError> {
+    match witness.compare_and_advance(intent)? {
+        WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => Ok(*receipt),
+        WitnessOutcome::Unknown => Err(AgentError::TransitionIndeterminate),
+        WitnessOutcome::Known(_) => Err(AgentError::RollbackOrFork),
+    }
+}
+
+fn reconcile_transition_authority<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
+    authority: &A,
+    transition: CoordinatedTransition,
+) -> Result<AuthorityReceiptV2, AgentError> {
+    let identity = repository.authority_identity()?;
+    if authority.wire_identity()? != identity {
+        return Err(AgentError::RollbackOrFork);
+    }
+    if let Some(receipt) = transition.authority_receipt() {
+        if transition.authority_acknowledged() {
+            return Ok(receipt);
+        }
+        match repository.durable_lease_operation(identity)? {
+            Some(DurableAuthorityOperation::Resolved(durable)) if durable == receipt => {
+                let retained = DurableAuthorityOperation::Resolved(durable)
+                    .retained()
+                    .map_err(RepositoryError::from)?;
+                acknowledge_transition_authority_receipt(repository, authority, retained)?;
+            }
+            _ => return Err(AgentError::RollbackOrFork),
+        }
+        return Ok(receipt);
+    }
+    let intent = transition.authority_intent();
+    if repository.durable_lease_operation(identity)?
+        != Some(DurableAuthorityOperation::Prepared(intent))
+    {
+        return Err(AgentError::RollbackOrFork);
+    }
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        match authority.advance_state(intent) {
+            Ok(AuthorityOutcomeV3::Known(receipt)) => {
+                let retained = repository.record_transition_authority_result(intent, receipt)?;
+                acknowledge_transition_authority_receipt(repository, authority, retained)?;
+                return Ok(receipt);
+            }
+            Ok(AuthorityOutcomeV3::KnownFailure(
+                AuthorityKnownFailureV3::OperationConflict
+                | AuthorityKnownFailureV3::ReceiptAcknowledgementMismatch,
+            )) => return Err(AgentError::RollbackOrFork),
+            Ok(AuthorityOutcomeV3::KnownFailure(_))
+            | Ok(AuthorityOutcomeV3::Unknown(_))
+            | Err(_) => match authority.query(intent.operation_id()) {
+                Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(receipt)))
+                    if receipt.intent() == intent =>
+                {
+                    let receipt = *receipt;
+                    let retained =
+                        repository.record_transition_authority_result(intent, receipt)?;
+                    acknowledge_transition_authority_receipt(repository, authority, retained)?;
+                    return Ok(receipt);
+                }
+                Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                    authority_version,
+                })) if authority_version == intent.expected_authority_version() => {}
+                Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                    ..
+                }))
+                | Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(_))) => {
+                    return Err(AgentError::RollbackOrFork);
+                }
+                Ok(AuthorityOutcomeV3::KnownFailure(_))
+                | Ok(AuthorityOutcomeV3::Unknown(_))
+                | Err(_) => {}
+            },
+        }
+    }
+    Err(AgentError::TransitionIndeterminate)
 }
 
 fn build_contract<W: WitnessPort, A: InstanceAuthorityPort>(
@@ -1478,6 +1682,53 @@ fn ensure_live<W: WitnessPort, A: InstanceAuthorityPort>(
     }
 }
 
+fn ensure_no_transition<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+) -> Result<(), AgentError> {
+    if inner.repository.coordinated_transition().is_some() {
+        Err(AgentError::TransitionPending)
+    } else {
+        Ok(())
+    }
+}
+
+fn fatalize<W: WitnessPort, A: InstanceAuthorityPort, T>(
+    inner: &mut Inner<W, A>,
+) -> Result<T, AgentError> {
+    inner.pending_sessions.clear();
+    inner.confirmed_keys.clear();
+    inner.completed_acceptances.clear();
+    inner.pending_engine = None;
+    inner.engine = ExecutorState::Blocked;
+    inner.lease.fence = None;
+    inner.lease.fenced = true;
+    inner.poisoned = true;
+    Err(AgentError::InternalPoisoned)
+}
+
+fn repository_result_or_fatal<W: WitnessPort, A: InstanceAuthorityPort, T>(
+    inner: &mut Inner<W, A>,
+    result: Result<T, RepositoryError>,
+) -> Result<T, AgentError> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(RepositoryError::CommitUncertain | RepositoryError::RepositoryPoisoned) => {
+            fatalize(inner)
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn repository_agent_result_or_fatal<W: WitnessPort, A: InstanceAuthorityPort, T>(
+    inner: &mut Inner<W, A>,
+    result: Result<T, AgentError>,
+) -> Result<T, AgentError> {
+    match result {
+        Err(AgentError::Repository(_) | AgentError::InternalPoisoned) => fatalize(inner),
+        other => other,
+    }
+}
+
 /// Closed lease-mutation dispatch selector for one authority exchange.
 enum LeaseCall {
     Acquire,
@@ -1509,8 +1760,8 @@ fn authority_snapshot<A: InstanceAuthorityPort>(
     authority: &A,
 ) -> Result<AuthoritySnapshotV2, AgentError> {
     match authority.snapshot() {
-        Ok(AuthorityOutcomeV2::Known(snapshot)) => Ok(snapshot),
-        Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
+        Ok(AuthorityOutcomeV3::Known(snapshot)) => Ok(snapshot),
+        Ok(AuthorityOutcomeV3::KnownFailure(_) | AuthorityOutcomeV3::Unknown(_)) | Err(_) => {
             Err(AgentError::InstanceLeaseUnavailable)
         }
     }
@@ -1528,6 +1779,8 @@ fn lease_intent(
 }
 
 fn record_lease_receipt(
+    repository: &mut StateRepository,
+    authority: &impl InstanceAuthorityPort,
     lease: &mut InstanceLeaseState,
     intent: AuthorityIntentV2,
     receipt: AuthorityReceiptV2,
@@ -1535,80 +1788,181 @@ fn record_lease_receipt(
     if receipt.intent() != intent {
         return Err(AgentError::InstanceLeaseUnavailable);
     }
+    let identity = authority.wire_identity()?;
+    let retained = repository.resolve_lease_operation(identity, intent, receipt)?;
     lease.authority_version = receipt.resulting_authority_version();
-    // The lease view is deliberately RAM-only: after a crash the successor
-    // process starts a fresh acquire cycle and never queries this operation ID
-    // again, so the receipt needs no further durability before the bounded
-    // acknowledgement queue lets the authority prune it.
-    if lease.unacknowledged.len() < MAX_UNACKNOWLEDGED_LEASE_RECEIPTS
-        && lease.unacknowledged.try_reserve(1).is_ok()
-    {
-        if let Ok(retained) = DurablyRetainedAuthorityReceiptV2::after_durable_commit(receipt) {
-            lease.unacknowledged.push_back(retained);
-        }
-    }
+    acknowledge_resolved_receipt(repository, authority, retained)?;
     Ok(LeaseExchange::Receipt(receipt))
 }
 
-fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
-    while let Some(retained) = lease.unacknowledged.front() {
-        match authority.acknowledge(retained) {
-            Ok(AuthorityOutcomeV2::Known(_)) => {
-                lease.unacknowledged.pop_front();
+fn acknowledge_resolved_receipt<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
+    authority: &A,
+    retained: crate::authority_protocol::DurablyRetainedAuthorityReceiptV3,
+) -> Result<(), AgentError> {
+    let disposition = acknowledge_authority_receipt(authority, retained)?;
+    repository.complete_lease_acknowledgement(authority.wire_identity()?, retained, disposition)?;
+    Ok(())
+}
+
+fn acknowledge_transition_authority_receipt<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
+    authority: &A,
+    retained: crate::authority_protocol::DurablyRetainedAuthorityReceiptV3,
+) -> Result<(), AgentError> {
+    let disposition = acknowledge_authority_receipt(authority, retained)?;
+    repository.complete_transition_authority_acknowledgement(
+        authority.wire_identity()?,
+        retained,
+        disposition,
+    )?;
+    Ok(())
+}
+
+fn acknowledge_authority_receipt<A: InstanceAuthorityPort>(
+    authority: &A,
+    retained: crate::authority_protocol::DurablyRetainedAuthorityReceiptV3,
+) -> Result<ReceiptAckDispositionV2, AgentError> {
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        match authority.acknowledge(&retained) {
+            Ok(AuthorityOutcomeV3::Known(
+                disposition @ (ReceiptAckDispositionV2::Removed
+                | ReceiptAckDispositionV2::AlreadyAbsent),
+            )) => return Ok(disposition),
+            Ok(AuthorityOutcomeV3::KnownFailure(
+                AuthorityKnownFailureV3::RateLimited | AuthorityKnownFailureV3::AllocationFailed,
+            ))
+            | Ok(AuthorityOutcomeV3::Unknown(_))
+            | Err(_) => {}
+            Ok(AuthorityOutcomeV3::KnownFailure(_)) => {
+                return Err(AgentError::InstanceLeaseUnavailable)
             }
-            Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
-                return;
+        }
+    }
+    Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+fn recover_durable_lease_operation<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
+    authority: &A,
+) -> Result<(), AgentError> {
+    let identity = authority.wire_identity()?;
+    let Some(operation) = repository.durable_lease_operation(identity)? else {
+        return Ok(());
+    };
+    if matches!(
+        operation.intent().mutation(),
+        AuthorityMutationV2::AdvanceState { .. }
+    ) {
+        return Err(AgentError::TransitionPending);
+    }
+    match operation {
+        DurableAuthorityOperation::Resolved(_) => {
+            let retained = operation.retained().map_err(RepositoryError::from)?;
+            acknowledge_resolved_receipt(repository, authority, retained)
+        }
+        DurableAuthorityOperation::Prepared(intent) => {
+            for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+                match authority.query(intent.operation_id()) {
+                    Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(receipt))) => {
+                        let retained =
+                            repository.resolve_lease_operation(identity, intent, *receipt)?;
+                        return acknowledge_resolved_receipt(repository, authority, retained);
+                    }
+                    Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                        authority_version,
+                    })) if authority_version >= intent.expected_authority_version() => {
+                        repository.cancel_prepared_lease_operation(identity, intent)?;
+                        return Ok(());
+                    }
+                    Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
+                        ..
+                    })) => return Err(AgentError::InstanceLeaseUnavailable),
+                    Ok(AuthorityOutcomeV3::KnownFailure(
+                        AuthorityKnownFailureV3::RateLimited
+                        | AuthorityKnownFailureV3::AllocationFailed,
+                    ))
+                    | Ok(AuthorityOutcomeV3::Unknown(_))
+                    | Err(_) => {}
+                    Ok(AuthorityOutcomeV3::KnownFailure(_)) => {
+                        return Err(AgentError::InstanceLeaseUnavailable)
+                    }
+                }
             }
+            Err(AgentError::InstanceLeaseIndeterminate)
         }
     }
 }
 
 fn reconcile_lease_operation<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
     intent: AuthorityIntentV2,
 ) -> Result<LeaseExchange, AgentError> {
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         match authority.query(intent.operation_id()) {
-            Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
-                return record_lease_receipt(lease, intent, *receipt);
+            Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(receipt))) => {
+                return record_lease_receipt(repository, authority, lease, intent, *receipt);
             }
-            Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+            Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
                 authority_version,
-            })) => {
+            })) if authority_version >= intent.expected_authority_version() => {
+                repository.cancel_prepared_lease_operation(authority.wire_identity()?, intent)?;
                 lease.authority_version = authority_version;
                 return Ok(LeaseExchange::Retry);
             }
-            Ok(AuthorityOutcomeV2::KnownFailure(_)) => {
-                return Err(AgentError::InstanceLeaseUnavailable);
+            Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion { .. })) => {
+                return Err(AgentError::InstanceLeaseUnavailable)
             }
-            Ok(AuthorityOutcomeV2::Unknown(_)) | Err(_) => {}
+            Ok(AuthorityOutcomeV3::KnownFailure(
+                AuthorityKnownFailureV3::RateLimited | AuthorityKnownFailureV3::AllocationFailed,
+            ))
+            | Ok(AuthorityOutcomeV3::Unknown(_))
+            | Err(_) => {}
+            Ok(AuthorityOutcomeV3::KnownFailure(_)) => {
+                return Err(AgentError::InstanceLeaseUnavailable)
+            }
         }
     }
     Err(AgentError::InstanceLeaseIndeterminate)
 }
 
 fn lease_exchange<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
     call: LeaseCall,
     intent: AuthorityIntentV2,
 ) -> Result<LeaseExchange, AgentError> {
+    let identity = authority.wire_identity()?;
+    repository.prepare_lease_operation(identity, intent)?;
     let outcome = match call {
         LeaseCall::Acquire => authority.acquire(intent),
         LeaseCall::Renew => authority.renew(intent),
         LeaseCall::Release => authority.release(intent),
     };
     match outcome {
-        Ok(AuthorityOutcomeV2::Known(receipt)) => record_lease_receipt(lease, intent, receipt),
-        Ok(AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)) => {
+        Ok(AuthorityOutcomeV3::Known(receipt)) => {
+            record_lease_receipt(repository, authority, lease, intent, receipt)
+        }
+        Ok(AuthorityOutcomeV3::KnownFailure(AuthorityKnownFailureV3::AuthorityVersionMismatch)) => {
+            repository.cancel_prepared_lease_operation(identity, intent)?;
             let snapshot = authority_snapshot(authority)?;
             lease.authority_version = snapshot.authority_version();
             Ok(LeaseExchange::Retry)
         }
-        Ok(AuthorityOutcomeV2::KnownFailure(_)) => Err(AgentError::InstanceLeaseUnavailable),
-        Ok(AuthorityOutcomeV2::Unknown(_)) => reconcile_lease_operation(authority, lease, intent),
-        Err(_) => Err(AgentError::InstanceLeaseUnavailable),
+        Ok(AuthorityOutcomeV3::KnownFailure(_)) => {
+            repository.cancel_prepared_lease_operation(identity, intent)?;
+            Err(AgentError::InstanceLeaseUnavailable)
+        }
+        Ok(AuthorityOutcomeV3::Unknown(_)) => {
+            reconcile_lease_operation(repository, authority, lease, intent)
+        }
+        Err(_) => {
+            repository.cancel_prepared_lease_operation(identity, intent)?;
+            Err(AgentError::InstanceLeaseUnavailable)
+        }
     }
 }
 
@@ -1634,6 +1988,7 @@ fn adopt_or_reject_active_lease(
 }
 
 fn acquire_instance_lease<A: InstanceAuthorityPort>(
+    repository: &mut StateRepository,
     authority: &A,
 ) -> Result<InstanceLeaseState, AgentError> {
     let instance_id = ProcessInstanceIdV2::from_bytes(fresh_lease_random()?)
@@ -1643,7 +1998,6 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
         fence: None,
         authority_version: 1,
         fenced: false,
-        unacknowledged: VecDeque::new(),
     };
     let snapshot = authority_snapshot(authority)?;
     lease.authority_version = snapshot.authority_version();
@@ -1654,44 +2008,46 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let intent = lease_intent(
             &lease,
-            authority.wire_config(),
+            authority.wire_config()?,
             AuthorityMutationV2::AcquireLease {
                 expected_lease_generation,
                 instance_id,
             },
         )?;
-        match lease_exchange(authority, &mut lease, LeaseCall::Acquire, intent)? {
-            LeaseExchange::Receipt(receipt) => {
-                drain_acknowledgements(authority, &mut lease);
-                match receipt.disposition() {
-                    AuthorityDispositionV2::Applied => {
-                        let generation = expected_lease_generation
-                            .checked_add(1)
-                            .ok_or(AgentError::InstanceLeaseUnavailable)?;
-                        lease.fence = Some(
-                            InstanceFenceV2::new(generation, instance_id)
-                                .map_err(|_| AgentError::InstanceLeaseUnavailable)?,
-                        );
+        match lease_exchange(
+            repository,
+            authority,
+            &mut lease,
+            LeaseCall::Acquire,
+            intent,
+        )? {
+            LeaseExchange::Receipt(receipt) => match receipt.disposition() {
+                AuthorityDispositionV2::Applied => {
+                    let generation = expected_lease_generation
+                        .checked_add(1)
+                        .ok_or(AgentError::InstanceLeaseUnavailable)?;
+                    lease.fence = Some(
+                        InstanceFenceV2::new(generation, instance_id)
+                            .map_err(|_| AgentError::InstanceLeaseUnavailable)?,
+                    );
+                    return Ok(lease);
+                }
+                AuthorityDispositionV2::Rejected(
+                    AuthorityRejectionV2::LeaseHeld | AuthorityRejectionV2::LeaseGenerationMismatch,
+                ) => {
+                    let snapshot = authority_snapshot(authority)?;
+                    if adopt_or_reject_active_lease(
+                        &mut lease,
+                        &snapshot,
+                        &mut expected_lease_generation,
+                    )? {
                         return Ok(lease);
                     }
-                    AuthorityDispositionV2::Rejected(
-                        AuthorityRejectionV2::LeaseHeld
-                        | AuthorityRejectionV2::LeaseGenerationMismatch,
-                    ) => {
-                        let snapshot = authority_snapshot(authority)?;
-                        if adopt_or_reject_active_lease(
-                            &mut lease,
-                            &snapshot,
-                            &mut expected_lease_generation,
-                        )? {
-                            return Ok(lease);
-                        }
-                    }
-                    AuthorityDispositionV2::Rejected(_) => {
-                        return Err(AgentError::InstanceLeaseUnavailable);
-                    }
                 }
-            }
+                AuthorityDispositionV2::Rejected(_) => {
+                    return Err(AgentError::InstanceLeaseUnavailable);
+                }
+            },
             LeaseExchange::Retry => {
                 let snapshot = authority_snapshot(authority)?;
                 if adopt_or_reject_active_lease(
@@ -1715,22 +2071,38 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
 fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
+    let result = renew_instance_lease(inner);
+    if matches!(result, Err(AgentError::InternalPoisoned)) {
+        fatalize(inner)
+    } else {
+        result
+    }
+}
+
+fn renew_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
     if inner.lease.fenced {
         return Err(AgentError::InstanceFenced);
     }
+    recover_durable_lease_operation(&mut inner.repository, &inner.authority)?;
     let Some(fence) = inner.lease.fence else {
         return Err(AgentError::InstanceFenced);
     };
-    drain_acknowledgements(&inner.authority, &mut inner.lease);
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let intent = lease_intent(
             &inner.lease,
-            inner.authority.wire_config(),
+            inner.authority.wire_config()?,
             AuthorityMutationV2::RenewLease { fence },
         )?;
-        match lease_exchange(&inner.authority, &mut inner.lease, LeaseCall::Renew, intent)? {
+        match lease_exchange(
+            &mut inner.repository,
+            &inner.authority,
+            &mut inner.lease,
+            LeaseCall::Renew,
+            intent,
+        )? {
             LeaseExchange::Receipt(receipt) => {
-                drain_acknowledgements(&inner.authority, &mut inner.lease);
                 return match receipt.disposition() {
                     AuthorityDispositionV2::Applied
                     | AuthorityDispositionV2::Rejected(

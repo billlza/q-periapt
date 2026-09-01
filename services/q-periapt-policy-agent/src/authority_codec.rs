@@ -3,7 +3,7 @@
 //! This module defines the typed authority values consumed by the pure
 //! `authority` state machine (which re-exports them unchanged) and is the
 //! single byte-level definition shared by durable Store V2 records and the
-//! authenticated Authority Wire V2 protocol. Protocol modules may restrict
+//! authenticated Authority Wire V3 protocol. Protocol modules may restrict
 //! which domain values they admit, but must not define a parallel
 //! representation for those values.
 

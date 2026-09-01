@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::io::{self, Cursor, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,25 +25,33 @@ use q_periapt_policy::{
     policy_signature_message, AuthenticatedPolicy, HybridSuite, Policy, TrustedPolicyState,
 };
 use q_periapt_sig::Signer;
+use redb::{Database, Durability, TableDefinition, TableHandle};
 
 use crate::authentication::{sign_envelope, verify_envelope};
 use crate::authority::{
-    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityQueryResultV2,
-    AuthorityReceiptV2, AuthoritySnapshotV2, AuthorityStateV2, DeploymentConfigRevisionV2,
-    OperationIdV2, StateFenceV2, StateHeadV2, StateRevisionV2, TrustedClockErrorV2, TrustedClockV2,
+    AuthorityDispositionV2, AuthorityEpochV2, AuthorityErrorV2, AuthorityIntentV2,
+    AuthorityLimitsV2, AuthorityMutationV2, AuthorityQueryResultV2, AuthorityReceiptV2,
+    AuthoritySnapshotV2, AuthorityStateV2, DeploymentConfigRevisionV2, InstanceFenceV2,
+    OperationIdV2, ProcessInstanceIdV2, ReceiptAckDispositionV2, StateFenceV2, StateHeadV2,
+    StateRevisionV2, TrustedClockErrorV2, TrustedClockV2,
 };
+use crate::authority_journal::DurableAuthorityOperation;
 use crate::authority_protocol::{
-    AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityUnknownV2,
-    DurablyRetainedAuthorityReceiptV2,
+    AuthorityClientIdV3, AuthorityKnownFailureV3, AuthorityOutcomeV3, AuthorityServerIdV3,
+    AuthorityUnknownV3, AuthorityWireIdentityV3, DurablyRetainedAuthorityReceiptV3,
 };
-use crate::authority_transport::{AuthorityTransportErrorV2, InstanceAuthorityPort};
+use crate::authority_store::AuthorityStoreV2;
+use crate::authority_transport::{
+    AuthenticatedTcpAuthorityV3, AuthorityServerProvisionV3, AuthorityTransportErrorV3,
+    AuthorityTransportLimitsV3, InstanceAuthorityPort, ReferenceAuthorityServerV3,
+};
 use crate::codec::{
     encode_domain, read_frame, require_domain, write_frame, DeadlineStream, Decoder, Encoder,
     MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::{open_private_file, OwnedPrivateDirectory, PrivateFileError};
-use crate::repository::{MigrationTrustRoots, StateRepository};
+use crate::repository::{MigrationTrustRoots, RepositoryError, StateRepository};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, EndpointIdentity, InitiatorDecapsulationResult,
@@ -518,6 +526,38 @@ fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
         .map_err(|_| io::Error::other("test worker panicked").into())
 }
 
+type RunningWitness = (
+    SocketAddr,
+    Arc<AtomicBool>,
+    thread::JoinHandle<Result<(), WitnessError>>,
+);
+
+fn spawn_reference_witness(server: ReferenceWitnessServer) -> TestResult<RunningWitness> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let handle = thread::spawn(move || server.serve(listener, &server_shutdown));
+    Ok((address, shutdown, handle))
+}
+
+type RunningAuthority = (
+    SocketAddr,
+    Arc<AtomicBool>,
+    thread::JoinHandle<Result<(), crate::authority_transport::AuthorityServerErrorV3>>,
+);
+
+fn spawn_reference_authority(
+    mut server: ReferenceAuthorityServerV3,
+) -> TestResult<RunningAuthority> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let handle = thread::spawn(move || server.serve(listener, &server_shutdown));
+    Ok((address, shutdown, handle))
+}
+
 struct FailingWriteTransport {
     input: Cursor<Vec<u8>>,
 }
@@ -643,6 +683,26 @@ fn framed_accept_initiator_request(
         .and_then(|()| body.byte(4))
         .and_then(|()| body.fixed(handle.as_bytes()))
         .and_then(|()| body.fixed(finished.as_bytes()))
+        .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
+    let envelope = sign_envelope(&body.finish(), signing_key)
+        .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
+    let mut framed = Vec::new();
+    write_frame(&mut framed, &envelope)
+        .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
+    Ok(framed)
+}
+
+fn framed_advance_request(
+    signing_key: &[u8],
+    nonce: [u8; 32],
+    certificate: &[u8],
+) -> TestResult<Vec<u8>> {
+    let mut body = Encoder::new(MAX_FRAME_BYTES);
+    encode_domain(&mut body, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC domain encoding failed: {error:?}")))?;
+    body.fixed(&nonce)
+        .and_then(|()| body.byte(8))
+        .and_then(|()| body.lp16(certificate))
         .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
     let envelope = sign_envelope(&body.finish(), signing_key)
         .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
@@ -791,34 +851,36 @@ struct MemoryAuthority {
 
 struct MemoryAuthorityState {
     authority: AuthorityStateV2,
-    config: DeploymentConfigRevisionV2,
+    identity: AuthorityWireIdentityV3,
     now_millis: u64,
     unknown_after_apply: bool,
+    unknown_advance_responses: usize,
+    unknown_ack_responses: usize,
+    unknown_query_responses: usize,
+    next_absent_version: Option<u64>,
+    expire_before_next_advance: bool,
+    fail_next_identity_advance: bool,
 }
 
-fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
+fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV3 {
     match error {
-        AuthorityErrorV2::ClockUnavailable => AuthorityKnownFailureV2::ClockUnavailable,
-        AuthorityErrorV2::OperationConflict => AuthorityKnownFailureV2::OperationConflict,
+        AuthorityErrorV2::ClockUnavailable => AuthorityKnownFailureV3::ClockUnavailable,
+        AuthorityErrorV2::OperationConflict => AuthorityKnownFailureV3::OperationConflict,
         AuthorityErrorV2::AuthorityVersionMismatch => {
-            AuthorityKnownFailureV2::AuthorityVersionMismatch
+            AuthorityKnownFailureV3::AuthorityVersionMismatch
         }
         AuthorityErrorV2::AuthorityVersionExhausted => {
-            AuthorityKnownFailureV2::AuthorityVersionExhausted
+            AuthorityKnownFailureV3::AuthorityVersionExhausted
         }
         AuthorityErrorV2::ReceiptCapacityExceeded => {
-            AuthorityKnownFailureV2::ReceiptCapacityExceeded
+            AuthorityKnownFailureV3::ReceiptCapacityExceeded
         }
-        _ => AuthorityKnownFailureV2::AllocationFailed,
+        _ => AuthorityKnownFailureV3::AllocationFailed,
     }
 }
 
 impl MemoryAuthority {
-    fn new() -> TestResult<Self> {
-        let head = StateHeadV2::new(
-            StateRevisionV2::new(1, [41u8; 32], 1, [43u8; 32])?,
-            StateFenceV2::from_bytes([44u8; 32])?,
-        );
+    fn with_head(head: StateHeadV2) -> TestResult<Self> {
         let config = DeploymentConfigRevisionV2::new(1, [45u8; 32])?;
         let authority = AuthorityStateV2::provision(
             head,
@@ -826,12 +888,25 @@ impl MemoryAuthority {
             AuthorityLimitsV2::new(64, 16, 16, MEMORY_AUTHORITY_LEASE_TTL_MILLIS)?,
             &FixedClock(MEMORY_AUTHORITY_EPOCH_MILLIS),
         )?;
+        let identity = AuthorityWireIdentityV3::new(
+            AuthorityClientIdV3::from_bytes([71u8; 32])?,
+            AuthorityServerIdV3::from_bytes([72u8; 32])?,
+            AuthorityEpochV2::from_bytes([73u8; 32])?,
+            head,
+            config,
+        )?;
         Ok(Self {
             state: Arc::new(Mutex::new(MemoryAuthorityState {
                 authority,
-                config,
+                identity,
                 now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
                 unknown_after_apply: false,
+                unknown_advance_responses: 0,
+                unknown_ack_responses: 0,
+                unknown_query_responses: 0,
+                next_absent_version: None,
+                expire_before_next_advance: false,
+                fail_next_identity_advance: false,
             })),
         })
     }
@@ -853,98 +928,274 @@ impl MemoryAuthority {
         self.lock().unknown_after_apply = true;
     }
 
+    fn lose_next_advance_responses(&self, count: usize) {
+        self.lock().unknown_advance_responses = count;
+    }
+
+    fn lose_next_ack_responses(&self, count: usize) {
+        self.lock().unknown_ack_responses = count;
+    }
+
+    fn lose_next_query_responses(&self, count: usize) {
+        self.lock().unknown_query_responses = count;
+    }
+
+    fn authority_version(&self) -> TestResult<u64> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        Ok(state.authority.snapshot(&clock)?.authority_version())
+    }
+
+    fn report_next_absent_version(&self, authority_version: u64) {
+        self.lock().next_absent_version = Some(authority_version);
+    }
+
+    fn expire_before_next_advance(&self) {
+        self.lock().expire_before_next_advance = true;
+    }
+
+    fn fail_next_identity_advance(&self) {
+        self.lock().fail_next_identity_advance = true;
+    }
+
+    fn acquire_for_transition_recovery(
+        &self,
+        instance_id: ProcessInstanceIdV2,
+    ) -> TestResult<InstanceFenceV2> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        let snapshot = state.authority.snapshot(&clock)?;
+        let intent = AuthorityIntentV2::new(
+            OperationIdV2::new(snapshot.authority_version(), [0xD0; 32])?,
+            snapshot.authority_version(),
+            state.identity.config(),
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation: snapshot.lease_generation(),
+                instance_id,
+            },
+        )?;
+        let receipt = state.authority.apply(&clock, intent)?;
+        if receipt.disposition() != AuthorityDispositionV2::Applied {
+            return Err(io::Error::other("test transition lease was not acquired").into());
+        }
+        state.authority.acknowledge_receipt(receipt.locator())?;
+        Ok(InstanceFenceV2::new(1, instance_id)?)
+    }
+
     fn lease_call(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         let mut state = self.lock();
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.apply(&clock, intent) {
             Ok(receipt) => {
                 if state.unknown_after_apply {
                     state.unknown_after_apply = false;
-                    AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+                    AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
                 } else {
-                    AuthorityOutcomeV2::Known(receipt)
+                    AuthorityOutcomeV3::Known(receipt)
                 }
             }
-            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+            Err(error) => AuthorityOutcomeV3::KnownFailure(map_memory_authority_failure(error)),
         })
     }
 }
 
+fn authority_head_for(
+    committed: CommittedMigrationStateV1,
+    local_head: StateHead,
+) -> TestResult<StateHeadV2> {
+    let revision = committed.revision();
+    if revision.global_generation() != local_head.revision().global_generation()
+        || revision.epoch() != local_head.revision().epoch()
+        || revision.digest().as_bytes() != local_head.revision().digest()
+    {
+        return Err(io::Error::other("test migration head projection mismatch").into());
+    }
+    Ok(StateHeadV2::new(
+        StateRevisionV2::new(
+            revision.global_generation(),
+            *committed.state().chain_id().as_bytes(),
+            revision.epoch(),
+            *revision.digest().as_bytes(),
+        )?,
+        StateFenceV2::from_bytes(*local_head.fence().as_bytes())?,
+    ))
+}
+
+fn encode_authority_head_file(head: StateHeadV2) -> [u8; 112] {
+    let mut bytes = [0u8; 112];
+    let revision = head.revision();
+    bytes[0..8].copy_from_slice(&revision.global_generation().to_be_bytes());
+    bytes[8..40].copy_from_slice(revision.chain_id());
+    bytes[40..48].copy_from_slice(&revision.epoch().to_be_bytes());
+    bytes[48..80].copy_from_slice(revision.digest());
+    bytes[80..112].copy_from_slice(head.fence().as_bytes());
+    bytes
+}
+
+fn encode_authority_config_file(config: DeploymentConfigRevisionV2) -> [u8; 40] {
+    let mut bytes = [0u8; 40];
+    bytes[0..8].copy_from_slice(&config.generation().to_be_bytes());
+    bytes[8..40].copy_from_slice(config.digest());
+    bytes
+}
+
+fn write_private_config(path: &Path, bytes: &[u8]) -> TestResult {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::write(path, bytes)?;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
 impl InstanceAuthorityPort for MemoryAuthority {
-    fn wire_config(&self) -> DeploymentConfigRevisionV2 {
-        self.lock().config
+    fn wire_identity(&self) -> Result<AuthorityWireIdentityV3, AuthorityTransportErrorV3> {
+        Ok(self.lock().identity)
+    }
+
+    fn advance_wire_identity(
+        &self,
+        expected: AuthorityWireIdentityV3,
+        next: AuthorityWireIdentityV3,
+    ) -> Result<(), AuthorityTransportErrorV3> {
+        let mut state = self.lock();
+        if state.fail_next_identity_advance {
+            state.fail_next_identity_advance = false;
+            return Err(AuthorityTransportErrorV3::InvalidConfiguration);
+        }
+        let clock = FixedClock(state.now_millis);
+        let snapshot = state
+            .authority
+            .snapshot(&clock)
+            .map_err(|_| AuthorityTransportErrorV3::InvalidConfiguration)?;
+        if state.identity != expected
+            || snapshot.state_head() != next.state_head()
+            || expected.client_id() != next.client_id()
+            || expected.server_id() != next.server_id()
+            || expected.authority_epoch() != next.authority_epoch()
+            || expected.config() != next.config()
+        {
+            return Err(AuthorityTransportErrorV3::InvalidConfiguration);
+        }
+        state.identity = next;
+        Ok(())
     }
 
     fn snapshot(
         &self,
-    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthoritySnapshotV2>, AuthorityTransportErrorV3> {
         let mut state = self.lock();
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.snapshot(&clock) {
-            Ok(snapshot) => AuthorityOutcomeV2::Known(snapshot),
-            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+            Ok(snapshot) => AuthorityOutcomeV3::Known(snapshot),
+            Err(error) => AuthorityOutcomeV3::KnownFailure(map_memory_authority_failure(error)),
         })
     }
 
     fn acquire(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         self.lease_call(intent)
     }
 
     fn renew(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         self.lease_call(intent)
     }
 
     fn release(
         &self,
         intent: AuthorityIntentV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
         self.lease_call(intent)
+    }
+
+    fn advance_state(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV3<AuthorityReceiptV2>, AuthorityTransportErrorV3> {
+        let force_unknown = {
+            let mut state = self.lock();
+            if state.expire_before_next_advance {
+                state.expire_before_next_advance = false;
+                state.now_millis = state
+                    .now_millis
+                    .saturating_add(MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1);
+            }
+            if state.unknown_advance_responses > 0 {
+                state.unknown_advance_responses -= 1;
+                true
+            } else {
+                false
+            }
+        };
+        let outcome = self.lease_call(intent)?;
+        if force_unknown {
+            Ok(AuthorityOutcomeV3::Unknown(
+                AuthorityUnknownV3::ResponseUnavailable,
+            ))
+        } else {
+            Ok(outcome)
+        }
     }
 
     fn query(
         &self,
         operation_id: OperationIdV2,
-    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+    ) -> Result<AuthorityOutcomeV3<AuthorityQueryResultV2>, AuthorityTransportErrorV3> {
         let mut state = self.lock();
+        if state.unknown_query_responses > 0 {
+            state.unknown_query_responses -= 1;
+            return Ok(AuthorityOutcomeV3::Unknown(
+                AuthorityUnknownV3::ResponseUnavailable,
+            ));
+        }
+        if let Some(authority_version) = state.next_absent_version.take() {
+            return Ok(AuthorityOutcomeV3::Known(
+                AuthorityQueryResultV2::AbsentAtVersion { authority_version },
+            ));
+        }
         if let Some(receipt) = state.authority.receipt(operation_id) {
-            return Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(
+            return Ok(AuthorityOutcomeV3::Known(AuthorityQueryResultV2::Found(
                 Box::new(receipt),
             )));
         }
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.snapshot(&clock) {
-            Ok(snapshot) => AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+            Ok(snapshot) => AuthorityOutcomeV3::Known(AuthorityQueryResultV2::AbsentAtVersion {
                 authority_version: snapshot.authority_version(),
             }),
-            Err(error) => AuthorityOutcomeV2::KnownFailure(map_memory_authority_failure(error)),
+            Err(error) => AuthorityOutcomeV3::KnownFailure(map_memory_authority_failure(error)),
         })
     }
 
     fn acknowledge(
         &self,
-        retained: &DurablyRetainedAuthorityReceiptV2,
+        retained: &DurablyRetainedAuthorityReceiptV3,
     ) -> Result<
-        AuthorityOutcomeV2<crate::authority::ReceiptAckDispositionV2>,
-        AuthorityTransportErrorV2,
+        AuthorityOutcomeV3<crate::authority::ReceiptAckDispositionV2>,
+        AuthorityTransportErrorV3,
     > {
         let mut state = self.lock();
-        Ok(
-            match state.authority.acknowledge_receipt(retained.locator()) {
-                Ok(disposition) => AuthorityOutcomeV2::Known(disposition),
-                Err(_) => AuthorityOutcomeV2::KnownFailure(
-                    AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
-                ),
-            },
-        )
+        let outcome = match state.authority.acknowledge_receipt(retained.locator()) {
+            Ok(disposition) => AuthorityOutcomeV3::Known(disposition),
+            Err(_) => AuthorityOutcomeV3::KnownFailure(
+                AuthorityKnownFailureV3::ReceiptAcknowledgementMismatch,
+            ),
+        };
+        if state.unknown_ack_responses > 0 {
+            state.unknown_ack_responses -= 1;
+            Ok(AuthorityOutcomeV3::Unknown(
+                AuthorityUnknownV3::ResponseUnavailable,
+            ))
+        } else {
+            Ok(outcome)
+        }
     }
 }
 
@@ -1129,12 +1380,16 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
     let initiator_repository_path = directory.join("initiator.redb");
     let responder_repository_path = directory.join("responder.redb");
     let old_snapshot_path = directory.join("old-snapshot.redb");
-    let (initial_repository, head) = StateRepository::provision_new(
+    let (mut initial_repository, head) = StateRepository::provision_new(
         &initiator_repository_path,
         &migration.genesis,
         migration.roots.clone(),
     )?;
     let committed = initial_repository.committed_state();
+    let authority_head = authority_head_for(committed, head)?;
+    let initiator_authority = MemoryAuthority::with_head(authority_head)?;
+    let responder_authority = MemoryAuthority::with_head(authority_head)?;
+    initial_repository.provision_authority_binding(initiator_authority.wire_identity()?)?;
     drop(initial_repository);
     for destination in [&responder_repository_path, &old_snapshot_path] {
         fs::copy(&initiator_repository_path, destination)?;
@@ -1168,8 +1423,6 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
         policy.bundle.clone(),
         policy.bundle.clone(),
     )?;
-    let initiator_authority = MemoryAuthority::new()?;
-    let responder_authority = MemoryAuthority::new()?;
     let initiator = PolicyAgent::new(
         initiator_repository,
         witness.clone(),
@@ -1927,16 +2180,171 @@ fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> Test
 
     let old_repository =
         StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let old_authority =
+        MemoryAuthority::with_head(old_repository.authority_identity()?.state_head())?;
     // A fresh deployment authority isolates this assertion to the witness
     // rollback check; the shared-authority clone case is covered by the
     // dedicated instance-lease fencing tests.
     let rolled_back = PolicyAgent::new(
         old_repository,
         pair.witness,
-        MemoryAuthority::new()?,
+        old_authority,
         pair.initiator_config,
     );
     assert!(matches!(rolled_back, Err(AgentError::RollbackOrFork)));
+    Ok(())
+}
+
+#[test]
+fn graceful_release_never_reconciles_an_advance_state_journal_slot() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 49)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.initiator_authority.lose_next_advance_responses(32);
+    pair.initiator_authority.lose_next_query_responses(32);
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::TransitionIndeterminate)
+    );
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::TransitionPending)
+    );
+
+    pair.initiator_authority.lose_next_query_responses(0);
+    pair.initiator.reconcile_transition()?;
+    pair.initiator.release_instance_lease()?;
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    drop(pair.initiator);
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    assert_eq!(repository.pending_intent(), None);
+    assert_eq!(repository.head()?, pair.witness.read_head()?);
+    Ok(())
+}
+
+#[test]
+fn transition_replaces_only_the_exact_lease_expiry_rejection() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 43)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.initiator_authority.expire_before_next_advance();
+    pair.initiator.apply_advance(&certificate)?;
+    let expected_witness_head = pair.witness.read_head()?;
+    let expected_authority_head = match pair.initiator_authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => snapshot.state_head(),
+        other => return Err(format!("expected authority snapshot, got {other:?}").into()),
+    };
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    drop(pair.initiator);
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    assert_eq!(repository.pending_intent(), None);
+    assert_eq!(repository.head()?, expected_witness_head);
+    assert_eq!(
+        repository.authority_identity()?.state_head(),
+        expected_authority_head
+    );
+    Ok(())
+}
+
+#[test]
+fn replacement_lease_prepared_and_resolved_crash_cuts_recover_exactly() -> TestResult {
+    for (seed, commits_until_fault, resolved_cut) in [(46, 7, false), (47, 8, true)] {
+        let directory = TestDirectory::new()?;
+        let pair = agent_pair(&directory, seed)?;
+        let (_, certificate) = signed_advance(
+            pair.committed.state(),
+            &pair.migration,
+            pair.committed.state().posture(),
+            pair.committed.state().allowed_suites(),
+        )?;
+        pair.initiator_authority.expire_before_next_advance();
+        pair.initiator
+            .fail_after_authority_journal_commits_for_test(commits_until_fault)?;
+        assert_eq!(
+            pair.initiator.apply_advance(&certificate),
+            Err(AgentError::InternalPoisoned)
+        );
+
+        let repository_path = pair.initiator_repository_path.clone();
+        let roots = pair.migration.roots.clone();
+        let witness = pair.witness.clone();
+        let authority = pair.initiator_authority.clone();
+        let config = pair.initiator_config.clone();
+        drop(pair.initiator);
+
+        let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+        let identity = repository.authority_identity()?;
+        let durable = repository
+            .durable_lease_operation(identity)?
+            .ok_or_else(|| io::Error::other("replacement lease cut was not durable"))?;
+        match durable {
+            DurableAuthorityOperation::Prepared(intent) if !resolved_cut => {
+                assert!(matches!(
+                    intent.mutation(),
+                    AuthorityMutationV2::AcquireLease { .. }
+                ));
+            }
+            DurableAuthorityOperation::Resolved(receipt) if resolved_cut => {
+                assert!(matches!(
+                    receipt.intent().mutation(),
+                    AuthorityMutationV2::AcquireLease { .. }
+                ));
+            }
+            other => {
+                return Err(format!("unexpected replacement lease crash cut: {other:?}").into());
+            }
+        }
+
+        let restarted = match PolicyAgent::new(
+            repository,
+            witness.clone(),
+            authority.clone(),
+            config.clone(),
+        ) {
+            Ok(agent) if !resolved_cut => agent,
+            Err(AgentError::InstanceFenced) if resolved_cut => {
+                authority.expire_active_lease();
+                let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+                PolicyAgent::new(
+                    repository,
+                    witness.clone(),
+                    authority.clone(),
+                    config.clone(),
+                )?
+            }
+            Ok(_) => {
+                return Err(io::Error::other(
+                    "resolved replacement lease was reused across process restart",
+                )
+                .into());
+            }
+            Err(error) => {
+                return Err(format!("replacement lease recovery failed: {error:?}").into());
+            }
+        };
+        restarted.release_instance_lease()?;
+        drop(restarted);
+
+        let repository = StateRepository::open_existing(&repository_path, roots)?;
+        assert_eq!(repository.pending_intent(), None);
+        assert_eq!(repository.head()?, witness.read_head()?);
+        assert_eq!(
+            repository.durable_lease_operation(repository.authority_identity()?)?,
+            None
+        );
+    }
     Ok(())
 }
 
@@ -2101,6 +2509,806 @@ fn redb_lock_rejects_a_second_agent_repository_open() -> TestResult {
 }
 
 #[test]
+fn repository_v1_to_v3_migration_is_explicit_idempotent_and_has_no_open_fallback() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("repository-migration.redb");
+    let (repository, head) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    let authority =
+        MemoryAuthority::with_head(authority_head_for(repository.committed_state(), head)?)?;
+    let identity = authority.wire_identity()?;
+    drop(repository);
+
+    let file = open_private_file(&path, false)
+        .map_err(|_| io::Error::other("legacy fixture path is not private"))?;
+    let database = Database::builder().create_file(file)?;
+    let mut transaction = database.begin_write()?;
+    transaction.set_durability(Durability::Immediate);
+    transaction.set_two_phase_commit(true);
+    for table in [
+        TableDefinition::<&str, &[u8]>::new("agent_authority_binding_v3"),
+        TableDefinition::<&str, &[u8]>::new("agent_authority_active_v3"),
+        TableDefinition::<&str, &[u8]>::new("agent_authority_checkpoint_v3"),
+    ] {
+        assert!(transaction.delete_table(table)?);
+    }
+    {
+        let mut meta =
+            transaction.open_table(TableDefinition::<&str, &[u8]>::new("agent_meta_v1"))?;
+        meta.insert("schema", [0u8, 1].as_slice())?;
+    }
+    transaction.commit()?;
+    drop(database);
+
+    assert!(matches!(
+        StateRepository::open_existing(&path, migration.roots.clone()),
+        Err(RepositoryError::CorruptStore)
+    ));
+    StateRepository::migrate_v1_to_v3(&path, migration.roots.clone(), identity)?;
+    StateRepository::migrate_v1_to_v3(&path, migration.roots.clone(), identity)?;
+    let reopened = StateRepository::open_existing(&path, migration.roots)?;
+    drop(reopened);
+    Ok(())
+}
+
+#[test]
+fn interrupted_fresh_v3_provisioning_has_an_exact_idempotent_finalize_path() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("repository-unbound-v3.redb");
+    let (repository, head) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    let authority =
+        MemoryAuthority::with_head(authority_head_for(repository.committed_state(), head)?)?;
+    let identity = authority.wire_identity()?;
+    drop(repository);
+
+    assert!(matches!(
+        StateRepository::open_existing(&path, migration.roots.clone()),
+        Err(RepositoryError::AuthorityBindingMismatch)
+    ));
+    StateRepository::finalize_unbound_v3_binding(&path, migration.roots.clone(), identity)?;
+    StateRepository::finalize_unbound_v3_binding(&path, migration.roots.clone(), identity)?;
+    let repository = StateRepository::open_existing(&path, migration.roots)?;
+    assert_eq!(repository.authority_identity()?, identity);
+    Ok(())
+}
+
+#[test]
+fn v1_to_v3_migration_validates_sessions_before_any_schema_commit() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("repository-migration-corrupt-session.redb");
+    let (repository, head) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    let authority =
+        MemoryAuthority::with_head(authority_head_for(repository.committed_state(), head)?)?;
+    let identity = authority.wire_identity()?;
+    drop(repository);
+
+    let file = open_private_file(&path, false)
+        .map_err(|_| io::Error::other("legacy fixture path is not private"))?;
+    let database = Database::builder().create_file(file)?;
+    let mut transaction = database.begin_write()?;
+    transaction.set_durability(Durability::Immediate);
+    transaction.set_two_phase_commit(true);
+    for table in [
+        TableDefinition::<&str, &[u8]>::new("agent_authority_binding_v3"),
+        TableDefinition::<&str, &[u8]>::new("agent_authority_active_v3"),
+        TableDefinition::<&str, &[u8]>::new("agent_authority_checkpoint_v3"),
+    ] {
+        assert!(transaction.delete_table(table)?);
+    }
+    {
+        let mut meta =
+            transaction.open_table(TableDefinition::<&str, &[u8]>::new("agent_meta_v1"))?;
+        meta.insert("schema", [0u8, 1].as_slice())?;
+        let mut sessions = transaction.open_table(TableDefinition::<&[u8], &[u8]>::new(
+            "agent_session_reservations_v1",
+        ))?;
+        sessions.insert([1u8].as_slice(), [2u8].as_slice())?;
+    }
+    transaction.commit()?;
+    drop(database);
+
+    assert_eq!(
+        StateRepository::migrate_v1_to_v3(&path, migration.roots, identity),
+        Err(RepositoryError::CorruptStore)
+    );
+    let database =
+        Database::builder().create_file(open_private_file(&path, false).map_err(|_| {
+            io::Error::other("legacy fixture path is not private after rejected migration")
+        })?)?;
+    let read = database.begin_read()?;
+    let meta = read.open_table(TableDefinition::<&str, &[u8]>::new("agent_meta_v1"))?;
+    assert_eq!(
+        meta.get("schema")?.map(|value| value.value().to_vec()),
+        Some(vec![0, 1])
+    );
+    let table_names: Vec<_> = read
+        .list_tables()?
+        .map(|table| table.name().to_owned())
+        .collect();
+    assert!(!table_names
+        .iter()
+        .any(|name| name.starts_with("agent_authority_")));
+    Ok(())
+}
+
+#[test]
+fn executable_v3_migration_binds_the_actual_pristine_authority_epoch() -> TestResult {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let repository_path = directory.join("repository-executable-migration.redb");
+    let authority_path = directory.join("authority-executable-migration.redb");
+    let config_path = directory.join("migration-config");
+    fs::create_dir(&config_path)?;
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o700))?;
+
+    let (repository, local_head) = StateRepository::provision_new(
+        &repository_path,
+        &migration.genesis,
+        migration.roots.clone(),
+    )?;
+    let authority_head = authority_head_for(repository.committed_state(), local_head)?;
+    let authority_config = DeploymentConfigRevisionV2::new(1, [0x45; 32])?;
+    drop(repository);
+    let authority_store = AuthorityStoreV2::provision(
+        &authority_path,
+        authority_head,
+        authority_config,
+        AuthorityLimitsV2::new(32, 8, 8, MEMORY_AUTHORITY_LEASE_TTL_MILLIS)?,
+    )?;
+    let actual_epoch = authority_store.authority_epoch();
+    drop(authority_store);
+
+    let file = open_private_file(&repository_path, false)
+        .map_err(|_| io::Error::other("legacy fixture path is not private"))?;
+    let database = Database::builder().create_file(file)?;
+    let mut transaction = database.begin_write()?;
+    transaction.set_durability(Durability::Immediate);
+    transaction.set_two_phase_commit(true);
+    for table in [
+        TableDefinition::<&str, &[u8]>::new("agent_authority_binding_v3"),
+        TableDefinition::<&str, &[u8]>::new("agent_authority_active_v3"),
+        TableDefinition::<&str, &[u8]>::new("agent_authority_checkpoint_v3"),
+    ] {
+        assert!(transaction.delete_table(table)?);
+    }
+    {
+        let mut meta =
+            transaction.open_table(TableDefinition::<&str, &[u8]>::new("agent_meta_v1"))?;
+        meta.insert("schema", [0u8, 1].as_slice())?;
+    }
+    transaction.commit()?;
+    drop(database);
+
+    let (_, migration_authority_vk) = MlDsa65::generate([21u8; 32]);
+    let (_, recovery_authority_vk) = MlDsa65::generate([22u8; 32]);
+    write_private_config(&config_path.join("migration-authority-id.bin"), &[31u8; 32])?;
+    write_private_config(
+        &config_path.join("migration-authority-vk.bin"),
+        &migration_authority_vk,
+    )?;
+    write_private_config(&config_path.join("recovery-authority-id.bin"), &[32u8; 32])?;
+    write_private_config(
+        &config_path.join("recovery-authority-vk.bin"),
+        &recovery_authority_vk,
+    )?;
+    write_private_config(&config_path.join("authority-client-id.bin"), &[71u8; 32])?;
+    write_private_config(&config_path.join("authority-server-id.bin"), &[72u8; 32])?;
+    write_private_config(
+        &config_path.join("authority-state-head.bin"),
+        &encode_authority_head_file(authority_head),
+    )?;
+    write_private_config(
+        &config_path.join("authority-config.bin"),
+        &encode_authority_config_file(authority_config),
+    )?;
+    write_private_config(&config_path.join("authority-epoch.bin"), &[0xEE; 32])?;
+
+    let migration_arguments = || {
+        vec![
+            std::ffi::OsString::from("q-periapt-policy-agent"),
+            std::ffi::OsString::from("migrate-agent-repository-v1-to-v3"),
+            repository_path.clone().into_os_string(),
+            authority_path.clone().into_os_string(),
+            config_path.clone().into_os_string(),
+        ]
+    };
+    assert_eq!(
+        crate::ipc::run_from_arguments(migration_arguments()),
+        Err(crate::ipc::IpcError::InvalidConfiguration)
+    );
+    assert!(!StateRepository::has_v3_storage_schema(&repository_path)?);
+
+    write_private_config(
+        &config_path.join("authority-epoch.bin"),
+        actual_epoch.as_bytes(),
+    )?;
+    crate::ipc::run_from_arguments(migration_arguments())?;
+    let migrated = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+    let identity = migrated.authority_identity()?;
+    assert_eq!(identity.authority_epoch(), actual_epoch);
+    assert_eq!(identity.state_head(), authority_head);
+    drop(migrated);
+
+    let mut used_authority = AuthorityStoreV2::open(&authority_path)?;
+    let acquire = AuthorityIntentV2::new(
+        OperationIdV2::new(1, [0xA7; 32])?,
+        1,
+        authority_config,
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: 0,
+            instance_id: ProcessInstanceIdV2::from_bytes([0xA8; 32])?,
+        },
+    )?;
+    assert_eq!(
+        used_authority.apply(acquire)?.disposition(),
+        AuthorityDispositionV2::Applied
+    );
+    drop(used_authority);
+    crate::ipc::run_from_arguments(migration_arguments())?;
+    Ok(())
+}
+
+#[test]
+fn real_tcp_authority_witness_and_repository_survive_advance_reset_and_restart() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let repository_path = directory.join("coordinator-agent.redb");
+    let witness_path = directory.join("coordinator-witness.redb");
+    let authority_path = directory.join("coordinator-authority.redb");
+    let (mut repository, initial_head) = StateRepository::provision_new(
+        &repository_path,
+        &migration.genesis,
+        migration.roots.clone(),
+    )?;
+    let initial_committed = repository.committed_state();
+    let authority_head = authority_head_for(initial_committed, initial_head)?;
+    let authority_config = DeploymentConfigRevisionV2::new(1, [0xC1; 32])?;
+
+    let (_, witness_client_vk) = MlDsa65::generate([0xC2; 32]);
+    let (witness_server_sk, witness_server_vk) = MlDsa65::generate([0xC3; 32]);
+    let witness_server = ReferenceWitnessServer::provision(
+        &witness_path,
+        initial_head,
+        witness_client_vk,
+        ZeroizingBytes::from_bytes(witness_server_sk),
+        Duration::from_secs(2),
+    )?;
+    let (_, authority_client_vk) = MlDsa65::generate([0xC4; 32]);
+    let (authority_server_sk, authority_server_vk) = MlDsa65::generate([0xC5; 32]);
+    let authority_server = ReferenceAuthorityServerV3::provision(
+        &authority_path,
+        AuthorityServerProvisionV3::new(
+            AuthorityClientIdV3::from_bytes([0xC6; 32])?,
+            AuthorityServerIdV3::from_bytes([0xC7; 32])?,
+            authority_head,
+            authority_config,
+            AuthorityLimitsV2::new(64, 16, 16, MEMORY_AUTHORITY_LEASE_TTL_MILLIS)?,
+        )?,
+        authority_client_vk,
+        ZeroizingBytes::from_bytes(authority_server_sk),
+        AuthorityTransportLimitsV3::new(Duration::from_secs(2), Duration::from_secs(60), 64)?,
+    )?;
+    let bootstrap_identity = authority_server.identity();
+    repository.provision_authority_binding(bootstrap_identity)?;
+
+    let (_, local_identity_vk) = MlDsa65::generate([0xC8; 32]);
+    let (_, peer_identity_vk) = MlDsa65::generate([0xC9; 32]);
+    let config = AgentConfig::new(
+        AgentLimits::new(16, 16, Duration::from_secs(60))?,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(
+            MigrationIdentityKeyId::from_bytes([0xCA; 32]),
+            local_identity_vk,
+        )?,
+        EndpointIdentity::new(
+            MigrationIdentityKeyId::from_bytes([0xCB; 32]),
+            peer_identity_vk,
+        )?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+    )?;
+    let (advanced_state, advance_certificate) = signed_advance(
+        initial_committed.state(),
+        &migration,
+        initial_committed.state().posture(),
+        initial_committed.state().allowed_suites(),
+    )?;
+
+    let (witness_address, witness_shutdown, witness_handle) =
+        spawn_reference_witness(witness_server)?;
+    let (authority_address, authority_shutdown, authority_handle) =
+        spawn_reference_authority(authority_server)?;
+    let first_phase = (|| -> TestResult {
+        let (witness_client_sk, _) = MlDsa65::generate([0xC2; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            witness_address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            Duration::from_secs(2),
+        )?;
+        let (authority_client_sk, _) = MlDsa65::generate([0xC4; 32]);
+        let authority = AuthenticatedTcpAuthorityV3::new(
+            authority_address,
+            bootstrap_identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            Duration::from_secs(2),
+        )?;
+        let agent = PolicyAgent::new(repository, witness, authority, config.clone())?;
+        agent.apply_advance(&advance_certificate)?;
+        agent.release_instance_lease()?;
+        Ok(())
+    })();
+    authority_shutdown.store(true, Ordering::Release);
+    witness_shutdown.store(true, Ordering::Release);
+    let authority_result = join(authority_handle)?;
+    let witness_result = join(witness_handle)?;
+    first_phase?;
+    authority_result?;
+    witness_result?;
+
+    let repository = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+    let advanced_committed = repository.committed_state();
+    let advanced_identity = repository.authority_identity()?;
+    assert_eq!(advanced_committed.state(), advanced_state);
+    drop(repository);
+
+    let (_, witness_client_vk) = MlDsa65::generate([0xC2; 32]);
+    let (witness_server_sk, witness_server_vk) = MlDsa65::generate([0xC3; 32]);
+    let witness_server = ReferenceWitnessServer::open(
+        &witness_path,
+        witness_client_vk,
+        ZeroizingBytes::from_bytes(witness_server_sk),
+        Duration::from_secs(2),
+    )?;
+    let (_, authority_client_vk) = MlDsa65::generate([0xC4; 32]);
+    let (authority_server_sk, authority_server_vk) = MlDsa65::generate([0xC5; 32]);
+    let authority_server = ReferenceAuthorityServerV3::open(
+        &authority_path,
+        bootstrap_identity,
+        authority_client_vk,
+        ZeroizingBytes::from_bytes(authority_server_sk),
+        AuthorityTransportLimitsV3::new(Duration::from_secs(2), Duration::from_secs(60), 64)?,
+    )?;
+    assert_eq!(authority_server.identity(), advanced_identity);
+
+    let reset_state = MigrationStateV1::new(MigrationStateDraftV1 {
+        global_generation: advanced_committed.state().global_generation() + 1,
+        chain_id: MigrationChainId::from_bytes([0xCC; 32]),
+        protocol_id: advanced_committed.state().protocol_id(),
+        epoch: 1,
+        previous_state_digest: advanced_committed.revision().digest(),
+        authority_key_id: MigrationAuthorityKeyId::from_bytes([31u8; 32]),
+        execution_policy_state: advanced_committed.state().execution_policy_state(),
+        posture: advanced_committed.state().posture(),
+        allowed_suites: advanced_committed.state().allowed_suites(),
+    })?;
+    let reset = MigrationResetV1::new(
+        advanced_committed.revision(),
+        reset_state,
+        MigrationResetNonce::from_bytes([0xCD; 32]),
+        MigrationAuthorityKeyId::from_bytes([32u8; 32]),
+    );
+    let mut reset_signature = [0u8; ML_DSA_65_SIG_LEN];
+    let reset_certificate = SignedMigrationResetV1::sign(
+        reset,
+        &MlDsa65,
+        &migration.recovery_signing_key,
+        &[0u8; 32],
+        &mut reset_signature,
+    )?
+    .encode()?;
+
+    let (witness_address, witness_shutdown, witness_handle) =
+        spawn_reference_witness(witness_server)?;
+    let (authority_address, authority_shutdown, authority_handle) =
+        spawn_reference_authority(authority_server)?;
+    let second_phase = (|| -> TestResult {
+        let (witness_client_sk, _) = MlDsa65::generate([0xC2; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            witness_address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            Duration::from_secs(2),
+        )?;
+        let (authority_client_sk, _) = MlDsa65::generate([0xC4; 32]);
+        let authority = AuthenticatedTcpAuthorityV3::new(
+            authority_address,
+            advanced_identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            Duration::from_secs(2),
+        )?;
+        let repository = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+        let agent = PolicyAgent::new(repository, witness, authority, config)?;
+        assert!(agent.public_keys().is_ok());
+        agent.apply_reset(&reset_certificate)?;
+        agent.release_instance_lease()?;
+        drop(agent);
+
+        let repository = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+        let final_head = repository.head()?;
+        let final_identity = repository.authority_identity()?;
+        assert_eq!(repository.committed_state().state(), reset_state);
+        drop(repository);
+        let (witness_client_sk, _) = MlDsa65::generate([0xC2; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            witness_address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            Duration::from_secs(2),
+        )?;
+        assert_eq!(witness.read_head()?, final_head);
+        let (authority_client_sk, _) = MlDsa65::generate([0xC4; 32]);
+        let authority = AuthenticatedTcpAuthorityV3::new(
+            authority_address,
+            final_identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            Duration::from_secs(2),
+        )?;
+        match authority.snapshot()? {
+            AuthorityOutcomeV3::Known(snapshot) => {
+                assert_eq!(snapshot.state_head(), final_identity.state_head());
+                assert_eq!(snapshot.active_lease(), None);
+            }
+            other => return Err(format!("expected final authority snapshot, got {other:?}").into()),
+        }
+        Ok(())
+    })();
+    authority_shutdown.store(true, Ordering::Release);
+    witness_shutdown.store(true, Ordering::Release);
+    let authority_result = join(authority_handle)?;
+    let witness_result = join(witness_handle)?;
+    second_phase?;
+    authority_result?;
+    witness_result?;
+    Ok(())
+}
+
+#[test]
+fn real_tcp_restart_reconciles_authority_commit_after_lost_advance_response() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let repository_path = directory.join("lost-response-agent.redb");
+    let witness_path = directory.join("lost-response-witness.redb");
+    let authority_path = directory.join("lost-response-authority.redb");
+    let (mut repository, initial_head) = StateRepository::provision_new(
+        &repository_path,
+        &migration.genesis,
+        migration.roots.clone(),
+    )?;
+    let committed = repository.committed_state();
+    let authority_head = authority_head_for(committed, initial_head)?;
+    let authority_config = DeploymentConfigRevisionV2::new(1, [0xD1; 32])?;
+
+    let (_, witness_client_vk) = MlDsa65::generate([0xD2; 32]);
+    let (witness_server_sk, witness_server_vk) = MlDsa65::generate([0xD3; 32]);
+    let witness_server = ReferenceWitnessServer::provision(
+        &witness_path,
+        initial_head,
+        witness_client_vk,
+        ZeroizingBytes::from_bytes(witness_server_sk),
+        Duration::from_secs(1),
+    )?;
+    let (_, authority_client_vk) = MlDsa65::generate([0xD4; 32]);
+    let (authority_server_sk, authority_server_vk) = MlDsa65::generate([0xD5; 32]);
+    let mut authority_server = ReferenceAuthorityServerV3::provision(
+        &authority_path,
+        AuthorityServerProvisionV3::new(
+            AuthorityClientIdV3::from_bytes([0xD6; 32])?,
+            AuthorityServerIdV3::from_bytes([0xD7; 32])?,
+            authority_head,
+            authority_config,
+            AuthorityLimitsV2::new(32, 8, 8, MEMORY_AUTHORITY_LEASE_TTL_MILLIS)?,
+        )?,
+        authority_client_vk,
+        ZeroizingBytes::from_bytes(authority_server_sk),
+        AuthorityTransportLimitsV3::new(Duration::from_secs(1), Duration::from_secs(60), 64)?,
+    )?;
+    authority_server.stop_after_next_advance_without_response_for_test();
+    let bootstrap_identity = authority_server.identity();
+    repository.provision_authority_binding(bootstrap_identity)?;
+
+    let (_, local_identity_vk) = MlDsa65::generate([0xD8; 32]);
+    let (_, peer_identity_vk) = MlDsa65::generate([0xD9; 32]);
+    let config = AgentConfig::new(
+        AgentLimits::new(8, 8, Duration::from_secs(30))?,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(
+            MigrationIdentityKeyId::from_bytes([0xDA; 32]),
+            local_identity_vk,
+        )?,
+        EndpointIdentity::new(
+            MigrationIdentityKeyId::from_bytes([0xDB; 32]),
+            peer_identity_vk,
+        )?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle,
+    )?;
+    let (_, certificate) = signed_advance(
+        committed.state(),
+        &migration,
+        committed.state().posture(),
+        committed.state().allowed_suites(),
+    )?;
+
+    let (witness_address, witness_shutdown, witness_handle) =
+        spawn_reference_witness(witness_server)?;
+    let (authority_address, _, authority_handle) = spawn_reference_authority(authority_server)?;
+    let (witness_client_sk, _) = MlDsa65::generate([0xD2; 32]);
+    let witness = AuthenticatedTcpWitness::new(
+        witness_address,
+        ZeroizingBytes::from_bytes(witness_client_sk),
+        witness_server_vk,
+        Duration::from_secs(1),
+    )?;
+    let (authority_client_sk, _) = MlDsa65::generate([0xD4; 32]);
+    let authority = AuthenticatedTcpAuthorityV3::new(
+        authority_address,
+        bootstrap_identity,
+        ZeroizingBytes::from_bytes(authority_client_sk),
+        authority_server_vk,
+        Duration::from_secs(1),
+    )?;
+    let agent = PolicyAgent::new(repository, witness, authority, config.clone())?;
+    assert_eq!(
+        agent.apply_advance(&certificate),
+        Err(AgentError::TransitionIndeterminate)
+    );
+    drop(agent);
+    join(authority_handle)??;
+    witness_shutdown.store(true, Ordering::Release);
+    join(witness_handle)??;
+
+    let repository = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+    let old_identity = repository.authority_identity()?;
+    assert!(repository.coordinated_transition().is_some());
+    assert_eq!(repository.head()?, initial_head);
+    drop(repository);
+
+    let (_, witness_client_vk) = MlDsa65::generate([0xD2; 32]);
+    let (witness_server_sk, witness_server_vk) = MlDsa65::generate([0xD3; 32]);
+    let witness_server = ReferenceWitnessServer::open(
+        &witness_path,
+        witness_client_vk,
+        ZeroizingBytes::from_bytes(witness_server_sk),
+        Duration::from_secs(1),
+    )?;
+    let (_, authority_client_vk) = MlDsa65::generate([0xD4; 32]);
+    let (authority_server_sk, authority_server_vk) = MlDsa65::generate([0xD5; 32]);
+    let authority_server = ReferenceAuthorityServerV3::open(
+        &authority_path,
+        bootstrap_identity,
+        authority_client_vk,
+        ZeroizingBytes::from_bytes(authority_server_sk),
+        AuthorityTransportLimitsV3::new(Duration::from_secs(1), Duration::from_secs(60), 64)?,
+    )?;
+    assert_ne!(
+        authority_server.identity().state_head(),
+        old_identity.state_head()
+    );
+    let (witness_address, witness_shutdown, witness_handle) =
+        spawn_reference_witness(witness_server)?;
+    let (authority_address, authority_shutdown, authority_handle) =
+        spawn_reference_authority(authority_server)?;
+    let second_phase = (|| -> TestResult {
+        let (witness_client_sk, _) = MlDsa65::generate([0xD2; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            witness_address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            Duration::from_secs(1),
+        )?;
+        let (authority_client_sk, _) = MlDsa65::generate([0xD4; 32]);
+        let authority = AuthenticatedTcpAuthorityV3::new(
+            authority_address,
+            old_identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            Duration::from_secs(1),
+        )?;
+        let repository = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+        let recovered = PolicyAgent::new(repository, witness, authority, config)?;
+        assert!(recovered.public_keys().is_ok());
+        recovered.release_instance_lease()?;
+        drop(recovered);
+
+        let repository = StateRepository::open_existing(&repository_path, migration.roots.clone())?;
+        assert_eq!(repository.pending_intent(), None);
+        let final_head = repository.head()?;
+        let final_identity = repository.authority_identity()?;
+        drop(repository);
+        let (witness_client_sk, _) = MlDsa65::generate([0xD2; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            witness_address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            Duration::from_secs(1),
+        )?;
+        assert_eq!(witness.read_head()?, final_head);
+        let (authority_client_sk, _) = MlDsa65::generate([0xD4; 32]);
+        let authority = AuthenticatedTcpAuthorityV3::new(
+            authority_address,
+            final_identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            Duration::from_secs(1),
+        )?;
+        match authority.snapshot()? {
+            AuthorityOutcomeV3::Known(snapshot) => {
+                assert_eq!(snapshot.state_head(), final_identity.state_head());
+            }
+            other => {
+                return Err(
+                    format!("expected reconciled authority snapshot, got {other:?}").into(),
+                );
+            }
+        }
+        Ok(())
+    })();
+    authority_shutdown.store(true, Ordering::Release);
+    witness_shutdown.store(true, Ordering::Release);
+    let authority_result = join(authority_handle)?;
+    let witness_result = join(witness_handle)?;
+    second_phase?;
+    authority_result?;
+    witness_result?;
+    Ok(())
+}
+
+#[test]
+fn authority_journal_commit_uncertainty_reopens_at_resolve_and_ack_cuts() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("repository-lease-uncertain.redb");
+    let (mut repository, head) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    let authority =
+        MemoryAuthority::with_head(authority_head_for(repository.committed_state(), head)?)?;
+    let identity = authority.wire_identity()?;
+    repository.provision_authority_binding(identity)?;
+    let snapshot = match authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => snapshot,
+        other => return Err(format!("expected authority snapshot, got {other:?}").into()),
+    };
+    let intent = AuthorityIntentV2::new(
+        OperationIdV2::new(snapshot.authority_version(), [93u8; 32])?,
+        snapshot.authority_version(),
+        identity.config(),
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: snapshot.lease_generation(),
+            instance_id: ProcessInstanceIdV2::from_bytes([94u8; 32])?,
+        },
+    )?;
+    let receipt = AuthorityReceiptV2::restore(
+        intent,
+        AuthorityDispositionV2::Applied,
+        intent.expected_authority_version() + 1,
+    )
+    .map_err(|_| io::Error::other("lease receipt fixture is invalid"))?;
+    repository.prepare_lease_operation(identity, intent)?;
+    repository.fail_after_next_authority_journal_commit_for_test();
+    assert_eq!(
+        repository.resolve_lease_operation(identity, intent, receipt),
+        Err(RepositoryError::CommitUncertain)
+    );
+    assert_eq!(
+        repository.durable_lease_operation(identity),
+        Err(RepositoryError::RepositoryPoisoned)
+    );
+    drop(repository);
+
+    let mut repository = StateRepository::open_existing(&path, migration.roots.clone())?;
+    assert_eq!(
+        repository.durable_lease_operation(identity)?,
+        Some(DurableAuthorityOperation::Resolved(receipt))
+    );
+    let retained = DurablyRetainedAuthorityReceiptV3::after_repository_commit(receipt)?;
+    repository.fail_after_next_authority_journal_commit_for_test();
+    assert_eq!(
+        repository.complete_lease_acknowledgement(
+            identity,
+            retained,
+            ReceiptAckDispositionV2::AlreadyAbsent,
+        ),
+        Err(RepositoryError::CommitUncertain)
+    );
+    assert_eq!(
+        repository.durable_lease_operation(identity),
+        Err(RepositoryError::RepositoryPoisoned)
+    );
+    drop(repository);
+
+    let repository = StateRepository::open_existing(&path, migration.roots)?;
+    assert_eq!(repository.durable_lease_operation(identity)?, None);
+    Ok(())
+}
+
+#[test]
+fn abrupt_process_exit_after_lease_prepare_reopens_exact_slot() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("repository-lease-crash.redb");
+    let (mut repository, head) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    let authority =
+        MemoryAuthority::with_head(authority_head_for(repository.committed_state(), head)?)?;
+    repository.provision_authority_binding(authority.wire_identity()?)?;
+    drop(repository);
+
+    let status = Command::new(std::env::current_exe()?)
+        .arg("--exact")
+        .arg("tests::lease_prepare_crash_child")
+        .current_dir(directory.path())
+        .env("Q_PERIAPT_TEST_LEASE_PREPARE_CRASH", "1")
+        .status()?;
+    assert_eq!(status.code(), Some(87));
+
+    let identity = authority.wire_identity()?;
+    let snapshot = match authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => snapshot,
+        other => return Err(format!("expected authority snapshot, got {other:?}").into()),
+    };
+    let intent = AuthorityIntentV2::new(
+        OperationIdV2::new(snapshot.authority_version(), [97u8; 32])?,
+        snapshot.authority_version(),
+        identity.config(),
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: snapshot.lease_generation(),
+            instance_id: ProcessInstanceIdV2::from_bytes([98u8; 32])?,
+        },
+    )?;
+    let mut repository = StateRepository::open_existing(&path, migration.roots)?;
+    assert_eq!(
+        repository.durable_lease_operation(identity)?,
+        Some(DurableAuthorityOperation::Prepared(intent))
+    );
+    repository.cancel_prepared_lease_operation(identity, intent)?;
+    Ok(())
+}
+
+#[test]
+fn lease_prepare_crash_child() -> TestResult {
+    if std::env::var_os("Q_PERIAPT_TEST_LEASE_PREPARE_CRASH").is_none() {
+        return Ok(());
+    }
+    let path = std::env::current_dir()?.join("repository-lease-crash.redb");
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let mut repository = StateRepository::open_existing(&path, migration.roots)?;
+    let identity = repository.authority_identity()?;
+    let intent = AuthorityIntentV2::new(
+        OperationIdV2::new(1, [97u8; 32])?,
+        1,
+        identity.config(),
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: 0,
+            instance_id: ProcessInstanceIdV2::from_bytes([98u8; 32])?,
+        },
+    )?;
+    repository.prepare_lease_operation(identity, intent)?;
+    std::process::exit(87);
+}
+
+#[test]
 fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operation() -> TestResult {
     use std::os::unix::fs::PermissionsExt;
 
@@ -2109,12 +3317,19 @@ fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operati
     let migration = migration_material(&policy.authenticated)?;
     let repository_path = directory.join("repository.redb");
     let certificate_path = directory.join("advance.cert");
-    let (repository, head) = StateRepository::provision_new(
+    let (mut repository, head) = StateRepository::provision_new(
         &repository_path,
         &migration.genesis,
         migration.roots.clone(),
     )?;
     let current = repository.committed_state();
+    let authority = MemoryAuthority::with_head(authority_head_for(current, head)?)?;
+    repository.provision_authority_binding(authority.wire_identity()?)?;
+    let recovery_instance = ProcessInstanceIdV2::from_bytes([0xD1; 32])?;
+    assert_eq!(
+        authority.acquire_for_transition_recovery(recovery_instance)?,
+        InstanceFenceV2::new(1, recovery_instance)?
+    );
     drop(repository);
     let (_, certificate) = signed_advance(
         current.state(),
@@ -2149,8 +3364,7 @@ fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operati
         policy.bundle.clone(),
         policy.bundle,
     )?;
-    let agent = PolicyAgent::new(reopened, witness.clone(), MemoryAuthority::new()?, config)?;
-    agent.reconcile_transition()?;
+    let _agent = PolicyAgent::new(reopened, witness.clone(), authority, config)?;
     assert!(matches!(
         witness.query(operation)?,
         WitnessOutcome::Known(receipt) if receipt.disposition() == crate::WitnessDisposition::Applied
@@ -2186,7 +3400,11 @@ fn crash_after_durable_intent_child() -> TestResult {
         .map_err(|_| io::Error::other("crash certificate is not private"))?;
     let mut certificate = Vec::new();
     certificate_file.read_to_end(&mut certificate)?;
-    repository.prepare_advance(&certificate)?;
+    repository.prepare_advance(
+        &certificate,
+        2,
+        InstanceFenceV2::new(1, ProcessInstanceIdV2::from_bytes([0xD1; 32])?)?,
+    )?;
     std::process::exit(86);
 }
 
@@ -2318,6 +3536,444 @@ fn lost_lease_responses_reconcile_by_exact_operation_query() -> TestResult {
         pair.initiator_config.clone(),
     )?;
     successor.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn reopen_reconciles_server_commit_after_client_prepared_state() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 39)?;
+    pair.initiator.release_instance_lease()?;
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    let config = pair.initiator_config.clone();
+    drop(pair.initiator);
+
+    let mut repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    let identity = authority.wire_identity()?;
+    repository.provision_authority_binding(identity)?;
+    let snapshot = match authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => snapshot,
+        other => return Err(format!("expected authority snapshot, got {other:?}").into()),
+    };
+    let instance_id = ProcessInstanceIdV2::from_bytes([91u8; 32])?;
+    let intent = AuthorityIntentV2::new(
+        OperationIdV2::new(snapshot.authority_version(), [92u8; 32])?,
+        snapshot.authority_version(),
+        identity.config(),
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: snapshot.lease_generation(),
+            instance_id,
+        },
+    )?;
+    repository.prepare_lease_operation(identity, intent)?;
+    authority.make_next_unknown();
+    assert!(matches!(
+        authority.acquire(intent)?,
+        AuthorityOutcomeV3::Unknown(AuthorityUnknownV3::ResponseUnavailable)
+    ));
+    drop(repository);
+
+    let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    assert!(matches!(
+        PolicyAgent::new(
+            repository,
+            witness.clone(),
+            authority.clone(),
+            config.clone()
+        ),
+        Err(AgentError::InstanceFenced)
+    ));
+    authority.expire_active_lease();
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    let reopened = PolicyAgent::new(repository, witness, authority, config)?;
+    reopened.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn recovery_rejects_a_regressed_absence_version_and_preserves_prepared_state() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 41)?;
+    pair.initiator.release_instance_lease()?;
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    let config = pair.initiator_config.clone();
+    drop(pair.initiator);
+
+    let mut repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    let identity = authority.wire_identity()?;
+    repository.provision_authority_binding(identity)?;
+    let snapshot = match authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => snapshot,
+        other => return Err(format!("expected authority snapshot, got {other:?}").into()),
+    };
+    let intent = AuthorityIntentV2::new(
+        OperationIdV2::new(snapshot.authority_version(), [95u8; 32])?,
+        snapshot.authority_version(),
+        identity.config(),
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: snapshot.lease_generation(),
+            instance_id: ProcessInstanceIdV2::from_bytes([96u8; 32])?,
+        },
+    )?;
+    repository.prepare_lease_operation(identity, intent)?;
+    drop(repository);
+    authority.report_next_absent_version(
+        intent
+            .expected_authority_version()
+            .checked_sub(1)
+            .ok_or_else(|| io::Error::other("authority version cannot regress below one"))?,
+    );
+
+    let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    assert!(matches!(
+        PolicyAgent::new(repository, witness, authority.clone(), config),
+        Err(AgentError::InstanceLeaseUnavailable)
+    ));
+    let mut repository = StateRepository::open_existing(&repository_path, roots)?;
+    assert_eq!(
+        repository.durable_lease_operation(identity)?,
+        Some(DurableAuthorityOperation::Prepared(intent))
+    );
+    repository.cancel_prepared_lease_operation(identity, intent)?;
+    Ok(())
+}
+
+#[test]
+fn reopen_terminalizes_resolved_receipt_after_lost_ack_responses() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 40)?;
+    pair.initiator_authority.advance_clock(1_000);
+    pair.initiator_authority.lose_next_ack_responses(2);
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceLeaseIndeterminate)
+    ));
+
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    let config = pair.initiator_config.clone();
+    drop(pair.initiator);
+    let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    assert!(matches!(
+        PolicyAgent::new(
+            repository,
+            witness.clone(),
+            authority.clone(),
+            config.clone()
+        ),
+        Err(AgentError::InstanceFenced)
+    ));
+    authority.expire_active_lease();
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    let reopened = PolicyAgent::new(repository, witness, authority, config)?;
+    reopened.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn uncertain_pre_dispatch_journal_commit_poisoning_reopens_without_dispatch() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 37)?;
+    let before = pair.initiator_authority.authority_version()?;
+    pair.initiator
+        .fail_after_next_authority_journal_commit_for_test()?;
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InternalPoisoned)
+    ));
+    assert_eq!(pair.initiator_authority.authority_version()?, before);
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InternalPoisoned)
+    ));
+
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    let config = pair.initiator_config.clone();
+    drop(pair.initiator);
+    authority.expire_active_lease();
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    let reopened = PolicyAgent::new(repository, witness, authority, config)?;
+    reopened.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn uncertain_transition_prepare_fatalizes_and_reopens_the_exact_pending_cut() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 50)?;
+    let _pending =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.initiator
+        .fail_after_authority_journal_commits_for_test(4)?;
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(pair.initiator.fatal_state_for_test()?, (true, 0, 0, true));
+
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    let config = pair.initiator_config.clone();
+    drop(pair.initiator);
+
+    let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    let transition = repository
+        .coordinated_transition()
+        .ok_or_else(|| io::Error::other("uncertain T1 did not retain the transition"))?;
+    assert_eq!(
+        repository.durable_lease_operation(repository.authority_identity()?)?,
+        Some(DurableAuthorityOperation::Prepared(
+            transition.authority_intent()
+        ))
+    );
+    let restarted = PolicyAgent::new(repository, witness.clone(), authority, config)?;
+    restarted.release_instance_lease()?;
+    drop(restarted);
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    assert_eq!(repository.pending_intent(), None);
+    assert_eq!(repository.head()?, witness.read_head()?);
+    Ok(())
+}
+
+#[test]
+fn ipc_fatal_poison_erases_runtime_secrets_and_releases_repository_lock() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 44)?;
+    let _pending =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    pair.initiator
+        .fail_after_next_authority_journal_commit_for_test()?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([0xB1; 32]);
+    let (server_signing_key, _) = MlDsa65::generate([0xB2; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+    let mut transport = CaptureTransport {
+        input: Cursor::new(framed_advance_request(
+            &client_signing_key,
+            [0xB3; 32],
+            &certificate,
+        )?),
+        output: Vec::new(),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut transport),
+        Err(crate::ipc::IpcError::AgentFatal)
+    );
+    assert!(transport.output.is_empty());
+    assert_eq!(
+        server.agent_for_test().fatal_state_for_test()?,
+        (true, 0, 0, true)
+    );
+    assert!(matches!(
+        StateRepository::open_existing(&repository_path, roots.clone()),
+        Err(RepositoryError::CorruptStore)
+    ));
+    drop(server);
+    let reopened = StateRepository::open_existing(&repository_path, roots)?;
+    assert_eq!(reopened.restart_rejections(), 1);
+    Ok(())
+}
+
+#[test]
+fn post_commit_wire_identity_failure_fatalizes_and_erases_runtime_secrets() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 48)?;
+    let _pending =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    authority.fail_next_identity_advance();
+
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(pair.initiator.fatal_state_for_test()?, (true, 0, 0, true));
+    assert!(matches!(
+        pair.initiator.public_keys(),
+        Err(AgentError::InternalPoisoned)
+    ));
+    drop(pair.initiator);
+
+    let repository = StateRepository::open_existing(&repository_path, roots)?;
+    assert_eq!(repository.pending_intent(), None);
+    assert_eq!(repository.head()?, witness.read_head()?);
+    let durable_identity = repository.authority_identity()?;
+    assert_ne!(authority.wire_identity()?, durable_identity);
+    match authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => {
+            assert_eq!(snapshot.state_head(), durable_identity.state_head());
+        }
+        other => {
+            return Err(format!("expected committed authority snapshot, got {other:?}").into())
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn uncertain_local_transition_commit_reopens_at_the_committed_three_domain_head() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 45)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.initiator
+        .fail_after_authority_journal_commits_for_test(7)?;
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(pair.initiator.fatal_state_for_test()?, (true, 0, 0, true));
+    let repository_path = pair.initiator_repository_path.clone();
+    let roots = pair.migration.roots.clone();
+    let witness = pair.witness.clone();
+    let authority = pair.initiator_authority.clone();
+    let config = pair.initiator_config.clone();
+    drop(pair.initiator);
+
+    let repository = StateRepository::open_existing(&repository_path, roots.clone())?;
+    assert_eq!(repository.pending_intent(), None);
+    assert_eq!(repository.head()?, witness.read_head()?);
+    let durable_identity = repository.authority_identity()?;
+    match authority.snapshot()? {
+        AuthorityOutcomeV3::Known(snapshot) => {
+            assert_eq!(snapshot.state_head(), durable_identity.state_head());
+            assert_eq!(snapshot.active_lease(), None);
+        }
+        other => return Err(format!("expected authority snapshot, got {other:?}").into()),
+    }
+    let stale_process_identity = authority.wire_identity()?;
+    authority.advance_wire_identity(stale_process_identity, durable_identity)?;
+    let restarted = PolicyAgent::new(repository, witness, authority, config)?;
+    assert!(restarted.public_keys().is_ok());
+    restarted.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn startup_rejects_unjournaled_authority_head_advance_before_any_new_mutation() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let repository_path = directory.join("startup-authority-mismatch.redb");
+    let (mut repository, local_head) =
+        StateRepository::provision_new(&repository_path, &migration.genesis, migration.roots)?;
+    let authority_head = authority_head_for(repository.committed_state(), local_head)?;
+    let authority = MemoryAuthority::with_head(authority_head)?;
+    let old_identity = authority.wire_identity()?;
+    repository.provision_authority_binding(old_identity)?;
+    let fence =
+        authority.acquire_for_transition_recovery(ProcessInstanceIdV2::from_bytes([0xE1; 32])?)?;
+    let next_head = StateHeadV2::new(
+        StateRevisionV2::new(2, *authority_head.revision().chain_id(), 2, [0xE2; 32])?,
+        StateFenceV2::from_bytes([0xE3; 32])?,
+    );
+    let intent = AuthorityIntentV2::new(
+        OperationIdV2::new(2, [0xE4; 32])?,
+        2,
+        old_identity.config(),
+        AuthorityMutationV2::AdvanceState {
+            fence,
+            advance: crate::authority::StateAdvanceV2::new(
+                crate::authority::StateTransitionKindV2::Advance,
+                authority_head,
+                next_head,
+            )?,
+        },
+    )?;
+    assert!(matches!(
+        authority.advance_state(intent)?,
+        AuthorityOutcomeV3::Known(receipt)
+            if receipt.disposition() == AuthorityDispositionV2::Applied
+    ));
+    let version_before = authority.authority_version()?;
+    let (_, local_identity_vk) = MlDsa65::generate([0xE5; 32]);
+    let (_, peer_identity_vk) = MlDsa65::generate([0xE6; 32]);
+    let config = AgentConfig::new(
+        AgentLimits::new(8, 8, Duration::from_secs(30))?,
+        EndpointRole::Initiator,
+        EndpointIdentity::new(
+            MigrationIdentityKeyId::from_bytes([0xE7; 32]),
+            local_identity_vk,
+        )?,
+        EndpointIdentity::new(
+            MigrationIdentityKeyId::from_bytes([0xE8; 32]),
+            peer_identity_vk,
+        )?,
+        policy.bundle.clone(),
+        policy.bundle.clone(),
+        policy.bundle,
+    )?;
+    assert!(matches!(
+        PolicyAgent::new(
+            repository,
+            MemoryWitness::new(local_head),
+            authority.clone(),
+            config
+        ),
+        Err(AgentError::RollbackOrFork)
+    ));
+    assert_eq!(authority.authority_version()?, version_before);
     Ok(())
 }
 

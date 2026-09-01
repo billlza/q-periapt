@@ -49,10 +49,20 @@ other way does not get those guarantees.
    IPC/witness/authority keys, pinned authority wire identity).
 3. Provision the repository, witness, and authority stores explicitly
    (`StateRepository::provision_new`, `ReferenceWitnessServer::provision`,
-   `ReferenceAuthorityServerV2::provision`); the runtime never bootstraps a
-   missing store.
-4. Host the witness and the instance-lease authority outside the agent
+   `ReferenceAuthorityServerV3::provision`), then bind the repository with
+   `StateRepository::provision_authority_binding` to that authority's actual
+   epoch, projected head, endpoint identities, and configuration. The runtime
+   never bootstraps a missing store or invents a binding. If the process exits
+   after the fresh V3 repository transaction but before binding, the migration
+   command below is the only executable finalize path: it requires the actual
+   pristine authority and holds both exclusive stores through the binding.
+4. For a legacy V1 repository, stop every server and run exactly
+   `migrate-agent-repository-v1-to-v3 REPOSITORY AUTHORITY_DATABASE CONFIG_DIRECTORY`.
+   The command admits only an actually pristine authority store for V1 or an
+   unbound fresh V3 repository; on an already-bound V3 repository it locks and
+   validates both current stores. It is not a V2 compatibility decoder.
+5. Host the witness and the instance-lease authority outside the agent
    host's rollback/restore domain, or their rollback protection is void.
-5. Install the template, adjust paths/endpoints, and start the service. The
+6. Install the template, adjust paths/endpoints, and start the service. The
    agent acquires the exclusive instance lease at startup and fails closed
    while another unexpired instance holds it.

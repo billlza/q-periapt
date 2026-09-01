@@ -17,7 +17,7 @@ use redb::{
 };
 
 use crate::authority::{
-    reachable_lease_receipt_kind, AcceptedKeyIdV2, AcceptedKeyRecordV2, AuthorityEpochV2,
+    reachable_product_receipt_kind, AcceptedKeyIdV2, AcceptedKeyRecordV2, AuthorityEpochV2,
     AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityPersistentMetaV2,
     AuthorityQueryResultV2, AuthorityReceiptV2, AuthorityRestoreErrorV2, AuthorityRestoreV2,
     AuthoritySnapshotV2, AuthorityStateV2, CapabilityIdV2, CapabilityRecordV2,
@@ -289,7 +289,7 @@ impl AuthorityStoreV2 {
         Ok(outcome)
     }
 
-    pub(crate) fn wire_v2_history_is_lease_only(
+    pub(crate) fn wire_v3_history_is_supported(
         &mut self,
         expected_config: DeploymentConfigRevisionV2,
     ) -> Result<bool, AuthorityStoreErrorV2> {
@@ -306,10 +306,56 @@ impl AuthorityStoreV2 {
             && loaded.image.keys.is_empty()
             && loaded.image.receipts.iter().all(|(_, receipt)| {
                 receipt.intent().expected_config() == expected_config
-                    && reachable_lease_receipt_kind(receipt).is_some()
+                    && reachable_product_receipt_kind(receipt).is_some()
             });
         self.abort_known(transaction)?;
         Ok(safe)
+    }
+
+    pub(crate) fn wire_v3_is_pristine_for_binding(
+        &mut self,
+        expected_head: StateHeadV2,
+        expected_config: DeploymentConfigRevisionV2,
+    ) -> Result<bool, AuthorityStoreErrorV2> {
+        self.ensure_live()?;
+        let transaction = self.begin_write()?;
+        let loaded = match self.load_matching(&transaction) {
+            Ok(loaded) => loaded,
+            Err(error) => return self.finish_aborted(transaction, error, false),
+        };
+        if let Err(error) = self.restore_or_poison(&loaded.image) {
+            return self.finish_aborted(transaction, error, false);
+        }
+        let pristine = loaded.image.meta.authority_version == 1
+            && loaded.image.meta.state_head == expected_head
+            && loaded.image.meta.config == expected_config
+            && loaded.image.meta.lease_generation == 0
+            && loaded.image.meta.lease.is_none()
+            && loaded.image.receipts.is_empty()
+            && loaded.image.capabilities.is_empty()
+            && loaded.image.keys.is_empty();
+        self.abort_known(transaction)?;
+        Ok(pristine)
+    }
+
+    pub(crate) fn wire_v3_matches_binding(
+        &mut self,
+        expected_head: StateHeadV2,
+        expected_config: DeploymentConfigRevisionV2,
+    ) -> Result<bool, AuthorityStoreErrorV2> {
+        self.ensure_live()?;
+        let transaction = self.begin_write()?;
+        let loaded = match self.load_matching(&transaction) {
+            Ok(loaded) => loaded,
+            Err(error) => return self.finish_aborted(transaction, error, false),
+        };
+        if let Err(error) = self.restore_or_poison(&loaded.image) {
+            return self.finish_aborted(transaction, error, false);
+        }
+        let matches = loaded.image.meta.state_head == expected_head
+            && loaded.image.meta.config == expected_config;
+        self.abort_known(transaction)?;
+        Ok(matches)
     }
 
     fn snapshot_with_clock<C: TrustedClockV2>(
@@ -1814,6 +1860,8 @@ mod tests {
         assert_eq!(after_state.state_head(), next_head);
         assert_eq!(after_state.capability_count(), 0);
         assert_eq!(after_state.retained_key_count(), 0);
+        assert_eq!(after_state.active_lease(), None);
+        let third_fence = acquire(&mut store, &clock, 9, 13)?;
 
         let first_config = after_state.config();
         let second_config = config(2, 2)?;
@@ -1821,19 +1869,19 @@ mod tests {
         let configured = apply_current(
             &mut store,
             &clock,
-            9,
+            10,
             AuthorityMutationV2::AdvanceConfig {
-                fence: second_fence,
+                fence: third_fence,
                 advance: config_advance,
             },
         )?;
         assert_eq!(configured.disposition(), AuthorityDispositionV2::Applied);
         store = reopen(store, &path)?;
         let final_snapshot = store.snapshot_with_clock(&clock)?;
-        assert_eq!(final_snapshot.authority_version(), 11);
+        assert_eq!(final_snapshot.authority_version(), 12);
         assert_eq!(final_snapshot.config(), second_config);
         assert_eq!(final_snapshot.active_lease(), None);
-        assert_eq!(final_snapshot.receipt_count(), 10);
+        assert_eq!(final_snapshot.receipt_count(), 11);
         Ok(())
     }
 

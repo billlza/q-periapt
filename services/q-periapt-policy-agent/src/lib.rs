@@ -11,6 +11,7 @@
 mod authentication;
 mod authority;
 mod authority_codec;
+mod authority_journal;
 mod authority_protocol;
 mod authority_store;
 mod authority_transport;
@@ -40,14 +41,14 @@ pub use authority::{
     StateTransitionKindV2, TrustedClockErrorV2, TrustedClockV2,
 };
 pub use authority_protocol::{
-    AuthorityClientIdV2, AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityServerIdV2,
-    AuthorityUnknownV2, AuthorityWireIdentityV2, DurablyRetainedAuthorityReceiptV2,
+    AuthorityClientIdV3, AuthorityKnownFailureV3, AuthorityOutcomeV3, AuthorityServerIdV3,
+    AuthorityUnknownV3, AuthorityWireIdentityV3, DurablyRetainedAuthorityReceiptV3,
 };
 pub use authority_store::{AuthorityStoreErrorV2, AuthorityStoreV2, SystemTimeClockV2};
 pub use authority_transport::{
-    AuthenticatedTcpAuthorityV2, AuthorityServerErrorV2, AuthorityServerProvisionV2,
-    AuthorityTransportErrorV2, AuthorityTransportLimitsV2, InstanceAuthorityPort,
-    ReferenceAuthorityServerV2,
+    AuthenticatedTcpAuthorityV3, AuthorityServerErrorV3, AuthorityServerProvisionV3,
+    AuthorityTransportErrorV3, AuthorityTransportLimitsV3, InstanceAuthorityPort,
+    ReferenceAuthorityServerV3,
 };
 pub use crypto::{Abi2EngineError, EncapsulationCiphertexts, EncapsulationPublicKeys};
 pub use repository::{MigrationTrustRoots, RepositoryError, StateRepository};
