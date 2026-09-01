@@ -1092,6 +1092,106 @@ mod tests {
     use super::*;
     use crate::codec::read_frame;
 
+    fn deploy_file(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("deploy")
+            .join(name);
+        assert!(path.is_file(), "missing deployment template: {name}");
+        std::fs::read_to_string(&path).expect("a shipped deployment template must be readable")
+    }
+
+    /// The shipped templates encode contracts this code enforces, and nothing
+    /// else checked them. Two defects reached this branch that way: endpoints
+    /// written as DNS names, which `parse_socket_address` cannot accept, and an
+    /// `EnvironmentFile` whose optional marker was put on the directive instead
+    /// of the path, which systemd discards as an unknown key.
+    #[test]
+    fn the_deployment_templates_agree_with_this_code() {
+        let service = deploy_file("q-periapt-policy-agent.service");
+        let socket = deploy_file("q-periapt-policy-agent.socket");
+        let dropin = deploy_file("q-periapt-policy-agent.service.d/10-endpoints.conf.example");
+        let plist = deploy_file("com.qperiapt.policy-agent.plist");
+
+        // A leading '-' marks an optional VALUE. On the directive it is simply
+        // an unknown key, which systemd logs and ignores -- failing silently.
+        for (name, body) in [
+            ("service", &service),
+            ("socket", &socket),
+            ("drop-in", &dropin),
+        ] {
+            for line in body.lines() {
+                assert!(
+                    !line.starts_with('-'),
+                    "{name}: '{line}' puts the optional marker on the directive, not the value"
+                );
+            }
+        }
+
+        // The activation name is the daemon's; both templates must use it.
+        assert!(
+            socket.contains(&format!("FileDescriptorName={IPC_ACTIVATION_NAME}")),
+            "the socket unit must publish the listener as {IPC_ACTIVATION_NAME}"
+        );
+        assert!(
+            plist.contains(&format!("<key>{IPC_ACTIVATION_NAME}</key>")),
+            "the plist Sockets entry must be keyed {IPC_ACTIVATION_NAME}"
+        );
+
+        // The daemon compares its first argument against getsockname, so the
+        // path the manager binds and the path it passes must be the same one.
+        let listen = socket
+            .lines()
+            .find_map(|line| line.strip_prefix("ListenStream="))
+            .expect("the socket unit must declare ListenStream");
+        assert!(
+            service.contains(listen),
+            "ExecStart must be given the same socket path the socket unit binds ({listen})"
+        );
+        let plist_socket = plist
+            .lines()
+            .find(|line| line.contains("agent.sock"))
+            .expect("the plist must name a socket path");
+        let plist_socket = plist_socket
+            .trim()
+            .trim_start_matches("<string>")
+            .trim_end_matches("</string>");
+        assert_eq!(
+            plist.matches(plist_socket).count(),
+            2,
+            "the plist socket path must appear as both SockPathName and the first argument"
+        );
+
+        // Every endpoint any template suggests has to be one this code accepts.
+        for body in [&service, &dropin, &plist] {
+            for candidate in body
+                .lines()
+                .filter(|line| !line.trim_start().starts_with('#'))
+                .filter_map(|line| line.split_once("ENDPOINT=").map(|(_, value)| value))
+                .chain(
+                    body.lines()
+                        .filter(|line| line.contains("<string>") && line.contains(":784"))
+                        .map(|line| {
+                            line.trim()
+                                .trim_start_matches("<string>")
+                                .trim_end_matches("</string>")
+                        }),
+                )
+            {
+                let candidate = candidate.trim();
+                assert!(
+                    parse_socket_address(OsString::from(candidate)).is_ok(),
+                    "template endpoint {candidate:?} is not a numeric address this code accepts"
+                );
+            }
+        }
+
+        // The optional-endpoints-file path the drop-in advertises must exist.
+        assert!(
+            service.contains("EnvironmentFile=-/"),
+            "EnvironmentFile must tolerate a missing file, or the drop-in's Environment= path fails"
+        );
+    }
+
     #[test]
     fn endpoint_addresses_are_numeric_only() {
         // Both deployment templates and README.md state this, because the Linux

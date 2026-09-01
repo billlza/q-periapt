@@ -28,10 +28,13 @@ Group=qperiapt-agent
 # The witness and authority endpoints are deployment-provided; see the required
 # drop-in below. They are NOT hardcoded to localhost, because the deployment
 # contract requires hosting them outside this host's rollback/restore domain.
-# Optional, so a deployment may instead set both variables in the required
-# drop-in with Environment=. Without the leading '-' a missing file fails the
-# unit, which would block the drop-in-only path the example offers.
--EnvironmentFile=/etc/qperiapt-agent/endpoints.conf
+# The '-' belongs to the PATH, not the directive name: it marks a missing file
+# as tolerable, so a deployment may instead set both variables in the required
+# drop-in with Environment=. Without it a missing file fails the unit and blocks
+# the drop-in-only path the example offers. Written as '-EnvironmentFile=' it is
+# not an optional directive at all -- systemd does not recognise the key, logs
+# it as unknown, and drops the line, so the endpoints would never be loaded.
+EnvironmentFile=-/etc/qperiapt-agent/endpoints.conf
 # The first argument is the socket path the activated listener must be bound to,
 # not a directory to bind inside: the daemon compares it against getsockname on
 # the descriptor systemd passes. It must equal ListenStream= in the socket unit.
