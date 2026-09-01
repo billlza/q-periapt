@@ -12,12 +12,12 @@
 #[cfg(feature = "signed-policy")]
 use q_periapt_backends::MlDsa65;
 use q_periapt_backends::{
-    MlKem768, MlKem768XWingSeed, Sha3_256Xof, DEFAULT_SUITE_ID, ML_KEM_768_CT_LEN,
-    ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
+    MlKem768, MlKem768XWingSeed, PreparedMlKem768XWingKey, Sha3_256Xof, DEFAULT_SUITE_ID,
+    ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{
     combine as core_combine, encode_policy_bound_context, policy_bound_context_len, secure_wipe,
-    CombineInput, Error, Profile,
+    CombineInput, Error, Profile, ZeroizingBytes,
 };
 use q_periapt_kem::{
     HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
@@ -391,6 +391,91 @@ pub fn encapsulate(
     })
 }
 
+/// A CompatXWing decapsulation key whose expensive expansion is done once.
+///
+/// [`decapsulate`] accepts the 32-byte X-Wing seed and re-derives the expanded
+/// ML-KEM-768 decapsulation key on every call, which is the whole ML-KEM key
+/// generation. That is the right shape for a one-shot or KAT caller, but a JS
+/// caller that reuses one key pair pays it per operation. Preparing the seed
+/// once and calling [`QPeriaptPreparedKey::decapsulate`] keeps the identical
+/// derived secret while doing the expansion a single time -- the same amortized
+/// path `q-periapt-rustls` already uses.
+///
+/// The expansion is deterministic from the seed, so a prepared owner and the
+/// seed agree by construction. The paired encapsulation key is carried with the
+/// owner rather than supplied by the caller, so it cannot disagree with the
+/// secret it belongs to.
+#[wasm_bindgen]
+pub struct QPeriaptPreparedKey {
+    prepared: PreparedMlKem768XWingKey,
+}
+
+#[wasm_bindgen]
+impl QPeriaptPreparedKey {
+    /// Expand a 32-byte X-Wing seed once for repeated decapsulation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the seed is not exactly 32 bytes or deterministic
+    /// ML-KEM key generation fails.
+    #[wasm_bindgen(constructor)]
+    pub fn new(seed: &[u8]) -> Result<QPeriaptPreparedKey, JsError> {
+        let seed: [u8; ML_KEM_768_XWING_SEED_LEN] = seed
+            .try_into()
+            .map_err(|_| JsError::new("x-wing seed must be exactly 32 bytes"))?;
+        let prepared = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(seed))
+            .map_err(|_| JsError::new("prepare failed"))?;
+        Ok(Self { prepared })
+    }
+
+    /// The encapsulation key paired with this prepared owner.
+    #[wasm_bindgen(js_name = encapsulationKey)]
+    #[must_use]
+    pub fn encapsulation_key(&self) -> Vec<u8> {
+        self.prepared.encapsulation_key().to_vec()
+    }
+
+    /// CompatXWing decapsulation reusing the already expanded key.
+    ///
+    /// Applies exactly the metadata validation [`decapsulate`] applies, and
+    /// yields the identical secret; only the repeated key expansion is skipped.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the policy metadata is rejected or decapsulation
+    /// fails.
+    #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
+    pub fn decapsulate(
+        &self,
+        suite_id: &[u8],
+        policy_version: u32,
+        ct_pq: &[u8],
+        sk_trad: &[u8],
+        ct_trad: &[u8],
+        pk_trad: &[u8],
+        context: &[u8],
+    ) -> Result<Vec<u8>, JsError> {
+        let prof = Profile::CompatXWing;
+        validate_raw_kem_metadata(prof, suite_id, policy_version, context)
+            .map_err(|_| JsError::new("policy denied"))?;
+        let (pq, trad) = (MlKem768XWingSeed, X25519);
+        let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
+            .map_err(|_| JsError::new("policy denied"))?;
+        let secret = kem
+            .decapsulate_prepared(
+                &self.prepared,
+                PqCiphertext::new(ct_pq),
+                TradSecretKey::new(sk_trad),
+                TradCiphertext::new(ct_trad),
+                TradPublicKey::new(pk_trad),
+                context,
+            )
+            .map_err(|_| JsError::new("decapsulate failed"))?;
+        Ok(secret.as_bytes().to_vec())
+    }
+}
+
 /// Hybrid decapsulation. Returns the 32-byte session secret. Metadata has the
 /// same strict, profile-specific canonical form as [`encapsulate`].
 #[wasm_bindgen]
@@ -552,6 +637,70 @@ mod tests {
             secret,
             field(j, "secret"),
             "WASM API must match the Rust core"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn prepared_key_yields_the_same_secret_as_the_seed_path() {
+        // The prepared owner only amortizes the ML-KEM key expansion, which is
+        // deterministic from the seed, so it must agree with the seed-taking
+        // entry point byte for byte and carry the same encapsulation key.
+        let seed = [7u8; ML_KEM_768_XWING_SEED_LEN];
+        let kp_pq = mlkem768_xwing_keypair(&seed).unwrap();
+        let kp_x = x25519_keypair(&[9u8; X25519_LEN]).unwrap();
+
+        let prepared = QPeriaptPreparedKey::new(&seed).unwrap();
+        assert_eq!(
+            prepared.encapsulation_key(),
+            kp_pq.pk(),
+            "the prepared owner must carry the encapsulation key the seed derives"
+        );
+
+        let enc = encapsulate(
+            1,
+            b"",
+            0,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            b"",
+            &[3u8; 32],
+            &[5u8; 32],
+        )
+        .unwrap();
+        let via_seed = decapsulate(
+            1,
+            b"",
+            0,
+            &kp_pq.sk(),
+            &enc.ct_pq(),
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            b"",
+        )
+        .unwrap();
+        let via_prepared = prepared
+            .decapsulate(
+                b"",
+                0,
+                &enc.ct_pq(),
+                &kp_x.sk(),
+                &enc.ct_trad(),
+                &kp_x.pk(),
+                b"",
+            )
+            .unwrap();
+
+        assert_eq!(
+            via_seed, via_prepared,
+            "prepared path must match the seed path"
+        );
+        assert_eq!(
+            enc.secret(),
+            via_prepared,
+            "and both must match encapsulation"
         );
     }
 
