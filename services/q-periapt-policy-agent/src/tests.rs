@@ -97,6 +97,50 @@ impl TestDirectory {
     }
 }
 
+/// A failed `create` must not leave the `O_CREAT|O_EXCL` leaf behind: the next
+/// attempt would get `EEXIST`, and the `create = false` path rejects the
+/// zero-length leftover, so one transient failure would brick provisioning
+/// permanently.
+///
+/// Ignored by default because it manipulates the process-wide `umask`, which
+/// would make any sibling test that creates a private file flaky when the suite
+/// runs in parallel. Run it deliberately:
+///
+/// ```text
+/// cargo test -p q-periapt-policy-agent -- --ignored --test-threads=1
+/// ```
+///
+/// Verified in both directions when the unlink was added: without it this fails
+/// with `failed create left .../brick.redb behind`.
+#[test]
+#[ignore = "manipulates the process-wide umask; run with --test-threads=1"]
+fn failed_private_file_create_leaves_no_leaf_behind() -> TestResult {
+    use rustix::fs::Mode;
+    use rustix::process::umask;
+
+    let directory = TestDirectory::new()?;
+    let path = directory.join("brick.redb");
+    // umask 0o200 strips the owner-write bit, so O_CREAT yields mode 0400 and
+    // the exact-mode check rejects it after the leaf already exists.
+    let previous = umask(Mode::WUSR);
+    let outcome = open_private_file(&path, true);
+    umask(previous);
+    assert!(
+        matches!(outcome, Err(PrivateFileError)),
+        "expected the exact-mode check to reject a 0400 leaf"
+    );
+    assert!(
+        !path.exists(),
+        "failed create left {path:?} behind; provisioning would be bricked"
+    );
+    // A retry under a sane umask must now succeed.
+    drop(
+        open_private_file(&path, true)
+            .map_err(|_| io::Error::other("retry after a cleaned-up failure must succeed"))?,
+    );
+    Ok(())
+}
+
 #[test]
 fn private_state_file_is_opened_beneath_an_owned_descriptor_boundary() -> TestResult {
     use std::os::unix::fs::{symlink, PermissionsExt};

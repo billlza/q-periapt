@@ -132,22 +132,46 @@ pub(crate) fn open_private_file(path: &Path, create: bool) -> Result<File, Priva
     }
     let descriptor = openat(&parent.descriptor, filename, flags, Mode::RUSR | Mode::WUSR)
         .map_err(|_| PrivateFileError)?;
-    let status = fstat(&descriptor).map_err(|_| PrivateFileError)?;
-    if !FileType::from_raw_mode(status.st_mode).is_file()
-        || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
-        || status.st_uid != geteuid().as_raw()
-        || (!create && status.st_size == 0)
-    {
-        return Err(PrivateFileError);
-    }
-    require_no_extended_acl(&descriptor)?;
 
-    let file = File::from(descriptor);
-    if create {
-        file.sync_all().map_err(|_| PrivateFileError)?;
-        rustix::fs::fsync(&parent.descriptor).map_err(|_| PrivateFileError)?;
+    let opened = (|| -> Result<File, PrivateFileError> {
+        let status = fstat(&descriptor).map_err(|_| PrivateFileError)?;
+        if !FileType::from_raw_mode(status.st_mode).is_file()
+            || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
+            || status.st_uid != geteuid().as_raw()
+            || (!create && status.st_size == 0)
+        {
+            return Err(PrivateFileError);
+        }
+        require_no_extended_acl(&descriptor)?;
+
+        let file = File::from(descriptor);
+        if create {
+            file.sync_all().map_err(|_| PrivateFileError)?;
+            rustix::fs::fsync(&parent.descriptor).map_err(|_| PrivateFileError)?;
+        }
+        Ok(file)
+    })();
+
+    match opened {
+        Ok(file) => Ok(file),
+        Err(error) => {
+            if create {
+                // O_CREAT|O_EXCL already made the leaf, so a failure after this
+                // point must not leave it behind: the next attempt would get
+                // EEXIST, and the `create = false` path rejects the zero-length
+                // leftover, so one transient failure (a restrictive umask
+                // yielding the wrong mode, ENOSPC or EIO on the syncs) would
+                // brick provisioning permanently. Best-effort by design -- the
+                // original error is what the caller needs to see.
+                let _ = rustix::fs::unlinkat(
+                    &parent.descriptor,
+                    filename,
+                    rustix::fs::AtFlags::empty(),
+                );
+            }
+            Err(error)
+        }
     }
-    Ok(file)
 }
 
 /// Open the authenticated parent capability and return its single leaf name.

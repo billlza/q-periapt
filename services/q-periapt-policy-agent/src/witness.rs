@@ -1,7 +1,6 @@
 //! Mandatory authenticated external witness protocol and reference server.
 
 use core::fmt;
-use std::io;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,8 +14,8 @@ use crate::authentication::{
     sign_envelope, verify_envelope as verify_signed_envelope, AuthenticationError,
 };
 use crate::codec::{
-    encode_domain, hash_fields, read_frame, read_frame_until, require_domain, write_frame,
-    write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
+    accept_error_is_transient, encode_domain, hash_fields, read_frame, read_frame_until,
+    require_domain, write_frame, write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::filesystem::open_private_file;
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
@@ -856,9 +855,12 @@ impl ReferenceWitnessServer {
         while !shutdown.load(Ordering::Acquire) {
             match listener.accept() {
                 Ok((mut stream, _)) => {
-                    stream
-                        .set_nonblocking(false)
-                        .map_err(|_| WitnessError::Unavailable)?;
+                    // A per-connection setsockopt failure is isolated to that
+                    // connection, exactly like a malformed request below; it
+                    // must not tear down the listener.
+                    if stream.set_nonblocking(false).is_err() {
+                        continue;
+                    }
                     // A malformed or unauthenticated connection is isolated to that
                     // connection; no response is produced and no state is changed.
                     match self.handle(&mut stream) {
@@ -868,7 +870,7 @@ impl ReferenceWitnessServer {
                         Err(error) => return Err(error),
                     }
                 }
-                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                Err(error) if accept_error_is_transient(&error) => {
                     std::thread::sleep(Duration::from_millis(5));
                 }
                 Err(_) => return Err(WitnessError::Unavailable),

@@ -128,9 +128,16 @@ impl std::error::Error for Abi2EngineError {}
 pub(crate) struct Abi2Engine {
     decision: [u8; Q_PERIAPT_POLICY_DECISION_LEN],
     execution: AuthenticatedResolvedSuite,
-    secret_pq: ZeroizingBytes<{ Q_PERIAPT_MLKEM768_SK_LEN }>,
+    // Boxed so the primitive writes the secret straight into one stable heap
+    // owner. `ZeroizingBytes` wipes on drop, but a Rust move does not run Drop
+    // on the source and does not zero it, so an inline field would leave a full
+    // unwiped copy of the key on the stack at every move of this struct --
+    // `provision` returning by value and the caller boxing it afterwards. This
+    // mirrors `MlKem768XWingSeed::prepare` / `generate_zeroizing`: moving the
+    // owner then moves only the box pointer, never the secret bytes.
+    secret_pq: Box<ZeroizingBytes<{ Q_PERIAPT_MLKEM768_SK_LEN }>>,
     public_keys: EncapsulationPublicKeys,
-    secret_traditional: ZeroizingBytes<{ Q_PERIAPT_X25519_LEN }>,
+    secret_traditional: Box<ZeroizingBytes<{ Q_PERIAPT_X25519_LEN }>>,
 }
 
 impl fmt::Debug for Abi2Engine {
@@ -191,9 +198,9 @@ impl Abi2Engine {
             return Err(Abi2EngineError::PolicyRejected);
         }
 
-        let mut secret_pq = ZeroizingBytes::<{ Q_PERIAPT_MLKEM768_SK_LEN }>::zeroed();
+        let mut secret_pq = Box::new(ZeroizingBytes::<{ Q_PERIAPT_MLKEM768_SK_LEN }>::zeroed());
         let mut public_pq = [0u8; Q_PERIAPT_MLKEM768_PK_LEN];
-        let mut secret_traditional = ZeroizingBytes::<{ Q_PERIAPT_X25519_LEN }>::zeroed();
+        let mut secret_traditional = Box::new(ZeroizingBytes::<{ Q_PERIAPT_X25519_LEN }>::zeroed());
         let mut public_traditional = [0u8; Q_PERIAPT_X25519_LEN];
         // SAFETY: the immutable decision and four pairwise-disjoint exact-size
         // output allocations remain live for the duration of the call.

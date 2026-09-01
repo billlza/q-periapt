@@ -27,7 +27,7 @@ use crate::authority_protocol::{
     AUTHORITY_REQUEST_DIGEST_DOMAIN,
 };
 use crate::authority_store::{AuthorityStoreErrorV2, AuthorityStoreV2};
-use crate::codec::{hash_fields, MAX_FRAME_BYTES};
+use crate::codec::{accept_error_is_transient, hash_fields, MAX_FRAME_BYTES};
 
 const HARD_MAX_AUTHORITY_NONCES: usize = 4096;
 const HARD_MIN_TOTAL_DEADLINE: Duration = Duration::from_millis(1);
@@ -695,7 +695,7 @@ impl ReferenceAuthorityServerV2 {
                         return Err(AuthorityServerErrorV2::Quarantined);
                     }
                 }
-                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                Err(error) if accept_error_is_transient(&error) => {
                     std::thread::sleep(Duration::from_millis(5));
                 }
                 Err(_) => return Err(AuthorityServerErrorV2::ListenerUnavailable),

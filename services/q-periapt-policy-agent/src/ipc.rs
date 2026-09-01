@@ -30,8 +30,8 @@ use crate::authority_protocol::{
 };
 use crate::authority_transport::{AuthenticatedTcpAuthorityV2, InstanceAuthorityPort};
 use crate::codec::{
-    encode_domain, hash_fields, read_frame_until, require_domain, write_frame_until, CodecError,
-    DeadlineStream, Decoder, Encoder, MAX_FRAME_BYTES,
+    accept_error_is_transient, encode_domain, hash_fields, read_frame_until, require_domain,
+    write_frame_until, CodecError, DeadlineStream, Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::OwnedPrivateDirectory;
@@ -311,7 +311,14 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// Serve one request per accepted connection with bounded sequential resources.
     fn serve(mut self, listener: UnixListener) -> Result<(), IpcError> {
         for accepted in listener.incoming() {
-            let mut stream = accepted.map_err(|_| IpcError::Unavailable)?;
+            // A transient accept failure (descriptor pressure, a signal, a peer
+            // that reset before we got here) must not end the daemon; only a
+            // listener that is genuinely unusable is fatal.
+            let mut stream = match accepted {
+                Ok(stream) => stream,
+                Err(error) if accept_error_is_transient(&error) => continue,
+                Err(_) => return Err(IpcError::Unavailable),
+            };
             match self.handle(&mut stream) {
                 Ok(())
                 | Err(IpcError::InvalidMessage)

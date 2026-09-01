@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use q_periapt_backends::Sha3_256Xof;
 use q_periapt_core::Xof256;
+use rustix::io::Errno;
 
 pub(crate) const MAX_FRAME_BYTES: usize = 16 * 1024;
 
@@ -203,6 +204,34 @@ impl DeadlineStream for UnixStream {
     fn set_write_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.set_write_timeout(timeout)
     }
+}
+
+/// Whether an `accept()` failure is transient, so a long-lived listener should
+/// keep serving rather than terminate.
+///
+/// These daemons are the only thing that ever stops them: a fatal return
+/// propagates to `std::process::exit(1)`. They must not die permanently because
+/// the process momentarily hit its descriptor limit, was interrupted by a
+/// signal, or because a peer reset between the handshake and `accept()`. Only
+/// states that make the listener itself unusable (EBADF, EINVAL, ENOTSOCK) are
+/// fatal, and those fall through to `false`.
+pub(crate) fn accept_error_is_transient(error: &io::Error) -> bool {
+    if matches!(
+        error.kind(),
+        io::ErrorKind::WouldBlock
+            | io::ErrorKind::Interrupted
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::OutOfMemory
+    ) {
+        return true;
+    }
+    // EMFILE/ENFILE/ENOBUFS carry no stable `ErrorKind` on this toolchain.
+    let Some(code) = error.raw_os_error() else {
+        return false;
+    };
+    code == Errno::MFILE.raw_os_error()
+        || code == Errno::NFILE.raw_os_error()
+        || code == Errno::NOBUFS.raw_os_error()
 }
 
 fn remaining_budget(deadline: Instant) -> Result<Duration, CodecError> {
