@@ -72,6 +72,20 @@ mod launchd {
         // Exactly one descriptor, or the configuration is not the one this
         // daemon expects. Every path below frees the array launchd allocated.
         if count != 1 {
+            // Ownership of every descriptor was transferred to this process, so
+            // discarding only the array would leave open listening sockets
+            // behind. Startup fails on this path and the process exits today,
+            // but a function that returns an error should not rely on that.
+            for index in 0..count {
+                // SAFETY: launchd reported `count` descriptors, so every index
+                // below it is initialized and within the allocation. Each value
+                // is an open descriptor this process owns; it is adopted once,
+                // solely so that dropping it closes it.
+                let raw = unsafe { *descriptors.add(index) };
+                if raw >= 0 {
+                    drop(unsafe { OwnedFd::from_raw_fd(raw) });
+                }
+            }
             // SAFETY: `descriptors` is the non-null array launchd allocated with
             // `malloc` on the success path above, freed exactly once here and
             // not used afterwards.

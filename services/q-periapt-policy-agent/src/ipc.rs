@@ -68,7 +68,6 @@ const IPC_ACTIVATION_NAME: &str = "agent";
 pub enum IpcError {
     /// The executable command or protected configuration was invalid.
     InvalidConfiguration,
-    /// The socket path or mode was not an owner-only Unix boundary.
     /// The service manager did not present a socket-activation listener.
     ActivationMissing,
     /// Socket activation did not supply the expected listener.
@@ -278,11 +277,15 @@ impl RecentNonces {
 
 /// Sequential, deadline-bounded authenticated Unix server.
 ///
-/// Sequential handling deliberately caps active clients at one. Each accepted
-/// connection is bounded by one absolute deadline of `io_timeout` computed at
-/// accept: every framed read and write derives its remaining budget from that
-/// deadline, so even a client trickling one byte per interval cannot occupy
-/// the slot for longer. No unbounded worker/thread creation is possible.
+/// Sequential handling deliberately caps active clients at one. Both
+/// client-paced phases are bounded by their own absolute `io_timeout` deadline,
+/// from which every framed read and write derives its remaining budget, so a
+/// client trickling one byte per interval cannot occupy the slot. The request
+/// and the response are budgeted separately because execution between them is
+/// bounded by the witness and authority timeouts rather than by the client, and
+/// those outlast one IPC timeout; a shared deadline would be spent before a
+/// committed operation could report itself. No unbounded worker or thread
+/// creation is possible.
 pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> {
     agent: PolicyAgent<W, A>,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
@@ -413,10 +416,13 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
             };
             // An accepted socket inherits the listener's non-blocking mode on
             // the BSDs but not on Linux. Set it explicitly so the request
-            // handler's deadline reads block identically on both.
-            stream
-                .set_nonblocking(false)
-                .map_err(|_| IpcError::Unavailable)?;
+            // handler's deadline reads block identically on both. A failure here
+            // belongs to this one connection, exactly like a malformed request
+            // below, and must not tear down the listener for everyone else --
+            // the witness and authority loops already skip on the same failure.
+            if stream.set_nonblocking(false).is_err() {
+                continue;
+            }
             match self.handle(&mut stream) {
                 Ok(())
                 | Err(IpcError::InvalidMessage)
