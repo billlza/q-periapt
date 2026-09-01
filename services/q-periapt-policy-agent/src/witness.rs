@@ -684,6 +684,13 @@ impl WitnessStore {
         if recorded > WITNESS_MAX_OPERATIONS {
             return Err(WitnessError::Persistence);
         }
+        let encoded_head = meta
+            .get(META_HEAD)
+            .map_err(|_| WitnessError::Persistence)?
+            .ok_or(WitnessError::Persistence)?;
+        let mut head_decoder = Decoder::new(encoded_head.value());
+        let head = StateHead::decode(&mut head_decoder).map_err(map_codec)?;
+        head_decoder.finish().map_err(map_codec)?;
         let mut observed = 0u64;
         for row in operations.iter().map_err(|_| WitnessError::Persistence)? {
             let (key, value) = row.map_err(|_| WitnessError::Persistence)?;
@@ -697,6 +704,19 @@ impl WitnessStore {
                 .intent
                 .is_some_and(|intent| intent.operation_id.as_bytes().as_slice() == key.value());
             if !filed_correctly {
+                return Err(WitnessError::Persistence);
+            }
+            // An applied receipt proves the witness already advanced to the head
+            // it names, so the recorded head cannot be behind it. A store where
+            // it is has either torn between writing the receipt and updating the
+            // head, or been rolled back -- and either way the witness would
+            // answer with an older head while holding proof it had moved past
+            // it, which is exactly how a second, different advance from that
+            // same point gets accepted and the lineage forks.
+            if matches!(receipt.disposition, WitnessDisposition::Applied)
+                && receipt.authoritative_head.revision().global_generation()
+                    > head.revision().global_generation()
+            {
                 return Err(WitnessError::Persistence);
             }
             observed = observed.checked_add(1).ok_or(WitnessError::Persistence)?;
@@ -974,6 +994,48 @@ impl ReferenceWitnessServer {
 #[cfg(all(test, unix))]
 pub(crate) mod test_support {
     use super::*;
+
+    /// Record an applied receipt for an advance the head does not reflect,
+    /// leaving a store that holds proof it moved past the head it reports.
+    ///
+    /// This is what a tear between writing the receipt and updating the head
+    /// looks like on disk, and what a rollback of the head alone looks like.
+    pub(crate) fn record_applied_receipt_ahead_of_head(
+        path: &Path,
+        intent: WitnessIntent,
+    ) -> Result<(), WitnessError> {
+        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
+        let transaction = database
+            .begin_write()
+            .map_err(|_| WitnessError::Persistence)?;
+        {
+            let mut meta = transaction
+                .open_table(META_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut operations = transaction
+                .open_table(OPERATION_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut encoder = Encoder::new(MAX_FRAME_BYTES);
+            WitnessReceipt::applied(intent)
+                .encode(&mut encoder)
+                .map_err(map_codec)?;
+            operations
+                .insert(
+                    intent.operation_id.as_bytes().as_slice(),
+                    encoder.finish().as_slice(),
+                )
+                .map_err(|_| WitnessError::Persistence)?;
+            meta.insert(META_OPERATION_COUNT, 1u64.to_be_bytes().as_slice())
+                .map_err(|_| WitnessError::Persistence)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(())
+    }
 
     /// Desynchronize the recorded operation count from the rows actually
     /// present, leaving a store redb still considers structurally sound.

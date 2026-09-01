@@ -597,6 +597,64 @@ fn witness_server_survives_a_request_level_rejection() -> TestResult {
 }
 
 #[test]
+fn witness_store_rejects_an_applied_receipt_ahead_of_its_head() -> TestResult {
+    // A receipt saying Applied(H0 -> H1) beside a recorded head of H0 is a store
+    // that holds proof it advanced past the head it reports. That is what a tear
+    // between the receipt write and the head update looks like, and what a
+    // rollback of the head alone looks like. Counting rows and checking that
+    // each is filed under its own operation id both pass on it, because neither
+    // ever compares a receipt against the head.
+    //
+    // It matters because the witness would then answer read_head() with H0 while
+    // already having applied H0 -> H1. A second, different advance from H0 under
+    // a fresh operation id is not a replay of anything, so nothing else would
+    // stop it, and the lineage the witness exists to keep single would fork.
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (_client_sk, client_vk) = MlDsa65::generate([43u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([44u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [7u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    drop(server);
+
+    // The advance the receipt claims was applied, one generation past the head
+    // the store still records.
+    let next = StateRevision::new(2, 2, [8u8; 32])?;
+    let intent = WitnessIntent::new(
+        OperationId::generate()?,
+        StateAdvance::new(TransitionKind::Advance, initial.revision(), next)?,
+        initial.fence(),
+        FenceToken::generate()?,
+    )?;
+    crate::witness::test_support::record_applied_receipt_ahead_of_head(&database, intent)
+        .map_err(|_| io::Error::other("failed to stage the torn store"))?;
+
+    let (witness_sk_again, _) = MlDsa65::generate([44u8; 32]);
+    assert!(
+        ReferenceWitnessServer::open(
+            &database,
+            client_vk,
+            ZeroizingBytes::from_bytes(witness_sk_again),
+            witness_vk,
+            Duration::from_secs(2),
+        )
+        .is_err(),
+        "a store holding an applied receipt ahead of its own head must be refused"
+    );
+    Ok(())
+}
+
+#[test]
 fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult {
     // redb's check_integrity proves only that its own structure is sound. A
     // recorded operation count that disagrees with the rows actually present is
