@@ -173,6 +173,15 @@ manager, which is the only component that knows whether the previous process is
 gone. On Linux the socket unit owns the node across restarts; on macOS launchd
 does the same for the entry in its `Sockets` dictionary.
 
+Each server direction also installs its own verification key --
+`ipc-server-vk.bin` beside `ipc-server-sk.bin`, and `witness-server-vk.bin`
+beside `witness-server-sk.bin`. Startup signs a probe and requires it to verify
+under that key. Signing alone only proves the key is well-formed: a valid but
+wrong signing key would otherwise start cleanly, commit state, and only then
+produce responses every client rejects. This proves the deployment is internally
+consistent; it cannot prove clients pinned that key, which is established out of
+band.
+
 The executable opens existing stores only. Controlled bootstrap must explicitly
 call `StateRepository::provision_new` and `ReferenceWitnessServer::provision`;
 a missing store is never provisioned by the runtime. Configuration files are

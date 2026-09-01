@@ -307,6 +307,7 @@ fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> Te
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -387,6 +388,7 @@ fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> Tes
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -454,6 +456,7 @@ fn authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline() -
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_millis(500),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -532,6 +535,7 @@ fn witness_server_survives_a_request_level_rejection() -> TestResult {
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -612,6 +616,7 @@ fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?;
     drop(server);
@@ -624,6 +629,7 @@ fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult
             &database,
             client_vk,
             ZeroizingBytes::from_bytes(MlDsa65::generate([42u8; 32]).0),
+            MlDsa65::generate([42u8; 32]).1,
             Duration::from_secs(2),
         )
         .is_err(),
@@ -652,6 +658,7 @@ fn witness_rejects_one_key_pair_serving_both_directions() -> TestResult {
             initial,
             shared_vk,
             ZeroizingBytes::from_bytes(shared_sk),
+            shared_vk,
             Duration::from_secs(2),
         )
         .is_err(),
@@ -660,12 +667,13 @@ fn witness_rejects_one_key_pair_serving_both_directions() -> TestResult {
 
     // The distinct-key configuration the deployment actually uses still works.
     let (client_sk, client_vk) = MlDsa65::generate([52u8; 32]);
-    let (witness_sk, _witness_vk) = MlDsa65::generate([53u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([53u8; 32]);
     drop(ReferenceWitnessServer::provision(
         &directory.join("distinct.redb"),
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?);
     let _ = client_sk;
@@ -1289,7 +1297,7 @@ fn constructors_reject_collapsed_identity_domains_and_zero_timeouts() -> TestRes
         Some(WitnessError::InvalidConfiguration)
     );
     let directory = TestDirectory::new()?;
-    let (server_sk, _) = MlDsa65::generate([92u8; 32]);
+    let (server_sk, server_vk) = MlDsa65::generate([92u8; 32]);
     let head = StateHead::new(
         StateRevision::new(1, 1, [1u8; 32])?,
         FenceToken::generate()?,
@@ -1300,6 +1308,7 @@ fn constructors_reject_collapsed_identity_domains_and_zero_timeouts() -> TestRes
             head,
             shared_vk,
             ZeroizingBytes::from_bytes(server_sk),
+            server_vk,
             Duration::ZERO,
         )
         .err(),
@@ -1857,6 +1866,44 @@ fn concurrent_exact_responder_acceptance_returns_one_stable_result() -> TestResu
 }
 
 #[test]
+fn ipc_rejects_a_response_key_clients_could_not_verify() -> TestResult {
+    // A perfectly valid signing key that simply is not the one clients pinned.
+    // It signs, and it is a different pair from the request direction, so every
+    // other startup check passes. Only comparing a signature against the pinned
+    // response key catches it -- and without that the daemon starts, commits
+    // state, and only then emits responses every client rejects.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 27)?;
+    let (_, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let (_, unrelated_verification_key) = MlDsa65::generate([99u8; 32]);
+    assert!(
+        crate::ipc::UnixIpcServer::new_for_test(
+            pair.responder,
+            client_verification_key,
+            ZeroizingBytes::from_bytes(server_signing_key),
+            unrelated_verification_key,
+        )
+        .is_err(),
+        "a signing key that does not match the pinned response key must be refused"
+    );
+
+    // The matching pair is still accepted, so the check is not simply refusing
+    // everything.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 28)?;
+    let (server_signing_key_again, _) = MlDsa65::generate([96u8; 32]);
+    assert!(crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key_again),
+        server_verification_key,
+    )
+    .is_ok());
+    Ok(())
+}
+
+#[test]
 fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
     // The IPC server verifies requests under the client key and signs responses
     // under its own. One key pair for both directions would let any client
@@ -1869,6 +1916,7 @@ fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
             pair.responder,
             shared_vk,
             ZeroizingBytes::from_bytes(shared_sk),
+            shared_vk,
         )
         .is_err(),
         "one key pair must not carry both IPC directions"
@@ -1892,11 +1940,12 @@ fn a_busy_listener_does_not_starve_the_session_sweep() -> TestResult {
     assert_eq!(pair.responder.pending_session_count(), 1);
 
     let (_, client_verification_key) = MlDsa65::generate([97u8; 32]);
-    let (server_signing_key, _) = MlDsa65::generate([98u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([98u8; 32]);
     let server = crate::ipc::UnixIpcServer::new_for_test(
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     let socket_path = directory.join("busy.sock");
@@ -1956,6 +2005,7 @@ fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestRe
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     let socket_path = directory.join("serve.sock");
@@ -2009,11 +2059,12 @@ fn the_response_write_budget_does_not_come_out_of_the_request_deadline() -> Test
         BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
     )?)?;
     let (client_signing_key, client_verification_key) = MlDsa65::generate([93u8; 32]);
-    let (server_signing_key, _) = MlDsa65::generate([94u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([94u8; 32]);
     let mut server = crate::ipc::UnixIpcServer::new_for_test(
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     let mut transport = WriteBudgetTransport {
@@ -2066,6 +2117,7 @@ fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResu
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     let first_nonce = [21u8; 32];
@@ -2135,11 +2187,12 @@ fn ipc_absolute_deadline_evicts_a_pre_auth_trickle_client() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 19)?;
     let (_, client_verification_key) = MlDsa65::generate([93u8; 32]);
-    let (server_signing_key, _) = MlDsa65::generate([94u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([94u8; 32]);
     let mut server = crate::ipc::UnixIpcServer::new_for_test(
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     // A maximum-length frame trickled one byte per 20ms would take minutes;

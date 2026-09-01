@@ -60,7 +60,12 @@ weaker socket.
 2. Create the `0700` service, state, and configuration directories owned by
    that account; install the exact-length owner-only configuration files
    (migration/recovery roots, endpoint identities, signed policy bundles,
-   IPC/witness/authority keys, pinned authority wire identity).
+   IPC/witness/authority keys, pinned authority wire identity). Each server
+   direction needs its own verification key alongside its signing key
+   (`ipc-server-vk.bin`, `witness-server-vk.bin`): startup refuses a signing key
+   that does not match the one clients were told to pin, so installing a valid
+   but wrong key fails at start rather than after the first committed state
+   change.
 3. Create the transport group and add each authorized client account to it.
    Membership grants the ability to connect, and nothing more: executing a
    protected operation still requires the pinned IPC client signing key.

@@ -342,12 +342,26 @@ fn wait_for_connection(listener: &UnixListener) -> Result<bool, IpcError> {
 fn validate_ipc_direction_isolation(
     client_verification_key: &[u8],
     server_signing_key: &[u8],
+    server_verification_key: &[u8],
 ) -> Result<(), IpcError> {
-    if server_signing_key.iter().all(|byte| *byte == 0) {
+    if server_signing_key.iter().all(|byte| *byte == 0)
+        || server_verification_key.iter().all(|byte| *byte == 0)
+    {
         return Err(IpcError::InvalidConfiguration);
     }
     let probe = sign_envelope(IPC_DIRECTION_ISOLATION_PROBE, server_signing_key)
         .map_err(|_| IpcError::InvalidConfiguration)?;
+    // The response key pair has to be a pair. Signing proves only that the key
+    // is well-formed; without this, a deployment that installs a valid but wrong
+    // signing key starts cleanly, commits state, and only then produces
+    // responses every client rejects -- the exact outcome startup validation
+    // exists to prevent. This proves a signature this daemon produces verifies
+    // under the key its clients were told to pin. It cannot prove the clients
+    // actually pinned that key, which is established out of band.
+    if verify_envelope(&probe, server_verification_key).is_err() {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    // And the two directions must remain distinct pairs.
     if verify_envelope(&probe, client_verification_key).is_ok() {
         return Err(IpcError::InvalidConfiguration);
     }
@@ -361,12 +375,17 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        server_verification_key: [u8; ML_DSA_65_VK_LEN],
         io_timeout: Duration,
     ) -> Result<Self, IpcError> {
         if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
             return Err(IpcError::InvalidConfiguration);
         }
-        validate_ipc_direction_isolation(&client_verification_key, server_signing_key.as_bytes())?;
+        validate_ipc_direction_isolation(
+            &client_verification_key,
+            server_signing_key.as_bytes(),
+            &server_verification_key,
+        )?;
         Ok(Self {
             agent,
             client_verification_key,
@@ -517,11 +536,16 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        server_verification_key: [u8; ML_DSA_65_VK_LEN],
     ) -> Result<Self, IpcError> {
         if client_verification_key.iter().all(|byte| *byte == 0) {
             return Err(IpcError::InvalidConfiguration);
         }
-        validate_ipc_direction_isolation(&client_verification_key, server_signing_key.as_bytes())?;
+        validate_ipc_direction_isolation(
+            &client_verification_key,
+            server_signing_key.as_bytes(),
+            &server_verification_key,
+        )?;
         Ok(Self {
             agent,
             client_verification_key,
@@ -828,6 +852,7 @@ fn serve_agent(
         agent,
         read_array(&configuration, "ipc-client-vk.bin")?,
         read_secret(&configuration, "ipc-server-sk.bin")?,
+        read_array(&configuration, "ipc-server-vk.bin")?,
         IPC_IO_TIMEOUT,
     )?;
     // The daemon runs until the service manager stops it; nothing sets this.
@@ -847,6 +872,7 @@ fn serve_witness(
         database,
         read_array(&configuration, "witness-client-vk.bin")?,
         read_secret(&configuration, "witness-server-sk.bin")?,
+        read_array(&configuration, "witness-server-vk.bin")?,
         WITNESS_IO_TIMEOUT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;

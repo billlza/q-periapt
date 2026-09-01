@@ -853,6 +853,7 @@ impl ReferenceWitnessServer {
         initial_head: StateHead,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         witness_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        witness_verification_key: [u8; ML_DSA_65_VK_LEN],
         io_timeout: Duration,
     ) -> Result<Self, WitnessError> {
         validate_authentication_material(
@@ -860,6 +861,7 @@ impl ReferenceWitnessServer {
             &client_verification_key,
             io_timeout,
         )?;
+        validate_response_key_pair(witness_signing_key.as_bytes(), &witness_verification_key)?;
         Ok(Self {
             store: WitnessStore::provision(path, initial_head)?,
             client_verification_key,
@@ -873,6 +875,7 @@ impl ReferenceWitnessServer {
         path: &Path,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         witness_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        witness_verification_key: [u8; ML_DSA_65_VK_LEN],
         io_timeout: Duration,
     ) -> Result<Self, WitnessError> {
         validate_authentication_material(
@@ -880,6 +883,7 @@ impl ReferenceWitnessServer {
             &client_verification_key,
             io_timeout,
         )?;
+        validate_response_key_pair(witness_signing_key.as_bytes(), &witness_verification_key)?;
         Ok(Self {
             store: WitnessStore::open(path)?,
             client_verification_key,
@@ -1027,6 +1031,29 @@ pub(crate) mod test_support {
 /// Domain-separated probe used only to prove, at startup, that the two
 /// directions of this protocol are carried by different key pairs.
 const DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-WITNESS-DIRECTION-PROBE/v1";
+
+/// Prove a signing key really corresponds to the verification key its peers were
+/// told to pin.
+///
+/// `validate_authentication_material` proves only that the key signs and that
+/// the two directions are distinct pairs. A valid but wrong signing key passes
+/// both, so the server would start, commit witness state, and only then emit
+/// responses the client rejects -- the outcome startup validation exists to
+/// prevent. This cannot prove clients actually pinned this key, which is
+/// established out of band; it proves the deployment is internally consistent.
+fn validate_response_key_pair(
+    signing_key: &[u8],
+    own_verification_key: &[u8],
+) -> Result<(), WitnessError> {
+    if own_verification_key.iter().all(|byte| *byte == 0) {
+        return Err(WitnessError::InvalidConfiguration);
+    }
+    let probe = sign_envelope(DIRECTION_ISOLATION_PROBE, signing_key)
+        .map_err(|_| WitnessError::InvalidConfiguration)?;
+    verify_signed_envelope(&probe, own_verification_key)
+        .map(|_| ())
+        .map_err(|_| WitnessError::InvalidConfiguration)
+}
 
 fn validate_authentication_material(
     signing_key: &[u8],
