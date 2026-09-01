@@ -1625,6 +1625,25 @@ fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut I
             Ok(AuthorityOutcomeV2::Known(_)) => {
                 lease.unacknowledged.pop_front();
             }
+            // The authority holds no retained state matching this locator, so
+            // there is nothing left to reclaim and no retry can change that:
+            // its receipt table only ever shrinks. Keeping the entry would
+            // block every acknowledgement behind it permanently -- the queue
+            // drains strictly in order, this failure does not poison the store,
+            // and acknowledgement is the only thing that ever removes a receipt
+            // on either side. One unmatchable receipt would fill this bounded
+            // queue and then leave the authority's own table to fill too, which
+            // ends with the daemon unable to acquire a lease at all. Discard it
+            // and carry on.
+            Ok(AuthorityOutcomeV2::KnownFailure(
+                AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
+            )) => {
+                lease.unacknowledged.pop_front();
+            }
+            // Everything else is a server-side condition that can clear: a full
+            // nonce table, a failed allocation, an unavailable clock, or an
+            // indeterminate response. Stop and retry on the next drain rather
+            // than discarding an obligation that can still be honoured.
             Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
                 return;
             }
@@ -1828,9 +1847,26 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 
 /// Erase every in-process pending and accepted secret and retire this fence.
 ///
-/// After this returns, the agent permanently refuses lease-guarded operations;
-/// key use has provably stopped before any successor instance can acquire the
-/// next lease generation.
+/// After this returns, the agent permanently refuses lease-guarded operations
+/// and holds no pending or accepted secret.
+///
+/// It does **not** establish that key use stopped before a successor acquired
+/// the next generation, and an earlier version of this comment claimed that it
+/// did. Nothing gives this process that guarantee: a successor's acquire is
+/// gated purely on wall-clock expiry (`plan_acquire`), with no interaction with
+/// the incumbent and no revocation, and this process learns it has been fenced
+/// only by making a further authority call and being rejected. Between the
+/// lease lapsing and that rejection arriving, both instances hold live key
+/// material, and neither the guarded entry points nor `expire_idle_sessions`
+/// closes that window: the entry points check the lease once, on the way in,
+/// and are handed no expiry with which to bound the work that follows.
+///
+/// What this function does guarantee is the erasure, and that it happens before
+/// the rejected call returns. Narrowing the window itself needs the lease to
+/// carry a deadline the agent can check again before it retains a secret, which
+/// is a separate change.
+///
+/// See `docs/policy/` for the intended end state.
 fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {

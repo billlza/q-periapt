@@ -346,7 +346,14 @@ key-use operation first renews the lease against the authority's trusted
 clock, so a fenced, expired, or superseded instance is rejected before it can
 touch a pending or accepted secret; the fenced instance erases every
 in-process pending and accepted secret first and permanently refuses
-lease-guarded operations. The client's fence view is deliberately RAM-only —
+lease-guarded operations. That check is made on entry and is not renewed
+inside the operation: the renew returns no expiry, so the agent holds no
+deadline it could re-check, and a lease that lapses after the check is not
+detected until some later authority call is rejected. A successor's acquire is
+gated on wall-clock expiry alone, with no interaction with the incumbent, so
+for the length of that window both instances hold live key material. This is a
+known gap, not a guarantee; closing it requires the lease to carry a deadline
+the agent re-checks before it retains a secret. The client's fence view is deliberately RAM-only —
 a restored clone of this host cannot replay the live fence, and a process
 restart always starts a new acquire cycle. Graceful shutdown releases the
 lease idempotently so a successor can acquire without waiting out the
