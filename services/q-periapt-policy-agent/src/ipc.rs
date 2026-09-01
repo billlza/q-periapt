@@ -8,7 +8,7 @@ use std::io::Read;
 use std::net::{SocketAddr, TcpListener};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN};
@@ -371,8 +371,13 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         })
     }
 
-    /// Serve one request per accepted connection with bounded sequential resources.
-    fn serve(mut self, listener: UnixListener) -> Result<(), IpcError> {
+    /// Serve one request per accepted connection with bounded sequential
+    /// resources, until `shutdown` is set.
+    ///
+    /// The daemon never sets the flag; it exists so the loop is reachable from a
+    /// test, matching the witness and authority servers. It is read once per
+    /// accept wait, so a shutdown is observed within one maintenance interval.
+    fn serve(mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
         // Wait in `poll` rather than in `accept`, for two reasons. A daemon
         // nobody is talking to still has to run its session TTL sweep, and only
         // a bounded wait gives it the chance. And a blocking `accept` can still
@@ -383,7 +388,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         listener
             .set_nonblocking(true)
             .map_err(|_| IpcError::Unavailable)?;
-        loop {
+        while !shutdown.load(Ordering::Acquire) {
             if !wait_for_connection(&listener)? {
                 self.agent.expire_idle_sessions();
                 continue;
@@ -420,6 +425,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 Err(error) => return Err(error),
             }
         }
+        Ok(())
     }
 
     fn handle(&mut self, stream: &mut UnixStream) -> Result<(), IpcError> {
@@ -471,6 +477,18 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
             .checked_add(self.io_timeout)
             .ok_or(IpcError::Unavailable)?;
         write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
+    }
+
+    /// Run the serving loop against a caller-supplied listener.
+    ///
+    /// The module is already `cfg(unix)`, so `cfg(test)` is enough here.
+    #[cfg(test)]
+    pub(crate) fn serve_for_test(
+        self,
+        listener: UnixListener,
+        shutdown: &AtomicBool,
+    ) -> Result<(), IpcError> {
+        self.serve(listener, shutdown)
     }
 
     #[cfg(test)]
@@ -791,7 +809,9 @@ fn serve_agent(
         read_secret(&configuration, "ipc-server-sk.bin")?,
         IPC_IO_TIMEOUT,
     )?;
-    server.serve(listener)
+    // The daemon runs until the service manager stops it; nothing sets this.
+    let shutdown = AtomicBool::new(false);
+    server.serve(listener, &shutdown)
 }
 
 fn serve_witness(

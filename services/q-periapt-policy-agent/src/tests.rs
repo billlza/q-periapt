@@ -1794,6 +1794,61 @@ fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
 }
 
 #[test]
+fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 31)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+    )?;
+
+    let socket_path = directory.join("serve.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || server.serve_for_test(listener, &server_shutdown));
+
+    // The only test that drives the accept path itself: the non-blocking
+    // listener, the poll readiness report, and putting the accepted stream back
+    // into blocking mode so the handler's SO_RCVTIMEO deadlines behave. An
+    // accepted socket inherits non-blocking mode on the BSDs but not on Linux,
+    // so this covers a difference the unit tests cannot see.
+    let nonce = [26u8; 32];
+    let mut client = std::os::unix::net::UnixStream::connect(&socket_path)?;
+    client.write_all(&framed_accept_initiator_request(
+        &client_signing_key,
+        nonce,
+        decapsulated.handle,
+        encapsulated.initiator_finished,
+    )?)?;
+    // The server serves one request per connection and then drops the stream,
+    // so the read ends when it closes.
+    let mut response = Vec::new();
+    client.read_to_end(&mut response)?;
+    let (key_handle, responder_finished) =
+        decode_responder_acceptance_response(&response, &server_verification_key, nonce)?;
+    assert!(!key_handle.iter().all(|byte| *byte == 0));
+    assert!(!responder_finished.iter().all(|byte| *byte == 0));
+
+    // The loop reads the flag once per accept wait, so it stops within one
+    // maintenance interval rather than needing a connection to wake it.
+    shutdown.store(true, Ordering::Release);
+    server_thread
+        .join()
+        .map_err(|_| io::Error::other("serving thread panicked"))??;
+    Ok(())
+}
+
+#[test]
 fn the_response_write_budget_does_not_come_out_of_the_request_deadline() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 23)?;
