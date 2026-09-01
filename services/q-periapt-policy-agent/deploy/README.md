@@ -19,6 +19,7 @@ weaker socket.
 | --- | --- | --- |
 | Owner-only service/config/state paths (`0700`/`0600`, `O_NOFOLLOW`, descriptor-pinned) | daemon | all platforms |
 | IPC socket existence, owner, group and mode (`0660`, daemon owner, client group) | service manager | `q-periapt-policy-agent.socket`, `com.qperiapt.policy-agent.plist` |
+| Socket parent directory `0710` — the enforced admission boundary | tmpfiles.d | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs) |
 | Refusal to serve without a matching activated listener; no self-bind fallback | daemon | all platforms |
 | macOS extended-ACL rejection on protected paths | daemon | macOS |
 | Pinned-key mutual authentication (IPC, witness, authority) + replay windows | daemon | all platforms |
@@ -71,9 +72,12 @@ weaker socket.
    protected operation still requires the pinned IPC client signing key.
    Provision the socket's parent directory so that group can traverse but not
    write it — on Linux, `0710` owned by the daemon account with the transport
-   group, via the `tmpfiles.d` line in `q-periapt-policy-agent.socket`. That
-   directory mode, not the socket's own, is the admission boundary the daemon
-   can actually rely on.
+   group. Install the shipped `q-periapt-agent.tmpfiles.conf` as
+   `/etc/tmpfiles.d/q-periapt-agent.conf` rather than creating the directory by
+   hand: `/run` is a tmpfs, so it is recreated on every boot, and without that
+   entry systemd makes it on demand as `0755 root:root`. That directory mode,
+   not the socket's own, is the admission boundary the daemon can actually rely
+   on.
 4. Provision the repository, witness, and authority stores explicitly
    (`StateRepository::provision_new`, `ReferenceWitnessServer::provision`,
    `ReferenceAuthorityServerV2::provision`); the runtime never bootstraps a

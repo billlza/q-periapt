@@ -1190,6 +1190,33 @@ mod tests {
             service.contains("EnvironmentFile=-/"),
             "EnvironmentFile must tolerate a missing file, or the drop-in's Environment= path fails"
         );
+
+        // PartOf= propagates stop and restart from the service to the socket, so
+        // a service restart would unlink and recreate the node that both READMEs
+        // promise survives one.
+        assert!(
+            !socket
+                .lines()
+                .any(|line| line.trim_start().starts_with("PartOf=")),
+            "the socket unit must not be PartOf= the service, or a restart destroys the socket"
+        );
+
+        // /run is a tmpfs, so the socket's parent is recreated every boot. Left
+        // to systemd it is 0755 root:root; the daemon's only enforced admission
+        // boundary is that directory's mode, so the entry must be shipped.
+        let tmpfiles = deploy_file("q-periapt-agent.tmpfiles.conf");
+        let parent = listen
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .expect("the listener path must have a parent directory");
+        let entry = tmpfiles
+            .lines()
+            .find(|line| line.starts_with('d') && line.contains(parent));
+        let entry = entry.unwrap_or_else(|| unreachable!("tmpfiles.d must provision {parent}"));
+        assert!(
+            entry.contains("0710"),
+            "the socket's parent must be 0710 so only the transport group can traverse: {entry}"
+        );
     }
 
     #[test]
