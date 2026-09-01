@@ -1005,6 +1005,10 @@ pub(crate) mod test_support {
     }
 }
 
+/// Domain-separated probe used only to prove, at startup, that the two
+/// directions of this protocol are carried by different key pairs.
+const DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-WITNESS-DIRECTION-PROBE/v1";
+
 fn validate_authentication_material(
     signing_key: &[u8],
     verification_key: &[u8],
@@ -1014,10 +1018,26 @@ fn validate_authentication_material(
         || signing_key.iter().all(|byte| *byte == 0)
         || verification_key.iter().all(|byte| *byte == 0)
     {
-        Err(WitnessError::InvalidConfiguration)
-    } else {
-        Ok(())
+        return Err(WitnessError::InvalidConfiguration);
     }
+    // Prove the request and response directions are isolated, the way the
+    // authority transport proves it by requiring distinct endpoint identities.
+    // Here the two directions are named by different key material rather than
+    // by ids: requests are verified under `verification_key`, responses are
+    // signed under `signing_key`. If those are one key pair, whoever is
+    // authorized to send requests can also forge responses, so the asymmetry
+    // the protocol depends on would not exist.
+    //
+    // Signing the probe also proves the signing key is well-formed enough to
+    // produce a signature at startup, rather than discovering it is not after a
+    // state change has already been committed and only the response can no
+    // longer be produced.
+    let probe = sign_envelope(DIRECTION_ISOLATION_PROBE, signing_key)
+        .map_err(|_| WitnessError::InvalidConfiguration)?;
+    if verify_signed_envelope(&probe, verification_key).is_ok() {
+        return Err(WitnessError::InvalidConfiguration);
+    }
+    Ok(())
 }
 
 fn decode_head_value(

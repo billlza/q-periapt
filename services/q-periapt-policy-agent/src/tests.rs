@@ -676,6 +676,45 @@ fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult
     Ok(())
 }
 
+#[test]
+fn witness_rejects_one_key_pair_serving_both_directions() -> TestResult {
+    // Requests are verified under the client key and responses are signed under
+    // the witness key. If those are one key pair, whoever may send requests can
+    // also forge responses and the asymmetry the protocol depends on is gone.
+    // The authority transport refuses the equivalent by requiring distinct
+    // endpoint identities; the witness must refuse it too.
+    let directory = TestDirectory::new()?;
+    let (shared_sk, shared_vk) = MlDsa65::generate([51u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    assert!(
+        ReferenceWitnessServer::provision(
+            &directory.join("shared.redb"),
+            initial,
+            shared_vk,
+            ZeroizingBytes::from_bytes(shared_sk),
+            Duration::from_secs(2),
+        )
+        .is_err(),
+        "one key pair must not carry both protocol directions"
+    );
+
+    // The distinct-key configuration the deployment actually uses still works.
+    let (client_sk, client_vk) = MlDsa65::generate([52u8; 32]);
+    let (witness_sk, _witness_vk) = MlDsa65::generate([53u8; 32]);
+    drop(ReferenceWitnessServer::provision(
+        &directory.join("distinct.redb"),
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        Duration::from_secs(2),
+    )?);
+    let _ = client_sk;
+    Ok(())
+}
+
 fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
     handle
         .join()
@@ -1649,6 +1688,26 @@ fn concurrent_exact_responder_acceptance_returns_one_stable_result() -> TestResu
     assert_eq!(
         responder.destroy_key(first_result.key_handle),
         Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}
+
+#[test]
+fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
+    // The IPC server verifies requests under the client key and signs responses
+    // under its own. One key pair for both directions would let any client
+    // authorized to send requests forge responses.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 23)?;
+    let (shared_sk, shared_vk) = MlDsa65::generate([93u8; 32]);
+    assert!(
+        crate::ipc::UnixIpcServer::new_for_test(
+            pair.responder,
+            shared_vk,
+            ZeroizingBytes::from_bytes(shared_sk),
+        )
+        .is_err(),
+        "one key pair must not carry both IPC directions"
     );
     Ok(())
 }

@@ -283,6 +283,33 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> fmt::Debug for Un
     }
 }
 
+/// Domain-separated probe used only to prove, at startup, that the two
+/// directions of this protocol are carried by different key pairs.
+const IPC_DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-IPC-DIRECTION-PROBE/v1";
+
+/// Reject a configuration whose request and response directions share one key
+/// pair, and prove the server signing key can actually produce a signature.
+///
+/// Requests are verified under `client_verification_key`; responses are signed
+/// under `server_signing_key`. If those are one key pair, any client authorized
+/// to send requests could also forge responses. The signing step additionally
+/// surfaces an unusable server key at startup rather than after a state change
+/// has already been committed and only the response can no longer be produced.
+fn validate_ipc_direction_isolation(
+    client_verification_key: &[u8],
+    server_signing_key: &[u8],
+) -> Result<(), IpcError> {
+    if server_signing_key.iter().all(|byte| *byte == 0) {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    let probe = sign_envelope(IPC_DIRECTION_ISOLATION_PROBE, server_signing_key)
+        .map_err(|_| IpcError::InvalidConfiguration)?;
+    if verify_envelope(&probe, client_verification_key).is_ok() {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    Ok(())
+}
+
 impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, A> {
     /// Bind an owner-only socket and configure pinned request/response keys.
     fn bind(
@@ -295,6 +322,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
             return Err(IpcError::InvalidConfiguration);
         }
+        validate_ipc_direction_isolation(&client_verification_key, server_signing_key.as_bytes())?;
         let listener = bind_private_socket(service_directory)?;
         Ok((
             Self {
@@ -384,6 +412,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         if client_verification_key.iter().all(|byte| *byte == 0) {
             return Err(IpcError::InvalidConfiguration);
         }
+        validate_ipc_direction_isolation(&client_verification_key, server_signing_key.as_bytes())?;
         Ok(Self {
             agent,
             client_verification_key,
