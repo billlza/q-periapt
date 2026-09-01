@@ -17,7 +17,7 @@ use q_periapt_policy::Policy;
 fn self_signed() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
     let cert_der = cert.cert.der().clone();
-    let key_der = PrivateKeyDer::Pkcs8(cert.key_pair.serialize_der().into());
+    let key_der = PrivateKeyDer::Pkcs8(cert.signing_key.serialize_der().into());
     (cert_der, key_der)
 }
 

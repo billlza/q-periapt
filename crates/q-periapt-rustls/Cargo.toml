@@ -28,8 +28,8 @@ q-periapt-policy = { version = "=0.1.4", path = "../q-periapt-policy" }
 bench-baseline = ["rustls/aws_lc_rs"]
 
 [dev-dependencies]
-rcgen = "0.13"
-socket2 = "0.5"  # stable SO_LINGER for the netem bench (std set_linger is nightly-only)
+rcgen = "0.14"
+socket2 = "0.6"  # stable SO_LINGER for the netem bench (std set_linger is nightly-only)
 
 [[example]]
 name = "netem_bench"

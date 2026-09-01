@@ -1322,6 +1322,16 @@ class RustPublishContractTests(unittest.TestCase):
                 )
 
     def test_workspace_and_fuzz_lock_scopes_are_exact(self) -> None:
+        # These counts are a deliberate tripwire: any change to the resolved
+        # dependency graph must be looked at and acknowledged here rather than
+        # landing silently. The workspace count moved 203 -> 227 with the
+        # dependency refresh. Most of that is lock-only and never compiled --
+        # 18 entries are the optional `x509-parser` subtree of rcgen 0.14 (a
+        # dev dependency used to mint one self-signed test certificate), which
+        # `cargo tree` shows is outside the build graph. The rest are the real
+        # additions: criterion 0.8 (alloca, page_size), socket2 0.6
+        # (windows-sys), and toml 1 (toml_parser, toml_writer, replacing
+        # toml_edit and toml_write).
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1331,7 +1341,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            203,
+            227,
         )
         self.assertEqual(
             len(
