@@ -512,6 +512,72 @@ fn authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline() -
     Ok(())
 }
 
+#[test]
+fn authenticated_witness_client_gives_up_on_a_trickling_witness_at_its_deadline() -> TestResult {
+    // The counterpart to the server-side trickle test above. The client holds
+    // the agent mutex inside a strictly serial IPC loop, so a witness that
+    // drips its response must not be able to stall the whole daemon: a
+    // per-syscall timeout restarts on every partial read, and only one
+    // absolute per-connection deadline bounds the exchange.
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let (_witness_sk, witness_vk) = MlDsa65::generate([21u8; 32]);
+
+    let hostile = thread::spawn(move || -> TestResult {
+        let (mut stream, _peer) = listener.accept()?;
+        // Consume whatever the client sends, then answer one byte at a time,
+        // never pausing longer than the client's own timeout.
+        stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+        let mut scratch = [0u8; 1024];
+        let _ = stream.read(&mut scratch);
+        // A length header announcing a large frame, then a slow drip.
+        let announced = 16_000u32.to_be_bytes();
+        if stream
+            .write_all(&announced)
+            .and_then(|()| stream.flush())
+            .is_err()
+        {
+            return Ok(());
+        }
+        for _ in 0..64 {
+            if stream
+                .write_all(&[0u8])
+                .and_then(|()| stream.flush())
+                .is_err()
+            {
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        Ok(())
+    });
+
+    let timeout = Duration::from_millis(500);
+    let client = AuthenticatedTcpWitness::new(
+        address,
+        ZeroizingBytes::from_bytes(MlDsa65::generate([22u8; 32]).0),
+        witness_vk,
+        timeout,
+    )?;
+    let started = Instant::now();
+    let outcome = client.read_head();
+    let elapsed = started.elapsed();
+
+    assert!(
+        outcome.is_err(),
+        "a trickling witness must not produce a head"
+    );
+    // Generous relative to the 500ms deadline, but far below the 6.4s this
+    // drip would take to finish and the hours a full 16000-byte frame needs.
+    assert!(
+        elapsed < Duration::from_secs(3),
+        "client stalled {elapsed:?} against a {timeout:?} deadline"
+    );
+
+    let _ = hostile.join();
+    Ok(())
+}
+
 fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
     handle
         .join()
