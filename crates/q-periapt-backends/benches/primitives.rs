@@ -2,10 +2,11 @@
 //! Primitive + hybrid KEM micro-benchmarks: keygen / encapsulate / decapsulate across the
 //! ML-KEM family and X25519, plus the full ContextBound / CompatXWing hybrid. Real numbers for
 //! the paper's performance table. `cargo bench -p q-periapt-backends --bench primitives`.
+use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use q_periapt_backends::{
     MlKem1024, MlKem512, MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_1024_CT_LEN,
