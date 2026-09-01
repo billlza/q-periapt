@@ -1364,6 +1364,10 @@ struct AgentPair {
     old_snapshot_path: PathBuf,
     initiator_authorization: SessionAuthorization,
     responder_authorization: SessionAuthorization,
+    /// A second, independently identified session, for tests that need two
+    /// live sessions on one agent.
+    second_initiator_authorization: SessionAuthorization,
+    second_responder_authorization: SessionAuthorization,
     initiator_public_keys: EncapsulationPublicKeys,
     responder_public_keys: EncapsulationPublicKeys,
 }
@@ -1462,6 +1466,29 @@ fn agent_pair_with_session_ttl(
         keys: &responder_public_keys,
         signing_key: &responder_identity_sk,
     })?;
+    let second_session_id = MigrationSessionId::from_bytes([session_byte.wrapping_add(128); 32]);
+    let second_initiator_offer = signed_offer(SignedOfferInput {
+        role: EndpointRole::Initiator,
+        sender_identity: initiator_identity_id,
+        receiver_identity: responder_identity_id,
+        nonce: MigrationNonce::from_bytes([91u8.wrapping_add(session_byte); 32]),
+        session_id: second_session_id,
+        policy: &policy.authenticated,
+        committed,
+        keys: &initiator_public_keys,
+        signing_key: &initiator_identity_sk,
+    })?;
+    let second_responder_offer = signed_offer(SignedOfferInput {
+        role: EndpointRole::Responder,
+        sender_identity: responder_identity_id,
+        receiver_identity: initiator_identity_id,
+        nonce: MigrationNonce::from_bytes([101u8.wrapping_add(session_byte); 32]),
+        session_id: second_session_id,
+        policy: &policy.authenticated,
+        committed,
+        keys: &responder_public_keys,
+        signing_key: &responder_identity_sk,
+    })?;
     Ok(AgentPair {
         initiator,
         responder,
@@ -1478,6 +1505,14 @@ fn agent_pair_with_session_ttl(
             responder_offer.clone(),
         )?,
         responder_authorization: SessionAuthorization::new(responder_offer, initiator_offer)?,
+        second_initiator_authorization: SessionAuthorization::new(
+            second_initiator_offer.clone(),
+            second_responder_offer.clone(),
+        )?,
+        second_responder_authorization: SessionAuthorization::new(
+            second_responder_offer,
+            second_initiator_offer,
+        )?,
         initiator_public_keys,
         responder_public_keys,
     })
@@ -1568,6 +1603,54 @@ fn responder_decapsulation(
             Err(io::Error::other("responder returned initiator begin state").into())
         }
     }
+}
+
+#[test]
+fn fencing_out_erases_every_key_even_when_a_durable_cancel_fails() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 41)?;
+
+    // Carry one session through to a confirmed application key.
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    pair.responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(pair.responder.confirmed_key_count(), 1);
+
+    // And leave a second session pending, so the sweep has something to fail on
+    // before it reaches the retained key.
+    let second =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let second_pending = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.second_responder_authorization, second.ciphertexts),
+    )?)?;
+    assert_eq!(pair.responder.pending_session_count(), 1);
+
+    // Make that session's durable cancellation fail the way a diverged store
+    // would: its row is gone, but the session is still held in memory.
+    pair.responder
+        .desynchronize_session_for_test(second_pending.handle)?;
+
+    // Fencing out happens when another instance holds the lease, so this
+    // process must not be left holding key material. The durable failure is
+    // still reported, but it must not be reported instead of erasing.
+    assert!(pair.responder.fence_out_for_test().is_err());
+    assert_eq!(pair.responder.pending_session_count(), 0);
+    assert_eq!(
+        pair.responder.confirmed_key_count(),
+        0,
+        "a failed durable cancel left accepted application keys in memory"
+    );
+    Ok(())
 }
 
 #[test]

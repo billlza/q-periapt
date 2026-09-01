@@ -1083,6 +1083,32 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         self.lock().map_or(0, |inner| inner.pending_sessions.len())
     }
 
+    /// Number of confirmed application keys currently retained.
+    #[cfg(all(test, unix))]
+    pub(crate) fn confirmed_key_count(&self) -> usize {
+        self.lock().map_or(0, |inner| inner.confirmed_keys.len())
+    }
+
+    /// Drop one session's durable reservation while leaving it in memory, so a
+    /// later erase of it fails the way a corrupt or diverged store would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn desynchronize_session_for_test(
+        &self,
+        handle: PendingSessionHandle,
+    ) -> Result<(), AgentError> {
+        let inner = self.lock()?;
+        inner.repository.cancel_session(handle.0)?;
+        Ok(())
+    }
+
+    /// Fence this instance out directly, without waiting for the authority to
+    /// reject a lease.
+    #[cfg(all(test, unix))]
+    pub(crate) fn fence_out_for_test(&self) -> Result<(), AgentError> {
+        let mut inner = self.lock()?;
+        fence_out(&mut inner)
+    }
+
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
     }
@@ -1808,15 +1834,30 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
+    // Erase everything first, and report a failure only afterwards. This runs
+    // when another instance holds the lease, which is precisely when this
+    // process must not be left holding key material. Abandoning the sweep on the
+    // first failed durable cancellation would skip both clears below and leave
+    // every accepted application key live -- the opposite of what fencing out
+    // exists to guarantee. `erase_pending` drops each secret before it touches
+    // the repository, so continuing past a failure still erases.
     let handles: Vec<_> = inner.pending_sessions.keys().copied().collect();
+    let mut first_failure = None;
     for handle in handles {
-        erase_pending(inner, handle)?;
+        if let Err(error) = erase_pending(inner, handle) {
+            first_failure = first_failure.or(Some(error));
+        }
     }
     inner.confirmed_keys.clear();
     inner.completed_acceptances.clear();
     inner.lease.fence = None;
+    // The process is fenced whether or not the durable bookkeeping succeeded;
+    // that is a fact about the lease, not about the erasure.
     inner.lease.fenced = true;
-    Ok(())
+    match first_failure {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 const fn opposite(role: EndpointRole) -> EndpointRole {
