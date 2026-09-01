@@ -15,8 +15,8 @@ use crate::authentication::{
     sign_envelope, verify_envelope as verify_signed_envelope, AuthenticationError,
 };
 use crate::codec::{
-    encode_domain, hash_fields, read_frame, read_frame_until, require_domain, write_frame,
-    write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
+    encode_domain, hash_fields, read_frame_until, require_domain, write_frame_until, CodecError,
+    Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::filesystem::open_private_file;
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
@@ -514,16 +514,29 @@ impl AuthenticatedTcpWitness {
     }
 
     fn exchange(&self, request: &Request) -> Result<Response, WitnessError> {
+        // One absolute deadline for connect plus the whole framed exchange.
+        // Per-syscall timeouts bound a single read(), not the operation, so a
+        // peer that drips one byte at a time restarts the clock on every
+        // partial read and stalls this call far past `self.timeout` -- while
+        // the caller holds the agent mutex inside a strictly serial IPC loop.
+        // The deadline-bounded helpers rebind each syscall timeout from the
+        // remaining budget, which is what the witness server, the IPC server
+        // and the authority client already do.
+        let deadline = Instant::now()
+            .checked_add(self.timeout)
+            .ok_or(WitnessError::Unavailable)?;
         let request_body = request.body()?;
         let envelope = signed_envelope(&request_body, self.client_signing_key.as_bytes())?;
-        let mut stream = TcpStream::connect_timeout(&self.address, self.timeout)
+        let connect_budget = deadline
+            .checked_duration_since(Instant::now())
+            .filter(|budget| !budget.is_zero())
+            .ok_or(WitnessError::Unavailable)?;
+        let mut stream = TcpStream::connect_timeout(&self.address, connect_budget)
             .map_err(|_| WitnessError::Unavailable)?;
-        stream
-            .set_read_timeout(Some(self.timeout))
-            .and_then(|()| stream.set_write_timeout(Some(self.timeout)))
+        write_frame_until(&mut stream, &envelope, deadline)
             .map_err(|_| WitnessError::Unavailable)?;
-        write_frame(&mut stream, &envelope).map_err(|_| WitnessError::Unavailable)?;
-        let response_envelope = read_frame(&mut stream).map_err(|_| WitnessError::Unavailable)?;
+        let response_envelope =
+            read_frame_until(&mut stream, deadline).map_err(|_| WitnessError::Unavailable)?;
         let response_body = verify_envelope(&response_envelope, &self.witness_verification_key)?;
         let response = Response::decode(response_body)?;
         let expected_digest =
@@ -881,6 +894,7 @@ impl ReferenceWitnessServer {
 #[cfg(all(test, unix))]
 pub(crate) mod test_support {
     use super::*;
+    use crate::codec::write_frame;
 
     pub(crate) fn framed_read_request(
         signing_key: &[u8],
