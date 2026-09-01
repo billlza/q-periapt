@@ -17,6 +17,15 @@ static void secure_zero(void *ptr, size_t len) {
 }
 
 static void throw_new(JNIEnv *env, const char *class_name, const char *message) {
+	/* Almost every JNI call is undefined while an exception is pending, and the
+	 * FindClass below is one of them. Callers batch operations that can each
+	 * throw -- four allocations in a row, for instance -- so a second failure
+	 * would otherwise call into JNI from inside the first throw's aftermath.
+	 * Keeping the first exception is also the right outcome: it names the
+	 * original cause, and the later failures are usually consequences of it. */
+	if ((*env)->ExceptionCheck(env)) {
+		return;
+	}
 	jclass cls = (*env)->FindClass(env, class_name);
 	if (cls == NULL) {
 		(*env)->ExceptionClear(env);
@@ -45,6 +54,10 @@ static void throw_oom(JNIEnv *env, const char *message) {
 }
 
 static void throw_qperiapt(JNIEnv *env, const char *operation, int32_t rc) {
+	/* As in throw_new: this FindClass must not run with an exception pending. */
+	if ((*env)->ExceptionCheck(env)) {
+		return;
+	}
 	jclass cls = (*env)->FindClass(env, "dev/qperiapt/android/QPeriaptAndroid$QPeriaptException");
 	if (cls == NULL) {
 		(*env)->ExceptionClear(env);
