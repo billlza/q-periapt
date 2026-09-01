@@ -556,6 +556,85 @@ fn authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline() -
     Ok(())
 }
 
+#[test]
+fn witness_server_survives_a_request_level_rejection() -> TestResult {
+    // A caller can provoke a request-level rejection on purpose -- replaying one
+    // operation id under a different intent. That must reject the request only;
+    // if it terminated the listener, a single caller could destroy every
+    // subsequent read and query for everyone.
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (client_sk, client_vk) = MlDsa65::generate([31u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([32u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        Duration::from_secs(2),
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || server.serve(listener, &server_shutdown));
+
+    let result = (|| -> TestResult {
+        let client = AuthenticatedTcpWitness::new(
+            address,
+            ZeroizingBytes::from_bytes(client_sk),
+            witness_vk,
+            Duration::from_secs(2),
+        )?;
+
+        let operation = OperationId::generate()?;
+        let applied = StateRevision::new(2, 2, [2u8; 32])?;
+        client.compare_and_advance(WitnessIntent::new(
+            operation,
+            StateAdvance::new(TransitionKind::Advance, initial.revision(), applied)?,
+            initial.fence(),
+            FenceToken::generate()?,
+        )?)?;
+
+        // Same operation id, different intent: a request-level rejection.
+        let conflicting = client.compare_and_advance(WitnessIntent::new(
+            operation,
+            StateAdvance::new(
+                TransitionKind::Advance,
+                initial.revision(),
+                StateRevision::new(2, 2, [9u8; 32])?,
+            )?,
+            initial.fence(),
+            FenceToken::generate()?,
+        )?);
+        // The server rejects it and produces no response, so the caller sees an
+        // indeterminate outcome rather than a false success.
+        assert!(
+            matches!(conflicting, Ok(WitnessOutcome::Unknown) | Err(_)),
+            "a conflicting replay must not be reported as applied; got {conflicting:?}"
+        );
+
+        // The listener must still be serving.
+        let head = client.read_head()?;
+        assert_eq!(
+            head.revision(),
+            applied,
+            "the witness must still answer after rejecting a request"
+        );
+        Ok(())
+    })();
+
+    shutdown.store(true, Ordering::Release);
+    let server_result = join(server_thread)?;
+    result?;
+    server_result?;
+    Ok(())
+}
+
 fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
     handle
         .join()

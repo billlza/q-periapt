@@ -861,12 +861,25 @@ impl ReferenceWitnessServer {
                     if stream.set_nonblocking(false).is_err() {
                         continue;
                     }
-                    // A malformed or unauthenticated connection is isolated to that
-                    // connection; no response is produced and no state is changed.
+                    // A rejected request is isolated to its connection; no
+                    // response is produced and no state is changed. That has to
+                    // include the request-level rejections a caller can provoke
+                    // on purpose: an intent that does not match its operation
+                    // id, and a full operation table. Terminating the listener
+                    // on those would let one caller -- by replaying a
+                    // conflicting intent, or simply by filling the table to its
+                    // explicit capacity -- destroy every subsequent read and
+                    // query for everyone. Only a broken server is fatal:
+                    // Persistence means the database is corrupt or
+                    // inconsistent, InvalidConfiguration means the static
+                    // configuration is unusable, and Unavailable means an
+                    // authoritative read could not complete.
                     match self.handle(&mut stream) {
                         Ok(())
                         | Err(WitnessError::AuthenticationFailed)
-                        | Err(WitnessError::InvalidMessage) => {}
+                        | Err(WitnessError::InvalidMessage)
+                        | Err(WitnessError::InvalidIntent)
+                        | Err(WitnessError::CapacityExceeded) => {}
                         Err(error) => return Err(error),
                     }
                 }
