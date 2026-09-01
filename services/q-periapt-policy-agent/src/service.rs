@@ -1076,7 +1076,9 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// question has already answered itself. This exists so the tests can see
     /// that an expired session really does survive until something sweeps it,
     /// and really does go when the sweep runs.
-    #[cfg(test)]
+    // Gated exactly like its only caller: `mod tests` is `cfg(all(test, unix))`,
+    // so a plain `cfg(test)` here is dead code in a Windows test build.
+    #[cfg(all(test, unix))]
     pub(crate) fn pending_session_count(&self) -> usize {
         self.lock().map_or(0, |inner| inner.pending_sessions.len())
     }

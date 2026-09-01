@@ -696,14 +696,18 @@ fn agent_status(error: AgentError) -> u8 {
 
 /// Run the Unix executable from one of two exact command shapes:
 ///
-/// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
+/// `serve-agent SOCKET_PATH REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
 /// `serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY`
 ///
-/// A successful `serve-agent` startup permanently pins `SERVICE_DIRECTORY` as
-/// the process working directory before entering the server loop. This entry
-/// point is therefore intended for the dedicated executable process, not for
-/// embedding in a host process with unrelated working-directory users. Call it
-/// before starting any other threads or relative-path I/O in that process.
+/// `SOCKET_PATH` is not a path this process binds. The service manager creates
+/// the listening socket and passes it in; the argument states which path that
+/// inherited listener must already be bound to, and startup fails if it is bound
+/// somewhere else or if no activation was presented at all. There is no
+/// self-bind fallback, so a socket whose owner, group and mode nobody
+/// configured cannot come into existence by starting the daemon by hand.
+///
+/// This entry point is for the dedicated executable process: it claims the
+/// activation once per process and a second call fails.
 pub fn run_from_arguments<I>(arguments: I) -> Result<(), IpcError>
 where
     I: IntoIterator<Item = OsString>,
