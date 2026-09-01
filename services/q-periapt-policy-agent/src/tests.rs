@@ -1748,6 +1748,40 @@ fn a_coverage_lapse_at_acceptance_releases_the_durable_reservation() -> TestResu
 }
 
 #[test]
+fn a_lease_that_lapsed_without_a_successor_is_recovered_not_fenced() -> TestResult {
+    // An authority unreachable for longer than the lease TTL used to brick the
+    // agent permanently: the first successful renew after reconnect returned
+    // LeaseExpired, which was treated as supersession and fenced the instance
+    // for the life of the process. A fifteen-second restart of the authority is
+    // more than the ten-second minimum TTL, so this happened unattended and to
+    // every agent at once.
+    //
+    // LeaseExpired says the lease had run out, not that anyone took it. Here
+    // nobody did.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 67)?;
+    pair.initiator_authority.expire_active_lease();
+
+    // The guarded operation drives the renew, which is rejected as expired and
+    // recovers by re-acquiring at this instance's own generation.
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    assert!(!encapsulated
+        .initiator_finished
+        .as_bytes()
+        .iter()
+        .all(|byte| *byte == 0));
+
+    // Still usable, and holding the session it just created.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
 fn an_operation_that_outlives_its_proven_lease_coverage_retains_nothing() -> TestResult {
     // The lease is checked on the way in, but a witness round trip, two
     // signature verifications and a KEM operation all run before a secret first

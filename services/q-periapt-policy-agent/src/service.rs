@@ -1873,10 +1873,11 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
                         // not strictly extend within this clock-floor instant.
                         AuthorityRejectionV2::LeaseRenewalNotExtended,
                     ) => prove_lease_coverage(inner, fence),
+                    AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseExpired) => {
+                        recover_expired_lease(inner, fence)
+                    }
                     AuthorityDispositionV2::Rejected(
-                        AuthorityRejectionV2::LeaseAbsent
-                        | AuthorityRejectionV2::LeaseExpired
-                        | AuthorityRejectionV2::FenceMismatch,
+                        AuthorityRejectionV2::LeaseAbsent | AuthorityRejectionV2::FenceMismatch,
                     ) => {
                         fence_out(inner)?;
                         Err(AgentError::InstanceFenced)
@@ -1890,6 +1891,90 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
         }
     }
     Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+/// Erase every in-process pending and accepted secret, reporting the first
+/// failure only after all of them are gone.
+///
+/// Split out of `fence_out` because two situations need the erasure and only one
+/// of them is a fence: losing the lease to a successor is permanent, while
+/// re-acquiring a lease that merely lapsed is not.
+fn erase_all_secrets<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Option<AgentError> {
+    let handles: Vec<_> = inner.pending_sessions.keys().copied().collect();
+    let mut first_failure = None;
+    for handle in handles {
+        if let Err(error) = erase_pending(inner, handle) {
+            first_failure = first_failure.or(Some(error));
+        }
+    }
+    inner.confirmed_keys.clear();
+    inner.completed_acceptances.clear();
+    inner.lease.covered_until = None;
+    first_failure
+}
+
+/// Recover a lease that merely lapsed, or fence if a successor really took it.
+///
+/// `LeaseExpired` says only that the lease had run out by the authority's clock
+/// when the renew arrived. It does not say anyone else took it, and the two
+/// were previously conflated: an authority unreachable for longer than the TTL
+/// -- a fifteen-second restart is enough against the ten-second minimum -- made
+/// the first successful renew after reconnect fence the agent permanently,
+/// unattended, with no successor anywhere.
+///
+/// So this re-acquires at **our own** generation. `plan_acquire` admits that
+/// only while the authority's `lease_generation` still equals it, and that
+/// counter advances on acquire alone, so success is a proof that no other
+/// instance ever held key-use authority in between. A successor -- even one that
+/// has already released -- moves the counter and fails this, fencing exactly as
+/// before. It is a proof, not a heuristic, and it never weakens exclusivity.
+///
+/// Every secret is still erased. Acquire clears the authority's key table and
+/// key identity binds the lease generation, so material from the old generation
+/// cannot be carried across. What is kept is the agent itself: it stays usable
+/// instead of needing a process restart.
+fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+    fence: InstanceFenceV2,
+) -> Result<(), AgentError> {
+    let expected_lease_generation = fence.generation();
+    let instance_id = inner.lease.instance_id;
+    let intent = lease_intent(
+        &inner.lease,
+        inner.authority.wire_config(),
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation,
+            instance_id,
+        },
+    )?;
+    let outcome = lease_exchange(
+        &inner.authority,
+        &mut inner.lease,
+        LeaseCall::Acquire,
+        intent,
+    )?;
+    let LeaseExchange::Receipt(receipt) = outcome else {
+        // Indeterminate. Do not fence -- that is permanent and this is not
+        // evidence of a successor -- and do not proceed either.
+        return Err(AgentError::InstanceLeaseIndeterminate);
+    };
+    if !matches!(receipt.disposition(), AuthorityDispositionV2::Applied) {
+        fence_out(inner)?;
+        return Err(AgentError::InstanceFenced);
+    }
+    if let Some(error) = erase_all_secrets(inner) {
+        return Err(error);
+    }
+    let generation = expected_lease_generation
+        .checked_add(1)
+        .ok_or(AgentError::InstanceLeaseUnavailable)?;
+    let recovered = InstanceFenceV2::new(generation, instance_id)
+        .map_err(|_| AgentError::InstanceLeaseUnavailable)?;
+    inner.lease.fence = Some(recovered);
+    drain_acknowledgements(&inner.authority, &mut inner.lease);
+    prove_lease_coverage(inner, recovered)
 }
 
 /// Learn how long this instance can prove it still holds the lease.
@@ -1986,15 +2071,7 @@ fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
     // every accepted application key live -- the opposite of what fencing out
     // exists to guarantee. `erase_pending` drops each secret before it touches
     // the repository, so continuing past a failure still erases.
-    let handles: Vec<_> = inner.pending_sessions.keys().copied().collect();
-    let mut first_failure = None;
-    for handle in handles {
-        if let Err(error) = erase_pending(inner, handle) {
-            first_failure = first_failure.or(Some(error));
-        }
-    }
-    inner.confirmed_keys.clear();
-    inner.completed_acceptances.clear();
+    let first_failure = erase_all_secrets(inner);
     inner.lease.fence = None;
     // The process is fenced whether or not the durable bookkeeping succeeded;
     // that is a fact about the lease, not about the erasure.
