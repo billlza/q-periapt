@@ -57,32 +57,6 @@ impl OwnedPrivateDirectory {
 /// The returned regular file is exact `0600`, owned by the effective user, and
 /// can be passed directly to a storage adapter without reopening by path.
 #[cfg(unix)]
-/// Create a private store file and initialize it, removing the file again if the
-/// initialization does not complete.
-///
-/// Creation uses `O_CREAT|O_EXCL`, so a leftover from a failed attempt makes
-/// every later provision fail with `EEXIST`, while the open path rejects the
-/// half-written store it finds. One transient failure -- unavailable entropy, a
-/// clock before the epoch, `ENOSPC` or `EIO` partway through the first commit --
-/// would therefore brick the path permanently instead of leaving it retryable.
-///
-/// The removal is best effort and the caller still receives the original error,
-/// which is the one that explains what actually went wrong.
-pub(crate) fn provision_private_file<T, E>(
-    path: &Path,
-    on_open_failure: impl FnOnce(PrivateFileError) -> E,
-    initialize: impl FnOnce(File) -> Result<T, E>,
-) -> Result<T, E> {
-    let file = open_private_file(path, true).map_err(on_open_failure)?;
-    match initialize(file) {
-        Ok(provisioned) => Ok(provisioned),
-        Err(error) => {
-            let _ = std::fs::remove_file(path);
-            Err(error)
-        }
-    }
-}
-
 pub(crate) fn open_private_file(path: &Path, create: bool) -> Result<File, PrivateFileError> {
     use rustix::fs::{fstat, openat, FileType, Mode, OFlags};
     use rustix::process::geteuid;
@@ -241,4 +215,30 @@ pub(crate) fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileEr
     // of this reference implementation's reviewed boundary. A platform-specific
     // protected-store adapter is required.
     Err(PrivateFileError)
+}
+
+/// Create a private store file and initialize it, removing the file again if the
+/// initialization does not complete.
+///
+/// Creation uses `O_CREAT|O_EXCL`, so a leftover from a failed attempt makes
+/// every later provision fail with `EEXIST`, while the open path rejects the
+/// half-written store it finds. One transient failure -- unavailable entropy, a
+/// clock before the epoch, `ENOSPC` or `EIO` partway through the first commit --
+/// would therefore brick the path permanently instead of leaving it retryable.
+///
+/// The removal is best effort and the caller still receives the original error,
+/// which is the one that explains what actually went wrong.
+pub(crate) fn provision_private_file<T, E>(
+    path: &Path,
+    on_open_failure: impl FnOnce(PrivateFileError) -> E,
+    initialize: impl FnOnce(File) -> Result<T, E>,
+) -> Result<T, E> {
+    let file = open_private_file(path, true).map_err(on_open_failure)?;
+    match initialize(file) {
+        Ok(provisioned) => Ok(provisioned),
+        Err(error) => {
+            let _ = std::fs::remove_file(path);
+            Err(error)
+        }
+    }
 }

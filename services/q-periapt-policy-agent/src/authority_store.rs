@@ -1513,6 +1513,9 @@ mod tests {
         }
     }
 
+    // Unix-only: it sets an owner-only directory mode, and `open_private_file`
+    // has no protected-store implementation on other platforms anyway.
+    #[cfg(unix)]
     #[test]
     fn a_failed_provision_leaves_the_path_retryable() -> TestResult {
         use std::os::unix::fs::PermissionsExt;
