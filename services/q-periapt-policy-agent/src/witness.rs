@@ -630,7 +630,62 @@ impl WitnessStore {
         }
         let store = Self { database };
         store.head()?;
+        store.verify_semantics()?;
         Ok(store)
+    }
+
+    /// Validate at open the invariants the request paths already assume.
+    ///
+    /// `check_integrity` proves only that redb's own structure is sound, and
+    /// `head` proves only the schema and head decode. A database that is
+    /// structurally valid but semantically damaged would be accepted here and
+    /// then fail inside a request instead. One of those cases is worse than a
+    /// late failure: capacity is enforced against `META_OPERATION_COUNT`, so a
+    /// counter that under-reports the rows actually present would let the
+    /// explicit operation limit be exceeded.
+    fn verify_semantics(&self) -> Result<(), WitnessError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| WitnessError::Persistence)?;
+        let meta = transaction
+            .open_table(META_TABLE)
+            .map_err(|_| WitnessError::Persistence)?;
+        let operations = transaction
+            .open_table(OPERATION_TABLE)
+            .map_err(|_| WitnessError::Persistence)?;
+        let recorded: [u8; 8] = meta
+            .get(META_OPERATION_COUNT)
+            .map_err(|_| WitnessError::Persistence)?
+            .ok_or(WitnessError::Persistence)?
+            .value()
+            .try_into()
+            .map_err(|_| WitnessError::Persistence)?;
+        let recorded = u64::from_be_bytes(recorded);
+        if recorded > WITNESS_MAX_OPERATIONS {
+            return Err(WitnessError::Persistence);
+        }
+        let mut observed = 0u64;
+        for row in operations.iter().map_err(|_| WitnessError::Persistence)? {
+            let (key, value) = row.map_err(|_| WitnessError::Persistence)?;
+            let mut decoder = Decoder::new(value.value());
+            let receipt = WitnessReceipt::decode(&mut decoder).map_err(map_codec)?;
+            decoder.finish().map_err(map_codec)?;
+            // Every stored receipt is filed under the operation id it records;
+            // a row whose key disagrees would make a point lookup answer for a
+            // different operation than the caller asked about.
+            let filed_correctly = receipt
+                .intent
+                .is_some_and(|intent| intent.operation_id.as_bytes().as_slice() == key.value());
+            if !filed_correctly {
+                return Err(WitnessError::Persistence);
+            }
+            observed = observed.checked_add(1).ok_or(WitnessError::Persistence)?;
+        }
+        if observed != recorded {
+            return Err(WitnessError::Persistence);
+        }
+        Ok(())
     }
 
     fn head(&self) -> Result<StateHead, WitnessError> {
@@ -896,6 +951,29 @@ impl ReferenceWitnessServer {
 #[cfg(all(test, unix))]
 pub(crate) mod test_support {
     use super::*;
+
+    /// Desynchronize the recorded operation count from the rows actually
+    /// present, leaving a store redb still considers structurally sound.
+    pub(crate) fn desynchronize_operation_count(path: &Path) -> Result<(), WitnessError> {
+        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
+        let transaction = database
+            .begin_write()
+            .map_err(|_| WitnessError::Persistence)?;
+        {
+            let mut meta = transaction
+                .open_table(META_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            meta.insert(META_OPERATION_COUNT, 7u64.to_be_bytes().as_slice())
+                .map_err(|_| WitnessError::Persistence)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(())
+    }
 
     pub(crate) fn framed_read_request(
         signing_key: &[u8],

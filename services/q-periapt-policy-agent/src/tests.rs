@@ -635,6 +635,47 @@ fn witness_server_survives_a_request_level_rejection() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult {
+    // redb's check_integrity proves only that its own structure is sound. A
+    // recorded operation count that disagrees with the rows actually present is
+    // worse than a late failure: capacity is enforced against that counter, so
+    // an under-reporting store would let the explicit operation limit be
+    // exceeded. It must be refused at open.
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (_client_sk, client_vk) = MlDsa65::generate([41u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([42u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        Duration::from_secs(2),
+    )?;
+    drop(server);
+
+    crate::witness::test_support::desynchronize_operation_count(&database)
+        .map_err(|_| io::Error::other("failed to stage the damaged store"))?;
+
+    assert!(
+        ReferenceWitnessServer::open(
+            &database,
+            client_vk,
+            ZeroizingBytes::from_bytes(MlDsa65::generate([42u8; 32]).0),
+            Duration::from_secs(2),
+        )
+        .is_err(),
+        "a store whose operation count disagrees with its rows must be refused"
+    );
+    let _ = witness_vk;
+    Ok(())
+}
+
 fn join<T>(handle: thread::JoinHandle<T>) -> TestResult<T> {
     handle
         .join()
