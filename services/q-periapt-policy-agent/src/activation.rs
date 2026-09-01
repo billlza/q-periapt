@@ -37,7 +37,7 @@ use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rustix::net::{AddressFamily, SocketAddrUnix, SocketType};
+use rustix::net::SocketType;
 
 /// Longest `sun_path` this daemon accepts, one byte below the smaller platform
 /// limit so a single constant is portable. A longer path could never match what
@@ -205,44 +205,15 @@ pub(crate) fn adopted_listener(
 
     // The bound name is the only identity the descriptor itself carries; the
     // owner, group, and mode of the filesystem node are not observable here.
-    let address = rustix::net::getsockname(borrowed).map_err(|_| ActivationError::Descriptor)?;
-    if address.address_family() != AddressFamily::UNIX {
-        return Err(ActivationError::Mismatch);
-    }
-    let unix = SocketAddrUnix::try_from(address).map_err(|_| ActivationError::Mismatch)?;
-    // A pathless (autobound or abstract) address carries no name to compare, so
-    // it can never be the configured listener.
-    let bound = unix.path_bytes().ok_or(ActivationError::Mismatch)?;
-    if !bound_name_matches(bound, expected_path) {
+    // Decoding it needs to read the raw address, so it lives in the quarantine
+    // module -- see `bound_unix_path` for why the safe conversion cannot be used
+    // on an address a service manager produced.
+    let bound = super::activation_handoff::bound_unix_path(borrowed)?;
+    if bound != expected_path.as_os_str().as_encoded_bytes() {
         return Err(ActivationError::Mismatch);
     }
 
     Ok(UnixListener::from(descriptor))
-}
-
-/// Compare a kernel-reported bound name against the configured path.
-///
-/// The kernel reports back whatever `addrlen` the binder passed. A binder that
-/// passes `sizeof(struct sockaddr_un)` rather than the exactly-sized prefix --
-/// which is the common convention, and what a `sun_len`-carrying BSD binder
-/// does -- makes `getsockname` report the whole `sun_path` field, so the name
-/// arrives NUL-padded to its full width. Comparing those bytes literally
-/// rejects a correctly bound listener and leaves the daemon unable to start.
-///
-/// A pathname can never contain a NUL, so cutting at the first one recovers the
-/// name in both the padded and the exactly-sized case. Nothing is loosened: the
-/// recovered name still has to equal the configured path byte for byte, and an
-/// embedded NUL in the expected path -- impossible from a real `Path` -- would
-/// fail rather than truncate into a false match.
-fn bound_name_matches(bound: &[u8], expected: &Path) -> bool {
-    let name = match bound.iter().position(|byte| *byte == 0) {
-        Some(end) => match bound.get(..end) {
-            Some(name) => name,
-            None => return false,
-        },
-        None => bound,
-    };
-    name == expected.as_os_str().as_encoded_bytes()
 }
 
 #[cfg(all(test, unix))]
@@ -315,38 +286,20 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
+    /// The address shape a service manager actually produces, which neither
+    /// `std` nor `rustix` generates when binding.
+    #[cfg(target_os = "macos")]
     #[test]
-    fn a_nul_padded_bound_name_still_matches_its_path() {
-        let expected = Path::new("/run/qperiapt-agent/agent.sock");
-
-        // Exactly-sized, as a binder that passes the computed length produces.
-        assert!(bound_name_matches(
-            expected.as_os_str().as_encoded_bytes(),
-            expected
-        ));
-
-        // Padded to the full sun_path width, as a binder that passes
-        // sizeof(struct sockaddr_un) produces. Verified against the macOS
-        // kernel: binding with the full struct length makes getsockname report
-        // len 106 with offsetof(sun_path) 2, so the whole 104-byte field comes
-        // back and a literal comparison would reject this listener.
-        let mut padded = expected.as_os_str().as_encoded_bytes().to_vec();
-        padded.resize(104, 0);
-        assert!(bound_name_matches(&padded, expected));
-
-        // Padding is not a wildcard: a different name that merely shares a
-        // prefix is still refused, and so is an empty one.
-        let mut shorter = b"/run/qperiapt-agent/agent".to_vec();
-        shorter.resize(104, 0);
-        assert!(!bound_name_matches(&shorter, expected));
-        assert!(!bound_name_matches(&[0u8; 104], expected));
-        assert!(!bound_name_matches(&[], expected));
-
-        // A longer name that starts with the expected one must not match on the
-        // strength of its prefix.
-        let mut longer = b"/run/qperiapt-agent/agent.sock.evil".to_vec();
-        longer.resize(104, 0);
-        assert!(!bound_name_matches(&longer, expected));
+    fn a_launchd_shaped_listener_is_adopted() {
+        let path = std::env::temp_dir().join(format!("qp-launchd-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let descriptor = crate::activation_handoff::test_support::launchd_shaped_listener(&path);
+        let outcome = adopted_listener(descriptor, &path);
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            outcome.is_ok(),
+            "a launchd-bound listener must be adopted, got {outcome:?}"
+        );
     }
 
     #[test]
