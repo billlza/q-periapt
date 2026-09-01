@@ -98,7 +98,7 @@ requires either is an ABI 3 proposal.
 ```
 UpdateAuthority {            // governance — who may sign the NEXT policy
     keys:      [{ key_id, algorithm, public_key_digest }],
-    threshold: u8,           // N-of-M; 2 during rotation (see §4.3)
+    threshold: u8,           // N-of-M quorum for the NEXT update (see §4.3)
 }
 ```
 
@@ -132,13 +132,26 @@ responsibility (the library does not own storage) and must be documented as such
 ### 4.3 Anti-lockout
 
 A rotation that names an unusable successor key must fail *before* commit, not
-brick updates afterwards:
+brick updates afterwards. Two **separate** quorums are involved, and conflating
+them reintroduces the lockout:
 
-- **Dual signature during rotation.** A transition policy that changes
-  `UpdateAuthority` requires signatures from both the outgoing and incoming
-  authority (`threshold = 2`).
-- **Proof of possession.** The incoming key must sign the transition digest, which
-  demonstrates control of the private key rather than merely naming a public one.
+- **Authorization quorum — the current authority.** Accepting `P_{n+1}` requires
+  satisfying `S_n`'s recorded `UpdateAuthority.threshold`. This is the ordinary
+  succession rule (§2 rule 1) and is unaffected by what the candidate declares.
+- **Capability quorum — the candidate authority.** A transition that *changes*
+  `UpdateAuthority` additionally requires proof of possession from **enough
+  distinct candidate keys to satisfy the candidate's own declared threshold** —
+  each signing the transition digest, which demonstrates control of the private
+  key rather than merely naming a public one.
+
+  The candidate's `threshold` is **not** rewritten (to `2` or anything else): by
+  the no-self-authorization rule (§2 rule 2) it governs the *following* update, so
+  overwriting it would silently change the post-rotation quorum. Requiring merely
+  "outgoing plus one incoming signature" is also insufficient for a general
+  N-of-M rotation: for a 2-of-3 candidate authority, one usable incoming key
+  satisfies such a rule while a second key that was mistyped or lost leaves the
+  committed authority permanently unable to reach its own quorum — precisely the
+  lockout this section exists to prevent.
 - **Explicit recovery rule.** A separately authorized recovery path, distinct from
   normal succession and never reached implicitly.
 
