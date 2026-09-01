@@ -31,12 +31,56 @@
     <array>
         <string>/opt/qperiapt/bin/q-periapt-policy-agent</string>
         <string>serve-agent</string>
-        <string>/private/var/lib/qperiapt-agent/service</string>
+        <string>/private/var/run/qperiapt-agent/agent.sock</string>
         <string>/private/var/lib/qperiapt-agent/state/agent.redb</string>
         <string>127.0.0.1:7841</string>
         <string>127.0.0.1:7842</string>
         <string>/private/var/lib/qperiapt-agent/config</string>
     </array>
+    <!--
+      launchd owns the listening socket: it creates it, applies the ownership and
+      mode below, and removes it. The daemon adopts the descriptor published
+      under the "agent" key and refuses to start if it is not given one; there is
+      no self-bind fallback. The first ProgramArguments path above is the socket
+      path the daemon requires the listener to be bound to, and it must equal
+      SockPathName here.
+
+      Caveats verified on this platform:
+        * SockPathOwner/SockPathGroup/SockPathMode take NUMBERS, not names. The
+          installer must resolve the daemon account and the transport group to a
+          uid/gid and template this file, or pin the group to a known gid.
+        * SockPathMode is decimal: 0660 is 432. Do not include file-type bits;
+          they are discarded.
+        * SockPathOwner and SockPathGroup are documented but have no field
+          precedent: no daemon shipped with this OS uses either key. Verify the
+          resulting socket's ownership on each target OS version rather than
+          assuming it took effect.
+
+      The daemon cannot check any of this: an AF_UNIX descriptor describes a
+      socket object, not the filesystem node naming it, so fstat on the inherited
+      descriptor reports a different inode and mode than the path. The enforced
+      admission boundary is the parent directory, provisioned 0710 owned by the
+      daemon account with the transport group, so only that group can traverse to
+      the socket at all.
+    -->
+    <key>Sockets</key>
+    <dict>
+        <key>agent</key>
+        <dict>
+            <key>SockPathName</key>
+            <string>/private/var/run/qperiapt-agent/agent.sock</string>
+            <key>SockFamily</key>
+            <string>Unix</string>
+            <key>SockType</key>
+            <string>stream</string>
+            <key>SockPathOwner</key>
+            <integer>0</integer><!-- uid of the daemon account; templated at install -->
+            <key>SockPathGroup</key>
+            <integer>0</integer><!-- gid of the transport group; templated at install -->
+            <key>SockPathMode</key>
+            <integer>432</integer><!-- 0660 -->
+        </dict>
+    </dict>
     <key>UserName</key>
     <string>_qperiaptagent</string>
     <key>GroupName</key>

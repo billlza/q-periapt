@@ -293,49 +293,6 @@ fn install_macos_test_acl(path: &Path, entry: &str) -> TestResult {
 }
 
 #[test]
-fn fixed_private_socket_is_bound_beneath_the_process_directory_capability() -> TestResult {
-    use std::os::unix::fs::PermissionsExt;
-
-    let directory = TestDirectory::new()?;
-    let service_directory = directory.join("service");
-    fs::create_dir(&service_directory)?;
-    fs::set_permissions(&service_directory, fs::Permissions::from_mode(0o700))?;
-    let status = Command::new(std::env::current_exe()?)
-        .arg("--exact")
-        .arg("tests::private_socket_bind_child")
-        .current_dir(directory.path())
-        .env("Q_PERIAPT_TEST_SOCKET_BIND", "1")
-        .status()?;
-    assert!(status.success());
-    Ok(())
-}
-
-#[test]
-fn private_socket_bind_child() -> TestResult {
-    if std::env::var_os("Q_PERIAPT_TEST_SOCKET_BIND").is_none() {
-        return Ok(());
-    }
-    let launch_directory = std::env::current_dir()?;
-    let directory_path = launch_directory.join("service");
-    let launch = OwnedPrivateDirectory::open(&launch_directory)
-        .map_err(|_| io::Error::other("socket launch directory is not private"))?;
-    let directory = OwnedPrivateDirectory::open(&directory_path)
-        .map_err(|_| io::Error::other("socket test directory is not private"))?;
-    let listener = crate::ipc::bind_private_socket(&directory)?;
-    assert_eq!(std::env::current_dir()?, directory_path);
-    assert!(directory.socket_is_protected(std::ffi::OsStr::new("agent.sock")));
-    assert!(launch
-        .require_absent(std::ffi::OsStr::new("agent.sock"))
-        .is_ok());
-    assert!(matches!(
-        crate::ipc::bind_private_socket(&directory),
-        Err(crate::ipc::IpcError::InsecureSocket)
-    ));
-    drop(listener);
-    Ok(())
-}
-
-#[test]
 fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> TestResult {
     let directory = TestDirectory::new()?;
     let database = directory.join("witness.redb");

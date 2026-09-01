@@ -21,6 +21,7 @@ use q_periapt_migration::{
     ResponderFinishedV1,
 };
 
+use crate::activation::{activated_listener, ActivationError};
 use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError};
 use crate::authority::{
     AuthorityEpochV2, DeploymentConfigRevisionV2, StateFenceV2, StateHeadV2, StateRevisionV2,
@@ -54,7 +55,10 @@ const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
 const MAX_POLICY_BYTES: usize = q_periapt_ffi_abi2::Q_PERIAPT_MAX_SIGNED_POLICY_BYTES;
-const IPC_SOCKET_NAME: &str = "agent.sock";
+/// Name the service manager publishes the listener under. Both deployment
+/// templates must use this exact value: systemd `FileDescriptorName=` and the
+/// launchd `Sockets` dictionary key.
+const IPC_ACTIVATION_NAME: &str = "agent";
 
 /// IPC configuration, authentication, framing, or fatal service failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -63,7 +67,10 @@ pub enum IpcError {
     /// The executable command or protected configuration was invalid.
     InvalidConfiguration,
     /// The socket path or mode was not an owner-only Unix boundary.
-    InsecureSocket,
+    /// The service manager did not present a socket-activation listener.
+    ActivationMissing,
+    /// Socket activation did not supply the expected listener.
+    ActivationRejected,
     /// A message was malformed, unknown, oversized, truncated, or had trailing bytes.
     InvalidMessage,
     /// Request authentication or nonce replay protection failed.
@@ -78,7 +85,12 @@ impl fmt::Display for IpcError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::InvalidConfiguration => "IPC configuration invalid",
-            Self::InsecureSocket => "IPC socket boundary is not owner protected",
+            Self::ActivationMissing => {
+                "IPC socket activation was not provided by the service manager"
+            }
+            Self::ActivationRejected => {
+                "IPC socket activation did not supply the expected listener"
+            }
             Self::InvalidMessage => "IPC message invalid",
             Self::AuthenticationFailed => "IPC request authentication failed",
             Self::Unavailable => "IPC transport unavailable",
@@ -311,29 +323,25 @@ fn validate_ipc_direction_isolation(
 }
 
 impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, A> {
-    /// Bind an owner-only socket and configure pinned request/response keys.
-    fn bind(
-        service_directory: &OwnedPrivateDirectory,
+    /// Configure pinned request/response keys. The listener is supplied
+    /// separately by the service manager; this server never creates one.
+    fn new(
         agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
         io_timeout: Duration,
-    ) -> Result<(Self, UnixListener), IpcError> {
+    ) -> Result<Self, IpcError> {
         if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
             return Err(IpcError::InvalidConfiguration);
         }
         validate_ipc_direction_isolation(&client_verification_key, server_signing_key.as_bytes())?;
-        let listener = bind_private_socket(service_directory)?;
-        Ok((
-            Self {
-                agent,
-                client_verification_key,
-                server_signing_key,
-                io_timeout,
-                recent_nonces: RecentNonces::new(),
-            },
-            listener,
-        ))
+        Ok(Self {
+            agent,
+            client_verification_key,
+            server_signing_key,
+            io_timeout,
+            recent_nonces: RecentNonces::new(),
+        })
     }
 
     /// Serve one request per accepted connection with bounded sequential resources.
@@ -624,27 +632,6 @@ fn agent_status(error: AgentError) -> u8 {
     }
 }
 
-pub(crate) fn bind_private_socket(
-    directory: &OwnedPrivateDirectory,
-) -> Result<UnixListener, IpcError> {
-    let name = std::ffi::OsStr::new(IPC_SOCKET_NAME);
-    directory
-        .require_absent(name)
-        .map_err(|_| IpcError::InsecureSocket)?;
-    directory
-        .set_as_process_directory()
-        .map_err(|_| IpcError::InsecureSocket)?;
-    let listener = UnixListener::bind(IPC_SOCKET_NAME).map_err(|_| IpcError::Unavailable)?;
-    if directory.protect_socket(name).is_err() {
-        drop(listener);
-        directory
-            .remove_leaf(name)
-            .map_err(|_| IpcError::InsecureSocket)?;
-        return Err(IpcError::InsecureSocket);
-    }
-    Ok(listener)
-}
-
 /// Run the Unix executable from one of two exact command shapes:
 ///
 /// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
@@ -663,8 +650,7 @@ where
     let _program = arguments.next().ok_or(IpcError::InvalidConfiguration)?;
     let mode = arguments.next().ok_or(IpcError::InvalidConfiguration)?;
     if mode == "serve-agent" {
-        let service_directory =
-            PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
+        let socket_path = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let repository = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let witness_address =
             parse_socket_address(arguments.next().ok_or(IpcError::InvalidConfiguration)?)?;
@@ -675,7 +661,7 @@ where
             return Err(IpcError::InvalidConfiguration);
         }
         return serve_agent(
-            &service_directory,
+            &socket_path,
             &repository,
             witness_address,
             authority_address,
@@ -695,14 +681,21 @@ where
 }
 
 fn serve_agent(
-    service_directory: &Path,
+    socket_path: &Path,
     repository_path: &Path,
     witness_address: SocketAddr,
     authority_address: SocketAddr,
     configuration: &Path,
 ) -> Result<(), IpcError> {
-    let service_directory =
-        OwnedPrivateDirectory::open(service_directory).map_err(|_| IpcError::InsecureSocket)?;
+    // Claim the service-manager listener first. The daemon never binds, so a
+    // deployment that started this process without activation is refused here,
+    // before any key material is read, rather than silently serving a socket
+    // with properties nobody configured.
+    let listener =
+        activated_listener(IPC_ACTIVATION_NAME, socket_path).map_err(|error| match error {
+            ActivationError::NotActivated => IpcError::ActivationMissing,
+            _ => IpcError::ActivationRejected,
+        })?;
     let configuration =
         OwnedPrivateDirectory::open(configuration).map_err(|_| IpcError::InvalidConfiguration)?;
     let roots = load_migration_roots(&configuration)?;
@@ -726,8 +719,7 @@ fn serve_agent(
     let config = load_agent_config(&configuration)?;
     let agent = PolicyAgent::new(repository, witness, authority, config)
         .map_err(|_| IpcError::InvalidConfiguration)?;
-    let (server, listener) = UnixIpcServer::bind(
-        &service_directory,
+    let server = UnixIpcServer::new(
         agent,
         read_array(&configuration, "ipc-client-vk.bin")?,
         read_secret(&configuration, "ipc-server-sk.bin")?,

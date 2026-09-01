@@ -17,6 +17,9 @@
 Description=Q-Periapt policy agent (ABI 2 reference service)
 After=network-online.target
 Wants=network-online.target
+# The socket unit owns the listener; the daemon refuses to start without it.
+Requires=q-periapt-policy-agent.socket
+After=q-periapt-policy-agent.socket
 
 [Service]
 Type=exec
@@ -26,8 +29,11 @@ Group=qperiapt-agent
 # drop-in below. They are NOT hardcoded to localhost, because the deployment
 # contract requires hosting them outside this host's rollback/restore domain.
 EnvironmentFile=/etc/qperiapt-agent/endpoints.conf
+# The first argument is the socket path the activated listener must be bound to,
+# not a directory to bind inside: the daemon compares it against getsockname on
+# the descriptor systemd passes. It must equal ListenStream= in the socket unit.
 ExecStart=/opt/qperiapt/bin/q-periapt-policy-agent serve-agent \
-    /var/lib/qperiapt-agent/service \
+    /run/qperiapt-agent/agent.sock \
     /var/lib/qperiapt-agent/state/agent.redb \
     ${QPERIAPT_WITNESS_ENDPOINT} \
     ${QPERIAPT_AUTHORITY_ENDPOINT} \
