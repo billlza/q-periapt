@@ -433,7 +433,9 @@ impl AuthorityStoreV2 {
     /// Provision through the same path-based route as `provision`, but with a
     /// caller-supplied clock, so a test can fail initialization after the file
     /// has already been created.
-    #[cfg(test)]
+    // Gated like its only caller: the test that uses it needs an owner-only
+    // directory mode, so it is unix-only and this would be dead code elsewhere.
+    #[cfg(all(test, unix))]
     pub(crate) fn provision_with_clock_for_test<C: TrustedClockV2>(
         path: &Path,
         state_head: StateHeadV2,
