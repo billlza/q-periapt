@@ -753,6 +753,7 @@ fn agent_status(error: AgentError) -> u8 {
         AgentError::InstanceFenced => 20,
         AgentError::InstanceLeaseUnavailable => 21,
         AgentError::InstanceLeaseIndeterminate => 22,
+        AgentError::InstanceLeaseCoverageElapsed => 23,
         AgentError::InternalPoisoned => 19,
     }
 }

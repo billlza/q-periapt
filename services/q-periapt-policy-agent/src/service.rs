@@ -422,6 +422,13 @@ pub enum AgentError {
     InstanceLeaseUnavailable,
     /// A lease operation outcome stayed unknown after exact-operation reconciliation.
     InstanceLeaseIndeterminate,
+    /// The operation outlived the lease coverage this instance could prove; every
+    /// secret it produced was erased and nothing was retained or returned.
+    ///
+    /// Distinct from [`Self::InstanceFenced`], which asserts another instance
+    /// holds the lease. A coverage lapse is a local deadline running out and is
+    /// no evidence that any successor exists.
+    InstanceLeaseCoverageElapsed,
     /// The process linearizer was poisoned; no operation continued.
     InternalPoisoned,
 }
@@ -536,6 +543,14 @@ struct InstanceLeaseState {
     authority_version: u64,
     fenced: bool,
     unacknowledged: VecDeque<DurablyRetainedAuthorityReceiptV2>,
+    /// Local instant until which this process has *proved* it holds the lease.
+    ///
+    /// The renew receipt carries no expiry, so the only way to learn one is a
+    /// snapshot. This is anchored to an instant captured before that request is
+    /// sent, so it can only understate the remaining life: the authority's clock
+    /// floor is nondecreasing, so the elapsed time it implies is an upper bound.
+    /// `None` means nothing has been proven and no secret may be retained.
+    covered_until: Option<Instant>,
 }
 
 struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
@@ -721,6 +736,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     InitiatorConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
                         .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 let (confirmation, initiator_finished) = confirmation.issue_finished();
+                ensure_lease_covers(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -744,6 +760,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     secret, &context, &post,
                 )
                 .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
+                ensure_lease_covers(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -794,6 +811,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     InitiatorConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
                         .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 let (confirmation, initiator_finished) = confirmation.issue_finished();
+                ensure_lease_covers(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -816,6 +834,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     secret, &context, &post,
                 )
                 .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
+                ensure_lease_covers(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -878,6 +897,17 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
             key_handle,
             responder_finished,
         };
+        if let Err(error) = ensure_lease_covers(&inner) {
+            // The session has already left the map and its confirmation is
+            // consumed, but its durable reservation is still held. Returning
+            // here without releasing it would orphan the row: `erase_pending`
+            // can no longer find the handle and `fence_out` iterates the map,
+            // so the bounded SESSION_TABLE slot would be burned permanently and
+            // survive restart. The confirmation-failure path just above releases
+            // it the same way, for the same reason.
+            cancel_consumed_session(&mut inner, handle)?;
+            return Err(error);
+        }
         retain_accepted_key(
             &mut inner,
             handle,
@@ -933,6 +963,17 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 return Err(map_confirmation_error(&mut inner, error));
             }
         };
+        if let Err(error) = ensure_lease_covers(&inner) {
+            // The session has already left the map and its confirmation is
+            // consumed, but its durable reservation is still held. Returning
+            // here without releasing it would orphan the row: `erase_pending`
+            // can no longer find the handle and `fence_out` iterates the map,
+            // so the bounded SESSION_TABLE slot would be burned permanently and
+            // survive restart. The confirmation-failure path just above releases
+            // it the same way, for the same reason.
+            cancel_consumed_session(&mut inner, handle)?;
+            return Err(error);
+        }
         retain_accepted_key(
             &mut inner,
             handle,
@@ -1732,6 +1773,7 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
         authority_version: 1,
         fenced: false,
         unacknowledged: VecDeque::new(),
+        covered_until: None,
     };
     let snapshot = authority_snapshot(authority)?;
     lease.authority_version = snapshot.authority_version();
@@ -1800,6 +1842,11 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
 /// Every guarded operation renews against the authority's trusted clock, so a
 /// fenced, expired, or superseded instance is rejected before it can touch a
 /// pending or accepted secret, and this instance erases all of them first.
+///
+/// A successful renew also records how long the lease is provably still held,
+/// which the operation re-checks before it retains anything. The renew alone
+/// only authorizes the *start* of the operation; the work that follows is not
+/// instantaneous, and the receipt carries no expiry with which to bound it.
 fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
@@ -1825,7 +1872,7 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
                         // The fence was verified live; only the expiry could
                         // not strictly extend within this clock-floor instant.
                         AuthorityRejectionV2::LeaseRenewalNotExtended,
-                    ) => Ok(()),
+                    ) => prove_lease_coverage(inner, fence),
                     AuthorityDispositionV2::Rejected(
                         AuthorityRejectionV2::LeaseAbsent
                         | AuthorityRejectionV2::LeaseExpired
@@ -1845,28 +1892,90 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     Err(AgentError::InstanceLeaseIndeterminate)
 }
 
+/// Learn how long this instance can prove it still holds the lease.
+///
+/// A renew receipt reports only that the renew applied, never until when: the
+/// wire receipt carries no expiry and widening it would break a released ABI.
+/// The expiry is therefore read from a snapshot, which the port already offers.
+///
+/// The anchor is captured **before** the request is sent, so the recorded
+/// coverage can only understate the truth. The authority's clock floor is
+/// nondecreasing, so the elapsed time it implies is an upper bound, and the
+/// snapshot's own `active_lease` is already filtered to unexpired leases. That
+/// makes this a liveness check as well: no active lease, or one carrying a fence
+/// that is not ours, means the lease is already gone.
+///
+/// The cost is one extra authority round trip per guarded operation. That is the
+/// price of the expiry not being on the renew path; do not substitute a guessed
+/// TTL for it. `HARD_MIN_LEASE_TTL_MILLIS` in particular would discard almost
+/// all of a long configured lease and turn this check into key destruction on a
+/// perfectly healthy lease.
+fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+    fence: InstanceFenceV2,
+) -> Result<(), AgentError> {
+    let anchor = Instant::now();
+    let snapshot = authority_snapshot(&inner.authority)?;
+    let Some(active) = snapshot.active_lease() else {
+        // The authority reports no unexpired lease at all, so this instance is
+        // not the holder and cannot become one without a fresh acquire.
+        fence_out(inner)?;
+        return Err(AgentError::InstanceFenced);
+    };
+    if active.fence() != fence {
+        fence_out(inner)?;
+        return Err(AgentError::InstanceFenced);
+    }
+    let remaining = active
+        .expires_at_millis()
+        .checked_sub(snapshot.clock_floor_millis())
+        .ok_or(AgentError::InstanceLeaseCoverageElapsed)?;
+    inner.lease.covered_until = anchor.checked_add(Duration::from_millis(remaining));
+    Ok(())
+}
+
+/// Refuse to retain or return a secret once the proven coverage has elapsed.
+///
+/// The lease is checked on the way in, but the work that follows is not
+/// instantaneous: a witness round trip, two signature verifications, and a KEM
+/// operation all sit between that check and the point where a secret first
+/// becomes retained. This is that point.
+///
+/// It deliberately does not fence. A local deadline running out is no evidence
+/// that any successor exists, and fencing is permanent.
+fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
+) -> Result<(), AgentError> {
+    match inner.lease.covered_until {
+        Some(until) if Instant::now() < until => Ok(()),
+        _ => Err(AgentError::InstanceLeaseCoverageElapsed),
+    }
+}
+
 /// Erase every in-process pending and accepted secret and retire this fence.
 ///
 /// After this returns, the agent permanently refuses lease-guarded operations
 /// and holds no pending or accepted secret.
 ///
-/// It does **not** establish that key use stopped before a successor acquired
-/// the next generation, and an earlier version of this comment claimed that it
-/// did. Nothing gives this process that guarantee: a successor's acquire is
-/// gated purely on wall-clock expiry (`plan_acquire`), with no interaction with
-/// the incumbent and no revocation, and this process learns it has been fenced
-/// only by making a further authority call and being rejected. Between the
-/// lease lapsing and that rejection arriving, both instances hold live key
-/// material, and neither the guarded entry points nor `expire_idle_sessions`
-/// closes that window: the entry points check the lease once, on the way in,
-/// and are handed no expiry with which to bound the work that follows.
+/// Whether the erasure precedes a successor's acquire depends on which caller
+/// ran it, and an earlier version of this comment asserted the strong form for
+/// both:
 ///
-/// What this function does guarantee is the erasure, and that it happens before
-/// the rejected call returns. Narrowing the window itself needs the lease to
-/// carry a deadline the agent can check again before it retains a secret, which
-/// is a separate change.
+/// * From `release_instance_lease` it holds. That path erases first and only
+///   then tells the authority to release, so no successor can acquire until
+///   after this instance is empty.
+/// * From `ensure_instance_lease` it does not. That path runs when a renew was
+///   already rejected, which means the successor acquired first: a successor's
+///   acquire is gated purely on wall-clock expiry (`plan_acquire`), with no
+///   interaction with the incumbent and no revocation, so this instance learns
+///   it was fenced only by being rejected.
 ///
-/// See `docs/policy/` for the intended end state.
+/// What both callers do guarantee is the erasure itself, before the rejected
+/// call returns, and that no session secret was **retained or returned** outside
+/// the window this instance could prove it held the lease -- see
+/// `prove_lease_coverage` and `ensure_lease_covers`. That is narrower than "key
+/// use has stopped": the KEM itself runs before the coverage check, and the
+/// long-term ABI 2 executor keys are outside this mechanism entirely.
 fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {

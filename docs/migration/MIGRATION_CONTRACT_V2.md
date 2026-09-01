@@ -346,14 +346,18 @@ key-use operation first renews the lease against the authority's trusted
 clock, so a fenced, expired, or superseded instance is rejected before it can
 touch a pending or accepted secret; the fenced instance erases every
 in-process pending and accepted secret first and permanently refuses
-lease-guarded operations. That check is made on entry and is not renewed
-inside the operation: the renew returns no expiry, so the agent holds no
-deadline it could re-check, and a lease that lapses after the check is not
-detected until some later authority call is rejected. A successor's acquire is
-gated on wall-clock expiry alone, with no interaction with the incumbent, so
-for the length of that window both instances hold live key material. This is a
-known gap, not a guarantee; closing it requires the lease to carry a deadline
-the agent re-checks before it retains a secret. The client's fence view is deliberately RAM-only —
+lease-guarded operations. The renew authorizes the start of the
+operation; because its receipt carries no expiry, a successful renew is
+followed by one snapshot that establishes how long the lease is provably still
+held, anchored to an instant taken before that request is sent so it can only
+understate. The operation re-checks that coverage immediately before it
+reserves a pending session or retains an accepted key, and refuses both if it
+has elapsed, releasing any durable reservation it already holds. The guarantee
+is therefore that no session secret is retained or returned outside the window
+this instance could prove it held the lease. It is not that key use has
+stopped: the KEM runs before the check, a successor's acquire is gated on
+wall-clock expiry alone with no interaction with the incumbent, and the
+long-term executor keys are outside this mechanism. The client's fence view is deliberately RAM-only —
 a restored clone of this host cannot replay the live fence, and a process
 restart always starts a new acquire cycle. Graceful shutdown releases the
 lease idempotently so a successor can acquire without waiting out the

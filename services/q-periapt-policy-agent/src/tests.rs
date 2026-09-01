@@ -1107,6 +1107,8 @@ struct MemoryAuthorityState {
     config: DeploymentConfigRevisionV2,
     now_millis: u64,
     unknown_after_apply: bool,
+    advance_before_snapshot: u64,
+    snapshot_delay: Duration,
 }
 
 fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
@@ -1145,6 +1147,8 @@ impl MemoryAuthority {
                 config,
                 now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
                 unknown_after_apply: false,
+                advance_before_snapshot: 0,
+                snapshot_delay: Duration::ZERO,
             })),
         })
     }
@@ -1156,6 +1160,25 @@ impl MemoryAuthority {
     fn advance_clock(&self, delta_millis: u64) {
         let mut state = self.lock();
         state.now_millis += delta_millis;
+    }
+
+    /// Advance the authority clock once, just before the next snapshot is
+    /// computed, so the snapshot reports a lease with almost no life left.
+    ///
+    /// This is the real sequence, not a contrived one: the renew succeeds and
+    /// then time passes before the agent learns the expiry. Advancing the clock
+    /// up front cannot reproduce it, because the renew itself resets the expiry
+    /// to `now + ttl`.
+    fn advance_clock_before_next_snapshot(&self, delta_millis: u64) {
+        self.lock().advance_before_snapshot = delta_millis;
+    }
+
+    /// Make the next snapshot take real time, the way a network round trip
+    /// does. The coverage anchor is captured before the request is sent, so a
+    /// slow snapshot spends the budget it is being asked to report -- which is
+    /// the conservative behaviour the anchor exists to produce.
+    fn delay_next_snapshot(&self, delay: Duration) {
+        self.lock().snapshot_delay = delay;
     }
 
     fn expire_active_lease(&self) {
@@ -1195,6 +1218,12 @@ impl InstanceAuthorityPort for MemoryAuthority {
         &self,
     ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
+        let pending = core::mem::take(&mut state.advance_before_snapshot);
+        state.now_millis = state.now_millis.saturating_add(pending);
+        let delay = core::mem::take(&mut state.snapshot_delay);
+        if !delay.is_zero() {
+            thread::sleep(delay);
+        }
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.snapshot(&clock) {
             Ok(snapshot) => AuthorityOutcomeV2::Known(snapshot),
@@ -1670,6 +1699,87 @@ fn responder_decapsulation(
             Err(io::Error::other("responder returned initiator begin state").into())
         }
     }
+}
+
+#[test]
+fn a_coverage_lapse_at_acceptance_releases_the_durable_reservation() -> TestResult {
+    // By the acceptance point the session has already left the in-memory map
+    // and its confirmation is consumed, but its durable reservation is still
+    // held. Refusing there without releasing it would orphan the row --
+    // `erase_pending` can no longer find the handle and `fence_out` iterates the
+    // map -- permanently burning one of the bounded SESSION_TABLE slots, and
+    // surviving restart. That would make this fix worse than the gap it closes.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 63)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+
+    // Lapse the coverage for the initiator's acceptance specifically.
+    pair.initiator_authority
+        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(20));
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished)
+            .err(),
+        Some(AgentError::InstanceLeaseCoverageElapsed)
+    );
+
+    // The durable row is gone: cancelling it again must fail, because there is
+    // nothing left to cancel. If the reservation had leaked this would succeed.
+    assert!(
+        pair.initiator
+            .desynchronize_session_for_test(encapsulated.handle)
+            .is_err(),
+        "the durable reservation was orphaned instead of released"
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn an_operation_that_outlives_its_proven_lease_coverage_retains_nothing() -> TestResult {
+    // The lease is checked on the way in, but a witness round trip, two
+    // signature verifications and a KEM operation all run before a secret first
+    // becomes retained. The renew receipt carries no expiry, so the agent takes
+    // one snapshot to learn how long it can prove it still holds the lease, and
+    // refuses to retain anything past that point.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 61)?;
+
+    // The renew applies, and then the authority's clock jumps to one
+    // millisecond before the new expiry. That is the shape of the real race:
+    // the renew succeeded, and time passed before the agent learned the expiry.
+    pair.initiator_authority
+        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
+
+    let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert_eq!(
+        outcome.err(),
+        Some(AgentError::InstanceLeaseCoverageElapsed),
+        "an operation past its proven coverage must not return a handle"
+    );
+
+    // Nothing was retained. A coverage lapse is not a fence: it is a local
+    // deadline running out, which is no evidence that a successor exists, so
+    // the agent stays usable rather than being permanently retired.
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.confirmed_key_count(), 0);
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
 }
 
 #[test]
