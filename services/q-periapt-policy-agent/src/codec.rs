@@ -147,6 +147,10 @@ pub(crate) fn hash_fields(domain: &[u8], fields: &[&[u8]]) -> Result<[u8; 32], C
     Ok(hash.squeeze32())
 }
 
+// Unbounded framing: retained for tests only. Every production socket path uses
+// the deadline-bounded `*_until` helpers, because a per-syscall timeout does not
+// bound an operation against a peer that drips bytes.
+#[cfg(all(test, unix))]
 pub(crate) fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<(), CodecError> {
     if payload.is_empty() || payload.len() > MAX_FRAME_BYTES {
         return Err(CodecError::Oversized);
@@ -159,6 +163,7 @@ pub(crate) fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<()
         .map_err(|_| CodecError::Io)
 }
 
+#[cfg(all(test, unix))]
 pub(crate) fn read_frame<R: Read>(reader: &mut R) -> Result<Vec<u8>, CodecError> {
     let mut length = [0u8; 4];
     reader.read_exact(&mut length).map_err(|_| CodecError::Io)?;
