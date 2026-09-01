@@ -48,13 +48,17 @@ rand_core = { version = "0.6", default-features = false, optional = true }
 q-periapt-kem = { version = "=0.1.4", path = "../q-periapt-kem" }
 # Combiner micro-benchmark (cargo bench). `sha3` provides the faithful
 # *streaming* X-Wing combiner baseline to compare our staged path against.
-criterion = "0.5"
+criterion = "0.8"
 # Independent RustCrypto ML-KEM for the multi-backend differential test; the
 # `deterministic` feature gives byte-exact keygen/encaps from explicit (d‖z, m).
+# Held at 0.2.3 deliberately: ml-kem 0.3 removed `deterministic`, which is what
+# makes this a byte-exact oracle. The differential test's value is that this is an
+# *independent* implementation, not that it is the newest one, so the pin stays
+# until an equivalent deterministic entry point exists.
 ml-kem = { version = "=0.2.3", features = ["deterministic", "zeroize"] }
 # Independent X25519 (orion, pure-Rust, separate lineage from x25519-dalek) for the
 # X25519 + full-hybrid differential tests.
-orion = "0.17.10"
+orion = "0.18.0"
 # Independent ML-DSA (RustCrypto) for the signature-layer differential; FIPS 204
 # deterministic keygen/sign give byte-exact comparison + cross-verification.
 ml-dsa = "=0.1.1"
