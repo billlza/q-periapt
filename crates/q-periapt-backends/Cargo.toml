@@ -33,6 +33,16 @@ fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44
 # `zeroize` makes StaticSecret wipe its scalar on drop (defense-in-depth for ephemeral secrets).
 x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
 # SHA3-256 / SHAKE-256. `std` is not needed by the digest implementation.
+# Held at 0.10.9 deliberately. sha3 0.12 removed SHAKE into a separate, brand-new
+# `shake` 0.1.0 crate, and SHAKE-256 is the combiner XOF -- the single primitive
+# assumption under the binding proof (docs/THREAT_MODEL.md §3). Moving it to a
+# 0.1.0 crate would change that assumption's implementation for no cryptographic
+# gain: SHA3/SHAKE outputs are standardized and unchanged, so 0.12 is an API and
+# packaging reshuffle only. It would also strictly ADD surface rather than
+# replace it, because fips204 (a production dependency already at its latest
+# 0.4.6) pins sha3 ^0.10.2, so 0.10.x stays in the graph either way -- the result
+# would be two sha3 major versions plus `shake`. Revisit when the SHAKE split has
+# a track record and the FIPS backends have moved.
 sha3 = { version = "=0.10.9", default-features = false }
 # --- optional backends (see [features]) ---
 # SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged, KAT-able) signing by
@@ -41,6 +51,9 @@ fips205 = { version = "0.4.1", optional = true }
 # Feeds caller-supplied SLH-DSA hedging randomness (and, in tests, the ACVP
 # keyGen seed replay) into the fips205 `CryptoRngCore` APIs (same rand_core 0.6
 # the `fips205` dep uses). Pulled in only with the `slh-dsa` feature.
+# Held at 0.6: this shim exists to feed fips205's RNG parameter, and fips204/205
+# (both already at their latest releases) require rand_core ^0.6.4. rand_core 0.10
+# reshaped the RngCore trait entirely, so the shim cannot implement both.
 rand_core = { version = "0.6", default-features = false, optional = true }
 
 [dev-dependencies]
