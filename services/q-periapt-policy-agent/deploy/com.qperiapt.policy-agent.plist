@@ -7,9 +7,16 @@
   runs the daemon under a dedicated non-login service account with an
   owner-only umask and no core dumps; provision the `_qperiaptagent` role
   account, the 0700 service/configuration directories, and the binary at
-  /opt/qperiapt/bin before loading it with:
-    sudo launchctl bootstrap system \
-      /Library/LaunchDaemons/com.qperiapt.policy-agent.plist
+  /opt/qperiapt/bin first.
+
+  Install this file as /opt/qperiapt/launchd/com.qperiapt.policy-agent.plist,
+  NOT under /Library/LaunchDaemons, and let com.qperiapt.policy-agent-rundir.plist
+  load it. /private/var/run is cleared at boot, and launchd creates the
+  SockPathName node but never its parent directory, whose 0710 mode is the
+  daemon's only enforced admission boundary; that job recreates the parent,
+  verifies it, and only then runs launchctl bootstrap system on this file.
+  Loaded from /Library/LaunchDaemons instead, this plist runs unordered
+  against that job and can bind its socket before the boundary exists.
 
   Every path below is written canonically under /private/var. On macOS /var is
   a symlink to private/var, and the daemon opens each path component with

@@ -19,7 +19,7 @@ weaker socket.
 | --- | --- | --- |
 | Owner-only service/config/state paths (`0700`/`0600`, `O_NOFOLLOW`, descriptor-pinned) | daemon | all platforms |
 | IPC socket existence, owner, group and mode (`0660`, daemon owner, client group) | service manager | `q-periapt-policy-agent.socket`, `com.qperiapt.policy-agent.plist` |
-| Socket parent directory `0710` — the enforced admission boundary | tmpfiles.d on Linux; **the deployment itself on macOS** | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs). macOS clears `/private/var/run` at boot too, and ships no tmpfiles equivalent — see the non-claim below |
+| Socket parent directory `0710` — the enforced admission boundary | tmpfiles.d on Linux; a root `RunAtLoad` job on macOS | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs); `com.qperiapt.policy-agent-rundir.plist` running `qperiapt-agent-rundir.sh` (macOS; `/private/var/run` is cleared at boot too, and the job is also what loads the agent — see the macOS layout below) |
 | Refusal to serve without a matching activated listener; no self-bind fallback | daemon | all platforms |
 | macOS extended-ACL rejection on protected paths | daemon | macOS |
 | Pinned-key mutual authentication (IPC, witness, authority) + replay windows | daemon | all platforms |
@@ -50,23 +50,39 @@ weaker socket.
   never infers that an existing socket is dead, and nothing here removes one
   with `rm -f` or an `ExecStartPre`: the socket unit owns the node across
   restarts on Linux, as does the launchd `Sockets` entry on macOS.
-- **On macOS the socket's parent directory has no boot-time owner, and nothing
-  here supplies one.** `/private/var/run` is cleared on every boot exactly as
-  `/run` is on Linux, but launchd has no `tmpfiles.d` equivalent: it creates the
+- **On macOS the socket's parent directory is recreated at boot by the shipped
+  run-directory job, and that job is also the only thing that loads the
+  agent.** `/private/var/run` is cleared on every boot exactly as `/run` is on
+  Linux, but launchd has no `tmpfiles.d` equivalent: it creates the
   `SockPathName` node itself and will not create the directory containing it.
   So `/private/var/run/qperiapt-agent` — and with it the `0710` mode that is the
   daemon's only enforced admission boundary — disappears at every reboot. The
   daemon fails closed when that happens (`launch_activate_socket` cannot bind,
   activation is absent, and with no self-bind fallback the service simply does
-  not start), but it stays down until something recreates the directory. The
-  deployment owns that step: recreate it at boot with the right owner, group and
-  mode, from a `RunAtLoad` job ordered ahead of the agent or from the same
-  configuration management that installs the templates. Recreating it with a
-  default mode is the dangerous outcome, because the daemon then starts
-  normally and cannot tell that the boundary is gone.
+  not start), but it stays down until something recreates the directory.
+  `com.qperiapt.policy-agent-rundir.plist` runs `qperiapt-agent-rundir.sh` as
+  root at boot to do that: it creates the directory, verifies with `stat` that
+  the path itself is a directory owned by the daemon account with the transport
+  group at exactly `0710`, and only then runs `launchctl bootstrap system` on
+  the agent plist. Recreating the directory with a default mode is the
+  dangerous outcome, because the daemon then starts normally and cannot tell
+  that the boundary is gone, so nothing short of that verification reaches the
+  bootstrap: a symlink or file at the path is left untouched, a directory the
+  run created and could not verify is removed again, an agent that is already
+  loaded is reported rather than built on, and every refusal leaves the agent
+  unloaded. What is still not claimed: that a host installed the job or kept
+  the agent plist out of `/Library/LaunchDaemons` (there launchd loads it on
+  its own, unordered against the job, which is why the layout below puts it
+  elsewhere); that the names in the script and the numeric uid/gid in the agent
+  plist were templated from the same account and group; or that a failed run
+  is noticed — it is written to `/private/var/log/qperiapt-agent-rundir.log`
+  and the unified log, and not retried until the next boot or a
+  `launchctl kickstart`.
 - These are reviewed deployment templates, not measured attestations: no gate
-  in this repository verifies that a production host actually loaded them.
-  Treat host provisioning as release evidence to be captured per deployment.
+  in this repository verifies that a production host actually loaded them, the
+  macOS run-directory job included. The crate's tests check only that the
+  shipped files agree with each other and with the daemon's code. Treat host
+  provisioning as release evidence to be captured per deployment.
 
 ## Provisioning order (both platforms)
 
@@ -91,13 +107,19 @@ weaker socket.
    hand: `/run` is a tmpfs, so it is recreated on every boot, and without that
    entry systemd makes it on demand as `0755 root:root`. That directory mode,
    not the socket's own, is the admission boundary the daemon can actually rely
-   on. **On macOS this step is yours to automate.** `/private/var/run` is
-   cleared at boot there as well, and launchd creates only the `SockPathName`
-   node, never its parent — so recreate `/private/var/run/qperiapt-agent` as
-   `0710` owned by the daemon account with the transport group on every boot,
-   ahead of the agent job. There is no shipped macOS template for this, and a
-   directory recreated with a default mode leaves the daemon starting happily
-   with no admission boundary at all.
+   on. **On macOS install the shipped run-directory job instead.**
+   `/private/var/run` is cleared at boot there as well, and launchd creates
+   only the `SockPathName` node, never its parent, so
+   `com.qperiapt.policy-agent-rundir.plist` runs `qperiapt-agent-rundir.sh` as
+   root on every boot: it recreates `/private/var/run/qperiapt-agent` as
+   `0710` owned by the daemon account with the transport group, verifies that
+   with `stat`, and only then bootstraps the agent job — the layout is in the
+   macOS section below. Set `RUN_DIR_GROUP` at the top of the script to the
+   transport group you created; the directory, mode, daemon account and agent
+   plist path already match the agent plist, and the crate's tests hold them
+   to it. A directory recreated with a default mode would leave the daemon
+   starting happily with no admission boundary at all, which is why the script
+   refuses to load the agent on anything short of an exact match.
 4. Provision the repository, witness, and authority stores explicitly
    (`StateRepository::provision_new`, `ReferenceWitnessServer::provision`,
    `ReferenceAuthorityServerV2::provision`); the runtime never bootstraps a
@@ -116,7 +138,9 @@ weaker socket.
    just the service: the daemon adopts a listener it is handed and refuses to
    start without one, so a service enabled on its own fails closed rather than
    binding a socket of its own. On Linux enable `q-periapt-policy-agent.socket`;
-   on macOS the `Sockets` dictionary in the plist covers it. The agent then
+   on macOS the `Sockets` dictionary in the agent plist covers it, and the plist
+   is loaded by the run-directory job rather than by launchd's own scan of
+   `/Library/LaunchDaemons`. The agent then
    acquires the exclusive instance lease at startup: it waits for a crashed
    predecessor's lease to lapse (step 7) and fails closed only while a holder
    that is still renewing has it. Before that acquire it settles the
@@ -139,3 +163,48 @@ weaker socket.
    is observed within one maintenance interval and the release is one bounded
    authority round trip of at most 5 seconds. The daemon does not log; the exit
    status is the only record of a stop or of a refused start.
+
+## macOS layout
+
+launchd loads every plist in `/Library/LaunchDaemons` at boot with no ordering
+among `RunAtLoad` jobs, so the agent plist cannot live there: it would be
+loaded whether or not the run directory exists yet, and its socket bound — or
+not — before the boundary does. The shipped layout keeps exactly one plist
+where launchd scans, and that job is the only thing that loads the agent.
+
+| Shipped file | Install as | Owner and mode |
+| --- | --- | --- |
+| `com.qperiapt.policy-agent-rundir.plist` | `/Library/LaunchDaemons/com.qperiapt.policy-agent-rundir.plist` | `root:wheel`, `0644` |
+| `qperiapt-agent-rundir.sh` | `/opt/qperiapt/libexec/qperiapt-agent-rundir.sh` | `root:wheel`, `0644` — it runs through `/bin/sh` and needs no execute bit |
+| `com.qperiapt.policy-agent.plist` | `/opt/qperiapt/launchd/com.qperiapt.policy-agent.plist` | `root:wheel`, `0644` |
+
+`/opt/qperiapt` and everything under it must be root-owned and writable by
+nobody else: whatever sits at the script path runs as root at every boot. Then
+`sudo launchctl bootstrap system
+/Library/LaunchDaemons/com.qperiapt.policy-agent-rundir.plist`, which also runs
+the job once, so the agent comes up without a reboot. On every boot after that
+launchd runs the job again, and it:
+
+1. refuses unless it is root on macOS, and unless the agent plist is a regular
+   file outside `/Library/LaunchDaemons`;
+2. refuses a symlink or a non-directory at `/private/var/run/qperiapt-agent`
+   without touching it; creates the directory if absent (`mkdir` without `-p`,
+   under `umask 077`, so it is never wider than `0700` before the chmod) or
+   adopts an existing real directory, which it never removes;
+3. `chown`s and `chmod`s it, then verifies with `stat` — on the path itself,
+   not a target — that it is a directory, owned by the daemon account and the
+   transport group, with mode exactly `0710`; a setgid or sticky bit fails
+   this like any other difference, and a directory this run created and could
+   not verify is removed again;
+4. refuses if the agent is already bootstrapped, which means something other
+   than this job loaded it, possibly before the directory existed;
+5. runs `launchctl bootstrap system` on the agent plist.
+
+A refusal at any step exits non-zero and leaves the agent unloaded, with the
+reason in `/private/var/log/qperiapt-agent-rundir.log` and in the unified log
+under the `qperiapt-agent-rundir` tag. `KeepAlive` is false, so a failed run
+is not retried until the next boot or a
+`sudo launchctl kickstart system/com.qperiapt.policy-agent-rundir`. Taking the
+agent down by hand is `sudo launchctl bootout system/com.qperiapt.policy-agent`;
+bringing it back goes through the same kickstart, so it never comes up without
+the verification.

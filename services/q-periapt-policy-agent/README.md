@@ -141,10 +141,12 @@ manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
 holds the hardened systemd unit (dedicated locked account, read-only OS
 view, seccomp `@system-service` filter, empty capability set, no core
 dumps) and the launchd daemon template (dedicated uid, owner-only umask,
-no core dumps), together with the exact table of which boundary each layer
-enforces and the explicit non-claims. A deployment that starts the binary
-outside those templates gets only the daemon's own filesystem-capability
-and cryptographic boundaries.
+no core dumps) with the boot-time job that recreates the socket's `0710`
+parent directory on macOS and loads the agent only after verifying it,
+together with the exact table of which boundary each layer enforces and the
+explicit non-claims. A deployment that starts the binary outside those
+templates gets only the daemon's own filesystem-capability and cryptographic
+boundaries.
 
 IPC is a hard V2 cut: request, response, and request-digest domains all end in
 `/v2`, schema 2 has distinct `AcceptInitiatorFinished` and

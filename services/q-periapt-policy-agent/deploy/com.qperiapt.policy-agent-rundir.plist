@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Boot-time run-directory job for the Q-Periapt policy agent on macOS.
+
+  This is the launchd counterpart of q-periapt-agent.tmpfiles.conf.
+  /private/var/run is cleared on every boot, and launchd creates the agent's
+  SockPathName node itself but never the directory containing it. That
+  directory's 0710 mode is the daemon's only enforced admission boundary, and a
+  directory recreated with a default mode is the dangerous outcome: the daemon
+  starts normally and cannot tell the boundary is gone. This job runs
+  qperiapt-agent-rundir.sh as root at boot; the script creates
+  /private/var/run/qperiapt-agent, verifies with stat that it is a real
+  directory owned by the daemon account with the transport group at exactly
+  0710, and only then bootstraps the agent. Anything else is a refusal that
+  leaves the agent unloaded.
+
+  Install this file, and only this file, in /Library/LaunchDaemons:
+    sudo install -d -o root -g wheel -m 0755 /opt/qperiapt/libexec \
+      /opt/qperiapt/launchd
+    sudo install -o root -g wheel -m 0644 qperiapt-agent-rundir.sh \
+      /opt/qperiapt/libexec/qperiapt-agent-rundir.sh
+    sudo install -o root -g wheel -m 0644 com.qperiapt.policy-agent.plist \
+      /opt/qperiapt/launchd/com.qperiapt.policy-agent.plist
+    sudo install -o root -g wheel -m 0644 com.qperiapt.policy-agent-rundir.plist \
+      /Library/LaunchDaemons/com.qperiapt.policy-agent-rundir.plist
+    sudo launchctl bootstrap system \
+      /Library/LaunchDaemons/com.qperiapt.policy-agent-rundir.plist
+
+  The agent plist deliberately stays out of /Library/LaunchDaemons. launchd
+  loads everything there at boot with no ordering among RunAtLoad jobs, so the
+  agent could be loaded, and its socket bound or fail to be, before this job
+  has run. The script is the only thing that loads it, and only after
+  verification; the script refuses an agent plist under /Library/LaunchDaemons
+  and refuses to bootstrap an agent that is already loaded.
+
+  Conventions shared with the agent plist:
+    * Every path is canonical under /private/var. /var is a symlink to
+      private/var, and the daemon opens each component O_NOFOLLOW, so the
+      directory is named exactly the way the agent plist names its socket.
+    * This job runs as root (no UserName): chown to the daemon account and
+      launchctl bootstrap system both require it. The script's owner and group
+      parameters are NAMES, which chown resolves; the agent plist's
+      SockPathOwner and SockPathGroup are NUMBERS. Template both from the same
+      account and group, or the socket and its directory disagree on who may
+      reach it.
+    * The script runs through /bin/sh, so it needs no execute bit; what it does
+      need is a root-owned /opt/qperiapt that nobody else can write, because
+      whatever sits at the script path runs as root at every boot.
+    * RunAtLoad with KeepAlive false: one run per boot, no restart on failure. A
+      failed run leaves the agent unloaded -- fail closed -- and says why in the
+      log file below and in the unified log under the qperiapt-agent-rundir tag.
+      Re-run it by hand with:
+        sudo launchctl kickstart system/com.qperiapt.policy-agent-rundir
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.qperiapt.policy-agent-rundir</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>/opt/qperiapt/libexec/qperiapt-agent-rundir.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardOutPath</key>
+    <string>/private/var/log/qperiapt-agent-rundir.log</string>
+    <key>StandardErrorPath</key>
+    <string>/private/var/log/qperiapt-agent-rundir.log</string>
+</dict>
+</plist>

@@ -1170,6 +1170,32 @@ mod tests {
         std::fs::read_to_string(&path).expect("a shipped deployment template must be readable")
     }
 
+    /// The unquoted value of `NAME=value` in a shell script's parameter block.
+    fn shell_parameter<'a>(script: &'a str, name: &str) -> &'a str {
+        script
+            .lines()
+            .find_map(|line| line.strip_prefix(name)?.strip_prefix('='))
+            .map(|value| value.trim().trim_matches('"'))
+            .unwrap_or_else(|| unreachable!("the run-directory script must set {name}"))
+    }
+
+    /// The line after `<key>KEY</key>` in a plist, trimmed.
+    fn plist_value<'a>(plist: &'a str, key: &str) -> &'a str {
+        let key = format!("<key>{key}</key>");
+        let mut lines = plist.lines().map(str::trim);
+        lines
+            .find(|line| *line == key.as_str())
+            .and_then(|_| lines.next())
+            .unwrap_or_else(|| unreachable!("the plist must set {key}"))
+    }
+
+    /// The `<string>` value under `<key>KEY</key>` in a plist.
+    fn plist_string<'a>(plist: &'a str, key: &str) -> &'a str {
+        plist_value(plist, key)
+            .trim_start_matches("<string>")
+            .trim_end_matches("</string>")
+    }
+
     /// The shipped templates encode contracts this code enforces, and nothing
     /// else checked them. Two defects reached this branch that way: endpoints
     /// written as DNS names, which `parse_socket_address` cannot accept, and an
@@ -1286,6 +1312,105 @@ mod tests {
         assert!(
             entry.contains("0710"),
             "the socket's parent must be 0710 so only the transport group can traverse: {entry}"
+        );
+
+        // macOS clears /private/var/run at boot just as Linux clears /run, and
+        // launchd creates the SockPathName node but never its parent. The
+        // shipped RunAtLoad job recreates that parent and is the only thing
+        // that loads the agent, so the script, its plist and the agent plist
+        // have to agree on the directory, the mode, the script path and the
+        // label -- and on the ordering the whole arrangement exists for.
+        let script = deploy_file("qperiapt-agent-rundir.sh");
+        let rundir = deploy_file("com.qperiapt.policy-agent-rundir.plist");
+        let plist_parent = plist_socket
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .expect("the plist socket path must have a parent directory");
+        assert_eq!(
+            shell_parameter(&script, "RUN_DIR"),
+            plist_parent,
+            "the run-directory script must create the parent of the plist's SockPathName"
+        );
+        assert_eq!(
+            shell_parameter(&script, "RUN_DIR_MODE"),
+            "0710",
+            "the run directory must be 0710 so only the transport group can traverse"
+        );
+        assert_eq!(
+            shell_parameter(&script, "RUN_DIR_OWNER"),
+            plist_string(&plist, "UserName"),
+            "the run directory's owner must be the account the agent plist runs the daemon as"
+        );
+
+        let label = plist_string(&plist, "Label");
+        assert_eq!(label, "com.qperiapt.policy-agent");
+        assert_eq!(
+            shell_parameter(&script, "AGENT_LABEL"),
+            label,
+            "the script must bootstrap the agent plist's label"
+        );
+        let agent_plist = shell_parameter(&script, "AGENT_PLIST");
+        assert_eq!(
+            agent_plist.rsplit_once('/').map(|(_, name)| name),
+            Some("com.qperiapt.policy-agent.plist"),
+            "the script must bootstrap the shipped agent plist"
+        );
+        // launchd loads everything under /Library/LaunchDaemons at boot with no
+        // ordering among RunAtLoad jobs, which is the whole reason the agent is
+        // loaded by the script rather than by launchd's scan.
+        assert!(
+            !agent_plist.starts_with("/Library/LaunchDaemons/")
+                && !agent_plist.starts_with("/System/Library/LaunchDaemons/"),
+            "the agent plist must live where launchd does not scan at boot: {agent_plist}"
+        );
+        let verified = script
+            .find("\nverified=1\n")
+            .expect("the script must record that the directory verified");
+        let bootstrapped = script
+            .find("launchctl bootstrap system \"$AGENT_PLIST\"")
+            .expect("the script must bootstrap the agent plist");
+        assert!(
+            verified < bootstrapped,
+            "the script must bootstrap the agent only after the directory verified"
+        );
+
+        // The job that runs the script must run the shipped script, at boot,
+        // once, as root, and the script's install instructions must name the
+        // path the job runs it from.
+        assert_eq!(
+            plist_string(&rundir, "Label"),
+            "com.qperiapt.policy-agent-rundir"
+        );
+        let script_path = rundir
+            .lines()
+            .map(str::trim)
+            .find(|line| line.ends_with("/qperiapt-agent-rundir.sh</string>"))
+            .map(|line| {
+                line.trim_start_matches("<string>")
+                    .trim_end_matches("</string>")
+            })
+            .unwrap_or_else(|| unreachable!("the run-directory plist must run the shipped script"));
+        assert!(
+            script.contains(script_path),
+            "the script must document the path the plist runs it from ({script_path})"
+        );
+        assert_eq!(
+            plist_value(&rundir, "RunAtLoad"),
+            "<true/>",
+            "the run-directory job must run at boot"
+        );
+        assert_eq!(
+            plist_value(&rundir, "KeepAlive"),
+            "<false/>",
+            "the run-directory job runs once per boot and is not restarted"
+        );
+        assert!(
+            !rundir.contains("<key>UserName</key>"),
+            "the run-directory job must run as root: chown and launchctl bootstrap system require it"
+        );
+        assert!(
+            script.contains("system/com.qperiapt.policy-agent-rundir"),
+            "the script's re-run instructions must name the job's own label"
         );
     }
 
