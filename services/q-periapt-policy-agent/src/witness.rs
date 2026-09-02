@@ -17,7 +17,7 @@ use crate::codec::{
     accept_error_is_transient, encode_domain, hash_fields, read_frame_until, require_domain,
     write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
-use crate::filesystem::{open_private_file, provision_private_file};
+use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
 
 const WITNESS_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-WITNESS-REQUEST/v1";
@@ -649,8 +649,22 @@ impl WitnessStore {
         )
     }
 
+    /// Open an existing store, letting redb finish crash recovery first.
+    ///
+    /// Every commit here is two-phase, and that is what makes recovery safe to
+    /// allow: after an unclean shutdown redb only reconstructs its free-page
+    /// allocator by walking the committed tree, and it refuses a corrupted
+    /// two-phase primary outright ("Primary is corrupted despite 2-phase
+    /// commit") rather than rolling back to an older slot. Committed data is
+    /// never altered by that reconstruction. Refusing it, as an earlier
+    /// version of the authority store did, gained no data safety and meant the
+    /// store could not be reopened after any restart at all. The alternative
+    /// that avoids the reconstruction, redb's quick-repair, saves the allocator
+    /// state on every commit and measured about five times slower per durable
+    /// commit on this workload, on a path every guarded operation takes.
     fn open(path: &Path) -> Result<Self, WitnessError> {
         let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        refuse_unclean_foreign_redb(&file).map_err(|_| WitnessError::Persistence)?;
         let mut database = Database::builder()
             .create_file(file)
             .map_err(|_| WitnessError::Persistence)?;
@@ -720,17 +734,34 @@ impl WitnessStore {
                 return Err(WitnessError::Persistence);
             }
             // An applied receipt proves the witness already advanced to the head
-            // it names, so the recorded head cannot be behind it. A store where
-            // it is has either torn between writing the receipt and updating the
-            // head, or been rolled back -- and either way the witness would
-            // answer with an older head while holding proof it had moved past
-            // it, which is exactly how a second, different advance from that
-            // same point gets accepted and the lineage forks.
-            if matches!(receipt.disposition, WitnessDisposition::Applied)
-                && receipt.authoritative_head.revision().global_generation()
-                    > head.revision().global_generation()
-            {
-                return Err(WitnessError::Persistence);
+            // it names, so the recorded head must be consistent with it. Two
+            // ways a store can contradict that, both of which let a second,
+            // different advance be accepted and fork the lineage:
+            //
+            //  * The receipt's head is a *later* generation than the recorded
+            //    head. The store has torn between writing the receipt and
+            //    updating the head, or the head alone was rolled back, so the
+            //    witness would answer with an older head while holding proof it
+            //    had moved past it.
+            //
+            //  * The receipt's head is the *same* generation as the recorded
+            //    head but is not byte-for-byte equal to it -- a different digest
+            //    or fence. Row counting and per-key filing both pass on this,
+            //    because neither compares a receipt against the head, yet the
+            //    witness would then answer `read_head` with one head while
+            //    `query_receipt` reports an applied advance to a different head
+            //    at that same generation.
+            if matches!(receipt.disposition, WitnessDisposition::Applied) {
+                let receipt_generation = receipt.authoritative_head.revision().global_generation();
+                let head_generation = head.revision().global_generation();
+                let consistent = match receipt_generation.cmp(&head_generation) {
+                    core::cmp::Ordering::Less => true,
+                    core::cmp::Ordering::Equal => receipt.authoritative_head == head,
+                    core::cmp::Ordering::Greater => false,
+                };
+                if !consistent {
+                    return Err(WitnessError::Persistence);
+                }
             }
             observed = observed.checked_add(1).ok_or(WitnessError::Persistence)?;
         }
@@ -903,7 +934,10 @@ impl ReferenceWitnessServer {
         })
     }
 
-    /// Open an existing witness database; missing or repaired/corrupt state fails closed.
+    /// Open an existing witness database; missing, corrupt, or semantically
+    /// inconsistent state fails closed. `redb` finishes crash recovery first
+    /// (see `WitnessStore::open`), and a file left unclean by a writer that did
+    /// not commit two-phase is refused untouched.
     pub fn open(
         path: &Path,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
@@ -1022,9 +1056,11 @@ pub(crate) mod test_support {
         let database = Database::builder()
             .create_file(file)
             .map_err(|_| WitnessError::Persistence)?;
-        let transaction = database
+        let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
+        transaction.set_durability(Durability::Immediate);
+        transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
                 .open_table(META_TABLE)
@@ -1051,6 +1087,83 @@ pub(crate) mod test_support {
         Ok(())
     }
 
+    /// Record an applied advance, then set the recorded head to a *different*
+    /// head that shares the advance's generation -- a different digest or fence
+    /// at the same global generation.
+    ///
+    /// Row counting and per-key filing both accept this: neither compares a
+    /// receipt against the head. But `read_head` would then report one head
+    /// while `query_receipt` reports an applied advance to a different head at
+    /// that same generation, which is a forked lineage.
+    pub(crate) fn record_applied_receipt_with_forked_same_generation_head(
+        path: &Path,
+        intent: WitnessIntent,
+        forked_head: StateHead,
+    ) -> Result<(), WitnessError> {
+        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
+        let mut transaction = database
+            .begin_write()
+            .map_err(|_| WitnessError::Persistence)?;
+        transaction.set_durability(Durability::Immediate);
+        transaction.set_two_phase_commit(true);
+        {
+            let mut meta = transaction
+                .open_table(META_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut operations = transaction
+                .open_table(OPERATION_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut encoder = Encoder::new(MAX_FRAME_BYTES);
+            WitnessReceipt::applied(intent)
+                .encode(&mut encoder)
+                .map_err(map_codec)?;
+            operations
+                .insert(
+                    intent.operation_id.as_bytes().as_slice(),
+                    encoder.finish().as_slice(),
+                )
+                .map_err(|_| WitnessError::Persistence)?;
+            meta.insert(META_HEAD, forked_head.to_bytes().as_slice())
+                .map_err(|_| WitnessError::Persistence)?;
+            meta.insert(META_OPERATION_COUNT, 1u64.to_be_bytes().as_slice())
+                .map_err(|_| WitnessError::Persistence)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(())
+    }
+
+    /// Open the store exactly as the server does and return its head.
+    pub(crate) fn open_head(path: &Path) -> Result<StateHead, WitnessError> {
+        WitnessStore::open(path)?.head()
+    }
+
+    /// Open the store exactly as the server does, apply one compare-and-advance
+    /// through the production commit path, and exit the process with `code`
+    /// while the store is still open.
+    ///
+    /// The exit is what makes this a crash: no destructor runs, so redb never
+    /// records a clean shutdown and the file is left exactly as an abrupt exit
+    /// after a committed operation leaves it. Dropping the store first -- even
+    /// implicitly, at the end of a statement -- would be a clean close and would
+    /// prove nothing.
+    pub(crate) fn open_and_compare_then_exit(
+        path: &Path,
+        intent: WitnessIntent,
+        code: i32,
+    ) -> Result<(), WitnessError> {
+        let store = WitnessStore::open(path)?;
+        let receipt = store.compare(intent)?;
+        if !receipt.is_exact_applied(intent) {
+            return Err(WitnessError::InvalidIntent);
+        }
+        std::process::exit(code)
+    }
+
     /// Desynchronize the recorded operation count from the rows actually
     /// present, leaving a store redb still considers structurally sound.
     pub(crate) fn desynchronize_operation_count(path: &Path) -> Result<(), WitnessError> {
@@ -1058,9 +1171,11 @@ pub(crate) mod test_support {
         let database = Database::builder()
             .create_file(file)
             .map_err(|_| WitnessError::Persistence)?;
-        let transaction = database
+        let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
+        transaction.set_durability(Durability::Immediate);
+        transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
                 .open_table(META_TABLE)

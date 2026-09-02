@@ -415,19 +415,25 @@ pub enum AgentError {
     LocalCryptoFailure,
     /// The committed state is valid but this process has no exact compatible ABI 2 executor.
     ExecutionUnavailable,
-    /// Another process instance holds or took the exclusive key-use lease; every
-    /// in-process pending and accepted secret of this instance was erased.
+    /// Another process instance holds or took the exclusive key-use lease, or
+    /// the authority's lease generation was observed behind the one it issued
+    /// this instance; every in-process pending and accepted secret of this
+    /// instance was erased, and it permanently refuses lease-guarded operations.
     InstanceFenced,
     /// The mandatory instance-lease authority failed closed; the operation did not run.
     InstanceLeaseUnavailable,
     /// A lease operation outcome stayed unknown after exact-operation reconciliation.
     InstanceLeaseIndeterminate,
-    /// The operation outlived the lease coverage this instance could prove; every
-    /// secret it produced was erased and nothing was retained or returned.
+    /// This instance could not prove lease coverage for the operation, and
+    /// nothing was retained or returned. Either the authority's own snapshot,
+    /// taken right after a successful renew, reported the lease lapsed at this
+    /// instance's generation with no successor -- the operation never started,
+    /// and the next guarded operation re-acquires -- or a local coverage
+    /// deadline ran out during the operation, in which case every secret it
+    /// produced was erased.
     ///
-    /// Distinct from [`Self::InstanceFenced`], which asserts another instance
-    /// holds the lease. A coverage lapse is a local deadline running out and is
-    /// no evidence that any successor exists.
+    /// Distinct from [`Self::InstanceFenced`], which is permanent. A coverage
+    /// lapse is no evidence that any successor exists.
     InstanceLeaseCoverageElapsed,
     /// The process linearizer was poisoned; no operation continued.
     InternalPoisoned,
@@ -1150,6 +1156,28 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         fence_out(&mut inner)
     }
 
+    /// Make the next durable session reserve or release take this long after
+    /// it commits, so a test can lapse the lease coverage *inside* the durable
+    /// write rather than before it.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_next_durable_write_for_test(
+        &self,
+        delay: Duration,
+    ) -> Result<(), AgentError> {
+        let inner = self.lock()?;
+        inner
+            .repository
+            .delay_after_next_durable_write_for_test(delay);
+        Ok(())
+    }
+
+    /// Number of durable session reservations the repository currently holds.
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_session_count_for_test(&self) -> Result<u64, AgentError> {
+        let inner = self.lock()?;
+        Ok(inner.repository.durable_session_count_for_test()?)
+    }
+
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
     }
@@ -1367,6 +1395,22 @@ fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort>(
         inner
             .repository
             .reserve_session(handle.0, capability_session_id, head)?;
+        // The durable reservation is a real fsync, and the coverage checked
+        // before it may have run out while it completed. This is the last step
+        // before the secret becomes retained, so it is the check that counts:
+        // the earlier one only saves a wasted durable write. A lapse here must
+        // not leave the reservation behind -- `erase_pending` could never find
+        // it -- so release it and drop the secret with `pending`. The capability
+        // tombstone the reservation wrote stays, exactly as it does for any
+        // cancelled session: the offer was consumed the moment it was reserved,
+        // and the caller needs a fresh offer to try again.
+        if let Err(error) = ensure_lease_covers(inner) {
+            if inner.repository.cancel_session(handle.0).is_err() {
+                inner.poisoned = true;
+                return Err(AgentError::InternalPoisoned);
+            }
+            return Err(error);
+        }
         if inner.pending_sessions.insert(handle, pending).is_some() {
             inner.poisoned = true;
             return Err(AgentError::InternalPoisoned);
@@ -1503,6 +1547,14 @@ fn retain_accepted_key<W: WitnessPort, A: InstanceAuthorityPort>(
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);
     }
+    // The durable release is a real fsync, and the coverage the caller checked
+    // before it may have run out while it completed. This is the last step
+    // before the accepted key becomes retained, so it is the check that counts.
+    // Nothing needs undoing: the reservation is gone, which is where an
+    // accepted session ends up either way, and `accepted` is dropped here
+    // without ever being reachable. Not a fence -- a lapse is no evidence of a
+    // successor -- and not a poison.
+    ensure_lease_covers(inner)?;
     if inner.confirmed_keys.insert(key_handle, accepted).is_some() {
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);
@@ -1646,10 +1698,27 @@ fn record_lease_receipt(
         return Err(AgentError::InstanceLeaseUnavailable);
     }
     lease.authority_version = receipt.resulting_authority_version();
-    // The lease view is deliberately RAM-only: after a crash the successor
-    // process starts a fresh acquire cycle and never queries this operation ID
-    // again, so the receipt needs no further durability before the bounded
-    // acknowledgement queue lets the authority prune it.
+    // The lease view is RAM-only: after a crash the successor process starts a
+    // fresh acquire cycle and never queries this operation ID again, so *this
+    // process* needs no durable copy of the receipt to reconcile its own
+    // outcome. What the receipt still owes is an acknowledgement, which is
+    // the only thing that ever removes it from the authority's bounded receipt
+    // table (`HARD_MAX_RECEIPTS`). That obligation is held here in memory, so
+    // it is lost on two paths and the authority keeps those rows forever:
+    //
+    //  * a crash with receipts still queued -- at most this queue's capacity,
+    //    and in practice about one, because every guarded operation drains
+    //    the queue before and after its own renew;
+    //  * a receipt that cannot be queued because the queue is already full,
+    //    which only happens while the authority has refused every
+    //    acknowledgement in it -- an already-degraded authority.
+    //
+    // Both are bounded, but neither is zero, and a deployment that restarts
+    // the agent many thousands of times without the authority's own table ever
+    // being reclaimed will eventually be refused a lease. Closing that gap
+    // means journaling the intent durably before dispatch and reconciling it
+    // on the next start; that is a storage and protocol change, not a queue
+    // sizing one, and is tracked separately from this RAM-only view.
     if lease.unacknowledged.len() < MAX_UNACKNOWLEDGED_LEASE_RECEIPTS
         && lease.unacknowledged.try_reserve(1).is_ok()
     {
@@ -1840,8 +1909,17 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
 /// Re-authorize key use behind the exclusive lease before every guarded operation.
 ///
 /// Every guarded operation renews against the authority's trusted clock, so a
-/// fenced, expired, or superseded instance is rejected before it can touch a
-/// pending or accepted secret, and this instance erases all of them first.
+/// fenced or superseded instance is rejected before it can touch a pending or
+/// accepted secret, and it erases every secret before the rejection returns.
+///
+/// A lease that merely lapsed -- nobody else holds it -- is handled in one of
+/// two ways depending on where the lapse is first seen. If the renew itself is
+/// rejected as expired, `recover_expired_lease` re-acquires at this instance's
+/// own generation in the same call: every secret is erased, and the operation
+/// then proceeds. If the renew applied but the coverage snapshot that follows
+/// reports the lease gone at this instance's generation, the operation is
+/// aborted with [`AgentError::InstanceLeaseCoverageElapsed`] and nothing is
+/// erased; the next guarded operation's renew is what performs that re-acquire.
 ///
 /// A successful renew also records how long the lease is provably still held,
 /// which the operation re-checks before it retains anything. The renew alone
@@ -1995,6 +2073,21 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 /// TTL for it. `HARD_MIN_LEASE_TTL_MILLIS` in particular would discard almost
 /// all of a long configured lease and turn this check into key destruction on a
 /// perfectly healthy lease.
+///
+/// A snapshot that reports **no** active lease is not, by itself, evidence of a
+/// successor. The renew that preceded this call applied against the authority's
+/// clock, and the lease can lapse between that renew and this snapshot -- an
+/// authority clock jump, or simply the round trip taking longer than the lease
+/// had left. Fencing on that alone was permanent and unrecoverable, with nobody
+/// else ever having held the lease. So the lapse is told apart from a takeover
+/// by the same proof `recover_expired_lease` relies on: the authority's
+/// `lease_generation` advances on acquire alone, so while it still equals our
+/// fence's generation no other instance has acquired since we did, and the
+/// lease merely lapsed. That is a coverage lapse -- transient, and recovered by
+/// the next guarded operation's renew, which the authority will reject as
+/// expired and `recover_expired_lease` will re-acquire. Only an active lease
+/// under a different fence, or a generation that has moved past ours, proves a
+/// successor and fences.
 fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     fence: InstanceFenceV2,
@@ -2002,10 +2095,31 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
     let anchor = Instant::now();
     let snapshot = authority_snapshot(&inner.authority)?;
     let Some(active) = snapshot.active_lease() else {
-        // The authority reports no unexpired lease at all, so this instance is
-        // not the holder and cannot become one without a fresh acquire.
-        fence_out(inner)?;
-        return Err(AgentError::InstanceFenced);
+        return match snapshot.lease_generation().cmp(&fence.generation()) {
+            // Nobody has acquired since we did: the lease lapsed, and no
+            // successor exists. Not a fence. The error aborts the operation
+            // before anything is retained, and the previous operation's proof
+            // is cleared so the field never claims coverage this snapshot just
+            // contradicted.
+            core::cmp::Ordering::Equal => {
+                inner.lease.covered_until = None;
+                Err(AgentError::InstanceLeaseCoverageElapsed)
+            }
+            // A later acquire happened -- even one that has since released or
+            // expired -- so another instance held key-use authority after us.
+            core::cmp::Ordering::Greater => {
+                fence_out(inner)?;
+                Err(AgentError::InstanceFenced)
+            }
+            // The authority's generation is *behind* the one it issued us. It
+            // has been rolled back beneath a lease it already granted, which
+            // means it could grant our generation again to someone else. That
+            // lease can no longer be trusted; fail closed.
+            core::cmp::Ordering::Less => {
+                fence_out(inner)?;
+                Err(AgentError::InstanceFenced)
+            }
+        };
     };
     if active.fence() != fence {
         fence_out(inner)?;
@@ -2022,9 +2136,18 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
 /// Refuse to retain or return a secret once the proven coverage has elapsed.
 ///
 /// The lease is checked on the way in, but the work that follows is not
-/// instantaneous: a witness round trip, two signature verifications, and a KEM
-/// operation all sit between that check and the point where a secret first
-/// becomes retained. This is that point.
+/// instantaneous: a witness round trip, two signature verifications, a KEM
+/// operation, and finally a durable reservation or release -- a real fsync --
+/// all sit between that check and the point where a secret first becomes
+/// retained.
+///
+/// It is therefore consulted twice. Once before the durable write, as an
+/// early-out that avoids paying for an fsync the operation is about to
+/// discard. And once more *after* it, immediately before the in-memory
+/// insert that makes the secret reachable (`reserve_pending`,
+/// `retain_accepted_key`). The second check is the guarantee; the first is an
+/// optimisation. What remains between the second check and retention is a
+/// hash-map insert, not I/O.
 ///
 /// It deliberately does not fence. A local deadline running out is no evidence
 /// that any successor exists, and fencing is permanent.

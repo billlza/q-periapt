@@ -58,10 +58,26 @@ impl OwnedPrivateDirectory {
 /// can be passed directly to a storage adapter without reopening by path.
 #[cfg(unix)]
 pub(crate) fn open_private_file(path: &Path, create: bool) -> Result<File, PrivateFileError> {
+    let (parent, filename) = open_private_parent(path)?;
+    open_private_leaf(&parent, filename, create)
+}
+
+/// Open (or atomically create) one leaf beneath an already-pinned parent.
+///
+/// Every filesystem action -- the `openat`, the validation, and the failure
+/// unlink -- goes through `parent`'s descriptor, so nothing here ever
+/// re-resolves the path by name. Splitting this out of [`open_private_file`]
+/// lets [`provision_private_file`] reuse the *same* pinned parent for its own
+/// post-initialization cleanup.
+#[cfg(unix)]
+fn open_private_leaf(
+    parent: &OwnedPrivateDirectory,
+    filename: &std::ffi::OsStr,
+    create: bool,
+) -> Result<File, PrivateFileError> {
     use rustix::fs::{fstat, openat, FileType, Mode, OFlags};
     use rustix::process::geteuid;
 
-    let (parent, filename) = open_private_parent(path)?;
     let mut flags = OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOFOLLOW;
     if create {
         flags |= OFlags::CREATE | OFlags::EXCL;
@@ -108,6 +124,49 @@ pub(crate) fn open_private_file(path: &Path, create: bool) -> Result<File, Priva
             Err(error)
         }
     }
+}
+
+/// Refuse a redb store file that was left unclean by a writer other than this
+/// crate's stores, before the file is handed to redb at all.
+///
+/// Every commit the three stores make is two-phase, and that is the premise
+/// of letting redb finish crash recovery on open: with two-phase commit redb
+/// never falls back to the older commit slot. A file whose recovery flag is
+/// set but whose two-phase flag is clear was last written by something else
+/// -- a stock redb writer, or a regression that dropped `set_two_phase_commit`
+/// -- and redb would recover it through the slot-picking branch that this
+/// crate's safety argument excludes. It is refused untouched instead. A file
+/// too short to carry the header is left for redb to reject.
+///
+/// Layout (redb 2.6 file format v2): nine magic bytes, then the god byte at
+/// offset 9 with bit 2 = recovery required and bit 4 = two-phase commit.
+#[cfg(unix)]
+pub(crate) fn refuse_unclean_foreign_redb(file: &File) -> Result<(), PrivateFileError> {
+    use std::os::unix::fs::FileExt;
+
+    const GOD_BYTE_OFFSET: u64 = 9;
+    const RECOVERY_REQUIRED: u8 = 2;
+    const TWO_PHASE_COMMIT: u8 = 4;
+
+    let mut god = [0u8; 1];
+    match file.read_at(&mut god, GOD_BYTE_OFFSET) {
+        Ok(1) => {}
+        Ok(_) => return Ok(()),
+        Err(_) => return Err(PrivateFileError),
+    }
+    let unclean = god[0] & RECOVERY_REQUIRED != 0;
+    let two_phase = god[0] & TWO_PHASE_COMMIT != 0;
+    if unclean && !two_phase {
+        return Err(PrivateFileError);
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub(crate) fn refuse_unclean_foreign_redb(_: &File) -> Result<(), PrivateFileError> {
+    // No store file can be opened on this platform (see `open_private_file`),
+    // so there is nothing to inspect.
+    Ok(())
 }
 
 /// Open the authenticated parent capability and return its single leaf name.
@@ -228,17 +287,104 @@ pub(crate) fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileEr
 ///
 /// The removal is best effort and the caller still receives the original error,
 /// which is the one that explains what actually went wrong.
+///
+/// The parent is pinned once and both the create and the cleanup unlink go
+/// through that single descriptor. The cleanup therefore removes the exact leaf
+/// this call created, never a same-named file reached by re-resolving `path`:
+/// an initialization closure that (or an adversary who) replaces an ancestor of
+/// the leaf after it is created cannot redirect the removal onto an unrelated
+/// file. `std::fs::remove_file(path)` re-resolved every component by name and
+/// could do exactly that.
+#[cfg(unix)]
 pub(crate) fn provision_private_file<T, E>(
     path: &Path,
     on_open_failure: impl FnOnce(PrivateFileError) -> E,
     initialize: impl FnOnce(File) -> Result<T, E>,
 ) -> Result<T, E> {
-    let file = open_private_file(path, true).map_err(on_open_failure)?;
+    let (parent, filename) = match open_private_parent(path) {
+        Ok(pair) => pair,
+        Err(error) => return Err(on_open_failure(error)),
+    };
+    let file = match open_private_leaf(&parent, filename, true) {
+        Ok(file) => file,
+        Err(error) => return Err(on_open_failure(error)),
+    };
     match initialize(file) {
         Ok(provisioned) => Ok(provisioned),
         Err(error) => {
-            let _ = std::fs::remove_file(path);
+            let _ =
+                rustix::fs::unlinkat(&parent.descriptor, filename, rustix::fs::AtFlags::empty());
             Err(error)
         }
+    }
+}
+
+#[cfg(not(unix))]
+pub(crate) fn provision_private_file<T, E>(
+    path: &Path,
+    on_open_failure: impl FnOnce(PrivateFileError) -> E,
+    _initialize: impl FnOnce(File) -> Result<T, E>,
+) -> Result<T, E> {
+    // Provisioning depends on the Unix descriptor-relative boundary; a
+    // platform adapter is required before any leaf can be created safely.
+    let _ = path;
+    Err(on_open_failure(PrivateFileError))
+}
+
+#[cfg(all(test, unix))]
+mod cleanup_boundary {
+    use super::*;
+    use std::io;
+    use std::os::unix::fs::{symlink, DirBuilderExt, PermissionsExt};
+
+    /// A failed initialization must unlink the exact leaf it created, even when
+    /// the initialization replaced the leaf's parent with a symlink to an
+    /// unrelated directory holding a same-named file. The unrelated file must
+    /// survive, and the created leaf must be gone.
+    #[test]
+    fn failed_provision_cleanup_keeps_the_pinned_parent() -> Result<(), io::Error> {
+        let temporary = tempfile::Builder::new()
+            .prefix("private-file-cleanup-")
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()?;
+        let root = temporary.path().canonicalize()?;
+        let original_parent = root.join("service");
+        let moved_parent = root.join("moved-service");
+        let replacement_parent = root.join("unrelated");
+        for directory in [&original_parent, &replacement_parent] {
+            std::fs::DirBuilder::new().mode(0o700).create(directory)?;
+        }
+        let original_path = original_parent.join("state.redb");
+        let unrelated_file = replacement_parent.join("state.redb");
+        std::fs::write(&unrelated_file, b"unrelated existing file")?;
+        let outcome: Result<(), io::Error> = provision_private_file(
+            &original_path,
+            |_| io::Error::other("open failed before the probe could run"),
+            |created| {
+                // Swap the pinned parent out from under the path name after the
+                // leaf is created, then fail. A by-name cleanup would follow the
+                // symlink into `replacement_parent`.
+                std::fs::rename(&original_parent, &moved_parent)?;
+                symlink(&replacement_parent, &original_parent)?;
+                drop(created);
+                Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "injected initialization failure after path replacement",
+                ))
+            },
+        );
+        assert_eq!(
+            outcome.expect_err("initialization must fail").kind(),
+            io::ErrorKind::Interrupted
+        );
+        assert!(
+            unrelated_file.exists(),
+            "cleanup followed the swapped path and deleted the unrelated file"
+        );
+        assert!(
+            !moved_parent.join("state.redb").exists(),
+            "cleanup did not remove the leaf it actually created"
+        );
+        Ok(())
     }
 }

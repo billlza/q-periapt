@@ -12,7 +12,7 @@ use q_periapt_migration::{
 use redb::{Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition};
 
 use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
-use crate::filesystem::{open_private_file, provision_private_file};
+use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
 use crate::types::{
     FenceToken, OperationId, SessionId, StateAdvance, StateHead, StateRevision, TransitionKind,
 };
@@ -82,7 +82,9 @@ impl MigrationTrustRoots {
 pub enum RepositoryError {
     /// The database path was missing, a symlink, or outside an owner-only directory.
     InsecureOrMissingStore,
-    /// The database was corrupt, repaired, incomplete, or had an unknown schema.
+    /// The database was corrupt (a corrupted two-phase primary included), left
+    /// unclean by a writer that did not commit two-phase, incomplete, or had an
+    /// unknown schema.
     CorruptStore,
     /// A signed state/reset envelope was malformed, non-canonical, or unauthenticated.
     InvalidCertificate,
@@ -163,6 +165,13 @@ pub struct StateRepository {
     roots: MigrationTrustRoots,
     pending: Option<PreparedTransition>,
     restart_rejections: u64,
+    /// Test-only: sleep this long after the next durable session reserve or
+    /// release commits, standing in for a slow fsync. The lease-coverage check
+    /// that runs after those writes is only meaningful if the write can
+    /// outlive the coverage, and nothing in a test can make a real fsync do
+    /// that on demand.
+    #[cfg(all(test, unix))]
+    delay_after_next_durable_write: std::sync::Mutex<Option<std::time::Duration>>,
 }
 
 impl fmt::Debug for StateRepository {
@@ -240,6 +249,8 @@ impl StateRepository {
                         roots,
                         pending: None,
                         restart_rejections: 0,
+                        #[cfg(all(test, unix))]
+                        delay_after_next_durable_write: std::sync::Mutex::new(None),
                     },
                     head,
                 ))
@@ -248,9 +259,18 @@ impl StateRepository {
     }
 
     /// Open and fully replay an existing store. Missing/corrupt state never becomes genesis.
+    ///
+    /// redb is allowed to finish crash recovery first. Every commit here is
+    /// two-phase, so after an unclean shutdown that recovery only reconstructs
+    /// the free-page allocator from the committed tree; a corrupted two-phase
+    /// primary is refused outright rather than rolled back, and committed data
+    /// is never altered. The canonical history is then decoded and reverified
+    /// in full below, and the head is compared against the witness on every
+    /// agent start, so what this store replays is what was committed.
     pub fn open_existing(path: &Path, roots: MigrationTrustRoots) -> Result<Self, RepositoryError> {
         let file =
             open_private_file(path, false).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
+        refuse_unclean_foreign_redb(&file).map_err(|_| RepositoryError::CorruptStore)?;
         let mut database = Database::builder()
             .create_file(file)
             .map_err(|_| RepositoryError::CorruptStore)?;
@@ -280,7 +300,44 @@ impl StateRepository {
             roots,
             pending,
             restart_rejections,
+            #[cfg(all(test, unix))]
+            delay_after_next_durable_write: std::sync::Mutex::new(None),
         })
+    }
+
+    /// Test-only: make the next durable session reserve or release take this
+    /// long after it commits, the way a slow fsync would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_after_next_durable_write_for_test(&self, delay: std::time::Duration) {
+        *self
+            .delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned") = Some(delay);
+    }
+
+    #[cfg(all(test, unix))]
+    fn sleep_after_durable_write_for_test(&self) {
+        let pending = self
+            .delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned")
+            .take();
+        if let Some(delay) = pending {
+            std::thread::sleep(delay);
+        }
+    }
+
+    /// Test-only: number of durable session reservations currently held.
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_session_count_for_test(&self) -> Result<u64, RepositoryError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        let sessions = transaction
+            .open_table(SESSION_TABLE)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        sessions.len().map_err(|_| RepositoryError::CorruptStore)
     }
 
     /// Return the exact durable head.
@@ -516,7 +573,10 @@ impl StateRepository {
         }
         transaction
             .commit()
-            .map_err(|_| RepositoryError::CorruptStore)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_durable_write_for_test();
+        Ok(())
     }
 
     /// Release a session only if both its reservation and repository head remain exact.
@@ -559,7 +619,10 @@ impl StateRepository {
         }
         transaction
             .commit()
-            .map_err(|_| RepositoryError::CorruptStore)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_durable_write_for_test();
+        Ok(())
     }
 
     /// Cancel and erase a durable reservation, including one made stale by a transition.

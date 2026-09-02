@@ -16,8 +16,18 @@ execution fallback.
 
 The local repository uses pinned `redb` 2.6.3 transactions with immediate
 durability and two-phase commit. `redb` is pure Rust, ACID, crash-recoverable,
-MSRV 1.85, and licensed `MIT OR Apache-2.0`. It is deliberately not treated as a
-rollback anchor: restoring the whole database file restores all of its history.
+MSRV 1.85, and licensed `MIT OR Apache-2.0`. After an unclean shutdown all
+three stores -- repository, witness, and authority -- let `redb` finish its
+crash recovery on open. That is every restart, not only a crash: the daemons
+are stopped by the service manager's signal, and only a fatal serving error
+ever returns and closes a store cleanly. Because every commit is two-phase,
+that recovery only reconstructs the free-page allocator from the committed
+tree: `redb` refuses a corrupted two-phase primary outright rather than falling
+back to an older commit, so committed data is never altered by it. A store
+left unclean by a writer that did not commit two-phase is refused untouched
+before `redb` sees it. `redb` is deliberately not
+treated as a rollback anchor: restoring the whole database file restores all of
+its history.
 Every open, transition, and key release therefore requires an authenticated
 external `WitnessPort`. There is no local-only fallback.
 
