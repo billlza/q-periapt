@@ -627,16 +627,6 @@ fn an_authority_rolled_back_behind_our_generation_is_a_fence() -> TestResult {
     Ok(())
 }
 
-/// The cheapest lease-guarded operation: it renews, journals, and then fails
-/// on the absence of a pending transition before touching anything else.
-fn drive_one_lease_renew(agent: &PolicyAgent<MemoryWitness, MemoryAuthority>) -> TestResult {
-    assert_eq!(
-        agent.reconcile_transition().err(),
-        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
-    );
-    Ok(())
-}
-
 #[test]
 fn a_lease_intent_journaled_but_never_dispatched_is_forgotten_at_the_next_start() -> TestResult {
     // The journal row is written before the dispatch, so a crash between the

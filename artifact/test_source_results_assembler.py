@@ -467,10 +467,10 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         installed = copy.deepcopy(initial)
         installed["proof_to_byte_inputs"] = _proof_inputs(installed=True)
 
-        self.assertEqual(247, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
-        self.assertEqual(57, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
+        self.assertEqual(249, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
+        self.assertEqual(59, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
         self.assertEqual(190, len(initial["proof_to_byte_inputs"]))
-        self.assertEqual(247, len(installed["proof_to_byte_inputs"]))
+        self.assertEqual(249, len(installed["proof_to_byte_inputs"]))
         self.assertEqual(
             set(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS),
             set(installed["proof_to_byte_inputs"])
@@ -517,7 +517,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
 
         if set(inputs) == current_keys:
             # Installed successor state (source_ci_gate's installed dispatch).
-            self.assertEqual(247, len(inputs))
+            self.assertEqual(249, len(inputs))
             self.assertNotEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
             for key, digest in inputs.items():
                 self.assertTrue(key.endswith("_sha256"), key)
@@ -1612,7 +1612,7 @@ class ReopenSourceTests(unittest.TestCase):
     """Cover the current-to-current reopen reverse transform.
 
     Inputs are the real coordinated publication fixtures (a valid pending or
-    verified installed manifest), expanded to the 247-key proof-input set. The
+    verified installed manifest), expanded to the 249-key proof-input set. The
     transform must reduce a valid pending installed manifest to the exact
     190-key/five-frozen-leaf initial baseline, and refuse fail-closed a
     non-installed input, dropping a verified (published-immutable) leaf, or an
@@ -1636,7 +1636,7 @@ class ReopenSourceTests(unittest.TestCase):
         candidate = assembler._build_reopen_candidate(
             installed, self._current_digests()
         )
-        # 247 -> 190 proof inputs, 7 -> the five frozen historical leaves.
+        # 249 -> 190 proof inputs, 7 -> the five frozen historical leaves.
         self.assertEqual(len(candidate["proof_to_byte_inputs"]), 190)
         self.assertEqual(
             set(candidate["release_publications"]),
@@ -1660,7 +1660,7 @@ class ReopenSourceTests(unittest.TestCase):
         # A valid pending fixture carries only the 190-key baseline.
         installed = pending_manifest_fixture(frozen_baseline_manifest())
         with self.assertRaisesRegex(
-            assembler.SourceResultsAssemblerError, "247-key"
+            assembler.SourceResultsAssemblerError, "249-key"
         ):
             assembler._build_reopen_candidate(installed, self._current_digests())
 

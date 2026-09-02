@@ -66,6 +66,7 @@ type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 mod durable_store;
 mod ipc;
 mod lease;
+mod lease_journal;
 mod session;
 mod transition;
 mod witness_protocol;
@@ -1146,6 +1147,16 @@ fn initiator_encapsulation(
             Err(io::Error::other("initiator returned responder begin state").into())
         }
     }
+}
+
+/// The cheapest lease-guarded operation: it renews, journals, and then fails
+/// on the absence of a pending transition before touching anything else.
+fn drive_one_lease_renew(agent: &PolicyAgent<MemoryWitness, MemoryAuthority>) -> TestResult {
+    assert_eq!(
+        agent.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    Ok(())
 }
 
 fn responder_encapsulation(

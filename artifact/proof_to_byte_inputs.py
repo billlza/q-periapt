@@ -160,6 +160,8 @@ PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "migration_agent_tests_session_sha256": "services/q-periapt-policy-agent/src/tests/session.rs",
     "migration_agent_tests_transition_sha256": "services/q-periapt-policy-agent/src/tests/transition.rs",
     "migration_agent_tests_witness_protocol_sha256": "services/q-periapt-policy-agent/src/tests/witness_protocol.rs",
+    "migration_agent_service_lease_sha256": "services/q-periapt-policy-agent/src/service/lease.rs",
+    "migration_agent_tests_lease_journal_sha256": "services/q-periapt-policy-agent/src/tests/lease_journal.rs",
     "hqc_candidate_readme_sha256": "research/hqc-fips207-candidate/README.md",
     "hqc_candidate_manifest_sha256": "research/hqc-fips207-candidate/Cargo.toml",
     "hqc_candidate_lock_sha256": "research/hqc-fips207-candidate/Cargo.lock",
