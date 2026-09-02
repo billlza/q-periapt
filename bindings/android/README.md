@@ -46,8 +46,8 @@ build-tools 36.0.0, and release mode:
 set -eu
 sh artifact/android-aar.sh
 
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.4/q-periapt-android-0.1.4.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.4/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
 avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
 avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py runtime-avd-name \
   --adb-profile macos-account --device-abi arm64-v8a)
@@ -94,8 +94,8 @@ requires an exact serial and must reuse the same clean-source AAR and manifest; 
 canonical AVD in `artifact/results.json`, the release index, or manifest-bound `proof-to-byte`:
 
 ```sh
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.4/q-periapt-android-0.1.4.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.4/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
 QPERIAPT_ANDROID_SERIAL=<adb-serial> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
@@ -263,15 +263,22 @@ release proof nor physical-device production evidence.
 
 ## Stable AAR publication transaction
 
-The stable transaction targets a prebuilt AAR in `abi2-platforms-v0.1.4`, which
-requires `prerelease=false` and becomes immutable only after publication:
+The stable transaction published a prebuilt AAR in `abi2-platforms-v0.1.4`, a
+non-prerelease GitHub release that is now published and immutable. This tree is the open
+`0.1.5` source line and has produced no `0.1.5` platform release, tag, or prebuilt
+AAR, so a consumer wanting a published binary still takes the
+`abi2-platforms-v0.1.4` asset. That release carries
 one AAR containing `arm64-v8a`,
 `armeabi-v7a`, `x86`, and `x86_64` JNI libraries built with stable NDK r29 and
 Rust 1.96.1. Every ELF has 16 KiB load alignment, the exact nine-symbol ABI 2
 export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
 verified release also binds a runtime-evidence bundle that executed the exact public AAR on
 the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
-16 KiB pages. Public/current status requires the stable verified receipt; the historical published receipt remains schema v3
+16 KiB pages. Public/current status requires the stable verified receipt; the `0.1.4`
+platform receipt is recorded at the annotated tag `v0.1.4-verified-cohort` rather than
+on `main`, whose `artifact/results.json` the `0.1.5` reopening returned to its initial
+baseline, so `main`'s trusted results record no `0.1.4` publication; the published
+release itself is immutable and unaffected. The historical published receipt remains schema v3
 for alpha.2, while current source-tree runs require schema v6
 and do not retroactively change an immutable release. Verify the AAR and its manifest with `gh release verify-asset`
 against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see

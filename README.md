@@ -4,21 +4,28 @@
 
 > [!WARNING]
 > **Status: stable-version ABI 2 source line / receipt-gated GitHub publication /
-> 0.1.4 crates.io publication pending / doctoral-thesis project (v0.1.4, ABI 2).**
-> This line succeeds the fully published `0.1.3` release (GitHub `v0.1.3` and
-> `abi2-platforms-v0.1.3` immutable releases plus the ten `0.1.3` crates on
-> crates.io). The formal stable GitHub transactions use the Apple XCFramework tag `v0.1.4`
-> and the `abi2-platforms-v0.1.4` platform tag (Android AAR and GNU/Linux
+> 0.1.5 crates.io publication pending / doctoral-thesis project (v0.1.5, ABI 2).**
+> This line succeeds the fully published `0.1.4` release (GitHub `v0.1.4` and
+> `abi2-platforms-v0.1.4` immutable releases published 2026-08-30, plus the ten
+> `0.1.4` crates on crates.io). That release's verified cohort is recorded at the
+> annotated `v0.1.4-verified-cohort` tag rather than on `main`: reopening the source
+> line returns [`artifact/results.json`](artifact/results.json) to its initial
+> baseline, so `main`'s trusted results record no 0.1.4 publication at all and still
+> carry `apple_v0_1_3` as the active Apple selector. That is a statement about where
+> the evidence lives, not about whether 0.1.4 shipped — the published GitHub and
+> crates.io records are immutable and unaffected.
+> The formal stable GitHub transactions use the Apple XCFramework tag `v0.1.5`
+> and the `abi2-platforms-v0.1.5` platform tag (Android AAR and GNU/Linux
 > x86_64/aarch64 SDK archives); each is a non-prerelease public immutable release
 > only after the current verified receipt records that outcome — see
 > [Stable release targets](#stable-release-targets-and-published-history-abi-2). The coordinated
-> “stable” label does not claim Rust API 1.0 compatibility: SemVer `0.1.4` remains
-> a Rust `0.x` line, while C ABI 2 and the ten exact internal `=0.1.4` dependency
+> “stable” label does not claim Rust API 1.0 compatibility: SemVer `0.1.5` remains
+> a Rust `0.x` line, while C ABI 2 and the ten exact internal `=0.1.5` dependency
 > edges are frozen for this release. The coordinated
-> `0.1.4` Rust crate set is only pre-publication package-ready: its contract performs no upload
+> `0.1.5` Rust crate set is only pre-publication package-ready: its contract performs no upload
 > and does not prove crates.io upload-API acceptance, crate-name ownership, publishing
 > credentials or authorization, server-side policy acceptance, or a registry receipt.
-> No `0.1.4` registry receipt (crates.io, Maven Central, deb/rpm/MSIX) and no Windows
+> No `0.1.5` registry receipt (crates.io, Maven Central, deb/rpm/MSIX) and no Windows
 > Authenticode signing is claimed. The unsigned Windows package remains a separate,
 > unsupported CI diagnostic and is not a stable candidate or release asset. The authoritative
 > tags, artifact hashes, distribution-signature/notarization-applicability status, and currentness live in
@@ -95,7 +102,7 @@ selected by policy, and is explicit about the trade between them:
 | **`ContextBound`** | domain tag + length-prefixed *every* shared secret, ciphertext, public key, **and** an external context (transcript / suite / policy version) | strictly **slower** (more SHA3 input → more Keccak blocks); a deliberate robustness trade, **not** a speed win | default profile; expanded/imported keys, backends without a mapped C2PRI/API proof, or when maximal binding / downgrade resistance is required |
 
 The library core keeps both profiles for comparison and KAT research. The current
-`0.1.4` stable-version ABI 2 source boundary deliberately exposes only `ContextBound`: its nine-symbol C
+`0.1.5` stable-version ABI 2 source boundary deliberately exposes only `ContextBound`: its nine-symbol C
 surface requires a signed-policy decision, obtains key-generation and encapsulation
 randomness from the operating system, and does not export raw hybrid, deterministic
 seed/coins, X-Wing, or combiner entry points.
@@ -383,7 +390,7 @@ frozen phase-1 bytes remain in
 
 Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned, not started.
 
-| Dimension | Target | Today (v0.1.4 stable-version ABI 2 source line) |
+| Dimension | Target | Today (v0.1.5 stable-version ABI 2 source line) |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented shared secure-wipe block; builds `thumbv7em-none-eabihf`) |
 | Hybrid KEM | ML-KEM-768 + X25519, with independently bounded algorithm-diversity research | ✅ ML-KEM-768 through the target-selected `q-periapt-mlkem-native-sys` boundary (`mlkem-native` v1.2.0) + X25519 (x25519-dalek) are wired. Exactly five little-endian AArch64 Apple/Linux/Android targets use the fixed native arithmetic/FIPS 202 profile; every other target, including Wasm, stays portable C. Real hybrid encap/decap round-trips run under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend. The **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently cross-checked KAT) and is `ContextBound`-only. **ML-KEM-512** (L1) also has a verified backend, so the FIPS-203 family (512/768/1024) is ACVP + differential covered for agility. The old timing-leaky/unmaintained PQClean-HQC adapter and `hqc` feature are gone from the publishable graph; suite code `3` is tombstoned. RustCrypto `hqc-kem 0.1.0-rc.0` lives only in the `publish = false` HQC-v5/FIPS-207-draft shadow crate, with deterministic round-trip/size research tests but no product-suite, ABI, official-IPD-conformance, or final-standard claim. |
@@ -394,8 +401,8 @@ Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned,
 | Authenticated migration contract | canonical commitment plus bounded authenticated-transition research above ABI 2 | 🟡 phase 1 is frozen; the `publish = false` V2 reference candidate implements typed transition/state/decision bytes and a process-service reference whose role-specific typestates follow Tamarin's I -> responder accept/R -> initiator accept order independently of KEM direction. R is exposed only after durable reservation release and same-process key/cache retention. IPC is schema/domain V2 only; new-nonce exact replay can recover a lost response only while the same process/key lives, never across restart. Independent vectors and bounded MIG-BIND/MIG-ROLLBACK/MIG-AGREE/MIG-FLOOR model gates remain research evidence. It does **not** change ABI 2 or establish production permissions, protected-witness durability, hostile-host isolation, device interoperability, unbounded-state security, crash-durable accepted keys/responses, or formal-to-Rust refinement. |
 | KATs / differential tests | MLKEM768-X25519 draft history + current CFRG draft + FIPS 203 ACVP vectors, multi-backend differential | 🟡 the 3 official historical `draft-connolly-cfrg-xwing-kem-10` vectors remain byte-exact. The official MLKEM768-X25519 vector in CFRG `concrete-hybrid-kems-04` Appendix B.2 (repository vector-0 fixture) checks keygen, encapsulation, and decapsulation. A separate locally derived same-length ciphertext mutation checks deterministic implicit rejection; that invalid-ciphertext result is not an official-vector oracle. This is draft conformance, not an RFC or full-vector-set claim. **Multi-backend differential PASSES** (`src/differential.rs`) — the target-selected release-graph `mlkem-native` ML-KEM-512/768/1024 vs RustCrypto `ml-kem`, X25519 vs `orion` + RFC 7748, and the full `HybridKem` reconstructed with independent ML-KEM/X25519 components while using the same RustCrypto SHA3 implementation; the independent official/reference KATs separately protect the combiner bytes. Release-graph `fips204` ML-DSA-44/65/87 is compared with RustCrypto `ml-dsa` (byte-identical keygen + signatures, cross-verification both directions, tamper rejection). **NIST ACVP** ground-truth conformance PASSES (`src/acvp.rs`) for ML-KEM-512/768/1024 (60 cases each, incl. implicit rejection) and ML-DSA-44/65/87 external/pure deterministic + hedged, non-empty-context, and HashML-DSA SHAKE-128 pre-hash modes. Internal-interface vectors are retained but deliberately unwired and do not count as passing cases; `externalMu=true`, internal μ-entry, and non-SHAKE128 pre-hash modes remain out of scope. **SLH-DSA-SHA2-{128,192,256}s** (FIPS 205) also have NIST ACVP conformance under the `slh-dsa` feature. |
 | Side-channel CI | indistinguishability gate + binary-CT matrix; dudect local diagnostic | 🟡 failure-path indistinguishability / implicit rejection is a **hard gate** (`ctstats/`); the CI contract runs `ct_verify` plus self-validating ML-KEM-512/768/1024 shipped-provider decapsulation probes under Valgrind/Memcheck-TIMECOP on x86_64 + aarch64. Each ŝ+z probe requires exact zero reports and its planted control must report positive. `fips203` failed the cited historical run and was replaced; portable-only `mlkem-native` results captured before target selection are historical. Fresh x86_64-portable and aarch64-native source-bound runs and receipts are required. Dudect timing is local-only, other primitive paths are not covered, and riscv64/wasm32 remain unverified at binary level. |
-| Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | 🟡 CI `cross` builds the core/KEM across the declared ISA targets and `no_std` builds `thumbv7em-none-eabihf`. The tag-bound `abi2-platforms-v0.1.4` pipeline rebuilds the formal Linux x86_64/aarch64 SDK archives (GLIBC 2.35 ceiling, SONAME/pkg-config/CMake consumers). Windows x64 MSVC still builds and is exercised under PE/REPRO, producer-path-scan, and `/W4 /WX` gates, but remains an unsigned unsupported diagnostic outside the formal candidate, manifest, attestation, receipt, and release assets. riscv64/wasm32/embedded remain build-only lanes without packaged release evidence. |
-| FFI / bindings | C ABI + Swift + Kotlin/JVM + Android AAR/JNI + WASM | 🟡 the stable-version **ABI 2** source/crate contract has nine exact dynamic `q_periapt_*` exports: metadata (5), signed-policy decision, OS-CSPRNG atomic key generation, OS-CSPRNG encapsulation, and decapsulation. The first dynamically allocated Rust-owned policy-bound context copy has one `ZeroizingVec` RAII owner established before allocation and is wiped on normal return, error, or unwind; caller buffers, marshalling copies, registers, paging, and abort remain outside that guarantee. Static archives constrain that public namespace but retain unsupported hidden bridge link symbols and therefore assume a trusted same-process consumer. The Apple stable lane publishes a Developer ID-signed, exact-static-only XCFramework ZIP for macOS/iOS `binaryTarget` consumption under `v0.1.4`. Apple notarization is not applicable to this SDK payload because it contains no standalone executable or notarizable bundle; the final consuming macOS product still requires its own signing and notarization. That asset is an Apple-only SDK, not a production binary or a complete Git-URL Swift package. The companion `abi2-platforms-v0.1.4` target contains the four-ABI Android AAR (with an API 35 / 16 KiB-page emulator runtime-evidence bundle) and GNU/Linux x86_64+aarch64 SDK archives. Current public status is recorded in `artifact/results.json`. Physical-device and current-source performance evidence remain separately scoped and pending, and historical proofs are not promoted. Android JNI consumes rather than duplicates the contract. Deterministic/X-Wing/combine checks remain internal Rust/WASM conformance evidence rather than a native product bypass. The former `proc-macro-error2` advisory path was removed with `libcrux`/hax and `cargo audit --deny warnings` is clean, without an ignore, for the Rust dependency graph. RustSec does not audit the vendored C provider. Independent cryptographic/C-FFI/ABI review, same-source device/performance evidence, clean signed provenance, and platform distribution attestation remain production-promotion requirements; they are not claimed by the package version alone. |
+| Cross-platform build | ISAs: x86_64 / aarch64 / riscv64gc / wasm32 / embedded · OSes: Linux / macOS / Windows | 🟡 CI `cross` builds the core/KEM across the declared ISA targets and `no_std` builds `thumbv7em-none-eabihf`. The tag-bound `abi2-platforms-v0.1.5` pipeline rebuilds the formal Linux x86_64/aarch64 SDK archives (GLIBC 2.35 ceiling, SONAME/pkg-config/CMake consumers). Windows x64 MSVC still builds and is exercised under PE/REPRO, producer-path-scan, and `/W4 /WX` gates, but remains an unsigned unsupported diagnostic outside the formal candidate, manifest, attestation, receipt, and release assets. riscv64/wasm32/embedded remain build-only lanes without packaged release evidence. |
+| FFI / bindings | C ABI + Swift + Kotlin/JVM + Android AAR/JNI + WASM | 🟡 the stable-version **ABI 2** source/crate contract has nine exact dynamic `q_periapt_*` exports: metadata (5), signed-policy decision, OS-CSPRNG atomic key generation, OS-CSPRNG encapsulation, and decapsulation. The first dynamically allocated Rust-owned policy-bound context copy has one `ZeroizingVec` RAII owner established before allocation and is wiped on normal return, error, or unwind; caller buffers, marshalling copies, registers, paging, and abort remain outside that guarantee. Static archives constrain that public namespace but retain unsupported hidden bridge link symbols and therefore assume a trusted same-process consumer. The Apple stable lane publishes a Developer ID-signed, exact-static-only XCFramework ZIP for macOS/iOS `binaryTarget` consumption under `v0.1.5`. Apple notarization is not applicable to this SDK payload because it contains no standalone executable or notarizable bundle; the final consuming macOS product still requires its own signing and notarization. That asset is an Apple-only SDK, not a production binary or a complete Git-URL Swift package. The companion `abi2-platforms-v0.1.5` target contains the four-ABI Android AAR (with an API 35 / 16 KiB-page emulator runtime-evidence bundle) and GNU/Linux x86_64+aarch64 SDK archives. Current public status is recorded in `artifact/results.json`. Physical-device and current-source performance evidence remain separately scoped and pending, and historical proofs are not promoted. Android JNI consumes rather than duplicates the contract. Deterministic/X-Wing/combine checks remain internal Rust/WASM conformance evidence rather than a native product bypass. The former `proc-macro-error2` advisory path was removed with `libcrux`/hax and `cargo audit --deny warnings` is clean, without an ignore, for the Rust dependency graph. RustSec does not audit the vendored C provider. Independent cryptographic/C-FFI/ABI review, same-source device/performance evidence, clean signed provenance, and platform distribution attestation remain production-promotion requirements; they are not claimed by the package version alone. |
 | Transport / P99 | private-use rustls research groups, RFC 10024 baseline, HPKE-shaped demo, netem P99 harness | 🟡 `q-periapt-tls-demo` supplies a loopback server-authenticated hybrid handshake in two suites plus a report-only P99 bench. `q-periapt-rustls` exposes only private-use `0xFE01`/`0xFE02` research groups over the Q-Periapt combiner. Its Compat client expands the stable 32-byte seed once per in-flight handshake and retains the 2,400-byte (about 2.4 KiB) decapsulation key in a non-Clone zeroizing prepared owner through completion, avoiding rustls-side repeat key generation. This is process-local direct Rust integration: there is no global secret-key cache and no C-ABI surface. A feature-gated rustls/aws-lc RFC 10024 `0x11EC` contract is a separate comparison baseline; it neither uses nor validates Q-Periapt's combiner and is not independent cross-implementation interoperability evidence. |
 | Asynchronous identity/prekeys/ratchet/multi-device | component-conformant PQXDH + Triple Ratchet/SPQR reference plus a separately specified Sesame-compatible manager, followed by Continuity research deltas | 🟡 G1 partial: selected source revisions, a non-normative exact version+digest lifecycle model, candidate role-ordered Bootstrap/RootTransition bytes, and a strict four-quadrant `PrekeySelectionV1` with independent Python full-byte correspondence/frozen SHA3 vectors are present; there is no manifest verifier, lease/consumption/tombstone state, context-advance API, credential/prekey/directory protocol, production session crate, outer wire decoder, persistent ratchet, recovery adapter, key transparency, FS/PCS, interoperability, or deployment claim |
 | Auditability tooling | CBOM / SBOM / migration scanner | 🟡 `q-periapt-cli` workspace member emitting CycloneDX CBOM/SBOM in CI |
@@ -428,16 +435,30 @@ under the no-bypass tag ruleset but were never published; their correction shipp
 0.1.3 because stable tags are immutable and publication commits may change only
 `artifact/results.json`. The `v0.1.3` and `abi2-platforms-v0.1.3` releases then
 published for real — the first fully published stable line, including the ten
-`0.1.3` crates on crates.io — and `0.1.4` is its successor, not a correction
-(see the 0.1.0 through 0.1.3 history in
+`0.1.3` crates on crates.io — and `v0.1.4` and `abi2-platforms-v0.1.4` published in
+turn on 2026-08-30, together with the ten `0.1.4` crates, so 0.1.4 is now the current
+published stable set. `0.1.5` is 0.1.4's successor, not a correction
+(see the 0.1.0 through 0.1.4 history in
 [`artifact/stable-release-notes.md`](artifact/stable-release-notes.md)).
+
+The 0.1.4 verified cohort is recorded at the annotated `v0.1.4-verified-cohort` tag,
+not on `main`. Reopening the source line for the next version returns
+`artifact/results.json` to its initial baseline, which drops the pending 0.1.4
+leaves, and the receipt finalizer's release proof requires a results-only descendant
+of the 0.1.4 release commit, which `main`'s tip is not. Consequently `main`'s trusted
+results record no 0.1.4 publication and still carry `apple_v0_1_3` as the active
+Apple selector. The published GitHub and crates.io records are immutable and
+completely unaffected by this; it is a statement about where the evidence lives, not
+about whether 0.1.4 shipped.
 
 | Tag | Scope | Toolchain | Status |
 |---|---|---|---|
-| [`abi2-platforms-v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.4) | Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Stable target; current only with a verified receipt |
-| [`v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/v0.1.4) | Apple Developer ID-signed static XCFramework ZIP | Rust 1.96.1 | Stable target; current only with a verified receipt |
-| [`abi2-platforms-v0.1.3`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.3) | Published 2026-08-25 at results successor `69e64078`: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable predecessor; its frozen verified receipt keeps selecting the current public Apple/platform publications until the 0.1.4 receipts verify |
-| [`v0.1.3`](https://github.com/billlza/q-periapt/releases/tag/v0.1.3) | Published 2026-08-25 at results successor `69e64078`: Apple Developer ID-signed static XCFramework ZIP; the ten `0.1.3` crates are also published on crates.io | Rust 1.96.1 | Published immutable stable predecessor; its frozen verified receipt keeps selecting the current public Apple/platform publications until the 0.1.4 receipts verify |
+| [`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5) | Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Stable target; current only with a verified receipt |
+| [`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5) | Apple Developer ID-signed static XCFramework ZIP | Rust 1.96.1 | Stable target; current only with a verified receipt |
+| [`abi2-platforms-v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.4) | Published 2026-08-30: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable predecessor; its verified receipt is recorded at the annotated `v0.1.4-verified-cohort` tag, not on `main` |
+| [`v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/v0.1.4) | Published 2026-08-30: Apple Developer ID-signed static XCFramework ZIP; the ten `0.1.4` crates are also published on crates.io | Rust 1.96.1 | Published immutable stable predecessor; its verified receipt is recorded at the annotated `v0.1.4-verified-cohort` tag, not on `main`, so `main`'s trusted results record no 0.1.4 publication |
+| [`abi2-platforms-v0.1.3`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.3) | Published 2026-08-25 at results successor `69e64078`: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable release, superseded by `abi2-platforms-v0.1.4`; its frozen verified receipt nevertheless remains the platform selection recorded in `main`'s trusted results |
+| [`v0.1.3`](https://github.com/billlza/q-periapt/releases/tag/v0.1.3) | Published 2026-08-25 at results successor `69e64078`: Apple Developer ID-signed static XCFramework ZIP; the ten `0.1.3` crates are also published on crates.io | Rust 1.96.1 | Published immutable stable release, superseded by `v0.1.4`; its frozen verified receipt nevertheless remains the Apple selection recorded in `main`'s trusted results |
 | [`abi2-platforms-v0.1.2`](https://github.com/billlza/q-periapt/tree/abi2-platforms-v0.1.2) | Tagged 2026-08-23 at results successor `533a6d63`; the tag-triggered stable platform release run built a candidate that verified successfully and produced the platform assembly plus both pending receipts, but the first end-to-end coordinated GitHub-release publication run against real GitHub could not finalize because of several first-real-publish defects in the stable release publication and observation paths, so no release was published (defects since fixed on this source line) | Rust 1.96.1 | Historical: tagged, unpublished, superseded by `abi2-platforms-v0.1.3` |
 | [`v0.1.2`](https://github.com/billlza/q-periapt/tree/v0.1.2) | Tagged 2026-08-23; the 0.1.2 Apple and source publications were never finalized (no GitHub release, crates.io publication, or signed Apple distribution) | Rust 1.96.1 | Historical: tagged, unpublished, superseded by `v0.1.3` |
 | [`abi2-platforms-v0.1.1`](https://github.com/billlza/q-periapt/tree/abi2-platforms-v0.1.1) | Tagged 2026-08-22 at results successor `dc3fa303`; the tag-triggered stable platform release run 32572800739 built a candidate that verified successfully and produced the platform assembly plus both pending receipts, but the coordinated GitHub-release publication could not finalize because a latent argument bug in the publication receipt IO staging helper aborted the prepare step, so no release was published (defect since fixed on this source line) | Rust 1.96.1 | Historical: tagged, unpublished, superseded by `abi2-platforms-v0.1.2` |
@@ -529,10 +550,11 @@ The coordinated registry order is `q-periapt-mlkem-native-sys`, `q-periapt-core`
 `q-periapt-kem`, `q-periapt-sig`, `q-periapt-backends`, `q-periapt-policy`, then the
 `q-periapt-ffi` / `q-periapt-wasm` / `q-periapt-rustls` leaves; dependency-free
 `q-periapt-cli` may be published independently but remains in the same ten-crate version set.
-No crate has been uploaded to crates.io yet — the no-upload package contract defines the intended
+No `0.1.5` crate has been uploaded to crates.io — the no-upload package contract defines the intended
 surface and never invokes `cargo publish`. It does not prove crates.io upload-API acceptance,
 crate-name ownership, publishing credentials or authorization, server-side policy acceptance, or a
-registry receipt; registry publication remains a separate, unclaimed workstream.
+registry receipt; `0.1.5` registry publication remains a separate, unclaimed workstream, and the
+published `0.1.3` and `0.1.4` crate sets are not evidence for it.
 `artifact/local-release-index.sh`
 can then aggregate the existing C archive, Swift XCFramework zip, Android AAR, and optional
 sanitized runtime proof summaries into one local hash-bound index; release mode requires a clean
@@ -540,11 +562,12 @@ tree, while dirty trees must use diagnostic mode and are not public provenance. 
 [`docs/EMBEDDING_READINESS.md`](docs/EMBEDDING_READINESS.md) for the current package boundary.
 Swift has both a credential-free local XCFramework gate and a separate clean, detached-source
 Developer ID-signed static-SDK release lane; `artifact/results.json` decides whether a public Apple asset is
-current (the stable target is `v0.1.4`). The asset is binaryTarget material and does not turn `bindings/swift/Package.swift` into a
+current (the stable target is `v0.1.5`, while the Apple projection recorded in `main`'s trusted
+results remains the published `0.1.3` one). The asset is binaryTarget material and does not turn `bindings/swift/Package.swift` into a
 remote binary package. Its exact static-only layout has no notarizable executable; the consuming
 macOS product retains its own signing and notarization duty. Android's current source-bound AAR and
 its API 35 / 16 KiB-page emulator runtime-evidence bundle target the
-`abi2-platforms-v0.1.4` transaction; `artifact/results.json` separately
+`abi2-platforms-v0.1.5` transaction; `artifact/results.json` separately
 selects whether the public immutable receipt is verified and whether a clean-tree
 emulator rerun matches the live source digest (it goes stale after every
 source-changing commit), and an explicit physical-device policy remains open before a
@@ -706,7 +729,7 @@ Authoritative documents (refined as the code lands):
 - [`formal/easycrypt/README.md`](formal/easycrypt/README.md) — the mechanized binding proof: `BindingViaCR.ec`, scope, and how to reproduce `make check` ✅
 - [`docs/policy/default.policy.toml`](docs/policy/default.policy.toml) — example agility policy ✅
 - [`artifact/abi2-platform-release-notes.md`](artifact/abi2-platform-release-notes.md) — the published `abi2-platforms-v0.1.0-alpha.2-r2` scope, hardening evidence, verification commands, and explicit non-goals ✅
-- [`artifact/stable-release-notes.md`](artifact/stable-release-notes.md) — the ABI 2 `0.1.4` Apple/platform transaction, hardening scope, verification commands, and explicit non-goals ✅
+- [`artifact/stable-release-notes.md`](artifact/stable-release-notes.md) — the ABI 2 `0.1.5` Apple/platform transaction, hardening scope, verification commands, and explicit non-goals ✅
 - [`SECURITY.md`](SECURITY.md) — supported publications and vulnerability-reporting policy ✅
 
 ## License

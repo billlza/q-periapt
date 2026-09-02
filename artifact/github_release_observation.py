@@ -125,16 +125,16 @@ GITHUB_CLI_TEMP_ROOT = pathlib.Path("/tmp")
 GITHUB_CREDENTIAL_ENVIRONMENT = ("GH_TOKEN", "GITHUB_TOKEN")
 GITHUB_REPOSITORY = "billlza/q-periapt"
 STABLE_TAG_REFS = (
-    "refs/tags/v0.1.4",
-    "refs/tags/abi2-platforms-v0.1.4",
+    "refs/tags/v0.1.5",
+    "refs/tags/abi2-platforms-v0.1.5",
 )
 # Ruleset protection must keep every stable release tag immutable, not only the
 # current one: the earlier stable tags remain permanent history — the 0.1.0
-# through 0.1.2 pairs as tagged-unpublished history, and the v0.1.3 pair as the
-# first fully published stable line — so their update/deletion protection must
-# never silently lapse. State observation (absent/apple_only/exact transitions)
-# uses only the current STABLE_TAG_REFS above, but the protection observer
-# checks this full set.
+# through 0.1.2 pairs as tagged-unpublished history, and the v0.1.3 and v0.1.4
+# pairs as the two fully published stable lines — so their update/deletion
+# protection must never silently lapse. State observation
+# (absent/apple_only/exact transitions) uses only the current STABLE_TAG_REFS
+# above, but the protection observer checks this full set.
 PROTECTED_STABLE_TAG_REFS = (
     "refs/tags/v0.1.0",
     "refs/tags/abi2-platforms-v0.1.0",
@@ -146,6 +146,8 @@ PROTECTED_STABLE_TAG_REFS = (
     "refs/tags/abi2-platforms-v0.1.3",
     "refs/tags/v0.1.4",
     "refs/tags/abi2-platforms-v0.1.4",
+    "refs/tags/v0.1.5",
+    "refs/tags/abi2-platforms-v0.1.5",
 )
 MAX_TAG_RULESETS = 32
 MAX_STABLE_TAG_MATCHES = 64

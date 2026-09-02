@@ -37,7 +37,7 @@ MAX_COMPRESSION_RATIO = 100
 EXPECTED_IDENTITY_CLASS = "Developer ID Application"
 BUILD_PATH_HYGIENE_POLICY = "qperiapt.apple_static_archive_build_paths.v2"
 SYNTHETIC_BUILD_PATH_PREFIX = "/__qperiapt__/"
-PRODUCT_VERSION = "0.1.4"
+PRODUCT_VERSION = "0.1.5"
 RELEASE_REVISION = "r1"
 RELEASE_TAG = f"v{PRODUCT_VERSION}"
 RELEASE_URL = (
@@ -57,20 +57,36 @@ PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY: ReleaseIdentity = (
     "https://github.com/billlza/q-periapt/releases/tag/v0.1.0-alpha.2-r1",
 )
 # The 0.1.3 line published for real, so its identity is permanent history:
-# the frozen apple_v0_1_3 receipt — and the active selector, which carries
-# that frozen distribution until the v0.1.4 cohort verifies — still
-# projects the published v0.1.3 identity into trusted results.
+# the frozen apple_v0_1_3 receipt — and the active selector, which still
+# carries that frozen distribution in this repository's trusted results —
+# projects the published v0.1.3 identity into them.
 PUBLISHED_V0_1_3_RELEASE_IDENTITY: ReleaseIdentity = (
     "0.1.3",
     "r1",
     "v0.1.3",
     "https://github.com/billlza/q-periapt/releases/tag/v0.1.3",
 )
+# The 0.1.4 line also published for real -- the v0.1.4 and
+# abi2-platforms-v0.1.4 GitHub releases are live and immutable, and the ten
+# 0.1.4 crates are on crates.io -- but its verified cohort is recorded at the
+# annotated tag `v0.1.4-verified-cohort`, NOT in this branch's trusted
+# results: reopening the source line to its initial baseline dropped the two
+# pending 0.1.4 leaves, and the finalizer's release proof requires a
+# results-only descendant of R, which main's tip is not.  So the identity is
+# admitted here as published history, while `artifact/results.json` continues
+# to carry apple_v0_1_3 as the active selector.
+PUBLISHED_V0_1_4_RELEASE_IDENTITY: ReleaseIdentity = (
+    "0.1.4",
+    "r1",
+    "v0.1.4",
+    "https://github.com/billlza/q-periapt/releases/tag/v0.1.4",
+)
 TRUSTED_RESULTS_RELEASE_IDENTITIES = frozenset(
     {
         CURRENT_RELEASE_IDENTITY,
         PUBLISHED_ALPHA2_R1_RELEASE_IDENTITY,
         PUBLISHED_V0_1_3_RELEASE_IDENTITY,
+        PUBLISHED_V0_1_4_RELEASE_IDENTITY,
     }
 )
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"

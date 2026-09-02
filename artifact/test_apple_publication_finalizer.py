@@ -140,7 +140,7 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
             ),
         )
         if state == release_contract.PUBLICATION_STATE_SOURCE:
-            # The v0.1.4 source state (the live frozen-history manifest,
+            # The v0.1.5 source state (the live frozen-history manifest,
             # whose active cohort has not yet recorded) must sustain
             # itself under the finalizer's first-parent history gate.
             self.assert_history_transition(live, live)
@@ -220,7 +220,7 @@ class ApplePublicationFinalizerTests(unittest.TestCase):
     def test_cross_domain_source_identity_cannot_drift(self) -> None:
         changed = copy.deepcopy(self.pending)
         changed["release_publications"][
-            platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
+            platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
         ]["observation"]["source"]["tag_tree"] = "a" * 40
         self.assert_history_rejected(
             self.source,

@@ -78,12 +78,12 @@ LEGACY_ALPHA2_SWIFT_FIELDS: dict[str, str] = {
 
 
 _STABLE_COHORT_PUBLICATION_KEYS = (
-    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
-    platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY,
     crates_contract.CRATES_IO_PUBLICATION_KEY,
 )
 # The published 0.1.3 line's frozen leaves are permanent history in every
-# live manifest on and after the 0.1.4 opening; together with the frozen
+# live manifest on and after the 0.1.5 opening; together with the frozen
 # prerelease leaves they form the five-leaf historical floor.
 _FROZEN_STABLE_PUBLICATION_KEYS = (
     apple_contract.APPLE_V0_1_3_PUBLICATION_KEY,
@@ -110,7 +110,7 @@ def legacy_swift_manifest_fixture(
     """Return a manifest carrying the exact retired legacy alpha.2 selector.
 
     The frozen legacy baseline predates both the published v0.1.3 line and
-    the active v0.1.4 cohort, so the reconstruction drops every stable
+    the active v0.1.5 cohort, so the reconstruction drops every stable
     cohort leaf and restores the frozen alpha.2 distribution alongside the
     pinned legacy selector fields. The restructured contract must reject
     this shape: its one-time migration completed on the 0.1.3 line and
@@ -140,7 +140,7 @@ def frozen_v0_1_3_selector_fixture(
 
     Since the 0.1.3 line published, every pre-verification manifest keeps
     the neutral selector fields with the frozen published apple_v0_1_3
-    receipt active; a verified v0.1.4 cohort switches only the active key
+    receipt active; a verified v0.1.5 cohort switches only the active key
     and distribution, so this rebuilds the exact source-state selector
     regardless of which cohort state is installed.
     """
@@ -169,9 +169,9 @@ def source_baseline_fixture(
     """Return the live manifest reduced to its source-results baseline.
 
     The live manifest permanently carries the five frozen historical
-    leaves and may additionally carry an active v0.1.4 cohort state.  The
+    leaves and may additionally carry an active v0.1.5 cohort state.  The
     synthetic fixtures rebuild the active cohort from explicit receipts,
-    so the baseline drops only the v0.1.4 leaves and restores the
+    so the baseline drops only the v0.1.5 leaves and restores the
     source-state selector: active on the frozen published apple_v0_1_3
     receipt.
     """
@@ -410,7 +410,7 @@ def rebind_stable_current_source(
         "current_source_status": "current_clean_tree_local_index_consumer_pass",
         "generated_at": "2026-08-15T00:02:00Z",
         "index_path": (
-            "target/qperiapt-local-release/release/0.1.4/"
+            "target/qperiapt-local-release/release/0.1.5/"
             f"{source_commit}/index.json"
         ),
         "index_schema": proof_manifest.LOCAL_RELEASE_INDEX_SCHEMA_VERSION,
@@ -469,10 +469,10 @@ def pending_manifest_fixture(
     source = apple["source"]
     platform = _rebind_platform(platform_pending_receipt(), source)
     manifest["release_publications"][
-        apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
     ] = apple
     manifest["release_publications"][
-        platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
+        platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
     ] = platform
     return manifest
 
@@ -490,12 +490,12 @@ def verified_manifest_fixture(
         crates_receipt(10), source, manifest["rust_publish"]
     )
     publications = manifest["release_publications"]
-    publications[apple_contract.APPLE_V0_1_4_PUBLICATION_KEY] = apple
-    publications[platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY] = platform
+    publications[apple_contract.APPLE_V0_1_5_PUBLICATION_KEY] = apple
+    publications[platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY] = platform
     publications[crates_contract.CRATES_IO_PUBLICATION_KEY] = registry
     swift = manifest["swift_xcframework"]
     swift["active_publication_key"] = (
-        apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
     )
     swift["distribution"] = copy.deepcopy(apple["distribution"])
     return manifest
@@ -826,7 +826,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
                 self.assertEqual(frozen, publications[key])
 
         # The live selector is the migrated neutral selector with the
-        # state-selected activation: apple_v0_1_4 once the active cohort
+        # state-selected activation: apple_v0_1_5 once the active cohort
         # verifies, otherwise the frozen published apple_v0_1_3 receipt.
         state = contract.publication_state(live)
         swift = live["swift_xcframework"]
@@ -839,7 +839,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
         ):
             self.assertEqual(expected, swift[field], field)
         expected_active = (
-            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
             if state == contract.PUBLICATION_STATE_VERIFIED
             else apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
         )
@@ -886,8 +886,8 @@ class ReleasePublicationContractTests(unittest.TestCase):
         source = self.source_manifest()
         pending = self.pending_manifest()
         for missing in (
-            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
-            platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY,
+            platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY,
         ):
             with self.subTest(missing=missing):
                 invalid = copy.deepcopy(pending)
@@ -900,11 +900,11 @@ class ReleasePublicationContractTests(unittest.TestCase):
 
         activated = copy.deepcopy(pending)
         activated["swift_xcframework"]["active_publication_key"] = (
-            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
         )
         activated["swift_xcframework"]["distribution"] = copy.deepcopy(
             activated["release_publications"][
-                apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
             ]["distribution"]
         )
         with self.assertRaisesRegex(
@@ -922,7 +922,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
         leaf = apple_producer._pending_leaf_from_results(pending)
         self.assertEqual(
             pending["release_publications"][
-                apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
             ],
             leaf,
         )
@@ -979,7 +979,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
 
         mixed = self.pending_manifest()
         mixed["release_publications"][
-            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
         ] = stable_verified_receipt()
         with self.assertRaisesRegex(
             contract.ReleasePublicationContractError, "coordinated cohort"
@@ -996,7 +996,7 @@ class ReleasePublicationContractTests(unittest.TestCase):
             with self.subTest(field=field):
                 invalid = self.pending_manifest()
                 platform = invalid["release_publications"][
-                    platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
+                    platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
                 ]
                 platform["observation"]["source"][field] = replacement
                 if field == "tag_commit":

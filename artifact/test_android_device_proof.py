@@ -326,11 +326,11 @@ def current_results_for_proof(
     else:
         raise ValueError(f"unsupported fixture results binding: {results_binding}")
     proof["paths"]["aar"] = proof_manifest_aar_path = (
-        "target/qperiapt-android-aar/q-periapt-android-0.1.4/"
-        "q-periapt-android-0.1.4.aar"
+        "target/qperiapt-android-aar/q-periapt-android-0.1.5/"
+        "q-periapt-android-0.1.5.aar"
     )
     proof["paths"]["aar_manifest"] = proof_manifest_path = (
-        "target/qperiapt-android-aar/q-periapt-android-0.1.4/MANIFEST.json"
+        "target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
     )
     run_id = proof["run_id"]
     source_digest = proof["proof_source_tree_sha256"]

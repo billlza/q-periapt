@@ -960,7 +960,7 @@ class ProofManifestTests(unittest.TestCase):
             ),
             "generated_at": "2026-08-12T00:04:00Z",
             "index_path": (
-                "target/qperiapt-local-release/release/0.1.4/"
+                "target/qperiapt-local-release/release/0.1.5/"
                 f"{commit}/index.json"
             ),
             "index_schema": 5,

@@ -103,7 +103,7 @@ class CAbiContractTests(unittest.TestCase):
 
     def test_contract_and_normalized_header_pass(self) -> None:
         self.assertEqual(self.contract.document["abi"]["major"], 2)
-        self.assertEqual(self.contract.document["package"]["semver"], "0.1.4")
+        self.assertEqual(self.contract.document["package"]["semver"], "0.1.5")
         self.assertEqual(len(self.contract.export_names), 9)
         with tempfile.TemporaryDirectory() as temporary:
             header = self._write_header(pathlib.Path(temporary))

@@ -42,8 +42,8 @@ from test_release_publication_contract import (
 
 
 STABLE_COHORT_PUBLICATION_KEYS = (
-    apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
-    platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY,
+    platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY,
     crates_contract.CRATES_IO_PUBLICATION_KEY,
 )
 
@@ -52,10 +52,10 @@ def restore_source_publication_state(manifest: dict[str, object]) -> None:
     """Rewind any committed cohort state to the exact source projection.
 
     The live manifest permanently carries the five frozen historical
-    leaves and possibly an active v0.1.4 cohort state, and these tests
+    leaves and possibly an active v0.1.5 cohort state, and these tests
     replay the complete source -> pending -> verified state machine from
     synthetic receipts.  The fixture therefore rewinds the live bytes to
-    the source projection: drop only the active v0.1.4 leaves and rebind
+    the source projection: drop only the active v0.1.5 leaves and rebind
     the Apple selector to the frozen published apple_v0_1_3 receipt from
     the contract's own frozen distribution bytes rather than the
     state-dependent live selector.
@@ -310,12 +310,12 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             aggregate.publication_state(verified),
         )
         self.assertEqual(
-            apple_contract.APPLE_V0_1_4_PUBLICATION_KEY,
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY,
             verified["swift_xcframework"]["active_publication_key"],
         )
         self.assertEqual(
             verified["release_publications"][
-                apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
             ]["distribution"],
             verified["swift_xcframework"]["distribution"],
         )
