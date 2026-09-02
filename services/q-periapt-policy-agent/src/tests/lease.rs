@@ -1956,6 +1956,50 @@ fn drains_yield_to_the_operation_budget_and_keep_their_obligations() -> TestResu
 }
 
 #[test]
+fn a_coverage_lapse_on_a_begin_retry_returns_no_handle_and_erases_nothing() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 147)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // The retry renews, and the authority's clock passes the new expiry
+    // before the post-renew proof. The handle refers to a retained secret,
+    // so returning it is a lease-guarded disclosure exactly like retaining
+    // it was: no handle without proven coverage.
+    pair.initiator_authority
+        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1);
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // A lapse is no evidence of a successor: nothing erased, nothing
+    // released.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // A fence is: the session went with every other secret, and the retry is
+    // refused before the index is consulted.
+    pair.initiator.fence_out_for_test()?;
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::InstanceFenced)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    Ok(())
+}
+
+#[test]
 fn coverage_deadline_subtracts_the_divergence_budget() {
     let anchor = Instant::now();
     let budget = LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS;

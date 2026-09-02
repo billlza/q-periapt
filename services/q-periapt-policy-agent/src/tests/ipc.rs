@@ -514,6 +514,115 @@ fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResu
 }
 
 #[test]
+fn lost_begin_response_is_recovered_by_an_exact_retry_under_a_fresh_nonce() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 142)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([104u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([105u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    // The Begin commits -- a pending secret and its durable reservation --
+    // and then its response is lost on the write.
+    let first_request = framed_begin(
+        &client_signing_key,
+        [106u8; 32],
+        &pair.initiator_signed_offers,
+        &pair.responder_public_keys,
+    )?;
+    let mut failed_write = FailingWriteTransport {
+        input: Cursor::new(first_request.clone()),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut failed_write),
+        Err(crate::ipc::IpcError::Unavailable)
+    );
+    assert_eq!(server.agent_for_test().pending_session_count(), 1);
+    assert_eq!(server.agent_for_test().durable_session_count_for_test()?, 1);
+
+    // The same bytes are a nonce replay: refused without an answer.
+    let mut replayed_nonce = CaptureTransport {
+        input: Cursor::new(first_request),
+        output: Vec::new(),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut replayed_nonce),
+        Err(crate::ipc::IpcError::AuthenticationFailed)
+    );
+    assert!(replayed_nonce.output.is_empty());
+
+    // The exact request under a fresh nonce is answered with the handle the
+    // first attempt created -- no second session, no second reservation.
+    let retry_nonce = [107u8; 32];
+    let mut retried = CaptureTransport {
+        input: Cursor::new(framed_begin(
+            &client_signing_key,
+            retry_nonce,
+            &pair.initiator_signed_offers,
+            &pair.responder_public_keys,
+        )?),
+        output: Vec::new(),
+    };
+    server.handle_io_for_test(&mut retried)?;
+    let DecodedBeginEncapsulation {
+        handle,
+        pq_ciphertext,
+        traditional_ciphertext,
+        initiator_finished,
+    } = decode_begin_encapsulation_response(
+        &retried.output,
+        &server_verification_key,
+        retry_nonce,
+    )?;
+    assert_eq!(server.agent_for_test().pending_session_count(), 1);
+    assert_eq!(server.agent_for_test().durable_session_count_for_test()?, 1);
+
+    // The recovered handle is the live one: the peer completes its side on
+    // the recovered ciphertexts and Finished, and this side accepts R under
+    // that handle.
+    let decapsulated =
+        responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization,
+            EncapsulationCiphertexts::from_slices(&pq_ciphertext, &traditional_ciphertext)?,
+        ))?)?;
+    let acceptance = pair.responder.accept_initiator_finished(
+        decapsulated.handle,
+        InitiatorFinishedV1::from_bytes(initiator_finished),
+    )?;
+    server.agent_for_test().accept_responder_finished(
+        crate::PendingSessionHandle::decode(handle)?,
+        acceptance.responder_finished,
+    )?;
+    assert_eq!(server.agent_for_test().pending_session_count(), 0);
+    assert_eq!(server.agent_for_test().confirmed_key_count(), 1);
+
+    // Acceptance consumed the capability for good: the same offers under yet
+    // another nonce now reach the durable tombstone.
+    let consumed_nonce = [108u8; 32];
+    let mut consumed = CaptureTransport {
+        input: Cursor::new(framed_begin(
+            &client_signing_key,
+            consumed_nonce,
+            &pair.initiator_signed_offers,
+            &pair.responder_public_keys,
+        )?),
+        output: Vec::new(),
+    };
+    server.handle_io_for_test(&mut consumed)?;
+    assert_eq!(
+        response_status(&consumed.output, &server_verification_key, consumed_nonce)?,
+        7
+    );
+    assert_eq!(server.agent_for_test().pending_session_count(), 0);
+    assert_eq!(server.agent_for_test().durable_session_count_for_test()?, 0);
+    Ok(())
+}
+
+#[test]
 fn ipc_absolute_deadline_evicts_a_pre_auth_trickle_client() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 19)?;

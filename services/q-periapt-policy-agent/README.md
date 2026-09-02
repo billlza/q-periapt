@@ -90,7 +90,10 @@ replay tombstones for the entire current state. Cancel, Finished rejection, key
 acceptance, and restart do not erase them. No tombstone is silently evicted;
 capacity exhaustion fails closed. A committed state transition clears the table
 only after changing the signed state digest and global generation, so old offers
-then fail the current-state checks before reservation.
+then fail the current-state checks before reservation. The tombstone is what
+makes a Begin exactly-once across the whole current state; the in-process Begin
+retry index only lets the process that holds the pending secret repeat its own
+answer, and it is bounded by, and evicted with, the pending sessions.
 
 The migration authority and reset/recovery authority must have different,
 nonzero key IDs and different ML-DSA-65 verification keys. Endpoint roles also
@@ -126,8 +129,8 @@ its deadline with nothing retained and its reservation released; it is not a
 fence, and the request may be retried under a fresh nonce with a fresh offer
 where the offer was consumed. A committed operation whose response could not
 be written by the deadline gets no response at all, which the client sees as a
-lost response and, for an acceptance, recovers by the exact retry described
-below; a transition it reconciles.
+lost response and, for a Begin or an acceptance, recovers by the exact retry
+described below; a transition it reconciles.
 
 The executable IPC face is Unix-only. It does not create its listening socket:
 the service manager does, and the daemon adopts the descriptor it is handed,
@@ -166,6 +169,15 @@ IPC is a hard V2 cut: request, response, and request-digest domains all end in
 `/v2`, schema 2 has distinct `AcceptInitiatorFinished` and
 `AcceptResponderFinished` commands and role-shaped begin/accept responses, and
 there is no V1 decoder or fallback. A consumed IPC nonce is never reusable. If a
+successful Begin response is lost while being written, the client may resend the
+exact same signed offers and the same peer public keys (encapsulation) or
+ciphertexts (decapsulation) under a newly signed nonce; while the pending
+session that Begin created remains live in the same process, the agent returns
+the same handle, ciphertexts and initiator Finished. Different public input or a
+different Begin command under the same capability fails with
+`AuthorizationRejected` and erases nothing. Cancel, expiry, acceptance, Finished
+rejection, a committed transition, fencing and restart end that window, after
+which the durable capability tombstone answers with `AuthorizationRejected`. If a
 successful acceptance response is lost while being written, the client may send
 the exact same handle and Finished under a newly signed nonce; while the same
 process and retained key remain live, the bounded completed-acceptance cache
@@ -305,7 +317,7 @@ state:
 | --- | ---: |
 | Any IPC or witness frame | 16 KiB |
 | IPC capability-offer field | 8 KiB, also constrained by the total frame |
-| Runtime pending sessions | 256 by default; hard maximum 1024 |
+| Runtime pending sessions | 256 by default; hard maximum 1024; each carries its Begin retry record (public outputs only) |
 | Runtime confirmed keys / completed-acceptance entries | 256 each by default; hard maximum 1024; one cache entry is retained only with its key |
 | Runtime session TTL | 5 minutes by default; hard maximum 24 hours |
 | Durable session reservations | 1024 |

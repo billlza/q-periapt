@@ -426,3 +426,181 @@ fn restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone(
     );
     Ok(())
 }
+
+#[test]
+fn begin_replay_with_different_public_input_under_the_same_capability_is_refused_without_erasing(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 143)?;
+    let first = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // The same signed capability with other peer keys is not the request
+    // that consumed it: refused, and the original session is untouched.
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.initiator_public_keys.clone(),
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // The exact request is still answered with the original outputs.
+    let retried = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(retried, first);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // And the original handle completes the handshake.
+    let encapsulated = initiator_encapsulation(first)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let acceptance = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    pair.initiator
+        .accept_responder_finished(encapsulated.handle, acceptance.responder_finished)?;
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.confirmed_key_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn begin_decapsulation_exact_retry_returns_the_same_handle_and_damaged_ciphertext_is_refused(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 144)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let first = pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization.clone(),
+        encapsulated.ciphertexts.clone(),
+    ))?;
+    let retried = pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization.clone(),
+        encapsulated.ciphertexts.clone(),
+    ))?;
+    assert_eq!(retried, first);
+    assert_eq!(pair.responder.pending_session_count(), 1);
+    assert_eq!(pair.responder.durable_session_count_for_test()?, 1);
+
+    // Other ciphertexts under the same capability are a different request:
+    // refused before any KEM, with the original session untouched.
+    let mut damaged_pq = *encapsulated.ciphertexts.pq();
+    if let Some(first_byte) = damaged_pq.first_mut() {
+        *first_byte ^= 1;
+    }
+    let damaged =
+        EncapsulationCiphertexts::from_slices(&damaged_pq, encapsulated.ciphertexts.traditional())?;
+    assert_eq!(
+        pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            damaged,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.responder.pending_session_count(), 1);
+
+    // Acceptance consumes the capability for good.
+    let decapsulated = responder_decapsulation(first)?;
+    pair.responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(
+        pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization,
+            encapsulated.ciphertexts,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.responder.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn begin_retry_after_expiry_hits_the_tombstone_and_the_retry_window_is_bounded_by_the_session(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair_with_session_ttl(&directory, 145, Duration::from_millis(50))?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // Expiry evicts the session and its retry record together; the exact
+    // request then finds only the tombstone, and the refused fresh path
+    // leaves no reservation behind.
+    thread::sleep(Duration::from_millis(100));
+    pair.initiator.expire_idle_sessions();
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+
+    // Cancel ends the window the same way.
+    let second =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    pair.initiator.cancel(second.handle)?;
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    Ok(())
+}
+
+#[test]
+fn begin_exact_retry_needs_no_free_session_slot() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair_with_limits(
+        &directory,
+        146,
+        AgentLimits::new(1, 16, Duration::from_secs(60))?,
+    )?;
+    let first = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // The one slot is taken, so a second session is refused ...
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization,
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::CapacityExceeded)
+    );
+    // ... but the retry adds none, and the session it recovers is the one
+    // holding that slot.
+    let retried = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys,
+    ))?;
+    assert_eq!(retried, first);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    Ok(())
+}

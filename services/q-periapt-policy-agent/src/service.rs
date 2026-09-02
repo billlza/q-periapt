@@ -46,6 +46,15 @@ const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
 const HARD_MAX_SESSIONS: usize = 1024;
 const HARD_MAX_CONFIRMED_KEYS: usize = 1024;
 const MAX_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+/// Domain of the nonce-free digest that identifies an exact Begin retry. The
+/// tags are the IPC command bytes of the two Begin commands, so a record left
+/// by one command can never answer the other under the same offers. Every
+/// caller-supplied input that shapes a Begin response is in the digest; a new
+/// one must be added there, or an exact retry could answer a different
+/// request.
+const BEGIN_REPLAY_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-BEGIN-REPLAY/v1";
+const BEGIN_ENCAPSULATION_TAG: [u8; 1] = [2];
+const BEGIN_DECAPSULATION_TAG: [u8; 1] = [3];
 /// The end-to-end budget an operation gets when its caller gives it no
 /// deadline of its own: the plain (non-`_until`) methods, and the
 /// constructor's own lease work. The IPC server never relies on it; every
@@ -440,7 +449,8 @@ pub enum AgentError {
     TransitionIndeterminate,
     /// An unresolved transition blocks new sessions and transitions.
     TransitionPending,
-    /// Signed capability offers, identities, policies, roles, or agreement were rejected.
+    /// Signed capability offers, identities, policies, roles, or agreement were rejected,
+    /// or a live capability was retried with different public input.
     AuthorizationRejected,
     /// Peer public keys or ciphertexts were malformed or rejected.
     PublicInputRejected,
@@ -569,16 +579,38 @@ impl From<Abi2EngineError> for AgentError {
     }
 }
 
+/// Public outputs of one Begin, kept so an exact retry under a fresh IPC
+/// nonce can be answered with the same handle. It holds no secret: the handle
+/// is opaque, and the ciphertexts and Initiator Finished have already left the
+/// process once.
+#[derive(Clone)]
+enum BeginReplay {
+    Encapsulation(Box<BeginEncapsulationResult>),
+    Decapsulation(BeginDecapsulationResult),
+}
+
+/// What identifies the Begin that created a pending session, and what that
+/// Begin answered. It lives with the pending secret and dies with it.
+struct BegunRequest {
+    /// The authenticated capability session id: the durable tombstone's key.
+    capability_session_id: [u8; 32],
+    /// Nonce-free digest of everything else that shaped the response.
+    request_digest: [u8; 32],
+    replay: BeginReplay,
+}
+
 enum PendingSession {
     Initiator {
         confirmation: InitiatorAwaitingResponderFinishedV1<Sha3_256Xof>,
         expected_head: StateHead,
         deadline: Instant,
+        begun: BegunRequest,
     },
     Responder {
         confirmation: ResponderAwaitingInitiatorFinishedV1<Sha3_256Xof>,
         expected_head: StateHead,
         deadline: Instant,
+        begun: BegunRequest,
     },
 }
 
@@ -595,6 +627,12 @@ enum CompletedAcceptance {
 }
 
 impl PendingSession {
+    const fn begun(&self) -> &BegunRequest {
+        match self {
+            Self::Initiator { begun, .. } | Self::Responder { begun, .. } => begun,
+        }
+    }
+
     const fn expected_head(&self) -> StateHead {
         match self {
             Self::Initiator { expected_head, .. } | Self::Responder { expected_head, .. } => {
@@ -635,6 +673,13 @@ struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
     engine: ExecutorState,
     pending_engine: Option<ExecutorState>,
     pending_sessions: HashMap<PendingSessionHandle, PendingSession>,
+    /// The capability each live pending session's Begin consumed, so an exact
+    /// retry finds the handle it created. An entry exists iff its handle is
+    /// in `pending_sessions` and that session's `begun` record carries the
+    /// key, so the index never exceeds `max_pending_sessions`: `reserve_pending`
+    /// is the only insert, `take_pending` the only removal (with
+    /// `restore_unexpected` putting back what an accept took).
+    begun_capabilities: HashMap<[u8; 32], PendingSessionHandle>,
     confirmed_keys: HashMap<ConfirmedKeyHandle, AcceptedSessionKeyV1>,
     completed_acceptances: HashMap<PendingSessionHandle, CompletedAcceptance>,
     poisoned: bool,
@@ -778,6 +823,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 engine,
                 pending_engine,
                 pending_sessions: HashMap::new(),
+                begun_capabilities: HashMap::new(),
                 confirmed_keys: HashMap::new(),
                 completed_acceptances: HashMap::new(),
                 poisoned: false,
@@ -902,6 +948,16 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 
     /// Begin encapsulation from signed capability envelopes, under the default
     /// budget; no raw context is accepted.
+    ///
+    /// While the pending session it created remains live, an exact retry --
+    /// the same signed offers and the same peer public keys, under any IPC
+    /// nonce -- returns the same handle, ciphertexts and Initiator Finished
+    /// and reserves nothing, so a Begin whose response was lost is recovered
+    /// rather than stranded. Different public input under the same capability
+    /// fails with [`AgentError::AuthorizationRejected`] and erases nothing.
+    /// Cancel, expiry, acceptance, Finished rejection, a committed transition,
+    /// fencing and restart end that window; the durable capability tombstone
+    /// then answers with [`AgentError::AuthorizationRejected`].
     pub fn begin_encapsulation(
         &self,
         request: BeginEncapsulation,
@@ -911,12 +967,15 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 
     /// Begin encapsulation from signed capability envelopes, admitting each
     /// round trip only while it ends before `deadline`; no raw context is
-    /// accepted.
+    /// accepted. See [`Self::begin_encapsulation`] for the exact-retry
+    /// contract.
     ///
     /// Refused with [`AgentError::OperationDeadlineExceeded`] before anything
     /// is dispatched when the least plan does not fit, and aborted with the
     /// same error, its reservation released and nothing retained, when the
-    /// deadline is reached before the secret becomes reachable.
+    /// deadline is reached before the secret becomes reachable. An exact
+    /// retry is answered only under proven lease coverage and before the
+    /// deadline; it dispatches nothing beyond the renew.
     pub fn begin_encapsulation_until(
         &self,
         request: BeginEncapsulation,
@@ -926,14 +985,35 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ensure_live(&inner)?;
         ensure_instance_lease(&mut inner, OperationPlan::RETAINING)?;
         purge_expired(&mut inner)?;
-        ensure_session_capacity(&inner)?;
         let head = verify_current_head(&inner)?;
+        // Digested before `build_contract` consumes the authorization, and
+        // the index is consulted only for a capability that authenticated:
+        // it is never asked about a forged offer.
+        let request_digest = begin_request_digest(
+            &BEGIN_ENCAPSULATION_TAG,
+            &request.authorization,
+            (
+                request.peer_public_keys.pq(),
+                request.peer_public_keys.traditional(),
+            ),
+        )?;
         let (context, abi_context, capability_session_id) = build_contract(
             &inner,
             request.authorization,
             inner.config.local_role,
             request.peer_public_keys.clone(),
         )?;
+        if let Some(replay) =
+            lookup_begun_capability(&mut inner, capability_session_id, request_digest)?
+        {
+            return match replay {
+                BeginReplay::Encapsulation(result) => Ok(*result),
+                BeginReplay::Decapsulation(_) => Err(AgentError::AuthorizationRejected),
+            };
+        }
+        // After the replay check, so a retry never needs a free slot: it adds
+        // none, and the sessions it is recovering must not be what refuses it.
+        ensure_session_capacity(&inner)?;
         let engine = inner.engine.available()?;
         let (ciphertexts, secret) = engine.encapsulate(&request.peer_public_keys, &abi_context)?;
         let post = PostKemTranscriptV1::from_context(
@@ -950,23 +1030,28 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                         .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 let (confirmation, initiator_finished) = confirmation.issue_finished();
                 ensure_may_retain(&inner)?;
-                let handle = reserve_pending(
-                    &mut inner,
-                    head,
-                    capability_session_id,
-                    PendingSession::Initiator {
-                        confirmation,
-                        expected_head: head,
-                        deadline,
-                    },
-                )?;
-                Ok(BeginEncapsulationResult::Initiator(
-                    InitiatorEncapsulationResult {
-                        handle,
-                        ciphertexts,
-                        initiator_finished,
-                    },
-                ))
+                reserve_pending(&mut inner, head, |handle| {
+                    let result =
+                        BeginEncapsulationResult::Initiator(InitiatorEncapsulationResult {
+                            handle,
+                            ciphertexts,
+                            initiator_finished,
+                        });
+                    let begun = BegunRequest {
+                        capability_session_id,
+                        request_digest,
+                        replay: BeginReplay::Encapsulation(Box::new(result.clone())),
+                    };
+                    (
+                        PendingSession::Initiator {
+                            confirmation,
+                            expected_head: head,
+                            deadline,
+                            begun,
+                        },
+                        result,
+                    )
+                })
             }
             EndpointRole::Responder => {
                 let confirmation = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
@@ -974,28 +1059,43 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 )
                 .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 ensure_may_retain(&inner)?;
-                let handle = reserve_pending(
-                    &mut inner,
-                    head,
-                    capability_session_id,
-                    PendingSession::Responder {
-                        confirmation,
-                        expected_head: head,
-                        deadline,
-                    },
-                )?;
-                Ok(BeginEncapsulationResult::Responder(
-                    ResponderEncapsulationResult {
-                        handle,
-                        ciphertexts,
-                    },
-                ))
+                reserve_pending(&mut inner, head, |handle| {
+                    let result =
+                        BeginEncapsulationResult::Responder(ResponderEncapsulationResult {
+                            handle,
+                            ciphertexts,
+                        });
+                    let begun = BegunRequest {
+                        capability_session_id,
+                        request_digest,
+                        replay: BeginReplay::Encapsulation(Box::new(result.clone())),
+                    };
+                    (
+                        PendingSession::Responder {
+                            confirmation,
+                            expected_head: head,
+                            deadline,
+                            begun,
+                        },
+                        result,
+                    )
+                })
             }
         }
     }
 
     /// Begin decapsulation from signed capability envelopes and exact
     /// ciphertexts, under the default budget.
+    ///
+    /// While the pending session it created remains live, an exact retry --
+    /// the same signed offers and the same ciphertexts, under any IPC nonce
+    /// -- returns the same handle and, for the initiator, the same Initiator
+    /// Finished, and reserves nothing. Different ciphertexts under the same
+    /// capability fail with [`AgentError::AuthorizationRejected`] and erase
+    /// nothing. Cancel, expiry, acceptance, Finished rejection, a committed
+    /// transition, fencing and restart end that window; the durable
+    /// capability tombstone then answers with
+    /// [`AgentError::AuthorizationRejected`].
     pub fn begin_decapsulation(
         &self,
         request: BeginDecapsulation,
@@ -1005,7 +1105,8 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 
     /// Begin decapsulation from signed capability envelopes and exact
     /// ciphertexts, admitting each round trip only while it ends before
-    /// `deadline`; see [`Self::begin_encapsulation_until`].
+    /// `deadline`; see [`Self::begin_encapsulation_until`] for the deadline's
+    /// contract and [`Self::begin_decapsulation`] for the exact retry's.
     pub fn begin_decapsulation_until(
         &self,
         request: BeginDecapsulation,
@@ -1015,13 +1116,31 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ensure_live(&inner)?;
         ensure_instance_lease(&mut inner, OperationPlan::RETAINING)?;
         purge_expired(&mut inner)?;
-        ensure_session_capacity(&inner)?;
         let head = verify_current_head(&inner)?;
+        // Digested before `build_contract` consumes the authorization, and
+        // the index is consulted only for a capability that authenticated:
+        // it is never asked about a forged offer.
+        let request_digest = begin_request_digest(
+            &BEGIN_DECAPSULATION_TAG,
+            &request.authorization,
+            (request.ciphertexts.pq(), request.ciphertexts.traditional()),
+        )?;
         let encapsulator_role = opposite(inner.config.local_role);
-        let engine = inner.engine.available()?;
-        let local_keys = engine.public_keys().clone();
+        let local_keys = inner.engine.available()?.public_keys().clone();
         let (context, abi_context, capability_session_id) =
             build_contract(&inner, request.authorization, encapsulator_role, local_keys)?;
+        if let Some(replay) =
+            lookup_begun_capability(&mut inner, capability_session_id, request_digest)?
+        {
+            return match replay {
+                BeginReplay::Decapsulation(result) => Ok(result),
+                BeginReplay::Encapsulation(_) => Err(AgentError::AuthorizationRejected),
+            };
+        }
+        // After the replay check, so a retry never needs a free slot: it adds
+        // none, and the sessions it is recovering must not be what refuses it.
+        ensure_session_capacity(&inner)?;
+        let engine = inner.engine.available()?;
         let secret = engine.decapsulate(&request.ciphertexts, &abi_context)?;
         let post = PostKemTranscriptV1::from_context(
             &context,
@@ -1037,22 +1156,27 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                         .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 let (confirmation, initiator_finished) = confirmation.issue_finished();
                 ensure_may_retain(&inner)?;
-                let handle = reserve_pending(
-                    &mut inner,
-                    head,
-                    capability_session_id,
-                    PendingSession::Initiator {
-                        confirmation,
-                        expected_head: head,
-                        deadline,
-                    },
-                )?;
-                Ok(BeginDecapsulationResult::Initiator(
-                    InitiatorDecapsulationResult {
-                        handle,
-                        initiator_finished,
-                    },
-                ))
+                reserve_pending(&mut inner, head, |handle| {
+                    let result =
+                        BeginDecapsulationResult::Initiator(InitiatorDecapsulationResult {
+                            handle,
+                            initiator_finished,
+                        });
+                    let begun = BegunRequest {
+                        capability_session_id,
+                        request_digest,
+                        replay: BeginReplay::Decapsulation(result),
+                    };
+                    (
+                        PendingSession::Initiator {
+                            confirmation,
+                            expected_head: head,
+                            deadline,
+                            begun,
+                        },
+                        result,
+                    )
+                })
             }
             EndpointRole::Responder => {
                 let confirmation = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
@@ -1060,19 +1184,26 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 )
                 .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 ensure_may_retain(&inner)?;
-                let handle = reserve_pending(
-                    &mut inner,
-                    head,
-                    capability_session_id,
-                    PendingSession::Responder {
-                        confirmation,
-                        expected_head: head,
-                        deadline,
-                    },
-                )?;
-                Ok(BeginDecapsulationResult::Responder(
-                    ResponderDecapsulationResult { handle },
-                ))
+                reserve_pending(&mut inner, head, |handle| {
+                    let result =
+                        BeginDecapsulationResult::Responder(ResponderDecapsulationResult {
+                            handle,
+                        });
+                    let begun = BegunRequest {
+                        capability_session_id,
+                        request_digest,
+                        replay: BeginReplay::Decapsulation(result),
+                    };
+                    (
+                        PendingSession::Responder {
+                            confirmation,
+                            expected_head: head,
+                            deadline,
+                            begun,
+                        },
+                        result,
+                    )
+                })
             }
         }
     }
@@ -1119,7 +1250,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         }
         let (expected_head, key_handle) =
             prepare_acceptance(&mut inner, handle, PendingFlight::Initiator)?;
-        let confirmation = match inner.pending_sessions.remove(&handle) {
+        let confirmation = match take_pending(&mut inner, handle) {
             Some(PendingSession::Responder { confirmation, .. }) => confirmation,
             Some(unexpected) => return restore_unexpected(&mut inner, handle, unexpected),
             None => return Err(AgentError::UnknownHandle),
@@ -1202,7 +1333,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         }
         let (expected_head, key_handle) =
             prepare_acceptance(&mut inner, handle, PendingFlight::Responder)?;
-        let confirmation = match inner.pending_sessions.remove(&handle) {
+        let confirmation = match take_pending(&mut inner, handle) {
             Some(PendingSession::Initiator { confirmation, .. }) => confirmation,
             Some(unexpected) => return restore_unexpected(&mut inner, handle, unexpected),
             None => return Err(AgentError::UnknownHandle),
@@ -1628,9 +1759,11 @@ fn finish_transition<W: WitnessPort, A: InstanceAuthorityPort>(
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);
     }
-    // The durable commit already erased all reservations. Dropping these maps
-    // erases every in-process pending/accepted secret before any new request.
+    // The durable commit already erased all reservations and tombstones.
+    // Dropping these maps erases every in-process pending/accepted secret, and
+    // the Begin retry records that pointed at them, before any new request.
     inner.pending_sessions.clear();
+    inner.begun_capabilities.clear();
     inner.confirmed_keys.clear();
     inner.completed_acceptances.clear();
     inner.engine = inner.pending_engine.take().ok_or_else(|| {
@@ -1745,54 +1878,177 @@ fn pending_deadline<W: WitnessPort, A: InstanceAuthorityPort>(
         .ok_or(AgentError::InvalidConfiguration)
 }
 
-fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort>(
-    inner: &mut Inner<W, A>,
-    head: StateHead,
-    capability_session_id: [u8; 32],
-    pending: PendingSession,
+/// Draw a pending-session handle that collides with nothing still live.
+fn generate_pending_handle<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &Inner<W, A>,
 ) -> Result<PendingSessionHandle, AgentError> {
     for _ in 0..4 {
         let handle = PendingSessionHandle(
             SessionId::generate().map_err(|_| AgentError::LocalCryptoFailure)?,
         );
-        if inner.pending_sessions.contains_key(&handle)
-            || inner.completed_acceptances.contains_key(&handle)
+        if !inner.pending_sessions.contains_key(&handle)
+            && !inner.completed_acceptances.contains_key(&handle)
         {
-            continue;
+            return Ok(handle);
         }
-        inner
-            .repository
-            .reserve_session(handle.0, capability_session_id, head)?;
-        // The durable reservation is a real fsync, and authority time may have
-        // stepped past the lease's expiry during the witness round trip, the
-        // KEM or that fsync without this host's clock moving. This is the last
-        // step before the secret becomes retained, so the check that counts
-        // consults the authority: a fresh snapshot after the write, then the
-        // budgeted local rule against it and the operation's own deadline
-        // (`prove_lease_covers_retention`); the check before the write only
-        // saves a wasted fsync. Whatever it reports -- coverage elapsed, the
-        // deadline reached, the authority unreachable, or a successor that
-        // fenced this instance -- the reservation must not be left behind:
-        // `erase_pending` could never find it, and `fence_out`
-        // iterates a map this handle is not in yet. So release it here and
-        // drop the secret with `pending`. The capability tombstone the
-        // reservation wrote stays, exactly as it does for any cancelled
-        // session: the offer was consumed the moment it was reserved, and the
-        // caller needs a fresh offer to try again.
-        if let Err(error) = prove_lease_covers_retention(inner) {
-            if inner.repository.cancel_session(handle.0).is_err() {
-                inner.poisoned = true;
-                return Err(AgentError::InternalPoisoned);
-            }
-            return Err(error);
-        }
-        if inner.pending_sessions.insert(handle, pending).is_some() {
+    }
+    Err(AgentError::LocalCryptoFailure)
+}
+
+/// The nonce-free identity of one Begin: what, besides the capability itself,
+/// shaped its response. The IPC nonce is left out on purpose -- that is what
+/// makes a retry under a fresh nonce exact -- and the command tag is put in,
+/// so the two Begin commands never answer for each other.
+fn begin_request_digest(
+    tag: &[u8; 1],
+    authorization: &SessionAuthorization,
+    public_input: (&[u8], &[u8]),
+) -> Result<[u8; 32], AgentError> {
+    crate::codec::hash_fields(
+        BEGIN_REPLAY_DOMAIN,
+        &[
+            tag,
+            &authorization.local_offer,
+            &authorization.peer_offer,
+            public_input.0,
+            public_input.1,
+        ],
+    )
+    .map_err(|_| AgentError::LocalCryptoFailure)
+}
+
+/// Answer an exact Begin retry from the pending session its capability
+/// created.
+///
+/// `Ok(Some(replay))`: the same request, and its session is still live --
+/// return it. `Ok(None)`: nothing live under this capability; take the fresh
+/// path, which ends in the durable tombstone check and, for a consumed
+/// capability, in [`AgentError::AuthorizationRejected`].
+/// `Err(AuthorizationRejected)`: the capability is live under a different
+/// request; the original handle stays acceptable and nothing is erased.
+fn lookup_begun_capability<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+    capability_session_id: [u8; 32],
+    request_digest: [u8; 32],
+) -> Result<Option<BeginReplay>, AgentError> {
+    let Some(handle) = inner
+        .begun_capabilities
+        .get(&capability_session_id)
+        .copied()
+    else {
+        return Ok(None);
+    };
+    let Some(pending) = inner.pending_sessions.get(&handle) else {
+        // Defensive only: `take_pending` keeps the two maps in step.
+        inner.begun_capabilities.remove(&capability_session_id);
+        return Ok(None);
+    };
+    let begun = pending.begun();
+    if begun.capability_session_id != capability_session_id {
+        inner.poisoned = true;
+        return Err(AgentError::InternalPoisoned);
+    }
+    if begun.request_digest != request_digest {
+        // Same signed capability, different public input or command: the
+        // capability is consumed, and this is not the request that consumed
+        // it. Both digests are over public values, so a plain comparison is
+        // enough; the tombstone on the fresh path fails closed regardless.
+        return Err(AgentError::AuthorizationRejected);
+    }
+    // Returning a handle to a retained secret is a lease-guarded disclosure,
+    // exactly as retaining it was. The fresh authority observation for this
+    // call is the post-renew proof at the top of the operation; this is the
+    // budgeted rule against it, then the operation's own deadline.
+    ensure_may_retain(inner)?;
+    Ok(Some(begun.replay.clone()))
+}
+
+/// The one place a pending session leaves the map, so the Begin retry index
+/// can never outlive the session it points at.
+fn take_pending<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+    handle: PendingSessionHandle,
+) -> Option<PendingSession> {
+    let pending = inner.pending_sessions.remove(&handle)?;
+    let capability = pending.begun().capability_session_id;
+    if inner.begun_capabilities.get(&capability) == Some(&handle) {
+        inner.begun_capabilities.remove(&capability);
+    }
+    Some(pending)
+}
+
+/// Reserve one pending session durably and retain it, with the record an
+/// exact retry of its Begin is answered from.
+///
+/// `build` receives the handle drawn for the session and returns the session
+/// -- whose `begun` record names the capability the reservation is keyed by
+/// and holds the replay -- together with the result the caller returns. The
+/// session, its retry record and the index entry are therefore written as
+/// one, so "a retry record exists iff its session does" holds by
+/// construction.
+fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort, R, F>(
+    inner: &mut Inner<W, A>,
+    head: StateHead,
+    build: F,
+) -> Result<R, AgentError>
+where
+    F: FnOnce(PendingSessionHandle) -> (PendingSession, R),
+{
+    let handle = generate_pending_handle(inner)?;
+    inner
+        .pending_sessions
+        .try_reserve(1)
+        .map_err(|_| AgentError::LocalResourceFailure)?;
+    inner
+        .begun_capabilities
+        .try_reserve(1)
+        .map_err(|_| AgentError::LocalResourceFailure)?;
+    let (pending, result) = build(handle);
+    let capability_session_id = pending.begun().capability_session_id;
+    inner
+        .repository
+        .reserve_session(handle.0, capability_session_id, head)?;
+    // The durable reservation is a real fsync, and authority time may have
+    // stepped past the lease's expiry during the witness round trip, the
+    // KEM or that fsync without this host's clock moving. This is the last
+    // step before the secret becomes retained, so the check that counts
+    // consults the authority: a fresh snapshot after the write, then the
+    // budgeted local rule against it and the operation's own deadline
+    // (`prove_lease_covers_retention`); the check before the write only
+    // saves a wasted fsync. Whatever it reports -- coverage elapsed, the
+    // deadline reached, the authority unreachable, or a successor that
+    // fenced this instance -- the reservation must not be left behind:
+    // `erase_pending` could never find it, and `fence_out`
+    // iterates a map this handle is not in yet. So release it here and
+    // drop the secret with `pending`. The capability tombstone the
+    // reservation wrote stays, exactly as it does for any cancelled
+    // session: the offer was consumed the moment it was reserved, and the
+    // caller needs a fresh offer to try again. The retry index is written
+    // only after this proof succeeds, together with the session it points
+    // at, so an exact retry is never answered with a handle that was never
+    // retained.
+    if let Err(error) = prove_lease_covers_retention(inner) {
+        if inner.repository.cancel_session(handle.0).is_err() {
             inner.poisoned = true;
             return Err(AgentError::InternalPoisoned);
         }
-        return Ok(handle);
+        return Err(error);
     }
-    Err(AgentError::LocalCryptoFailure)
+    if inner.pending_sessions.insert(handle, pending).is_some() {
+        inner.poisoned = true;
+        return Err(AgentError::InternalPoisoned);
+    }
+    // A second live entry under one capability is impossible: the durable
+    // tombstone just written would already have refused the reservation.
+    if inner
+        .begun_capabilities
+        .insert(capability_session_id, handle)
+        .is_some()
+    {
+        inner.poisoned = true;
+        return Err(AgentError::InternalPoisoned);
+    }
+    Ok(result)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1901,7 +2157,16 @@ fn restore_unexpected<W: WitnessPort, A: InstanceAuthorityPort, T>(
     handle: PendingSessionHandle,
     pending: PendingSession,
 ) -> Result<T, AgentError> {
-    if inner.pending_sessions.insert(handle, pending).is_some() {
+    // Unreachable in practice, since `prepare_acceptance` checked the variant
+    // before the session was taken. Put back both the session and the retry
+    // index entry that `take_pending` removed with it.
+    let capability_session_id = pending.begun().capability_session_id;
+    if inner.pending_sessions.insert(handle, pending).is_some()
+        || inner
+            .begun_capabilities
+            .insert(capability_session_id, handle)
+            .is_some()
+    {
         inner.poisoned = true;
         Err(AgentError::InternalPoisoned)
     } else {
@@ -1958,10 +2223,7 @@ fn erase_pending<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     handle: PendingSessionHandle,
 ) -> Result<(), AgentError> {
-    let removed = inner
-        .pending_sessions
-        .remove(&handle)
-        .ok_or(AgentError::UnknownHandle)?;
+    let removed = take_pending(inner, handle).ok_or(AgentError::UnknownHandle)?;
     drop(removed);
     if inner.repository.cancel_session(handle.0).is_err() {
         inner.poisoned = true;

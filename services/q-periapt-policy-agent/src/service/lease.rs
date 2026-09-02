@@ -1299,8 +1299,9 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
 /// `prove_lease_covers_retention`, against the fresh snapshot that check
 /// takes *after* the write. The pre-write call is an optimisation; the
 /// guarantee is `prove_lease_covers_retention`, and what remains between its
-/// snapshot and retention is that snapshot's own round trip plus one hash-map
-/// insert, both inside the divergence budget. The callers own the cleanup
+/// snapshot and retention is that snapshot's own round trip plus the hash-map
+/// inserts that retain it, all inside the divergence budget. The callers own
+/// the cleanup
 /// that keeps both refusals equal in effect: nothing retained, the
 /// reservation released.
 ///
