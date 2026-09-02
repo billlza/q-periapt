@@ -19,7 +19,7 @@ weaker socket.
 | --- | --- | --- |
 | Owner-only service/config/state paths (`0700`/`0600`, `O_NOFOLLOW`, descriptor-pinned) | daemon | all platforms |
 | IPC socket existence, owner, group and mode (`0660`, daemon owner, client group) | service manager | `q-periapt-policy-agent.socket`, `com.qperiapt.policy-agent.plist` |
-| Socket parent directory `0710` — the enforced admission boundary — under ancestors only root can write | tmpfiles.d on Linux; a root `RunAtLoad` job on macOS | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs); `com.qperiapt.policy-agent-rundir.plist` running `qperiapt-agent-rundir.sh` (macOS; the directory lives under root-owned `/opt/qperiapt/run`, which persists, so the job verifies every ancestor and the directory itself, and is also what loads the agent — see the macOS layout below) |
+| Socket parent directory `0710` — the enforced admission boundary — under ancestors only root can write | tmpfiles.d on Linux; a root `RunAtLoad` job on macOS | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs); `com.qperiapt.policy-agent-rundir.plist` running `qperiapt-agent-rundir.sh` (macOS; the directory lives under root-owned `/opt/qperiapt/run`, which persists, so the job verifies every ancestor and the directory itself, with `stat` for type, owner and mode and `ls -lde` for ACL entries, and is also what loads the agent — see the macOS layout below) |
 | Refusal to serve without a matching activated listener; no self-bind fallback | daemon | all platforms |
 | macOS extended-ACL rejection on protected paths | daemon | macOS |
 | Pinned-key mutual authentication (IPC, witness, authority) + replay windows | daemon | all platforms |
@@ -71,12 +71,17 @@ weaker socket.
   runs as root), so under it nothing but root can rename or replace anything
   on the socket's path; and `/opt` persists across boots, so the job verifies
   rather than recreates. `com.qperiapt.policy-agent-rundir.plist` runs
-  `qperiapt-agent-rundir.sh` as root at boot: it verifies with `stat`, on each
-  path itself and never a target, that every ancestor from `/` down is a real
-  directory owned by root that group and other cannot write; creates the
-  directory the first time or adopts it every time after; and verifies that it
-  is a real directory owned by the daemon account with the transport group at
-  exactly `0710`. Only then does it run `launchctl bootstrap system` on the
+  `qperiapt-agent-rundir.sh` as root at boot: it verifies with `stat` and
+  `ls -lde`, on each path itself and never a target, that every ancestor from
+  `/` down is a real directory owned by root that group and other cannot write
+  and that carries no ACL entry — `stat` cannot report one, `chmod 0710` does
+  not remove one, and an entry granting `add_file` or `delete_child` on an
+  ancestor is a write bit by another name; creates the directory the first
+  time or adopts it every time after; removes any ACL from it (`chmod -N`: the
+  directory is the job's to bring to the shipped state, as its owner and mode
+  are); and verifies that it is a real directory owned by the daemon account
+  with the transport group at exactly `0710` with no ACL entry. Only then does
+  it run `launchctl bootstrap system` on the
   agent plist. A directory at a default mode would leave the daemon starting
   normally with no boundary at all, so nothing short of that verification
   reaches the bootstrap: a symlink or file anywhere on the path is refused
@@ -89,9 +94,11 @@ weaker socket.
   names in the script and the numeric uid/gid in the agent plist were
   templated from the same account and group; that a failed run is noticed — it
   is written to `/private/var/log/qperiapt-agent-rundir.log` and the unified
-  log, and not retried until the next boot or a `launchctl kickstart`; or
-  anything against a hostile root, who owns every ancestor the job checks and
-  can substitute whatever it likes at any time.
+  log, and not retried until the next boot or a `launchctl kickstart`; that
+  the daemon account, which owns the directory, does not widen it by `chmod`
+  or `chmod +a` after the boot-time verification — the job verifies once per
+  boot; or anything against a hostile root, who owns every ancestor the job
+  checks and can substitute whatever it likes at any time.
 - These are reviewed deployment templates, not measured attestations: no gate
   in this repository verifies that a production host actually loaded them, the
   macOS run-directory job included. The crate's tests check only that the
@@ -130,11 +137,17 @@ weaker socket.
    binary. Create `/opt/qperiapt/run` as `root:wheel 0755` with the rest of
    that tree. `com.qperiapt.policy-agent-rundir.plist` runs
    `qperiapt-agent-rundir.sh` as root on every boot: it verifies with `stat`
-   that every ancestor of that directory from `/` down is a real directory
-   owned by root that group and other cannot write, creates or adopts the
-   directory as `0710` owned by the daemon account with the transport group,
-   verifies that too, and only then bootstraps the agent job — the layout is
-   in the macOS section below. Set `RUN_DIR_GROUP` at the top of the script to
+   and `ls -lde` that every ancestor of that directory from `/` down is a real
+   directory owned by root that group and other cannot write and that carries
+   no ACL entry (`stat` cannot report one, `chmod 0710` does not remove one,
+   and an entry granting `add_file` or `delete_child` on an ancestor is a
+   write bit by another name), creates or adopts the directory, removes any
+   ACL from it (`chmod -N`), brings it to `0710` owned by the daemon account
+   with the transport group, verifies that too — mode and no ACL entry — and
+   only then bootstraps the agent job; a socket node inherits inheritable ACL
+   entries from its directory when launchd binds it, so an ACL-free parent is
+   what keeps `SockPathMode` the socket's whole permission. The layout is in
+   the macOS section below. Set `RUN_DIR_GROUP` at the top of the script to
    the transport group you created; the directory, mode, daemon account and
    agent plist path already match the agent plist, and the crate's tests hold
    them to it and hold the directory out of `/var/run`. A directory at a
@@ -238,17 +251,21 @@ and verifies it rather than recreating it — and it:
    `/opt/qperiapt` and `/opt/qperiapt/run`, in that order — with `stat` on the
    path itself: each must be a real directory (a symlink is refused before
    anything below it is looked at), owned by root, with no group or other
-   write bit; a missing one is a refusal too, because the job creates nothing
-   whose parent it has not verified;
+   write bit, and no ACL entry (`ls -lde` on the path itself; a listing longer
+   than one line is refused, because the mode field's `+` is hidden by `@`
+   when the path also has an extended attribute); a missing one is a refusal
+   too, because the job creates nothing whose parent it has not verified;
 3. refuses a symlink or a non-directory at `/opt/qperiapt/run/qperiapt-agent`
    without touching it; creates the directory if absent (`mkdir` without `-p`,
    under `umask 077`, so it is never wider than `0700` before the chmod) or
    adopts an existing real directory, which it never removes;
-4. `chown`s and `chmod`s it, then verifies with `stat` — on the path itself,
+4. `chown`s it, removes any ACL (`chmod -N`, logging what it removed),
+   `chmod`s it, then verifies with `stat` and `ls -lde` — on the path itself,
    not a target — that it is a directory, owned by the daemon account and the
-   transport group, with mode exactly `0710`; a setgid or sticky bit fails
-   this like any other difference, and a directory this run created and could
-   not verify is removed again;
+   transport group, with mode exactly `0710` and no ACL entry; a setgid or
+   sticky bit, or an entry that survived the strip, fails this like any other
+   difference, and a directory this run created and could not verify is
+   removed again;
 5. refuses if the agent is already bootstrapped, which means something other
    than this job loaded it, possibly before the directory was verified;
 6. runs `launchctl bootstrap system` on the agent plist.

@@ -158,9 +158,10 @@ manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
 holds the hardened systemd unit (dedicated locked account, read-only OS
 view, seccomp `@system-service` filter, empty capability set, no core
 dumps) and the launchd daemon template (dedicated uid, owner-only umask,
-no core dumps) with the boot-time job that verifies the socket's `0710`
-parent directory and the root-owned ancestry above it on macOS and loads the
-agent only after that, together with the exact table of which boundary each
+no core dumps) with the boot-time job that verifies the socket's `0710`,
+ACL-free parent directory and the root-owned, ACL-free ancestry above it on
+macOS and loads the agent only after that, together with the exact table of
+which boundary each
 layer enforces and the explicit non-claims. A deployment that starts the
 binary outside those templates gets only the daemon's own
 filesystem-capability and cryptographic boundaries.

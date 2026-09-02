@@ -1505,6 +1505,58 @@ mod tests {
             "the script must bootstrap the agent only after the directory verified"
         );
 
+        // stat has no ACL format on macOS and chmod 0710 removes no ACL
+        // entry, so type, owner, group and mode alone accept a directory whose
+        // ACL grants what its mode denies -- and a socket bound inside such a
+        // directory inherits its inheritable entries, which would defeat the
+        // plist's SockPathMode the same way. The script has to read ls -e's
+        // entry lines, on every ancestor and on the directory itself, and to
+        // strip the directory's ACL between the chown and the verification.
+        assert!(
+            script.contains("ls -lde -- \"$1\""),
+            "stat has no ACL format on macOS; the check must read ls -e entries"
+        );
+        let ancestor_check = script
+            .find("verify_ancestor() {")
+            .expect("the script must define verify_ancestor");
+        let ancestor_check_end = script
+            .get(ancestor_check..)
+            .and_then(|body| body.find("\n}\n"))
+            .map(|end| ancestor_check + end)
+            .expect("verify_ancestor must close");
+        let ancestor_acl = script
+            .find("verify_no_acl \"$1\"")
+            .expect("the script must check every ancestor for an ACL");
+        assert!(
+            ancestor_check < ancestor_acl && ancestor_acl < ancestor_check_end,
+            "every ancestor must be refused on an ACL: verify_no_acl belongs inside verify_ancestor"
+        );
+        let owned = script
+            .find("chown -h \"$RUN_DIR_OWNER:$RUN_DIR_GROUP\"")
+            .expect("the script must chown the run directory");
+        let stripped = script
+            .find("chmod -h -N \"$RUN_DIR\"")
+            .expect("the script must remove any ACL from the run directory");
+        assert!(
+            owned < stripped && stripped < verified,
+            "the run directory's ACL must be removed after the chown and before the verification"
+        );
+        let mode_verified = script
+            .find("stat -f '%HT:%Su:%Sg:%Mp%Lp' \"$RUN_DIR\"")
+            .expect("the script must verify the run directory's type, owner, group and mode");
+        let acl_verified = script
+            .find("verify_no_acl \"$RUN_DIR\"")
+            .expect("the script must verify the run directory carries no ACL");
+        assert!(
+            mode_verified < acl_verified && acl_verified < verified,
+            "the run directory must be verified ACL-free after the stat and before it counts as verified"
+        );
+        let deploy_readme = deploy_file("README.md");
+        assert!(
+            deploy_readme.contains("ls -lde") && deploy_readme.contains("chmod -N"),
+            "the deploy README must document the ACL check and the strip the script performs"
+        );
+
         // The job that runs the script must run the shipped script through
         // /bin/sh (it is installed 0644, with no execute bit), at boot, once,
         // as root, and the script's install instructions must name the path
@@ -1573,6 +1625,162 @@ mod tests {
             Duration::from_secs(90)
                 > MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_RELEASE_BUDGET,
             "ExitTimeOut must cover observing the stop after a request plus the release budget"
+        );
+    }
+
+    /// The shipped ACL check, run as shipped: the `verify_no_acl` text is cut
+    /// out of the script and executed under `/bin/sh` against real ACLs on
+    /// real directories. Every setup step is asserted, never skipped -- a
+    /// filesystem that cannot hold an ACL is not a reason to pass.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn the_run_directory_job_refuses_the_acl_stat_cannot_see() {
+        use std::path::Path;
+        use std::process::Command;
+
+        let script = deploy_file("qperiapt-agent-rundir.sh");
+        let start = script
+            .find("NL=$(printf")
+            .expect("the script must define its newline constant");
+        let check = script
+            .get(start..)
+            .and_then(|rest| {
+                let end = rest.find("\n}\n")?;
+                rest.get(..end + 3)
+            })
+            .expect("the newline constant must be followed by a closed function");
+        assert!(
+            check.contains("verify_no_acl() {"),
+            "the first function after the newline constant must be verify_no_acl: {check}"
+        );
+        let harness = format!(
+            "set -eu\nPATH=/usr/bin:/bin:/usr/sbin:/sbin\nexport PATH\nAGENT_LABEL=test\n\
+             fail() {{ printf '%s\\n' \"$1\" >&2; exit 1; }}\n{check}\nverify_no_acl \"$1\"\n"
+        );
+        let root = tempfile::Builder::new()
+            .prefix("qperiapt-rundir-acl-")
+            .tempdir()
+            .expect("a temporary directory for the ACL cases");
+        let harness_path = root.path().join("harness.sh");
+        std::fs::write(&harness_path, harness).expect("the harness must be writable");
+
+        let run = |program: &str, arguments: &[&str]| -> String {
+            let output = Command::new(program)
+                .args(arguments)
+                .current_dir(root.path())
+                .output()
+                .unwrap_or_else(|error| unreachable!("{program} must run: {error}"));
+            assert!(
+                output.status.success(),
+                "{program} {arguments:?} failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8_lossy(&output.stdout).into_owned()
+        };
+        let verify = |path: &Path| -> (bool, String) {
+            let output = Command::new("/bin/sh")
+                .arg(&harness_path)
+                .arg(path)
+                .output()
+                .expect("/bin/sh must run the harness");
+            (
+                output.status.success(),
+                String::from_utf8_lossy(&output.stderr).into_owned(),
+            )
+        };
+
+        // A plain 0710 directory is accepted.
+        let plain = root.path().join("plain");
+        run("/bin/mkdir", &["plain"]);
+        run("/bin/chmod", &["0710", "plain"]);
+        assert!(verify(&plain).0, "a plain 0710 directory must pass");
+
+        // The counterexample: an ACL granting everyone write and search that
+        // the stat format the script relies on for owner and mode cannot see.
+        let acl = root.path().join("acl");
+        run("/bin/mkdir", &["acl"]);
+        run(
+            "/bin/chmod",
+            &[
+                "+a",
+                "everyone allow list,add_file,search,add_subdirectory,delete_child",
+                "acl",
+            ],
+        );
+        run("/bin/chmod", &["0710", "acl"]);
+        let stat = run("/usr/bin/stat", &["-f", "%HT:%Su:%Sg:%Mp%Lp", "acl"]);
+        assert!(
+            stat.trim_end().ends_with(":0710"),
+            "the stat format reports the mode as if nothing were wrong: {stat}"
+        );
+        let (accepted, stderr) = verify(&acl);
+        assert!(
+            !accepted,
+            "an ACL that grants what 0710 denies must be refused"
+        );
+        assert!(
+            stderr.contains("carries an ACL") && stderr.contains(" 0: "),
+            "the refusal must name the ACL and print its entries: {stderr}"
+        );
+
+        // With an extended attribute beside the ACL the mode field ends in
+        // '@', not '+', which is why the check counts ls -e's lines instead.
+        run("/usr/bin/xattr", &["-w", "com.qperiapt.test", "x", "acl"]);
+        let listing = run("/bin/ls", &["-ld", "acl"]);
+        let mode_field = listing.split_whitespace().next().unwrap_or_default();
+        assert!(
+            mode_field.ends_with('@'),
+            "an extended attribute hides the ACL marker in the mode field: {listing}"
+        );
+        let (accepted, stderr) = verify(&acl);
+        assert!(
+            !accepted && stderr.contains("carries an ACL"),
+            "the ACL must still be refused behind the extended attribute: {stderr}"
+        );
+
+        // An inheritable entry on a parent lands on a child that plain mkdir
+        // creates, exactly as the script's own mkdir would; the parent is
+        // refused as an ancestor and the child until its entry is removed.
+        let parent = root.path().join("parent");
+        let child = parent.join("child");
+        run("/bin/mkdir", &["parent"]);
+        run(
+            "/bin/chmod",
+            &[
+                "+a",
+                "everyone allow search,file_inherit,directory_inherit",
+                "parent",
+            ],
+        );
+        run("/bin/mkdir", &["parent/child"]);
+        run("/bin/chmod", &["0710", "parent/child"]);
+        let (accepted, stderr) = verify(&child);
+        assert!(
+            !accepted && stderr.contains("inherited"),
+            "a child must be refused on the entry it inherited: {stderr}"
+        );
+        assert!(
+            !verify(&parent).0,
+            "the parent carrying the inheritable entry must be refused"
+        );
+        run("/bin/chmod", &["-h", "-N", "parent/child"]);
+        assert!(
+            verify(&child).0,
+            "the child must pass once its inherited entry is removed"
+        );
+        assert!(
+            !verify(&parent).0,
+            "removing the child's entry leaves the parent refused"
+        );
+
+        // The strip the script applies to the run directory removes the
+        // counterexample's ACL; the extended attribute stays and does not
+        // matter.
+        run("/bin/chmod", &["-h", "-N", "acl"]);
+        let (accepted, stderr) = verify(&acl);
+        assert!(
+            accepted,
+            "chmod -N must leave a directory the check accepts: {stderr}"
         );
     }
 

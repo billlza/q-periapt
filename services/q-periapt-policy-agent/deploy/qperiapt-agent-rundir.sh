@@ -26,8 +26,8 @@
 # across boots, so this is a verification job rather than a recreation job: it
 # checks every ancestor of the directory from / down, creates the directory
 # the first time and adopts it every time after, brings it to exactly the
-# shipped owner, group and mode, verifies that, and only then bootstraps the
-# agent. Every other outcome is a refusal: a non-zero exit, nothing
+# shipped owner, group and mode with no ACL, verifies that, and only then
+# bootstraps the agent. Every other outcome is a refusal: a non-zero exit, nothing
 # bootstrapped, and the agent left down -- the outcome the daemon itself
 # chooses when its listener is missing -- rather than up behind no boundary.
 #
@@ -91,6 +91,26 @@ fail() {
     exit 1
 }
 
+# A literal newline for the pattern below.
+NL=$(printf '\nx'); NL=${NL%x}
+
+# stat has no ACL format on macOS, chmod 0710 removes no ACL entry, and ls marks
+# the mode field '@' rather than '+' whenever the path also has an extended
+# attribute, so the mode field cannot be read for one either. ls -e appends one
+# line per ACL entry after the listing line; -d lists a directory itself rather
+# than its contents, and without -L it reports the path itself. Exactly one
+# line is the only thing accepted.
+verify_no_acl() {
+    if ! listing=$(ls -lde -- "$1"); then
+        fail "could not list $1"
+    fi
+    case "$listing" in
+        *"$NL"*)
+            fail "$1 carries an ACL, which stat cannot see and which grants what its mode denies; not bootstrapping $AGENT_LABEL: $listing"
+            ;;
+    esac
+}
+
 # Every non-zero exit passes through here, whether from fail or from set -e. A
 # directory this run created and could not verify is removed again -- rmdir, so
 # only an empty directory of ours can go -- and one that already existed is left
@@ -134,9 +154,14 @@ fi
 # at. %HT is the file type, %Su the owner by name, and %Mp%Lp the setuid,
 # setgid and sticky bits followed by the permission bits. The only thing
 # accepted is a real directory, owned by root, that group and other cannot
-# write: those are the directories in which nobody but root can rename, remove
-# or replace an entry, which is what keeps the directory verified below the
-# same directory launchd binds into. A missing ancestor is a refusal too: the
+# write, carrying no ACL entry: those are the directories in which nobody but
+# root can rename, remove or replace an entry, which is what keeps the
+# directory verified below the same directory launchd binds into. The ACL
+# check comes second, after stat has refused a symlink, and is a refusal
+# rather than a strip: an entry granting add_file or delete_child on an
+# ancestor lets its subject rename or replace the verified directory exactly
+# as a group or other write bit would, and this job does not own /, /opt,
+# /opt/qperiapt or /opt/qperiapt/run. A missing ancestor is a refusal too: the
 # installer creates the tree, and this job never creates anything whose parent
 # it has not verified.
 
@@ -150,6 +175,7 @@ verify_ancestor() {
             fail "$1 is $ancestor_actual, not a root-owned directory that group and other cannot write; not bootstrapping $AGENT_LABEL"
             ;;
     esac
+    verify_no_acl "$1"
 }
 
 # Walk /, then each component of the parent in turn: /opt, /opt/qperiapt, and
@@ -195,17 +221,33 @@ fi
 if ! chown -h "$RUN_DIR_OWNER:$RUN_DIR_GROUP" "$RUN_DIR"; then
     fail "could not set owner and group $RUN_DIR_OWNER:$RUN_DIR_GROUP on $RUN_DIR"
 fi
+# The ACL is the job's to remove exactly as the owner, group and mode are its
+# to set: an entry here was inherited from an ancestor that has since been
+# fixed, or was put there by hand, and either way grants what 0710 denies.
+# Say so before removing it; the verification below is what decides.
+if listing=$(ls -lde -- "$RUN_DIR"); then
+    case "$listing" in
+        *"$NL"*) log warning "removing the ACL found on $RUN_DIR: $listing" ;;
+    esac
+fi
+if ! chmod -h -N "$RUN_DIR"; then
+    fail "could not remove the ACL from $RUN_DIR"
+fi
 if ! chmod -h "$RUN_DIR_MODE" "$RUN_DIR"; then
     fail "could not set mode $RUN_DIR_MODE on $RUN_DIR"
 fi
 
 # --- Verification: the only thing the bootstrap below trusts -----------------
 #
-# stat without -L reports the path itself, never a target. %HT is the file
-# type, %Su and %Sg the owner and group by name, and %Mp%Lp the setuid, setgid
-# and sticky bits followed by the permission bits -- so the comparison is exact:
-# a setgid directory reads 2710 and is refused along with everything else that
-# is not precisely a directory, owned as configured, at the configured mode.
+# Both checks read the path itself, never a target. stat proves type, owner,
+# group and mode: %HT is the file type, %Su and %Sg the owner and group by
+# name, and %Mp%Lp the setuid, setgid and sticky bits followed by the
+# permission bits -- so the comparison is exact: a setgid directory reads 2710
+# and is refused along with everything else that is not precisely a directory,
+# owned as configured, at the configured mode. ls -lde then proves there is no
+# ACL entry, which stat cannot: an entry that survived the strip above --
+# re-applied between the two commands, or left by a filesystem that refused
+# the removal silently -- is refused like any other difference.
 expected="Directory:$RUN_DIR_OWNER:$RUN_DIR_GROUP:$RUN_DIR_MODE"
 if ! actual=$(stat -f '%HT:%Su:%Sg:%Mp%Lp' "$RUN_DIR"); then
     fail "could not stat $RUN_DIR"
@@ -213,6 +255,7 @@ fi
 if [ "$actual" != "$expected" ]; then
     fail "$RUN_DIR is $actual, not $expected; not bootstrapping $AGENT_LABEL"
 fi
+verify_no_acl "$RUN_DIR"
 verified=1
 
 # --- The agent --------------------------------------------------------------

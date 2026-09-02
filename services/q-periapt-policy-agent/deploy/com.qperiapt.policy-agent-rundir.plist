@@ -13,12 +13,13 @@
   /private/var/run, which on macOS is root:daemon 0775 with no sticky bit: a
   gid-1 process can rename or replace an entry there at will, and launchd
   would bind the socket inside whatever it substituted. This job runs
-  qperiapt-agent-rundir.sh as root at boot; the script verifies with stat
-  that every ancestor of the directory, from / down, is a real directory
-  owned by root that group and other cannot write, creates the directory the
-  first time or adopts it after, verifies that it is a real directory owned
-  by the daemon account with the transport group at exactly 0710, and only
-  then bootstraps the agent. Anything else is a refusal that leaves the agent
+  qperiapt-agent-rundir.sh as root at boot; the script verifies with stat and
+  ls -lde that every ancestor of the directory, from / down, is a real
+  directory owned by root that group and other cannot write and carrying no
+  ACL, creates the directory the first time or adopts it after, removes any
+  ACL from it, verifies that it is a real directory owned by the daemon
+  account with the transport group at exactly 0710 with no ACL, and only then
+  bootstraps the agent. Anything else is a refusal that leaves the agent
   unloaded.
 
   Install this file, and only this file, in /Library/LaunchDaemons:

@@ -18,8 +18,10 @@
   process could rename a verified directory away and put its own, or a
   symlink, under launchd's bind. The socket therefore lives under the
   root-owned /opt/qperiapt/run instead. That job verifies every ancestor of
-  the parent from / down, creates or adopts and verifies the parent itself,
-  and only then runs launchctl bootstrap system on this file. Loaded from
+  the parent from / down -- a root-owned directory nobody else can write,
+  carrying no ACL -- creates or adopts the parent itself, strips any ACL from
+  it and verifies it at 0710 with no ACL, and only then runs launchctl
+  bootstrap system on this file. Loaded from
   /Library/LaunchDaemons instead, this plist runs unordered against that job
   and can bind its socket before the boundary has been verified.
 
@@ -88,7 +90,11 @@
       daemon account with the transport group, so only that group can traverse to
       the socket at all -- and every ancestor of that directory is a root-owned
       directory nobody else can write, so no other account can rename it out
-      from under the path launchd binds.
+      from under the path launchd binds. The run-directory job verifies that
+      ancestry and the parent itself ACL-free as well as at those modes: a
+      socket node inherits inheritable ACL entries from its directory when
+      launchd binds it, so the parent being ACL-free at bootstrap is what keeps
+      SockPathMode the socket's whole permission.
     -->
     <key>Sockets</key>
     <dict>
