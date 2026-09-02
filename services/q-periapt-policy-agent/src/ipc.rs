@@ -68,9 +68,12 @@ const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
 /// How long the lease release at stop may take. Against an authority that
 /// accepts the connection and never answers it is up to six bounded round
 /// trips -- the two drains, each stopping at its first unanswered call, the
-/// release, two reconciling queries and the snapshot proof -- and admission
-/// is strict, so strictly more than five of them must fit; each is admitted
-/// only while it can end within this budget.
+/// release, two reconciling queries and the snapshot proof -- each admitted
+/// only while it can end strictly within what is left of this budget. So
+/// the budget must exceed five full bounds for the release and its queries
+/// to be reached behind two unanswered drains, and a round trip that no
+/// longer fits is refused rather than started: the stop is bounded by this
+/// budget whatever the authority does.
 const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;

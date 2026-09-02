@@ -34,8 +34,9 @@ const LEASE_WAIT_MIN_PAUSE: Duration = Duration::from_millis(10);
 /// (`coverage_deadline`). Nothing bounds that divergence from outside -- a
 /// forward step of the authority's wall clock is invisible to this host -- so
 /// the bound is relied on only across the retention snapshot's own round trip
-/// plus one hash-map insert: `prove_lease_covers_retention` re-takes the
-/// observation after the operation's last I/O. An authority clock stepping
+/// plus the hash-map inserts that retain the secret:
+/// `prove_lease_covers_retention` re-takes the observation after the
+/// operation's last I/O. An authority clock stepping
 /// further than this within one such round trip is out of model.
 pub(crate) const LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS: u64 = 1_000;
 // A fresh renew at the shortest configurable TTL must leave usable coverage
@@ -1308,9 +1309,8 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
 /// guarantee is `prove_lease_covers_retention`, and what remains between its
 /// snapshot and retention is that snapshot's own round trip plus the hash-map
 /// inserts that retain it, all inside the divergence budget. The callers own
-/// the cleanup
-/// that keeps both refusals equal in effect: nothing retained, the
-/// reservation released.
+/// the cleanup that keeps both refusals equal in effect: nothing retained,
+/// the reservation released.
 ///
 /// It deliberately does not fence. A local deadline running out, the lease's
 /// or the operation's, is no evidence that any successor exists, and fencing
