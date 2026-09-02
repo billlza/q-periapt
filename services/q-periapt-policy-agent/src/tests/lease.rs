@@ -1,6 +1,7 @@
 //! Instance lease, coverage, fencing, and recovery.
 
 use super::*;
+use crate::service::lease::{coverage_deadline, LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS};
 
 #[test]
 fn a_coverage_lapse_at_acceptance_releases_the_durable_reservation() -> TestResult {
@@ -24,11 +25,15 @@ fn a_coverage_lapse_at_acceptance_releases_the_durable_reservation() -> TestResu
         .responder
         .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
 
-    // Lapse the coverage for the initiator's acceptance specifically.
+    // Lapse the coverage for the initiator's acceptance specifically: the
+    // post-renew snapshot leaves twice the divergence budget, so the
+    // acceptance starts, and the retention snapshot after the durable release
+    // sees the authority's clock reach the expiry.
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+    );
     pair.initiator_authority
-        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
-    pair.initiator_authority
-        .delay_next_snapshot(Duration::from_millis(20));
+        .advance_clock_before_next_snapshot(2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
     assert_eq!(
         pair.initiator
             .accept_responder_finished(encapsulated.handle, accepted.responder_finished)
@@ -215,13 +220,19 @@ fn a_coverage_lapse_during_the_durable_reservation_retains_no_session() -> TestR
     // The coverage check before the durable reservation cannot see a lapse
     // that happens *during* it. The reservation is a real fsync, so nothing
     // in a test can make it slow on demand; the repository's test hook sleeps
-    // after the commit instead. Coverage is cut to two seconds and the write
-    // is made to take two and a half, so the check before the write passes and
-    // only the one after it can refuse.
+    // after the commit instead. The lapse is an authority-clock event: the
+    // post-renew snapshot leaves twice the divergence budget, so the check
+    // before the write passes, the write is made to take two and a half
+    // seconds, and the retention snapshot after it is what sees the
+    // authority's clock reach the expiry. The local clock alone no longer
+    // decides.
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 75)?;
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+    );
     pair.initiator_authority
-        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2_000);
+        .advance_clock_before_next_snapshot(2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
     pair.initiator
         .delay_next_durable_write_for_test(Duration::from_millis(2_500))?;
 
@@ -252,8 +263,9 @@ fn a_coverage_lapse_during_the_durable_reservation_retains_no_session() -> TestR
 fn a_coverage_lapse_during_the_durable_release_retains_no_key() -> TestResult {
     // Same shape at acceptance: the durable release of the reservation is the
     // last write before the accepted key becomes retained. A lapse during it
-    // must drop the key without retaining it, leave the reservation released,
-    // and neither fence nor poison the agent.
+    // -- seen by the retention snapshot after the write -- must drop the key
+    // without retaining it, leave the reservation released, and neither fence
+    // nor poison the agent.
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 77)?;
     let encapsulated =
@@ -268,8 +280,11 @@ fn a_coverage_lapse_during_the_durable_release_retains_no_key() -> TestResult {
         .responder
         .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
 
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+    );
     pair.initiator_authority
-        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2_000);
+        .advance_clock_before_next_snapshot(2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
     pair.initiator
         .delay_next_durable_write_for_test(Duration::from_millis(2_500))?;
     let started = Instant::now();
@@ -297,29 +312,28 @@ fn a_coverage_lapse_during_the_durable_release_retains_no_key() -> TestResult {
 }
 
 #[test]
-fn an_operation_that_outlives_its_proven_lease_coverage_retains_nothing() -> TestResult {
+fn coverage_refuses_before_the_write_once_only_the_divergence_budget_is_left() -> TestResult {
     // The lease is checked on the way in, but a witness round trip, two
     // signature verifications and a KEM operation all run before a secret first
-    // becomes retained. The renew receipt carries no expiry, so the agent takes
-    // one snapshot to learn how long it can prove it still holds the lease, and
-    // refuses to retain anything past that point.
+    // becomes retained, and the authority's clock may gain on this host's
+    // meanwhile. The renew receipt carries no expiry, so the agent takes one
+    // snapshot to learn how long it can prove it still holds the lease, and a
+    // lease with no more than the divergence budget left proves nothing: the
+    // operation is refused before it starts.
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 61)?;
 
-    // The renew applies, and then the authority's clock jumps to one
-    // millisecond before the new expiry. That is the shape of the real race:
-    // the renew succeeded, and time passed before the agent learned the expiry.
-    pair.initiator_authority
-        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
-    // Spend that last millisecond inside the snapshot, so the coverage has
-    // provably lapsed by the time the operation checks it. Without this the
-    // test would be racing the real work between the snapshot and the check --
-    // key generation, the witness round trip, the contract's signature
-    // verifications -- and would start passing for the wrong reason, or fail
-    // outright, once a release build brings that work under a millisecond.
-    pair.initiator_authority
-        .delay_next_snapshot(Duration::from_millis(20));
+    // The renew applies, and then the authority's clock jumps to exactly the
+    // budget before the new expiry. That is the shape of the real race: the
+    // renew succeeded, and time passed before the agent learned the expiry.
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+    );
+    // Armed but never paid: the refusal comes before the durable write.
+    pair.initiator
+        .delay_next_durable_write_for_test(Duration::from_millis(500))?;
 
+    let started = Instant::now();
     let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
         pair.initiator_authorization,
         pair.responder_public_keys.clone(),
@@ -327,15 +341,45 @@ fn an_operation_that_outlives_its_proven_lease_coverage_retains_nothing() -> Tes
     assert_eq!(
         outcome.err(),
         Some(AgentError::InstanceLeaseCoverageElapsed),
-        "an operation past its proven coverage must not return a handle"
+        "an operation without provable coverage must not return a handle"
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(400),
+        "the durable write ran; the post-renew proof should have refused first"
     );
 
-    // Nothing was retained. A coverage lapse is not a fence: it is a local
-    // deadline running out, which is no evidence that a successor exists, so
-    // the agent stays usable rather than being permanently retired.
+    // Nothing was retained and nothing was written. A coverage lapse is not a
+    // fence: it is no evidence that a successor exists, so the agent stays
+    // usable rather than being permanently retired.
     assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
     assert_eq!(pair.initiator.confirmed_key_count(), 0);
     assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
+fn a_lease_with_more_than_the_budget_left_still_serves() -> TestResult {
+    // The companion: the budget must never eat a healthy lease. With three
+    // budgets left the post-renew proof passes, the retention snapshot after
+    // the durable write passes too, and the session is retained.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 135)?;
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 3 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+    );
+    let snapshots_before = pair.initiator_authority.snapshot_call_count();
+    let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert!(outcome.is_ok(), "unexpected result: {outcome:?}");
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    // One snapshot after the renew, one after the durable reservation.
+    assert_eq!(
+        pair.initiator_authority.snapshot_call_count() - snapshots_before,
+        2
+    );
     Ok(())
 }
 
@@ -1631,4 +1675,208 @@ fn release_after_a_lost_reacquire_releases_the_new_lease() -> TestResult {
     )?;
     successor.release_instance_lease()?;
     Ok(())
+}
+
+#[test]
+fn a_forward_authority_clock_step_after_the_coverage_snapshot_retains_no_session() -> TestResult {
+    // The post-renew snapshot proves coverage in authority time, and every
+    // check after it used to be local: the authority's clock stepping past
+    // the expiry during the witness round trip -- invisible to this host's
+    // clock -- left a Begin retaining a session under a lease the authority
+    // no longer held. Retention re-observes the authority after the durable
+    // write, so the step is seen and nothing is retained.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 120)?;
+    let before = pair.initiator_authority.lock().authority.persistent_meta();
+    let before_lease = before.lease.expect("the initial agent acquired its lease");
+    *pair
+        .witness
+        .advance_authority_on_read
+        .lock()
+        .map_err(|_| io::Error::other("witness hook poisoned"))? =
+        Some(pair.initiator_authority.clone());
+
+    let snapshots_before = pair.initiator_authority.snapshot_call_count();
+    let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    let snapshots_after = pair.initiator_authority.snapshot_call_count();
+    assert_eq!(
+        outcome.err(),
+        Some(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // The lease really lapsed by the authority's clock, and both proofs were
+    // taken: one after the renew, one after the durable reservation.
+    assert!(pair.initiator_authority.active_lease()?.is_none());
+    assert_eq!(snapshots_after - snapshots_before, 2);
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    assert_eq!(pair.initiator.confirmed_key_count(), 0);
+    assert!(pair.initiator.public_keys().is_ok());
+
+    // Not a fence: the next operation's renew is rejected as expired and the
+    // instance re-acquires at its own generation.
+    pair.initiator_authority.advance_clock(1);
+    let second = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.second_initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert!(second.is_ok(), "unexpected result: {second:?}");
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    let recovered = pair.initiator_authority.lock().authority.persistent_meta();
+    assert_eq!(recovered.lease_generation, before.lease_generation + 1);
+    assert_eq!(
+        recovered
+            .lease
+            .expect("the re-acquired lease is active")
+            .fence()
+            .instance_id(),
+        before_lease.fence().instance_id()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_forward_authority_clock_step_after_the_coverage_snapshot_retains_no_key() -> TestResult {
+    // The same step at acceptance: the authority's clock passes the expiry
+    // during the witness read that precedes the durable release, and the
+    // retention snapshot after that release is what sees it. The key is
+    // dropped unretained, the reservation is released rather than orphaned,
+    // and the agent is neither fenced nor poisoned.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 134)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+
+    *pair
+        .witness
+        .advance_authority_on_read
+        .lock()
+        .map_err(|_| io::Error::other("witness hook poisoned"))? =
+        Some(pair.initiator_authority.clone());
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished)
+            .err(),
+        Some(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    assert_eq!(pair.initiator.confirmed_key_count(), 0);
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    // The reservation was released by the durable release, not orphaned:
+    // there is nothing left to cancel.
+    assert!(pair
+        .initiator
+        .desynchronize_session_for_test(encapsulated.handle)
+        .is_err());
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
+fn a_successor_observed_by_the_retention_snapshot_fences_and_releases_the_reservation() -> TestResult
+{
+    // The post-renew snapshot is clean; the successor acquires -- and lapses
+    // -- while the durable reservation is written, so only the retention
+    // snapshot sees the generation move past ours. That is a real fence, and
+    // the reservation it interrupts is cancelled explicitly: `fence_out`
+    // iterates the in-memory map, which this handle never reached.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 130)?;
+    let before = pair.initiator_authority.lock().authority.persistent_meta();
+    let incumbent = before
+        .lease
+        .expect("the initial agent acquired its lease")
+        .fence()
+        .instance_id();
+    pair.initiator_authority
+        .successor_acquires_before_snapshot_after(1);
+    let first = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert_eq!(first.err(), Some(AgentError::InstanceFenced));
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+
+    // Permanent.
+    let second = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.second_initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert_eq!(second.err(), Some(AgentError::InstanceFenced));
+    let after = pair.initiator_authority.lock().authority.persistent_meta();
+    assert_eq!(after.lease_generation, before.lease_generation + 1);
+    assert_ne!(
+        after
+            .lease
+            .expect("the successor's lease record is retained after it lapses")
+            .fence()
+            .instance_id(),
+        incumbent
+    );
+    Ok(())
+}
+
+#[test]
+fn an_authority_unreachable_at_the_retention_snapshot_retains_nothing() -> TestResult {
+    // The retention proof needs a fresh observation; an authority that cannot
+    // give one fails the operation closed. The reservation is released, the
+    // consumed offer is spent, and the agent is neither fenced nor poisoned:
+    // the next operation, with the authority answering again, serves.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 132)?;
+    pair.initiator_authority.lose_snapshot_after(1);
+    let first = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert_eq!(first.err(), Some(AgentError::InstanceLeaseUnavailable));
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    assert!(pair.initiator.public_keys().is_ok());
+    // The lease itself was never in doubt.
+    assert!(pair.initiator_authority.active_lease()?.is_some());
+
+    let second = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.second_initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert!(second.is_ok(), "unexpected result: {second:?}");
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn coverage_deadline_subtracts_the_divergence_budget() {
+    let anchor = Instant::now();
+    let budget = LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS;
+    let floor = 5_000;
+    // No more than the budget left proves nothing.
+    assert_eq!(coverage_deadline(anchor, floor, floor + budget), None);
+    assert_eq!(coverage_deadline(anchor, floor, floor + budget - 1), None);
+    assert_eq!(coverage_deadline(anchor, floor, floor), None);
+    // One millisecond past the budget is one millisecond of coverage.
+    assert_eq!(
+        coverage_deadline(anchor, floor, floor + budget + 1),
+        Some(anchor + Duration::from_millis(1))
+    );
+    // Already lapsed by the authority's clock.
+    assert_eq!(coverage_deadline(anchor, floor + 1, floor), None);
+    // The budget comes off the remaining life, not the anchor.
+    let expiry = 20_000;
+    assert_eq!(
+        coverage_deadline(anchor, expiry - budget - 500, expiry),
+        Some(anchor + Duration::from_millis(500))
+    );
 }

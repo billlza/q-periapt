@@ -3,6 +3,8 @@
 
 use super::*;
 
+use crate::authority_codec::HARD_MIN_LEASE_TTL_MILLIS;
+
 /// In-memory fast path for the acknowledgements lease receipts are owed. The
 /// durable lease-intent journal in the repository has the same bound
 /// (`MAX_JOURNALED_LEASE_INTENTS`) and every queued receipt has a row there,
@@ -15,6 +17,49 @@ const LEASE_WAIT_STEP: Duration = Duration::from_secs(1);
 /// Shortest such pause, so an authority whose lease is about to lapse, or that
 /// reports none at all between two refused acquires, is not polled flat out.
 const LEASE_WAIT_MIN_PAUSE: Duration = Duration::from_millis(10);
+
+/// Most authority clock advance, beyond this host's elapsed time, that a
+/// coverage proof tolerates between the authority's clock read behind a
+/// snapshot and the local instant a secret is retained.
+///
+/// Two clocks are involved: the authority's, which alone decides when a lease
+/// is gone, and this host's monotonic clock, which is all a check between two
+/// round trips can read. Let `F` be the clock floor a snapshot reported and
+/// `E` the lease's exclusive expiry, both authority time, and `anchor` the
+/// local instant captured before that snapshot was requested. The model is
+/// that from the clock read behind the snapshot to any later local instant
+/// `t` inside the same guarded operation, the authority clock advances by at
+/// most `(t - anchor) + B`; retention at `t` is then allowed only while
+/// `F + (t - anchor) + B < E`, that is `t < anchor + (E - F - B)`
+/// (`coverage_deadline`). Nothing bounds that divergence from outside -- a
+/// forward step of the authority's wall clock is invisible to this host -- so
+/// the bound is relied on only across the retention snapshot's own round trip
+/// plus one hash-map insert: `prove_lease_covers_retention` re-takes the
+/// observation after the operation's last I/O. An authority clock stepping
+/// further than this within one such round trip is out of model.
+pub(crate) const LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS: u64 = 1_000;
+// A fresh renew at the shortest configurable TTL must leave usable coverage
+// with room to spare, or the budget would turn a healthy lease into refusals.
+const _: () = assert!(LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS * 4 <= HARD_MIN_LEASE_TTL_MILLIS);
+
+/// The local instant until which a lease reported with clock floor
+/// `clock_floor_millis` and expiry `expires_at_millis` is proven held under
+/// the model above, when the snapshot was requested at `anchor`.
+///
+/// `None` when the lease had already lapsed by the authority's clock, when no
+/// more than the budget is left, or when the instant cannot be represented:
+/// nothing may be retained on it.
+pub(crate) fn coverage_deadline(
+    anchor: Instant,
+    clock_floor_millis: u64,
+    expires_at_millis: u64,
+) -> Option<Instant> {
+    let usable = expires_at_millis
+        .checked_sub(clock_floor_millis)?
+        .checked_sub(LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS)
+        .filter(|usable| *usable > 0)?;
+    anchor.checked_add(Duration::from_millis(usable))
+}
 
 /// RAM-only client view of this process's exclusive instance lease.
 ///
@@ -57,13 +102,20 @@ pub(super) struct InstanceLeaseState {
     /// resolve, and dispatches whose response was lost. Queried again before
     /// each guarded operation. Bounded by the journal for the same reason.
     unresolved: Vec<OperationIdV2>,
-    /// Local instant until which this process has *proved* it holds the lease.
+    /// Local instant until which this process has *proved* it holds the lease,
+    /// under the two-clock model at `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS`.
+    /// `None` means nothing has been proven and no secret may be retained.
     ///
     /// The renew receipt carries no expiry, so the only way to learn one is a
-    /// snapshot. This is anchored to an instant captured before that request is
-    /// sent, so it can only understate the remaining life: the authority's clock
-    /// floor is nondecreasing, so the elapsed time it implies is an upper bound.
-    /// `None` means nothing has been proven and no secret may be retained.
+    /// snapshot, which reports the authority's clock floor and the lease's
+    /// expiry in authority time. The proof is anchored to a local instant
+    /// captured before that request is sent and ends the budget short of the
+    /// remaining life it reports (`coverage_deadline`): the authority's clock
+    /// floor is nondecreasing, so the elapsed time it implies is an upper
+    /// bound only while the authority's clock runs ahead of this host's by no
+    /// more than the budget. That is why no secret is retained on this field
+    /// alone: `prove_lease_covers_retention` re-observes the authority after
+    /// the operation's last I/O and sets it afresh before the insert.
     covered_until: Option<Instant>,
 }
 
@@ -718,10 +770,17 @@ fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
 /// cannot decide it, with [`AgentError::InstanceLeaseIndeterminate`]. Either
 /// way nothing is dispatched and the record is kept for the next attempt.
 ///
-/// A successful renew also records how long the lease is provably still held,
-/// which the operation re-checks before it retains anything. The renew alone
-/// only authorizes the *start* of the operation; the work that follows is not
-/// instantaneous, and the receipt carries no expiry with which to bound it.
+/// A successful renew also records how long the lease is provably still held
+/// (`prove_lease_coverage`), which the operation checks before its durable
+/// write. The renew alone only authorizes the *start* of the operation; the
+/// work that follows is not instantaneous, the receipt carries no expiry with
+/// which to bound it, and the recorded coverage holds only while the
+/// authority's clock runs ahead of this host's by no more than
+/// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS`. So nothing is retained on that
+/// record alone: `prove_lease_covers_retention` takes a fresh snapshot after
+/// the operation's last I/O, and a secret is retained only if that snapshot
+/// shows the lease still held by this instance with more than the budget
+/// left.
 pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
@@ -1000,14 +1059,22 @@ fn resolve_pending_acquire<W: WitnessPort, A: InstanceAuthorityPort>(
 /// wire receipt carries no expiry and widening it would break a released ABI.
 /// The expiry is therefore read from a snapshot, which the port already offers.
 ///
-/// The anchor is captured **before** the request is sent, so the recorded
-/// coverage can only understate the truth. The authority's clock floor is
-/// nondecreasing, so the elapsed time it implies is an upper bound, and the
-/// snapshot's own `active_lease` is already filtered to unexpired leases. That
-/// makes this a liveness check as well: no active lease, or one carrying a fence
-/// that is not ours, means the lease is already gone.
+/// The anchor is captured **before** the request is sent, and the recorded
+/// coverage is `coverage_deadline(anchor, floor, expiry)`: the remaining life
+/// the snapshot reports, less `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS`, counted
+/// from the anchor. The authority's clock floor is nondecreasing, so the
+/// elapsed time it implies is an upper bound as long as the authority's clock
+/// gains no more than the budget on this host's; the snapshot's own
+/// `active_lease` is already filtered to unexpired leases. That makes this a
+/// liveness check as well: no active lease, or one carrying a fence that is
+/// not ours, means the lease is already gone. A lease with no more than the
+/// budget left is refused here too, and every refusal clears the previous
+/// proof, so the field never claims coverage the snapshot just contradicted.
 ///
-/// The cost is one extra authority round trip per guarded operation. That is the
+/// The cost is one extra authority round trip per guarded operation, and a
+/// second one for every operation that retains a secret: this call, after the
+/// renew, bounds the work; `prove_lease_covers_retention` repeats it after the
+/// durable write, immediately before the secret becomes reachable. That is the
 /// price of the expiry not being on the renew path; do not substitute a guessed
 /// TTL for it. `HARD_MIN_LEASE_TTL_MILLIS` in particular would discard almost
 /// all of a long configured lease and turn this check into key destruction on a
@@ -1064,11 +1131,14 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
         fence_out(inner)?;
         return Err(AgentError::InstanceFenced);
     }
-    let remaining = active
-        .expires_at_millis()
-        .checked_sub(snapshot.clock_floor_millis())
-        .ok_or(AgentError::InstanceLeaseCoverageElapsed)?;
-    inner.lease.covered_until = anchor.checked_add(Duration::from_millis(remaining));
+    inner.lease.covered_until = coverage_deadline(
+        anchor,
+        snapshot.clock_floor_millis(),
+        active.expires_at_millis(),
+    );
+    if inner.lease.covered_until.is_none() {
+        return Err(AgentError::InstanceLeaseCoverageElapsed);
+    }
     Ok(())
 }
 
@@ -1080,13 +1150,14 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
 /// all sit between that check and the point where a secret first becomes
 /// retained.
 ///
-/// It is therefore consulted twice. Once before the durable write, as an
-/// early-out that avoids paying for an fsync the operation is about to
-/// discard. And once more *after* it, immediately before the in-memory
-/// insert that makes the secret reachable (`reserve_pending`,
-/// `retain_accepted_key`). The second check is the guarantee; the first is an
-/// optimisation. What remains between the second check and retention is a
-/// hash-map insert, not I/O.
+/// This is the local, budgeted rule against the deadline `prove_lease_coverage`
+/// recorded. It is consulted before the durable write, as an early-out that
+/// avoids paying for an fsync the operation is about to discard, and again
+/// inside `prove_lease_covers_retention`, against the fresh snapshot that
+/// check takes *after* the write. The pre-write call is an optimisation; the
+/// guarantee is `prove_lease_covers_retention`, and what remains between its
+/// snapshot and retention is that snapshot's own round trip plus one hash-map
+/// insert, both inside the divergence budget.
 ///
 /// It deliberately does not fence. A local deadline running out is no evidence
 /// that any successor exists, and fencing is permanent.
@@ -1097,6 +1168,40 @@ pub(super) fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
         Some(until) if Instant::now() < until => Ok(()),
         _ => Err(AgentError::InstanceLeaseCoverageElapsed),
     }
+}
+
+/// The retention check: a fresh authority observation taken after the last
+/// I/O before a secret becomes reachable, then the budgeted local rule
+/// against that observation.
+///
+/// The witness round trip, the KEM and the durable write -- a real fsync --
+/// all sit between the post-renew snapshot and this point, and authority time
+/// may have stepped past the lease's expiry during any of them without this
+/// host's clock moving; nothing between two round trips could see it. So the
+/// proof is re-taken here, after the operation's last I/O, and the divergence
+/// budget is relied on only across this snapshot's own round trip and the
+/// insert that follows. It never returns `Ok` on a stale observation.
+///
+/// Errors: [`AgentError::InstanceLeaseCoverageElapsed`] when the snapshot
+/// reports the lease lapsed at this generation, or held with no more than the
+/// budget left, or the deadline it yields has already passed;
+/// [`AgentError::InstanceFenced`] when it shows a successor, a rolled-back
+/// authority or a foreign fence -- `fence_out` has erased every other secret
+/// by then -- or when this lease is releasing or retired; and
+/// [`AgentError::InstanceLeaseUnavailable`] when the snapshot is not `Known`.
+/// The caller owns the cleanup of what it was about to retain
+/// (`reserve_pending`, `retain_accepted_key`).
+pub(super) fn prove_lease_covers_retention<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
+    if inner.lease.phase != LeasePhase::Serving {
+        return Err(AgentError::InstanceFenced);
+    }
+    let Some(fence) = inner.lease.fence else {
+        return Err(AgentError::InstanceFenced);
+    };
+    prove_lease_coverage(inner, fence)?;
+    ensure_lease_covers(inner)
 }
 
 /// Erase every in-process pending and accepted secret and retire this fence.
@@ -1119,8 +1224,12 @@ pub(super) fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
 ///
 /// What is guaranteed is the erasure itself, before the rejected call returns,
 /// and that no session secret was **retained or returned** outside the window
-/// this instance could prove it held the lease -- see `prove_lease_coverage`
-/// and `ensure_lease_covers`. That is narrower than "key use has stopped": the
+/// this instance could prove it held the lease -- proven against an authority
+/// observation taken after the operation's last I/O, tolerating at most
+/// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` of authority clock advance beyond
+/// the local elapsed time across that observation's round trip; see
+/// `prove_lease_coverage`, `prove_lease_covers_retention` and
+/// `ensure_lease_covers`. That is narrower than "key use has stopped": the
 /// KEM itself runs before the coverage check, and the long-term ABI 2 executor
 /// keys are outside this mechanism entirely.
 pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(

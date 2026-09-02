@@ -38,8 +38,8 @@ pub(crate) mod lease;
 
 use self::lease::{
     acquire_instance_lease, acquire_instance_lease_within, ensure_instance_lease,
-    ensure_lease_covers, erase_all_secrets, forget_settled, release_lease_state,
-    InstanceLeaseState, LeasePhase,
+    ensure_lease_covers, erase_all_secrets, forget_settled, prove_lease_covers_retention,
+    release_lease_state, InstanceLeaseState, LeasePhase,
 };
 
 const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
@@ -432,9 +432,12 @@ pub enum AgentError {
     InstanceFenced,
     /// The mandatory instance-lease authority failed closed, or the durable
     /// lease-intent journal is full and could not take the row every lease
-    /// mutation needs before dispatch; the operation did not run. From
-    /// [`PolicyAgent::release_instance_lease`] it means the lease is still
-    /// held by this instance and the call may be repeated.
+    /// mutation needs before dispatch; the operation did not run -- or, when
+    /// the authority could not be observed immediately before a secret would
+    /// have been retained, it was aborted with nothing retained and, for a
+    /// Begin or an Accept whose offer was already consumed, its reservation
+    /// released. From [`PolicyAgent::release_instance_lease`] it means the
+    /// lease is still held by this instance and the call may be repeated.
     InstanceLeaseUnavailable,
     /// A lease operation outcome stayed unknown after exact-operation
     /// reconciliation. For a re-acquire after a lapse, the fence it would have
@@ -449,10 +452,16 @@ pub enum AgentError {
     /// This instance could not prove lease coverage for the operation, and
     /// nothing was retained or returned. Either the authority's own snapshot,
     /// taken right after a successful renew, reported the lease lapsed at this
-    /// instance's generation with no successor -- the operation never started,
-    /// and the next guarded operation re-acquires -- or a local coverage
-    /// deadline ran out during the operation, in which case every secret it
-    /// produced was erased.
+    /// instance's generation with no successor, or still held with no more
+    /// than the clock-divergence budget left -- the operation never started,
+    /// and the next guarded operation re-acquires -- or the coverage that
+    /// snapshot proved ran out during the operation, or the fresh snapshot
+    /// taken after the operation's durable write, immediately before a secret
+    /// would have been retained, reported the lease lapsed or within the
+    /// budget of lapsing; in those cases every secret the operation produced
+    /// was erased and its reservation released. The budget is
+    /// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` (one second) of authority clock
+    /// advance beyond this host's elapsed time.
     ///
     /// Distinct from [`Self::InstanceFenced`], which is permanent. A coverage
     /// lapse is no evidence that any successor exists.
@@ -1535,16 +1544,22 @@ fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort>(
         inner
             .repository
             .reserve_session(handle.0, capability_session_id, head)?;
-        // The durable reservation is a real fsync, and the coverage checked
-        // before it may have run out while it completed. This is the last step
-        // before the secret becomes retained, so it is the check that counts:
-        // the earlier one only saves a wasted durable write. A lapse here must
-        // not leave the reservation behind -- `erase_pending` could never find
-        // it -- so release it and drop the secret with `pending`. The capability
-        // tombstone the reservation wrote stays, exactly as it does for any
-        // cancelled session: the offer was consumed the moment it was reserved,
-        // and the caller needs a fresh offer to try again.
-        if let Err(error) = ensure_lease_covers(inner) {
+        // The durable reservation is a real fsync, and authority time may have
+        // stepped past the lease's expiry during the witness round trip, the
+        // KEM or that fsync without this host's clock moving. This is the last
+        // step before the secret becomes retained, so the check that counts
+        // consults the authority: a fresh snapshot after the write, then the
+        // budgeted local rule against it (`prove_lease_covers_retention`); the
+        // check before the write only saves a wasted fsync. Whatever it
+        // reports -- coverage elapsed, the authority unreachable, or a
+        // successor that fenced this instance -- the reservation must not be
+        // left behind: `erase_pending` could never find it, and `fence_out`
+        // iterates a map this handle is not in yet. So release it here and
+        // drop the secret with `pending`. The capability tombstone the
+        // reservation wrote stays, exactly as it does for any cancelled
+        // session: the offer was consumed the moment it was reserved, and the
+        // caller needs a fresh offer to try again.
+        if let Err(error) = prove_lease_covers_retention(inner) {
             if inner.repository.cancel_session(handle.0).is_err() {
                 inner.poisoned = true;
                 return Err(AgentError::InternalPoisoned);
@@ -1687,14 +1702,19 @@ fn retain_accepted_key<W: WitnessPort, A: InstanceAuthorityPort>(
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);
     }
-    // The durable release is a real fsync, and the coverage the caller checked
-    // before it may have run out while it completed. This is the last step
-    // before the accepted key becomes retained, so it is the check that counts.
-    // Nothing needs undoing: the reservation is gone, which is where an
-    // accepted session ends up either way, and `accepted` is dropped here
-    // without ever being reachable. Not a fence -- a lapse is no evidence of a
-    // successor -- and not a poison.
-    ensure_lease_covers(inner)?;
+    // The durable release is a real fsync, and authority time may have stepped
+    // past the lease's expiry during the witness round trip or that fsync
+    // without this host's clock moving. This is the last step before the
+    // accepted key becomes retained, so the check that counts consults the
+    // authority: a fresh snapshot after the write, then the budgeted local
+    // rule against it (`prove_lease_covers_retention`); the caller's check
+    // before the write only saves a wasted fsync. Nothing needs undoing on any
+    // of its errors: the reservation is gone, which is where an accepted
+    // session ends up either way, and `accepted` is dropped here without ever
+    // being reachable. A coverage lapse or an unreachable authority is not a
+    // fence and not a poison; a successor seen by that snapshot fences, and
+    // `fence_out` has erased every other secret by then.
+    prove_lease_covers_retention(inner)?;
     if inner.confirmed_keys.insert(key_handle, accepted).is_some() {
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);

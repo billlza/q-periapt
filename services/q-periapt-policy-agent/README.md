@@ -217,7 +217,11 @@ exclusive instance lease at startup: it waits for a crashed predecessor's
 lease to lapse and fails closed only while a holder that is still renewing
 has it. A start that acquires the lease and then fails -- the witness
 unreachable, the executor or the policy material rejected -- releases the
-lease before returning, so the retry does not wait out a TTL.
+lease before returning, so the retry does not wait out a TTL. A guarded
+operation renews the lease before it starts, and a secret it produced is
+retained only after a fresh authority snapshot, taken after its durable write,
+shows the lease still held by this instance with more than one second of
+authority time left; snapshots are reads, and are not journaled.
 
 Every lease mutation the agent sends -- the acquire at start, the renew before
 each guarded operation, the re-acquire after a lapse, and the release -- is
