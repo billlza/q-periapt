@@ -213,8 +213,9 @@ request/response keys plus the pinned wire identity (client and server
 identifiers, authority epoch, exact expected state head, and deployment
 configuration revision as fixed-length big-endian binary files). Secret-key
 files are read directly into zeroizing buffers. `serve-agent` acquires the
-exclusive instance lease at startup and fails closed while another unexpired
-instance holds it.
+exclusive instance lease at startup: it waits for a crashed predecessor's
+lease to lapse and fails closed only while a holder that is still renewing
+has it.
 
 Every lease mutation the agent sends -- the acquire at start, the renew before
 each guarded operation, the re-acquire after a lapse, and the release -- is
@@ -230,8 +231,10 @@ Settled rows are forgotten by the next journal write, so the steady-state cost
 is one durable transaction per lease operation, and a clean release leaves the
 journal empty. The journal holds at most 64 rows, matching the in-memory
 acknowledgement queue; reaching that takes the authority refusing 64
-consecutive acknowledgements, or as many starts against an authority that
-cannot answer. A full journal refuses the next lease operation with
+consecutive acknowledgements, 64 consecutive lease operations that failed or
+stayed indeterminate at dispatch against an authority that could not then be
+queried, or as many starts against an authority that cannot answer. A full
+journal refuses the next lease operation with
 `InstanceLeaseUnavailable` before anything is dispatched, and a start that
 cannot settle any of 64 rows fails closed the same way, until the authority
 answers again. A store provisioned before the journal existed opens without
@@ -243,16 +246,22 @@ loop within one maintenance interval; the daemon erases every in-process
 secret, releases the lease, and exits 0, so the next start acquires at once. A
 crash never releases the lease, and the authority lets it lapse only at its TTL
 (10 seconds to 5 minutes, as configured on the authority). A start inside that
-window waits for the lapse: it retries the same fail-closed acquire at most
-once a second, which the authority refuses while any lease is active, and gives
-up with `InstanceFenced` once the longest TTL the authority can grant plus a
+window waits for the lapse: it retries the same fail-closed acquire after the
+shorter of the lease's remaining life, as a fresh authority snapshot reports
+it, and one second -- never sooner than 10 ms after the last attempt, and
+after the full second when the snapshot itself cannot be read -- which the
+authority refuses while any lease is active, and gives up with
+`InstanceFenced` once the longest TTL the authority can grant plus a
 five-second margin has passed -- which is what a genuinely live holder that
 keeps renewing produces, so a duplicate deployment or a recovery clone is still
 refused. The handlers are installed only once the lease is held: a stop that
-arrives while the daemon is still waiting ends the process by the default
-disposition, with nothing to release. The daemon does not log; the exit status
-and the authority's own state are the only record of a stop, a wait, or a
-refused start.
+arrives during the wait ends the process by the default disposition, holding
+no lease; one that lands in the few seconds between the acquire and the
+handler install ends the process without a release, and the next start waits
+that lease out. The daemon writes only a one-line reason to stderr when it
+exits with an error -- a refused start or a fatal serving failure -- and
+nothing on a stop; the exit status and the authority's own state are the only
+record of a stop, a wait, or a refused start.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:

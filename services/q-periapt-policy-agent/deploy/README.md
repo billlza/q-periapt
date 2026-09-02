@@ -181,10 +181,16 @@ weaker socket.
    process waits for the crashed one's lease to lapse (at most the authority's
    lease TTL, 10 seconds to 5 minutes, plus a five-second margin) and then
    serves, without operator action, subject on Linux to systemd's start rate
-   limit. systemd's default `TimeoutStopSec` of 90 seconds is ample: the stop
-   is observed within one maintenance interval and the release is one bounded
-   authority round trip of at most 5 seconds. The daemon does not log; the exit
-   status is the only record of a stop or of a refused start.
+   limit. systemd's default `TimeoutStopSec` of 90 seconds is ample, and the
+   launchd plist sets `ExitTimeOut` to 60 because launchd's own default of 20
+   is not: the stop is observed within one maintenance interval and the
+   release is a handful of bounded authority round trips of at most 5 seconds
+   each -- up to four against an authority that accepts the connection and
+   never answers, about 20 seconds worst case. A `SIGKILL` past either limit
+   costs only a `redb` recovery at the next open, and the lease lapses at its
+   TTL as after a crash. The daemon writes only a one-line reason to stderr
+   when it exits with an error, a refused start or a fatal serving failure;
+   the exit status is the only record of a stop.
 
 ## macOS layout
 

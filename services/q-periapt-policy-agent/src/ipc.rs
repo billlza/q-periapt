@@ -537,14 +537,16 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
 
     /// Run the serving loop, then hand the instance lease back.
     ///
-    /// This is what `serve_agent` runs. The release happens on every exit, the
-    /// orderly one and the fatal one alike, and it is what lets the next
-    /// process acquire at once instead of waiting out the lease TTL; it also
-    /// erases every in-process secret first. It is best effort: if the
-    /// authority cannot be reached the lease simply lapses at its TTL, exactly
-    /// as it would after a crash, and the serving outcome -- not the release's
-    /// -- is what this returns, so a stop still exits 0 and a fatal serving
-    /// error still propagates.
+    /// This is what `serve_agent` runs. The release is attempted on every
+    /// exit, the orderly stop and a fatal listener error alike, and it is what
+    /// lets the next process acquire at once instead of waiting out the lease
+    /// TTL; it also erases every in-process secret first. It is best effort:
+    /// if the authority cannot be reached the lease simply lapses at its TTL,
+    /// exactly as it would after a crash, and a poisoned agent refuses the
+    /// release outright (`release_instance_lease` checks liveness first), so
+    /// after a fatal agent error the lease lapses the same way. The serving
+    /// outcome -- not the release's -- is what this returns, so a stop still
+    /// exits 0 and a fatal serving error still propagates.
     fn serve_and_release(
         &mut self,
         listener: UnixListener,
@@ -923,7 +925,11 @@ fn serve_agent(
     // particular, which can last minutes -- keeps the default disposition and
     // ends the process at once, holding no lease. Latching it instead would
     // have the daemon sit out the whole wait and only then exit, which is
-    // longer than the service manager's stop timeout.
+    // longer than the service manager's stop timeout. One that lands between
+    // the acquire above and this install ends the process holding the lease
+    // with no release, and the next start waits that lease out. From here on
+    // the orderly stop and a fatal listener error alike attempt the release;
+    // a poisoned agent refuses it, and the lease lapses at its TTL instead.
     let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
     server.serve_and_release(listener, shutdown)
 }
