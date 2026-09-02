@@ -1220,6 +1220,154 @@ impl InstanceAuthorityPort for MemoryAuthority {
     }
 }
 
+/// A port that kills the process -- `std::process::exit(86)` -- the instant a
+/// release it forwarded comes back `Known`, before the agent can record the
+/// receipt. That is the crash between the dispatch and the acknowledgement:
+/// the journal row is written, the authority retains the receipt, and the
+/// repository is still open when the process dies.
+struct CrashAfterDispatchAuthority<A> {
+    inner: A,
+}
+
+impl<A> CrashAfterDispatchAuthority<A> {
+    const fn new(inner: A) -> Self {
+        Self { inner }
+    }
+}
+
+impl<A: InstanceAuthorityPort> InstanceAuthorityPort for CrashAfterDispatchAuthority<A> {
+    fn wire_config(&self) -> DeploymentConfigRevisionV2 {
+        self.inner.wire_config()
+    }
+
+    fn snapshot(
+        &self,
+    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+        self.inner.snapshot()
+    }
+
+    fn acquire(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.inner.acquire(intent)
+    }
+
+    fn renew(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.inner.renew(intent)
+    }
+
+    fn release(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        let outcome = self.inner.release(intent);
+        if matches!(outcome, Ok(AuthorityOutcomeV2::Known(_))) {
+            std::process::exit(86);
+        }
+        outcome
+    }
+
+    fn query(
+        &self,
+        operation_id: OperationIdV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+        self.inner.query(operation_id)
+    }
+
+    fn acknowledge(
+        &self,
+        retained: &DurablyRetainedAuthorityReceiptV2,
+    ) -> Result<
+        AuthorityOutcomeV2<crate::authority::ReceiptAckDispositionV2>,
+        AuthorityTransportErrorV2,
+    > {
+        self.inner.acknowledge(retained)
+    }
+
+    fn round_trip_bound(&self) -> Duration {
+        self.inner.round_trip_bound()
+    }
+}
+
+/// A port that records the operation id of every acknowledgement it forwards,
+/// answered or not, so a test can count how often one obligation was
+/// discharged.
+struct CountingAuthority<A> {
+    inner: A,
+    acknowledged: Arc<Mutex<Vec<OperationIdV2>>>,
+}
+
+impl<A> CountingAuthority<A> {
+    const fn new(inner: A, acknowledged: Arc<Mutex<Vec<OperationIdV2>>>) -> Self {
+        Self {
+            inner,
+            acknowledged,
+        }
+    }
+}
+
+impl<A: InstanceAuthorityPort> InstanceAuthorityPort for CountingAuthority<A> {
+    fn wire_config(&self) -> DeploymentConfigRevisionV2 {
+        self.inner.wire_config()
+    }
+
+    fn snapshot(
+        &self,
+    ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
+        self.inner.snapshot()
+    }
+
+    fn acquire(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.inner.acquire(intent)
+    }
+
+    fn renew(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.inner.renew(intent)
+    }
+
+    fn release(
+        &self,
+        intent: AuthorityIntentV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
+        self.inner.release(intent)
+    }
+
+    fn query(
+        &self,
+        operation_id: OperationIdV2,
+    ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
+        self.inner.query(operation_id)
+    }
+
+    fn acknowledge(
+        &self,
+        retained: &DurablyRetainedAuthorityReceiptV2,
+    ) -> Result<
+        AuthorityOutcomeV2<crate::authority::ReceiptAckDispositionV2>,
+        AuthorityTransportErrorV2,
+    > {
+        self.acknowledged
+            .lock()
+            .expect("acknowledgement log poisoned")
+            .push(retained.locator().operation_id());
+        self.inner.acknowledge(retained)
+    }
+
+    fn round_trip_bound(&self) -> Duration {
+        self.inner.round_trip_bound()
+    }
+}
+
 struct PolicyMaterial {
     bundle: SignedPolicyBundle,
     authenticated: AuthenticatedPolicy,

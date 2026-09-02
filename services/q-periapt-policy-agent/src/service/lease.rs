@@ -313,16 +313,17 @@ fn drain_acknowledgements<A: InstanceAuthorityPort>(
                 lease.unacknowledged.pop_front();
                 settle(lease, operation_id);
             }
-            // The authority holds no retained state matching this locator, so
-            // there is nothing left to reclaim and no retry can change that:
-            // its receipt table only ever shrinks. Keeping the entry would
-            // block every acknowledgement behind it permanently -- the queue
-            // drains strictly in order, this failure does not poison the store,
-            // and acknowledgement is the only thing that ever removes a receipt
-            // on either side. One unmatchable receipt would fill this bounded
-            // queue and then leave the authority's own table to fill too, which
-            // ends with the daemon unable to acquire a lease at all. Discard it
-            // and carry on; its journal row is settled for the same reason.
+            // The authority holds a receipt under this id that our locator
+            // cannot discharge: the resulting version it recorded is not the
+            // one retained here (`ResultingVersionMismatch` -- the shape of an
+            // authority restored from a backup). Absence is not this answer:
+            // a vacant entry acknowledges as `AlreadyAbsent`, a `Known`
+            // outcome. No retry of ours can change what the authority holds,
+            // and keeping the entry would block every acknowledgement behind
+            // it permanently, because the queue drains strictly in order. So
+            // the entry is dropped and its journal row settled, to keep the
+            // queue moving; the receipt itself stays in the authority's own
+            // bounded table, which is that authority's to prune.
             Ok(AuthorityOutcomeV2::KnownFailure(
                 AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
             )) => {
@@ -519,6 +520,12 @@ fn resolve_journaled_intent<A: InstanceAuthorityPort>(
                 return JournalResolution::Settled;
             };
             match authority.acknowledge(&retained) {
+                // Acknowledged -- or held under a resulting version this
+                // locator cannot discharge (`ResultingVersionMismatch`; a
+                // vacant entry answers `AlreadyAbsent`, which is `Known`).
+                // As in the drain, the row is settled to keep the journal
+                // moving, and the receipt stays in the authority's own
+                // bounded table.
                 Ok(AuthorityOutcomeV2::Known(_))
                 | Ok(AuthorityOutcomeV2::KnownFailure(
                     AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
