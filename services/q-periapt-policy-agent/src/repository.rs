@@ -12,7 +12,7 @@ use q_periapt_migration::{
 use redb::{Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition};
 
 use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
-use crate::filesystem::open_private_file;
+use crate::filesystem::{open_private_file, provision_private_file};
 use crate::types::{
     FenceToken, OperationId, SessionId, StateAdvance, StateHead, StateRevision, TransitionKind,
 };
@@ -200,47 +200,51 @@ impl StateRepository {
             project_revision(machine.current_revision())?,
             FenceToken::generate().map_err(|_| RepositoryError::EntropyUnavailable)?,
         );
-        let file =
-            open_private_file(path, true).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
-        let database = Database::builder()
-            .create_file(file)
-            .map_err(|_| RepositoryError::CorruptStore)?;
-        let transaction = durable_write(&database)?;
-        {
-            let mut meta = transaction
-                .open_table(META_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            let mut history = transaction
-                .open_table(HISTORY_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            transaction
-                .open_table(SESSION_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            transaction
-                .open_table(CAPABILITY_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            meta.insert(META_SCHEMA, REPOSITORY_SCHEMA.as_slice())
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            meta.insert(META_HEAD, head.to_bytes().as_slice())
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            let entry = encode_journal_entry(JournalKind::Genesis, canonical_genesis)?;
-            history
-                .insert(&1, entry.as_slice())
-                .map_err(|_| RepositoryError::CorruptStore)?;
-        }
-        transaction
-            .commit()
-            .map_err(|_| RepositoryError::CorruptStore)?;
-        Ok((
-            Self {
-                database,
-                machine,
-                roots,
-                pending: None,
-                restart_rejections: 0,
+        provision_private_file(
+            path,
+            |_| RepositoryError::InsecureOrMissingStore,
+            |file| {
+                let database = Database::builder()
+                    .create_file(file)
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+                let transaction = durable_write(&database)?;
+                {
+                    let mut meta = transaction
+                        .open_table(META_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    let mut history = transaction
+                        .open_table(HISTORY_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    transaction
+                        .open_table(SESSION_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    transaction
+                        .open_table(CAPABILITY_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    meta.insert(META_SCHEMA, REPOSITORY_SCHEMA.as_slice())
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    meta.insert(META_HEAD, head.to_bytes().as_slice())
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    let entry = encode_journal_entry(JournalKind::Genesis, canonical_genesis)?;
+                    history
+                        .insert(&1, entry.as_slice())
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                }
+                transaction
+                    .commit()
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+                Ok((
+                    Self {
+                        database,
+                        machine,
+                        roots,
+                        pending: None,
+                        restart_rejections: 0,
+                    },
+                    head,
+                ))
             },
-            head,
-        ))
+        )
     }
 
     /// Open and fully replay an existing store. Missing/corrupt state never becomes genesis.

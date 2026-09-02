@@ -97,6 +97,50 @@ impl TestDirectory {
     }
 }
 
+/// A failed `create` must not leave the `O_CREAT|O_EXCL` leaf behind: the next
+/// attempt would get `EEXIST`, and the `create = false` path rejects the
+/// zero-length leftover, so one transient failure would brick provisioning
+/// permanently.
+///
+/// Ignored by default because it manipulates the process-wide `umask`, which
+/// would make any sibling test that creates a private file flaky when the suite
+/// runs in parallel. Run it deliberately:
+///
+/// ```text
+/// cargo test -p q-periapt-policy-agent -- --ignored --test-threads=1
+/// ```
+///
+/// Verified in both directions when the unlink was added: without it this fails
+/// with `failed create left .../brick.redb behind`.
+#[test]
+#[ignore = "manipulates the process-wide umask; run with --test-threads=1"]
+fn failed_private_file_create_leaves_no_leaf_behind() -> TestResult {
+    use rustix::fs::Mode;
+    use rustix::process::umask;
+
+    let directory = TestDirectory::new()?;
+    let path = directory.join("brick.redb");
+    // umask 0o200 strips the owner-write bit, so O_CREAT yields mode 0400 and
+    // the exact-mode check rejects it after the leaf already exists.
+    let previous = umask(Mode::WUSR);
+    let outcome = open_private_file(&path, true);
+    umask(previous);
+    assert!(
+        matches!(outcome, Err(PrivateFileError)),
+        "expected the exact-mode check to reject a 0400 leaf"
+    );
+    assert!(
+        !path.exists(),
+        "failed create left {path:?} behind; provisioning would be bricked"
+    );
+    // A retry under a sane umask must now succeed.
+    drop(
+        open_private_file(&path, true)
+            .map_err(|_| io::Error::other("retry after a cleaned-up failure must succeed"))?,
+    );
+    Ok(())
+}
+
 #[test]
 fn private_state_file_is_opened_beneath_an_owned_descriptor_boundary() -> TestResult {
     use std::os::unix::fs::{symlink, PermissionsExt};
@@ -249,49 +293,6 @@ fn install_macos_test_acl(path: &Path, entry: &str) -> TestResult {
 }
 
 #[test]
-fn fixed_private_socket_is_bound_beneath_the_process_directory_capability() -> TestResult {
-    use std::os::unix::fs::PermissionsExt;
-
-    let directory = TestDirectory::new()?;
-    let service_directory = directory.join("service");
-    fs::create_dir(&service_directory)?;
-    fs::set_permissions(&service_directory, fs::Permissions::from_mode(0o700))?;
-    let status = Command::new(std::env::current_exe()?)
-        .arg("--exact")
-        .arg("tests::private_socket_bind_child")
-        .current_dir(directory.path())
-        .env("Q_PERIAPT_TEST_SOCKET_BIND", "1")
-        .status()?;
-    assert!(status.success());
-    Ok(())
-}
-
-#[test]
-fn private_socket_bind_child() -> TestResult {
-    if std::env::var_os("Q_PERIAPT_TEST_SOCKET_BIND").is_none() {
-        return Ok(());
-    }
-    let launch_directory = std::env::current_dir()?;
-    let directory_path = launch_directory.join("service");
-    let launch = OwnedPrivateDirectory::open(&launch_directory)
-        .map_err(|_| io::Error::other("socket launch directory is not private"))?;
-    let directory = OwnedPrivateDirectory::open(&directory_path)
-        .map_err(|_| io::Error::other("socket test directory is not private"))?;
-    let listener = crate::ipc::bind_private_socket(&directory)?;
-    assert_eq!(std::env::current_dir()?, directory_path);
-    assert!(directory.socket_is_protected(std::ffi::OsStr::new("agent.sock")));
-    assert!(launch
-        .require_absent(std::ffi::OsStr::new("agent.sock"))
-        .is_ok());
-    assert!(matches!(
-        crate::ipc::bind_private_socket(&directory),
-        Err(crate::ipc::IpcError::InsecureSocket)
-    ));
-    drop(listener);
-    Ok(())
-}
-
-#[test]
 fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> TestResult {
     let directory = TestDirectory::new()?;
     let database = directory.join("witness.redb");
@@ -306,6 +307,7 @@ fn authenticated_reference_witness_serializes_concurrent_cas_and_queries() -> Te
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -386,6 +388,7 @@ fn authenticated_reference_witness_waits_for_a_delayed_fragmented_frame() -> Tes
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_secs(2),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -453,6 +456,7 @@ fn authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline() -
         initial,
         client_vk,
         ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
         Duration::from_millis(500),
     )?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -509,6 +513,280 @@ fn authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline() -
     let server_result = join(server_thread)?;
     result?;
     server_result?;
+    Ok(())
+}
+
+#[test]
+fn witness_server_survives_a_request_level_rejection() -> TestResult {
+    // A caller can provoke a request-level rejection on purpose -- replaying one
+    // operation id under a different intent. That must reject the request only;
+    // if it terminated the listener, a single caller could destroy every
+    // subsequent read and query for everyone.
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (client_sk, client_vk) = MlDsa65::generate([31u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([32u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || server.serve(listener, &server_shutdown));
+
+    let result = (|| -> TestResult {
+        let client = AuthenticatedTcpWitness::new(
+            address,
+            ZeroizingBytes::from_bytes(client_sk),
+            witness_vk,
+            Duration::from_secs(2),
+        )?;
+
+        let operation = OperationId::generate()?;
+        let applied = StateRevision::new(2, 2, [2u8; 32])?;
+        client.compare_and_advance(WitnessIntent::new(
+            operation,
+            StateAdvance::new(TransitionKind::Advance, initial.revision(), applied)?,
+            initial.fence(),
+            FenceToken::generate()?,
+        )?)?;
+
+        // Same operation id, different intent: a request-level rejection.
+        let conflicting = client.compare_and_advance(WitnessIntent::new(
+            operation,
+            StateAdvance::new(
+                TransitionKind::Advance,
+                initial.revision(),
+                StateRevision::new(2, 2, [9u8; 32])?,
+            )?,
+            initial.fence(),
+            FenceToken::generate()?,
+        )?);
+        // The server rejects it and produces no response, so the caller sees an
+        // indeterminate outcome rather than a false success.
+        assert!(
+            matches!(conflicting, Ok(WitnessOutcome::Unknown) | Err(_)),
+            "a conflicting replay must not be reported as applied; got {conflicting:?}"
+        );
+
+        // The listener must still be serving.
+        let head = client.read_head()?;
+        assert_eq!(
+            head.revision(),
+            applied,
+            "the witness must still answer after rejecting a request"
+        );
+        Ok(())
+    })();
+
+    shutdown.store(true, Ordering::Release);
+    let server_result = join(server_thread)?;
+    result?;
+    server_result?;
+    Ok(())
+}
+
+#[test]
+fn witness_store_rejects_an_applied_receipt_ahead_of_its_head() -> TestResult {
+    // A receipt saying Applied(H0 -> H1) beside a recorded head of H0 is a store
+    // that holds proof it advanced past the head it reports. That is what a tear
+    // between the receipt write and the head update looks like, and what a
+    // rollback of the head alone looks like. Counting rows and checking that
+    // each is filed under its own operation id both pass on it, because neither
+    // ever compares a receipt against the head.
+    //
+    // It matters because the witness would then answer read_head() with H0 while
+    // already having applied H0 -> H1. A second, different advance from H0 under
+    // a fresh operation id is not a replay of anything, so nothing else would
+    // stop it, and the lineage the witness exists to keep single would fork.
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (_client_sk, client_vk) = MlDsa65::generate([43u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([44u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [7u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    drop(server);
+
+    // The advance the receipt claims was applied, one generation past the head
+    // the store still records.
+    let next = StateRevision::new(2, 2, [8u8; 32])?;
+    let intent = WitnessIntent::new(
+        OperationId::generate()?,
+        StateAdvance::new(TransitionKind::Advance, initial.revision(), next)?,
+        initial.fence(),
+        FenceToken::generate()?,
+    )?;
+    crate::witness::test_support::record_applied_receipt_ahead_of_head(&database, intent)
+        .map_err(|_| io::Error::other("failed to stage the torn store"))?;
+
+    let (witness_sk_again, _) = MlDsa65::generate([44u8; 32]);
+    assert!(
+        ReferenceWitnessServer::open(
+            &database,
+            client_vk,
+            ZeroizingBytes::from_bytes(witness_sk_again),
+            witness_vk,
+            Duration::from_secs(2),
+        )
+        .is_err(),
+        "a store holding an applied receipt ahead of its own head must be refused"
+    );
+    Ok(())
+}
+
+#[test]
+fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult {
+    // redb's check_integrity proves only that its own structure is sound. A
+    // recorded operation count that disagrees with the rows actually present is
+    // worse than a late failure: capacity is enforced against that counter, so
+    // an under-reporting store would let the explicit operation limit be
+    // exceeded. It must be refused at open.
+    let directory = TestDirectory::new()?;
+    let database = directory.join("witness.redb");
+    let (_client_sk, client_vk) = MlDsa65::generate([41u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([42u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    let server = ReferenceWitnessServer::provision(
+        &database,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    drop(server);
+
+    crate::witness::test_support::desynchronize_operation_count(&database)
+        .map_err(|_| io::Error::other("failed to stage the damaged store"))?;
+
+    assert!(
+        ReferenceWitnessServer::open(
+            &database,
+            client_vk,
+            ZeroizingBytes::from_bytes(MlDsa65::generate([42u8; 32]).0),
+            MlDsa65::generate([42u8; 32]).1,
+            Duration::from_secs(2),
+        )
+        .is_err(),
+        "a store whose operation count disagrees with its rows must be refused"
+    );
+    let _ = witness_vk;
+    Ok(())
+}
+
+#[test]
+fn witness_rejects_one_key_pair_serving_both_directions() -> TestResult {
+    // Requests are verified under the client key and responses are signed under
+    // the witness key. If those are one key pair, whoever may send requests can
+    // also forge responses and the asymmetry the protocol depends on is gone.
+    // The authority transport refuses the equivalent by requiring distinct
+    // endpoint identities; the witness must refuse it too.
+    let directory = TestDirectory::new()?;
+    let (shared_sk, shared_vk) = MlDsa65::generate([51u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [5u8; 32])?,
+        FenceToken::generate()?,
+    );
+    assert!(
+        ReferenceWitnessServer::provision(
+            &directory.join("shared.redb"),
+            initial,
+            shared_vk,
+            ZeroizingBytes::from_bytes(shared_sk),
+            shared_vk,
+            Duration::from_secs(2),
+        )
+        .is_err(),
+        "one key pair must not carry both protocol directions"
+    );
+
+    // The distinct-key configuration the deployment actually uses still works.
+    let (client_sk, client_vk) = MlDsa65::generate([52u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([53u8; 32]);
+    drop(ReferenceWitnessServer::provision(
+        &directory.join("distinct.redb"),
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?);
+    let _ = client_sk;
+    Ok(())
+}
+
+#[test]
+fn cas_with_an_unverifiable_response_is_indeterminate_not_a_failure() -> TestResult {
+    // The request has already gone out, so the witness may have committed the
+    // advance and only the answer was lost or tampered with. Reporting a
+    // definite failure would invite the caller to retry or roll back against a
+    // state that actually moved.
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let (_witness_sk, witness_vk) = MlDsa65::generate([61u8; 32]);
+
+    let hostile = thread::spawn(move || -> TestResult {
+        let (mut stream, _peer) = listener.accept()?;
+        stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+        // Consume the request, then answer with a well-framed but unverifiable
+        // envelope: signed by nobody the client trusts.
+        let mut scratch = [0u8; 4096];
+        let _ = stream.read(&mut scratch);
+        let junk = [0x5Au8; 64];
+        let mut framed = Vec::new();
+        framed.extend_from_slice(&(junk.len() as u32).to_be_bytes());
+        framed.extend_from_slice(&junk);
+        let _ = stream.write_all(&framed);
+        let _ = stream.flush();
+        Ok(())
+    });
+
+    let client = AuthenticatedTcpWitness::new(
+        address,
+        ZeroizingBytes::from_bytes(MlDsa65::generate([62u8; 32]).0),
+        witness_vk,
+        Duration::from_secs(2),
+    )?;
+    let outcome = client.compare_and_advance(WitnessIntent::new(
+        OperationId::generate()?,
+        StateAdvance::new(
+            TransitionKind::Advance,
+            StateRevision::new(1, 1, [5u8; 32])?,
+            StateRevision::new(2, 2, [2u8; 32])?,
+        )?,
+        FenceToken::generate()?,
+        FenceToken::generate()?,
+    )?);
+
+    assert!(
+        matches!(outcome, Ok(WitnessOutcome::Unknown)),
+        "an unverifiable response to a state-changing request must be indeterminate; got {outcome:?}"
+    );
+
+    let _ = hostile.join();
     Ok(())
 }
 
@@ -648,6 +926,42 @@ impl DeadlineStream for CaptureTransport {
     }
 
     fn set_write_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Records the write timeout the framing layer asks for, so a test can see
+/// which budget the response was actually given.
+struct WriteBudgetTransport {
+    input: Cursor<Vec<u8>>,
+    output: Vec<u8>,
+    write_timeout: std::cell::Cell<Option<Duration>>,
+}
+
+impl Read for WriteBudgetTransport {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.input.read(output)
+    }
+}
+
+impl Write for WriteBudgetTransport {
+    fn write(&mut self, input: &[u8]) -> io::Result<usize> {
+        self.output.extend_from_slice(input);
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl DeadlineStream for WriteBudgetTransport {
+    fn set_read_deadline_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn set_write_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        self.write_timeout.set(timeout);
         Ok(())
     }
 }
@@ -860,6 +1174,8 @@ struct MemoryAuthorityState {
     config: DeploymentConfigRevisionV2,
     now_millis: u64,
     unknown_after_apply: bool,
+    advance_before_snapshot: u64,
+    snapshot_delay: Duration,
 }
 
 fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
@@ -898,6 +1214,8 @@ impl MemoryAuthority {
                 config,
                 now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
                 unknown_after_apply: false,
+                advance_before_snapshot: 0,
+                snapshot_delay: Duration::ZERO,
             })),
         })
     }
@@ -909,6 +1227,25 @@ impl MemoryAuthority {
     fn advance_clock(&self, delta_millis: u64) {
         let mut state = self.lock();
         state.now_millis += delta_millis;
+    }
+
+    /// Advance the authority clock once, just before the next snapshot is
+    /// computed, so the snapshot reports a lease with almost no life left.
+    ///
+    /// This is the real sequence, not a contrived one: the renew succeeds and
+    /// then time passes before the agent learns the expiry. Advancing the clock
+    /// up front cannot reproduce it, because the renew itself resets the expiry
+    /// to `now + ttl`.
+    fn advance_clock_before_next_snapshot(&self, delta_millis: u64) {
+        self.lock().advance_before_snapshot = delta_millis;
+    }
+
+    /// Make the next snapshot take real time, the way a network round trip
+    /// does. The coverage anchor is captured before the request is sent, so a
+    /// slow snapshot spends the budget it is being asked to report -- which is
+    /// the conservative behaviour the anchor exists to produce.
+    fn delay_next_snapshot(&self, delay: Duration) {
+        self.lock().snapshot_delay = delay;
     }
 
     fn expire_active_lease(&self) {
@@ -948,6 +1285,12 @@ impl InstanceAuthorityPort for MemoryAuthority {
         &self,
     ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
+        let pending = core::mem::take(&mut state.advance_before_snapshot);
+        state.now_millis = state.now_millis.saturating_add(pending);
+        let delay = core::mem::take(&mut state.snapshot_delay);
+        if !delay.is_zero() {
+            thread::sleep(delay);
+        }
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.snapshot(&clock) {
             Ok(snapshot) => AuthorityOutcomeV2::Known(snapshot),
@@ -1108,7 +1451,7 @@ fn constructors_reject_collapsed_identity_domains_and_zero_timeouts() -> TestRes
         Some(WitnessError::InvalidConfiguration)
     );
     let directory = TestDirectory::new()?;
-    let (server_sk, _) = MlDsa65::generate([92u8; 32]);
+    let (server_sk, server_vk) = MlDsa65::generate([92u8; 32]);
     let head = StateHead::new(
         StateRevision::new(1, 1, [1u8; 32])?,
         FenceToken::generate()?,
@@ -1119,6 +1462,7 @@ fn constructors_reject_collapsed_identity_domains_and_zero_timeouts() -> TestRes
             head,
             shared_vk,
             ZeroizingBytes::from_bytes(server_sk),
+            server_vk,
             Duration::ZERO,
         )
         .err(),
@@ -1183,11 +1527,23 @@ struct AgentPair {
     old_snapshot_path: PathBuf,
     initiator_authorization: SessionAuthorization,
     responder_authorization: SessionAuthorization,
+    /// A second, independently identified session, for tests that need two
+    /// live sessions on one agent.
+    second_initiator_authorization: SessionAuthorization,
+    second_responder_authorization: SessionAuthorization,
     initiator_public_keys: EncapsulationPublicKeys,
     responder_public_keys: EncapsulationPublicKeys,
 }
 
 fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPair> {
+    agent_pair_with_session_ttl(directory, session_byte, Duration::from_secs(60))
+}
+
+fn agent_pair_with_session_ttl(
+    directory: &TestDirectory,
+    session_byte: u8,
+    session_ttl: Duration,
+) -> TestResult<AgentPair> {
     use std::os::unix::fs::PermissionsExt;
 
     let policy = policy_material(20)?;
@@ -1215,7 +1571,7 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
     let (responder_identity_sk, responder_identity_vk) = MlDsa65::generate([52u8; 32]);
     let initiator_identity_id = MigrationIdentityKeyId::from_bytes([61u8; 32]);
     let responder_identity_id = MigrationIdentityKeyId::from_bytes([62u8; 32]);
-    let limits = AgentLimits::new(16, 16, Duration::from_secs(60))?;
+    let limits = AgentLimits::new(16, 16, session_ttl)?;
     let initiator_config = AgentConfig::new(
         limits,
         EndpointRole::Initiator,
@@ -1273,6 +1629,29 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
         keys: &responder_public_keys,
         signing_key: &responder_identity_sk,
     })?;
+    let second_session_id = MigrationSessionId::from_bytes([session_byte.wrapping_add(128); 32]);
+    let second_initiator_offer = signed_offer(SignedOfferInput {
+        role: EndpointRole::Initiator,
+        sender_identity: initiator_identity_id,
+        receiver_identity: responder_identity_id,
+        nonce: MigrationNonce::from_bytes([91u8.wrapping_add(session_byte); 32]),
+        session_id: second_session_id,
+        policy: &policy.authenticated,
+        committed,
+        keys: &initiator_public_keys,
+        signing_key: &initiator_identity_sk,
+    })?;
+    let second_responder_offer = signed_offer(SignedOfferInput {
+        role: EndpointRole::Responder,
+        sender_identity: responder_identity_id,
+        receiver_identity: initiator_identity_id,
+        nonce: MigrationNonce::from_bytes([101u8.wrapping_add(session_byte); 32]),
+        session_id: second_session_id,
+        policy: &policy.authenticated,
+        committed,
+        keys: &responder_public_keys,
+        signing_key: &responder_identity_sk,
+    })?;
     Ok(AgentPair {
         initiator,
         responder,
@@ -1289,6 +1668,14 @@ fn agent_pair(directory: &TestDirectory, session_byte: u8) -> TestResult<AgentPa
             responder_offer.clone(),
         )?,
         responder_authorization: SessionAuthorization::new(responder_offer, initiator_offer)?,
+        second_initiator_authorization: SessionAuthorization::new(
+            second_initiator_offer.clone(),
+            second_responder_offer.clone(),
+        )?,
+        second_responder_authorization: SessionAuthorization::new(
+            second_responder_offer,
+            second_initiator_offer,
+        )?,
         initiator_public_keys,
         responder_public_keys,
     })
@@ -1379,6 +1766,206 @@ fn responder_decapsulation(
             Err(io::Error::other("responder returned initiator begin state").into())
         }
     }
+}
+
+#[test]
+fn a_coverage_lapse_at_acceptance_releases_the_durable_reservation() -> TestResult {
+    // By the acceptance point the session has already left the in-memory map
+    // and its confirmation is consumed, but its durable reservation is still
+    // held. Refusing there without releasing it would orphan the row --
+    // `erase_pending` can no longer find the handle and `fence_out` iterates the
+    // map -- permanently burning one of the bounded SESSION_TABLE slots, and
+    // surviving restart. That would make this fix worse than the gap it closes.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 63)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+
+    // Lapse the coverage for the initiator's acceptance specifically.
+    pair.initiator_authority
+        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(20));
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished)
+            .err(),
+        Some(AgentError::InstanceLeaseCoverageElapsed)
+    );
+
+    // The durable row is gone: cancelling it again must fail, because there is
+    // nothing left to cancel. If the reservation had leaked this would succeed.
+    assert!(
+        pair.initiator
+            .desynchronize_session_for_test(encapsulated.handle)
+            .is_err(),
+        "the durable reservation was orphaned instead of released"
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn a_lease_that_lapsed_without_a_successor_is_recovered_not_fenced() -> TestResult {
+    // An authority unreachable for longer than the lease TTL used to brick the
+    // agent permanently: the first successful renew after reconnect returned
+    // LeaseExpired, which was treated as supersession and fenced the instance
+    // for the life of the process. A fifteen-second restart of the authority is
+    // more than the ten-second minimum TTL, so this happened unattended and to
+    // every agent at once.
+    //
+    // LeaseExpired says the lease had run out, not that anyone took it. Here
+    // nobody did.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 67)?;
+    pair.initiator_authority.expire_active_lease();
+
+    // The guarded operation drives the renew, which is rejected as expired and
+    // recovers by re-acquiring at this instance's own generation.
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    assert!(!encapsulated
+        .initiator_finished
+        .as_bytes()
+        .iter()
+        .all(|byte| *byte == 0));
+
+    // Still usable, and holding the session it just created.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
+fn an_operation_that_outlives_its_proven_lease_coverage_retains_nothing() -> TestResult {
+    // The lease is checked on the way in, but a witness round trip, two
+    // signature verifications and a KEM operation all run before a secret first
+    // becomes retained. The renew receipt carries no expiry, so the agent takes
+    // one snapshot to learn how long it can prove it still holds the lease, and
+    // refuses to retain anything past that point.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 61)?;
+
+    // The renew applies, and then the authority's clock jumps to one
+    // millisecond before the new expiry. That is the shape of the real race:
+    // the renew succeeded, and time passed before the agent learned the expiry.
+    pair.initiator_authority
+        .advance_clock_before_next_snapshot(MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 1);
+    // Spend that last millisecond inside the snapshot, so the coverage has
+    // provably lapsed by the time the operation checks it. Without this the
+    // test would be racing the real work between the snapshot and the check --
+    // key generation, the witness round trip, the contract's signature
+    // verifications -- and would start passing for the wrong reason, or fail
+    // outright, once a release build brings that work under a millisecond.
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(20));
+
+    let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ));
+    assert_eq!(
+        outcome.err(),
+        Some(AgentError::InstanceLeaseCoverageElapsed),
+        "an operation past its proven coverage must not return a handle"
+    );
+
+    // Nothing was retained. A coverage lapse is not a fence: it is a local
+    // deadline running out, which is no evidence that a successor exists, so
+    // the agent stays usable rather than being permanently retired.
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.confirmed_key_count(), 0);
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
+}
+
+#[test]
+fn fencing_out_erases_every_key_even_when_a_durable_cancel_fails() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 41)?;
+
+    // Carry one session through to a confirmed application key.
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    pair.responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(pair.responder.confirmed_key_count(), 1);
+
+    // And leave a second session pending, so the sweep has something to fail on
+    // before it reaches the retained key.
+    let second =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let second_pending = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.second_responder_authorization, second.ciphertexts),
+    )?)?;
+    assert_eq!(pair.responder.pending_session_count(), 1);
+
+    // Make that session's durable cancellation fail the way a diverged store
+    // would: its row is gone, but the session is still held in memory.
+    pair.responder
+        .desynchronize_session_for_test(second_pending.handle)?;
+
+    // Fencing out happens when another instance holds the lease, so this
+    // process must not be left holding key material. The durable failure is
+    // still reported, but it must not be reported instead of erasing.
+    assert!(pair.responder.fence_out_for_test().is_err());
+    assert_eq!(pair.responder.pending_session_count(), 0);
+    assert_eq!(
+        pair.responder.confirmed_key_count(),
+        0,
+        "a failed durable cancel left accepted application keys in memory"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_idle_agent_erases_expired_session_secrets_without_being_asked() -> TestResult {
+    let directory = TestDirectory::new()?;
+    // Short enough that the session is past its deadline almost immediately, so
+    // the test observes the expiry rather than waiting out a realistic TTL.
+    let pair = agent_pair_with_session_ttl(&directory, 9, Duration::from_millis(1))?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    thread::sleep(Duration::from_millis(20));
+
+    // The deadline has passed and the session is still here. That is the whole
+    // problem: every purge so far has been a side effect of some request, so an
+    // agent nobody is talking to holds its expired key material indefinitely.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // This is what the serving loop calls when its accept wait times out.
+    pair.initiator.expire_idle_sessions();
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+
+    // The sweep releases the durable reservation too, so the freed capacity is
+    // real and not just a forgotten map entry.
+    assert!(pair.initiator.public_keys().is_ok());
+    Ok(())
 }
 
 #[test]
@@ -1556,6 +2143,242 @@ fn concurrent_exact_responder_acceptance_returns_one_stable_result() -> TestResu
 }
 
 #[test]
+fn ipc_rejects_a_response_key_clients_could_not_verify() -> TestResult {
+    // A perfectly valid signing key that simply is not the one clients pinned.
+    // It signs, and it is a different pair from the request direction, so every
+    // other startup check passes. Only comparing a signature against the pinned
+    // response key catches it -- and without that the daemon starts, commits
+    // state, and only then emits responses every client rejects.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 27)?;
+    let (_, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let (_, unrelated_verification_key) = MlDsa65::generate([99u8; 32]);
+    assert!(
+        crate::ipc::UnixIpcServer::new_for_test(
+            pair.responder,
+            client_verification_key,
+            ZeroizingBytes::from_bytes(server_signing_key),
+            unrelated_verification_key,
+        )
+        .is_err(),
+        "a signing key that does not match the pinned response key must be refused"
+    );
+
+    // The matching pair is still accepted, so the check is not simply refusing
+    // everything.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 28)?;
+    let (server_signing_key_again, _) = MlDsa65::generate([96u8; 32]);
+    assert!(crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key_again),
+        server_verification_key,
+    )
+    .is_ok());
+    Ok(())
+}
+
+#[test]
+fn ipc_rejects_one_key_pair_serving_both_directions() -> TestResult {
+    // The IPC server verifies requests under the client key and signs responses
+    // under its own. One key pair for both directions would let any client
+    // authorized to send requests forge responses.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 23)?;
+    let (shared_sk, shared_vk) = MlDsa65::generate([93u8; 32]);
+    assert!(
+        crate::ipc::UnixIpcServer::new_for_test(
+            pair.responder,
+            shared_vk,
+            ZeroizingBytes::from_bytes(shared_sk),
+            shared_vk,
+        )
+        .is_err(),
+        "one key pair must not carry both IPC directions"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_busy_listener_does_not_starve_the_session_sweep() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair_with_session_ttl(&directory, 53, Duration::from_millis(1))?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    responder_decapsulation(pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization,
+        encapsulated.ciphertexts,
+    ))?)?;
+    assert_eq!(pair.responder.pending_session_count(), 1);
+
+    let (_, client_verification_key) = MlDsa65::generate([97u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([98u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    let socket_path = directory.join("busy.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = AtomicBool::new(false);
+
+    thread::scope(|scope| -> TestResult {
+        let serving = scope.spawn(|| {
+            let mut server = server;
+            let outcome = server.serve_for_test(listener, &shutdown);
+            (server, outcome)
+        });
+
+        // Keep the listener continuously readable for longer than one
+        // maintenance interval. Each connection is dropped without sending a
+        // request, which is the cheapest way a client can hold the loop's
+        // attention -- and exactly what an unauthenticated peer can do.
+        let hammering = Instant::now();
+        while hammering.elapsed() < Duration::from_millis(1_400) {
+            if let Ok(connection) = std::os::unix::net::UnixStream::connect(&socket_path) {
+                drop(connection);
+            }
+        }
+        shutdown.store(true, Ordering::Release);
+        // Unblock the final wait so the loop observes the flag promptly.
+        let _ = std::os::unix::net::UnixStream::connect(&socket_path);
+        let (returned, outcome) = serving
+            .join()
+            .map_err(|_| io::Error::other("serving thread panicked"))?;
+        outcome?;
+
+        // The session expired 1.4s ago. Tying the sweep to an idle wait would
+        // leave it here forever, because the wait never timed out.
+        assert_eq!(
+            returned.agent_for_test().pending_session_count(),
+            0,
+            "a continuously busy listener starved the session sweep"
+        );
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
+fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 31)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    let socket_path = directory.join("serve.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_thread = thread::spawn(move || {
+        let mut server = server;
+        server.serve_for_test(listener, &server_shutdown)
+    });
+
+    // The only test that drives the accept path itself: the non-blocking
+    // listener, the poll readiness report, and putting the accepted stream back
+    // into blocking mode so the handler's SO_RCVTIMEO deadlines behave. An
+    // accepted socket inherits non-blocking mode on the BSDs but not on Linux,
+    // so this covers a difference the unit tests cannot see.
+    let nonce = [26u8; 32];
+    let mut client = std::os::unix::net::UnixStream::connect(&socket_path)?;
+    client.write_all(&framed_accept_initiator_request(
+        &client_signing_key,
+        nonce,
+        decapsulated.handle,
+        encapsulated.initiator_finished,
+    )?)?;
+    // The server serves one request per connection and then drops the stream,
+    // so the read ends when it closes.
+    let mut response = Vec::new();
+    client.read_to_end(&mut response)?;
+    let (key_handle, responder_finished) =
+        decode_responder_acceptance_response(&response, &server_verification_key, nonce)?;
+    assert!(!key_handle.iter().all(|byte| *byte == 0));
+    assert!(!responder_finished.iter().all(|byte| *byte == 0));
+
+    // The loop reads the flag once per accept wait, so it stops within one
+    // maintenance interval rather than needing a connection to wake it.
+    shutdown.store(true, Ordering::Release);
+    server_thread
+        .join()
+        .map_err(|_| io::Error::other("serving thread panicked"))??;
+    Ok(())
+}
+
+#[test]
+fn the_response_write_budget_does_not_come_out_of_the_request_deadline() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 23)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([93u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([94u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.responder,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    let mut transport = WriteBudgetTransport {
+        input: Cursor::new(framed_accept_initiator_request(
+            &client_signing_key,
+            [24u8; 32],
+            decapsulated.handle,
+            encapsulated.initiator_finished,
+        )?),
+        output: Vec::new(),
+        write_timeout: std::cell::Cell::new(None),
+    };
+    // A request deadline with almost nothing left on it, standing in for an
+    // operation whose execution consumed the budget. A real advance does this
+    // routinely: the witness and authority timeouts together outlast a single
+    // IPC timeout.
+    let read_deadline = Instant::now()
+        .checked_add(Duration::from_millis(50))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    server.handle_io_with_deadline_for_test(&mut transport, read_deadline)?;
+
+    // The response was written on a fresh budget, not on the sliver left of the
+    // request's. Sharing the deadline would have failed the write outright and
+    // left the client unable to learn the outcome of a committed operation.
+    let granted = transport
+        .write_timeout
+        .get()
+        .ok_or_else(|| io::Error::other("no write timeout was set"))?;
+    assert!(
+        granted > Duration::from_millis(50),
+        "response write budget {granted:?} came out of the request deadline"
+    );
+    assert!(!transport.output.is_empty());
+    Ok(())
+}
+
+#[test]
 fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 17)?;
@@ -1571,6 +2394,7 @@ fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResu
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     let first_nonce = [21u8; 32];
@@ -1640,11 +2464,12 @@ fn ipc_absolute_deadline_evicts_a_pre_auth_trickle_client() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 19)?;
     let (_, client_verification_key) = MlDsa65::generate([93u8; 32]);
-    let (server_signing_key, _) = MlDsa65::generate([94u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([94u8; 32]);
     let mut server = crate::ipc::UnixIpcServer::new_for_test(
         pair.responder,
         client_verification_key,
         ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
     )?;
 
     // A maximum-length frame trickled one byte per 20ms would take minutes;

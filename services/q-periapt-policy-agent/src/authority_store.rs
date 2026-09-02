@@ -31,7 +31,7 @@ use crate::authority_codec::{
     encode_lease, encode_limits, encode_operation_id, encode_receipt, encode_state_head,
     AuthorityCodecError, STORE_SCHEMA_VERSION,
 };
-use crate::filesystem::open_private_file;
+use crate::filesystem::{open_private_file, provision_private_file};
 
 #[cfg(test)]
 use crate::authority::{
@@ -183,9 +183,11 @@ impl AuthorityStoreV2 {
         config: DeploymentConfigRevisionV2,
         limits: AuthorityLimitsV2,
     ) -> Result<Self, AuthorityStoreErrorV2> {
-        let file = open_private_file(path, true)
-            .map_err(|_| AuthorityStoreErrorV2::InsecureOrMissingStore)?;
-        Self::provision_file(file, state_head, config, limits, &SystemTimeClockV2)
+        provision_private_file(
+            path,
+            |_| AuthorityStoreErrorV2::InsecureOrMissingStore,
+            |file| Self::provision_file(file, state_head, config, limits, &SystemTimeClockV2),
+        )
     }
 
     /// Open an exact existing V2 store. Missing, V1, full-repair-required, or corrupt data fails
@@ -426,6 +428,26 @@ impl AuthorityStoreV2 {
         }
         self.commit_or_poison(transaction)?;
         outcome.map_err(AuthorityStoreErrorV2::Authority)
+    }
+
+    /// Provision through the same path-based route as `provision`, but with a
+    /// caller-supplied clock, so a test can fail initialization after the file
+    /// has already been created.
+    // Gated like its only caller: the test that uses it needs an owner-only
+    // directory mode, so it is unix-only and this would be dead code elsewhere.
+    #[cfg(all(test, unix))]
+    pub(crate) fn provision_with_clock_for_test<C: TrustedClockV2>(
+        path: &Path,
+        state_head: StateHeadV2,
+        config: DeploymentConfigRevisionV2,
+        limits: AuthorityLimitsV2,
+        clock: &C,
+    ) -> Result<Self, AuthorityStoreErrorV2> {
+        provision_private_file(
+            path,
+            |_| AuthorityStoreErrorV2::InsecureOrMissingStore,
+            |file| Self::provision_file(file, state_head, config, limits, clock),
+        )
     }
 
     fn provision_file<C: TrustedClockV2>(
@@ -1491,6 +1513,58 @@ mod tests {
         fn now_millis(&self) -> Result<u64, TrustedClockErrorV2> {
             self.now.get().ok_or(TrustedClockErrorV2)
         }
+    }
+
+    // Unix-only: it sets an owner-only directory mode, and `open_private_file`
+    // has no protected-store implementation on other platforms anyway.
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_provision_leaves_the_path_retryable() -> TestResult {
+        use std::os::unix::fs::PermissionsExt;
+
+        // `open_private_file` requires an owner-only parent and refuses to
+        // follow symlinks, so the directory needs the explicit mode and the
+        // canonical path -- on macOS the temporary root is reached through
+        // /var, a symlink to /private/var.
+        let directory = tempfile::Builder::new()
+            .prefix("q-periapt-authority-store-")
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()?;
+        let path = directory.path().canonicalize()?.join("authority.redb");
+
+        // Fail initialization after the file has already been created, the way
+        // unavailable entropy or a pre-epoch clock would.
+        let broken = FakeClock::new(100);
+        broken.fail();
+        assert!(AuthorityStoreV2::provision_with_clock_for_test(
+            &path,
+            state_head(1, 1, 1, 1, 1)?,
+            config(1, 1)?,
+            limits(8, 4, 4)?,
+            &broken,
+        )
+        .is_err());
+
+        // The half-provisioned file must not survive. Creation is
+        // O_CREAT|O_EXCL, so a leftover makes every later provision fail with
+        // EEXIST while `open` rejects the store it finds -- one transient
+        // failure would brick the path forever.
+        assert!(
+            !path.exists(),
+            "a failed provision left its store file behind"
+        );
+
+        // And the path is genuinely reusable, not merely tidy.
+        let working = FakeClock::new(100);
+        let retried = AuthorityStoreV2::provision_with_clock_for_test(
+            &path,
+            state_head(1, 1, 1, 1, 1)?,
+            config(1, 1)?,
+            limits(8, 4, 4)?,
+            &working,
+        );
+        assert!(retried.is_ok(), "retry failed: {:?}", retried.err());
+        Ok(())
     }
 
     fn state_head(

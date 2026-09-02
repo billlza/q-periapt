@@ -49,70 +49,6 @@ impl OwnedPrivateDirectory {
         }
         Ok(File::from(descriptor))
     }
-
-    /// Verify that a leaf is absent before a Unix socket bind.
-    pub(crate) fn require_absent(&self, name: &std::ffi::OsStr) -> Result<(), PrivateFileError> {
-        use rustix::fs::{statat, AtFlags};
-        use rustix::io::Errno;
-
-        validate_private_directory(&self.descriptor)?;
-        let name = private_leaf(Path::new(name))?;
-        match statat(&self.descriptor, name, AtFlags::SYMLINK_NOFOLLOW) {
-            Err(Errno::NOENT) => Ok(()),
-            _ => Err(PrivateFileError),
-        }
-    }
-
-    /// Set and verify the exact owner-only mode of a newly bound socket leaf.
-    pub(crate) fn protect_socket(&self, name: &std::ffi::OsStr) -> Result<(), PrivateFileError> {
-        use rustix::fs::{chmodat, AtFlags, Mode};
-
-        validate_private_directory(&self.descriptor)?;
-        let name = private_leaf(Path::new(name))?;
-        chmodat(
-            &self.descriptor,
-            name,
-            Mode::RUSR | Mode::WUSR,
-            AtFlags::empty(),
-        )
-        .map_err(|_| PrivateFileError)?;
-        self.validate_socket(name)
-    }
-
-    /// Pin this directory as the process working directory before server startup.
-    pub(crate) fn set_as_process_directory(&self) -> Result<(), PrivateFileError> {
-        validate_private_directory(&self.descriptor)?;
-        rustix::process::fchdir(&self.descriptor).map_err(|_| PrivateFileError)
-    }
-
-    /// Remove one fixed leaf during failed socket setup.
-    pub(crate) fn remove_leaf(&self, name: &std::ffi::OsStr) -> Result<(), PrivateFileError> {
-        use rustix::fs::{unlinkat, AtFlags};
-
-        let name = private_leaf(Path::new(name))?;
-        unlinkat(&self.descriptor, name, AtFlags::empty()).map_err(|_| PrivateFileError)
-    }
-
-    fn validate_socket(&self, name: &std::ffi::OsStr) -> Result<(), PrivateFileError> {
-        use rustix::fs::{statat, AtFlags, FileType, Mode};
-        use rustix::process::geteuid;
-
-        let name = private_leaf(Path::new(name))?;
-        let status = statat(&self.descriptor, name, AtFlags::SYMLINK_NOFOLLOW)
-            .map_err(|_| PrivateFileError)?;
-        if !FileType::from_raw_mode(status.st_mode).is_socket()
-            || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
-            || status.st_uid != geteuid().as_raw()
-        {
-            return Err(PrivateFileError);
-        }
-        Ok(())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn socket_is_protected(&self, name: &std::ffi::OsStr) -> bool {
-        self.validate_socket(name).is_ok()
-    }
 }
 
 /// Open an existing private state file, or atomically reserve a new one.
@@ -132,22 +68,46 @@ pub(crate) fn open_private_file(path: &Path, create: bool) -> Result<File, Priva
     }
     let descriptor = openat(&parent.descriptor, filename, flags, Mode::RUSR | Mode::WUSR)
         .map_err(|_| PrivateFileError)?;
-    let status = fstat(&descriptor).map_err(|_| PrivateFileError)?;
-    if !FileType::from_raw_mode(status.st_mode).is_file()
-        || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
-        || status.st_uid != geteuid().as_raw()
-        || (!create && status.st_size == 0)
-    {
-        return Err(PrivateFileError);
-    }
-    require_no_extended_acl(&descriptor)?;
 
-    let file = File::from(descriptor);
-    if create {
-        file.sync_all().map_err(|_| PrivateFileError)?;
-        rustix::fs::fsync(&parent.descriptor).map_err(|_| PrivateFileError)?;
+    let opened = (|| -> Result<File, PrivateFileError> {
+        let status = fstat(&descriptor).map_err(|_| PrivateFileError)?;
+        if !FileType::from_raw_mode(status.st_mode).is_file()
+            || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
+            || status.st_uid != geteuid().as_raw()
+            || (!create && status.st_size == 0)
+        {
+            return Err(PrivateFileError);
+        }
+        require_no_extended_acl(&descriptor)?;
+
+        let file = File::from(descriptor);
+        if create {
+            file.sync_all().map_err(|_| PrivateFileError)?;
+            rustix::fs::fsync(&parent.descriptor).map_err(|_| PrivateFileError)?;
+        }
+        Ok(file)
+    })();
+
+    match opened {
+        Ok(file) => Ok(file),
+        Err(error) => {
+            if create {
+                // O_CREAT|O_EXCL already made the leaf, so a failure after this
+                // point must not leave it behind: the next attempt would get
+                // EEXIST, and the `create = false` path rejects the zero-length
+                // leftover, so one transient failure (a restrictive umask
+                // yielding the wrong mode, ENOSPC or EIO on the syncs) would
+                // brick provisioning permanently. Best-effort by design -- the
+                // original error is what the caller needs to see.
+                let _ = rustix::fs::unlinkat(
+                    &parent.descriptor,
+                    filename,
+                    rustix::fs::AtFlags::empty(),
+                );
+            }
+            Err(error)
+        }
     }
-    Ok(file)
 }
 
 /// Open the authenticated parent capability and return its single leaf name.
@@ -255,4 +215,30 @@ pub(crate) fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileEr
     // of this reference implementation's reviewed boundary. A platform-specific
     // protected-store adapter is required.
     Err(PrivateFileError)
+}
+
+/// Create a private store file and initialize it, removing the file again if the
+/// initialization does not complete.
+///
+/// Creation uses `O_CREAT|O_EXCL`, so a leftover from a failed attempt makes
+/// every later provision fail with `EEXIST`, while the open path rejects the
+/// half-written store it finds. One transient failure -- unavailable entropy, a
+/// clock before the epoch, `ENOSPC` or `EIO` partway through the first commit --
+/// would therefore brick the path permanently instead of leaving it retryable.
+///
+/// The removal is best effort and the caller still receives the original error,
+/// which is the one that explains what actually went wrong.
+pub(crate) fn provision_private_file<T, E>(
+    path: &Path,
+    on_open_failure: impl FnOnce(PrivateFileError) -> E,
+    initialize: impl FnOnce(File) -> Result<T, E>,
+) -> Result<T, E> {
+    let file = open_private_file(path, true).map_err(on_open_failure)?;
+    match initialize(file) {
+        Ok(provisioned) => Ok(provisioned),
+        Err(error) => {
+            let _ = std::fs::remove_file(path);
+            Err(error)
+        }
+    }
 }

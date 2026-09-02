@@ -1,7 +1,6 @@
 //! Mandatory authenticated external witness protocol and reference server.
 
 use core::fmt;
-use std::io;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,10 +14,10 @@ use crate::authentication::{
     sign_envelope, verify_envelope as verify_signed_envelope, AuthenticationError,
 };
 use crate::codec::{
-    encode_domain, hash_fields, read_frame_until, require_domain, write_frame_until, CodecError,
-    Decoder, Encoder, MAX_FRAME_BYTES,
+    accept_error_is_transient, encode_domain, hash_fields, read_frame_until, require_domain,
+    write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
-use crate::filesystem::open_private_file;
+use crate::filesystem::{open_private_file, provision_private_file};
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
 
 const WITNESS_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-WITNESS-REQUEST/v1";
@@ -565,6 +564,10 @@ impl WitnessPort for AuthenticatedTcpWitness {
 
     fn compare_and_advance(&self, intent: WitnessIntent) -> Result<WitnessOutcome, WitnessError> {
         let request = Request::compare(random_nonce()?, intent);
+        // Encode here so a failure to build the request is reported as a
+        // definite failure, before anything is transmitted. Past this point the
+        // request may reach the witness, and the witness may commit the advance.
+        let _ = request.body()?;
         match self.exchange(&request) {
             Ok(response) => {
                 let receipt = response.receipt;
@@ -575,8 +578,18 @@ impl WitnessPort for AuthenticatedTcpWitness {
                 }
                 Ok(WitnessOutcome::Known(Box::new(receipt)))
             }
-            Err(WitnessError::Unavailable) => Ok(WitnessOutcome::Unknown),
-            Err(error) => Err(error),
+            // This is a state-changing request, so every remaining failure is
+            // INDETERMINATE, not a definite failure. A response that fails
+            // authentication, does not decode, or does not match the request
+            // still leaves the possibility that the witness applied the advance
+            // and only the answer was lost or tampered with. Reporting those as
+            // errors would invite the caller to retry or roll back against a
+            // state that actually moved. The caller resolves it the way the
+            // protocol intends -- by querying the same unpredictable operation
+            // id -- which is exactly what `Unknown` asks it to do. Read-only
+            // requests keep reporting definite failures, because no state can
+            // have changed underneath them.
+            Err(_) => Ok(WitnessOutcome::Unknown),
         }
     }
 
@@ -602,33 +615,38 @@ struct WitnessStore {
 
 impl WitnessStore {
     fn provision(path: &Path, initial_head: StateHead) -> Result<Self, WitnessError> {
-        let file = open_private_file(path, true).map_err(|_| WitnessError::Persistence)?;
-        let database = Database::builder()
-            .create_file(file)
-            .map_err(|_| WitnessError::Persistence)?;
-        let mut transaction = database
-            .begin_write()
-            .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
-        transaction.set_two_phase_commit(true);
-        {
-            let mut meta = transaction
-                .open_table(META_TABLE)
-                .map_err(|_| WitnessError::Persistence)?;
-            meta.insert(META_SCHEMA, WITNESS_STORE_SCHEMA.as_slice())
-                .map_err(|_| WitnessError::Persistence)?;
-            meta.insert(META_HEAD, initial_head.to_bytes().as_slice())
-                .map_err(|_| WitnessError::Persistence)?;
-            meta.insert(META_OPERATION_COUNT, 0u64.to_be_bytes().as_slice())
-                .map_err(|_| WitnessError::Persistence)?;
-            transaction
-                .open_table(OPERATION_TABLE)
-                .map_err(|_| WitnessError::Persistence)?;
-        }
-        transaction
-            .commit()
-            .map_err(|_| WitnessError::Persistence)?;
-        Ok(Self { database })
+        provision_private_file(
+            path,
+            |_| WitnessError::Persistence,
+            |file| {
+                let database = Database::builder()
+                    .create_file(file)
+                    .map_err(|_| WitnessError::Persistence)?;
+                let mut transaction = database
+                    .begin_write()
+                    .map_err(|_| WitnessError::Persistence)?;
+                transaction.set_durability(Durability::Immediate);
+                transaction.set_two_phase_commit(true);
+                {
+                    let mut meta = transaction
+                        .open_table(META_TABLE)
+                        .map_err(|_| WitnessError::Persistence)?;
+                    meta.insert(META_SCHEMA, WITNESS_STORE_SCHEMA.as_slice())
+                        .map_err(|_| WitnessError::Persistence)?;
+                    meta.insert(META_HEAD, initial_head.to_bytes().as_slice())
+                        .map_err(|_| WitnessError::Persistence)?;
+                    meta.insert(META_OPERATION_COUNT, 0u64.to_be_bytes().as_slice())
+                        .map_err(|_| WitnessError::Persistence)?;
+                    transaction
+                        .open_table(OPERATION_TABLE)
+                        .map_err(|_| WitnessError::Persistence)?;
+                }
+                transaction
+                    .commit()
+                    .map_err(|_| WitnessError::Persistence)?;
+                Ok(Self { database })
+            },
+        )
     }
 
     fn open(path: &Path) -> Result<Self, WitnessError> {
@@ -644,7 +662,82 @@ impl WitnessStore {
         }
         let store = Self { database };
         store.head()?;
+        store.verify_semantics()?;
         Ok(store)
+    }
+
+    /// Validate at open the invariants the request paths already assume.
+    ///
+    /// `check_integrity` proves only that redb's own structure is sound, and
+    /// `head` proves only the schema and head decode. A database that is
+    /// structurally valid but semantically damaged would be accepted here and
+    /// then fail inside a request instead. One of those cases is worse than a
+    /// late failure: capacity is enforced against `META_OPERATION_COUNT`, so a
+    /// counter that under-reports the rows actually present would let the
+    /// explicit operation limit be exceeded.
+    fn verify_semantics(&self) -> Result<(), WitnessError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| WitnessError::Persistence)?;
+        let meta = transaction
+            .open_table(META_TABLE)
+            .map_err(|_| WitnessError::Persistence)?;
+        let operations = transaction
+            .open_table(OPERATION_TABLE)
+            .map_err(|_| WitnessError::Persistence)?;
+        let recorded: [u8; 8] = meta
+            .get(META_OPERATION_COUNT)
+            .map_err(|_| WitnessError::Persistence)?
+            .ok_or(WitnessError::Persistence)?
+            .value()
+            .try_into()
+            .map_err(|_| WitnessError::Persistence)?;
+        let recorded = u64::from_be_bytes(recorded);
+        if recorded > WITNESS_MAX_OPERATIONS {
+            return Err(WitnessError::Persistence);
+        }
+        let encoded_head = meta
+            .get(META_HEAD)
+            .map_err(|_| WitnessError::Persistence)?
+            .ok_or(WitnessError::Persistence)?;
+        let mut head_decoder = Decoder::new(encoded_head.value());
+        let head = StateHead::decode(&mut head_decoder).map_err(map_codec)?;
+        head_decoder.finish().map_err(map_codec)?;
+        let mut observed = 0u64;
+        for row in operations.iter().map_err(|_| WitnessError::Persistence)? {
+            let (key, value) = row.map_err(|_| WitnessError::Persistence)?;
+            let mut decoder = Decoder::new(value.value());
+            let receipt = WitnessReceipt::decode(&mut decoder).map_err(map_codec)?;
+            decoder.finish().map_err(map_codec)?;
+            // Every stored receipt is filed under the operation id it records;
+            // a row whose key disagrees would make a point lookup answer for a
+            // different operation than the caller asked about.
+            let filed_correctly = receipt
+                .intent
+                .is_some_and(|intent| intent.operation_id.as_bytes().as_slice() == key.value());
+            if !filed_correctly {
+                return Err(WitnessError::Persistence);
+            }
+            // An applied receipt proves the witness already advanced to the head
+            // it names, so the recorded head cannot be behind it. A store where
+            // it is has either torn between writing the receipt and updating the
+            // head, or been rolled back -- and either way the witness would
+            // answer with an older head while holding proof it had moved past
+            // it, which is exactly how a second, different advance from that
+            // same point gets accepted and the lineage forks.
+            if matches!(receipt.disposition, WitnessDisposition::Applied)
+                && receipt.authoritative_head.revision().global_generation()
+                    > head.revision().global_generation()
+            {
+                return Err(WitnessError::Persistence);
+            }
+            observed = observed.checked_add(1).ok_or(WitnessError::Persistence)?;
+        }
+        if observed != recorded {
+            return Err(WitnessError::Persistence);
+        }
+        Ok(())
     }
 
     fn head(&self) -> Result<StateHead, WitnessError> {
@@ -793,6 +886,7 @@ impl ReferenceWitnessServer {
         initial_head: StateHead,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         witness_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        witness_verification_key: [u8; ML_DSA_65_VK_LEN],
         io_timeout: Duration,
     ) -> Result<Self, WitnessError> {
         validate_authentication_material(
@@ -800,6 +894,7 @@ impl ReferenceWitnessServer {
             &client_verification_key,
             io_timeout,
         )?;
+        validate_response_key_pair(witness_signing_key.as_bytes(), &witness_verification_key)?;
         Ok(Self {
             store: WitnessStore::provision(path, initial_head)?,
             client_verification_key,
@@ -813,6 +908,7 @@ impl ReferenceWitnessServer {
         path: &Path,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         witness_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        witness_verification_key: [u8; ML_DSA_65_VK_LEN],
         io_timeout: Duration,
     ) -> Result<Self, WitnessError> {
         validate_authentication_material(
@@ -820,6 +916,7 @@ impl ReferenceWitnessServer {
             &client_verification_key,
             io_timeout,
         )?;
+        validate_response_key_pair(witness_signing_key.as_bytes(), &witness_verification_key)?;
         Ok(Self {
             store: WitnessStore::open(path)?,
             client_verification_key,
@@ -869,19 +966,35 @@ impl ReferenceWitnessServer {
         while !shutdown.load(Ordering::Acquire) {
             match listener.accept() {
                 Ok((mut stream, _)) => {
-                    stream
-                        .set_nonblocking(false)
-                        .map_err(|_| WitnessError::Unavailable)?;
-                    // A malformed or unauthenticated connection is isolated to that
-                    // connection; no response is produced and no state is changed.
+                    // A per-connection setsockopt failure is isolated to that
+                    // connection, exactly like a malformed request below; it
+                    // must not tear down the listener.
+                    if stream.set_nonblocking(false).is_err() {
+                        continue;
+                    }
+                    // A rejected request is isolated to its connection; no
+                    // response is produced and no state is changed. That has to
+                    // include the request-level rejections a caller can provoke
+                    // on purpose: an intent that does not match its operation
+                    // id, and a full operation table. Terminating the listener
+                    // on those would let one caller -- by replaying a
+                    // conflicting intent, or simply by filling the table to its
+                    // explicit capacity -- destroy every subsequent read and
+                    // query for everyone. Only a broken server is fatal:
+                    // Persistence means the database is corrupt or
+                    // inconsistent, InvalidConfiguration means the static
+                    // configuration is unusable, and Unavailable means an
+                    // authoritative read could not complete.
                     match self.handle(&mut stream) {
                         Ok(())
                         | Err(WitnessError::AuthenticationFailed)
-                        | Err(WitnessError::InvalidMessage) => {}
+                        | Err(WitnessError::InvalidMessage)
+                        | Err(WitnessError::InvalidIntent)
+                        | Err(WitnessError::CapacityExceeded) => {}
                         Err(error) => return Err(error),
                     }
                 }
-                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                Err(error) if accept_error_is_transient(&error) => {
                     std::thread::sleep(Duration::from_millis(5));
                 }
                 Err(_) => return Err(WitnessError::Unavailable),
@@ -895,6 +1008,71 @@ impl ReferenceWitnessServer {
 pub(crate) mod test_support {
     use super::*;
     use crate::codec::write_frame;
+
+    /// Record an applied receipt for an advance the head does not reflect,
+    /// leaving a store that holds proof it moved past the head it reports.
+    ///
+    /// This is what a tear between writing the receipt and updating the head
+    /// looks like on disk, and what a rollback of the head alone looks like.
+    pub(crate) fn record_applied_receipt_ahead_of_head(
+        path: &Path,
+        intent: WitnessIntent,
+    ) -> Result<(), WitnessError> {
+        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
+        let transaction = database
+            .begin_write()
+            .map_err(|_| WitnessError::Persistence)?;
+        {
+            let mut meta = transaction
+                .open_table(META_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut operations = transaction
+                .open_table(OPERATION_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut encoder = Encoder::new(MAX_FRAME_BYTES);
+            WitnessReceipt::applied(intent)
+                .encode(&mut encoder)
+                .map_err(map_codec)?;
+            operations
+                .insert(
+                    intent.operation_id.as_bytes().as_slice(),
+                    encoder.finish().as_slice(),
+                )
+                .map_err(|_| WitnessError::Persistence)?;
+            meta.insert(META_OPERATION_COUNT, 1u64.to_be_bytes().as_slice())
+                .map_err(|_| WitnessError::Persistence)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(())
+    }
+
+    /// Desynchronize the recorded operation count from the rows actually
+    /// present, leaving a store redb still considers structurally sound.
+    pub(crate) fn desynchronize_operation_count(path: &Path) -> Result<(), WitnessError> {
+        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
+        let database = Database::builder()
+            .create_file(file)
+            .map_err(|_| WitnessError::Persistence)?;
+        let transaction = database
+            .begin_write()
+            .map_err(|_| WitnessError::Persistence)?;
+        {
+            let mut meta = transaction
+                .open_table(META_TABLE)
+                .map_err(|_| WitnessError::Persistence)?;
+            meta.insert(META_OPERATION_COUNT, 7u64.to_be_bytes().as_slice())
+                .map_err(|_| WitnessError::Persistence)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(())
+    }
 
     pub(crate) fn framed_read_request(
         signing_key: &[u8],
@@ -926,6 +1104,33 @@ pub(crate) mod test_support {
     }
 }
 
+/// Domain-separated probe used only to prove, at startup, that the two
+/// directions of this protocol are carried by different key pairs.
+const DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-WITNESS-DIRECTION-PROBE/v1";
+
+/// Prove a signing key really corresponds to the verification key its peers were
+/// told to pin.
+///
+/// `validate_authentication_material` proves only that the key signs and that
+/// the two directions are distinct pairs. A valid but wrong signing key passes
+/// both, so the server would start, commit witness state, and only then emit
+/// responses the client rejects -- the outcome startup validation exists to
+/// prevent. This cannot prove clients actually pinned this key, which is
+/// established out of band; it proves the deployment is internally consistent.
+fn validate_response_key_pair(
+    signing_key: &[u8],
+    own_verification_key: &[u8],
+) -> Result<(), WitnessError> {
+    if own_verification_key.iter().all(|byte| *byte == 0) {
+        return Err(WitnessError::InvalidConfiguration);
+    }
+    let probe = sign_envelope(DIRECTION_ISOLATION_PROBE, signing_key)
+        .map_err(|_| WitnessError::InvalidConfiguration)?;
+    verify_signed_envelope(&probe, own_verification_key)
+        .map(|_| ())
+        .map_err(|_| WitnessError::InvalidConfiguration)
+}
+
 fn validate_authentication_material(
     signing_key: &[u8],
     verification_key: &[u8],
@@ -935,10 +1140,26 @@ fn validate_authentication_material(
         || signing_key.iter().all(|byte| *byte == 0)
         || verification_key.iter().all(|byte| *byte == 0)
     {
-        Err(WitnessError::InvalidConfiguration)
-    } else {
-        Ok(())
+        return Err(WitnessError::InvalidConfiguration);
     }
+    // Prove the request and response directions are isolated, the way the
+    // authority transport proves it by requiring distinct endpoint identities.
+    // Here the two directions are named by different key material rather than
+    // by ids: requests are verified under `verification_key`, responses are
+    // signed under `signing_key`. If those are one key pair, whoever is
+    // authorized to send requests can also forge responses, so the asymmetry
+    // the protocol depends on would not exist.
+    //
+    // Signing the probe also proves the signing key is well-formed enough to
+    // produce a signature at startup, rather than discovering it is not after a
+    // state change has already been committed and only the response can no
+    // longer be produced.
+    let probe = sign_envelope(DIRECTION_ISOLATION_PROBE, signing_key)
+        .map_err(|_| WitnessError::InvalidConfiguration)?;
+    if verify_signed_envelope(&probe, verification_key).is_ok() {
+        return Err(WitnessError::InvalidConfiguration);
+    }
+    Ok(())
 }
 
 fn decode_head_value(

@@ -8,7 +8,7 @@ use std::io::Read;
 use std::net::{SocketAddr, TcpListener};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN};
@@ -20,7 +20,10 @@ use q_periapt_migration::{
     EndpointRole, InitiatorFinishedV1, MigrationAuthorityKeyId, MigrationIdentityKeyId,
     ResponderFinishedV1,
 };
+use rustix::event::{poll, PollFd, PollFlags, Timespec};
+use rustix::io::Errno;
 
+use crate::activation::{activated_listener, ActivationError};
 use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError};
 use crate::authority::{
     AuthorityEpochV2, DeploymentConfigRevisionV2, StateFenceV2, StateHeadV2, StateRevisionV2,
@@ -30,8 +33,8 @@ use crate::authority_protocol::{
 };
 use crate::authority_transport::{AuthenticatedTcpAuthorityV2, InstanceAuthorityPort};
 use crate::codec::{
-    encode_domain, hash_fields, read_frame_until, require_domain, write_frame_until, CodecError,
-    DeadlineStream, Decoder, Encoder, MAX_FRAME_BYTES,
+    accept_error_is_transient, encode_domain, hash_fields, read_frame_until, require_domain,
+    write_frame_until, CodecError, DeadlineStream, Decoder, Encoder, MAX_FRAME_BYTES,
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::OwnedPrivateDirectory;
@@ -54,7 +57,10 @@ const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
 const MAX_POLICY_BYTES: usize = q_periapt_ffi_abi2::Q_PERIAPT_MAX_SIGNED_POLICY_BYTES;
-const IPC_SOCKET_NAME: &str = "agent.sock";
+/// Name the service manager publishes the listener under. Both deployment
+/// templates must use this exact value: systemd `FileDescriptorName=` and the
+/// launchd `Sockets` dictionary key.
+const IPC_ACTIVATION_NAME: &str = "agent";
 
 /// IPC configuration, authentication, framing, or fatal service failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -62,8 +68,10 @@ const IPC_SOCKET_NAME: &str = "agent.sock";
 pub enum IpcError {
     /// The executable command or protected configuration was invalid.
     InvalidConfiguration,
-    /// The socket path or mode was not an owner-only Unix boundary.
-    InsecureSocket,
+    /// The service manager did not present a socket-activation listener.
+    ActivationMissing,
+    /// Socket activation did not supply the expected listener.
+    ActivationRejected,
     /// A message was malformed, unknown, oversized, truncated, or had trailing bytes.
     InvalidMessage,
     /// Request authentication or nonce replay protection failed.
@@ -78,7 +86,12 @@ impl fmt::Display for IpcError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::InvalidConfiguration => "IPC configuration invalid",
-            Self::InsecureSocket => "IPC socket boundary is not owner protected",
+            Self::ActivationMissing => {
+                "IPC socket activation was not provided by the service manager"
+            }
+            Self::ActivationRejected => {
+                "IPC socket activation did not supply the expected listener"
+            }
             Self::InvalidMessage => "IPC message invalid",
             Self::AuthenticationFailed => "IPC request authentication failed",
             Self::Unavailable => "IPC transport unavailable",
@@ -264,11 +277,15 @@ impl RecentNonces {
 
 /// Sequential, deadline-bounded authenticated Unix server.
 ///
-/// Sequential handling deliberately caps active clients at one. Each accepted
-/// connection is bounded by one absolute deadline of `io_timeout` computed at
-/// accept: every framed read and write derives its remaining budget from that
-/// deadline, so even a client trickling one byte per interval cannot occupy
-/// the slot for longer. No unbounded worker/thread creation is possible.
+/// Sequential handling deliberately caps active clients at one. Both
+/// client-paced phases are bounded by their own absolute `io_timeout` deadline,
+/// from which every framed read and write derives its remaining budget, so a
+/// client trickling one byte per interval cannot occupy the slot. The request
+/// and the response are budgeted separately because execution between them is
+/// bounded by the witness and authority timeouts rather than by the client, and
+/// those outlast one IPC timeout; a shared deadline would be spent before a
+/// committed operation could report itself. No unbounded worker or thread
+/// creation is possible.
 pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> {
     agent: PolicyAgent<W, A>,
     client_verification_key: [u8; ML_DSA_65_VK_LEN],
@@ -283,35 +300,163 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> fmt::Debug for Un
     }
 }
 
+/// Domain-separated probe used only to prove, at startup, that the two
+/// directions of this protocol are carried by different key pairs.
+const IPC_DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-IPC-DIRECTION-PROBE/v1";
+
+/// How often the serving loop runs maintenance. This is the granularity of the
+/// session TTL, not a poll interval in the busy-wait sense: the wait is a real
+/// blocking `poll`, so a connection is still accepted the moment it arrives.
+const MAINTENANCE_INTERVAL: Duration = Duration::from_secs(1);
+
+/// The same interval as the `poll` timeout. `maintenance_interval_agrees_with_
+/// the_poll_timeout` pins the two together.
+const MAINTENANCE_TIMEOUT: Timespec = Timespec {
+    tv_sec: 1,
+    tv_nsec: 0,
+};
+
+/// Wait for a connection to accept, or for the maintenance interval to elapse.
+///
+/// `false` means nothing is waiting. A signal that interrupts the wait reports
+/// the same thing, which keeps a routine `EINTR` from being mistaken for a dead
+/// listener; the caller loops and waits again.
+fn wait_for_connection(listener: &UnixListener) -> Result<bool, IpcError> {
+    let mut descriptors = [PollFd::new(listener, PollFlags::IN)];
+    match poll(&mut descriptors, Some(&MAINTENANCE_TIMEOUT)) {
+        Ok(0) => Ok(false),
+        Ok(_) => Ok(true),
+        Err(Errno::INTR) => Ok(false),
+        Err(_) => Err(IpcError::Unavailable),
+    }
+}
+
+/// Reject a configuration whose request and response directions share one key
+/// pair, and prove the server signing key can actually produce a signature.
+///
+/// Requests are verified under `client_verification_key`; responses are signed
+/// under `server_signing_key`. If those are one key pair, any client authorized
+/// to send requests could also forge responses. The signing step additionally
+/// surfaces an unusable server key at startup rather than after a state change
+/// has already been committed and only the response can no longer be produced.
+fn validate_ipc_direction_isolation(
+    client_verification_key: &[u8],
+    server_signing_key: &[u8],
+    server_verification_key: &[u8],
+) -> Result<(), IpcError> {
+    if server_signing_key.iter().all(|byte| *byte == 0)
+        || server_verification_key.iter().all(|byte| *byte == 0)
+    {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    let probe = sign_envelope(IPC_DIRECTION_ISOLATION_PROBE, server_signing_key)
+        .map_err(|_| IpcError::InvalidConfiguration)?;
+    // The response key pair has to be a pair. Signing proves only that the key
+    // is well-formed; without this, a deployment that installs a valid but wrong
+    // signing key starts cleanly, commits state, and only then produces
+    // responses every client rejects -- the exact outcome startup validation
+    // exists to prevent. This proves a signature this daemon produces verifies
+    // under the key its clients were told to pin. It cannot prove the clients
+    // actually pinned that key, which is established out of band.
+    if verify_envelope(&probe, server_verification_key).is_err() {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    // And the two directions must remain distinct pairs.
+    if verify_envelope(&probe, client_verification_key).is_ok() {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    Ok(())
+}
+
 impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, A> {
-    /// Bind an owner-only socket and configure pinned request/response keys.
-    fn bind(
-        service_directory: &OwnedPrivateDirectory,
+    /// Configure pinned request/response keys. The listener is supplied
+    /// separately by the service manager; this server never creates one.
+    fn new(
         agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        server_verification_key: [u8; ML_DSA_65_VK_LEN],
         io_timeout: Duration,
-    ) -> Result<(Self, UnixListener), IpcError> {
+    ) -> Result<Self, IpcError> {
         if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
             return Err(IpcError::InvalidConfiguration);
         }
-        let listener = bind_private_socket(service_directory)?;
-        Ok((
-            Self {
-                agent,
-                client_verification_key,
-                server_signing_key,
-                io_timeout,
-                recent_nonces: RecentNonces::new(),
-            },
-            listener,
-        ))
+        validate_ipc_direction_isolation(
+            &client_verification_key,
+            server_signing_key.as_bytes(),
+            &server_verification_key,
+        )?;
+        Ok(Self {
+            agent,
+            client_verification_key,
+            server_signing_key,
+            io_timeout,
+            recent_nonces: RecentNonces::new(),
+        })
     }
 
-    /// Serve one request per accepted connection with bounded sequential resources.
-    fn serve(mut self, listener: UnixListener) -> Result<(), IpcError> {
-        for accepted in listener.incoming() {
-            let mut stream = accepted.map_err(|_| IpcError::Unavailable)?;
+    /// Serve one request per accepted connection with bounded sequential
+    /// resources, until `shutdown` is set.
+    ///
+    /// The daemon never sets the flag; it exists so the loop is reachable from a
+    /// test, matching the witness and authority servers. It is read once per
+    /// accept wait, so a shutdown is observed within one maintenance interval.
+    fn serve(&mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
+        // Wait in `poll` rather than in `accept`, for two reasons. A daemon
+        // nobody is talking to still has to run its session TTL sweep, and only
+        // a bounded wait gives it the chance. And a blocking `accept` can still
+        // block after a readiness report, if the queued peer resets in between;
+        // on this single-threaded loop that stalls the daemon until some other
+        // client happens to connect. A non-blocking listener turns that case
+        // into a `WouldBlock` the loop can simply retry.
+        listener
+            .set_nonblocking(true)
+            .map_err(|_| IpcError::Unavailable)?;
+        let mut swept = Instant::now();
+        while !shutdown.load(Ordering::Acquire) {
+            let waiting = wait_for_connection(&listener)?;
+            // Maintenance runs on a schedule, not on idleness. Tying it to a
+            // timed-out wait meant any client that keeps the listener readable
+            // -- a loop of cheap requests, or a loop of connections that fail
+            // authentication -- starved the session sweep indefinitely, and a
+            // busy daemon is precisely the one holding the most expired key
+            // material. The sweep is cheap and takes the same lock the request
+            // path already takes, so running it between connections costs a
+            // bounded scan of at most `max_pending_sessions` entries.
+            if swept.elapsed() >= MAINTENANCE_INTERVAL {
+                self.agent.expire_idle_sessions();
+                swept = Instant::now();
+            }
+            if !waiting {
+                continue;
+            }
+            let mut stream = match listener.accept() {
+                Ok((stream, _)) => stream,
+                // Reported readable, but the connection is already gone. `poll`
+                // did the waiting, so go straight back to it without a pause.
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => continue,
+                // A transient accept failure (descriptor pressure, a signal, a
+                // peer that reset before we got here) must not end the daemon;
+                // only a listener that is genuinely unusable is fatal. Resource
+                // exhaustion returns immediately, and retrying without pause
+                // would spin at full CPU until the condition clears and worsen
+                // an already degraded host. Back off the same 5ms the TCP loops
+                // use.
+                Err(error) if accept_error_is_transient(&error) => {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+                Err(_) => return Err(IpcError::Unavailable),
+            };
+            // An accepted socket inherits the listener's non-blocking mode on
+            // the BSDs but not on Linux. Set it explicitly so the request
+            // handler's deadline reads block identically on both. A failure here
+            // belongs to this one connection, exactly like a malformed request
+            // below, and must not tear down the listener for everyone else --
+            // the witness and authority loops already skip on the same failure.
+            if stream.set_nonblocking(false).is_err() {
+                continue;
+            }
             match self.handle(&mut stream) {
                 Ok(())
                 | Err(IpcError::InvalidMessage)
@@ -320,7 +465,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 Err(error) => return Err(error),
             }
         }
-        Err(IpcError::Unavailable)
+        Ok(())
     }
 
     fn handle(&mut self, stream: &mut UnixStream) -> Result<(), IpcError> {
@@ -333,9 +478,9 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     fn handle_io<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
-        deadline: Instant,
+        read_deadline: Instant,
     ) -> Result<(), IpcError> {
-        let envelope = read_frame_until(stream, deadline).map_err(map_codec)?;
+        let envelope = read_frame_until(stream, read_deadline).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)
             .map_err(map_authentication)?;
         let request = Request::decode(request_body)?;
@@ -358,7 +503,32 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         encode_response_payload(&mut encoder, payload)?;
         let response = sign_envelope(&encoder.finish(), self.server_signing_key.as_bytes())
             .map_err(map_authentication)?;
-        write_frame_until(stream, &response, deadline).map_err(|_| IpcError::Unavailable)
+        // The response gets its own budget rather than whatever is left of the
+        // request's. Reading is paced by the client, so it must be bounded to
+        // keep a slow one from holding this single-threaded loop. Execution is
+        // not: it is bounded by the witness and authority timeouts, and those
+        // together already exceed one IPC timeout, so a state advance would
+        // routinely exhaust a shared deadline before it produced a response.
+        // The client would then be told nothing about an operation that had
+        // already committed -- the one outcome this protocol most needs to
+        // avoid. Both phases stay separately bounded, so the connection as a
+        // whole is still bounded.
+        let write_deadline = Instant::now()
+            .checked_add(self.io_timeout)
+            .ok_or(IpcError::Unavailable)?;
+        write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
+    }
+
+    /// Run the serving loop against a caller-supplied listener.
+    ///
+    /// The module is already `cfg(unix)`, so `cfg(test)` is enough here.
+    #[cfg(test)]
+    pub(crate) fn serve_for_test(
+        &mut self,
+        listener: UnixListener,
+        shutdown: &AtomicBool,
+    ) -> Result<(), IpcError> {
+        self.serve(listener, shutdown)
     }
 
     #[cfg(test)]
@@ -366,10 +536,16 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         agent: PolicyAgent<W, A>,
         client_verification_key: [u8; ML_DSA_65_VK_LEN],
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+        server_verification_key: [u8; ML_DSA_65_VK_LEN],
     ) -> Result<Self, IpcError> {
         if client_verification_key.iter().all(|byte| *byte == 0) {
             return Err(IpcError::InvalidConfiguration);
         }
+        validate_ipc_direction_isolation(
+            &client_verification_key,
+            server_signing_key.as_bytes(),
+            &server_verification_key,
+        )?;
         Ok(Self {
             agent,
             client_verification_key,
@@ -577,41 +753,25 @@ fn agent_status(error: AgentError) -> u8 {
         AgentError::InstanceFenced => 20,
         AgentError::InstanceLeaseUnavailable => 21,
         AgentError::InstanceLeaseIndeterminate => 22,
+        AgentError::InstanceLeaseCoverageElapsed => 23,
         AgentError::InternalPoisoned => 19,
     }
 }
 
-pub(crate) fn bind_private_socket(
-    directory: &OwnedPrivateDirectory,
-) -> Result<UnixListener, IpcError> {
-    let name = std::ffi::OsStr::new(IPC_SOCKET_NAME);
-    directory
-        .require_absent(name)
-        .map_err(|_| IpcError::InsecureSocket)?;
-    directory
-        .set_as_process_directory()
-        .map_err(|_| IpcError::InsecureSocket)?;
-    let listener = UnixListener::bind(IPC_SOCKET_NAME).map_err(|_| IpcError::Unavailable)?;
-    if directory.protect_socket(name).is_err() {
-        drop(listener);
-        directory
-            .remove_leaf(name)
-            .map_err(|_| IpcError::InsecureSocket)?;
-        return Err(IpcError::InsecureSocket);
-    }
-    Ok(listener)
-}
-
 /// Run the Unix executable from one of two exact command shapes:
 ///
-/// `serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
+/// `serve-agent SOCKET_PATH REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY`
 /// `serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY`
 ///
-/// A successful `serve-agent` startup permanently pins `SERVICE_DIRECTORY` as
-/// the process working directory before entering the server loop. This entry
-/// point is therefore intended for the dedicated executable process, not for
-/// embedding in a host process with unrelated working-directory users. Call it
-/// before starting any other threads or relative-path I/O in that process.
+/// `SOCKET_PATH` is not a path this process binds. The service manager creates
+/// the listening socket and passes it in; the argument states which path that
+/// inherited listener must already be bound to, and startup fails if it is bound
+/// somewhere else or if no activation was presented at all. There is no
+/// self-bind fallback, so a socket whose owner, group and mode nobody
+/// configured cannot come into existence by starting the daemon by hand.
+///
+/// This entry point is for the dedicated executable process: it claims the
+/// activation once per process and a second call fails.
 pub fn run_from_arguments<I>(arguments: I) -> Result<(), IpcError>
 where
     I: IntoIterator<Item = OsString>,
@@ -620,8 +780,7 @@ where
     let _program = arguments.next().ok_or(IpcError::InvalidConfiguration)?;
     let mode = arguments.next().ok_or(IpcError::InvalidConfiguration)?;
     if mode == "serve-agent" {
-        let service_directory =
-            PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
+        let socket_path = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let repository = PathBuf::from(arguments.next().ok_or(IpcError::InvalidConfiguration)?);
         let witness_address =
             parse_socket_address(arguments.next().ok_or(IpcError::InvalidConfiguration)?)?;
@@ -632,7 +791,7 @@ where
             return Err(IpcError::InvalidConfiguration);
         }
         return serve_agent(
-            &service_directory,
+            &socket_path,
             &repository,
             witness_address,
             authority_address,
@@ -652,14 +811,21 @@ where
 }
 
 fn serve_agent(
-    service_directory: &Path,
+    socket_path: &Path,
     repository_path: &Path,
     witness_address: SocketAddr,
     authority_address: SocketAddr,
     configuration: &Path,
 ) -> Result<(), IpcError> {
-    let service_directory =
-        OwnedPrivateDirectory::open(service_directory).map_err(|_| IpcError::InsecureSocket)?;
+    // Claim the service-manager listener first. The daemon never binds, so a
+    // deployment that started this process without activation is refused here,
+    // before any key material is read, rather than silently serving a socket
+    // with properties nobody configured.
+    let listener =
+        activated_listener(IPC_ACTIVATION_NAME, socket_path).map_err(|error| match error {
+            ActivationError::NotActivated => IpcError::ActivationMissing,
+            _ => IpcError::ActivationRejected,
+        })?;
     let configuration =
         OwnedPrivateDirectory::open(configuration).map_err(|_| IpcError::InvalidConfiguration)?;
     let roots = load_migration_roots(&configuration)?;
@@ -683,14 +849,17 @@ fn serve_agent(
     let config = load_agent_config(&configuration)?;
     let agent = PolicyAgent::new(repository, witness, authority, config)
         .map_err(|_| IpcError::InvalidConfiguration)?;
-    let (server, listener) = UnixIpcServer::bind(
-        &service_directory,
+    let server = UnixIpcServer::new(
         agent,
         read_array(&configuration, "ipc-client-vk.bin")?,
         read_secret(&configuration, "ipc-server-sk.bin")?,
+        read_array(&configuration, "ipc-server-vk.bin")?,
         IPC_IO_TIMEOUT,
     )?;
-    server.serve(listener)
+    // The daemon runs until the service manager stops it; nothing sets this.
+    let shutdown = AtomicBool::new(false);
+    let mut server = server;
+    server.serve(listener, &shutdown)
 }
 
 fn serve_witness(
@@ -704,6 +873,7 @@ fn serve_witness(
         database,
         read_array(&configuration, "witness-client-vk.bin")?,
         read_secret(&configuration, "witness-server-sk.bin")?,
+        read_array(&configuration, "witness-server-vk.bin")?,
         WITNESS_IO_TIMEOUT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
@@ -922,6 +1092,197 @@ mod tests {
 
     use super::*;
     use crate::codec::read_frame;
+
+    fn deploy_file(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("deploy")
+            .join(name);
+        assert!(path.is_file(), "missing deployment template: {name}");
+        std::fs::read_to_string(&path).expect("a shipped deployment template must be readable")
+    }
+
+    /// The shipped templates encode contracts this code enforces, and nothing
+    /// else checked them. Two defects reached this branch that way: endpoints
+    /// written as DNS names, which `parse_socket_address` cannot accept, and an
+    /// `EnvironmentFile` whose optional marker was put on the directive instead
+    /// of the path, which systemd discards as an unknown key.
+    #[test]
+    fn the_deployment_templates_agree_with_this_code() {
+        let service = deploy_file("q-periapt-policy-agent.service");
+        let socket = deploy_file("q-periapt-policy-agent.socket");
+        let dropin = deploy_file("q-periapt-policy-agent.service.d/10-endpoints.conf.example");
+        let plist = deploy_file("com.qperiapt.policy-agent.plist");
+
+        // A leading '-' marks an optional VALUE. On the directive it is simply
+        // an unknown key, which systemd logs and ignores -- failing silently.
+        for (name, body) in [
+            ("service", &service),
+            ("socket", &socket),
+            ("drop-in", &dropin),
+        ] {
+            for line in body.lines() {
+                assert!(
+                    !line.starts_with('-'),
+                    "{name}: '{line}' puts the optional marker on the directive, not the value"
+                );
+            }
+        }
+
+        // The activation name is the daemon's; both templates must use it.
+        assert!(
+            socket.contains(&format!("FileDescriptorName={IPC_ACTIVATION_NAME}")),
+            "the socket unit must publish the listener as {IPC_ACTIVATION_NAME}"
+        );
+        assert!(
+            plist.contains(&format!("<key>{IPC_ACTIVATION_NAME}</key>")),
+            "the plist Sockets entry must be keyed {IPC_ACTIVATION_NAME}"
+        );
+
+        // The daemon compares its first argument against getsockname, so the
+        // path the manager binds and the path it passes must be the same one.
+        let listen = socket
+            .lines()
+            .find_map(|line| line.strip_prefix("ListenStream="))
+            .expect("the socket unit must declare ListenStream");
+        assert!(
+            service.contains(listen),
+            "ExecStart must be given the same socket path the socket unit binds ({listen})"
+        );
+        let plist_socket = plist
+            .lines()
+            .find(|line| line.contains("agent.sock"))
+            .expect("the plist must name a socket path");
+        let plist_socket = plist_socket
+            .trim()
+            .trim_start_matches("<string>")
+            .trim_end_matches("</string>");
+        assert_eq!(
+            plist.matches(plist_socket).count(),
+            2,
+            "the plist socket path must appear as both SockPathName and the first argument"
+        );
+
+        // Every endpoint any template suggests has to be one this code accepts.
+        for body in [&service, &dropin, &plist] {
+            for candidate in body
+                .lines()
+                .filter(|line| !line.trim_start().starts_with('#'))
+                .filter_map(|line| line.split_once("ENDPOINT=").map(|(_, value)| value))
+                .chain(
+                    body.lines()
+                        .filter(|line| line.contains("<string>") && line.contains(":784"))
+                        .map(|line| {
+                            line.trim()
+                                .trim_start_matches("<string>")
+                                .trim_end_matches("</string>")
+                        }),
+                )
+            {
+                let candidate = candidate.trim();
+                assert!(
+                    parse_socket_address(OsString::from(candidate)).is_ok(),
+                    "template endpoint {candidate:?} is not a numeric address this code accepts"
+                );
+            }
+        }
+
+        // The optional-endpoints-file path the drop-in advertises must exist.
+        assert!(
+            service.contains("EnvironmentFile=-/"),
+            "EnvironmentFile must tolerate a missing file, or the drop-in's Environment= path fails"
+        );
+
+        // PartOf= propagates stop and restart from the service to the socket, so
+        // a service restart would unlink and recreate the node that both READMEs
+        // promise survives one.
+        assert!(
+            !socket
+                .lines()
+                .any(|line| line.trim_start().starts_with("PartOf=")),
+            "the socket unit must not be PartOf= the service, or a restart destroys the socket"
+        );
+
+        // /run is a tmpfs, so the socket's parent is recreated every boot. Left
+        // to systemd it is 0755 root:root; the daemon's only enforced admission
+        // boundary is that directory's mode, so the entry must be shipped.
+        let tmpfiles = deploy_file("q-periapt-agent.tmpfiles.conf");
+        let parent = listen
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .expect("the listener path must have a parent directory");
+        let entry = tmpfiles
+            .lines()
+            .find(|line| line.starts_with('d') && line.contains(parent));
+        let entry = entry.unwrap_or_else(|| unreachable!("tmpfiles.d must provision {parent}"));
+        assert!(
+            entry.contains("0710"),
+            "the socket's parent must be 0710 so only the transport group can traverse: {entry}"
+        );
+    }
+
+    #[test]
+    fn endpoint_addresses_are_numeric_only() {
+        // Both deployment templates and README.md state this, because the Linux
+        // template pairs each endpoint with an IPAddressAllow entry that systemd
+        // resolves once at unit load and never re-checks. A name would be the
+        // wrong thing on both sides of that pairing, so it is refused at start
+        // rather than resolved.
+        assert!(parse_socket_address(OsString::from("203.0.113.10:7841")).is_ok());
+        assert!(parse_socket_address(OsString::from("[2001:db8::1]:7841")).is_ok());
+        assert_eq!(
+            parse_socket_address(OsString::from("witness.example.internal:7841")),
+            Err(IpcError::InvalidConfiguration)
+        );
+        assert_eq!(
+            parse_socket_address(OsString::from("localhost:7841")),
+            Err(IpcError::InvalidConfiguration)
+        );
+        assert_eq!(
+            parse_socket_address(OsString::from("203.0.113.10")),
+            Err(IpcError::InvalidConfiguration)
+        );
+    }
+
+    #[test]
+    fn the_maintenance_interval_agrees_with_the_poll_timeout() {
+        // The loop waits for one and schedules on the other; if they drift, the
+        // sweep either runs twice per wait or skips a wait entirely.
+        assert_eq!(
+            u64::try_from(MAINTENANCE_TIMEOUT.tv_sec).expect("timeout seconds fit in u64"),
+            MAINTENANCE_INTERVAL.as_secs()
+        );
+        assert_eq!(MAINTENANCE_TIMEOUT.tv_nsec, 0);
+        assert_eq!(MAINTENANCE_INTERVAL.subsec_nanos(), 0);
+    }
+
+    #[test]
+    fn the_accept_wait_times_out_when_idle_and_reports_a_waiting_client() {
+        let directory =
+            std::env::temp_dir().join(format!("qperiapt-accept-wait-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).expect("temporary directory");
+        let path = directory.join("accept-wait.sock");
+        let _ = std::fs::remove_file(&path);
+        let listener = UnixListener::bind(&path).expect("listener");
+        listener.set_nonblocking(true).expect("non-blocking");
+
+        // Nothing is connected, so the wait must return control rather than
+        // parking until a client shows up. This is what gives an idle daemon
+        // the chance to sweep expired sessions.
+        let waited = Instant::now();
+        assert_eq!(wait_for_connection(&listener), Ok(false));
+        assert!(waited.elapsed() >= Duration::from_millis(500));
+
+        // A waiting client is reported, and the accept that follows does not
+        // block -- the listener is non-blocking, so a report that turned out to
+        // be stale would surface as `WouldBlock` instead of stalling the loop.
+        let client = UnixStream::connect(&path).expect("client");
+        assert_eq!(wait_for_connection(&listener), Ok(true));
+        assert!(listener.accept().is_ok());
+
+        drop(client);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir(&directory);
+    }
 
     fn request_body(command: u8) -> Result<Vec<u8>, IpcError> {
         let mut encoder = Encoder::new(MAX_FRAME_BYTES);

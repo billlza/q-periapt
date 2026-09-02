@@ -1,0 +1,74 @@
+# Listening socket for the Q-Periapt policy agent.
+#
+# The service manager owns this socket: it creates it, sets its owner, group and
+# mode, and removes it. The daemon adopts the listening descriptor and refuses to
+# start if it is not presented one -- there is no self-bind fallback, so a socket
+# with properties nobody configured cannot come into existence by accident.
+#
+# The daemon cannot verify the socket's owner, group, or mode. An AF_UNIX
+# descriptor describes a socket object rather than the filesystem node that names
+# it, so `fstat` on the inherited descriptor reports a different inode and mode
+# than the path does, and `fchmod` on it fails. That makes the settings below the
+# only thing standing between the transport group and the world, and it is why
+# SocketMode is written explicitly: systemd's default is 0666.
+#
+# The enforced admission boundary is the parent directory's mode, not this one.
+# Provision it so the transport group can traverse but not write:
+#
+#   install -m 0644 q-periapt-agent.tmpfiles.conf \
+#       /etc/tmpfiles.d/q-periapt-agent.conf
+#     d /run/qperiapt-agent 0710 qperiapt-agent qperiapt-clients -
+#
+# That file is shipped beside this one. Without it systemd creates the parent
+# on demand at DirectoryMode= (0755) owned by root:root, and /run is a tmpfs
+# so it is recreated that way on every boot.
+#
+# Add each authorized client account to the qperiapt-clients group. Membership in
+# that group grants the ability to connect; it does not grant the ability to
+# execute a protected operation, which still requires the pinned IPC client
+# signing key.
+
+[Unit]
+Description=Q-Periapt policy agent IPC socket
+# Deliberately no PartOf=. It propagates stop and restart from the service to
+# this unit, so `systemctl restart q-periapt-policy-agent` would unlink and
+# recreate the socket node -- exactly what both READMEs promise does not happen,
+# and it would drop connections queued in the backlog across a restart. The
+# service already carries Requires= on this unit, which covers the direction
+# that matters: the socket must exist before the daemon can adopt it.
+#
+# The consequence is that stopping the service leaves this unit listening, and
+# the next connection starts the daemon again. To take the service down, stop
+# both:
+#   systemctl stop q-periapt-policy-agent.socket q-periapt-policy-agent.service
+
+[Socket]
+ListenStream=/run/qperiapt-agent/agent.sock
+
+# Hand the listening socket to one long-lived service instance rather than
+# spawning a service per connection: the daemon's session, nonce-replay and
+# instance-lease state are per-process and assume a single serving instance.
+Accept=no
+
+# The name the daemon requires. It arrives in LISTEN_FDNAMES and must match the
+# value the daemon expects, so it cannot mistake some other inherited descriptor
+# for its control socket.
+FileDescriptorName=agent
+
+# Owner is the daemon account; group is the transport group; 0660 keeps the
+# socket unreachable by anyone outside it. Do not omit SocketMode.
+SocketUser=qperiapt-agent
+SocketGroup=qperiapt-clients
+SocketMode=0660
+
+# Applied only if systemd has to create the parent directory itself, which the
+# shipped tmpfiles.d entry should have done first. It narrows the mode but
+# cannot set the owner or group, so it is a backstop, not the boundary.
+DirectoryMode=0710
+
+# One connection is served at a time by design; queue the rest rather than
+# letting a burst be refused.
+Backlog=64
+
+[Install]
+WantedBy=sockets.target

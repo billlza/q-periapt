@@ -1,0 +1,48 @@
+# Required deployment drop-in for the Q-Periapt policy agent.
+#
+# Copy to /etc/systemd/system/q-periapt-policy-agent.service.d/10-endpoints.conf
+# and replace both the addresses and the matching allowances. The base unit ships
+# `IPAddressDeny=any` with no allowance, so without this drop-in the daemon
+# cannot reach its witness or authority and will fail closed rather than run in a
+# silently degraded configuration.
+#
+# Both halves must be numeric `IP:port`. The daemon parses these with Rust's
+# `SocketAddr`, which does not resolve names: a hostname here fails at start with
+# "IPC configuration invalid". That matches `IPAddressAllow`, which systemd
+# resolves once when the unit is loaded and never re-checks, so a name would be
+# the wrong thing on both sides.
+#
+# The two halves must also agree with each other. `IPAddressAllow` is what the
+# kernel enforces; `QPERIAPT_*_ENDPOINT` is what the daemon dials. Allowing a
+# wider prefix than the endpoints actually used gives the service reachability it
+# does not need, and allowing a narrower one makes the daemon fail at its first
+# witness call rather than at start.
+#
+# README.md requires the witness and the instance-lease authority to live outside
+# this host's rollback/restore domain. Addresses on this host do not satisfy that
+# requirement; see the second stanza if that is a deliberate, recorded choice.
+
+[Service]
+# --- Endpoints the daemon dials -------------------------------------------
+# Written to /etc/qperiapt-agent/endpoints.conf (referenced by EnvironmentFile),
+# or set here directly:
+Environment=QPERIAPT_WITNESS_ENDPOINT=203.0.113.10:7841
+Environment=QPERIAPT_AUTHORITY_ENDPOINT=203.0.113.11:7842
+
+# --- Matching kernel-level allowance --------------------------------------
+# Exactly the hosts above.
+IPAddressAllow=203.0.113.10
+IPAddressAllow=203.0.113.11
+
+# ---------------------------------------------------------------------------
+# Alternative: witness and authority behind a protected local relay.
+#
+# Valid only as an explicit, recorded decision. Co-locating them on this host
+# means a restore of this host rolls back the witness and the lease authority
+# with it, which voids the rollback protection README.md describes. If you take
+# this path, record it as an accepted risk in the deployment evidence; do not
+# treat it as equivalent to the off-host topology.
+#
+# Environment=QPERIAPT_WITNESS_ENDPOINT=127.0.0.1:7841
+# Environment=QPERIAPT_AUTHORITY_ENDPOINT=127.0.0.1:7842
+# IPAddressAllow=localhost

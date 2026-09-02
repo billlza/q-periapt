@@ -32,7 +32,11 @@ redb = "=2.6.3"
 # Descriptor-relative opens keep the durable-state boundary beneath an already
 # opened directory capability and avoid path re-resolution races. This exact
 # version is already present through the workspace test toolchain.
-rustix = { version = "=1.1.4", features = ["fs", "process"] }
+# `net` is required to interrogate the inherited socket-activation descriptor
+# (socket type, listening state on Linux, and the bound name) without unsafe.
+# `event` supplies the bounded `poll` the serving loop waits in, so an idle
+# daemon still reaches its session-TTL sweep. It declares no dependencies.
+rustix = { version = "=1.1.4", features = ["event", "fs", "net", "process"] }
 
 [dev-dependencies]
 tempfile = "=3.27.0"

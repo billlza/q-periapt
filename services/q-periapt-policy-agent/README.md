@@ -101,10 +101,23 @@ confidential. The reference server processes one connection at a time with a
 five-second I/O timeout. This is an explicit resource bound, but an unauthenticated
 slow client can occupy that one slot until the timeout.
 
-The executable IPC face is Unix-only. It binds inside an existing private
-directory, requires mode `0700` on that directory, installs mode `0600` on the
-socket, authenticates requests under a pinned ML-DSA-65 client key, and rejects
-unknown, oversized, truncated, or trailing message bytes. These controls do not
+The executable IPC face is Unix-only. It does not create its listening socket:
+the service manager does, and the daemon adopts the descriptor it is handed,
+requires that exactly one was passed, that it is a listening `AF_UNIX`
+`SOCK_STREAM` socket, and that it is bound to the path named on the command
+line. Absent or mismatched activation is a startup failure with no self-bind
+fallback, so a socket whose owner, group and mode nobody configured cannot come
+into existence by accident. The daemon authenticates requests under a pinned
+ML-DSA-65 client key and rejects unknown, oversized, truncated, or trailing
+message bytes.
+
+The daemon cannot verify the socket's owner, group or mode. An `AF_UNIX`
+descriptor names a socket object rather than the filesystem node that addresses
+it, so `fstat` on the inherited descriptor reports a different inode and mode
+than the path does. Those permissions are therefore enforced only by the
+deployment templates, which is why they are written explicitly there rather than
+left to a default. The admission boundary the daemon does rely on is the parent
+directory's mode. These controls do not
 provide code-signing identity or protect against hostile code already holding the
 authorized client signing key. Non-Unix targets fail explicitly instead of
 claiming an equivalent boundary.
@@ -135,22 +148,39 @@ remains, so recovery requires a new authenticated session rather than reuse.
 The executable accepts exactly one of these command shapes:
 
 ```text
-q-periapt-policy-agent serve-agent SERVICE_DIRECTORY REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
+q-periapt-policy-agent serve-agent SOCKET_PATH REPOSITORY WITNESS_ADDRESS AUTHORITY_ADDRESS CONFIG_DIRECTORY
 q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRECTORY
 ```
 
-`SERVICE_DIRECTORY` is an absolute owner-owned exact-`0700` directory. The
-process pins it as its working-directory capability before binding the fixed
-`agent.sock` leaf; it does not reinterpret a caller-provided socket pathname.
-On macOS, socket isolation is inherited from the revalidated ACL-free parent
-capability plus the new fixed leaf and its verified `0600` mode; the service
-does not reopen the socket pathname to make a weaker ACL inference.
-The directory must also live in a stable, trusted namespace so an untrusted UID
-cannot rename an ancestor and substitute a different client-visible pathname.
-The dedicated daemon does not restore its working directory. After an abnormal
-exit, the service manager must first establish that the old process is gone and
-then remove its stale `agent.sock` before restart; the daemon never guesses that
-an existing socket is safe to unlink.
+`SOCKET_PATH` is the absolute path the inherited listener must already be bound
+to. The daemon compares it against the descriptor's own bound address and
+refuses to serve on a mismatch; it never binds the path itself. Its directory
+must live in a stable, trusted namespace, so that an untrusted UID cannot rename
+an ancestor and substitute a different client-visible pathname.
+
+Every address argument -- `WITNESS_ADDRESS`, `AUTHORITY_ADDRESS`, and
+`serve-witness`'s `LISTEN_ADDRESS` -- is a numeric `IP:port`. They are parsed as
+a `SocketAddr`, which performs no name resolution, so a hostname is rejected at
+start as an invalid configuration rather than resolved. That is deliberate: the
+Linux template pairs each endpoint with an `IPAddressAllow` entry that systemd
+resolves once at unit load and never re-checks, so a name would be the wrong
+thing on both sides of the same pairing.
+
+A stale socket is not the daemon's problem to solve, and it does not try: it
+never unlinks a path it did not create, and it cannot safely infer that an
+existing socket is dead. The socket's whole lifetime belongs to the service
+manager, which is the only component that knows whether the previous process is
+gone. On Linux the socket unit owns the node across restarts; on macOS launchd
+does the same for the entry in its `Sockets` dictionary.
+
+Each server direction also installs its own verification key --
+`ipc-server-vk.bin` beside `ipc-server-sk.bin`, and `witness-server-vk.bin`
+beside `witness-server-sk.bin`. Startup signs a probe and requires it to verify
+under that key. Signing alone only proves the key is well-formed: a valid but
+wrong signing key would otherwise start cleanly, commit state, and only then
+produce responses every client rejects. This proves the deployment is internally
+consistent; it cannot prove clients pinned that key, which is established out of
+band.
 
 The executable opens existing stores only. Controlled bootstrap must explicitly
 call `StateRepository::provision_new` and `ReferenceWitnessServer::provision`;
