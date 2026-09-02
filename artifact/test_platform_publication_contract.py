@@ -43,7 +43,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
         manifest = {
             "release_publications": {
                 "platform_r2": copy.deepcopy(self.historical_r2),
-                "platform_v0_1_4": pending_receipt(),
+                "platform_v0_1_5": pending_receipt(),
             }
         }
         contract.validate_release_publications(manifest)
@@ -55,7 +55,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
             }
         )
         contract.validate_release_publications(
-            {"release_publications": {"platform_v0_1_4": pending_receipt()}}
+            {"release_publications": {"platform_v0_1_5": pending_receipt()}}
         )
 
     def test_frozen_v0_1_3_receipt_freezes_the_committed_receipt(self) -> None:
@@ -85,7 +85,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
     def test_near_frozen_receipts_fail_closed(self) -> None:
         # Deep equality with the frozen receipt is now the platform_v0_1_3
         # key's only accepting path; the structural machinery belongs to
-        # the platform_v0_1_4 family.
+        # the platform_v0_1_5 family.
         invalid = contract.frozen_platform_v0_1_3_receipt()
         invalid["identity"]["distribution_revision"] = "r2"
         with self.assertRaisesRegex(
@@ -140,10 +140,20 @@ class PlatformPublicationContractTests(unittest.TestCase):
             contract.validate_release_publication_transition(frozen, demoted)
 
     def test_dispatch_keys_are_exact_versioned_leaf_names(self) -> None:
+        # platform_v0_1_4 is addressable as published history: that line's
+        # releases are live and immutable, but its verified cohort is recorded
+        # at its annotated tag rather than in these results, so it carries no
+        # frozen byte image here -- only the rule that no transition may
+        # introduce, remove, or rewrite it.
         self.assertEqual(
             contract.PLATFORM_PUBLICATION_KEYS,
             frozenset(
-                {"platform_r2", "platform_v0_1_3", "platform_v0_1_4"}
+                {
+                    "platform_r2",
+                    "platform_v0_1_3",
+                    "platform_v0_1_4",
+                    "platform_v0_1_5",
+                }
             ),
         )
         for key in (
@@ -165,10 +175,10 @@ class PlatformPublicationContractTests(unittest.TestCase):
         stable["identity"]["distribution_revision"] = "r2"
         with self.assertRaisesRegex(
             contract.PlatformPublicationContractError,
-            "v0_1_4 publication identity differs",
+            "v0_1_5 publication identity differs",
         ):
             contract.validate_release_publications(
-                {"release_publications": {"platform_v0_1_4": stable}}
+                {"release_publications": {"platform_v0_1_5": stable}}
             )
 
         historical = copy.deepcopy(self.historical_r2)
@@ -220,18 +230,18 @@ class PlatformPublicationContractTests(unittest.TestCase):
         }
         stable_pending = {
             "release_publications": {
-                "platform_v0_1_4": pending_receipt()
+                "platform_v0_1_5": pending_receipt()
             }
         }
         stable_verified = {
             "release_publications": {
-                "platform_v0_1_4": verified_receipt()
+                "platform_v0_1_5": verified_receipt()
             }
         }
         both = {
             "release_publications": {
                 "platform_r2": copy.deepcopy(self.historical_r2),
-                "platform_v0_1_4": pending_receipt(),
+                "platform_v0_1_5": pending_receipt(),
             }
         }
 
@@ -284,21 +294,21 @@ class PlatformPublicationContractTests(unittest.TestCase):
         }
         stable_pending = {
             "release_publications": {
-                "platform_v0_1_4": pending_receipt()
+                "platform_v0_1_5": pending_receipt()
             }
         }
         stable_verified = {
             "release_publications": {
-                "platform_v0_1_4": verified_receipt()
+                "platform_v0_1_5": verified_receipt()
             }
         }
 
         changed_pending = copy.deepcopy(stable_pending)
-        changed_pending["release_publications"]["platform_v0_1_4"][
+        changed_pending["release_publications"]["platform_v0_1_5"][
             "observation"
         ]["observed_at"] = "2026-08-14T05:00:00Z"
         changed_verified = copy.deepcopy(stable_verified)
-        changed_verified["release_publications"]["platform_v0_1_4"][
+        changed_verified["release_publications"]["platform_v0_1_5"][
             "observation"
         ]["release_id"] += 1
         for label, previous, current, message in (
@@ -342,7 +352,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
     ) -> None:
         previous = {
             "release_publications": {
-                "platform_v0_1_4": pending_receipt()
+                "platform_v0_1_5": pending_receipt()
             }
         }
         for label, mutate in (
@@ -383,7 +393,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
                         previous,
                         {
                             "release_publications": {
-                                "platform_v0_1_4": promoted
+                                "platform_v0_1_5": promoted
                             }
                         },
                     )
@@ -394,7 +404,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
             previous,
             {
                 "release_publications": {
-                    "platform_v0_1_4": promoted
+                    "platform_v0_1_5": promoted
                 }
             },
         )
@@ -402,7 +412,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
     def test_pending_to_verified_observed_at_is_monotonic(self) -> None:
         previous = {
             "release_publications": {
-                "platform_v0_1_4": pending_receipt()
+                "platform_v0_1_5": pending_receipt()
             }
         }
 
@@ -417,7 +427,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
                     previous,
                     {
                         "release_publications": {
-                            "platform_v0_1_4": promoted
+                            "platform_v0_1_5": promoted
                         }
                     },
                 )
@@ -432,7 +442,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
                 previous,
                 {
                     "release_publications": {
-                        "platform_v0_1_4": earlier
+                        "platform_v0_1_5": earlier
                     }
                 },
             )
@@ -440,7 +450,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
     def test_transition_validates_both_leaf_sets_before_comparing(self) -> None:
         invalid = {
             "release_publications": {
-                "platform_v0_1_4": pending_receipt(),
+                "platform_v0_1_5": pending_receipt(),
                 "unexpected": {},
             }
         }

@@ -219,7 +219,7 @@ Cargo's post-install path warning; the verifier itself still ignores ambient `PA
 The verifier accepts no source-root or executable-path argument: it derives the repository root
 from its own fixed module location and executes only
 `target/qperiapt-audit-tool/bin/cargo-audit`. Omitting the requirement flag leaves the run scoped
-and cannot emit the release marker. The `0.1.4` stable-version release graph now uses the
+and cannot emit the release marker. The `0.1.5` stable-version release graph now uses the
 target-selected `q-periapt-mlkem-native-sys` boundary over vendored
 `mlkem-native` v1.2.0, plus pinned `fips204` 0.4.6 and
 `sha3` 0.10.9. This removes both the `fips203` path that failed the project binary-CT
@@ -249,11 +249,11 @@ not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
 tag/commit is not a signed provenance statement, and neither upstream mlkem-native
 nor this integration has completed an independent audit.
 
-ABI 2 / `0.1.4` is the stable-version source line, succeeding the fully published
-`0.1.3` release (`0.1.4` registry publication remains
+ABI 2 / `0.1.5` is the stable-version source line, succeeding the fully published
+`0.1.4` release (`0.1.5` registry publication remains
 receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
-`v0.1.4` and the
-`abi2-platforms-v0.1.4` platform distribution (Android AAR plus API 35 /
+`v0.1.5` and the
+`abi2-platforms-v0.1.5` platform distribution (Android AAR plus API 35 /
 16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
 The unsigned Windows x64 MSVC package remains an unsupported CI diagnostic and is
 excluded from the formal candidate, manifest, attestation, receipt, and release assets.
@@ -261,13 +261,24 @@ Machine-checked, versioned Apple and platform
 publication receipts live under `release_publications` in `artifact/results.json`;
 `swift_xcframework.distribution` is only the active Apple projection and must match
 one of those receipts exactly. Scope, verification commands, and explicit
-non-goals are in `artifact/stable-release-notes.md`. The published `v0.1.3` and
+non-goals are in `artifact/stable-release-notes.md`. The `v0.1.4` and
+`abi2-platforms-v0.1.4` releases published on 2026-08-30, and all ten 0.1.4 crates are
+published on crates.io; those public records are immutable and are the current published
+stable set, superseding 0.1.3. Their verified receipt cohort is recorded only at the
+annotated tag `v0.1.4-verified-cohort`, not on `main`: reopening the source line returns
+`artifact/results.json` to its 190-key initial baseline, which drops the pending 0.1.4
+publication leaves, and the receipt finalizer's release proof requires a results-only
+descendant of the 0.1.4 release commit, which `main`'s tip is not. `main`'s trusted results
+therefore record no 0.1.4 publication at all and still carry `apple_v0_1_3` as the active
+Apple selector. That is a statement about where the receipt evidence lives, not about
+whether 0.1.4 shipped; the public GitHub and crates.io records are unaffected by it.
+The published `v0.1.3` and
 `abi2-platforms-v0.1.3` releases, their frozen `apple_v0_1_3`/`platform_v0_1_3`/
 `crates_io_v0_1_3` receipts, and the alpha.2 tags and frozen r2
 receipt remain immutable historical evidence, and the `v0.1.0`, `v0.1.1`, `v0.1.2`,
 `abi2-platforms-v0.1.0`, `abi2-platforms-v0.1.1`, and `abi2-platforms-v0.1.2` tags remain tagged,
 unpublished history superseded by the
-published 0.1.3 releases (see the 0.1.0 through 0.1.3 history notes in `artifact/stable-release-notes.md`). The `platform_v0_1_4` receipt has
+published 0.1.3 releases (see the 0.1.0 through 0.1.3 history notes in `artifact/stable-release-notes.md`). The `platform_v0_1_5` receipt has
 two exact states: candidate verification pending release verification binds the
 descriptor-snapshotted final seven-file local release candidate while omitting every
 remote-publication field (absence means unrecorded, not no release), while verified
@@ -307,16 +318,36 @@ verifiers; source prose cannot promote an old proof after a source change. Even 
 local product-execution and single-host results will not substitute for independent
 signed release provenance, device-energy evidence, or cross-implementation performance parity.
 
-`artifact/source_results_assembler.py` is the deliberately one-time stable-source
-190-to-237 proof-input migration entrypoint, not a reusable release finalizer. Once the
-generated results-only successor R is installed, the 237 baseline makes its initial
-mode logically retired: re-running it is expected to fail closed because
-`require_initial=True` requires the exact pre-migration shape. That failure must not be
-bypassed by relabelling or hand-editing `artifact/results.json`. Do not physically edit,
-extract, or delete the assembler between R and verified publication V; doing so would
-create a new source change after the evidence freeze. Physical removal of the one-time
-`finalize` path belongs only to the next source cycle after V, together with an
-explicitly reviewed current-to-current state machine and a new S. Retain
+`artifact/source_results_assembler.py` is the stable-source proof-input state machine,
+not a general-purpose release finalizer. Its `finalize` command performs the
+190-to-237 proof-input migration once per source line: once the generated results-only
+successor R is installed, the 237 baseline makes that mode inapplicable, and re-running it
+is expected to fail closed because `require_initial=True` requires the exact
+pre-migration shape. That failure must not be bypassed by relabelling or hand-editing
+`artifact/results.json`. The only supported way back is the reviewed `reopen-source`
+reverse transform, which re-arms `finalize` for the next line. It requires a fully
+installed 237-key manifest and validates every publication leaf fail-closed *before*
+removing any, then emits a 190-key initial candidate that recomputes the retained
+proof-input digests from the current source tree while dropping the fixed 47-key delta,
+and reduces `release_publications` to exactly the five frozen historical leaves. It drops
+only in-flight pending publication candidates and refuses outright on any leaf outside
+that frozen floor that is not pending, so a published-immutable receipt is never silently
+discarded. The source identity (`proof_source_tree_sha256` and
+`provenance.snapshot_commit`) is carried over unchanged from the installed manifest,
+naming the frozen stable source the line descends from: recording the reopen commit's own
+tree would be circular, since that digest is itself a source input to that tree, and the
+run-time assembly commit would be orphaned by the atomic repin commit. The reopen runs
+under the same clean-source guard as `finalize` and re-samples the proof-input digests
+after assembly, failing if the tree changed underneath it. Its candidate is emitted
+no-replace under `target/source-results-successors` and must be installed as
+`artifact/results.json` in one atomic commit that also repins `INITIAL_RESULTS_SHA256` to
+the returned digest. Because a reopen drops its line's pending publication leaves and
+refuses on any non-pending leaf outside the floor, a line's own publication receipts reach
+`main`'s trusted results only through an explicitly reviewed change that admits them into
+that floor; absent that, the durable record of that line's publication is its immutable
+public release and registry material plus its annotated verified-cohort tag, not `main`'s
+results. Do not physically edit, extract, or delete the assembler between R and verified
+publication V; doing so would create a new source change after the evidence freeze. Retain
 `verify-installed` and the exact CI dispatch until their durable 237-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
@@ -716,9 +747,11 @@ ZIP, SwiftPM checksum, source commit, signature resources, certificate, and slic
 notarization is explicitly recorded as not applicable and never as Accepted. The consuming macOS
 product retains its own signing and notarization responsibility.
 The stable-version GitHub publications are not by themselves a production-readiness
-claim. The targets `v0.1.4` and `abi2-platforms-v0.1.4` become public,
+claim. The targets `v0.1.5` and `abi2-platforms-v0.1.5` become public,
 immutable, attested non-prerelease releases only when their current verified receipts say so;
-the published 0.1.3 and alpha.2 receipts remain immutable historical evidence. The platform packages carry exact-version
+the published 0.1.3 and alpha.2 receipts remain `main`'s immutable historical receipt evidence,
+and the published 0.1.4 releases are attested by their own immutable public release and registry
+material plus the `v0.1.4-verified-cohort` tag rather than by any receipt on `main`. The platform packages carry exact-version
 pkg-config/CMake configs, ABI contracts, SBOM/CBOM, and license material. What still
 separates them from production promotion: a fresh same-source Apple device matrix,
 a current-source canonical Android arm64 AVD transaction plus a clean physical-device proof over

@@ -1,16 +1,19 @@
-# Q-Periapt 0.1.4 — ABI 2 stable release
+# Q-Periapt 0.1.5 — ABI 2 stable release
 
-This release succeeds `0.1.3`, the first fully published stable line: the
-`v0.1.3` and `abi2-platforms-v0.1.3` GitHub releases are live and immutable, the
-ten `0.1.3` crates are published on crates.io, and their frozen verified
-receipts remain permanent history (see the 0.1.3 history below). `0.1.4` is a
+This release succeeds `0.1.4`, the current published stable set: the
+`v0.1.4` and `abi2-platforms-v0.1.4` GitHub releases are live and immutable and
+the ten `0.1.4` crates are published on crates.io, although that line's verified
+receipts are recorded at the annotated tag `v0.1.4-verified-cohort` rather than in
+this branch's trusted results (see the 0.1.4 history below). `0.1.5` is a
 successor of that published release, not a correction of a failed line. Before
-0.1.3, the published prerelease was `0.1.0-alpha.2`;
+0.1.4, `0.1.3` published for real and its frozen verified receipts remain the
+recorded selection in this branch's trusted results (see the 0.1.3 history below).
+Before 0.1.3, the published prerelease was `0.1.0-alpha.2`;
 `0.1.0-alpha.3` was the working source line, not a published release. That working
 line was first tagged as `0.1.0` but never published, then re-tagged as `0.1.1` and
 again never published, then re-tagged as `0.1.2` and again never published (see the
 0.1.0, 0.1.1, and 0.1.2 history below). This release carries the published source
-line forward as `0.1.4`,
+line forward as `0.1.5`,
 while keeping the public C ABI at major version 2 and the exact nine-symbol export
 surface. It is not an ABI 2.1 change and requires no ABI migration.
 
@@ -88,29 +91,56 @@ API and sparse index. The verified cohort — the frozen `apple_v0_1_3`,
 `artifact/results.json`, and the active Swift selector was activated on
 `apple_v0_1_3`. Those receipts are frozen history on this line: they are validated
 by exact equality with their published bytes and can never be edited, removed, or
-reintroduced by a future transition. The repository therefore carries ten
-stable-named tags: `v0.1.0` and `abi2-platforms-v0.1.0` and `v0.1.1` and
-`abi2-platforms-v0.1.1` and `v0.1.2` and `abi2-platforms-v0.1.2` (historical,
-unpublished) and `v0.1.3` and `abi2-platforms-v0.1.3` (historical, published) and
-`v0.1.4` and `abi2-platforms-v0.1.4` (current); the tag ruleset must
-protect all ten.
+reintroduced by a future transition. `0.1.3` is now superseded by the published
+`0.1.4` line, while its frozen receipts remain the recorded selection in this
+branch's trusted results.
+
+0.1.4 history: on 2026-08-30 the Apple distribution tag `v0.1.4` and the platform
+tag `abi2-platforms-v0.1.4` were pushed, pointing at that line's coordinated
+results-only commit, under the no-bypass tag ruleset; they are therefore permanent.
+That line published for real, end to end: the Apple release `v0.1.4` and the
+platform release `abi2-platforms-v0.1.4` are both live, non-prerelease, and
+immutable, and all ten exact `0.1.4` crates were published on crates.io and
+reconciled as `published_verified`. `0.1.4` is therefore the current published
+stable set, superseding `0.1.3`. Its verified cohort — the `apple_v0_1_4`,
+`platform_v0_1_4`, and `crates_io_v0_1_4` receipts — is recorded at the annotated
+tag `v0.1.4-verified-cohort`, not on `main`: reopening the source line for the next
+version returns `artifact/results.json` to its 190-key initial baseline, which drops
+the pending 0.1.4 leaves, and the receipt finalizer's release proof requires a
+results-only descendant of the 0.1.4 release commit, which `main`'s tip is not.
+`main`'s trusted results therefore record no 0.1.4 publication at all and still
+carry `apple_v0_1_3` as the active Apple selector. That is a statement about where
+the evidence lives, not about whether 0.1.4 shipped: the published GitHub and
+crates.io records are immutable and completely unaffected by it. The repository
+therefore carries ten stable-named tags today: `v0.1.0` and
+`abi2-platforms-v0.1.0` and `v0.1.1` and `abi2-platforms-v0.1.1` and `v0.1.2`
+and `abi2-platforms-v0.1.2` (historical, unpublished) and `v0.1.3` and
+`abi2-platforms-v0.1.3` and `v0.1.4` and `abi2-platforms-v0.1.4` (historical,
+published). `v0.1.5` and `abi2-platforms-v0.1.5` are the two refs THIS release
+creates: they do not exist yet, and the step below proves both absent — locally
+and through the double-sampled read-only GitHub API — before either is pushed.
+The tag ruleset must cover all twelve stable-named refs, the ten that exist now
+and the two this release adds. The separate `v0.1.4-verified-cohort` evidence
+tag is not one of those twelve and is not covered by the tag-protection
+authority below.
 
 Here “stable” means a non-prerelease distribution channel plus the frozen C ABI 2
-and exact dependency cohort. SemVer `0.1.4` remains a Rust `0.x` API line, not a
+and exact dependency cohort. SemVer `0.1.5` remains a Rust `0.x` API line, not a
 Rust API 1.0 compatibility promise; the ten internal crate edges remain pinned to
-exact `=0.1.4` versions.
+exact `=0.1.5` versions.
 
 The release plan uses two independently verifiable GitHub transactions for the
 same product SemVer. Each becomes public/current only after its verified receipt
 records the immutable release:
 
-- Apple: `v0.1.4`
-- Android and GNU/Linux: `abi2-platforms-v0.1.4`
+- Apple: `v0.1.5`
+- Android and GNU/Linux: `abi2-platforms-v0.1.5`
 
-The published 0.1.3 releases and their frozen receipts, and the earlier alpha.2
-tags and receipts, remain immutable historical evidence. They
-are not rewritten or promoted as 0.1.4 evidence. The unpublished 0.1.0, 0.1.1, and 0.1.2 tags
-likewise remain historical and are not promoted as 0.1.4 evidence.
+The published 0.1.4 releases and the verified cohort recorded at
+`v0.1.4-verified-cohort`, the published 0.1.3 releases and their frozen receipts,
+and the earlier alpha.2 tags and receipts, remain immutable historical evidence. They
+are not rewritten or promoted as 0.1.5 evidence. The unpublished 0.1.0, 0.1.1, and 0.1.2 tags
+likewise remain historical and are not promoted as 0.1.5 evidence.
 
 Before the final source PR can be merged as `S`, repository administration must
 replace the obsolete required contexts `constant-time (ubuntu-latest)` and
@@ -122,10 +152,10 @@ unprotected merge cannot substitute for a fresh read-only branch-protection
 observation and a mergeable final PR.
 
 Before either stable tag is created or pushed, an authorized operator must first
-ensure that an active repository tag ruleset explicitly includes both exact 0.1.4
+ensure that an active repository tag ruleset explicitly includes both exact 0.1.5
 refs alongside the historical `v0.1.0`, `abi2-platforms-v0.1.0`, `v0.1.1`,
 `abi2-platforms-v0.1.1`, `v0.1.2`, `abi2-platforms-v0.1.2`, and the published
-`v0.1.3` and `abi2-platforms-v0.1.3` refs, restricts
+`v0.1.3`, `abi2-platforms-v0.1.3`, `v0.1.4`, and `abi2-platforms-v0.1.4` refs, restricts
 updates and deletions, and has no bypass actor. Creating or changing the
 ruleset is an external administrative action and is not performed by this
 repository. Immediately before tag creation, run the read-only authority below
@@ -141,9 +171,10 @@ Proceed only from a fresh `STABLE_TAG_PROTECTION_PASS`. The command samples the
 complete bounded tag-ruleset inventory twice through the source-pinned GitHub CLI,
 requires the current API version, rejects proxy/CA/Git/GitHub overrides and user
 CLI configuration, and accepts only explicit active `update` plus `deletion`
-coverage, with an empty bypass list, for every one of the ten stable-named refs —
-the current `refs/tags/v0.1.4` and `refs/tags/abi2-platforms-v0.1.4` together with
-the published `refs/tags/v0.1.3` and `refs/tags/abi2-platforms-v0.1.3` and
+coverage, with an empty bypass list, for every one of the twelve stable-named refs —
+the current `refs/tags/v0.1.5` and `refs/tags/abi2-platforms-v0.1.5` together with
+the published `refs/tags/v0.1.4`, `refs/tags/abi2-platforms-v0.1.4`,
+`refs/tags/v0.1.3`, and `refs/tags/abi2-platforms-v0.1.3` and
 the historical `refs/tags/v0.1.0`, `refs/tags/abi2-platforms-v0.1.0`,
 `refs/tags/v0.1.1`, `refs/tags/abi2-platforms-v0.1.1`, `refs/tags/v0.1.2`, and
 `refs/tags/abi2-platforms-v0.1.2`. Protection is verified
@@ -152,7 +183,7 @@ update/deletion rule. A missing or hidden bypass list, target/ref mismatch,
 disabled/evaluate ruleset, incomplete first page, tool drift, or changed second
 sample is a refusal. Tag-triggered CI is too late to replace this pre-tag check.
 State observation of the absent/apple-only/exact transition still concerns only
-the current `v0.1.4` refs.
+the current `v0.1.5` refs.
 
 Both stable tags point to the coordinated results-only commit `R`, whose sole
 parent is the source-changing commit `S`. Stable receipts record `S` as
@@ -178,11 +209,12 @@ as success nor converts a failed optional verifier into a passing result.
 
 ## Reliability and security hardening
 
-The 0.1.4 source line makes a deliberate fail-closed Rust/WASM behavior change:
-`CompatXWing` calls must use canonical absent suite/version/context metadata
-(`[]`, `0`, `[]`). Calls that previously succeeded while those values were ignored
-now return the existing policy error before XOF construction, backend execution, or
-output mutation. The three historical X-Wing draft-10 KAT vectors remain unchanged;
+The 0.1.5 source line carries forward the deliberate fail-closed Rust/WASM behavior
+introduced on the 0.1.4 line: `CompatXWing` calls must use canonical absent
+suite/version/context metadata
+(`[]`, `0`, `[]`). Calls that succeeded on lines before 0.1.4, while those values
+were ignored, return the existing policy error before XOF construction, backend
+execution, or output mutation. The three historical X-Wing draft-10 KAT vectors remain unchanged;
 the source line additionally pins the CFRG
 `draft-irtf-cfrg-concrete-hybrid-kems-04` Appendix B.2 vector, stored as the repository
 vector-0 fixture. That document remains a
@@ -192,7 +224,8 @@ implicit rejection; the draft supplies no expected secret for that rejected case
 rustls group wire encoding and the ContextBound-only exact-nine C ABI 2 surface are
 unchanged.
 
-Two ownership changes likewise leave ABI 2 and wire bytes unchanged. The Compat
+Two ownership changes carried forward on this line likewise leave ABI 2 and wire
+bytes unchanged. The Compat
 rustls client retains the stable 32-byte seed representation, expands it exactly once
 per in-flight handshake into a non-Clone zeroizing 2,400-byte prepared owner, and
 reuses that owner at completion. There is no global/shared secret-key cache or C-ABI
@@ -203,8 +236,8 @@ failure remains opaque internal/backend failure, while oversized input remains a
 explicit length error. Caller/marshalling copies, registers, paging, and process abort
 remain outside this local erasure boundary.
 
-This source line also strengthens the Android release transaction without weakening
-package ownership checks:
+This source line also retains the strengthened Android release transaction without
+weakening package ownership checks:
 
 - installed-package state and installed-APK ownership are observed through fixed,
   typed, bounded operations;
@@ -289,7 +322,8 @@ again before any mutation.
 The fixed local Git wrapper below discards caller Git configuration/environment for
 all observations and tag construction. First prove that both *exact* stable refs
 are absent locally and through the neutral, double-sampled read-only GitHub API;
-similarly prefixed prerelease refs, the published `v0.1.3` /
+similarly prefixed prerelease refs, the published `v0.1.4` /
+`abi2-platforms-v0.1.4` / `v0.1.3` /
 `abi2-platforms-v0.1.3` refs, and the historical `v0.1.0` /
 `abi2-platforms-v0.1.0` / `v0.1.1` / `abi2-platforms-v0.1.1` / `v0.1.2` /
 `abi2-platforms-v0.1.2` refs do not affect this
@@ -370,8 +404,8 @@ release_tag() {
       -c tag.gpgSign=false tag "$@"
 }
 
-apple_tag=v0.1.4
-platform_tag=abi2-platforms-v0.1.4
+apple_tag=v0.1.5
+platform_tag=abi2-platforms-v0.1.5
 /bin/sh artifact/python-run.sh artifact/github_release_observation.py \
   verify-stable-tag-protection
 if release_git show-ref --verify --quiet "refs/tags/$apple_tag"; then exit 1; fi
@@ -448,9 +482,9 @@ test "${#github_cli_sha256}" -eq 64
 case "$github_cli_sha256" in ''|*[!0-9a-f]*) exit 1 ;; esac
 printf '%s\n' "$pretag_security"
 
-release_tag -a -m 'release: Q-Periapt 0.1.4 Apple distribution' \
+release_tag -a -m 'release: Q-Periapt 0.1.5 Apple distribution' \
   "$apple_tag" "$R"
-release_tag -a -m 'release: Q-Periapt 0.1.4 ABI2 platform distribution' \
+release_tag -a -m 'release: Q-Periapt 0.1.5 ABI2 platform distribution' \
   "$platform_tag" "$R"
 APPLE_TAG_OBJECT=$(release_git rev-parse --verify \
   "refs/tags/$apple_tag^{tag}")
@@ -566,7 +600,7 @@ candidate_projections=$PWD/target/abi2-platform-candidate-projections
 chmod 0700 "$candidate_inputs" "$candidate_projections"
 candidate_dir=$candidate_inputs/stable-platform-candidate
 tag_commit=$(git rev-parse --verify \
-  'refs/tags/abi2-platforms-v0.1.4^{commit}')
+  'refs/tags/abi2-platforms-v0.1.5^{commit}')
 projection_parent=$(umask 077 && \
   mktemp -d "$candidate_projections/transaction.XXXXXXXX")
 chmod 0700 "$projection_parent"
@@ -665,7 +699,7 @@ their private candidate/completion evidence. The platform verifier must be a cle
 standalone checkout named `M` with its own non-symlink `.git` directory:
 
 ```sh
-platform_tag=abi2-platforms-v0.1.4
+platform_tag=abi2-platforms-v0.1.5
 platform_worktree_root=$PWD/target/abi2-platform-publication-worktrees
 (umask 077 && mkdir -p "$platform_worktree_root")
 chmod 0700 "$platform_worktree_root"
@@ -679,7 +713,7 @@ sh artifact/python-run.sh artifact/platform_stable_publication.py pending \
   --assembly-receipt "$platform_assembly_receipt" \
   --verifier-checkout "$platform_worktree_root/M"
 
-apple_tag=v0.1.4
+apple_tag=v0.1.5
 results_sha256=$(shasum -a 256 artifact/results.json | awk '{print $1}')
 source_parent_commit=$(jq -r '.provenance.snapshot_commit' artifact/results.json)
 tag_commit=$(git rev-parse --verify "refs/tags/$apple_tag^{commit}")
@@ -767,7 +801,11 @@ authorized annotated-tag push above remains a prerequisite and is not part of
 this Release API transaction. The coordinator handles Apple and platform in
 one journal: Apple draft, platform draft, the four-asset Apple prefix, the
 seven-asset platform prefix, Apple publication, then platform publication.
-Apple remains the latest release. The fixed short release bodies live directly
+Apple remains the latest release. Every observation before the Apple publication
+step requires the repository's current `latest` release to be the published stable
+predecessor `v0.1.4`; Apple publication is the only mutation that advances `latest`,
+to `v0.1.5`, and platform publication must leave it there. The fixed short release
+bodies live directly
 in `artifact/stable_github_publication.py`; no mutable body file is an authority.
 
 `prepare` descriptor-safely creates the fixed passwd-home mode-0700 state
@@ -887,7 +925,7 @@ verifier checkout with the seven existing `QPERIAPT_SWIFT_BINARY_*` pins. Map
 `swiftpm_checksum`, `artifact_sha256`, `apple_distribution_evidence_sha256`,
 `manifest_sha256`, `checksums_sha256`, and `source_commit` respectively.
 `QPERIAPT_SWIFT_BINARY_URL` is exactly
-`https://github.com/billlza/q-periapt/releases/download/v0.1.4/CQPeriapt.xcframework.zip`.
+`https://github.com/billlza/q-periapt/releases/download/v0.1.5/CQPeriapt.xcframework.zip`.
 These are cross-checked facts, not new caller claims:
 
 ```sh
@@ -969,7 +1007,7 @@ sh artifact/python-run.sh artifact/platform_stable_publication.py collect \
 
 Set `apple_verified_receipt` and `platform_verified_receipt` to `$PWD/` plus their
 printed repo-relative paths. The coordinated stable cohort cannot activate until
-the crates.io coordinator has reconciled all ten exact `0.1.4` archives as
+the crates.io coordinator has reconciled all ten exact `0.1.5` archives as
 `published_verified`. Its `source_identity` must be the four-field S/R/tree/digest
 projection shared by the verified Apple and platform receipts. The registry lane
 accepts no arbitrary transcript or package directory. On a clean S checkout,
@@ -1044,7 +1082,7 @@ attempted. Real publication is irreversible and additionally requires both expli
 publish flags, the fixed external exact-byte uploader, `CARGO_REGISTRY_TOKEN`, and
 the one fixed same-host/same-effective-account state authority derived from the OS
 passwd record—not ambient `HOME`—at
-`~/.q-periapt/publication-state/crates.io-v0.1.4`. All worktrees and resumes for this
+`~/.q-periapt/publication-state/crates.io-v0.1.5`. All worktrees and resumes for this
 version must use that exact root; an alternate safe-looking root is rejected so its
 lock and unknown-outcome journal cannot fork. Pre-create each private directory with
 mode `0700`; the publish CLI independently checks canonical ownership, modes, ancestry,
@@ -1054,7 +1092,7 @@ and every registered worktree before reading a credential:
 publication_account_home=$(python3 -I -S -c \
   'import os,pwd; print(pwd.getpwuid(os.geteuid()).pw_dir)')
 publication_state_parent=$publication_account_home/.q-periapt/publication-state
-publication_state_root=$publication_state_parent/crates.io-v0.1.4
+publication_state_root=$publication_state_parent/crates.io-v0.1.5
 (umask 077 && mkdir -p "$publication_state_root")
 
 # Materialize the release-pinned exact-byte uploader from the reviewed template
@@ -1102,7 +1140,7 @@ status is `published_verified` for all ten crates, then require the receipt byte
 match:
 
 ```sh
-crates_verified_receipt=$PWD/target/qperiapt-crates-io-publication-receipts/transaction.EMITTED_ID/crates-io-v0.1.4-publication-receipt.json
+crates_verified_receipt=$PWD/target/qperiapt-crates-io-publication-receipts/transaction.EMITTED_ID/crates-io-v0.1.5-publication-receipt.json
 crates_verified_receipt_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
 test "$(shasum -a 256 "$crates_verified_receipt" | awk '{print $1}')" = \
   "$crates_verified_receipt_sha256"

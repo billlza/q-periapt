@@ -19,6 +19,7 @@ RELEASE_PUBLICATION_KEYS = frozenset(
     | {
         crates_contract.CRATES_IO_PUBLICATION_KEY,
         crates_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+        crates_contract.CRATES_IO_V0_1_4_PUBLICATION_KEY,
     }
 )
 
@@ -72,15 +73,15 @@ _STABLE_ANDROID_SDK = 35
 _STABLE_ANDROID_PAGE_SIZE = 16_384
 _STABLE_ANDROID_BUILD_TOOLS = "36.0.0"
 # These currentness path literals (and the local_release_index path
-# below) name the active 0.1.4 line: currentness only ever runs against
-# the v0.1.4 cohort, never against frozen history.  proof_manifest's
-# producer path constants carry these same 0.1.4 values.
+# below) name the active 0.1.5 line: currentness only ever runs against
+# the v0.1.5 cohort, never against frozen history.  proof_manifest's
+# producer path constants carry these same 0.1.5 values.
 _STABLE_ANDROID_AAR_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.4/"
-    "q-periapt-android-0.1.4.aar"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.5/"
+    "q-periapt-android-0.1.5.aar"
 )
 _STABLE_ANDROID_AAR_MANIFEST_PATH = (
-    "target/qperiapt-android-aar/q-periapt-android-0.1.4/MANIFEST.json"
+    "target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
 )
 _STABLE_ANDROID_AAR_TARGETS = (
     "arm64-v8a",
@@ -266,9 +267,9 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
     # Their five-leaf floor is enforced by _require_historical_unchanged
     # on every transition and follows by induction from the assembler's
     # initial-baseline validator, which requires exactly those leaves.
-    apple = publications.get(apple_contract.APPLE_V0_1_4_PUBLICATION_KEY)
+    apple = publications.get(apple_contract.APPLE_V0_1_5_PUBLICATION_KEY)
     platform = publications.get(
-        stable_platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
+        stable_platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
     )
     crates = publications.get(crates_contract.CRATES_IO_PUBLICATION_KEY)
     if apple is None and platform is None and crates is None:
@@ -279,7 +280,7 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
         if (
             apple_receipt.get("status") == apple_contract.APPLE_STATUS_PENDING
             and platform_receipt.get("status")
-            == stable_platform_contract.PLATFORM_V0_1_4_STATUS_PENDING
+            == stable_platform_contract.PLATFORM_V0_1_5_STATUS_PENDING
         ):
             return PUBLICATION_STATE_PENDING
     if apple is not None and platform is not None and crates is not None:
@@ -289,7 +290,7 @@ def _stable_cohort_state(publications: dict[str, object]) -> str:
         if (
             apple_receipt.get("status") == apple_contract.APPLE_STATUS_VERIFIED
             and platform_receipt.get("status")
-            == stable_platform_contract.PLATFORM_V0_1_4_STATUS_VERIFIED
+            == stable_platform_contract.PLATFORM_V0_1_5_STATUS_VERIFIED
             and crates_receipt.get("status")
             == crates_contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED
         ):
@@ -347,7 +348,7 @@ def _validate_source_crosslinks(
     domain_sources = [
         _source_identity(
             _source_object(
-                publications[apple_contract.APPLE_V0_1_4_PUBLICATION_KEY],
+                publications[apple_contract.APPLE_V0_1_5_PUBLICATION_KEY],
                 domain="Apple",
             ),
             "Apple stable",
@@ -355,7 +356,7 @@ def _validate_source_crosslinks(
         _source_identity(
             _source_object(
                 publications[
-                    stable_platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY
+                    stable_platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
                 ],
                 domain="platform",
             ),
@@ -555,7 +556,7 @@ def validate_stable_source_currentness(manifest: dict[str, object]) -> None:
         == android_runtime.get("proof_sha256")
         and local_index.get("index_path")
         == (
-            "target/qperiapt-local-release/release/0.1.4/"
+            "target/qperiapt-local-release/release/0.1.5/"
             f"{source_commit}/index.json"
         )
         and isinstance(local_index.get("index_sha256"), str)
@@ -598,14 +599,18 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
     swift = _swift_section(manifest)
     if swift is None:
         return
-    # The selector must name the most recent verified publication: the
-    # active apple_v0_1_4 receipt once its cohort verifies, otherwise the
-    # frozen published apple_v0_1_3 receipt (the live selection since the
-    # 0.1.3 line published). The alpha.2 prerelease can never be selected
-    # again: the frozen five-leaf floor guarantees apple_v0_1_3 is
-    # recorded in every manifest on the 0.1.4 line.
+    # The selector must name the most recent verified publication recorded
+    # HERE: the active apple_v0_1_5 receipt once its cohort verifies,
+    # otherwise the frozen published apple_v0_1_3 receipt, which is still the
+    # live selection.  It does not fall back to apple_v0_1_4: that line
+    # published for real, but reopening the source line dropped its pending
+    # leaves, so its verified cohort lives at the annotated tag
+    # `v0.1.4-verified-cohort` and no v0_1_4 receipt is recorded in these
+    # results to select.  The alpha.2 prerelease can never be selected again:
+    # the frozen five-leaf floor guarantees apple_v0_1_3 is recorded in every
+    # manifest on the 0.1.5 line.
     expected_active = (
-        apple_contract.APPLE_V0_1_4_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
         if state == PUBLICATION_STATE_VERIFIED
         else apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
     )

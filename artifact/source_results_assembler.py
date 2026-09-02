@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the initial source-bound 0.1.4 stable results-only successor.
+"""Assemble the initial source-bound 0.1.5 stable results-only successor.
 
 This module consumes fixed local producer outputs plus short run selectors.  It
 never edits ``artifact/results.json``.  A successful finalize operation emits a
@@ -635,7 +635,7 @@ def _validate_baseline_document_shape(
 
 
 def _validate_initial_publication_state(baseline: dict[str, Any]) -> None:
-    # The 0.1.4 line opens on the frozen five-leaf historical floor with
+    # The 0.1.5 line opens on the frozen five-leaf historical floor with
     # the selector activated on the frozen published apple_v0_1_3 receipt.
     # Both the crafted initial baseline and the installed R successor
     # carry exactly this publication state, so one shape serves both.
@@ -1131,12 +1131,12 @@ def _aar_projection(
         aar = read_regular_snapshot(
             ANDROID_AAR_FILE,
             maximum=android_elf.MAX_ARCHIVE_BYTES,
-            label="Android 0.1.4 stable AAR",
+            label="Android 0.1.5 stable AAR",
         )
         manifest_snapshot = load_json_object_snapshot(
             ANDROID_AAR_MANIFEST_FILE,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.4 stable AAR manifest",
+            label="Android 0.1.5 stable AAR manifest",
         )
         ndk = _android_ndk()
         properties_path = ndk / "source.properties"
@@ -1282,12 +1282,12 @@ def _aar_projection(
         _pin(
             aar,
             maximum=android_elf.MAX_ARCHIVE_BYTES,
-            label="Android 0.1.4 stable AAR",
+            label="Android 0.1.5 stable AAR",
         ),
         _pin(
             manifest_snapshot.file,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.4 stable AAR manifest",
+            label="Android 0.1.5 stable AAR manifest",
         ),
         _pin(
             properties_file,
@@ -1403,7 +1403,7 @@ def _index_path(source: SourceIdentity) -> pathlib.Path:
         / "target"
         / "qperiapt-local-release"
         / "release"
-        / "0.1.4"
+        / "0.1.5"
         / source.commit
         / "index.json"
     )
@@ -1760,7 +1760,7 @@ def _validate_assembled_results(
         load_json_object_snapshot(
             ANDROID_AAR_MANIFEST_FILE,
             maximum=16 * 1024 * 1024,
-            label="Android 0.1.4 stable AAR manifest projection",
+            label="Android 0.1.5 stable AAR manifest projection",
         ).value,
     )
     _domain_call(
@@ -2135,7 +2135,7 @@ _INITIAL_PUBLICATION_FLOOR_KEYS = frozenset(
 _DROPPABLE_PENDING_PUBLICATION_STATUSES = frozenset(
     {
         apple_publication_contract.APPLE_STATUS_PENDING,
-        platform_stable_publication_contract.PLATFORM_V0_1_4_STATUS_PENDING,
+        platform_stable_publication_contract.PLATFORM_V0_1_5_STATUS_PENDING,
     }
 )
 

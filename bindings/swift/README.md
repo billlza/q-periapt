@@ -85,17 +85,21 @@ The gate requires a clean worktree for release proof; use
 Credentialed Apple distribution is intentionally separate from that CI path:
 
 ```sh
-QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.4 \
+QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.5 \
 QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')" \
 sh artifact/swift-xcframework-release.sh
 ```
+
+The confirmation token must match the version in this source tree, so from this tree
+`artifact/swift-xcframework-release.sh` authorizes a `v0.1.5` build; it has not been run
+for `0.1.5`, and no Apple `0.1.5` release, tag, or asset exists.
 
 It builds in a detached worktree pinned to one source commit, Developer ID-signs only the outer
 static XCFramework, verifies that signing did not alter the three `.a` slices, exercises an exact
 ZIP extraction through the isolated consumer, and requires a fixed 22-entry static-only archive:
 three static-library slices, their headers and metadata, plus the outer code-signature resources.
 Any extra executable, dynamic library, app, framework, bundle, script, symlink, special file, or
-unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.4` release
+unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the confirmed release
 identity, source commit, ZIP and SwiftPM hashes, certificate and signature resources, and all
 slice hashes; `MANIFEST.json` additionally binds the exact Rust/Cargo, Swift, Xcode, and host
 toolchain identities. Because this SDK payload
@@ -127,12 +131,18 @@ a post-publication URL-consumer failure
 invalidates that release and requires a new version; it must never be repaired by replacing the
 asset under the same tag.
 
-The stable Apple target is `v0.1.4` (Rust 1.96.1), requires
-`prerelease=false`, and becomes
-public/current only through its verified receipt. The published `v0.1.3` stable
+The published stable Apple release is `v0.1.4` (Rust 1.96.1), which is
+non-prerelease and immutable; this tree's `0.1.5` source line has produced no Apple
+release, tag, or asset, so a binary target still resolves against `v0.1.4`.
+Public/current status is asserted only through the verified receipt, and the `0.1.4`
+verified cohort is recorded at the annotated tag `v0.1.4-verified-cohort` rather than
+on `main`: the `0.1.5` reopening returned `artifact/results.json` to its initial
+baseline, so `main`'s trusted results record no `0.1.4` publication and still carry
+`apple_v0_1_3` as the active Apple selector. The published release is immutable and
+unaffected by that. The published `v0.1.3` stable
 predecessor and the earlier `v0.1.0-alpha.2-r1`
 patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0 build remain immutable
 published evidence; the `v0.1.0`, `v0.1.1`, and `v0.1.2` tags exist but were never published
 and carry no Apple asset. The non-Apple stable assets (Android AAR and Linux C SDKs)
-target the separate `abi2-platforms-v0.1.4` transaction; unsigned Windows output
+were published in the separate `abi2-platforms-v0.1.4` transaction; unsigned Windows output
 remains an unsupported CI diagnostic outside that release.

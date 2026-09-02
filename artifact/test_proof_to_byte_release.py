@@ -5794,11 +5794,11 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
         self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
         for expected in (
-            "q-periapt-c-abi2-0.1.4-x86_64-pc-windows-msvc.zip",
-            "q-periapt-c-abi2-0.1.4-$EXPECTED_TARGET",
-            "q-periapt-c-abi2-0.1.4-${{ matrix.target }}.tar.gz",
-            "q-periapt-android-0.1.4.aar",
-            "q-periapt-android-0.1.4/MANIFEST.json",
+            "q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.1.5-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.1.5-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.1.5.aar",
+            "q-periapt-android-0.1.5/MANIFEST.json",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)

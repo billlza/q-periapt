@@ -16,11 +16,13 @@ APPLE_PUBLICATION_KIND = "qperiapt.apple_xcframework_publication_receipt"
 APPLE_ALPHA2_R1_PUBLICATION_KEY = "apple_alpha2_r1"
 APPLE_V0_1_3_PUBLICATION_KEY = "apple_v0_1_3"
 APPLE_V0_1_4_PUBLICATION_KEY = "apple_v0_1_4"
+APPLE_V0_1_5_PUBLICATION_KEY = "apple_v0_1_5"
 APPLE_PUBLICATION_KEYS = frozenset(
     {
         APPLE_ALPHA2_R1_PUBLICATION_KEY,
         APPLE_V0_1_3_PUBLICATION_KEY,
         APPLE_V0_1_4_PUBLICATION_KEY,
+        APPLE_V0_1_5_PUBLICATION_KEY,
     }
 )
 
@@ -56,6 +58,16 @@ APPLE_V0_1_4_BOUNDARY = (
     "remote SwiftPM consumer verification. It is not notarization, App Store, "
     "physical-device, or hostile-host evidence."
 )
+APPLE_V0_1_5_BOUNDARY = (
+    "Frozen ABI 2 Apple 0.1.5 stable publication receipt. The pending state binds "
+    "the exact signed static XCFramework candidate to source parent S, the "
+    "results-only annotated-tag commit R and tree, the canonical source digest, "
+    "Developer ID identity, and four candidate asset digests without claiming "
+    "publication. The verified state additionally binds the exact five-subject "
+    "GitHub release attestation, public immutable GitHub release, and fresh "
+    "remote SwiftPM consumer verification. It is not notarization, App Store, "
+    "physical-device, or hostile-host evidence."
+)
 
 APPLE_ALPHA2_R1_IDENTITY = {
     "distribution_revision": "r1",
@@ -82,6 +94,15 @@ APPLE_V0_1_4_IDENTITY = {
     "release_url": (
         "https://github.com/billlza/q-periapt/releases/tag/"
         "v0.1.4"
+    ),
+}
+APPLE_V0_1_5_IDENTITY = {
+    "distribution_revision": "r1",
+    "product_version": "0.1.5",
+    "release_tag": "v0.1.5",
+    "release_url": (
+        "https://github.com/billlza/q-periapt/releases/tag/"
+        "v0.1.5"
     ),
 }
 APPLE_XCFRAMEWORK_ARTIFACT_PATH = "CQPeriapt.xcframework.zip"
@@ -770,18 +791,35 @@ def _validate_receipt(
             # that receipt passed the full structural validation below when
             # it was committed under the then-active v0_1_3 family.
             return
-        # The active pending/verified machinery moved to the apple_v0_1_4
+        # The active pending/verified machinery moved to the apple_v0_1_5
         # family, so the frozen branch above is this key's only accepting
         # path.
         _fail(
             "frozen Apple 0.1.3 publication receipt differs from the "
             "published history"
         )
-    elif key == APPLE_V0_1_4_PUBLICATION_KEY:
+    elif key in {APPLE_V0_1_4_PUBLICATION_KEY, APPLE_V0_1_5_PUBLICATION_KEY}:
+        # The 0.1.4 line published for real, but its verified cohort is
+        # recorded at the annotated tag `v0.1.4-verified-cohort` rather than
+        # in this branch's trusted results, so there are no frozen 0.1.4
+        # receipt bytes here to demote it to -- unlike apple_v0_1_3 above.
+        # It therefore keeps the full structural path, bound to its own
+        # identity and boundary, while apple_v0_1_5 is the active family the
+        # cohort state machine advances.
+        stable_version = (
+            "0.1.4" if key == APPLE_V0_1_4_PUBLICATION_KEY else "0.1.5"
+        )
         if status not in {APPLE_STATUS_PENDING, APPLE_STATUS_VERIFIED}:
-            _fail(f"Apple 0.1.4 stable publication status is unknown: {status!r}")
-        expected_identity = APPLE_V0_1_4_IDENTITY
-        expected_boundary = APPLE_V0_1_4_BOUNDARY
+            _fail(
+                f"Apple {stable_version} stable publication status is "
+                f"unknown: {status!r}"
+            )
+        if key == APPLE_V0_1_4_PUBLICATION_KEY:
+            expected_identity = APPLE_V0_1_4_IDENTITY
+            expected_boundary = APPLE_V0_1_4_BOUNDARY
+        else:
+            expected_identity = APPLE_V0_1_5_IDENTITY
+            expected_boundary = APPLE_V0_1_5_BOUNDARY
         expected_prerelease = False
         expected_receipt_keys = (
             _STABLE_VERIFIED_RECEIPT_KEYS
@@ -809,7 +847,7 @@ def _validate_receipt(
     distribution = _validate_distribution(
         receipt["distribution"], identity=identity, label=label
     )
-    if key == APPLE_V0_1_4_PUBLICATION_KEY:
+    if key in {APPLE_V0_1_4_PUBLICATION_KEY, APPLE_V0_1_5_PUBLICATION_KEY}:
         stable_source = _validate_stable_source(
             receipt["source"], distribution=distribution, label=label
         )
@@ -921,38 +959,61 @@ def validate_apple_publication_transition(
         ):
             _fail("frozen Apple 0.1.3 publication receipt cannot change")
 
-    if APPLE_V0_1_4_PUBLICATION_KEY not in previous_publications:
-        if APPLE_V0_1_4_PUBLICATION_KEY in current_publications:
+    # The 0.1.4 line published for real, but its verified cohort lives at the
+    # annotated tag `v0.1.4-verified-cohort`, not in these results, so there
+    # is no frozen byte image to pin it to the way apple_v0_1_3 is pinned
+    # above.  What is enforced instead is that no Apple-domain transition may
+    # introduce, remove, or rewrite a 0.1.4 leaf: the published line is
+    # immutable whether or not this branch happens to record it.
+    if (
+        APPLE_V0_1_4_PUBLICATION_KEY not in previous_publications
+        and APPLE_V0_1_4_PUBLICATION_KEY in current_publications
+    ):
+        _fail(
+            "published Apple 0.1.4 publication receipt cannot be "
+            "introduced by a future Apple-domain transition"
+        )
+    if APPLE_V0_1_4_PUBLICATION_KEY in previous_publications:
+        if APPLE_V0_1_4_PUBLICATION_KEY not in current_publications:
+            _fail("Apple 0.1.4 stable publication receipt cannot be removed")
+        if not publication_values_equal(
+            previous_publications[APPLE_V0_1_4_PUBLICATION_KEY],
+            current_publications[APPLE_V0_1_4_PUBLICATION_KEY],
+        ):
+            _fail("published Apple 0.1.4 publication receipt cannot change")
+
+    if APPLE_V0_1_5_PUBLICATION_KEY not in previous_publications:
+        if APPLE_V0_1_5_PUBLICATION_KEY in current_publications:
             current_stable = _object(
-                current_publications[APPLE_V0_1_4_PUBLICATION_KEY],
-                "current Apple 0.1.4 stable publication receipt",
+                current_publications[APPLE_V0_1_5_PUBLICATION_KEY],
+                "current Apple 0.1.5 stable publication receipt",
             )
             if current_stable["status"] != APPLE_STATUS_PENDING:
                 _fail(
-                    "Apple 0.1.4 stable publication receipt must first be "
+                    "Apple 0.1.5 stable publication receipt must first be "
                     "recorded as pending"
                 )
         return
-    if APPLE_V0_1_4_PUBLICATION_KEY not in current_publications:
-        _fail("Apple 0.1.4 stable publication receipt cannot be removed")
+    if APPLE_V0_1_5_PUBLICATION_KEY not in current_publications:
+        _fail("Apple 0.1.5 stable publication receipt cannot be removed")
     previous_stable = _object(
-        previous_publications[APPLE_V0_1_4_PUBLICATION_KEY],
-        "previous Apple 0.1.4 stable publication receipt",
+        previous_publications[APPLE_V0_1_5_PUBLICATION_KEY],
+        "previous Apple 0.1.5 stable publication receipt",
     )
     current_stable = _object(
-        current_publications[APPLE_V0_1_4_PUBLICATION_KEY],
-        "current Apple 0.1.4 stable publication receipt",
+        current_publications[APPLE_V0_1_5_PUBLICATION_KEY],
+        "current Apple 0.1.5 stable publication receipt",
     )
     previous_status = previous_stable["status"]
     current_status = current_stable["status"]
     if previous_status == APPLE_STATUS_VERIFIED:
         if not publication_values_equal(previous_stable, current_stable):
-            _fail("verified Apple 0.1.4 stable publication receipt cannot change")
+            _fail("verified Apple 0.1.5 stable publication receipt cannot change")
         return
     if current_status == APPLE_STATUS_PENDING:
         if not publication_values_equal(previous_stable, current_stable):
             _fail(
-                "pending Apple 0.1.4 stable publication receipt may only remain "
+                "pending Apple 0.1.5 stable publication receipt may only remain "
                 "unchanged or advance to verified"
             )
         return
@@ -962,16 +1023,16 @@ def validate_apple_publication_transition(
             previous_stable[field], current_stable[field]
         ):
             _fail(
-                "Apple 0.1.4 stable pending-to-verified transition changed "
+                "Apple 0.1.5 stable pending-to-verified transition changed "
                 f"the recorded {field}"
             )
     previous_distribution = _object(
         previous_stable["distribution"],
-        "previous Apple 0.1.4 stable distribution",
+        "previous Apple 0.1.5 stable distribution",
     )
     current_distribution = _object(
         current_stable["distribution"],
-        "current Apple 0.1.4 stable distribution",
+        "current Apple 0.1.5 stable distribution",
     )
     candidate_fields = (
         set(previous_distribution) - _PROMOTION_ONLY_DISTRIBUTION_FIELDS
@@ -981,6 +1042,6 @@ def validate_apple_publication_transition(
             previous_distribution[field], current_distribution[field]
         ):
             _fail(
-                "Apple 0.1.4 stable pending-to-verified transition changed "
+                "Apple 0.1.5 stable pending-to-verified transition changed "
                 f"signed candidate fact {field}"
             )

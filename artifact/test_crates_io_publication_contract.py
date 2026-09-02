@@ -118,7 +118,7 @@ class CratesIoPublicationContractTests(unittest.TestCase):
     def test_near_frozen_receipts_fail_closed(self) -> None:
         # A near-frozen 0.1.3 receipt falls through the deep-equality
         # branch into the ACTIVE structural contract, which now carries the
-        # 0.1.4 boundary and version, so it fails closed there.
+        # 0.1.5 boundary and version, so it fails closed there.
         receipt = contract.frozen_crates_io_v0_1_3_receipt()
         receipt["crates"][0]["crates_io_api"]["checksum"] = "f" * 64
         with self.assertRaisesRegex(

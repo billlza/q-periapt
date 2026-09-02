@@ -102,12 +102,12 @@ JOURNAL_LEAF = re.compile(
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 
-APPLE_TITLE = "Q-Periapt 0.1.4 Apple Distribution"
+APPLE_TITLE = "Q-Periapt 0.1.5 Apple Distribution"
 APPLE_BODY = (
     "Stable ABI 2 Apple XCFramework distribution. Verify all four assets and "
     "the immutable release attestation before use."
 )
-PLATFORM_TITLE = "Q-Periapt 0.1.4 ABI 2 Platform Distribution"
+PLATFORM_TITLE = "Q-Periapt 0.1.5 ABI 2 Platform Distribution"
 PLATFORM_BODY = (
     "Stable ABI 2 Android and Linux distribution. Verify all seven assets and "
     "the immutable release attestation before use."
@@ -478,7 +478,7 @@ def _parse_release_plan(value: object, *, domain: str) -> ReleasePlan:
     if domain == "apple":
         expected_names = apple_contract.APPLE_PUBLIC_ASSET_NAMES
         expected_types = apple_contract.APPLE_PUBLIC_ASSET_CONTENT_TYPES
-        expected_tag = apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"]
+        expected_tag = apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"]
         expected_title = APPLE_TITLE
         expected_body = APPLE_BODY
         expected_latest = True
@@ -693,7 +693,7 @@ def classify_remote_state(
     apple, platform = remote.releases
     apple_count = len(plan.apple.assets)
     platform_count = len(plan.platform.assets)
-    predecessor_tag = apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
+    predecessor_tag = apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"]
     if apple is None and platform is None:
         _require(
             remote.latest_tag == predecessor_tag,
@@ -812,7 +812,7 @@ def expected_state_root() -> pathlib.Path:
         _account_home()
         / ".q-periapt"
         / "publication-state"
-        / "github-stable-v0.1.4"
+        / "github-stable-v0.1.5"
     )
 
 
@@ -1099,11 +1099,11 @@ def build_plan_from_pending_results(
         ) from exc
     publications = _object(manifest["release_publications"], "pending publications")
     apple_pending = _object(
-        publications[apple_contract.APPLE_V0_1_4_PUBLICATION_KEY],
+        publications[apple_contract.APPLE_V0_1_5_PUBLICATION_KEY],
         "pending Apple publication",
     )
     platform_pending = _object(
-        publications[platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY],
+        publications[platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY],
         "pending platform publication",
     )
     platform_observation = _object(
@@ -1129,7 +1129,7 @@ def build_plan_from_pending_results(
         expected_receipt_sha256=assembly_receipt_sha256,
     )
     apple_tag_object = _local_tag_object(
-        apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
+        apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
         identity.tag_commit,
         identity.tag_tree,
     )
@@ -1152,7 +1152,7 @@ def build_plan_from_pending_results(
     )
     platform_by_name = platform_bundle.asset_by_name()
     create_apple = _create_request_bytes(
-        tag=apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
+        tag=apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
         title=APPLE_TITLE,
         body=APPLE_BODY,
         make_latest=True,
@@ -1177,7 +1177,7 @@ def build_plan_from_pending_results(
         releases=(
             ReleasePlan(
                 domain="apple",
-                tag=apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
+                tag=apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
                 tag_object=apple_tag_object,
                 title=APPLE_TITLE,
                 body=APPLE_BODY,
@@ -1192,7 +1192,7 @@ def build_plan_from_pending_results(
                 publish_request=_request_plan(
                     "publish-apple.json",
                     _publish_request_bytes(
-                        tag=apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"],
+                        tag=apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
                         title=APPLE_TITLE,
                         body=APPLE_BODY,
                         make_latest=True,
@@ -1469,7 +1469,7 @@ def validate_plan_against_pending_manifest(
     )
     publications = _object(manifest["release_publications"], "pending publications")
     apple_pending = _object(
-        publications[apple_contract.APPLE_V0_1_4_PUBLICATION_KEY],
+        publications[apple_contract.APPLE_V0_1_5_PUBLICATION_KEY],
         "pending Apple publication",
     )
     apple_source = _object(apple_pending["source"], "pending Apple source")
@@ -1509,7 +1509,7 @@ def validate_plan_against_pending_manifest(
     )
 
     platform_pending = _object(
-        publications[platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY],
+        publications[platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY],
         "pending platform publication",
     )
     platform_observation = _object(
@@ -2397,7 +2397,7 @@ def validate_exact_remote_transition(
     if action.domain == "apple":
         _require(
             before_observation["latest_tag"]
-            == apple_contract.APPLE_V0_1_3_IDENTITY["release_tag"]
+            == apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"]
             and after_observation["latest_tag"] == plan.apple.tag,
             "Apple publication did not advance latest from the predecessor",
         )

@@ -67,8 +67,8 @@ def _initial_baseline() -> dict[str, Any]:
     baseline = frozen_baseline_manifest()
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
-    # Restore the frozen 0.1.4-opening publication state: exactly the
-    # five frozen historical leaves (dropping any active v0.1.4 cohort
+    # Restore the frozen 0.1.5-opening publication state: exactly the
+    # five frozen historical leaves (dropping any active v0.1.5 cohort
     # state) with the selector activated on the frozen published
     # apple_v0_1_3 receipt.
     publications = baseline["release_publications"]
@@ -527,7 +527,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             state = publication_contract.publication_state(baseline)
             publications = baseline["release_publications"]
             # The frozen five-leaf historical floor is permanent in every
-            # committed manifest on the 0.1.4 line.
+            # committed manifest on the 0.1.5 line.
             for key in (
                 apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
                 platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
@@ -541,7 +541,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 # with the apple_v0_1_3 selector active — the assembler's
                 # own installed baseline shape (this holds for the current
                 # live bytes, whose selector activated on the published
-                # 0.1.3 line and whose v0.1.4 cohort has not recorded).
+                # 0.1.3 line and whose v0.1.5 cohort has not recorded).
                 self.assertEqual(
                     apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
                     baseline["swift_xcframework"]["active_publication_key"],
@@ -562,20 +562,20 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     baseline["android_aar"]["aar_path"]
                     == assembler.ANDROID_AAR_PATH
                 ):
-                    # Fresh 0.1.4-line installed successor: its declared
-                    # package currentness holds against the 0.1.4 path
+                    # Fresh 0.1.5-line installed successor: its declared
+                    # package currentness holds against the 0.1.5 path
                     # authorities.
                     assembler.validate_declared_currentness(baseline)
                 else:
                     # The 0.1.3-line verified manifest is still installed
                     # ahead of the stage-5 baseline swap: its sections
                     # declare the previous line's currentness, which the
-                    # 0.1.4 path authorities reject wholesale (the crafted
+                    # 0.1.5 path authorities reject wholesale (the crafted
                     # initial baseline deliberately skips this validator).
                     with self.assertRaises(assembler.ProofManifestError):
                         assembler.validate_declared_currentness(baseline)
                 return
-            # Receipt-finalized stable manifest: the recorded v0.1.4
+            # Receipt-finalized stable manifest: the recorded v0.1.5
             # cohort state is not the assembler's five-leaf baseline, so
             # both shape modes must fail closed.
             self.assertIn(
@@ -588,7 +588,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             assembler.validate_declared_currentness(baseline)
             publication_contract.validate_stable_source_currentness(baseline)
             expected_active = (
-                apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
+                apple_publication_contract.APPLE_V0_1_5_PUBLICATION_KEY
                 if state == publication_contract.PUBLICATION_STATE_VERIFIED
                 else apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
             )
@@ -1259,7 +1259,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             sha256="7" * 64,
         )
         crate_file = assembler.FileSnapshot(
-            path=manifest.path.parent / "q-periapt-core-0.1.4.crate",
+            path=manifest.path.parent / "q-periapt-core-0.1.5.crate",
             data=b"crate\n",
             size=6,
             sha256="8" * 64,
@@ -1276,7 +1276,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             crates=(
                 rust_package_handoff.RustPackageHandoffCrateSnapshot(
                     name="q-periapt-core",
-                    version="0.1.4",
+                    version="0.1.5",
                     dependencies=(),
                     file=crate_file,
                 ),
@@ -1665,7 +1665,7 @@ class ReopenSourceTests(unittest.TestCase):
             assembler._build_reopen_candidate(installed, self._current_digests())
 
     def test_reopen_refuses_dropping_a_verified_leaf(self) -> None:
-        # A fully verified cohort's v0.1.4 leaves are published-immutable, not
+        # A fully verified cohort's v0.1.5 leaves are published-immutable, not
         # in-flight candidates: the reopen must refuse to drop them.
         installed = self._installed_237(
             verified_manifest_fixture(frozen_baseline_manifest())
@@ -1683,7 +1683,7 @@ class ReopenSourceTests(unittest.TestCase):
             pending_manifest_fixture(frozen_baseline_manifest())
         )
         installed["release_publications"][
-            apple_publication_contract.APPLE_V0_1_4_PUBLICATION_KEY
+            apple_publication_contract.APPLE_V0_1_5_PUBLICATION_KEY
         ]["unexpected_forged_key"] = "tampered"
         with self.assertRaises(assembler.SourceResultsAssemblerError):
             assembler._build_reopen_candidate(installed, self._current_digests())

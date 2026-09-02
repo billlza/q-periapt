@@ -113,14 +113,21 @@ physically inaccessible.
 
 ## SDK archive release transaction
 
-Beyond the local host gate, the stable transaction targets the
-`abi2-platforms-v0.1.4` non-prerelease GitHub release, which becomes immutable only
-after publication, with Linux x86_64 and aarch64 tarballs (GLIBC 2.35 ceiling,
+Beyond the local host gate, the stable transaction published the
+`abi2-platforms-v0.1.4` non-prerelease GitHub release, which is now immutable,
+with Linux x86_64 and aarch64 tarballs (GLIBC 2.35 ceiling,
 fixed system-library dependency set). Each formal release asset carries
 ABI-major headers, exact-version pkg-config (Linux) and CMake configs, the frozen
 ABI contract, SBOM/CBOM, and license material, and is validated by warnings-as-errors
 native consumers in attested candidate CI. Public/current status is asserted only
-by the verified release receipt. The separately built Windows archive remains an
+by the verified release receipt; the `0.1.4` platform receipt is recorded at the
+annotated tag `v0.1.4-verified-cohort` rather than on `main`, whose
+`artifact/results.json` the `0.1.5` reopening returned to its initial baseline, so
+`main`'s trusted results record no `0.1.4` publication while the published release
+stays immutable and unaffected. This tree is the open `0.1.5` source line and has
+produced no `0.1.5` SDK archive or release, so the published `abi2-platforms-v0.1.4`
+tarballs remain the stable prebuilt C SDKs.
+The separately built Windows archive remains an
 unsigned, unsupported CI diagnostic and is excluded from the stable candidate,
 manifest, attestation, receipt, and release assets. Verify formal assets with
 `gh release verify-asset` against
