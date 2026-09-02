@@ -229,6 +229,13 @@ it for good. On every start the agent settles the journal before it acquires:
 a receipt the authority still holds is acknowledged and its row forgotten; a
 row for an operation the authority never saw is forgotten; a row the authority
 cannot answer for is kept and asked about again before each guarded operation.
+A re-acquire after a lapse whose reply is lost is remembered, in memory, with
+the fence it would have produced; the next guarded operation asks the
+authority for that exact operation -- or sees that fence in its snapshot --
+before it renews, so the agent's own re-acquired lease is never mistaken for a
+successor and the instance is never fenced without one. A stop resolves it the
+same way, and when the authority can answer neither it releases that expected
+fence.
 Settled rows are forgotten by the next journal write, so the steady-state cost
 is one durable transaction per lease operation, and a clean release leaves the
 journal empty. The journal holds at most 64 rows, matching the in-memory

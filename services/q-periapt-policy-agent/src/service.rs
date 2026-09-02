@@ -425,7 +425,10 @@ pub enum AgentError {
     /// authority's lease generation was observed behind the one it issued this
     /// instance, or this instance has begun releasing its lease; every
     /// in-process pending and accepted secret of this instance was erased, and
-    /// it permanently refuses lease-guarded operations.
+    /// it permanently refuses lease-guarded operations. An active lease under
+    /// this instance's own id at the generation its own re-acquire would
+    /// produce is never a fence: it is that re-acquire's result, adopted once
+    /// the authority confirms it.
     InstanceFenced,
     /// The mandatory instance-lease authority failed closed, or the durable
     /// lease-intent journal is full and could not take the row every lease
@@ -434,10 +437,14 @@ pub enum AgentError {
     /// held by this instance and the call may be repeated.
     InstanceLeaseUnavailable,
     /// A lease operation outcome stayed unknown after exact-operation
-    /// reconciliation. From [`PolicyAgent::release_instance_lease`] the fence
-    /// is kept and the call may be repeated; from construction, the fence the
-    /// unconfirmed acquire would have granted was released again before this
-    /// was returned.
+    /// reconciliation. For a re-acquire after a lapse, the fence it would have
+    /// produced is remembered and resolved -- by the exact receipt query, or
+    /// by that fence appearing in a snapshot -- before the next guarded
+    /// operation dispatches anything; no renew is sent with the pre-acquire
+    /// fence while that outcome is unknown. From
+    /// [`PolicyAgent::release_instance_lease`] the fence is kept and the call
+    /// may be repeated; from construction, the fence the unconfirmed acquire
+    /// would have granted was released again before this was returned.
     InstanceLeaseIndeterminate,
     /// This instance could not prove lease coverage for the operation, and
     /// nothing was retained or returned. Either the authority's own snapshot,
@@ -1106,6 +1113,12 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// only after the release itself has been settled; the agent is poisoned
     /// and refuses a repeat. Once the lease is retired, repeating the call
     /// succeeds idempotently without dispatching anything.
+    ///
+    /// A re-acquire whose outcome is still unknown is resolved first, by the
+    /// same exact query and snapshot the guarded operations use; when the
+    /// authority can answer neither, the release is dispatched with the fence
+    /// that re-acquire would have produced, so whichever lease this instance
+    /// may hold is the one released.
     ///
     /// This is the clean shutdown path, so it also forgets, durably, every
     /// journaled lease intent this process has settled -- the release's own

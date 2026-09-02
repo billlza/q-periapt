@@ -28,6 +28,12 @@ const LEASE_WAIT_MIN_PAUSE: Duration = Duration::from_millis(10);
 /// authority's bounded receipt table, and it used to be owed from this struct
 /// alone. The two lists below are the bookkeeping between that journal and the
 /// authority.
+///
+/// A re-acquire dispatched after a lapse whose outcome is still unknown is
+/// remembered in `pending_acquire`, with the fence it would have produced. That
+/// record is RAM-only like the fence -- a successor process has a fresh
+/// instance id and could not use it -- and its durable trace is the journal
+/// row the dispatch already wrote.
 pub(super) struct InstanceLeaseState {
     instance_id: ProcessInstanceIdV2,
     fence: Option<InstanceFenceV2>,
@@ -35,6 +41,10 @@ pub(super) struct InstanceLeaseState {
     /// Where the lease stands in its lifecycle; see [`LeasePhase`]. Only a
     /// `Serving` lease renews or runs a guarded operation.
     pub(super) phase: LeasePhase,
+    /// A re-acquire this process dispatched whose outcome it has not learned;
+    /// see [`PendingAcquire`]. While this is `Some`, no renew is dispatched
+    /// and no receipt under its operation id is acknowledged unread.
+    pending_acquire: Option<PendingAcquire>,
     unacknowledged: VecDeque<DurablyRetainedAuthorityReceiptV2>,
     /// Journaled operation ids this process has settled with the authority --
     /// acknowledged, found already absent, or provably never executed. The
@@ -74,12 +84,42 @@ pub(super) enum LeasePhase {
     Retired,
 }
 
-/// Retire this instance's fence for good: no lease is held, no coverage is
-/// proven, and every guarded operation is refused from now on.
+/// Retire this instance's fence for good: no lease is held, nothing is left to
+/// resolve, no coverage is proven, and every guarded operation is refused from
+/// now on.
 fn retire(lease: &mut InstanceLeaseState) {
     lease.fence = None;
+    lease.pending_acquire = None;
     lease.covered_until = None;
     lease.phase = LeasePhase::Retired;
+}
+
+/// A re-acquire this process dispatched after its lease lapsed, whose outcome
+/// it has not yet learned.
+///
+/// `expected_fence` is the fence `plan_acquire` produces if and only if this
+/// exact acquire applied: the next generation under this process's own fresh
+/// instance id, which no other process can produce. `intent` is the exact
+/// intent dispatched, so the receipt found for it can be matched the way every
+/// other receipt is. Only `resolve_pending_acquire_state` clears the record
+/// with a verdict; `retire` drops it with the fence.
+#[derive(Clone, Copy)]
+struct PendingAcquire {
+    intent: AuthorityIntentV2,
+    expected_fence: InstanceFenceV2,
+}
+
+/// What resolving a pending re-acquire established.
+enum PendingAcquireOutcome {
+    /// The acquire applied: the lease under its expected fence is this
+    /// process's own, and that fence is now the one held.
+    Adopted,
+    /// The authority proved it never executed the acquire. The pre-acquire
+    /// fence stands, and the next renew is what re-acquires.
+    NotExecuted,
+    /// The acquire was rejected, or the authority shows a lease this process
+    /// did not produce: another instance has held key-use authority since.
+    Superseded,
 }
 
 enum LeaseCall {
@@ -433,12 +473,26 @@ fn reconcile_lease_journal<A: InstanceAuthorityPort>(
 /// know, settling those the authority can now answer for.
 ///
 /// Stops at the first unanswered query for the same reason the start-up pass
-/// does; the next guarded operation asks again.
+/// does; the next guarded operation asks again. A pending re-acquire's row is
+/// skipped, not queried: its receipt is the one proof of what that acquire
+/// did, so it must be read before it is acknowledged, and only
+/// `resolve_pending_acquire_state` reads it.
 fn drain_unresolved<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
-    while let Some(operation_id) = lease.unresolved.last().copied() {
+    let pending = lease
+        .pending_acquire
+        .map(|pending| pending.intent.operation_id());
+    // Newest first, as before; removing the entry visited shifts only the
+    // entries already visited.
+    for index in (0..lease.unresolved.len()).rev() {
+        let Some(operation_id) = lease.unresolved.get(index).copied() else {
+            return;
+        };
+        if Some(operation_id) == pending {
+            continue;
+        }
         match resolve_journaled_intent(authority, operation_id) {
             JournalResolution::Settled => {
-                lease.unresolved.pop();
+                lease.unresolved.remove(index);
                 settle(lease, operation_id);
             }
             JournalResolution::Pending => return,
@@ -478,6 +532,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
         fence: None,
         authority_version: 1,
         phase: LeasePhase::Serving,
+        pending_acquire: None,
         unacknowledged: VecDeque::new(),
         settled: Vec::new(),
         unresolved: Vec::new(),
@@ -650,6 +705,19 @@ fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
 /// aborted with [`AgentError::InstanceLeaseCoverageElapsed`] and nothing is
 /// erased; the next guarded operation's renew is what performs that re-acquire.
 ///
+/// A re-acquire whose outcome was left unknown is resolved first, before the
+/// drains and before any renew (`resolve_pending_acquire`): its exact receipt,
+/// or a snapshot showing the fence it would have produced, decides whether
+/// the lease held is the re-acquired one. No renew is ever dispatched with the
+/// pre-acquire fence while that outcome is unknown -- the authority may
+/// already hold the next generation for this very instance, and a renew under
+/// the old fence would be rejected as a fence mismatch and fence this instance
+/// with no successor anywhere. While the authority can answer neither the
+/// query nor the snapshot, the operation is refused with
+/// [`AgentError::InstanceLeaseUnavailable`]; while a snapshot is had but
+/// cannot decide it, with [`AgentError::InstanceLeaseIndeterminate`]. Either
+/// way nothing is dispatched and the record is kept for the next attempt.
+///
 /// A successful renew also records how long the lease is provably still held,
 /// which the operation re-checks before it retains anything. The renew alone
 /// only authorizes the *start* of the operation; the work that follows is not
@@ -660,9 +728,17 @@ pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     if inner.lease.phase != LeasePhase::Serving {
         return Err(AgentError::InstanceFenced);
     }
+    resolve_pending_acquire(inner)?;
+    // Read only now: the resolution may just have replaced the fence.
     let Some(fence) = inner.lease.fence else {
         return Err(AgentError::InstanceFenced);
     };
+    // Every `Ok` from the resolution leaves nothing pending; the guard keeps
+    // a renew under an unresolved re-acquire impossible even so.
+    debug_assert!(inner.lease.pending_acquire.is_none());
+    if inner.lease.pending_acquire.is_some() {
+        return Err(AgentError::InstanceLeaseIndeterminate);
+    }
     drain_acknowledgements(&inner.authority, &mut inner.lease);
     drain_unresolved(&inner.authority, &mut inner.lease);
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
@@ -749,47 +825,173 @@ pub(super) fn erase_all_secrets<W: WitnessPort, A: InstanceAuthorityPort>(
 /// key identity binds the lease generation, so material from the old generation
 /// cannot be carried across. What is kept is the agent itself: it stays usable
 /// instead of needing a process restart.
+///
+/// An acquire whose outcome stays unknown after reconciliation is not
+/// abandoned and not fenced: fencing is permanent and this is no evidence of a
+/// successor, while abandoning it would leave the authority holding the next
+/// generation under this very instance id with nothing here to recognise it.
+/// The intent and the fence it would have produced are kept as
+/// `pending_acquire` -- set before the dispatch, so that whatever happens to
+/// the response they are known -- and the next guarded operation, or the
+/// release, resolves them before dispatching anything
+/// (`resolve_pending_acquire_state`).
+/// The record is kept only while the outcome is really unknown, which is
+/// exactly when the operation id was kept as unresolved; an acquire the
+/// journal refused before dispatch, or whose outcome was proven, leaves
+/// nothing to resolve.
 fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     fence: InstanceFenceV2,
 ) -> Result<(), AgentError> {
     let expected_lease_generation = fence.generation();
     let instance_id = inner.lease.instance_id;
-    let intent = lease_intent(
-        &inner.lease,
-        inner.authority.wire_config(),
-        AuthorityMutationV2::AcquireLease {
-            expected_lease_generation,
-            instance_id,
-        },
-    )?;
-    let outcome = lease_exchange(
-        &inner.repository,
-        &inner.authority,
-        &mut inner.lease,
-        LeaseCall::Acquire,
-        intent,
-    )?;
-    let LeaseExchange::Receipt(receipt) = outcome else {
-        // Indeterminate. Do not fence -- that is permanent and this is not
-        // evidence of a successor -- and do not proceed either.
-        return Err(AgentError::InstanceLeaseIndeterminate);
-    };
-    if !matches!(receipt.disposition(), AuthorityDispositionV2::Applied) {
-        fence_out(inner)?;
-        return Err(AgentError::InstanceFenced);
-    }
-    if let Some(error) = erase_all_secrets(inner) {
-        return Err(error);
-    }
     let generation = expected_lease_generation
         .checked_add(1)
         .ok_or(AgentError::InstanceLeaseUnavailable)?;
-    let recovered = InstanceFenceV2::new(generation, instance_id)
+    let expected = InstanceFenceV2::new(generation, instance_id)
         .map_err(|_| AgentError::InstanceLeaseUnavailable)?;
-    inner.lease.fence = Some(recovered);
-    drain_acknowledgements(&inner.authority, &mut inner.lease);
-    prove_lease_coverage(inner, recovered)
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        let intent = lease_intent(
+            &inner.lease,
+            inner.authority.wire_config(),
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation,
+                instance_id,
+            },
+        )?;
+        inner.lease.pending_acquire = Some(PendingAcquire {
+            intent,
+            expected_fence: expected,
+        });
+        match lease_exchange(
+            &inner.repository,
+            &inner.authority,
+            &mut inner.lease,
+            LeaseCall::Acquire,
+            intent,
+        ) {
+            Ok(LeaseExchange::Receipt(receipt)) => {
+                inner.lease.pending_acquire = None;
+                if !matches!(receipt.disposition(), AuthorityDispositionV2::Applied) {
+                    fence_out(inner)?;
+                    return Err(AgentError::InstanceFenced);
+                }
+                if let Some(error) = erase_all_secrets(inner) {
+                    return Err(error);
+                }
+                inner.lease.fence = Some(expected);
+                drain_acknowledgements(&inner.authority, &mut inner.lease);
+                return prove_lease_coverage(inner, expected);
+            }
+            // Provably never executed; the loop rebuilds the intent at the
+            // authority version the reconciliation reported.
+            Ok(LeaseExchange::Retry) => inner.lease.pending_acquire = None,
+            Err(error) => {
+                if !inner.lease.unresolved.contains(&intent.operation_id()) {
+                    inner.lease.pending_acquire = None;
+                }
+                return Err(error);
+            }
+        }
+    }
+    Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+/// Learn the outcome of a re-acquire whose response was lost, before anything
+/// else is dispatched under this lease.
+///
+/// The exact receipt query is the proof of record: `Found` says what the
+/// authority did with this very intent, and `AbsentAtVersion` is the only
+/// evidence ever accepted that it never executed. When the query cannot be
+/// answered a snapshot stands in, and a snapshot can prove only the positive
+/// cases. An active lease carrying exactly the expected fence -- the next
+/// generation under this process's fresh instance id, which nothing else can
+/// produce -- is this process's own and is adopted, as the constructor adopts
+/// a lease whose acquire response was lost. An active lease under any other
+/// fence, a generation past the expected one, or one behind the pre-acquire
+/// generation (an authority rolled back beneath a lease it granted) all mean
+/// another instance held key-use authority since. A snapshot showing no active
+/// lease at the pre-acquire generation or at the expected one decides nothing
+/// -- the acquire may still be in flight, or may have applied and lapsed -- so
+/// the record is kept and the caller gets
+/// [`AgentError::InstanceLeaseIndeterminate`]; a snapshot that goes unanswered
+/// keeps it too, with [`AgentError::InstanceLeaseUnavailable`].
+///
+/// `Ok(None)` means nothing was pending. Adoption through the receipt queues
+/// the acknowledgement it is owed and drains it here; adoption through a
+/// snapshot leaves the operation `unresolved`, so `drain_unresolved` finds and
+/// acknowledges its receipt once the authority answers queries again.
+fn resolve_pending_acquire_state<A: InstanceAuthorityPort>(
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+) -> Result<Option<PendingAcquireOutcome>, AgentError> {
+    let Some(pending) = lease.pending_acquire else {
+        return Ok(None);
+    };
+    let operation_id = pending.intent.operation_id();
+    let expected = pending.expected_fence;
+    match authority.query(operation_id) {
+        Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
+            lease.unresolved.retain(|id| *id != operation_id);
+            record_lease_receipt(lease, pending.intent, *receipt)?;
+            drain_acknowledgements(authority, lease);
+            lease.pending_acquire = None;
+            Ok(Some(match receipt.disposition() {
+                AuthorityDispositionV2::Applied => {
+                    lease.fence = Some(expected);
+                    PendingAcquireOutcome::Adopted
+                }
+                AuthorityDispositionV2::Rejected(_) => PendingAcquireOutcome::Superseded,
+            }))
+        }
+        Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
+            authority_version,
+        })) => {
+            lease.unresolved.retain(|id| *id != operation_id);
+            settle(lease, operation_id);
+            lease.authority_version = authority_version;
+            lease.pending_acquire = None;
+            Ok(Some(PendingAcquireOutcome::NotExecuted))
+        }
+        Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
+            let snapshot = authority_snapshot(authority)?;
+            lease.authority_version = snapshot.authority_version();
+            let previous_generation = expected.generation().saturating_sub(1);
+            let outcome = match snapshot.active_lease() {
+                Some(active) if active.fence() == expected => {
+                    lease.fence = Some(expected);
+                    PendingAcquireOutcome::Adopted
+                }
+                Some(_) => PendingAcquireOutcome::Superseded,
+                None if snapshot.lease_generation() == previous_generation
+                    || snapshot.lease_generation() == expected.generation() =>
+                {
+                    return Err(AgentError::InstanceLeaseIndeterminate);
+                }
+                None => PendingAcquireOutcome::Superseded,
+            };
+            lease.pending_acquire = None;
+            Ok(Some(outcome))
+        }
+    }
+}
+
+/// Resolve a pending re-acquire on the live agent: adopt its lease and erase
+/// every secret -- the acquire cleared the authority's key table, exactly as
+/// when its receipt arrives in time -- or fence when another instance has
+/// held the lease since. A verdict the authority cannot yet give is returned
+/// as the state-level error, with the record kept.
+fn resolve_pending_acquire<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+) -> Result<(), AgentError> {
+    match resolve_pending_acquire_state(&inner.authority, &mut inner.lease)? {
+        None | Some(PendingAcquireOutcome::NotExecuted) => Ok(()),
+        Some(PendingAcquireOutcome::Adopted) => erase_all_secrets(inner).map_or(Ok(()), Err),
+        Some(PendingAcquireOutcome::Superseded) => {
+            fence_out(inner)?;
+            Err(AgentError::InstanceFenced)
+        }
+    }
 }
 
 /// Learn how long this instance can prove it still holds the lease.
@@ -902,9 +1104,11 @@ pub(super) fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
 /// After this returns, the agent permanently refuses lease-guarded operations
 /// and holds no pending or accepted secret.
 ///
-/// This runs from `ensure_instance_lease` and `prove_lease_coverage`, when a
-/// renew or a snapshot has shown a successor, a rolled-back authority, or a
-/// foreign fence. It is not on the release path: `release_instance_lease`
+/// This runs from `ensure_instance_lease`, `prove_lease_coverage`,
+/// `recover_expired_lease` and `resolve_pending_acquire`, when a renew, a
+/// re-acquire's receipt, or a snapshot has shown a successor, a rolled-back
+/// authority, or a foreign fence. It is not on the release path:
+/// `release_instance_lease`
 /// erases through `erase_all_secrets` and retires the fence only once the
 /// authority has confirmed the release or a snapshot has proved the lease gone
 /// (`release_lease_state`), so on that path the erasure does precede any
@@ -955,6 +1159,17 @@ pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
 /// dropped ahead of that evidence -- dropping it early made the next call
 /// succeed with nothing dispatched while the authority still held the lease.
 ///
+/// A re-acquire whose outcome is still unknown is resolved first, by the same
+/// exact query and snapshot the guarded operations use: adopted, its fence is
+/// the one released; never executed, the pre-acquire fence is; superseded,
+/// there is nothing of this instance's to release and it retires at once.
+/// When the authority can answer neither, the release is dispatched with the
+/// fence that re-acquire would have produced: the authority answers `Applied`
+/// if the acquire applied, and `LeaseAbsent`, `LeaseExpired` or
+/// `FenceMismatch` if it did not -- the pre-acquire lease had already lapsed
+/// when the re-acquire was dispatched -- and each of those retires this
+/// instance.
+///
 /// The fence dispatched is re-read on every attempt: when the release's own
 /// outcome is lost, the snapshot that stands in for it reports the fence the
 /// authority actually holds for this instance, and that is the one to release.
@@ -972,6 +1187,21 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
     lease.covered_until = None;
     drain_acknowledgements(authority, lease);
     drain_unresolved(authority, lease);
+    match resolve_pending_acquire_state(authority, lease) {
+        Ok(None | Some(PendingAcquireOutcome::Adopted | PendingAcquireOutcome::NotExecuted)) => {}
+        Ok(Some(PendingAcquireOutcome::Superseded)) => {
+            retire(lease);
+            return Ok(());
+        }
+        // Unresolvable: release the fence the re-acquire would have produced.
+        // Every answer that release can get retires this instance, so there is
+        // nothing left for a later call to resolve.
+        Err(_) => {
+            if let Some(pending) = lease.pending_acquire.take() {
+                lease.fence = Some(pending.expected_fence);
+            }
+        }
+    }
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let Some(fence) = lease.fence else {
             return Err(AgentError::InstanceLeaseUnavailable);

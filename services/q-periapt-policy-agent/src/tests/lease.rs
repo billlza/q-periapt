@@ -1265,3 +1265,370 @@ fn a_failed_durable_cancel_at_release_still_releases_the_lease() -> TestResult {
     assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
     Ok(())
 }
+
+/// Lapse the initiator's lease and let its re-acquire apply with the response
+/// lost and every query refused from then on: the authority holds the next
+/// generation under the initiator's own instance id, and the initiator cannot
+/// yet learn that it does. Returns the lease before and after.
+fn lose_the_reacquire_response(pair: &AgentPair) -> TestResult<(InstanceLeaseV2, InstanceLeaseV2)> {
+    let before = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("initial lease missing"))?;
+    pair.initiator_authority.expire_active_lease();
+    pair.initiator_authority.lose_next_acquire_and_queries();
+    let calls = pair.initiator_authority.lease_call_count();
+    let queries = pair.initiator_authority.query_call_count();
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::InstanceLeaseIndeterminate)
+    );
+    let after = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("reacquired lease missing"))?;
+    // Only this same instance advanced the generation: the renew was rejected
+    // as expired and the re-acquire applied, one call each, and both
+    // reconciling queries went unanswered.
+    assert_eq!(after.fence().instance_id(), before.fence().instance_id());
+    assert_eq!(after.fence().generation(), before.fence().generation() + 1);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 2);
+    assert!(pair.initiator_authority.query_call_count() >= queries + 2);
+    Ok((before, after))
+}
+
+#[test]
+fn a_lost_reacquire_is_recognized_as_our_own_lease_once_the_authority_answers() -> TestResult {
+    // The re-acquire after a lapse applied, but its response and both
+    // reconciling queries were lost. Nothing remembered what that acquire
+    // would have produced, so the next operation acknowledged its receipt
+    // unread and renewed with the old fence -- which the authority, holding
+    // the next generation under this very instance, rejected as a fence
+    // mismatch. The instance fenced itself permanently, with its own lease
+    // active and no successor anywhere.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 119)?;
+    let (before, after) = lose_the_reacquire_response(&pair)?;
+
+    // Once the authority answers again, the exact receipt says the acquire
+    // applied: the lease is adopted, and the renew that follows carries the
+    // re-acquired fence. One renew, no acquire, no release, and the receipt
+    // acknowledged only after it was read.
+    pair.initiator_authority.refuse_queries(false);
+    let calls = pair.initiator_authority.lease_call_count();
+    drive_one_lease_renew(&pair.initiator)?;
+    assert_eq!(pair.initiator_authority.active_lease()?, Some(after));
+    let meta = pair.initiator_authority.lock().authority.persistent_meta();
+    assert_eq!(meta.lease_generation, before.fence().generation() + 1);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    assert_eq!(pair.initiator_authority.receipt_count()?, 0);
+    drive_one_lease_renew(&pair.initiator)?;
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 2);
+    assert_eq!(pair.initiator_authority.active_lease()?, Some(after));
+
+    // Fully usable.
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_lost_reacquire_is_adopted_from_the_snapshot_while_queries_stay_refused() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 124)?;
+    let (_, after) = lose_the_reacquire_response(&pair)?;
+    // What the journal holds now is the re-acquire's own row, unresolved.
+    let journaled = pair.initiator.journaled_lease_intents_for_test()?;
+    let acquire_row = journaled
+        .first()
+        .copied()
+        .ok_or_else(|| io::Error::other("the re-acquire's row was forgotten"))?;
+    assert_eq!(journaled.len(), 1);
+
+    // With the queries still refused, the snapshot shows an active lease under
+    // exactly the fence the re-acquire would have produced -- this instance's
+    // own fresh id at the next generation, which nothing else can produce.
+    // That is adopted, and the operation runs under it: one renew, no acquire.
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(
+        pair.initiator_authority
+            .active_lease()?
+            .map(|lease| lease.fence()),
+        Some(after.fence())
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    // The receipt could not be read, so it was not acknowledged either: the
+    // authority still retains it, and its row stays journaled.
+    assert!(pair
+        .initiator
+        .journaled_lease_intents_for_test()?
+        .contains(&acquire_row));
+    assert_eq!(pair.initiator_authority.receipt_count()?, 1);
+
+    // Once queries are answered, the next operation's drain discharges it.
+    pair.initiator_authority.refuse_queries(false);
+    drive_one_lease_renew(&pair.initiator)?;
+    assert_eq!(pair.initiator_authority.receipt_count()?, 0);
+    assert!(pair.initiator.journaled_lease_intents_for_test()?.len() <= 1);
+    Ok(())
+}
+
+#[test]
+fn a_lost_reacquire_never_dispatches_a_renew_with_the_old_fence_while_unresolvable() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 125)?;
+    let (before, _) = lose_the_reacquire_response(&pair)?;
+    pair.initiator_authority.refuse_snapshots(true);
+
+    // Neither the exact query nor a snapshot can be had. The operation is
+    // refused as unavailable -- never as fenced -- and nothing is dispatched:
+    // a renew under the pre-acquire fence would be answered with a fence
+    // mismatch by this instance's own re-acquired lease.
+    let calls = pair.initiator_authority.lease_call_count();
+    for _ in 0..3 {
+        assert_eq!(
+            pair.initiator
+                .begin_encapsulation(BeginEncapsulation::new(
+                    pair.initiator_authorization.clone(),
+                    pair.responder_public_keys.clone(),
+                ))
+                .err(),
+            Some(AgentError::InstanceLeaseUnavailable)
+        );
+        assert_eq!(pair.initiator_authority.lease_call_count(), calls);
+    }
+
+    // Queries answered, snapshots still refused: the exact receipt adopts the
+    // lease, one renew is dispatched under the re-acquired fence, and the
+    // operation then fails at its coverage snapshot.
+    pair.initiator_authority.refuse_queries(false);
+    assert_eq!(
+        pair.initiator
+            .begin_encapsulation(BeginEncapsulation::new(
+                pair.initiator_authorization.clone(),
+                pair.responder_public_keys.clone(),
+            ))
+            .err(),
+        Some(AgentError::InstanceLeaseUnavailable)
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+
+    // Snapshots back: the next operation runs under the re-acquired lease.
+    pair.initiator_authority.refuse_snapshots(false);
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 2);
+    let meta = pair.initiator_authority.lock().authority.persistent_meta();
+    assert_eq!(meta.lease_generation, before.fence().generation() + 1);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_reacquire_lost_on_the_wire_is_retried_not_adopted() -> TestResult {
+    // The complement: the re-acquire never reached the authority. A snapshot
+    // cannot tell this apart from an acquire that applied and then lapsed, so
+    // only the exact query's proof of absence clears the record -- and the
+    // ordinary path then re-acquires afresh.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 126)?;
+    let before = pair.initiator_authority.lock().authority.persistent_meta();
+    let instance_id = before
+        .lease
+        .expect("the initial agent acquired its lease")
+        .fence()
+        .instance_id();
+    pair.initiator_authority.expire_active_lease();
+    pair.initiator_authority
+        .lose_next_lease_call_before_apply(LeaseCallFilter::Acquire);
+    pair.initiator_authority.refuse_queries(true);
+
+    let calls = pair.initiator_authority.lease_call_count();
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::InstanceLeaseIndeterminate)
+    );
+    let lost = pair
+        .initiator_authority
+        .lost_operation()
+        .ok_or_else(|| io::Error::other("no acquire was lost"))?;
+    // Only the renew reached the authority: its lease is gone, its generation
+    // unmoved, and the lost acquire's row is journaled.
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert_eq!(
+        pair.initiator_authority
+            .lock()
+            .authority
+            .persistent_meta()
+            .lease_generation,
+        before.lease_generation
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    assert!(pair
+        .initiator
+        .journaled_lease_intents_for_test()?
+        .contains(&lost));
+
+    // Absent at the authority's version: the record is cleared, the renew is
+    // rejected as expired again, and a fresh acquire takes the next
+    // generation. Two calls; nothing is left retained or journaled for the
+    // lost one.
+    pair.initiator_authority.refuse_queries(false);
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?;
+    let active = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the fresh acquire left no lease"))?;
+    assert_eq!(active.fence().instance_id(), instance_id);
+    assert_eq!(active.fence().generation(), before.lease_generation + 1);
+    assert_eq!(
+        pair.initiator_authority
+            .lock()
+            .authority
+            .persistent_meta()
+            .lease_generation,
+        before.lease_generation + 1
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 2);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator_authority.receipt_count()?, 0);
+    assert!(!pair
+        .initiator
+        .journaled_lease_intents_for_test()?
+        .contains(&lost));
+    Ok(())
+}
+
+#[test]
+fn a_successor_after_a_lost_reacquire_still_fences() -> TestResult {
+    // Remembering the re-acquire must not weaken exclusivity: a successor
+    // that acquires after it still fences this instance.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 127)?;
+    let (before, _) = lose_the_reacquire_response(&pair)?;
+    pair.initiator_authority.refuse_queries(false);
+    pair.initiator_authority.expire_active_lease();
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    let taken = pair.initiator_authority.lock().authority.persistent_meta();
+    assert_eq!(taken.lease_generation, before.fence().generation() + 2);
+    assert_ne!(
+        taken
+            .lease
+            .expect("the successor holds the lease")
+            .fence()
+            .instance_id(),
+        before.fence().instance_id()
+    );
+
+    // The exact receipt adopts the re-acquired fence; the renew under it is
+    // rejected as a fence mismatch by the successor's lease, and that fences.
+    assert_eq!(
+        pair.initiator
+            .begin_encapsulation(BeginEncapsulation::new(
+                pair.initiator_authorization.clone(),
+                pair.responder_public_keys.clone(),
+            ))
+            .err(),
+        Some(AgentError::InstanceFenced)
+    );
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (0, 0));
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    // Permanently, even once the successor is gone.
+    successor.release_instance_lease()?;
+    assert_eq!(
+        pair.initiator
+            .begin_encapsulation(BeginEncapsulation::new(
+                pair.initiator_authorization,
+                pair.responder_public_keys.clone(),
+            ))
+            .err(),
+        Some(AgentError::InstanceFenced)
+    );
+    Ok(())
+}
+
+#[test]
+fn release_after_a_lost_reacquire_releases_the_new_lease() -> TestResult {
+    // (a) The authority answers queries again by the time of the release: the
+    // exact receipt adopts the re-acquired fence, and that lease is released,
+    // its receipt acknowledged and the journal left empty.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 129)?;
+    lose_the_reacquire_response(&pair)?;
+    pair.initiator_authority.refuse_queries(false);
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert!(pair
+        .initiator
+        .journaled_lease_intents_for_test()?
+        .is_empty());
+    assert_eq!(pair.initiator_authority.receipt_count()?, 0);
+
+    // (b) Queries still refused: the snapshot shows the expected fence, and
+    // releasing it hands the lease over at once -- no TTL wait for the next
+    // start.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 131)?;
+    lose_the_reacquire_response(&pair)?;
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    successor.release_instance_lease()?;
+
+    // (c) Queries and snapshots both refused: nothing can be resolved, so the
+    // release is dispatched with the fence the re-acquire would have produced.
+    // Against an authority that cannot even be asked for its version that
+    // release does not settle, and the fence is kept; once the authority
+    // answers snapshots again the retry releases exactly that lease, with no
+    // resolution left to do.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 133)?;
+    lose_the_reacquire_response(&pair)?;
+    pair.initiator_authority.refuse_snapshots(true);
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseUnavailable)
+    );
+    pair.initiator_authority.refuse_snapshots(false);
+    assert!(pair.initiator_authority.active_lease()?.is_some());
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let successor = PolicyAgent::new(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    successor.release_instance_lease()?;
+    Ok(())
+}
