@@ -1165,8 +1165,11 @@ fn map_authentication(error: AuthenticationError) -> IpcError {
 mod tests {
     use std::io::Cursor;
 
+    use q_periapt_backends::MlDsa65;
+
     use super::*;
     use crate::codec::read_frame;
+    use crate::witness::WitnessPort;
 
     fn deploy_file(name: &str) -> String {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1490,6 +1493,47 @@ mod tests {
             Duration::from_secs(60) > MAINTENANCE_INTERVAL + 4 * AUTHORITY_IO_TIMEOUT,
             "ExitTimeOut must cover observing the stop plus four authority round trips"
         );
+    }
+
+    #[test]
+    fn the_port_round_trip_bounds_are_the_transport_deadlines(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // The agent admits a port call only while at least `round_trip_bound`
+        // of its deadline remains, so each bound must be the very deadline
+        // the transport gives one exchange: the timeout `serve_agent` builds
+        // that client with.
+        let address = SocketAddr::from(([127, 0, 0, 1], 1));
+        let (witness_client_sk, _) = MlDsa65::generate([0x71u8; 32]);
+        let (_, witness_server_vk) = MlDsa65::generate([0x72u8; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            WITNESS_IO_TIMEOUT,
+        )?;
+        assert_eq!(witness.round_trip_bound(), WITNESS_IO_TIMEOUT);
+
+        let (authority_client_sk, _) = MlDsa65::generate([0x73u8; 32]);
+        let (_, authority_server_vk) = MlDsa65::generate([0x74u8; 32]);
+        let identity = AuthorityWireIdentityV2::new(
+            AuthorityClientIdV2::from_bytes([0x11; 32])?,
+            AuthorityServerIdV2::from_bytes([0x12; 32])?,
+            AuthorityEpochV2::from_bytes([0x13; 32])?,
+            StateHeadV2::new(
+                StateRevisionV2::new(1, [0x21; 32], 1, [0x22; 32])?,
+                StateFenceV2::from_bytes([0x23; 32])?,
+            ),
+            DeploymentConfigRevisionV2::new(1, [0x31; 32])?,
+        )?;
+        let authority = AuthenticatedTcpAuthorityV2::new(
+            address,
+            identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            AUTHORITY_IO_TIMEOUT,
+        )?;
+        assert_eq!(authority.round_trip_bound(), AUTHORITY_IO_TIMEOUT);
+        Ok(())
     }
 
     #[test]

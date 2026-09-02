@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use std::fs;
 use std::io::{self, Cursor, Read, Write};
@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 
 use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
+use q_periapt_ffi_abi2::{Q_PERIAPT_MLKEM768_CT_LEN, Q_PERIAPT_X25519_LEN};
 use q_periapt_migration::{
     CapabilityOfferInputV1, CapabilityOfferV1, CommittedMigrationStateV1, ComponentMode,
     EndpointKeyShareV1, EndpointRole, InitiatorFinishedV1, MigrationAuthorityKeyId,
@@ -28,13 +29,14 @@ use q_periapt_sig::Signer;
 
 use crate::authentication::{sign_envelope, verify_envelope};
 use crate::authority::{
-    AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityQueryResultV2,
-    AuthorityReceiptV2, AuthoritySnapshotV2, AuthorityStateV2, DeploymentConfigRevisionV2,
-    InstanceLeaseV2, OperationIdV2, StateFenceV2, StateHeadV2, StateRevisionV2,
-    TrustedClockErrorV2, TrustedClockV2,
+    AuthorityDispositionV2, AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2,
+    AuthorityMutationV2, AuthorityQueryResultV2, AuthorityReceiptV2, AuthoritySnapshotV2,
+    AuthorityStateV2, DeploymentConfigRevisionV2, InstanceLeaseV2, OperationIdV2,
+    ProcessInstanceIdV2, StateFenceV2, StateHeadV2, StateRevisionV2, TrustedClockErrorV2,
+    TrustedClockV2,
 };
 use crate::authority_protocol::{
-    AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityUnknownV2,
+    AuthorityCommandV2, AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityUnknownV2,
     DurablyRetainedAuthorityReceiptV2,
 };
 use crate::authority_transport::{AuthorityTransportErrorV2, InstanceAuthorityPort};
@@ -377,6 +379,32 @@ fn framed_accept_initiator_request(
     Ok(framed)
 }
 
+/// Frame one initiator-role Begin (command 2) over the signed offers
+/// `initiator_authorization` was built from, and the peer's public keys.
+fn framed_begin(
+    signing_key: &[u8],
+    nonce: [u8; 32],
+    offers: &(Vec<u8>, Vec<u8>),
+    peer_public_keys: &EncapsulationPublicKeys,
+) -> TestResult<Vec<u8>> {
+    let mut body = Encoder::new(MAX_FRAME_BYTES);
+    encode_domain(&mut body, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC domain encoding failed: {error:?}")))?;
+    body.fixed(&nonce)
+        .and_then(|()| body.byte(2))
+        .and_then(|()| body.lp16(&offers.0))
+        .and_then(|()| body.lp16(&offers.1))
+        .and_then(|()| body.fixed(peer_public_keys.pq()))
+        .and_then(|()| body.fixed(peer_public_keys.traditional()))
+        .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
+    let envelope = sign_envelope(&body.finish(), signing_key)
+        .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
+    let mut framed = Vec::new();
+    write_frame(&mut framed, &envelope)
+        .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
+    Ok(framed)
+}
+
 fn decode_responder_acceptance_response(
     framed: &[u8],
     verification_key: &[u8],
@@ -416,10 +444,88 @@ fn decode_responder_acceptance_response(
     Ok((key_handle, responder_finished))
 }
 
+/// The fields of a status-0 initiator-role Begin response, as decoded from
+/// the wire.
+struct DecodedBeginEncapsulation {
+    handle: [u8; 32],
+    pq_ciphertext: Vec<u8>,
+    traditional_ciphertext: Vec<u8>,
+    initiator_finished: [u8; 32],
+}
+
+/// Decode a status-0 initiator-role Begin response (tag 2) exactly as
+/// `encode_response_payload` lays it out: pending-session handle, ML-KEM-768
+/// ciphertext, X25519 ciphertext, Initiator Finished.
+fn decode_begin_encapsulation_response(
+    framed: &[u8],
+    verification_key: &[u8],
+    expected_nonce: [u8; 32],
+) -> TestResult<DecodedBeginEncapsulation> {
+    let envelope = read_frame(&mut Cursor::new(framed))
+        .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
+    let body = verify_envelope(&envelope, verification_key)
+        .map_err(|error| io::Error::other(format!("IPC response signature failed: {error:?}")))?;
+    let mut decoder = Decoder::new(body);
+    require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
+    let nonce: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
+    assert_eq!(nonce, expected_nonce);
+    let _: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    let status = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
+    assert_eq!(status, 0);
+    let tag = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response tag failed: {error:?}")))?;
+    assert_eq!(tag, 2);
+    let handle = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC session handle failed: {error:?}")))?;
+    let pq_ciphertext = decoder
+        .fixed(Q_PERIAPT_MLKEM768_CT_LEN)
+        .map_err(|error| io::Error::other(format!("IPC ML-KEM ciphertext failed: {error:?}")))?
+        .to_vec();
+    let traditional_ciphertext = decoder
+        .fixed(Q_PERIAPT_X25519_LEN)
+        .map_err(|error| io::Error::other(format!("IPC X25519 ciphertext failed: {error:?}")))?
+        .to_vec();
+    let initiator_finished = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC Finished failed: {error:?}")))?;
+    decoder
+        .finish()
+        .map_err(|error| io::Error::other(format!("IPC trailing bytes: {error:?}")))?;
+    Ok(DecodedBeginEncapsulation {
+        handle,
+        pq_ciphertext,
+        traditional_ciphertext,
+        initiator_finished,
+    })
+}
+
 #[derive(Clone)]
 struct MemoryWitness {
     state: Arc<Mutex<MemoryWitnessState>>,
     unknown_after_apply: Arc<AtomicBool>,
+    /// Answer every `read_head` with `Unavailable` while set, as a witness
+    /// that cannot be reached would.
+    fail_reads: Arc<AtomicBool>,
+    /// Once, at the next `read_head`: let this authority's active lease run
+    /// out before the head is returned. A witness read is the I/O between the
+    /// agent's coverage snapshot and its durable write, so this is where an
+    /// authority clock step lands inside a real operation.
+    advance_authority_on_read: Arc<Mutex<Option<MemoryAuthority>>>,
+    /// What `round_trip_bound` reports. In-memory calls are instantaneous, so
+    /// this is zero unless a test says otherwise.
+    round_trip_bound: Arc<Mutex<Duration>>,
+    /// Sleep this long at the top of the next `compare_and_advance`, the way
+    /// a slow network round trip would.
+    delay_next_compare_and_advance: Arc<Mutex<Duration>>,
 }
 
 struct MemoryWitnessState {
@@ -435,11 +541,31 @@ impl MemoryWitness {
                 operations: HashMap::new(),
             })),
             unknown_after_apply: Arc::new(AtomicBool::new(false)),
+            fail_reads: Arc::new(AtomicBool::new(false)),
+            advance_authority_on_read: Arc::new(Mutex::new(None)),
+            round_trip_bound: Arc::new(Mutex::new(Duration::ZERO)),
+            delay_next_compare_and_advance: Arc::new(Mutex::new(Duration::ZERO)),
         }
     }
 
     fn make_next_unknown(&self) {
         self.unknown_after_apply.store(true, Ordering::Release);
+    }
+
+    /// What `round_trip_bound` reports from now on.
+    fn set_round_trip_bound(&self, bound: Duration) {
+        *self
+            .round_trip_bound
+            .lock()
+            .expect("memory witness hook poisoned") = bound;
+    }
+
+    /// Make the next `compare_and_advance` take this long before it acts.
+    fn delay_next_compare_and_advance(&self, delay: Duration) {
+        *self
+            .delay_next_compare_and_advance
+            .lock()
+            .expect("memory witness hook poisoned") = delay;
     }
 
     fn replace_head(&self, head: StateHead) -> Result<(), WitnessError> {
@@ -453,6 +579,17 @@ impl MemoryWitness {
 
 impl WitnessPort for MemoryWitness {
     fn read_head(&self) -> Result<StateHead, WitnessError> {
+        if self.fail_reads.load(Ordering::Acquire) {
+            return Err(WitnessError::Unavailable);
+        }
+        if let Some(authority) = self
+            .advance_authority_on_read
+            .lock()
+            .map_err(|_| WitnessError::Persistence)?
+            .take()
+        {
+            authority.expire_active_lease();
+        }
         Ok(self
             .state
             .lock()
@@ -461,6 +598,15 @@ impl WitnessPort for MemoryWitness {
     }
 
     fn compare_and_advance(&self, intent: WitnessIntent) -> Result<WitnessOutcome, WitnessError> {
+        let delay = core::mem::take(
+            &mut *self
+                .delay_next_compare_and_advance
+                .lock()
+                .map_err(|_| WitnessError::Persistence)?,
+        );
+        if !delay.is_zero() {
+            thread::sleep(delay);
+        }
         let mut state = self.state.lock().map_err(|_| WitnessError::Persistence)?;
         if let Some(receipt) = state.operations.get(&intent.operation_id()).copied() {
             if receipt.intent() != Some(intent) {
@@ -492,6 +638,13 @@ impl WitnessPort for MemoryWitness {
                 .unwrap_or_else(|| WitnessReceipt::not_applied(state.head)),
         )))
     }
+
+    fn round_trip_bound(&self) -> Duration {
+        *self
+            .round_trip_bound
+            .lock()
+            .expect("memory witness hook poisoned")
+    }
 }
 
 const MEMORY_AUTHORITY_LEASE_TTL_MILLIS: u64 = 10_000;
@@ -519,16 +672,54 @@ struct MemoryAuthorityState {
     config: DeploymentConfigRevisionV2,
     now_millis: u64,
     unknown_after_apply: bool,
-    advance_before_snapshot: u64,
+    /// Before the next acquire: lose its response and refuse every query
+    /// after it, so the acquire applies but the agent cannot learn that it
+    /// did.
+    lose_next_acquire_and_queries: bool,
+    /// Lose the next lease call this filter selects on the wire, before the
+    /// authority applies it. The call is not counted; the operation id it
+    /// carried is kept in `lost_operation`.
+    lose_next_lease_call_before_apply: Option<LeaseCallFilter>,
+    /// The operation id of the last lease call lost before apply.
+    lost_operation: Option<OperationIdV2>,
+    /// Fail the next lease call this filter selects before it is sent. The
+    /// call is not counted.
+    fail_next_lease_call_before_send: Option<LeaseCallFilter>,
+    /// Answer the next lease call with this closed failure instead of
+    /// applying it. The call is not counted: the authority never saw it.
+    refuse_next_lease_call_with: Option<AuthorityKnownFailureV2>,
+    /// Answer the next receipt query with this closed failure. The query is
+    /// counted.
+    refuse_next_query_with: Option<AuthorityKnownFailureV2>,
+    /// Prune the receipt the next acknowledgement names, but answer as if the
+    /// locator had matched nothing retained -- the shape of an authority whose
+    /// table no longer holds what the agent remembers.
+    mismatch_next_acknowledgement: bool,
+    /// Lose the next acknowledgement's response; the receipt stays retained.
+    lose_next_acknowledgement: bool,
+    /// Clock steps to apply just before the next snapshots, one per snapshot
+    /// in order; an empty queue is no step.
+    advance_before_snapshot: VecDeque<u64>,
     snapshot_delay: Duration,
-    /// Before the next snapshot: let the current lease expire, have a fresh
-    /// instance acquire the next generation, and let that lease expire too.
-    /// The snapshot then reports no active lease *and* an advanced generation.
-    successor_before_snapshot: bool,
+    /// Snapshots to let pass before this fires: let the current lease expire,
+    /// have a fresh instance acquire the next generation, and let that lease
+    /// expire too. The snapshot then reports no active lease *and* an
+    /// advanced generation.
+    successor_before_snapshot: Option<u32>,
     /// Before the next snapshot: replace the authority with one provisioned
     /// fresh, as a restore from before this instance's acquire would leave it.
     /// The snapshot then reports no lease and a generation *behind* ours.
     rollback_before_snapshot: bool,
+    /// Answer every snapshot as indeterminate, as an authority that cannot be
+    /// reached would. The queued snapshot hooks stay queued.
+    refuse_snapshots: bool,
+    /// Snapshots to let pass before one is answered as indeterminate.
+    lose_snapshot_after: Option<u32>,
+    /// Snapshots this authority has been asked for, answered or not.
+    snapshot_calls: u64,
+    /// What `round_trip_bound` reports. In-memory calls are instantaneous,
+    /// so this is zero unless a test says otherwise.
+    round_trip_bound: Duration,
     /// Answer every acknowledgement with a retryable failure, so receipts stay
     /// retained on both sides -- the authority's table and the agent's queue.
     refuse_acknowledgements: bool,
@@ -540,6 +731,24 @@ struct MemoryAuthorityState {
     lease_calls: u64,
     /// Receipt queries this authority has been asked, answered or not.
     query_calls: u64,
+}
+
+/// Which lease mutations a one-shot transport hook fires for.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LeaseCallFilter {
+    Any,
+    Acquire,
+    Release,
+}
+
+impl LeaseCallFilter {
+    fn selects(self, command: AuthorityCommandV2) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Acquire => command == AuthorityCommandV2::Acquire,
+            Self::Release => command == AuthorityCommandV2::Release,
+        }
+    }
 }
 
 fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
@@ -587,10 +796,22 @@ impl MemoryAuthority {
                 config,
                 now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
                 unknown_after_apply: false,
-                advance_before_snapshot: 0,
+                lose_next_acquire_and_queries: false,
+                lose_next_lease_call_before_apply: None,
+                lost_operation: None,
+                fail_next_lease_call_before_send: None,
+                refuse_next_lease_call_with: None,
+                refuse_next_query_with: None,
+                mismatch_next_acknowledgement: false,
+                lose_next_acknowledgement: false,
+                advance_before_snapshot: VecDeque::new(),
                 snapshot_delay: Duration::ZERO,
-                successor_before_snapshot: false,
+                successor_before_snapshot: None,
                 rollback_before_snapshot: false,
+                refuse_snapshots: false,
+                lose_snapshot_after: None,
+                snapshot_calls: 0,
+                round_trip_bound: Duration::ZERO,
                 refuse_acknowledgements: false,
                 refuse_queries: false,
                 lease_calls: 0,
@@ -609,6 +830,69 @@ impl MemoryAuthority {
         self.lock().refuse_queries = refuse;
     }
 
+    /// Answer (or stop answering) every snapshot as indeterminate. The queued
+    /// snapshot hooks stay queued for the first snapshot answered again.
+    fn refuse_snapshots(&self, refuse: bool) {
+        self.lock().refuse_snapshots = refuse;
+    }
+
+    /// Let `passes` snapshots through, then answer one as indeterminate.
+    fn lose_snapshot_after(&self, passes: u32) {
+        self.lock().lose_snapshot_after = Some(passes);
+    }
+
+    /// Before the next acquire: lose its response and refuse every query
+    /// after it, so the acquire applies but the agent cannot learn that it
+    /// did.
+    fn lose_next_acquire_and_queries(&self) {
+        self.lock().lose_next_acquire_and_queries = true;
+    }
+
+    /// Lose the next lease call `filter` selects on the wire, before the
+    /// authority applies it. The call is not counted; its operation id is
+    /// kept for `lost_operation`.
+    fn lose_next_lease_call_before_apply(&self, filter: LeaseCallFilter) {
+        self.lock().lose_next_lease_call_before_apply = Some(filter);
+    }
+
+    /// The operation id of the last lease call lost before apply, if any.
+    fn lost_operation(&self) -> Option<OperationIdV2> {
+        self.lock().lost_operation
+    }
+
+    /// Fail the next lease call `filter` selects before it is sent. The call
+    /// is not counted.
+    fn fail_next_lease_call_before_send(&self, filter: LeaseCallFilter) {
+        self.lock().fail_next_lease_call_before_send = Some(filter);
+    }
+
+    /// Answer the next lease call with `failure` instead of applying it. The
+    /// call is not counted: the authority never saw it.
+    fn refuse_next_lease_call_with(&self, failure: AuthorityKnownFailureV2) {
+        self.lock().refuse_next_lease_call_with = Some(failure);
+    }
+
+    /// Answer the next receipt query with `failure`. The query is counted.
+    fn refuse_next_query_with(&self, failure: AuthorityKnownFailureV2) {
+        self.lock().refuse_next_query_with = Some(failure);
+    }
+
+    /// Prune the receipt the next acknowledgement names, but answer as if the
+    /// locator had matched nothing retained.
+    fn mismatch_next_acknowledgement(&self) {
+        self.lock().mismatch_next_acknowledgement = true;
+    }
+
+    /// Lose the next acknowledgement's response; the receipt stays retained.
+    fn lose_next_acknowledgement(&self) {
+        self.lock().lose_next_acknowledgement = true;
+    }
+
+    /// What `round_trip_bound` reports from now on.
+    fn set_round_trip_bound(&self, bound: Duration) {
+        self.lock().round_trip_bound = bound;
+    }
+
     /// Lease mutations this authority has been asked to apply so far.
     fn lease_call_count(&self) -> u64 {
         self.lock().lease_calls
@@ -617,6 +901,13 @@ impl MemoryAuthority {
     /// Receipt queries this authority has been asked so far.
     fn query_call_count(&self) -> u64 {
         self.lock().query_calls
+    }
+
+    /// Snapshots this authority has been asked for so far. `active_lease`
+    /// reads through `snapshot` too, so tests take deltas around the call
+    /// under test.
+    fn snapshot_call_count(&self) -> u64 {
+        self.lock().snapshot_calls
     }
 
     /// Receipts the authority is still retaining, awaiting acknowledgement.
@@ -631,7 +922,14 @@ impl MemoryAuthority {
     /// generation. This is what a real takeover looks like from the snapshot:
     /// no active lease, but a generation that has moved past the agent's.
     fn successor_acquires_before_next_snapshot(&self) {
-        self.lock().successor_before_snapshot = true;
+        self.successor_acquires_before_snapshot_after(0);
+    }
+
+    /// Let `passes` snapshots through, then stage the takeover above before
+    /// the next one: `1` leaves the post-renew snapshot clean and lets the
+    /// retention snapshot after the durable write see the generation move.
+    fn successor_acquires_before_snapshot_after(&self, passes: u32) {
+        self.lock().successor_before_snapshot = Some(passes);
     }
 
     /// Between the agent's renew and its coverage snapshot, replace the
@@ -654,17 +952,14 @@ impl MemoryAuthority {
             OperationIdV2::new(current.authority_version(), [0xA5u8; 32])?,
             current.authority_version(),
             state.config,
-            crate::authority::AuthorityMutationV2::AcquireLease {
+            AuthorityMutationV2::AcquireLease {
                 expected_lease_generation: current.lease_generation(),
-                instance_id: crate::authority::ProcessInstanceIdV2::from_bytes([0x5Au8; 32])?,
+                instance_id: ProcessInstanceIdV2::from_bytes([0x5Au8; 32])?,
             },
         )?;
         let receipt = state.authority.apply(&clock, intent)?;
         assert!(
-            matches!(
-                receipt.disposition(),
-                crate::authority::AuthorityDispositionV2::Applied
-            ),
+            matches!(receipt.disposition(), AuthorityDispositionV2::Applied),
             "the successor's acquire must apply"
         );
         // A real successor drains its own receipt before serving; leave the
@@ -689,15 +984,17 @@ impl MemoryAuthority {
         state.now_millis += delta_millis;
     }
 
-    /// Advance the authority clock once, just before the next snapshot is
-    /// computed, so the snapshot reports a lease with almost no life left.
+    /// Advance the authority clock once, just before the next snapshot not
+    /// yet targeted is computed, so that snapshot reports a lease with
+    /// almost no life left. Calls queue: a second call targets the snapshot
+    /// after the first call's.
     ///
     /// This is the real sequence, not a contrived one: the renew succeeds and
     /// then time passes before the agent learns the expiry. Advancing the clock
     /// up front cannot reproduce it, because the renew itself resets the expiry
     /// to `now + ttl`.
     fn advance_clock_before_next_snapshot(&self, delta_millis: u64) {
-        self.lock().advance_before_snapshot = delta_millis;
+        self.lock().advance_before_snapshot.push_back(delta_millis);
     }
 
     /// Make the next snapshot take real time, the way a network round trip
@@ -706,6 +1003,13 @@ impl MemoryAuthority {
     /// the conservative behaviour the anchor exists to produce.
     fn delay_next_snapshot(&self, delay: Duration) {
         self.lock().snapshot_delay = delay;
+    }
+
+    /// Whether the delay above is still armed. It is paid only by a snapshot
+    /// that is actually computed, so this doubles as "no snapshot has been
+    /// computed since the delay was armed".
+    fn snapshot_delay_armed(&self) -> bool {
+        !self.lock().snapshot_delay.is_zero()
     }
 
     fn expire_active_lease(&self) {
@@ -729,9 +1033,32 @@ impl MemoryAuthority {
 
     fn lease_call(
         &self,
+        command: AuthorityCommandV2,
         intent: AuthorityIntentV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
+        // The one-shot transport hooks come first: none of them reaches the
+        // authority, so none of them counts as a call it was asked to apply.
+        if state
+            .lose_next_lease_call_before_apply
+            .is_some_and(|filter| filter.selects(command))
+        {
+            state.lose_next_lease_call_before_apply = None;
+            state.lost_operation = Some(intent.operation_id());
+            return Ok(AuthorityOutcomeV2::Unknown(
+                AuthorityUnknownV2::RequestWriteIndeterminate,
+            ));
+        }
+        if state
+            .fail_next_lease_call_before_send
+            .is_some_and(|filter| filter.selects(command))
+        {
+            state.fail_next_lease_call_before_send = None;
+            return Err(AuthorityTransportErrorV2::NotSent);
+        }
+        if let Some(failure) = state.refuse_next_lease_call_with.take() {
+            return Ok(AuthorityOutcomeV2::KnownFailure(failure));
+        }
         state.lease_calls += 1;
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.apply(&clock, intent) {
@@ -757,10 +1084,29 @@ impl InstanceAuthorityPort for MemoryAuthority {
         &self,
     ) -> Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
-        let pending = core::mem::take(&mut state.advance_before_snapshot);
+        state.snapshot_calls += 1;
+        // A snapshot that never reaches the authority consumes none of the
+        // queued hooks: they wait for the first one that does.
+        if state.refuse_snapshots {
+            return Ok(AuthorityOutcomeV2::Unknown(
+                AuthorityUnknownV2::ResponseUnavailable,
+            ));
+        }
+        if let Some(passes) = state.lose_snapshot_after {
+            state.lose_snapshot_after = passes.checked_sub(1);
+            if passes == 0 {
+                return Ok(AuthorityOutcomeV2::Unknown(
+                    AuthorityUnknownV2::ResponseUnavailable,
+                ));
+            }
+        }
+        let pending = state.advance_before_snapshot.pop_front().unwrap_or(0);
         state.now_millis = state.now_millis.saturating_add(pending);
-        if core::mem::take(&mut state.successor_before_snapshot) {
-            Self::install_successor(&mut state).expect("successor hook failed");
+        if let Some(passes) = state.successor_before_snapshot {
+            state.successor_before_snapshot = passes.checked_sub(1);
+            if passes == 0 {
+                Self::install_successor(&mut state).expect("successor hook failed");
+            }
         }
         if core::mem::take(&mut state.rollback_before_snapshot) {
             let (authority, _) =
@@ -782,21 +1128,28 @@ impl InstanceAuthorityPort for MemoryAuthority {
         &self,
         intent: AuthorityIntentV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        self.lease_call(intent)
+        {
+            let mut state = self.lock();
+            if core::mem::take(&mut state.lose_next_acquire_and_queries) {
+                state.unknown_after_apply = true;
+                state.refuse_queries = true;
+            }
+        }
+        self.lease_call(AuthorityCommandV2::Acquire, intent)
     }
 
     fn renew(
         &self,
         intent: AuthorityIntentV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        self.lease_call(intent)
+        self.lease_call(AuthorityCommandV2::Renew, intent)
     }
 
     fn release(
         &self,
         intent: AuthorityIntentV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
-        self.lease_call(intent)
+        self.lease_call(AuthorityCommandV2::Release, intent)
     }
 
     fn query(
@@ -805,6 +1158,9 @@ impl InstanceAuthorityPort for MemoryAuthority {
     ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
         state.query_calls += 1;
+        if let Some(failure) = state.refuse_next_query_with.take() {
+            return Ok(AuthorityOutcomeV2::KnownFailure(failure));
+        }
         if state.refuse_queries {
             return Ok(AuthorityOutcomeV2::Unknown(
                 AuthorityUnknownV2::ResponseUnavailable,
@@ -837,6 +1193,18 @@ impl InstanceAuthorityPort for MemoryAuthority {
                 AuthorityKnownFailureV2::AllocationFailed,
             ));
         }
+        if core::mem::take(&mut state.mismatch_next_acknowledgement) {
+            // The authority forgets the receipt, whatever the agent hears.
+            let _ = state.authority.acknowledge_receipt(retained.locator());
+            return Ok(AuthorityOutcomeV2::KnownFailure(
+                AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
+            ));
+        }
+        if core::mem::take(&mut state.lose_next_acknowledgement) {
+            return Ok(AuthorityOutcomeV2::Unknown(
+                AuthorityUnknownV2::ResponseUnavailable,
+            ));
+        }
         Ok(
             match state.authority.acknowledge_receipt(retained.locator()) {
                 Ok(disposition) => AuthorityOutcomeV2::Known(disposition),
@@ -845,6 +1213,10 @@ impl InstanceAuthorityPort for MemoryAuthority {
                 ),
             },
         )
+    }
+
+    fn round_trip_bound(&self) -> Duration {
+        self.lock().round_trip_bound
     }
 }
 
@@ -940,6 +1312,10 @@ struct AgentPair {
     initiator_repository_path: PathBuf,
     old_snapshot_path: PathBuf,
     initiator_authorization: SessionAuthorization,
+    /// The initiator's own signed offer and the responder's, exactly as
+    /// `initiator_authorization` was built from them, for tests that frame a
+    /// Begin over IPC themselves.
+    initiator_signed_offers: (Vec<u8>, Vec<u8>),
     responder_authorization: SessionAuthorization,
     /// A second, independently identified session, for tests that need two
     /// live sessions on one agent.
@@ -957,6 +1333,18 @@ fn agent_pair_with_session_ttl(
     directory: &TestDirectory,
     session_byte: u8,
     session_ttl: Duration,
+) -> TestResult<AgentPair> {
+    agent_pair_with_limits(
+        directory,
+        session_byte,
+        AgentLimits::new(16, 16, session_ttl)?,
+    )
+}
+
+fn agent_pair_with_limits(
+    directory: &TestDirectory,
+    session_byte: u8,
+    limits: AgentLimits,
 ) -> TestResult<AgentPair> {
     use std::os::unix::fs::PermissionsExt;
 
@@ -985,7 +1373,6 @@ fn agent_pair_with_session_ttl(
     let (responder_identity_sk, responder_identity_vk) = MlDsa65::generate([52u8; 32]);
     let initiator_identity_id = MigrationIdentityKeyId::from_bytes([61u8; 32]);
     let responder_identity_id = MigrationIdentityKeyId::from_bytes([62u8; 32]);
-    let limits = AgentLimits::new(16, 16, session_ttl)?;
     let initiator_config = AgentConfig::new(
         limits,
         EndpointRole::Initiator,
@@ -1081,6 +1468,7 @@ fn agent_pair_with_session_ttl(
             initiator_offer.clone(),
             responder_offer.clone(),
         )?,
+        initiator_signed_offers: (initiator_offer.clone(), responder_offer.clone()),
         responder_authorization: SessionAuthorization::new(responder_offer, initiator_offer)?,
         second_initiator_authorization: SessionAuthorization::new(
             second_initiator_offer.clone(),
@@ -1248,5 +1636,432 @@ impl AgentPair {
         let repository =
             StateRepository::open_existing(&self.old_snapshot_path, self.migration.roots.clone())?;
         repository.head().map_err(Into::into)
+    }
+}
+
+/// Self-checks of the fixture hooks above. Each pins the exact semantics the
+/// lifecycle tests rely on -- what a hook consumes, what it counts, and what
+/// it leaves for the next call -- against the fixture alone.
+mod fixture_hooks {
+    use super::*;
+
+    /// The authority's current version and configuration, read without going
+    /// through the port, so the read itself trips no snapshot hook.
+    fn authority_version(
+        authority: &MemoryAuthority,
+    ) -> TestResult<(u64, u64, DeploymentConfigRevisionV2)> {
+        let mut state = authority.lock();
+        let clock = FixedClock(state.now_millis);
+        let snapshot = state.authority.snapshot(&clock)?;
+        Ok((
+            snapshot.authority_version(),
+            snapshot.lease_generation(),
+            state.config,
+        ))
+    }
+
+    /// An acquire at the authority's current version and generation, as a
+    /// fresh process identified by `byte` would build one.
+    fn acquire_intent(authority: &MemoryAuthority, byte: u8) -> TestResult<AuthorityIntentV2> {
+        let (version, generation, config) = authority_version(authority)?;
+        Ok(AuthorityIntentV2::new(
+            OperationIdV2::new(version, [byte; 32])?,
+            version,
+            config,
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation: generation,
+                instance_id: ProcessInstanceIdV2::from_bytes([byte; 32])?,
+            },
+        )?)
+    }
+
+    /// A mutation under the fence of the lease the authority holds now.
+    fn fenced_intent(
+        authority: &MemoryAuthority,
+        byte: u8,
+        mutation: impl FnOnce(InstanceLeaseV2) -> AuthorityMutationV2,
+    ) -> TestResult<AuthorityIntentV2> {
+        let lease = authority
+            .active_lease()?
+            .ok_or_else(|| io::Error::other("no active lease to act on"))?;
+        let (version, _, config) = authority_version(authority)?;
+        Ok(AuthorityIntentV2::new(
+            OperationIdV2::new(version, [byte; 32])?,
+            version,
+            config,
+            mutation(lease),
+        )?)
+    }
+
+    fn applied(
+        outcome: Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2>,
+    ) -> TestResult<AuthorityReceiptV2> {
+        match outcome? {
+            AuthorityOutcomeV2::Known(receipt)
+                if receipt.disposition() == AuthorityDispositionV2::Applied =>
+            {
+                Ok(receipt)
+            }
+            other => {
+                Err(io::Error::other(format!("expected an applied receipt, got {other:?}")).into())
+            }
+        }
+    }
+
+    fn known_snapshot(
+        outcome: Result<AuthorityOutcomeV2<AuthoritySnapshotV2>, AuthorityTransportErrorV2>,
+    ) -> TestResult<AuthoritySnapshotV2> {
+        match outcome? {
+            AuthorityOutcomeV2::Known(snapshot) => Ok(snapshot),
+            other => {
+                Err(io::Error::other(format!("expected a known snapshot, got {other:?}")).into())
+            }
+        }
+    }
+
+    #[test]
+    fn lease_call_hooks_fire_once_and_only_for_the_calls_they_select() -> TestResult {
+        let authority = MemoryAuthority::new()?;
+
+        // A `Release` filter lets an acquire through untouched and stays armed.
+        authority.lose_next_lease_call_before_apply(LeaseCallFilter::Release);
+        applied(authority.acquire(acquire_intent(&authority, 1)?))?;
+        assert_eq!(authority.lease_call_count(), 1);
+        assert_eq!(authority.lost_operation(), None);
+
+        // The release it selects is lost before apply: not applied, not
+        // counted, its id kept; the same call goes through once the hook is
+        // spent.
+        let release = fenced_intent(&authority, 2, |lease| AuthorityMutationV2::ReleaseLease {
+            fence: lease.fence(),
+        })?;
+        assert_eq!(
+            authority.release(release)?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::RequestWriteIndeterminate)
+        );
+        assert_eq!(authority.lost_operation(), Some(release.operation_id()));
+        assert_eq!(authority.lease_call_count(), 1);
+        assert!(
+            authority.active_lease()?.is_some(),
+            "a call lost before apply must not have been applied"
+        );
+        applied(authority.release(release))?;
+        assert_eq!(authority.lease_call_count(), 2);
+        assert!(authority.active_lease()?.is_none());
+
+        // Not sent: a transport error, not counted, spent by the one call.
+        authority.fail_next_lease_call_before_send(LeaseCallFilter::Acquire);
+        let acquire = acquire_intent(&authority, 3)?;
+        assert_eq!(
+            authority.acquire(acquire),
+            Err(AuthorityTransportErrorV2::NotSent)
+        );
+        assert_eq!(authority.lease_call_count(), 2);
+        applied(authority.acquire(acquire))?;
+        assert_eq!(authority.lease_call_count(), 3);
+
+        // Refused closed: the failure named, nothing applied, not counted.
+        authority.refuse_next_lease_call_with(AuthorityKnownFailureV2::RateLimited);
+        let release = fenced_intent(&authority, 4, |lease| AuthorityMutationV2::ReleaseLease {
+            fence: lease.fence(),
+        })?;
+        assert_eq!(
+            authority.release(release)?,
+            AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::RateLimited)
+        );
+        assert_eq!(authority.lease_call_count(), 3);
+        assert!(authority.active_lease()?.is_some());
+
+        // `Any` selects a renew as well.
+        authority.lose_next_lease_call_before_apply(LeaseCallFilter::Any);
+        let renew = fenced_intent(&authority, 5, |lease| AuthorityMutationV2::RenewLease {
+            fence: lease.fence(),
+        })?;
+        assert_eq!(
+            authority.renew(renew)?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::RequestWriteIndeterminate)
+        );
+        assert_eq!(authority.lost_operation(), Some(renew.operation_id()));
+        assert_eq!(authority.lease_call_count(), 3);
+        authority.advance_clock(1);
+        applied(authority.renew(renew))?;
+        assert_eq!(authority.lease_call_count(), 4);
+        Ok(())
+    }
+
+    #[test]
+    fn a_lost_acquire_applies_and_leaves_the_queries_refused() -> TestResult {
+        let authority = MemoryAuthority::new()?;
+        authority.lose_next_acquire_and_queries();
+        let acquire = acquire_intent(&authority, 9)?;
+        assert!(matches!(
+            authority.acquire(acquire)?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+        ));
+        // Applied and counted: only the answer was lost.
+        assert_eq!(authority.lease_call_count(), 1);
+        assert_eq!(
+            authority
+                .active_lease()?
+                .map(|lease| lease.fence().instance_id()),
+            Some(ProcessInstanceIdV2::from_bytes([9u8; 32])?)
+        );
+        // And every query after it stays refused until a test says otherwise.
+        assert!(matches!(
+            authority.query(acquire.operation_id())?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+        ));
+        authority.refuse_queries(false);
+        assert!(matches!(
+            authority.query(acquire.operation_id())?,
+            AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(_))
+        ));
+        assert_eq!(authority.query_call_count(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn query_and_acknowledgement_hooks_answer_exactly_once() -> TestResult {
+        let authority = MemoryAuthority::new()?;
+        let acquire = acquire_intent(&authority, 6)?;
+        let receipt = applied(authority.acquire(acquire))?;
+        let retained = DurablyRetainedAuthorityReceiptV2::after_durable_commit(receipt)?;
+
+        // A refused query is counted and answered with the failure named;
+        // the next one is answered from the table again.
+        authority.refuse_next_query_with(AuthorityKnownFailureV2::RateLimited);
+        assert_eq!(
+            authority.query(acquire.operation_id())?,
+            AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::RateLimited)
+        );
+        assert_eq!(authority.query_call_count(), 1);
+        assert!(matches!(
+            authority.query(acquire.operation_id())?,
+            AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(_))
+        ));
+        assert_eq!(authority.query_call_count(), 2);
+
+        // A lost acknowledgement leaves the receipt retained.
+        authority.lose_next_acknowledgement();
+        assert!(matches!(
+            authority.acknowledge(&retained)?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+        ));
+        assert_eq!(authority.receipt_count()?, 1);
+
+        // A mismatched acknowledgement prunes the receipt but says it did not.
+        authority.mismatch_next_acknowledgement();
+        assert!(matches!(
+            authority.acknowledge(&retained)?,
+            AuthorityOutcomeV2::KnownFailure(
+                AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch
+            )
+        ));
+        assert_eq!(authority.receipt_count()?, 0);
+
+        // And the plain path afterwards: a vacant entry acknowledges cleanly.
+        assert!(matches!(
+            authority.acknowledge(&retained)?,
+            AuthorityOutcomeV2::Known(_)
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn snapshot_hooks_count_every_request_and_consume_in_order() -> TestResult {
+        let authority = MemoryAuthority::new()?;
+        applied(authority.acquire(acquire_intent(&authority, 7)?))?;
+        let epoch = authority.lock().now_millis;
+
+        // Refused snapshots are counted, and consume none of the queue.
+        authority.advance_clock_before_next_snapshot(10);
+        authority.advance_clock_before_next_snapshot(20);
+        authority.delay_next_snapshot(Duration::from_millis(1));
+        authority.refuse_snapshots(true);
+        assert!(matches!(
+            authority.snapshot()?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+        ));
+        assert_eq!(authority.snapshot_call_count(), 1);
+        assert_eq!(authority.lock().now_millis, epoch);
+        assert!(authority.snapshot_delay_armed());
+
+        // The queue is paid one step per computed snapshot, in order, and
+        // the delay by the first of them.
+        authority.refuse_snapshots(false);
+        let first = known_snapshot(authority.snapshot())?;
+        assert_eq!(authority.lock().now_millis, epoch + 10);
+        assert!(!authority.snapshot_delay_armed());
+        known_snapshot(authority.snapshot())?;
+        assert_eq!(authority.lock().now_millis, epoch + 30);
+        known_snapshot(authority.snapshot())?;
+        assert_eq!(authority.lock().now_millis, epoch + 30);
+        assert_eq!(authority.snapshot_call_count(), 4);
+
+        // One passes, the next is lost, then answers resume.
+        authority.lose_snapshot_after(1);
+        known_snapshot(authority.snapshot())?;
+        assert!(matches!(
+            authority.snapshot()?,
+            AuthorityOutcomeV2::Unknown(AuthorityUnknownV2::ResponseUnavailable)
+        ));
+        known_snapshot(authority.snapshot())?;
+
+        // One passes with our lease intact, the next sees the takeover.
+        authority.successor_acquires_before_snapshot_after(1);
+        let intact = known_snapshot(authority.snapshot())?;
+        assert!(intact.active_lease().is_some());
+        assert_eq!(intact.lease_generation(), first.lease_generation());
+        let taken = known_snapshot(authority.snapshot())?;
+        assert!(taken.active_lease().is_none());
+        assert_eq!(taken.lease_generation(), first.lease_generation() + 1);
+
+        assert_eq!(authority.round_trip_bound(), Duration::ZERO);
+        authority.set_round_trip_bound(Duration::from_secs(5));
+        assert_eq!(authority.round_trip_bound(), Duration::from_secs(5));
+        Ok(())
+    }
+
+    #[test]
+    fn witness_hooks_fail_reads_step_the_authority_and_delay_the_compare() -> TestResult {
+        let head = StateHead::new(
+            StateRevision::new(1, 1, [7u8; 32])?,
+            FenceToken::generate()?,
+        );
+        let witness = MemoryWitness::new(head);
+        witness.fail_reads.store(true, Ordering::Release);
+        assert_eq!(witness.read_head(), Err(WitnessError::Unavailable));
+        witness.fail_reads.store(false, Ordering::Release);
+        assert_eq!(witness.read_head()?, head);
+
+        // The authority step lands inside the read, once.
+        let authority = MemoryAuthority::new()?;
+        applied(authority.acquire(acquire_intent(&authority, 8)?))?;
+        *witness
+            .advance_authority_on_read
+            .lock()
+            .expect("memory witness hook poisoned") = Some(authority.clone());
+        assert_eq!(witness.read_head()?, head);
+        assert!(
+            authority.active_lease()?.is_none(),
+            "the read must let the authority's lease run out"
+        );
+        assert_eq!(witness.read_head()?, head);
+
+        assert_eq!(witness.round_trip_bound(), Duration::ZERO);
+        witness.set_round_trip_bound(Duration::from_secs(5));
+        assert_eq!(witness.round_trip_bound(), Duration::from_secs(5));
+
+        // The delay is paid by the next compare, and only by that one.
+        let intent = WitnessIntent::new(
+            OperationId::generate()?,
+            StateAdvance::new(
+                TransitionKind::Advance,
+                head.revision(),
+                StateRevision::new(2, 2, [8u8; 32])?,
+            )?,
+            head.fence(),
+            FenceToken::generate()?,
+        )?;
+        witness.delay_next_compare_and_advance(Duration::from_millis(50));
+        let started = Instant::now();
+        assert!(matches!(
+            witness.compare_and_advance(intent)?,
+            WitnessOutcome::Known(_)
+        ));
+        assert!(started.elapsed() >= Duration::from_millis(50));
+        let started = Instant::now();
+        assert!(matches!(
+            witness.compare_and_advance(intent)?,
+            WitnessOutcome::Known(_)
+        ));
+        assert!(started.elapsed() < Duration::from_millis(50));
+        Ok(())
+    }
+
+    #[test]
+    fn the_lease_journal_write_hook_fails_the_next_write_once() -> TestResult {
+        let directory = TestDirectory::new()?;
+        let pair = agent_pair(&directory, 203)?;
+
+        // At the repository: refused before anything is committed, once.
+        let repository =
+            StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+        repository.fail_next_lease_journal_write_for_test();
+        let row = OperationIdV2::new(1, [0x66u8; 32])?;
+        assert_eq!(
+            repository.journal_lease_intent(row, &[]),
+            Err(RepositoryError::CorruptStore)
+        );
+        assert!(repository.journaled_lease_intents()?.is_empty());
+        repository.journal_lease_intent(row, &[])?;
+        assert_eq!(repository.journaled_lease_intents()?, vec![row]);
+
+        // Through the agent: the next lease operation's journal write fails
+        // the same way, and the hook is spent by it.
+        pair.initiator.fail_next_lease_journal_write_for_test()?;
+        assert_eq!(
+            pair.initiator.reconcile_transition().err(),
+            Some(AgentError::Repository(RepositoryError::CorruptStore))
+        );
+        drive_one_lease_renew(&pair.initiator)?;
+        Ok(())
+    }
+
+    #[test]
+    fn a_framed_begin_decodes_as_the_ipc_server_encodes_it() -> TestResult {
+        let directory = TestDirectory::new()?;
+        let pair = agent_pair(&directory, 204)?;
+        let (client_signing_key, client_verification_key) = MlDsa65::generate([0x61u8; 32]);
+        let (server_signing_key, server_verification_key) = MlDsa65::generate([0x62u8; 32]);
+        let mut server = crate::ipc::UnixIpcServer::new_for_test(
+            pair.initiator,
+            client_verification_key,
+            ZeroizingBytes::from_bytes(server_signing_key),
+            server_verification_key,
+        )?;
+        let nonce = [0x63u8; 32];
+        let mut transport = CaptureTransport {
+            input: Cursor::new(framed_begin(
+                &client_signing_key,
+                nonce,
+                &pair.initiator_signed_offers,
+                &pair.responder_public_keys,
+            )?),
+            output: Vec::new(),
+        };
+        server.handle_io_for_test(&mut transport)?;
+        assert_eq!(server.agent_for_test().pending_session_count(), 1);
+        let DecodedBeginEncapsulation {
+            handle,
+            pq_ciphertext,
+            traditional_ciphertext,
+            initiator_finished,
+        } = decode_begin_encapsulation_response(
+            &transport.output,
+            &server_verification_key,
+            nonce,
+        )?;
+
+        // The decoded fields are the real ones, not merely the right sizes:
+        // the responder confirms the session from them, and the initiator
+        // accepts under the decoded handle.
+        let ciphertexts =
+            EncapsulationCiphertexts::from_slices(&pq_ciphertext, &traditional_ciphertext)
+                .map_err(|error| io::Error::other(format!("{error:?}")))?;
+        let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+            BeginDecapsulation::new(pair.responder_authorization, ciphertexts),
+        )?)?;
+        let accepted = pair.responder.accept_initiator_finished(
+            decapsulated.handle,
+            InitiatorFinishedV1::from_bytes(initiator_finished),
+        )?;
+        server.agent_for_test().accept_responder_finished(
+            crate::PendingSessionHandle::decode(handle)?,
+            accepted.responder_finished,
+        )?;
+        assert_eq!(server.agent_for_test().pending_session_count(), 0);
+        assert_eq!(server.agent_for_test().confirmed_key_count(), 1);
+        Ok(())
     }
 }

@@ -1231,6 +1231,16 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(())
     }
 
+    /// Fail the next lease-journal write as a corrupt store would, before
+    /// anything is committed, so a test can see what a lease operation does
+    /// when its intent cannot be journaled for storage reasons.
+    #[cfg(all(test, unix))]
+    pub(crate) fn fail_next_lease_journal_write_for_test(&self) -> Result<(), AgentError> {
+        let inner = self.lock()?;
+        inner.repository.fail_next_lease_journal_write_for_test();
+        Ok(())
+    }
+
     /// Number of durable session reservations the repository currently holds.
     #[cfg(all(test, unix))]
     pub(crate) fn durable_session_count_for_test(&self) -> Result<u64, AgentError> {

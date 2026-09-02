@@ -508,6 +508,13 @@ pub trait InstanceAuthorityPort: Send + Sync {
         &self,
         retained: &DurablyRetainedAuthorityReceiptV2,
     ) -> Result<AuthorityOutcomeV2<ReceiptAckDispositionV2>, AuthorityTransportErrorV2>;
+
+    /// Upper bound on how long one call on this port blocks.
+    ///
+    /// The agent admits a call only if at least this much of its operation
+    /// deadline remains, so an admitted call always ends before the deadline.
+    /// There is deliberately no default: a guessed bound would fail open.
+    fn round_trip_bound(&self) -> Duration;
 }
 
 impl InstanceAuthorityPort for AuthenticatedTcpAuthorityV2 {
@@ -554,6 +561,13 @@ impl InstanceAuthorityPort for AuthenticatedTcpAuthorityV2 {
         retained: &DurablyRetainedAuthorityReceiptV2,
     ) -> Result<AuthorityOutcomeV2<ReceiptAckDispositionV2>, AuthorityTransportErrorV2> {
         Self::acknowledge(self, retained)
+    }
+
+    fn round_trip_bound(&self) -> Duration {
+        // Every port method is one `exchange`, and `exchange` runs under one
+        // absolute deadline of exactly this much, so one bound covers each
+        // call.
+        self.total_deadline
     }
 }
 

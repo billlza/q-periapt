@@ -191,6 +191,11 @@ pub struct StateRepository {
     /// that on demand.
     #[cfg(all(test, unix))]
     delay_after_next_durable_write: std::sync::Mutex<Option<std::time::Duration>>,
+    /// Test-only: fail the next lease-journal write the way a corrupt store
+    /// would, before anything is committed, so a test can see what a lease
+    /// operation does when its intent cannot be journaled for storage reasons.
+    #[cfg(all(test, unix))]
+    fail_next_lease_journal_write: std::sync::Mutex<bool>,
 }
 
 impl fmt::Debug for StateRepository {
@@ -273,6 +278,8 @@ impl StateRepository {
                         restart_rejections: 0,
                         #[cfg(all(test, unix))]
                         delay_after_next_durable_write: std::sync::Mutex::new(None),
+                        #[cfg(all(test, unix))]
+                        fail_next_lease_journal_write: std::sync::Mutex::new(false),
                     },
                     head,
                 ))
@@ -325,6 +332,8 @@ impl StateRepository {
             restart_rejections,
             #[cfg(all(test, unix))]
             delay_after_next_durable_write: std::sync::Mutex::new(None),
+            #[cfg(all(test, unix))]
+            fail_next_lease_journal_write: std::sync::Mutex::new(false),
         })
     }
 
@@ -336,6 +345,29 @@ impl StateRepository {
             .delay_after_next_durable_write
             .lock()
             .expect("repository test hook poisoned") = Some(delay);
+    }
+
+    /// Test-only: fail the next lease-journal write as a corrupt store would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn fail_next_lease_journal_write_for_test(&self) {
+        *self
+            .fail_next_lease_journal_write
+            .lock()
+            .expect("repository test hook poisoned") = true;
+    }
+
+    #[cfg(all(test, unix))]
+    fn refuse_lease_journal_write_if_armed_for_test(&self) -> Result<(), RepositoryError> {
+        let armed = std::mem::take(
+            &mut *self
+                .fail_next_lease_journal_write
+                .lock()
+                .expect("repository test hook poisoned"),
+        );
+        if armed {
+            return Err(RepositoryError::CorruptStore);
+        }
+        Ok(())
     }
 
     #[cfg(all(test, unix))]
@@ -687,6 +719,8 @@ impl StateRepository {
         intent: OperationIdV2,
         forget: &[OperationIdV2],
     ) -> Result<(), RepositoryError> {
+        #[cfg(all(test, unix))]
+        self.refuse_lease_journal_write_if_armed_for_test()?;
         let transaction = durable_write(&self.database)?;
         {
             let mut journal = transaction
