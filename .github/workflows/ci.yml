@@ -59,8 +59,8 @@ jobs:
           source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
             ci-source-gate \
             "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
-          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=237 declared_delta=47"
-          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=237"
+          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=247 declared_delta=57"
+          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=247"
           if [ "$source_gate" = "$initial_gate" ]; then
             printf '%s\n' "$source_gate"
           elif [ "$source_gate" = "$installed_gate" ]; then

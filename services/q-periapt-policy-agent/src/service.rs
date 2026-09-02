@@ -38,8 +38,18 @@ const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
 const HARD_MAX_SESSIONS: usize = 1024;
 const HARD_MAX_CONFIRMED_KEYS: usize = 1024;
 const MAX_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+/// In-memory fast path for the acknowledgements lease receipts are owed. The
+/// durable lease-intent journal in the repository has the same bound
+/// (`MAX_JOURNALED_LEASE_INTENTS`) and every queued receipt has a row there,
+/// so the journal refuses a lease operation before this queue could overflow.
 const MAX_UNACKNOWLEDGED_LEASE_RECEIPTS: usize = 64;
 const LEASE_VERSION_RESYNC_ATTEMPTS: usize = 2;
+/// Longest pause between two acquire attempts while a predecessor's lease is
+/// waited out; see `acquire_instance_lease_within`.
+const LEASE_WAIT_STEP: Duration = Duration::from_secs(1);
+/// Shortest such pause, so an authority whose lease is about to lapse, or that
+/// reports none at all between two refused acquires, is not polled flat out.
+const LEASE_WAIT_MIN_PAUSE: Duration = Duration::from_millis(10);
 
 /// One exact signed policy document and its pinned ML-DSA-65 root.
 #[derive(Clone, Eq, PartialEq)]
@@ -415,19 +425,27 @@ pub enum AgentError {
     LocalCryptoFailure,
     /// The committed state is valid but this process has no exact compatible ABI 2 executor.
     ExecutionUnavailable,
-    /// Another process instance holds or took the exclusive key-use lease; every
-    /// in-process pending and accepted secret of this instance was erased.
+    /// Another process instance holds or took the exclusive key-use lease, or
+    /// the authority's lease generation was observed behind the one it issued
+    /// this instance; every in-process pending and accepted secret of this
+    /// instance was erased, and it permanently refuses lease-guarded operations.
     InstanceFenced,
-    /// The mandatory instance-lease authority failed closed; the operation did not run.
+    /// The mandatory instance-lease authority failed closed, or the durable
+    /// lease-intent journal is full and could not take the row every lease
+    /// mutation needs before dispatch; the operation did not run.
     InstanceLeaseUnavailable,
     /// A lease operation outcome stayed unknown after exact-operation reconciliation.
     InstanceLeaseIndeterminate,
-    /// The operation outlived the lease coverage this instance could prove; every
-    /// secret it produced was erased and nothing was retained or returned.
+    /// This instance could not prove lease coverage for the operation, and
+    /// nothing was retained or returned. Either the authority's own snapshot,
+    /// taken right after a successful renew, reported the lease lapsed at this
+    /// instance's generation with no successor -- the operation never started,
+    /// and the next guarded operation re-acquires -- or a local coverage
+    /// deadline ran out during the operation, in which case every secret it
+    /// produced was erased.
     ///
-    /// Distinct from [`Self::InstanceFenced`], which asserts another instance
-    /// holds the lease. A coverage lapse is a local deadline running out and is
-    /// no evidence that any successor exists.
+    /// Distinct from [`Self::InstanceFenced`], which is permanent. A coverage
+    /// lapse is no evidence that any successor exists.
     InstanceLeaseCoverageElapsed,
     /// The process linearizer was poisoned; no operation continued.
     InternalPoisoned,
@@ -537,12 +555,30 @@ impl ExecutorState {
 /// The fence (lease generation plus fresh process identity) deliberately never
 /// touches disk: a restored clone of this host must not be able to replay the
 /// live fence, so a process restart always starts a new acquire cycle.
+///
+/// What does touch disk is the operation id of every lease mutation, journaled
+/// in the repository before it is dispatched (`journal_lease_intent`). The
+/// acknowledgement each receipt is owed is the only thing that prunes the
+/// authority's bounded receipt table, and it used to be owed from this struct
+/// alone. The two lists below are the bookkeeping between that journal and the
+/// authority.
 struct InstanceLeaseState {
     instance_id: ProcessInstanceIdV2,
     fence: Option<InstanceFenceV2>,
     authority_version: u64,
     fenced: bool,
     unacknowledged: VecDeque<DurablyRetainedAuthorityReceiptV2>,
+    /// Journaled operation ids this process has settled with the authority --
+    /// acknowledged, found already absent, or provably never executed. The
+    /// next journal write deletes their rows in its own transaction, so the
+    /// steady state costs one durable transaction per lease operation, not
+    /// two. Bounded by the journal: every id here has a row.
+    settled: Vec<OperationIdV2>,
+    /// Journaled operation ids whose outcome this process has not yet learned:
+    /// rows a previous process left that the start-up reconciliation could not
+    /// resolve, and dispatches whose response was lost. Queried again before
+    /// each guarded operation. Bounded by the journal for the same reason.
+    unresolved: Vec<OperationIdV2>,
     /// Local instant until which this process has *proved* it holds the lease.
     ///
     /// The renew receipt carries no expiry, so the only way to learn one is a
@@ -587,13 +623,66 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// Construction fails closed with [`AgentError::InstanceFenced`] while
     /// another unexpired process instance holds the lease, so a recovery clone
     /// or duplicate deployment cannot start using keys next to the live holder.
+    ///
+    /// Before the acquire, the lease-intent journal a previous process left in
+    /// the repository is settled: every journaled operation is queried, a
+    /// receipt the authority still holds is acknowledged, and settled rows are
+    /// forgotten. Rows the authority cannot yet answer for are kept and retried
+    /// before each guarded operation. If all `MAX_JOURNALED_LEASE_INTENTS`
+    /// rows remain unresolved, construction fails closed with
+    /// [`AgentError::InstanceLeaseUnavailable`] rather than dispatch an acquire
+    /// it could not journal.
+    ///
+    /// It does not wait for that lease to lapse; [`Self::new_with_lease_wait`]
+    /// is the constructor for a daemon restarting after its predecessor was
+    /// killed.
     pub fn new(
-        mut repository: StateRepository,
+        repository: StateRepository,
         witness: W,
         authority: A,
         config: AgentConfig,
     ) -> Result<Self, AgentError> {
-        let lease = acquire_instance_lease(&authority)?;
+        let lease = acquire_instance_lease(&repository, &authority)?;
+        Self::with_lease(repository, witness, authority, config, lease)
+    }
+
+    /// Like [`Self::new`], but wait up to `max_wait` for a predecessor's lease
+    /// to lapse before giving up.
+    ///
+    /// A process that was killed rather than stopped never released its lease,
+    /// and the authority lets that lease lapse only at the TTL it granted.
+    /// Failing fast on it is right for a duplicate deployment or a recovery
+    /// clone, but wrong for the daemon's own restart, which would then stay
+    /// down until an operator noticed. So while the authority reports an
+    /// active lease held by another instance -- whether the pre-acquire
+    /// snapshot shows it or the acquire itself is rejected as held -- this
+    /// constructor pauses for the shorter of that lease's remaining life and
+    /// one second, then tries the same fail-closed acquire again, until
+    /// `max_wait` has elapsed; it then fails with
+    /// [`AgentError::InstanceFenced`] exactly as [`Self::new`] would have.
+    /// Exclusivity is never loosened: every attempt is the same acquire, which
+    /// the authority refuses while any lease is active, so a holder that keeps
+    /// renewing wins. Every other failure is returned at once.
+    pub fn new_with_lease_wait(
+        repository: StateRepository,
+        witness: W,
+        authority: A,
+        config: AgentConfig,
+        max_wait: Duration,
+    ) -> Result<Self, AgentError> {
+        let lease = acquire_instance_lease_within(&repository, &authority, max_wait)?;
+        Self::with_lease(repository, witness, authority, config, lease)
+    }
+
+    /// Finish construction once the lease is held: align local state with the
+    /// mandatory witness and authenticate the configured policy material.
+    fn with_lease(
+        mut repository: StateRepository,
+        witness: W,
+        authority: A,
+        config: AgentConfig,
+        lease: InstanceLeaseState,
+    ) -> Result<Self, AgentError> {
         align_repository(&mut repository, &witness)?;
         let committed = repository.committed_state();
         let engine = executor_for(&config.execution_policy, committed.state())?;
@@ -1021,12 +1110,17 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// After release this agent permanently refuses lease-guarded operations;
     /// a successor process must construct a new agent to acquire authority.
     /// Repeating the call after the fence is already gone succeeds idempotently.
+    ///
+    /// This is the clean shutdown path, so it also forgets, durably, every
+    /// journaled lease intent this process has settled -- the release's own
+    /// included. A clean shutdown therefore leaves the journal empty; only a
+    /// crash leaves rows for the next start to settle.
     pub fn release_instance_lease(&self) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         let inner = &mut *inner;
         ensure_live(inner)?;
         let Some(fence) = inner.lease.fence else {
-            return Ok(());
+            return forget_settled(&inner.repository, &mut inner.lease);
         };
         fence_out(inner)?;
         drain_acknowledgements(&inner.authority, &mut inner.lease);
@@ -1037,6 +1131,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 AuthorityMutationV2::ReleaseLease { fence },
             )?;
             match lease_exchange(
+                &inner.repository,
                 &inner.authority,
                 &mut inner.lease,
                 LeaseCall::Release,
@@ -1044,7 +1139,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
             )? {
                 LeaseExchange::Receipt(receipt) => {
                     drain_acknowledgements(&inner.authority, &mut inner.lease);
-                    return match receipt.disposition() {
+                    let outcome = match receipt.disposition() {
                         AuthorityDispositionV2::Applied
                         | AuthorityDispositionV2::Rejected(
                             AuthorityRejectionV2::LeaseAbsent
@@ -1055,11 +1150,25 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                             Err(AgentError::InstanceLeaseUnavailable)
                         }
                     };
+                    // No journal write follows a release, so the rows this
+                    // process settled would otherwise wait for the next start
+                    // to find them absent. Forget them now.
+                    let forgotten = forget_settled(&inner.repository, &mut inner.lease);
+                    return outcome.and(forgotten);
                 }
                 LeaseExchange::Retry => {}
             }
         }
         Err(AgentError::InstanceLeaseIndeterminate)
+    }
+
+    /// Every lease intent still journaled in the repository.
+    #[cfg(all(test, unix))]
+    pub(crate) fn journaled_lease_intents_for_test(
+        &self,
+    ) -> Result<Vec<OperationIdV2>, AgentError> {
+        let inner = self.lock()?;
+        Ok(inner.repository.journaled_lease_intents()?)
     }
 
     #[cfg(all(test, unix))]
@@ -1148,6 +1257,28 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     pub(crate) fn fence_out_for_test(&self) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         fence_out(&mut inner)
+    }
+
+    /// Make the next durable session reserve or release take this long after
+    /// it commits, so a test can lapse the lease coverage *inside* the durable
+    /// write rather than before it.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_next_durable_write_for_test(
+        &self,
+        delay: Duration,
+    ) -> Result<(), AgentError> {
+        let inner = self.lock()?;
+        inner
+            .repository
+            .delay_after_next_durable_write_for_test(delay);
+        Ok(())
+    }
+
+    /// Number of durable session reservations the repository currently holds.
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_session_count_for_test(&self) -> Result<u64, AgentError> {
+        let inner = self.lock()?;
+        Ok(inner.repository.durable_session_count_for_test()?)
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
@@ -1367,6 +1498,22 @@ fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort>(
         inner
             .repository
             .reserve_session(handle.0, capability_session_id, head)?;
+        // The durable reservation is a real fsync, and the coverage checked
+        // before it may have run out while it completed. This is the last step
+        // before the secret becomes retained, so it is the check that counts:
+        // the earlier one only saves a wasted durable write. A lapse here must
+        // not leave the reservation behind -- `erase_pending` could never find
+        // it -- so release it and drop the secret with `pending`. The capability
+        // tombstone the reservation wrote stays, exactly as it does for any
+        // cancelled session: the offer was consumed the moment it was reserved,
+        // and the caller needs a fresh offer to try again.
+        if let Err(error) = ensure_lease_covers(inner) {
+            if inner.repository.cancel_session(handle.0).is_err() {
+                inner.poisoned = true;
+                return Err(AgentError::InternalPoisoned);
+            }
+            return Err(error);
+        }
         if inner.pending_sessions.insert(handle, pending).is_some() {
             inner.poisoned = true;
             return Err(AgentError::InternalPoisoned);
@@ -1503,6 +1650,14 @@ fn retain_accepted_key<W: WitnessPort, A: InstanceAuthorityPort>(
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);
     }
+    // The durable release is a real fsync, and the coverage the caller checked
+    // before it may have run out while it completed. This is the last step
+    // before the accepted key becomes retained, so it is the check that counts.
+    // Nothing needs undoing: the reservation is gone, which is where an
+    // accepted session ends up either way, and `accepted` is dropped here
+    // without ever being reachable. Not a fence -- a lapse is no evidence of a
+    // successor -- and not a poison.
+    ensure_lease_covers(inner)?;
     if inner.confirmed_keys.insert(key_handle, accepted).is_some() {
         inner.poisoned = true;
         return Err(AgentError::InternalPoisoned);
@@ -1646,15 +1801,28 @@ fn record_lease_receipt(
         return Err(AgentError::InstanceLeaseUnavailable);
     }
     lease.authority_version = receipt.resulting_authority_version();
-    // The lease view is deliberately RAM-only: after a crash the successor
-    // process starts a fresh acquire cycle and never queries this operation ID
-    // again, so the receipt needs no further durability before the bounded
-    // acknowledgement queue lets the authority prune it.
-    if lease.unacknowledged.len() < MAX_UNACKNOWLEDGED_LEASE_RECEIPTS
-        && lease.unacknowledged.try_reserve(1).is_ok()
-    {
-        if let Ok(retained) = DurablyRetainedAuthorityReceiptV2::after_durable_commit(receipt) {
+    // The lease view is RAM-only: after a crash the successor process starts a
+    // fresh acquire cycle and never needs this receipt to reconcile its own
+    // outcome. What the receipt still owes is an acknowledgement, which is the
+    // only thing that ever removes it from the authority's bounded receipt
+    // table (`HARD_MAX_RECEIPTS`). That obligation is durable: the operation
+    // id was journaled in the repository before this dispatch
+    // (`journal_lease_intent`), and its row stays until the receipt is
+    // acknowledged and the next journal write forgets it, or until a later
+    // start finds the receipt still held and acknowledges it then
+    // (`reconcile_lease_journal`). This queue is only the fast path. The
+    // journal has the same bound as the queue and every queued receipt has a
+    // row, so the journal refuses the operation before the queue can fill;
+    // should a receipt still fail to queue, its id goes to `unresolved` and
+    // this process queries it again before the next guarded operation rather
+    // than leaving it to the next start.
+    if let Ok(retained) = DurablyRetainedAuthorityReceiptV2::after_durable_commit(receipt) {
+        if lease.unacknowledged.len() < MAX_UNACKNOWLEDGED_LEASE_RECEIPTS
+            && lease.unacknowledged.try_reserve(1).is_ok()
+        {
             lease.unacknowledged.push_back(retained);
+        } else {
+            keep_unresolved(lease, intent.operation_id());
         }
     }
     Ok(LeaseExchange::Receipt(receipt))
@@ -1662,9 +1830,11 @@ fn record_lease_receipt(
 
 fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
     while let Some(retained) = lease.unacknowledged.front() {
+        let operation_id = retained.locator().operation_id();
         match authority.acknowledge(retained) {
             Ok(AuthorityOutcomeV2::Known(_)) => {
                 lease.unacknowledged.pop_front();
+                settle(lease, operation_id);
             }
             // The authority holds no retained state matching this locator, so
             // there is nothing left to reclaim and no retry can change that:
@@ -1675,11 +1845,12 @@ fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut I
             // on either side. One unmatchable receipt would fill this bounded
             // queue and then leave the authority's own table to fill too, which
             // ends with the daemon unable to acquire a lease at all. Discard it
-            // and carry on.
+            // and carry on; its journal row is settled for the same reason.
             Ok(AuthorityOutcomeV2::KnownFailure(
                 AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
             )) => {
                 lease.unacknowledged.pop_front();
+                settle(lease, operation_id);
             }
             // Everything else is a server-side condition that can clear: a full
             // nonce table, a failed allocation, an unavailable clock, or an
@@ -1705,24 +1876,39 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
             Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
                 authority_version,
             })) => {
+                // Provably never executed: the authority owes nothing for this
+                // id, so its journal row is settled.
                 lease.authority_version = authority_version;
+                settle(lease, intent.operation_id());
                 return Ok(LeaseExchange::Retry);
             }
             Ok(AuthorityOutcomeV2::KnownFailure(_)) => {
+                keep_unresolved(lease, intent.operation_id());
                 return Err(AgentError::InstanceLeaseUnavailable);
             }
             Ok(AuthorityOutcomeV2::Unknown(_)) | Err(_) => {}
         }
     }
+    keep_unresolved(lease, intent.operation_id());
     Err(AgentError::InstanceLeaseIndeterminate)
 }
 
+/// Dispatch one lease mutation, journaling its intent durably first.
+///
+/// The journal write precedes every dispatch -- the acquire at start, each
+/// renew, the re-acquire after a lapse, and the release -- so that whatever
+/// happens next, a successor process can find this operation and discharge the
+/// acknowledgement its receipt is owed. An outcome that proves the authority
+/// never executed the operation settles the row at once; an outcome that
+/// leaves it unknown keeps the id for a later query.
 fn lease_exchange<A: InstanceAuthorityPort>(
+    repository: &StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
     call: LeaseCall,
     intent: AuthorityIntentV2,
 ) -> Result<LeaseExchange, AgentError> {
+    journal_lease_intent(repository, lease, intent.operation_id())?;
     let outcome = match call {
         LeaseCall::Acquire => authority.acquire(intent),
         LeaseCall::Renew => authority.renew(intent),
@@ -1731,13 +1917,194 @@ fn lease_exchange<A: InstanceAuthorityPort>(
     match outcome {
         Ok(AuthorityOutcomeV2::Known(receipt)) => record_lease_receipt(lease, intent, receipt),
         Ok(AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)) => {
+            // Refused on its precondition, never executed: settled.
+            settle(lease, intent.operation_id());
             let snapshot = authority_snapshot(authority)?;
             lease.authority_version = snapshot.authority_version();
             Ok(LeaseExchange::Retry)
         }
-        Ok(AuthorityOutcomeV2::KnownFailure(_)) => Err(AgentError::InstanceLeaseUnavailable),
+        // Any other known failure says the authority declined to execute, but
+        // the proof this code relies on elsewhere is a query, not a failure
+        // code; keep the id and let the next drain ask.
+        Ok(AuthorityOutcomeV2::KnownFailure(_)) => {
+            keep_unresolved(lease, intent.operation_id());
+            Err(AgentError::InstanceLeaseUnavailable)
+        }
         Ok(AuthorityOutcomeV2::Unknown(_)) => reconcile_lease_operation(authority, lease, intent),
-        Err(_) => Err(AgentError::InstanceLeaseUnavailable),
+        Err(_) => {
+            keep_unresolved(lease, intent.operation_id());
+            Err(AgentError::InstanceLeaseUnavailable)
+        }
+    }
+}
+
+/// Durably journal one lease intent before it is dispatched, forgetting the
+/// settled rows in the same transaction.
+fn journal_lease_intent(
+    repository: &StateRepository,
+    lease: &mut InstanceLeaseState,
+    operation_id: OperationIdV2,
+) -> Result<(), AgentError> {
+    match repository.journal_lease_intent(operation_id, &lease.settled) {
+        Ok(()) => {
+            lease.settled.clear();
+            Ok(())
+        }
+        // The journal is full of intents whose acknowledgement the authority
+        // has not accepted -- or, after enough crashes, could not answer for.
+        // Nothing was committed, the settled list is still exact, and the
+        // operation must not run: dispatching it would owe one more
+        // acknowledgement with nowhere durable to record it. The drains before
+        // the next attempt are what free the journal.
+        Err(RepositoryError::CapacityExceeded) => Err(AgentError::InstanceLeaseUnavailable),
+        Err(other) => Err(AgentError::from(other)),
+    }
+}
+
+/// Mark one journaled operation as settled with the authority, so the next
+/// journal write forgets its row.
+///
+/// Bounded by the journal: every id here has a row there. Should the list
+/// itself fail to grow, the row stays until a later start finds the operation
+/// absent and forgets it -- the authority has already forgotten its side.
+fn settle(lease: &mut InstanceLeaseState, operation_id: OperationIdV2) {
+    if lease.settled.try_reserve(1).is_ok() {
+        lease.settled.push(operation_id);
+    }
+}
+
+/// Keep one journaled operation whose outcome is not yet known, to be queried
+/// again before the next guarded operation.
+///
+/// Bounded like `settle`, and the fallback is the same: a row that cannot be
+/// tracked here is still journaled, and the next start queries it.
+fn keep_unresolved(lease: &mut InstanceLeaseState, operation_id: OperationIdV2) {
+    if lease.unresolved.try_reserve(1).is_ok() {
+        lease.unresolved.push(operation_id);
+    }
+}
+
+/// Durably forget every settled journal row now, rather than at the next
+/// journal write. Used where no journal write follows: shutdown.
+fn forget_settled(
+    repository: &StateRepository,
+    lease: &mut InstanceLeaseState,
+) -> Result<(), AgentError> {
+    repository.forget_lease_intents(&lease.settled)?;
+    lease.settled.clear();
+    Ok(())
+}
+
+/// What one query told us about a journaled operation.
+enum JournalResolution {
+    /// The authority owes nothing further for this id: its receipt is now
+    /// acknowledged, or it never saw the operation.
+    Settled,
+    /// The authority could not answer, or would not yet accept the
+    /// acknowledgement; ask again later.
+    Pending,
+}
+
+/// Ask the authority about one journaled operation and discharge what it owes.
+fn resolve_journaled_intent<A: InstanceAuthorityPort>(
+    authority: &A,
+    operation_id: OperationIdV2,
+) -> JournalResolution {
+    match authority.query(operation_id) {
+        Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
+            let Ok(retained) = DurablyRetainedAuthorityReceiptV2::after_durable_commit(*receipt)
+            else {
+                // This agent journals only lease mutations, so the authority
+                // holds something under this id that no acknowledgement of
+                // ours can ever discharge. The row buys nothing; let it go,
+                // exactly as the drain discards an unmatchable receipt.
+                return JournalResolution::Settled;
+            };
+            match authority.acknowledge(&retained) {
+                Ok(AuthorityOutcomeV2::Known(_))
+                | Ok(AuthorityOutcomeV2::KnownFailure(
+                    AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
+                )) => JournalResolution::Settled,
+                Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_))
+                | Err(_) => JournalResolution::Pending,
+            }
+        }
+        Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion { .. })) => {
+            JournalResolution::Settled
+        }
+        Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
+            JournalResolution::Pending
+        }
+    }
+}
+
+/// Settle the lease-intent journal a previous process left behind, before
+/// this one dispatches anything.
+///
+/// A row left by a crash between the journal write and the dispatch is found
+/// absent and forgotten. A row left by a crash after the dispatch names a
+/// receipt the authority is still retaining; it is acknowledged here, and only
+/// then forgotten. A row the authority cannot answer for stays journaled and
+/// is carried as `unresolved`, to be asked about again before each guarded
+/// operation.
+///
+/// The first unanswered query ends the pass: an unreachable authority would
+/// otherwise cost one timeout per row before the acquire even starts, and the
+/// acquire that follows asks the authority anyway. A journal that is still full
+/// after this pass -- all `MAX_JOURNALED_LEASE_INTENTS` rows unanswerable --
+/// fails the start closed with [`AgentError::InstanceLeaseUnavailable`]: the
+/// acquire's own journal write, which every dispatch makes first, is refused,
+/// so nothing is dispatched. The next start asks again.
+fn reconcile_lease_journal<A: InstanceAuthorityPort>(
+    repository: &StateRepository,
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+) -> Result<(), AgentError> {
+    let journaled = repository.journaled_lease_intents()?;
+    let mut settled = Vec::new();
+    settled
+        .try_reserve(journaled.len())
+        .map_err(|_| AgentError::LocalResourceFailure)?;
+    lease
+        .unresolved
+        .try_reserve(journaled.len())
+        .map_err(|_| AgentError::LocalResourceFailure)?;
+    let mut answering = true;
+    for operation_id in journaled {
+        // Once one query has gone unanswered, the rest are not asked at all:
+        // evaluating the resolver first and consulting `answering` afterwards
+        // would still cost one timeout per remaining row.
+        if !answering {
+            lease.unresolved.push(operation_id);
+            continue;
+        }
+        match resolve_journaled_intent(authority, operation_id) {
+            JournalResolution::Settled => settled.push(operation_id),
+            JournalResolution::Pending => {
+                answering = false;
+                lease.unresolved.push(operation_id);
+            }
+        }
+    }
+    repository
+        .forget_lease_intents(&settled)
+        .map_err(AgentError::from)
+}
+
+/// Query the journaled operations whose outcome this process does not yet
+/// know, settling those the authority can now answer for.
+///
+/// Stops at the first unanswered query for the same reason the start-up pass
+/// does; the next guarded operation asks again.
+fn drain_unresolved<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
+    while let Some(operation_id) = lease.unresolved.last().copied() {
+        match resolve_journaled_intent(authority, operation_id) {
+            JournalResolution::Settled => {
+                lease.unresolved.pop();
+                settle(lease, operation_id);
+            }
+            JournalResolution::Pending => return,
+        }
     }
 }
 
@@ -1763,6 +2130,7 @@ fn adopt_or_reject_active_lease(
 }
 
 fn acquire_instance_lease<A: InstanceAuthorityPort>(
+    repository: &StateRepository,
     authority: &A,
 ) -> Result<InstanceLeaseState, AgentError> {
     let instance_id = ProcessInstanceIdV2::from_bytes(fresh_lease_random()?)
@@ -1773,8 +2141,11 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
         authority_version: 1,
         fenced: false,
         unacknowledged: VecDeque::new(),
+        settled: Vec::new(),
+        unresolved: Vec::new(),
         covered_until: None,
     };
+    reconcile_lease_journal(repository, authority, &mut lease)?;
     let snapshot = authority_snapshot(authority)?;
     lease.authority_version = snapshot.authority_version();
     if snapshot.active_lease().is_some() {
@@ -1790,7 +2161,13 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
                 instance_id,
             },
         )?;
-        match lease_exchange(authority, &mut lease, LeaseCall::Acquire, intent)? {
+        match lease_exchange(
+            repository,
+            authority,
+            &mut lease,
+            LeaseCall::Acquire,
+            intent,
+        )? {
             LeaseExchange::Receipt(receipt) => {
                 drain_acknowledgements(authority, &mut lease);
                 match receipt.disposition() {
@@ -1837,11 +2214,76 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
     Err(AgentError::InstanceLeaseIndeterminate)
 }
 
+/// Acquire the instance lease, waiting up to `max_wait` for another holder's
+/// lease to lapse; see [`PolicyAgent::new_with_lease_wait`].
+///
+/// Only [`AgentError::InstanceFenced`] is retried, and from the acquire it has
+/// exactly one meaning: another instance held an active lease at the moment of
+/// the attempt, whether the pre-acquire snapshot reported it or the acquire
+/// itself was rejected as held and the snapshot that followed confirmed a
+/// different holder. Transport failures, indeterminate outcomes, and every
+/// other error return at once.
+fn acquire_instance_lease_within<A: InstanceAuthorityPort>(
+    repository: &StateRepository,
+    authority: &A,
+    max_wait: Duration,
+) -> Result<InstanceLeaseState, AgentError> {
+    let deadline = Instant::now()
+        .checked_add(max_wait)
+        .ok_or(AgentError::InvalidConfiguration)?;
+    loop {
+        match acquire_instance_lease(repository, authority) {
+            Err(AgentError::InstanceFenced) => {}
+            outcome => return outcome,
+        }
+        let remaining_wait = deadline.saturating_duration_since(Instant::now());
+        if remaining_wait.is_zero() {
+            return Err(AgentError::InstanceFenced);
+        }
+        std::thread::sleep(lease_wait_pause(authority).min(remaining_wait));
+    }
+}
+
+/// How long to pause before the next acquire attempt: the remaining life of
+/// the lease the authority currently reports, clamped to
+/// `LEASE_WAIT_MIN_PAUSE..=LEASE_WAIT_STEP`.
+///
+/// The remaining life is read from a fresh snapshot rather than guessed from a
+/// TTL, because the authority's clock, not this host's, decides when a lease is
+/// gone; `active_lease` is already filtered to unexpired leases, so the
+/// subtraction cannot underflow for a lease it reports. A snapshot that cannot
+/// be read gets the full step, and one that reports no lease at all -- it
+/// lapsed or was released since the refused acquire -- gets the floor: the next
+/// attempt is what decides, and the floor keeps an authority that flaps from
+/// being polled at full speed.
+fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
+    let remaining = match authority_snapshot(authority) {
+        Ok(snapshot) => snapshot.active_lease().map_or(Duration::ZERO, |active| {
+            Duration::from_millis(
+                active
+                    .expires_at_millis()
+                    .saturating_sub(snapshot.clock_floor_millis()),
+            )
+        }),
+        Err(_) => LEASE_WAIT_STEP,
+    };
+    remaining.clamp(LEASE_WAIT_MIN_PAUSE, LEASE_WAIT_STEP)
+}
+
 /// Re-authorize key use behind the exclusive lease before every guarded operation.
 ///
 /// Every guarded operation renews against the authority's trusted clock, so a
-/// fenced, expired, or superseded instance is rejected before it can touch a
-/// pending or accepted secret, and this instance erases all of them first.
+/// fenced or superseded instance is rejected before it can touch a pending or
+/// accepted secret, and it erases every secret before the rejection returns.
+///
+/// A lease that merely lapsed -- nobody else holds it -- is handled in one of
+/// two ways depending on where the lapse is first seen. If the renew itself is
+/// rejected as expired, `recover_expired_lease` re-acquires at this instance's
+/// own generation in the same call: every secret is erased, and the operation
+/// then proceeds. If the renew applied but the coverage snapshot that follows
+/// reports the lease gone at this instance's generation, the operation is
+/// aborted with [`AgentError::InstanceLeaseCoverageElapsed`] and nothing is
+/// erased; the next guarded operation's renew is what performs that re-acquire.
 ///
 /// A successful renew also records how long the lease is provably still held,
 /// which the operation re-checks before it retains anything. The renew alone
@@ -1857,13 +2299,20 @@ fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
         return Err(AgentError::InstanceFenced);
     };
     drain_acknowledgements(&inner.authority, &mut inner.lease);
+    drain_unresolved(&inner.authority, &mut inner.lease);
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let intent = lease_intent(
             &inner.lease,
             inner.authority.wire_config(),
             AuthorityMutationV2::RenewLease { fence },
         )?;
-        match lease_exchange(&inner.authority, &mut inner.lease, LeaseCall::Renew, intent)? {
+        match lease_exchange(
+            &inner.repository,
+            &inner.authority,
+            &mut inner.lease,
+            LeaseCall::Renew,
+            intent,
+        )? {
             LeaseExchange::Receipt(receipt) => {
                 drain_acknowledgements(&inner.authority, &mut inner.lease);
                 return match receipt.disposition() {
@@ -1950,6 +2399,7 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
         },
     )?;
     let outcome = lease_exchange(
+        &inner.repository,
         &inner.authority,
         &mut inner.lease,
         LeaseCall::Acquire,
@@ -1995,6 +2445,21 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 /// TTL for it. `HARD_MIN_LEASE_TTL_MILLIS` in particular would discard almost
 /// all of a long configured lease and turn this check into key destruction on a
 /// perfectly healthy lease.
+///
+/// A snapshot that reports **no** active lease is not, by itself, evidence of a
+/// successor. The renew that preceded this call applied against the authority's
+/// clock, and the lease can lapse between that renew and this snapshot -- an
+/// authority clock jump, or simply the round trip taking longer than the lease
+/// had left. Fencing on that alone was permanent and unrecoverable, with nobody
+/// else ever having held the lease. So the lapse is told apart from a takeover
+/// by the same proof `recover_expired_lease` relies on: the authority's
+/// `lease_generation` advances on acquire alone, so while it still equals our
+/// fence's generation no other instance has acquired since we did, and the
+/// lease merely lapsed. That is a coverage lapse -- transient, and recovered by
+/// the next guarded operation's renew, which the authority will reject as
+/// expired and `recover_expired_lease` will re-acquire. Only an active lease
+/// under a different fence, or a generation that has moved past ours, proves a
+/// successor and fences.
 fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     fence: InstanceFenceV2,
@@ -2002,10 +2467,31 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
     let anchor = Instant::now();
     let snapshot = authority_snapshot(&inner.authority)?;
     let Some(active) = snapshot.active_lease() else {
-        // The authority reports no unexpired lease at all, so this instance is
-        // not the holder and cannot become one without a fresh acquire.
-        fence_out(inner)?;
-        return Err(AgentError::InstanceFenced);
+        return match snapshot.lease_generation().cmp(&fence.generation()) {
+            // Nobody has acquired since we did: the lease lapsed, and no
+            // successor exists. Not a fence. The error aborts the operation
+            // before anything is retained, and the previous operation's proof
+            // is cleared so the field never claims coverage this snapshot just
+            // contradicted.
+            core::cmp::Ordering::Equal => {
+                inner.lease.covered_until = None;
+                Err(AgentError::InstanceLeaseCoverageElapsed)
+            }
+            // A later acquire happened -- even one that has since released or
+            // expired -- so another instance held key-use authority after us.
+            core::cmp::Ordering::Greater => {
+                fence_out(inner)?;
+                Err(AgentError::InstanceFenced)
+            }
+            // The authority's generation is *behind* the one it issued us. It
+            // has been rolled back beneath a lease it already granted, which
+            // means it could grant our generation again to someone else. That
+            // lease can no longer be trusted; fail closed.
+            core::cmp::Ordering::Less => {
+                fence_out(inner)?;
+                Err(AgentError::InstanceFenced)
+            }
+        };
     };
     if active.fence() != fence {
         fence_out(inner)?;
@@ -2022,9 +2508,18 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
 /// Refuse to retain or return a secret once the proven coverage has elapsed.
 ///
 /// The lease is checked on the way in, but the work that follows is not
-/// instantaneous: a witness round trip, two signature verifications, and a KEM
-/// operation all sit between that check and the point where a secret first
-/// becomes retained. This is that point.
+/// instantaneous: a witness round trip, two signature verifications, a KEM
+/// operation, and finally a durable reservation or release -- a real fsync --
+/// all sit between that check and the point where a secret first becomes
+/// retained.
+///
+/// It is therefore consulted twice. Once before the durable write, as an
+/// early-out that avoids paying for an fsync the operation is about to
+/// discard. And once more *after* it, immediately before the in-memory
+/// insert that makes the secret reachable (`reserve_pending`,
+/// `retain_accepted_key`). The second check is the guarantee; the first is an
+/// optimisation. What remains between the second check and retention is a
+/// hash-map insert, not I/O.
 ///
 /// It deliberately does not fence. A local deadline running out is no evidence
 /// that any successor exists, and fencing is permanent.

@@ -16,8 +16,22 @@ execution fallback.
 
 The local repository uses pinned `redb` 2.6.3 transactions with immediate
 durability and two-phase commit. `redb` is pure Rust, ACID, crash-recoverable,
-MSRV 1.85, and licensed `MIT OR Apache-2.0`. It is deliberately not treated as a
-rollback anchor: restoring the whole database file restores all of its history.
+MSRV 1.85, and licensed `MIT OR Apache-2.0`. After an unclean shutdown all
+three stores -- repository, witness, and authority -- let `redb` finish its
+crash recovery on open. A normal stop is not one of those: `serve-agent` and
+`serve-witness` install `SIGTERM` and `SIGINT` handlers whose only action is
+to set a flag, the serving loop reads it within one maintenance interval and
+returns, and the store then closes cleanly through its destructor. Recovery
+still runs after a crash, a `SIGKILL`, or a stop that outran the service
+manager's stop timeout, and after any restart of the authority store, whose
+hosting process decides when its own flag is set. Because every commit is two-phase,
+that recovery only reconstructs the free-page allocator from the committed
+tree: `redb` refuses a corrupted two-phase primary outright rather than falling
+back to an older commit, so committed data is never altered by it. A store
+left unclean by a writer that did not commit two-phase is refused untouched
+before `redb` sees it. `redb` is deliberately not
+treated as a rollback anchor: restoring the whole database file restores all of
+its history.
 Every open, transition, and key release therefore requires an authenticated
 external `WitnessPort`. There is no local-only fallback.
 
@@ -127,10 +141,12 @@ manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
 holds the hardened systemd unit (dedicated locked account, read-only OS
 view, seccomp `@system-service` filter, empty capability set, no core
 dumps) and the launchd daemon template (dedicated uid, owner-only umask,
-no core dumps), together with the exact table of which boundary each layer
-enforces and the explicit non-claims. A deployment that starts the binary
-outside those templates gets only the daemon's own filesystem-capability
-and cryptographic boundaries.
+no core dumps) with the boot-time job that verifies the socket's `0710`
+parent directory and the root-owned ancestry above it on macOS and loads the
+agent only after that, together with the exact table of which boundary each
+layer enforces and the explicit non-claims. A deployment that starts the
+binary outside those templates gets only the daemon's own
+filesystem-capability and cryptographic boundaries.
 
 IPC is a hard V2 cut: request, response, and request-digest domains all end in
 `/v2`, schema 2 has distinct `AcceptInitiatorFinished` and
@@ -156,7 +172,11 @@ q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRE
 to. The daemon compares it against the descriptor's own bound address and
 refuses to serve on a mismatch; it never binds the path itself. Its directory
 must live in a stable, trusted namespace, so that an untrusted UID cannot rename
-an ancestor and substitute a different client-visible pathname.
+an ancestor and substitute a different client-visible pathname: the shipped
+templates use `/run/qperiapt-agent` on Linux and
+`/opt/qperiapt/run/qperiapt-agent` on macOS, where `/private/var/run` fails
+this test — it is `root:daemon 0775` without the sticky bit, so any gid-1
+process can rename an entry there.
 
 Every address argument -- `WITNESS_ADDRESS`, `AUTHORITY_ADDRESS`, and
 `serve-witness`'s `LISTEN_ADDRESS` -- is a numeric `IP:port`. They are parsed as
@@ -193,8 +213,55 @@ request/response keys plus the pinned wire identity (client and server
 identifiers, authority epoch, exact expected state head, and deployment
 configuration revision as fixed-length big-endian binary files). Secret-key
 files are read directly into zeroizing buffers. `serve-agent` acquires the
-exclusive instance lease at startup and fails closed while another unexpired
-instance holds it.
+exclusive instance lease at startup: it waits for a crashed predecessor's
+lease to lapse and fails closed only while a holder that is still renewing
+has it.
+
+Every lease mutation the agent sends -- the acquire at start, the renew before
+each guarded operation, the re-acquire after a lapse, and the release -- is
+journaled in the agent's own store before it is dispatched, and the row is
+forgotten once the authority's receipt for it has been acknowledged. That
+acknowledgement is the only thing that prunes the authority's bounded receipt
+table, and it used to be owed from memory alone: a crash with one queued lost
+it for good. On every start the agent settles the journal before it acquires:
+a receipt the authority still holds is acknowledged and its row forgotten; a
+row for an operation the authority never saw is forgotten; a row the authority
+cannot answer for is kept and asked about again before each guarded operation.
+Settled rows are forgotten by the next journal write, so the steady-state cost
+is one durable transaction per lease operation, and a clean release leaves the
+journal empty. The journal holds at most 64 rows, matching the in-memory
+acknowledgement queue; reaching that takes the authority refusing 64
+consecutive acknowledgements, 64 consecutive lease operations that failed or
+stayed indeterminate at dispatch against an authority that could not then be
+queried, or as many starts against an authority that cannot answer. A full
+journal refuses the next lease operation with
+`InstanceLeaseUnavailable` before anything is dispatched, and a start that
+cannot settle any of 64 rows fails closed the same way, until the authority
+answers again. A store provisioned before the journal existed opens without
+the table; the first journal write creates it.
+
+Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
+from the service manager, or `SIGINT` by hand -- is observed by the serving
+loop within one maintenance interval; the daemon erases every in-process
+secret, releases the lease, and exits 0, so the next start acquires at once. A
+crash never releases the lease, and the authority lets it lapse only at its TTL
+(10 seconds to 5 minutes, as configured on the authority). A start inside that
+window waits for the lapse: it retries the same fail-closed acquire after the
+shorter of the lease's remaining life, as a fresh authority snapshot reports
+it, and one second -- never sooner than 10 ms after the last attempt, and
+after the full second when the snapshot itself cannot be read -- which the
+authority refuses while any lease is active, and gives up with
+`InstanceFenced` once the longest TTL the authority can grant plus a
+five-second margin has passed -- which is what a genuinely live holder that
+keeps renewing produces, so a duplicate deployment or a recovery clone is still
+refused. The handlers are installed only once the lease is held: a stop that
+arrives during the wait ends the process by the default disposition, holding
+no lease; one that lands in the few seconds between the acquire and the
+handler install ends the process without a release, and the next start waits
+that lease out. The daemon writes only a one-line reason to stderr when it
+exits with an error -- a refused start or a fatal serving failure -- and
+nothing on a stop; the exit status and the authority's own state are the only
+record of a stop, a wait, or a refused start.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:
@@ -208,6 +275,7 @@ state:
 | Runtime session TTL | 5 minutes by default; hard maximum 24 hours |
 | Durable session reservations | 1024 |
 | Durable capability replay tombstones | 4096 per committed state |
+| Durable lease-intent journal (authority receipts awaiting acknowledgement) | 64 |
 | Canonical migration history / generation | 4096 |
 | Witness operation receipts | 4096 |
 | IPC replay nonces | 4096 within a 10-minute window |

@@ -6,7 +6,7 @@ never edits ``artifact/results.json``.  A successful finalize operation emits a
 private, no-replace ``target/source-results-successors/transaction.*/results.json``
 candidate for an explicit results-only commit.
 
-The finalize command is deliberately a one-time 190-to-237 proof-input
+The finalize command is deliberately a one-time 190-to-247 proof-input
 migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
@@ -189,15 +189,25 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
         "migration_agent_authority_protocol_sha256",
         "migration_agent_authority_store_sha256",
         "migration_agent_authority_transport_sha256",
+        "migration_agent_activation_sha256",
+        "migration_agent_activation_handoff_sha256",
+        "migration_agent_authority_store_tests_sha256",
+        "migration_agent_signals_sha256",
+        "migration_agent_tests_durable_store_sha256",
+        "migration_agent_tests_ipc_sha256",
+        "migration_agent_tests_lease_sha256",
+        "migration_agent_tests_session_sha256",
+        "migration_agent_tests_transition_sha256",
+        "migration_agent_tests_witness_protocol_sha256",
     }
 )
 
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
-# installed 237-key successors are intentionally not constrained by this value.
+# installed 247-key successors are intentionally not constrained by this value.
 # The 0.1.4 opening repinned this authority for the first time: 0.1.3 is the
 # first line that published for real, so its committed verified manifest —
-# with the 47 declared-missing proof-input keys deleted — is the new frozen
+# with the 57 declared-missing proof-input keys deleted — is the new frozen
 # baseline floor carrying the five historical publication receipts and the
 # activated apple_v0_1_3 selector. Superseded predecessors remain valid only in
 # their own line history: the alpha.2-era baseline
@@ -553,9 +563,9 @@ def source_ci_gate(
         )
         authority = capture_proof_input_digests(REPOSITORY_ROOT)
         _require(
-            len(authority) == 237
+            len(authority) == 247
             and set(authority) == current_keys
-            and len(current_keys - baseline_keys) == 47,
+            and len(current_keys - baseline_keys) == 57,
             "source transition proof-input authority differs",
         )
         _require(
@@ -2146,7 +2156,7 @@ def _build_reopen_candidate(
 ) -> dict[str, Any]:
     """Pure reverse transform: a fully installed manifest -> an initial baseline.
 
-    Requires a 237-key installed input; returns a 190-key/five-leaf initial
+    Requires a 247-key installed input; returns a 190-key/five-leaf initial
     candidate. The source identity (proof_source_tree_sha256 / snapshot_commit)
     is carried over UNCHANGED from the installed manifest: it names the frozen
     stable source S the line descends from -- a reachable, tree-consistent
@@ -2166,7 +2176,7 @@ def _build_reopen_candidate(
     )
     _require(
         set(installed_inputs) == canonical_keys,
-        "reopen requires a fully installed 237-key results baseline",
+        "reopen requires a fully installed 247-key results baseline",
     )
     _require(
         set(current_digests) == canonical_keys,
@@ -2185,7 +2195,7 @@ def _build_reopen_candidate(
 
     candidate = copy.deepcopy(installed)
 
-    # 1) proof_to_byte_inputs 237 -> 190, faithfully from the current tree.
+    # 1) proof_to_byte_inputs 247 -> 190, faithfully from the current tree.
     candidate["proof_to_byte_inputs"] = {
         key: current_digests[key]
         for key in current_digests
@@ -2229,14 +2239,14 @@ def reopen_source_results(
 
     This is the reverse of ``finalize`` and the reviewed replacement for its
     retired one-time forward migration: it returns a frozen, fully installed
-    237-key results manifest to the 190-key source-transition-ready baseline for
+    247-key results manifest to the 190-key source-transition-ready baseline for
     the CURRENT source tree, reopening development for the next line. It needs no
     producer evidence because the initial baseline is validated without
     ``validate_declared_currentness`` -- the carried-over declared sections are
     never re-checked in initial mode.
 
     Exactly two things change relative to the installed manifest:
-      * ``proof_to_byte_inputs`` 237 -> 190 (drop the 47
+      * ``proof_to_byte_inputs`` 247 -> 190 (drop the 57
         INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, recomputed from the current
         tree so the retained 190 are faithful to it);
       * ``release_publications`` reduced to exactly the five frozen historical
@@ -2300,13 +2310,13 @@ def run(args: argparse.Namespace) -> None:
             print(
                 "SOURCE_TRANSITION_READINESS_PASS mode=initial "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=237 declared_delta=47"
+                "proof_inputs=247 declared_delta=57"
             )
         else:
             print(
                 "SOURCE_CI_GATE_MODE mode=installed "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=237"
+                "proof_inputs=247"
             )
         return
     if args.command == "verify-installed":

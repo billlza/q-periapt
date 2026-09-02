@@ -28,6 +28,7 @@ use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError}
 use crate::authority::{
     AuthorityEpochV2, DeploymentConfigRevisionV2, StateFenceV2, StateHeadV2, StateRevisionV2,
 };
+use crate::authority_codec::HARD_MAX_LEASE_TTL_MILLIS;
 use crate::authority_protocol::{
     AuthorityClientIdV2, AuthorityServerIdV2, AuthorityWireIdentityV2,
 };
@@ -44,6 +45,7 @@ use crate::service::{
     BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
     PendingSessionHandle, PolicyAgent, SessionAuthorization, SignedPolicyBundle,
 };
+use crate::signals::install_termination_handlers;
 use crate::witness::{AuthenticatedTcpWitness, ReferenceWitnessServer};
 
 const IPC_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2";
@@ -61,6 +63,16 @@ const MAX_POLICY_BYTES: usize = q_periapt_ffi_abi2::Q_PERIAPT_MAX_SIGNED_POLICY_
 /// templates must use this exact value: systemd `FileDescriptorName=` and the
 /// launchd `Sockets` dictionary key.
 const IPC_ACTIVATION_NAME: &str = "agent";
+/// Margin added to the longest lease TTL the authority can grant, giving how
+/// long `serve-agent` waits at startup for a predecessor's lease to lapse. The
+/// TTL bounds how long a lease left behind by a killed process outlives it;
+/// the margin covers the wait's own pauses and the authority's clock
+/// granularity.
+const STARTUP_LEASE_WAIT_MARGIN_MILLIS: u64 = 5_000;
+/// How long `serve-agent` waits for a predecessor's lease to lapse before it
+/// gives up fenced. See `PolicyAgent::new_with_lease_wait`.
+const STARTUP_LEASE_WAIT: Duration =
+    Duration::from_millis(HARD_MAX_LEASE_TTL_MILLIS + STARTUP_LEASE_WAIT_MARGIN_MILLIS);
 
 /// IPC configuration, authentication, framing, or fatal service failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -398,9 +410,13 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// Serve one request per accepted connection with bounded sequential
     /// resources, until `shutdown` is set.
     ///
-    /// The daemon never sets the flag; it exists so the loop is reachable from a
-    /// test, matching the witness and authority servers. It is read once per
-    /// accept wait, so a shutdown is observed within one maintenance interval.
+    /// `serve_agent` points `shutdown` at the flag the termination handlers
+    /// set, so in production the service manager's stop is what sets it; a
+    /// test sets it directly. It is read once per accept wait, so a shutdown is
+    /// observed within one maintenance interval, and sooner when the signal
+    /// interrupts the wait itself (`wait_for_connection` reports that `EINTR`
+    /// as an idle pass). Returning is the whole response: the caller releases
+    /// the lease and lets every store close through its destructor.
     fn serve(&mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
         // Wait in `poll` rather than in `accept`, for two reasons. A daemon
         // nobody is talking to still has to run its session TTL sweep, and only
@@ -519,6 +535,29 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
     }
 
+    /// Run the serving loop, then hand the instance lease back.
+    ///
+    /// This is what `serve_agent` runs. The release is attempted on every
+    /// exit, the orderly stop and a fatal listener error alike, and it is what
+    /// lets the next process acquire at once instead of waiting out the lease
+    /// TTL; it also erases every in-process secret first. It is best effort:
+    /// if the authority cannot be reached the lease simply lapses at its TTL,
+    /// exactly as it would after a crash, and a poisoned agent refuses the
+    /// release outright (`release_instance_lease` checks liveness first), so
+    /// after a fatal agent error the lease lapses the same way. The serving
+    /// outcome -- not the release's -- is what this returns, so a stop still
+    /// exits 0 and a fatal serving error still propagates.
+    fn serve_and_release(
+        &mut self,
+        listener: UnixListener,
+        shutdown: &AtomicBool,
+    ) -> Result<(), IpcError> {
+        let outcome = self.serve(listener, shutdown);
+        // Best effort by design; see above.
+        let _ = self.agent.release_instance_lease();
+        outcome
+    }
+
     /// Run the serving loop against a caller-supplied listener.
     ///
     /// The module is already `cfg(unix)`, so `cfg(test)` is enough here.
@@ -529,6 +568,17 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
         self.serve(listener, shutdown)
+    }
+
+    /// Run the serving loop and the release that follows it, exactly as
+    /// `serve_agent` does.
+    #[cfg(test)]
+    pub(crate) fn serve_and_release_for_test(
+        &mut self,
+        listener: UnixListener,
+        shutdown: &AtomicBool,
+    ) -> Result<(), IpcError> {
+        self.serve_and_release(listener, shutdown)
     }
 
     #[cfg(test)]
@@ -847,19 +897,41 @@ fn serve_agent(
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let config = load_agent_config(&configuration)?;
-    let agent = PolicyAgent::new(repository, witness, authority, config)
-        .map_err(|_| IpcError::InvalidConfiguration)?;
-    let server = UnixIpcServer::new(
+    // A predecessor that was killed rather than stopped never released its
+    // lease, and the authority lets that lease lapse only at the TTL it
+    // granted. Wait that out rather than failing: with `Restart=no` a failure
+    // here leaves the service down until an operator restarts it, when the
+    // whole point of socket activation is that the next connection brings it
+    // back. The bound is the longest lease the authority can grant plus a
+    // margin, so a holder that is genuinely alive -- which keeps renewing --
+    // still fences this process, exactly as a fail-fast start would.
+    let agent = PolicyAgent::new_with_lease_wait(
+        repository,
+        witness,
+        authority,
+        config,
+        STARTUP_LEASE_WAIT,
+    )
+    .map_err(|_| IpcError::InvalidConfiguration)?;
+    let mut server = UnixIpcServer::new(
         agent,
         read_array(&configuration, "ipc-client-vk.bin")?,
         read_secret(&configuration, "ipc-server-sk.bin")?,
         read_array(&configuration, "ipc-server-vk.bin")?,
         IPC_IO_TIMEOUT,
     )?;
-    // The daemon runs until the service manager stops it; nothing sets this.
-    let shutdown = AtomicBool::new(false);
-    let mut server = server;
-    server.serve(listener, &shutdown)
+    // Only now is there something to release, so only now are the handlers
+    // installed. A stop that arrives earlier -- during the lease wait above in
+    // particular, which can last minutes -- keeps the default disposition and
+    // ends the process at once, holding no lease. Latching it instead would
+    // have the daemon sit out the whole wait and only then exit, which is
+    // longer than the service manager's stop timeout. One that lands between
+    // the acquire above and this install ends the process holding the lease
+    // with no release, and the next start waits that lease out. From here on
+    // the orderly stop and a fatal listener error alike attempt the release;
+    // a poisoned agent refuses it, and the lease lapses at its TTL instead.
+    let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
+    server.serve_and_release(listener, shutdown)
 }
 
 fn serve_witness(
@@ -878,9 +950,12 @@ fn serve_witness(
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let listener = TcpListener::bind(listen).map_err(|_| IpcError::Unavailable)?;
-    let shutdown = AtomicBool::new(false);
+    // The witness holds no lease. Observing the stop is what lets its store
+    // close through its destructor instead of being cut off and recovered at
+    // the next open.
+    let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
     server
-        .serve(listener, &shutdown)
+        .serve(listener, shutdown)
         .map_err(|_| IpcError::Unavailable)
 }
 
@@ -1101,6 +1176,45 @@ mod tests {
         std::fs::read_to_string(&path).expect("a shipped deployment template must be readable")
     }
 
+    /// The unquoted value of `NAME=value` in a shell script's parameter block.
+    fn shell_parameter<'a>(script: &'a str, name: &str) -> &'a str {
+        script
+            .lines()
+            .find_map(|line| line.strip_prefix(name)?.strip_prefix('='))
+            .map(|value| value.trim().trim_matches('"'))
+            .unwrap_or_else(|| unreachable!("the run-directory script must set {name}"))
+    }
+
+    /// The line after `<key>KEY</key>` in a plist, trimmed.
+    fn plist_value<'a>(plist: &'a str, key: &str) -> &'a str {
+        let key = format!("<key>{key}</key>");
+        let mut lines = plist.lines().map(str::trim);
+        lines
+            .find(|line| *line == key.as_str())
+            .and_then(|_| lines.next())
+            .unwrap_or_else(|| unreachable!("the plist must set {key}"))
+    }
+
+    /// The `<string>` value under `<key>KEY</key>` in a plist.
+    fn plist_string<'a>(plist: &'a str, key: &str) -> &'a str {
+        plist_value(plist, key)
+            .trim_start_matches("<string>")
+            .trim_end_matches("</string>")
+    }
+
+    /// The `<string>` values of a plist's `ProgramArguments` array, in order.
+    fn plist_program_arguments(plist: &str) -> Vec<&str> {
+        let mut lines = plist.lines().map(str::trim);
+        lines
+            .find(|line| *line == "<key>ProgramArguments</key>")
+            .unwrap_or_else(|| unreachable!("the plist must set ProgramArguments"));
+        assert_eq!(lines.next(), Some("<array>"));
+        lines
+            .take_while(|line| *line != "</array>")
+            .filter_map(|line| line.strip_prefix("<string>")?.strip_suffix("</string>"))
+            .collect()
+    }
+
     /// The shipped templates encode contracts this code enforces, and nothing
     /// else checked them. Two defects reached this branch that way: endpoints
     /// written as DNS names, which `parse_socket_address` cannot accept, and an
@@ -1217,6 +1331,164 @@ mod tests {
         assert!(
             entry.contains("0710"),
             "the socket's parent must be 0710 so only the transport group can traverse: {entry}"
+        );
+
+        // launchd creates the SockPathName node but never its parent. The
+        // shipped RunAtLoad job verifies that parent and is the only thing
+        // that loads the agent, so the script, its plist and the agent plist
+        // have to agree on the directory, the mode, the script path and the
+        // label -- and on the ordering the whole arrangement exists for.
+        let script = deploy_file("qperiapt-agent-rundir.sh");
+        let rundir = deploy_file("com.qperiapt.policy-agent-rundir.plist");
+        let plist_parent = plist_socket
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .expect("the plist socket path must have a parent directory");
+        let run_dir = shell_parameter(&script, "RUN_DIR");
+        assert_eq!(
+            run_dir, plist_parent,
+            "the run-directory script must own the parent of the plist's SockPathName"
+        );
+
+        // On macOS /private/var/run is root:daemon 0775 with no sticky bit, and
+        // rename(2) in a writable directory needs no ownership of the entry: a
+        // gid-1 process could rename the verified directory away and put its
+        // own, or a symlink, at the path, and launchd would bind inside it. So
+        // the directory has to sit where only root can rename it, and the
+        // script has to refuse any ancestor that is not a root-owned real
+        // directory group and other cannot write -- before it creates or
+        // adopts anything below.
+        for (name, path) in [
+            ("RUN_DIR", run_dir),
+            ("SockPathName's parent", plist_parent),
+        ] {
+            assert!(
+                !path.starts_with("/private/var/run/") && !path.starts_with("/var/run/"),
+                "{name} {path} sits under /var/run, where a gid-1 process can rename it away"
+            );
+        }
+        let ancestors_verified = script
+            .find("verify_ancestor \"$ancestor\"")
+            .expect("the script must verify every ancestor of RUN_DIR");
+        assert!(
+            script.contains("Directory:root:[0-7][0-7][0145][0145])"),
+            "the ancestor check must accept only a root-owned directory without group or other write"
+        );
+        let inspected = script
+            .find("if [ -L \"$RUN_DIR\" ]")
+            .expect("the script must refuse a symlink at RUN_DIR");
+        assert!(
+            ancestors_verified < inspected,
+            "the script must verify the ancestors before it so much as looks at RUN_DIR"
+        );
+        assert_eq!(
+            shell_parameter(&script, "RUN_DIR_MODE"),
+            "0710",
+            "the run directory must be 0710 so only the transport group can traverse"
+        );
+        assert_eq!(
+            shell_parameter(&script, "RUN_DIR_OWNER"),
+            plist_string(&plist, "UserName"),
+            "the run directory's owner must be the account the agent plist runs the daemon as"
+        );
+
+        let label = plist_string(&plist, "Label");
+        assert_eq!(label, "com.qperiapt.policy-agent");
+        assert_eq!(
+            shell_parameter(&script, "AGENT_LABEL"),
+            label,
+            "the script must bootstrap the agent plist's label"
+        );
+        let agent_plist = shell_parameter(&script, "AGENT_PLIST");
+        assert_eq!(
+            agent_plist.rsplit_once('/').map(|(_, name)| name),
+            Some("com.qperiapt.policy-agent.plist"),
+            "the script must bootstrap the shipped agent plist"
+        );
+        // launchd loads everything under /Library/LaunchDaemons at boot with no
+        // ordering among RunAtLoad jobs, which is the whole reason the agent is
+        // loaded by the script rather than by launchd's scan.
+        assert!(
+            !agent_plist.starts_with("/Library/LaunchDaemons/")
+                && !agent_plist.starts_with("/System/Library/LaunchDaemons/"),
+            "the agent plist must live where launchd does not scan at boot: {agent_plist}"
+        );
+        let verified = script
+            .find("\nverified=1\n")
+            .expect("the script must record that the directory verified");
+        let bootstrapped = script
+            .find("launchctl bootstrap system \"$AGENT_PLIST\"")
+            .expect("the script must bootstrap the agent plist");
+        assert!(
+            verified < bootstrapped,
+            "the script must bootstrap the agent only after the directory verified"
+        );
+
+        // The job that runs the script must run the shipped script through
+        // /bin/sh (it is installed 0644, with no execute bit), at boot, once,
+        // as root, and the script's install instructions must name the path
+        // the job runs it from.
+        assert_eq!(
+            plist_string(&rundir, "Label"),
+            "com.qperiapt.policy-agent-rundir"
+        );
+        let arguments = plist_program_arguments(&rundir);
+        assert_eq!(
+            arguments.first().copied(),
+            Some("/bin/sh"),
+            "the run-directory job must run the script through /bin/sh"
+        );
+        let script_path = arguments
+            .get(1)
+            .copied()
+            .unwrap_or_else(|| unreachable!("the run-directory plist must run the shipped script"));
+        assert_eq!(
+            script_path.rsplit_once('/').map(|(_, name)| name),
+            Some("qperiapt-agent-rundir.sh"),
+            "the run-directory job must run the shipped script: {script_path}"
+        );
+        assert_eq!(
+            arguments.len(),
+            2,
+            "the run-directory job runs the script and nothing else: {arguments:?}"
+        );
+        assert!(
+            script.contains(script_path),
+            "the script must document the path the plist runs it from ({script_path})"
+        );
+        assert_eq!(
+            plist_value(&rundir, "RunAtLoad"),
+            "<true/>",
+            "the run-directory job must run at boot"
+        );
+        assert_eq!(
+            plist_value(&rundir, "KeepAlive"),
+            "<false/>",
+            "the run-directory job runs once per boot and is not restarted"
+        );
+        assert!(
+            !rundir.contains("<key>UserName</key>"),
+            "the run-directory job must run as root: chown and launchctl bootstrap system require it"
+        );
+        assert!(
+            script.contains("system/com.qperiapt.policy-agent-rundir"),
+            "the script's re-run instructions must name the job's own label"
+        );
+
+        // launchd's default ExitTimeOut is 20 seconds. A stop is observed
+        // within one maintenance interval, and the lease release that follows
+        // is up to four bounded authority round trips -- drain, release, and
+        // two reconciling queries -- so against an authority that accepts the
+        // connection and never answers the default is exactly where the
+        // daemon would be killed mid-release.
+        assert_eq!(
+            plist_value(&plist, "ExitTimeOut"),
+            "<integer>60</integer>",
+            "the agent plist must give the lease release longer than launchd's 20-second default"
+        );
+        assert!(
+            Duration::from_secs(60) > MAINTENANCE_INTERVAL + 4 * AUTHORITY_IO_TIMEOUT,
+            "ExitTimeOut must cover observing the stop plus four authority round trips"
         );
     }
 

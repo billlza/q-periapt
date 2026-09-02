@@ -685,18 +685,27 @@ fn snapshot_is_wire_safe(snapshot: AuthoritySnapshotV2) -> bool {
         && snapshot.active_key_count() == 0
 }
 
-/// One wire lease receipt whose caller asserts prior durable local retention.
+/// One wire lease receipt whose caller asserts a durable record of the operation.
 ///
 /// Acknowledgement lets the authority server prune its bounded retained-receipt
 /// table. The wrapper cannot observe the caller's storage; constructing it is the
-/// caller's explicit statement that the exact receipt bytes were already committed
-/// with the caller's own durability, so a later crash cannot lose the operation
-/// outcome that the server is now allowed to forget.
+/// caller's explicit statement that it has already committed, with its own
+/// durability, whatever it needs to settle this operation without the server's
+/// copy, so a later crash cannot lose an outcome the server is now allowed to
+/// forget.
+///
+/// For the policy agent that record is the operation id, journaled in its
+/// repository before the intent is dispatched (`StateRepository::journal_lease_intent`),
+/// not the receipt bytes: a successor process queries every journaled id,
+/// acknowledges the receipt it finds still retained, and forgets the row. The
+/// server therefore keeps a receipt exactly until it is acknowledged, and an
+/// acknowledgement lost with the process is repeated at the next start.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DurablyRetainedAuthorityReceiptV2(AuthorityReceiptV2);
 
 impl DurablyRetainedAuthorityReceiptV2 {
-    /// Wrap one acknowledgeable wire lease receipt after the caller's durable commit.
+    /// Wrap one acknowledgeable wire lease receipt whose operation the caller
+    /// has durably recorded.
     ///
     /// Non-lease or wire-unreachable receipts are rejected instead of being
     /// silently acknowledged.

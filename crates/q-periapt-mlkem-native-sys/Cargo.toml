@@ -35,6 +35,12 @@ include = [
 workspace = true
 
 [build-dependencies]
+# Held at exactly 1.2.67 by the publication contract, not by choice here:
+# artifact/rust-publish-contract.sh refuses to package this crate unless its
+# sole C build dependency is pinned to this version, and rust_publish_contract.py
+# records `sys_build_dependency=cc@1.2.67` as a proof input. Lifting the hold
+# means re-issuing that contract (and re-running the binary constant-time
+# evidence against the new compiler-driver behaviour), not editing this line.
 cc = "=1.2.67"
 
 [dev-dependencies]
