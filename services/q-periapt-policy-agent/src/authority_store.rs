@@ -131,6 +131,17 @@ impl fmt::Display for AuthorityStoreErrorV2 {
 
 impl std::error::Error for AuthorityStoreErrorV2 {}
 
+impl AuthorityStoreErrorV2 {
+    /// Whether a failure observed before commit must poison this instance once
+    /// the transaction is aborted. A bounded allocation failure is the one
+    /// error that leaves the store exactly as it was, so it is retried rather
+    /// than quarantined; every other pre-commit failure means the in-memory
+    /// image can no longer be trusted.
+    const fn poisons_after_abort(self) -> bool {
+        !matches!(self, Self::AllocationFailed)
+    }
+}
+
 /// Single-writer normalized redb persistence for [`AuthorityStateV2`].
 ///
 /// The database is the sole truth. The normal path reconstructs and validates a temporary pure
@@ -146,21 +157,22 @@ pub struct AuthorityStoreV2 {
     authority_epoch: AuthorityEpochV2,
     poisoned: bool,
     #[cfg(test)]
-    next_reservation_fault: Option<ReservationPointV2>,
-    #[cfg(test)]
-    fail_before_next_commit: bool,
-    #[cfg(test)]
-    fail_after_next_commit: bool,
-    #[cfg(test)]
-    fail_next_export_allocation: bool,
-    #[cfg(test)]
-    fail_next_encode_allocation: bool,
-    #[cfg(test)]
-    fail_next_internal_invariant: bool,
-    #[cfg(test)]
+    faults: StoreFaults,
+}
+
+/// Test-only fault injection. Every point fires once and is then cleared, so a
+/// test arms exactly the failure it wants to observe and nothing else.
+#[cfg(test)]
+#[derive(Default)]
+struct StoreFaults {
+    next_reservation: Option<ReservationPointV2>,
+    before_next_commit: bool,
+    after_next_commit: bool,
+    next_export_allocation: bool,
+    next_encode_allocation: bool,
+    next_internal_invariant: bool,
     report_next_abort_failure: bool,
-    #[cfg(test)]
-    fail_next_persist_allocation_after_meta: bool,
+    next_persist_allocation_after_meta: bool,
 }
 
 impl fmt::Debug for AuthorityStoreV2 {
@@ -276,7 +288,7 @@ impl AuthorityStoreV2 {
         let next = match state.durable_image().map_err(map_restore) {
             Ok(next) => next,
             Err(error) => {
-                let poison_after_abort = error != AuthorityStoreErrorV2::AllocationFailed;
+                let poison_after_abort = error.poisons_after_abort();
                 return self.finish_aborted(transaction, error, poison_after_abort);
             }
         };
@@ -285,7 +297,7 @@ impl AuthorityStoreV2 {
             return Ok(outcome);
         }
         if let Err(error) = self.persist_or_poison(&transaction, &loaded.image, &next) {
-            let poison_after_abort = error != AuthorityStoreErrorV2::AllocationFailed;
+            let poison_after_abort = error.poisons_after_abort();
             return self.finish_aborted(transaction, error, poison_after_abort);
         }
         self.commit_or_poison(transaction)?;
@@ -343,7 +355,7 @@ impl AuthorityStoreV2 {
         let next = match self.export_state(&state) {
             Ok(next) => next,
             Err(error) => {
-                let poison_after_floor = error != AuthorityStoreErrorV2::AllocationFailed;
+                let poison_after_floor = error.poisons_after_abort();
                 return self.finish_precommit_failure(
                     transaction,
                     &loaded,
@@ -354,7 +366,7 @@ impl AuthorityStoreV2 {
             }
         };
         if let Err(error) = self.persist_diff_with_fault(&transaction, &loaded.image, &next) {
-            let poison_after_floor = error != AuthorityStoreErrorV2::AllocationFailed;
+            let poison_after_floor = error.poisons_after_abort();
             return self.finish_precommit_failure(
                 transaction,
                 &loaded,
@@ -383,13 +395,13 @@ impl AuthorityStoreV2 {
             Err(error) => return self.finish_aborted(transaction, error, false),
         };
         #[cfg(test)]
-        if let Some(point) = self.next_reservation_fault.take() {
+        if let Some(point) = self.faults.next_reservation.take() {
             state.fail_next_reservation_for_store_test(point);
         }
         let outcome = state.apply(clock, intent);
         #[cfg(test)]
-        let outcome = if self.fail_next_internal_invariant {
-            self.fail_next_internal_invariant = false;
+        let outcome = if self.faults.next_internal_invariant {
+            self.faults.next_internal_invariant = false;
             Err(AuthorityErrorV2::InternalInvariant)
         } else {
             outcome
@@ -407,7 +419,7 @@ impl AuthorityStoreV2 {
         let next = match self.export_state(&state) {
             Ok(next) => next,
             Err(error) => {
-                let poison_after_floor = error != AuthorityStoreErrorV2::AllocationFailed;
+                let poison_after_floor = error.poisons_after_abort();
                 return self.finish_precommit_failure(
                     transaction,
                     &loaded,
@@ -418,7 +430,7 @@ impl AuthorityStoreV2 {
             }
         };
         if let Err(error) = self.persist_diff_with_fault(&transaction, &loaded.image, &next) {
-            let poison_after_floor = error != AuthorityStoreErrorV2::AllocationFailed;
+            let poison_after_floor = error.poisons_after_abort();
             return self.finish_precommit_failure(
                 transaction,
                 &loaded,
@@ -478,21 +490,7 @@ impl AuthorityStoreV2 {
             authority_epoch,
             poisoned: false,
             #[cfg(test)]
-            next_reservation_fault: None,
-            #[cfg(test)]
-            fail_before_next_commit: false,
-            #[cfg(test)]
-            fail_after_next_commit: false,
-            #[cfg(test)]
-            fail_next_export_allocation: false,
-            #[cfg(test)]
-            fail_next_encode_allocation: false,
-            #[cfg(test)]
-            fail_next_internal_invariant: false,
-            #[cfg(test)]
-            report_next_abort_failure: false,
-            #[cfg(test)]
-            fail_next_persist_allocation_after_meta: false,
+            faults: StoreFaults::default(),
         })
     }
 
@@ -528,21 +526,7 @@ impl AuthorityStoreV2 {
             authority_epoch: loaded.epoch,
             poisoned: false,
             #[cfg(test)]
-            next_reservation_fault: None,
-            #[cfg(test)]
-            fail_before_next_commit: false,
-            #[cfg(test)]
-            fail_after_next_commit: false,
-            #[cfg(test)]
-            fail_next_export_allocation: false,
-            #[cfg(test)]
-            fail_next_encode_allocation: false,
-            #[cfg(test)]
-            fail_next_internal_invariant: false,
-            #[cfg(test)]
-            report_next_abort_failure: false,
-            #[cfg(test)]
-            fail_next_persist_allocation_after_meta: false,
+            faults: StoreFaults::default(),
         })
     }
 
@@ -616,16 +600,16 @@ impl AuthorityStoreV2 {
     ) -> Result<(), AuthorityStoreErrorV2> {
         #[cfg(test)]
         let inject_encode_allocation = {
-            let fail = self.fail_next_encode_allocation;
-            self.fail_next_encode_allocation = false;
+            let fail = self.faults.next_encode_allocation;
+            self.faults.next_encode_allocation = false;
             fail
         };
         #[cfg(not(test))]
         let inject_encode_allocation = false;
         #[cfg(test)]
         let inject_allocation_after_meta = {
-            let fail = self.fail_next_persist_allocation_after_meta;
-            self.fail_next_persist_allocation_after_meta = false;
+            let fail = self.faults.next_persist_allocation_after_meta;
+            self.faults.next_persist_allocation_after_meta = false;
             fail
         };
         #[cfg(not(test))]
@@ -644,8 +628,8 @@ impl AuthorityStoreV2 {
         state: &AuthorityStateV2,
     ) -> Result<AuthorityRestoreV2, AuthorityStoreErrorV2> {
         #[cfg(test)]
-        if self.fail_next_export_allocation {
-            self.fail_next_export_allocation = false;
+        if self.faults.next_export_allocation {
+            self.faults.next_export_allocation = false;
             return Err(AuthorityStoreErrorV2::AllocationFailed);
         }
         state.durable_image().map_err(map_restore)
@@ -687,8 +671,8 @@ impl AuthorityStoreV2 {
         let aborted = abort_transaction(transaction).is_ok();
         #[cfg(test)]
         let injected_failure = {
-            let fail = self.report_next_abort_failure;
-            self.report_next_abort_failure = false;
+            let fail = self.faults.report_next_abort_failure;
+            self.faults.report_next_abort_failure = false;
             fail
         };
         #[cfg(not(test))]
@@ -736,8 +720,8 @@ impl AuthorityStoreV2 {
     ) -> Result<(), AuthorityStoreErrorV2> {
         #[cfg(test)]
         let abort_before_commit = {
-            let fail = self.fail_before_next_commit;
-            self.fail_before_next_commit = false;
+            let fail = self.faults.before_next_commit;
+            self.faults.before_next_commit = false;
             fail
         };
         #[cfg(not(test))]
@@ -750,8 +734,8 @@ impl AuthorityStoreV2 {
         let committed = transaction.commit().is_ok();
         #[cfg(test)]
         let injected = {
-            let fail = self.fail_after_next_commit;
-            self.fail_after_next_commit = false;
+            let fail = self.faults.after_next_commit;
+            self.faults.after_next_commit = false;
             fail
         };
         #[cfg(not(test))]
@@ -773,42 +757,42 @@ impl AuthorityStoreV2 {
 
     #[cfg(test)]
     fn fail_next_reservation_for_test(&mut self, point: ReservationPointV2) {
-        self.next_reservation_fault = Some(point);
+        self.faults.next_reservation = Some(point);
     }
 
     #[cfg(test)]
     fn fail_before_next_commit_for_test(&mut self) {
-        self.fail_before_next_commit = true;
+        self.faults.before_next_commit = true;
     }
 
     #[cfg(test)]
     fn fail_after_next_commit_for_test(&mut self) {
-        self.fail_after_next_commit = true;
+        self.faults.after_next_commit = true;
     }
 
     #[cfg(test)]
     fn fail_next_export_allocation_for_test(&mut self) {
-        self.fail_next_export_allocation = true;
+        self.faults.next_export_allocation = true;
     }
 
     #[cfg(test)]
     fn fail_next_encode_allocation_for_test(&mut self) {
-        self.fail_next_encode_allocation = true;
+        self.faults.next_encode_allocation = true;
     }
 
     #[cfg(test)]
     fn fail_next_internal_invariant_for_test(&mut self) {
-        self.fail_next_internal_invariant = true;
+        self.faults.next_internal_invariant = true;
     }
 
     #[cfg(test)]
     fn report_next_abort_failure_for_test(&mut self) {
-        self.report_next_abort_failure = true;
+        self.faults.report_next_abort_failure = true;
     }
 
     #[cfg(test)]
     fn fail_next_persist_allocation_after_meta_for_test(&mut self) {
-        self.fail_next_persist_allocation_after_meta = true;
+        self.faults.next_persist_allocation_after_meta = true;
     }
 
     #[cfg(test)]
