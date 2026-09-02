@@ -44,6 +44,12 @@ const MAX_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 /// so the journal refuses a lease operation before this queue could overflow.
 const MAX_UNACKNOWLEDGED_LEASE_RECEIPTS: usize = 64;
 const LEASE_VERSION_RESYNC_ATTEMPTS: usize = 2;
+/// Longest pause between two acquire attempts while a predecessor's lease is
+/// waited out; see `acquire_instance_lease_within`.
+const LEASE_WAIT_STEP: Duration = Duration::from_secs(1);
+/// Shortest such pause, so an authority whose lease is about to lapse, or that
+/// reports none at all between two refused acquires, is not polled flat out.
+const LEASE_WAIT_MIN_PAUSE: Duration = Duration::from_millis(10);
 
 /// One exact signed policy document and its pinned ML-DSA-65 root.
 #[derive(Clone, Eq, PartialEq)]
@@ -626,13 +632,57 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// rows remain unresolved, construction fails closed with
     /// [`AgentError::InstanceLeaseUnavailable`] rather than dispatch an acquire
     /// it could not journal.
+    ///
+    /// It does not wait for that lease to lapse; [`Self::new_with_lease_wait`]
+    /// is the constructor for a daemon restarting after its predecessor was
+    /// killed.
     pub fn new(
-        mut repository: StateRepository,
+        repository: StateRepository,
         witness: W,
         authority: A,
         config: AgentConfig,
     ) -> Result<Self, AgentError> {
         let lease = acquire_instance_lease(&repository, &authority)?;
+        Self::with_lease(repository, witness, authority, config, lease)
+    }
+
+    /// Like [`Self::new`], but wait up to `max_wait` for a predecessor's lease
+    /// to lapse before giving up.
+    ///
+    /// A process that was killed rather than stopped never released its lease,
+    /// and the authority lets that lease lapse only at the TTL it granted.
+    /// Failing fast on it is right for a duplicate deployment or a recovery
+    /// clone, but wrong for the daemon's own restart, which would then stay
+    /// down until an operator noticed. So while the authority reports an
+    /// active lease held by another instance -- whether the pre-acquire
+    /// snapshot shows it or the acquire itself is rejected as held -- this
+    /// constructor pauses for the shorter of that lease's remaining life and
+    /// one second, then tries the same fail-closed acquire again, until
+    /// `max_wait` has elapsed; it then fails with
+    /// [`AgentError::InstanceFenced`] exactly as [`Self::new`] would have.
+    /// Exclusivity is never loosened: every attempt is the same acquire, which
+    /// the authority refuses while any lease is active, so a holder that keeps
+    /// renewing wins. Every other failure is returned at once.
+    pub fn new_with_lease_wait(
+        repository: StateRepository,
+        witness: W,
+        authority: A,
+        config: AgentConfig,
+        max_wait: Duration,
+    ) -> Result<Self, AgentError> {
+        let lease = acquire_instance_lease_within(&repository, &authority, max_wait)?;
+        Self::with_lease(repository, witness, authority, config, lease)
+    }
+
+    /// Finish construction once the lease is held: align local state with the
+    /// mandatory witness and authenticate the configured policy material.
+    fn with_lease(
+        mut repository: StateRepository,
+        witness: W,
+        authority: A,
+        config: AgentConfig,
+        lease: InstanceLeaseState,
+    ) -> Result<Self, AgentError> {
         align_repository(&mut repository, &witness)?;
         let committed = repository.committed_state();
         let engine = executor_for(&config.execution_policy, committed.state())?;
@@ -2156,6 +2206,62 @@ fn acquire_instance_lease<A: InstanceAuthorityPort>(
         }
     }
     Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+/// Acquire the instance lease, waiting up to `max_wait` for another holder's
+/// lease to lapse; see [`PolicyAgent::new_with_lease_wait`].
+///
+/// Only [`AgentError::InstanceFenced`] is retried, and from the acquire it has
+/// exactly one meaning: another instance held an active lease at the moment of
+/// the attempt, whether the pre-acquire snapshot reported it or the acquire
+/// itself was rejected as held and the snapshot that followed confirmed a
+/// different holder. Transport failures, indeterminate outcomes, and every
+/// other error return at once.
+fn acquire_instance_lease_within<A: InstanceAuthorityPort>(
+    repository: &StateRepository,
+    authority: &A,
+    max_wait: Duration,
+) -> Result<InstanceLeaseState, AgentError> {
+    let deadline = Instant::now()
+        .checked_add(max_wait)
+        .ok_or(AgentError::InvalidConfiguration)?;
+    loop {
+        match acquire_instance_lease(repository, authority) {
+            Err(AgentError::InstanceFenced) => {}
+            outcome => return outcome,
+        }
+        let remaining_wait = deadline.saturating_duration_since(Instant::now());
+        if remaining_wait.is_zero() {
+            return Err(AgentError::InstanceFenced);
+        }
+        std::thread::sleep(lease_wait_pause(authority).min(remaining_wait));
+    }
+}
+
+/// How long to pause before the next acquire attempt: the remaining life of
+/// the lease the authority currently reports, clamped to
+/// `LEASE_WAIT_MIN_PAUSE..=LEASE_WAIT_STEP`.
+///
+/// The remaining life is read from a fresh snapshot rather than guessed from a
+/// TTL, because the authority's clock, not this host's, decides when a lease is
+/// gone; `active_lease` is already filtered to unexpired leases, so the
+/// subtraction cannot underflow for a lease it reports. A snapshot that cannot
+/// be read gets the full step, and one that reports no lease at all -- it
+/// lapsed or was released since the refused acquire -- gets the floor: the next
+/// attempt is what decides, and the floor keeps an authority that flaps from
+/// being polled at full speed.
+fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
+    let remaining = match authority_snapshot(authority) {
+        Ok(snapshot) => snapshot.active_lease().map_or(Duration::ZERO, |active| {
+            Duration::from_millis(
+                active
+                    .expires_at_millis()
+                    .saturating_sub(snapshot.clock_floor_millis()),
+            )
+        }),
+        Err(_) => LEASE_WAIT_STEP,
+    };
+    remaining.clamp(LEASE_WAIT_MIN_PAUSE, LEASE_WAIT_STEP)
 }
 
 /// Re-authorize key use behind the exclusive lease before every guarded operation.

@@ -941,3 +941,107 @@ fn rows_the_authority_could_not_answer_for_at_start_are_settled_by_a_later_opera
     assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 1);
     Ok(())
 }
+
+#[test]
+fn a_successor_waits_for_a_lapsed_lease_instead_of_failing_at_construction() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 41)?;
+    // The holder is neither renewing nor releasing: a process that was killed,
+    // whose lease the authority will only let lapse at its TTL.
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let authority = pair.initiator_authority.clone();
+    let lapse = thread::spawn(move || {
+        thread::sleep(Duration::from_millis(300));
+        authority.expire_active_lease();
+    });
+    let started = Instant::now();
+    let successor = PolicyAgent::new_with_lease_wait(
+        successor_repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+        Duration::from_secs(10),
+    )?;
+    let waited = started.elapsed();
+    join(lapse)?;
+    assert!(
+        waited >= Duration::from_millis(300),
+        "the successor acquired after {waited:?}, before the lease had lapsed"
+    );
+    assert!(
+        waited < Duration::from_secs(5),
+        "the successor took {waited:?} to notice the lapse"
+    );
+    // The successor holds key-use authority now, and the predecessor is the
+    // instance that is fenced.
+    successor.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert!(matches!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::InstanceFenced)
+    ));
+    Ok(())
+}
+
+#[test]
+fn a_successor_waiting_on_a_renewing_holder_is_refused_after_max_wait() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 42)?;
+    let successor_repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let max_wait = Duration::from_millis(1_500);
+    let stop = AtomicBool::new(false);
+    let (outcome, waited) =
+        thread::scope(|scope| -> TestResult<(Result<(), AgentError>, Duration)> {
+            // The holder is alive and keeps renewing, with the authority's
+            // clock moving on between renewals so that each one strictly
+            // extends the lease. Any guarded operation renews first; with no
+            // transition pending, this one then returns without touching
+            // anything else.
+            let holder = scope.spawn(|| -> TestResult {
+                while !stop.load(Ordering::Acquire) {
+                    pair.initiator_authority.advance_clock(500);
+                    let renewed = pair.initiator.reconcile_transition();
+                    assert!(
+                        !matches!(renewed, Err(AgentError::InstanceFenced)),
+                        "the holder lost its lease while it was still renewing"
+                    );
+                    thread::sleep(Duration::from_millis(100));
+                }
+                Ok(())
+            });
+            let started = Instant::now();
+            let outcome = PolicyAgent::new_with_lease_wait(
+                successor_repository,
+                pair.witness.clone(),
+                pair.initiator_authority.clone(),
+                pair.initiator_config.clone(),
+                max_wait,
+            );
+            let waited = started.elapsed();
+            stop.store(true, Ordering::Release);
+            holder
+                .join()
+                .map_err(|_| io::Error::other("holder thread panicked"))??;
+            Ok((outcome.map(drop), waited))
+        })?;
+    assert!(
+        matches!(outcome, Err(AgentError::InstanceFenced)),
+        "a live, renewing holder must still fence the successor: {outcome:?}"
+    );
+    assert!(
+        waited >= max_wait,
+        "the successor gave up after {waited:?}, before max_wait {max_wait:?}"
+    );
+    assert!(
+        waited < Duration::from_secs(10),
+        "the successor kept waiting for {waited:?} past max_wait {max_wait:?}"
+    );
+    Ok(())
+}

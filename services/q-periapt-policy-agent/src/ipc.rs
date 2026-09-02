@@ -28,6 +28,7 @@ use crate::authentication::{sign_envelope, verify_envelope, AuthenticationError}
 use crate::authority::{
     AuthorityEpochV2, DeploymentConfigRevisionV2, StateFenceV2, StateHeadV2, StateRevisionV2,
 };
+use crate::authority_codec::HARD_MAX_LEASE_TTL_MILLIS;
 use crate::authority_protocol::{
     AuthorityClientIdV2, AuthorityServerIdV2, AuthorityWireIdentityV2,
 };
@@ -44,6 +45,7 @@ use crate::service::{
     BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
     PendingSessionHandle, PolicyAgent, SessionAuthorization, SignedPolicyBundle,
 };
+use crate::signals::install_termination_handlers;
 use crate::witness::{AuthenticatedTcpWitness, ReferenceWitnessServer};
 
 const IPC_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2";
@@ -61,6 +63,16 @@ const MAX_POLICY_BYTES: usize = q_periapt_ffi_abi2::Q_PERIAPT_MAX_SIGNED_POLICY_
 /// templates must use this exact value: systemd `FileDescriptorName=` and the
 /// launchd `Sockets` dictionary key.
 const IPC_ACTIVATION_NAME: &str = "agent";
+/// Margin added to the longest lease TTL the authority can grant, giving how
+/// long `serve-agent` waits at startup for a predecessor's lease to lapse. The
+/// TTL bounds how long a lease left behind by a killed process outlives it;
+/// the margin covers the wait's own pauses and the authority's clock
+/// granularity.
+const STARTUP_LEASE_WAIT_MARGIN_MILLIS: u64 = 5_000;
+/// How long `serve-agent` waits for a predecessor's lease to lapse before it
+/// gives up fenced. See `PolicyAgent::new_with_lease_wait`.
+const STARTUP_LEASE_WAIT: Duration =
+    Duration::from_millis(HARD_MAX_LEASE_TTL_MILLIS + STARTUP_LEASE_WAIT_MARGIN_MILLIS);
 
 /// IPC configuration, authentication, framing, or fatal service failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -398,9 +410,13 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// Serve one request per accepted connection with bounded sequential
     /// resources, until `shutdown` is set.
     ///
-    /// The daemon never sets the flag; it exists so the loop is reachable from a
-    /// test, matching the witness and authority servers. It is read once per
-    /// accept wait, so a shutdown is observed within one maintenance interval.
+    /// `serve_agent` points `shutdown` at the flag the termination handlers
+    /// set, so in production the service manager's stop is what sets it; a
+    /// test sets it directly. It is read once per accept wait, so a shutdown is
+    /// observed within one maintenance interval, and sooner when the signal
+    /// interrupts the wait itself (`wait_for_connection` reports that `EINTR`
+    /// as an idle pass). Returning is the whole response: the caller releases
+    /// the lease and lets every store close through its destructor.
     fn serve(&mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
         // Wait in `poll` rather than in `accept`, for two reasons. A daemon
         // nobody is talking to still has to run its session TTL sweep, and only
@@ -519,6 +535,27 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
     }
 
+    /// Run the serving loop, then hand the instance lease back.
+    ///
+    /// This is what `serve_agent` runs. The release happens on every exit, the
+    /// orderly one and the fatal one alike, and it is what lets the next
+    /// process acquire at once instead of waiting out the lease TTL; it also
+    /// erases every in-process secret first. It is best effort: if the
+    /// authority cannot be reached the lease simply lapses at its TTL, exactly
+    /// as it would after a crash, and the serving outcome -- not the release's
+    /// -- is what this returns, so a stop still exits 0 and a fatal serving
+    /// error still propagates.
+    fn serve_and_release(
+        &mut self,
+        listener: UnixListener,
+        shutdown: &AtomicBool,
+    ) -> Result<(), IpcError> {
+        let outcome = self.serve(listener, shutdown);
+        // Best effort by design; see above.
+        let _ = self.agent.release_instance_lease();
+        outcome
+    }
+
     /// Run the serving loop against a caller-supplied listener.
     ///
     /// The module is already `cfg(unix)`, so `cfg(test)` is enough here.
@@ -529,6 +566,17 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
         self.serve(listener, shutdown)
+    }
+
+    /// Run the serving loop and the release that follows it, exactly as
+    /// `serve_agent` does.
+    #[cfg(test)]
+    pub(crate) fn serve_and_release_for_test(
+        &mut self,
+        listener: UnixListener,
+        shutdown: &AtomicBool,
+    ) -> Result<(), IpcError> {
+        self.serve_and_release(listener, shutdown)
     }
 
     #[cfg(test)]
@@ -847,19 +895,37 @@ fn serve_agent(
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let config = load_agent_config(&configuration)?;
-    let agent = PolicyAgent::new(repository, witness, authority, config)
-        .map_err(|_| IpcError::InvalidConfiguration)?;
-    let server = UnixIpcServer::new(
+    // A predecessor that was killed rather than stopped never released its
+    // lease, and the authority lets that lease lapse only at the TTL it
+    // granted. Wait that out rather than failing: with `Restart=no` a failure
+    // here leaves the service down until an operator restarts it, when the
+    // whole point of socket activation is that the next connection brings it
+    // back. The bound is the longest lease the authority can grant plus a
+    // margin, so a holder that is genuinely alive -- which keeps renewing --
+    // still fences this process, exactly as a fail-fast start would.
+    let agent = PolicyAgent::new_with_lease_wait(
+        repository,
+        witness,
+        authority,
+        config,
+        STARTUP_LEASE_WAIT,
+    )
+    .map_err(|_| IpcError::InvalidConfiguration)?;
+    let mut server = UnixIpcServer::new(
         agent,
         read_array(&configuration, "ipc-client-vk.bin")?,
         read_secret(&configuration, "ipc-server-sk.bin")?,
         read_array(&configuration, "ipc-server-vk.bin")?,
         IPC_IO_TIMEOUT,
     )?;
-    // The daemon runs until the service manager stops it; nothing sets this.
-    let shutdown = AtomicBool::new(false);
-    let mut server = server;
-    server.serve(listener, &shutdown)
+    // Only now is there something to release, so only now are the handlers
+    // installed. A stop that arrives earlier -- during the lease wait above in
+    // particular, which can last minutes -- keeps the default disposition and
+    // ends the process at once, holding no lease. Latching it instead would
+    // have the daemon sit out the whole wait and only then exit, which is
+    // longer than the service manager's stop timeout.
+    let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
+    server.serve_and_release(listener, shutdown)
 }
 
 fn serve_witness(
@@ -878,9 +944,12 @@ fn serve_witness(
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let listener = TcpListener::bind(listen).map_err(|_| IpcError::Unavailable)?;
-    let shutdown = AtomicBool::new(false);
+    // The witness holds no lease. Observing the stop is what lets its store
+    // close through its destructor instead of being cut off and recovered at
+    // the next open.
+    let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
     server
-        .serve(listener, &shutdown)
+        .serve(listener, shutdown)
         .map_err(|_| IpcError::Unavailable)
 }
 

@@ -117,11 +117,25 @@ weaker socket.
    start without one, so a service enabled on its own fails closed rather than
    binding a socket of its own. On Linux enable `q-periapt-policy-agent.socket`;
    on macOS the `Sockets` dictionary in the plist covers it. The agent then
-   acquires the exclusive instance lease at startup and fails closed while
-   another unexpired instance holds it. Before that acquire it settles the
+   acquires the exclusive instance lease at startup: it waits for a crashed
+   predecessor's lease to lapse (step 7) and fails closed only while a holder
+   that is still renewing has it. Before that acquire it settles the
    lease-intent journal in its own store: receipts a previous instance was
    killed before acknowledging are acknowledged then, so the authority's
    bounded receipt table is reclaimed across restarts without any operator
    step. A start that finds all 64 journal rows unanswerable -- the authority
    unreachable after that many unclean stops -- fails closed until the
    authority answers; it is not a store fault and needs no re-provisioning.
+7. Stop and restart only through the service manager. A stop delivers
+   `SIGTERM`; the daemon observes it within one second, erases its in-process
+   secrets, releases the instance lease, and exits 0, so the start that follows
+   acquires immediately. Leave `Restart=no` and `KeepAlive=false` as shipped:
+   the socket unit and the launchd `Sockets` entry start the daemon on the next
+   client connection, and that is also how a crash is recovered -- the new
+   process waits for the crashed one's lease to lapse (at most the authority's
+   lease TTL, 10 seconds to 5 minutes, plus a five-second margin) and then
+   serves, without operator action, subject on Linux to systemd's start rate
+   limit. systemd's default `TimeoutStopSec` of 90 seconds is ample: the stop
+   is observed within one maintenance interval and the release is one bounded
+   authority round trip of at most 5 seconds. The daemon does not log; the exit
+   status is the only record of a stop or of a refused start.

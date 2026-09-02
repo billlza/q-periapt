@@ -18,9 +18,13 @@ The local repository uses pinned `redb` 2.6.3 transactions with immediate
 durability and two-phase commit. `redb` is pure Rust, ACID, crash-recoverable,
 MSRV 1.85, and licensed `MIT OR Apache-2.0`. After an unclean shutdown all
 three stores -- repository, witness, and authority -- let `redb` finish its
-crash recovery on open. That is every restart, not only a crash: the daemons
-are stopped by the service manager's signal, and only a fatal serving error
-ever returns and closes a store cleanly. Because every commit is two-phase,
+crash recovery on open. A normal stop is not one of those: `serve-agent` and
+`serve-witness` install `SIGTERM` and `SIGINT` handlers whose only action is
+to set a flag, the serving loop reads it within one maintenance interval and
+returns, and the store then closes cleanly through its destructor. Recovery
+still runs after a crash, a `SIGKILL`, or a stop that outran the service
+manager's stop timeout, and after any restart of the authority store, whose
+hosting process decides when its own flag is set. Because every commit is two-phase,
 that recovery only reconstructs the free-page allocator from the committed
 tree: `redb` refuses a corrupted two-phase primary outright rather than falling
 back to an older commit, so committed data is never altered by it. A store
@@ -226,6 +230,23 @@ cannot answer. A full journal refuses the next lease operation with
 cannot settle any of 64 rows fails closed the same way, until the authority
 answers again. A store provisioned before the journal existed opens without
 the table; the first journal write creates it.
+
+Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
+from the service manager, or `SIGINT` by hand -- is observed by the serving
+loop within one maintenance interval; the daemon erases every in-process
+secret, releases the lease, and exits 0, so the next start acquires at once. A
+crash never releases the lease, and the authority lets it lapse only at its TTL
+(10 seconds to 5 minutes, as configured on the authority). A start inside that
+window waits for the lapse: it retries the same fail-closed acquire at most
+once a second, which the authority refuses while any lease is active, and gives
+up with `InstanceFenced` once the longest TTL the authority can grant plus a
+five-second margin has passed -- which is what a genuinely live holder that
+keeps renewing produces, so a duplicate deployment or a recovery clone is still
+refused. The handlers are installed only once the lease is held: a stop that
+arrives while the daemon is still waiting ends the process by the default
+disposition, with nothing to release. The daemon does not log; the exit status
+and the authority's own state are the only record of a stop, a wait, or a
+refused start.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:

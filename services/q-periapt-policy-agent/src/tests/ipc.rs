@@ -356,3 +356,96 @@ fn ipc_absolute_deadline_evicts_a_pre_auth_trickle_client() -> TestResult {
     assert!(trickle.output.is_empty());
     Ok(())
 }
+
+#[test]
+fn a_termination_signal_is_latched_instead_of_ending_the_process() -> TestResult {
+    // The child installs the daemon's handlers, sends itself SIGTERM from
+    // another thread, and exits 0 only once it has seen the flag. Without the
+    // handlers the signal's default disposition ends the child on the spot,
+    // and its status then carries a signal rather than an exit code.
+    let status = Command::new(std::env::current_exe()?)
+        .arg("--exact")
+        .arg("tests::ipc::a_termination_signal_only_sets_the_flag_child")
+        .env("Q_PERIAPT_TEST_TERMINATION_SIGNAL", "1")
+        .status()?;
+    assert_eq!(
+        status.code(),
+        Some(0),
+        "the child did not survive SIGTERM and exit cleanly: {status}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_termination_signal_only_sets_the_flag_child() -> TestResult {
+    if std::env::var_os("Q_PERIAPT_TEST_TERMINATION_SIGNAL").is_none() {
+        return Ok(());
+    }
+    let flag = crate::signals::install_termination_handlers()?;
+    assert!(!flag.load(Ordering::Acquire), "the flag must start clear");
+    let raiser = thread::spawn(|| {
+        thread::sleep(Duration::from_millis(100));
+        rustix::process::kill_process(rustix::process::getpid(), rustix::process::Signal::TERM)
+    });
+    let started = Instant::now();
+    while !flag.load(Ordering::Acquire) {
+        if started.elapsed() > Duration::from_secs(5) {
+            // Neither ended nor flagged: a handler ran but stored nothing.
+            std::process::exit(3);
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    join(raiser)??;
+    std::process::exit(0)
+}
+
+#[test]
+fn stopping_the_serving_loop_releases_the_instance_lease() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 57)?;
+    let authority = pair.initiator_authority.clone();
+    assert!(
+        authority.active_lease()?.is_some(),
+        "the fixture's holder must start out holding its lease"
+    );
+    let (_, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    let socket_path = directory.join("stop.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = AtomicBool::new(false);
+    let asked = thread::scope(|scope| -> TestResult<Instant> {
+        let serving = scope.spawn(|| {
+            let mut server = server;
+            server.serve_and_release_for_test(listener, &shutdown)
+        });
+        // Let the loop park in its accept wait, then ask it to stop the way the
+        // signal handler does: from another thread, with nothing connecting to
+        // wake it.
+        thread::sleep(Duration::from_millis(200));
+        shutdown.store(true, Ordering::Release);
+        let asked = Instant::now();
+        serving
+            .join()
+            .map_err(|_| io::Error::other("serving thread panicked"))??;
+        Ok(asked)
+    })?;
+    // One maintenance interval is the most the loop waits before it re-reads
+    // the flag; the release that follows is one in-memory authority call.
+    assert!(
+        asked.elapsed() < Duration::from_secs(2),
+        "the loop took {:?} to stop",
+        asked.elapsed()
+    );
+    assert!(
+        authority.active_lease()?.is_none(),
+        "the lease was still held after the serving loop stopped"
+    );
+    Ok(())
+}

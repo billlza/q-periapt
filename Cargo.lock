@@ -1220,6 +1220,7 @@ name = "q-periapt-policy-agent"
 version = "0.1.5"
 dependencies = [
  "getrandom 0.4.3",
+ "libc",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-ffi",

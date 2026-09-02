@@ -30,7 +30,8 @@ use crate::authentication::{sign_envelope, verify_envelope};
 use crate::authority::{
     AuthorityErrorV2, AuthorityIntentV2, AuthorityLimitsV2, AuthorityQueryResultV2,
     AuthorityReceiptV2, AuthoritySnapshotV2, AuthorityStateV2, DeploymentConfigRevisionV2,
-    OperationIdV2, StateFenceV2, StateHeadV2, StateRevisionV2, TrustedClockErrorV2, TrustedClockV2,
+    InstanceLeaseV2, OperationIdV2, StateFenceV2, StateHeadV2, StateRevisionV2,
+    TrustedClockErrorV2, TrustedClockV2,
 };
 use crate::authority_protocol::{
     AuthorityKnownFailureV2, AuthorityOutcomeV2, AuthorityUnknownV2,
@@ -700,6 +701,17 @@ impl MemoryAuthority {
 
     fn expire_active_lease(&self) {
         self.advance_clock(MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1);
+    }
+
+    /// The lease the authority currently reports, read the way an agent reads
+    /// it: through the port, at the fixture's current clock.
+    fn active_lease(&self) -> TestResult<Option<InstanceLeaseV2>> {
+        match self.snapshot()? {
+            AuthorityOutcomeV2::Known(snapshot) => Ok(snapshot.active_lease()),
+            AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_) => {
+                Err("the memory authority could not produce a snapshot".into())
+            }
+        }
     }
 
     fn make_next_unknown(&self) {

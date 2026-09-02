@@ -37,6 +37,11 @@ redb = "=2.6.3"
 # `event` supplies the bounded `poll` the serving loop waits in, so an idle
 # daemon still reaches its session-TTL sweep. It declares no dependencies.
 rustix = { version = "=1.1.4", features = ["event", "fs", "net", "process"] }
+# `sigaction` is the one call this daemon makes that rustix deliberately does
+# not wrap: installing a handler is `unsafe` by nature, and the quarantined
+# `signals` module carries that review. This exact version is already in the
+# workspace lockfile through the test toolchain.
+libc = "=0.2.189"
 
 [dev-dependencies]
 tempfile = "=3.27.0"
