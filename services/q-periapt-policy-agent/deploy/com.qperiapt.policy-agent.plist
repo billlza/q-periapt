@@ -11,17 +11,22 @@
 
   Install this file as /opt/qperiapt/launchd/com.qperiapt.policy-agent.plist,
   NOT under /Library/LaunchDaemons, and let com.qperiapt.policy-agent-rundir.plist
-  load it. /private/var/run is cleared at boot, and launchd creates the
-  SockPathName node but never its parent directory, whose 0710 mode is the
-  daemon's only enforced admission boundary; that job recreates the parent,
-  verifies it, and only then runs launchctl bootstrap system on this file.
-  Loaded from /Library/LaunchDaemons instead, this plist runs unordered
-  against that job and can bind its socket before the boundary exists.
+  load it. launchd creates the SockPathName node but never its parent
+  directory, whose 0710 mode is the daemon's only enforced admission boundary,
+  and that parent has to sit where nothing but root can rename it: on macOS
+  /private/var/run is root:daemon 0775 without the sticky bit, so a gid-1
+  process could rename a verified directory away and put its own, or a
+  symlink, under launchd's bind. The socket therefore lives under the
+  root-owned /opt/qperiapt/run instead. That job verifies every ancestor of
+  the parent from / down, creates or adopts and verifies the parent itself,
+  and only then runs launchctl bootstrap system on this file. Loaded from
+  /Library/LaunchDaemons instead, this plist runs unordered against that job
+  and can bind its socket before the boundary has been verified.
 
-  Every path below is written canonically under /private/var. On macOS /var is
-  a symlink to private/var, and the daemon opens each path component with
-  O_NOFOLLOW, so a template written as /var/lib/... cannot start: the daemon
-  refuses to traverse the symlink rather than silently resolving it.
+  Every /var path below is written canonically under /private/var. On macOS
+  /var is a symlink to private/var, and the daemon opens each path component
+  with O_NOFOLLOW, so a template written as /var/lib/... cannot start: the
+  daemon refuses to traverse the symlink rather than silently resolving it.
 
   launchd offers no seccomp-equivalent syscall filter, and App Sandbox
   requires a signed bundle with entitlements, so the kernel-level syscall
@@ -38,7 +43,7 @@
     <array>
         <string>/opt/qperiapt/bin/q-periapt-policy-agent</string>
         <string>serve-agent</string>
-        <string>/private/var/run/qperiapt-agent/agent.sock</string>
+        <string>/opt/qperiapt/run/qperiapt-agent/agent.sock</string>
         <string>/private/var/lib/qperiapt-agent/state/agent.redb</string>
         <!-- REPLACE BOTH. Numeric IP:port only: these are parsed as a
              SocketAddr and a hostname is rejected at start.
@@ -81,14 +86,16 @@
       descriptor reports a different inode and mode than the path. The enforced
       admission boundary is the parent directory, provisioned 0710 owned by the
       daemon account with the transport group, so only that group can traverse to
-      the socket at all.
+      the socket at all -- and every ancestor of that directory is a root-owned
+      directory nobody else can write, so no other account can rename it out
+      from under the path launchd binds.
     -->
     <key>Sockets</key>
     <dict>
         <key>agent</key>
         <dict>
             <key>SockPathName</key>
-            <string>/private/var/run/qperiapt-agent/agent.sock</string>
+            <string>/opt/qperiapt/run/qperiapt-agent/agent.sock</string>
             <key>SockFamily</key>
             <string>Unix</string>
             <key>SockType</key>
@@ -129,6 +136,19 @@
     <true/>
     <key>KeepAlive</key>
     <false/>
+    <!--
+      How long launchd waits after SIGTERM before it sends SIGKILL. launchd's
+      default is 20 seconds. The daemon observes the stop within one
+      maintenance interval (one second), erases its in-process secrets, and
+      releases the instance lease, and that release is a handful of bounded
+      authority round trips of at most 5 seconds each -- up to four against
+      an authority that accepts the connection and never answers, so about 20
+      seconds worst case, right at the default. A SIGKILL there costs only a
+      redb recovery at the next open, and the lease lapses at its TTL exactly
+      as after a crash; 60 gives the release room to finish instead.
+    -->
+    <key>ExitTimeOut</key>
+    <integer>60</integer>
     <key>ProcessType</key>
     <string>Background</string>
 </dict>

@@ -141,12 +141,12 @@ manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
 holds the hardened systemd unit (dedicated locked account, read-only OS
 view, seccomp `@system-service` filter, empty capability set, no core
 dumps) and the launchd daemon template (dedicated uid, owner-only umask,
-no core dumps) with the boot-time job that recreates the socket's `0710`
-parent directory on macOS and loads the agent only after verifying it,
-together with the exact table of which boundary each layer enforces and the
-explicit non-claims. A deployment that starts the binary outside those
-templates gets only the daemon's own filesystem-capability and cryptographic
-boundaries.
+no core dumps) with the boot-time job that verifies the socket's `0710`
+parent directory and the root-owned ancestry above it on macOS and loads the
+agent only after that, together with the exact table of which boundary each
+layer enforces and the explicit non-claims. A deployment that starts the
+binary outside those templates gets only the daemon's own
+filesystem-capability and cryptographic boundaries.
 
 IPC is a hard V2 cut: request, response, and request-digest domains all end in
 `/v2`, schema 2 has distinct `AcceptInitiatorFinished` and
@@ -172,7 +172,11 @@ q-periapt-policy-agent serve-witness LISTEN_ADDRESS WITNESS_DATABASE CONFIG_DIRE
 to. The daemon compares it against the descriptor's own bound address and
 refuses to serve on a mismatch; it never binds the path itself. Its directory
 must live in a stable, trusted namespace, so that an untrusted UID cannot rename
-an ancestor and substitute a different client-visible pathname.
+an ancestor and substitute a different client-visible pathname: the shipped
+templates use `/run/qperiapt-agent` on Linux and
+`/opt/qperiapt/run/qperiapt-agent` on macOS, where `/private/var/run` fails
+this test — it is `root:daemon 0775` without the sticky bit, so any gid-1
+process can rename an entry there.
 
 Every address argument -- `WITNESS_ADDRESS`, `AUTHORITY_ADDRESS`, and
 `serve-witness`'s `LISTEN_ADDRESS` -- is a numeric `IP:port`. They are parsed as

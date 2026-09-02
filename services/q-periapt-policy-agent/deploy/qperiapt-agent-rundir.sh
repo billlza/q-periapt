@@ -5,17 +5,30 @@
 # and mode 0644, and run it from com.qperiapt.policy-agent-rundir.plist, the
 # launchd job shipped beside it. It is the macOS counterpart of
 # q-periapt-agent.tmpfiles.conf and does the one thing launchd will not:
-# /private/var/run is cleared on every boot, launchd creates the SockPathName
-# node itself but never the directory containing it, and that directory's 0710
-# mode is the daemon's only enforced admission boundary. The daemon cannot
-# verify the socket's own owner, group or mode -- an AF_UNIX descriptor names a
-# socket object, not the filesystem node addressing it -- so a directory
-# recreated with a default mode is the dangerous outcome: the daemon starts
+# launchd creates the SockPathName node itself but never the directory
+# containing it, and that directory's 0710 mode is the daemon's only enforced
+# admission boundary. The daemon cannot verify the socket's own owner, group or
+# mode -- an AF_UNIX descriptor names a socket object, not the filesystem node
+# addressing it -- so a directory at a default mode, or a directory something
+# other than root put at the path, is the dangerous outcome: the daemon starts
 # normally and cannot tell that the boundary is gone.
 #
-# So this script creates the directory, verifies it is exactly right, and only
-# then bootstraps the agent. Every other outcome is a refusal: a non-zero exit,
-# nothing bootstrapped, and the agent left down -- the outcome the daemon itself
+# The directory lives under /opt/qperiapt, not under /private/var/run. On macOS
+# /private/var/run is root:daemon 0775 without the sticky bit, and rename(2)
+# and rmdir(2) need write permission on the directory holding an entry, not
+# ownership of the entry: any process with gid 1 -- accounts with that primary
+# group exist by default -- could rename a verified qperiapt-agent directory
+# away and put its own directory, or a symlink, at the path, between a
+# verification and the bootstrap or at any later time. launchd would then bind
+# SockPathName inside a directory that account controls, and the daemon adopts
+# the descriptor on the strength of the bound path string alone. Under a
+# root-owned /opt/qperiapt nothing but root can do that, and /opt persists
+# across boots, so this is a verification job rather than a recreation job: it
+# checks every ancestor of the directory from / down, creates the directory
+# the first time and adopts it every time after, brings it to exactly the
+# shipped owner, group and mode, verifies that, and only then bootstraps the
+# agent. Every other outcome is a refusal: a non-zero exit, nothing
+# bootstrapped, and the agent left down -- the outcome the daemon itself
 # chooses when its listener is missing -- rather than up behind no boundary.
 #
 # Why the agent plist lives outside /Library/LaunchDaemons: launchd loads every
@@ -28,12 +41,12 @@
 # way the agent gets loaded is through the verification above it.
 
 # --- Parameters -------------------------------------------------------------
-#
-# Every path is canonical under /private/var: /var is a symlink to private/var,
-# and the agent plist names its socket the same way.
 
 # The socket's parent directory: the parent of SockPathName in the agent plist.
-RUN_DIR=/private/var/run/qperiapt-agent
+# Under the root-owned installation tree, never under /private/var/run; see
+# above. Every component of this path is checked below, from / down, and the
+# installer creates everything above the last one.
+RUN_DIR=/opt/qperiapt/run/qperiapt-agent
 
 # The daemon account (UserName in the agent plist) and the transport group, the
 # group whose gid the agent plist carries as SockPathGroup. REPLACE the group
@@ -114,13 +127,45 @@ if [ -L "$AGENT_PLIST" ] || ! [ -f "$AGENT_PLIST" ]; then
     fail "agent plist is missing or not a regular file: $AGENT_PLIST"
 fi
 
-# The parent must already be a real directory. The OS creates /private/var/run
-# itself; if it is missing or a symlink, something is wrong with the host and
-# nothing here should paper over it.
-parent=${RUN_DIR%/*}
-if [ -L "$parent" ] || ! [ -d "$parent" ]; then
-    fail "parent is not a real directory: $parent"
-fi
+# --- Ancestors: every directory above RUN_DIR, from / down -------------------
+#
+# stat without -L reports each path itself, so a symlink anywhere on the way
+# reads as "Symbolic Link" and is refused before anything below it is looked
+# at. %HT is the file type, %Su the owner by name, and %Mp%Lp the setuid,
+# setgid and sticky bits followed by the permission bits. The only thing
+# accepted is a real directory, owned by root, that group and other cannot
+# write: those are the directories in which nobody but root can rename, remove
+# or replace an entry, which is what keeps the directory verified below the
+# same directory launchd binds into. A missing ancestor is a refusal too: the
+# installer creates the tree, and this job never creates anything whose parent
+# it has not verified.
+
+verify_ancestor() {
+    if ! ancestor_actual=$(stat -f '%HT:%Su:%Mp%Lp' "$1"); then
+        fail "could not stat $1, an ancestor of $RUN_DIR"
+    fi
+    case "$ancestor_actual" in
+        Directory:root:[0-7][0-7][0145][0145]) ;;
+        *)
+            fail "$1 is $ancestor_actual, not a root-owned directory that group and other cannot write; not bootstrapping $AGENT_LABEL"
+            ;;
+    esac
+}
+
+# Walk /, then each component of the parent in turn: /opt, /opt/qperiapt, and
+# so on down to the parent itself.
+ancestor=
+remainder=${RUN_DIR%/*}
+remainder=${remainder#/}
+verify_ancestor /
+while [ -n "$remainder" ]; do
+    ancestor="$ancestor/${remainder%%/*}"
+    verify_ancestor "$ancestor"
+    case "$remainder" in
+        */*) remainder=${remainder#*/} ;;
+        *) remainder= ;;
+    esac
+done
 
 # --- The directory ----------------------------------------------------------
 
@@ -129,15 +174,17 @@ if [ -L "$RUN_DIR" ]; then
 elif [ -e "$RUN_DIR" ] && ! [ -d "$RUN_DIR" ]; then
     fail "refusing to touch a non-directory at $RUN_DIR"
 elif [ -d "$RUN_DIR" ]; then
-    # Left by something else: this job re-run by hand, or a host that did not
-    # clear /private/var/run. Not ours to remove, but ours to bring to exactly
-    # the shipped owner, group and mode -- what tmpfiles.d does on Linux for an
-    # entry that already exists.
+    # /opt persists across boots, so from the second boot on this is the
+    # normal case: the directory this job created and verified before. Not
+    # ours to remove, but ours to bring to exactly the shipped owner, group
+    # and mode -- what tmpfiles.d does on Linux for an entry that already
+    # exists -- and to verify again below, because nothing here trusts what
+    # the last run left.
     log notice "adopting the existing directory $RUN_DIR"
 else
-    # mkdir without -p: it creates exactly this one directory, fails if the
-    # parent is missing, and fails rather than follows if anything -- a symlink
-    # included -- has appeared at the path since the checks above.
+    # mkdir without -p: it creates exactly this one directory, inside the
+    # parent verified above, and fails rather than follows if anything -- a
+    # symlink included -- has appeared at the path since the checks above.
     if ! mkdir "$RUN_DIR"; then
         fail "could not create $RUN_DIR"
     fi
@@ -172,8 +219,8 @@ verified=1
 
 # Already loaded means either this job ran twice, or the agent plist was loaded
 # by something other than this job -- from /Library/LaunchDaemons, say -- and
-# may have tried to bind its socket before the directory existed. Neither is a
-# state to build on silently. The directory above is correct either way.
+# may have tried to bind its socket before the directory was verified. Neither
+# is a state to build on silently. The directory above is correct either way.
 if launchctl print "system/$AGENT_LABEL" >/dev/null 2>&1; then
     fail "$AGENT_LABEL is already bootstrapped; this job loads it once per boot, after the directory is verified. If it was loaded from elsewhere: launchctl bootout system/$AGENT_LABEL, then launchctl kickstart system/com.qperiapt.policy-agent-rundir"
 fi

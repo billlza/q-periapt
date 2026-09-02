@@ -3,21 +3,27 @@
 <!--
   Boot-time run-directory job for the Q-Periapt policy agent on macOS.
 
-  This is the launchd counterpart of q-periapt-agent.tmpfiles.conf.
-  /private/var/run is cleared on every boot, and launchd creates the agent's
-  SockPathName node itself but never the directory containing it. That
-  directory's 0710 mode is the daemon's only enforced admission boundary, and a
-  directory recreated with a default mode is the dangerous outcome: the daemon
-  starts normally and cannot tell the boundary is gone. This job runs
-  qperiapt-agent-rundir.sh as root at boot; the script creates
-  /private/var/run/qperiapt-agent, verifies with stat that it is a real
-  directory owned by the daemon account with the transport group at exactly
-  0710, and only then bootstraps the agent. Anything else is a refusal that
-  leaves the agent unloaded.
+  This is the launchd counterpart of q-periapt-agent.tmpfiles.conf. launchd
+  creates the agent's SockPathName node itself but never the directory
+  containing it, and that directory's 0710 mode is the daemon's only enforced
+  admission boundary: a directory at a default mode, or one that something
+  other than root put at the path, is the dangerous outcome, because the
+  daemon starts normally and cannot tell the boundary is gone. The directory
+  is /opt/qperiapt/run/qperiapt-agent rather than anything under
+  /private/var/run, which on macOS is root:daemon 0775 with no sticky bit: a
+  gid-1 process can rename or replace an entry there at will, and launchd
+  would bind the socket inside whatever it substituted. This job runs
+  qperiapt-agent-rundir.sh as root at boot; the script verifies with stat
+  that every ancestor of the directory, from / down, is a real directory
+  owned by root that group and other cannot write, creates the directory the
+  first time or adopts it after, verifies that it is a real directory owned
+  by the daemon account with the transport group at exactly 0710, and only
+  then bootstraps the agent. Anything else is a refusal that leaves the agent
+  unloaded.
 
   Install this file, and only this file, in /Library/LaunchDaemons:
     sudo install -d -o root -g wheel -m 0755 /opt/qperiapt/libexec \
-      /opt/qperiapt/launchd
+      /opt/qperiapt/launchd /opt/qperiapt/run
     sudo install -o root -g wheel -m 0644 qperiapt-agent-rundir.sh \
       /opt/qperiapt/libexec/qperiapt-agent-rundir.sh
     sudo install -o root -g wheel -m 0644 com.qperiapt.policy-agent.plist \
@@ -35,18 +41,22 @@
   and refuses to bootstrap an agent that is already loaded.
 
   Conventions shared with the agent plist:
-    * Every path is canonical under /private/var. /var is a symlink to
-      private/var, and the daemon opens each component O_NOFOLLOW, so the
-      directory is named exactly the way the agent plist names its socket.
+    * The socket directory sits under /opt/qperiapt, where the installer
+      already has to keep everything root-owned and writable by nobody else,
+      because whatever sits at the script path runs as root at every boot.
+      The state paths in the agent plist stay canonical under /private/var:
+      /var is a symlink to private/var, and the daemon opens each component
+      O_NOFOLLOW.
+    * /opt persists across boots. After the first run the job finds the
+      directory it created and verifies it again rather than recreating it;
+      the script never removes a directory it did not create in the same run.
     * This job runs as root (no UserName): chown to the daemon account and
       launchctl bootstrap system both require it. The script's owner and group
       parameters are NAMES, which chown resolves; the agent plist's
       SockPathOwner and SockPathGroup are NUMBERS. Template both from the same
       account and group, or the socket and its directory disagree on who may
       reach it.
-    * The script runs through /bin/sh, so it needs no execute bit; what it does
-      need is a root-owned /opt/qperiapt that nobody else can write, because
-      whatever sits at the script path runs as root at every boot.
+    * The script runs through /bin/sh, so it needs no execute bit.
     * RunAtLoad with KeepAlive false: one run per boot, no restart on failure. A
       failed run leaves the agent unloaded -- fail closed -- and says why in the
       log file below and in the unified log under the qperiapt-agent-rundir tag.

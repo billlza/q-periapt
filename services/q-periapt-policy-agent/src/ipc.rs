@@ -1196,6 +1196,19 @@ mod tests {
             .trim_end_matches("</string>")
     }
 
+    /// The `<string>` values of a plist's `ProgramArguments` array, in order.
+    fn plist_program_arguments(plist: &str) -> Vec<&str> {
+        let mut lines = plist.lines().map(str::trim);
+        lines
+            .find(|line| *line == "<key>ProgramArguments</key>")
+            .unwrap_or_else(|| unreachable!("the plist must set ProgramArguments"));
+        assert_eq!(lines.next(), Some("<array>"));
+        lines
+            .take_while(|line| *line != "</array>")
+            .filter_map(|line| line.strip_prefix("<string>")?.strip_suffix("</string>"))
+            .collect()
+    }
+
     /// The shipped templates encode contracts this code enforces, and nothing
     /// else checked them. Two defects reached this branch that way: endpoints
     /// written as DNS names, which `parse_socket_address` cannot accept, and an
@@ -1314,9 +1327,8 @@ mod tests {
             "the socket's parent must be 0710 so only the transport group can traverse: {entry}"
         );
 
-        // macOS clears /private/var/run at boot just as Linux clears /run, and
         // launchd creates the SockPathName node but never its parent. The
-        // shipped RunAtLoad job recreates that parent and is the only thing
+        // shipped RunAtLoad job verifies that parent and is the only thing
         // that loads the agent, so the script, its plist and the agent plist
         // have to agree on the directory, the mode, the script path and the
         // label -- and on the ordering the whole arrangement exists for.
@@ -1326,10 +1338,42 @@ mod tests {
             .rsplit_once('/')
             .map(|(directory, _)| directory)
             .expect("the plist socket path must have a parent directory");
+        let run_dir = shell_parameter(&script, "RUN_DIR");
         assert_eq!(
-            shell_parameter(&script, "RUN_DIR"),
-            plist_parent,
-            "the run-directory script must create the parent of the plist's SockPathName"
+            run_dir, plist_parent,
+            "the run-directory script must own the parent of the plist's SockPathName"
+        );
+
+        // On macOS /private/var/run is root:daemon 0775 with no sticky bit, and
+        // rename(2) in a writable directory needs no ownership of the entry: a
+        // gid-1 process could rename the verified directory away and put its
+        // own, or a symlink, at the path, and launchd would bind inside it. So
+        // the directory has to sit where only root can rename it, and the
+        // script has to refuse any ancestor that is not a root-owned real
+        // directory group and other cannot write -- before it creates or
+        // adopts anything below.
+        for (name, path) in [
+            ("RUN_DIR", run_dir),
+            ("SockPathName's parent", plist_parent),
+        ] {
+            assert!(
+                !path.starts_with("/private/var/run/") && !path.starts_with("/var/run/"),
+                "{name} {path} sits under /var/run, where a gid-1 process can rename it away"
+            );
+        }
+        let ancestors_verified = script
+            .find("verify_ancestor \"$ancestor\"")
+            .expect("the script must verify every ancestor of RUN_DIR");
+        assert!(
+            script.contains("Directory:root:[0-7][0-7][0145][0145])"),
+            "the ancestor check must accept only a root-owned directory without group or other write"
+        );
+        let inspected = script
+            .find("if [ -L \"$RUN_DIR\" ]")
+            .expect("the script must refuse a symlink at RUN_DIR");
+        assert!(
+            ancestors_verified < inspected,
+            "the script must verify the ancestors before it so much as looks at RUN_DIR"
         );
         assert_eq!(
             shell_parameter(&script, "RUN_DIR_MODE"),
@@ -1374,22 +1418,34 @@ mod tests {
             "the script must bootstrap the agent only after the directory verified"
         );
 
-        // The job that runs the script must run the shipped script, at boot,
-        // once, as root, and the script's install instructions must name the
-        // path the job runs it from.
+        // The job that runs the script must run the shipped script through
+        // /bin/sh (it is installed 0644, with no execute bit), at boot, once,
+        // as root, and the script's install instructions must name the path
+        // the job runs it from.
         assert_eq!(
             plist_string(&rundir, "Label"),
             "com.qperiapt.policy-agent-rundir"
         );
-        let script_path = rundir
-            .lines()
-            .map(str::trim)
-            .find(|line| line.ends_with("/qperiapt-agent-rundir.sh</string>"))
-            .map(|line| {
-                line.trim_start_matches("<string>")
-                    .trim_end_matches("</string>")
-            })
+        let arguments = plist_program_arguments(&rundir);
+        assert_eq!(
+            arguments.first().copied(),
+            Some("/bin/sh"),
+            "the run-directory job must run the script through /bin/sh"
+        );
+        let script_path = arguments
+            .get(1)
+            .copied()
             .unwrap_or_else(|| unreachable!("the run-directory plist must run the shipped script"));
+        assert_eq!(
+            script_path.rsplit_once('/').map(|(_, name)| name),
+            Some("qperiapt-agent-rundir.sh"),
+            "the run-directory job must run the shipped script: {script_path}"
+        );
+        assert_eq!(
+            arguments.len(),
+            2,
+            "the run-directory job runs the script and nothing else: {arguments:?}"
+        );
         assert!(
             script.contains(script_path),
             "the script must document the path the plist runs it from ({script_path})"
@@ -1411,6 +1467,22 @@ mod tests {
         assert!(
             script.contains("system/com.qperiapt.policy-agent-rundir"),
             "the script's re-run instructions must name the job's own label"
+        );
+
+        // launchd's default ExitTimeOut is 20 seconds. A stop is observed
+        // within one maintenance interval, and the lease release that follows
+        // is up to four bounded authority round trips -- drain, release, and
+        // two reconciling queries -- so against an authority that accepts the
+        // connection and never answers the default is exactly where the
+        // daemon would be killed mid-release.
+        assert_eq!(
+            plist_value(&plist, "ExitTimeOut"),
+            "<integer>60</integer>",
+            "the agent plist must give the lease release longer than launchd's 20-second default"
+        );
+        assert!(
+            Duration::from_secs(60) > MAINTENANCE_INTERVAL + 4 * AUTHORITY_IO_TIMEOUT,
+            "ExitTimeOut must cover observing the stop plus four authority round trips"
         );
     }
 
