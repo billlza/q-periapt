@@ -1045,3 +1045,223 @@ fn a_successor_waiting_on_a_renewing_holder_is_refused_after_max_wait() -> TestR
     );
     Ok(())
 }
+
+#[test]
+fn a_constructor_failure_after_the_acquire_releases_the_lease() -> TestResult {
+    // The acquire is dispatched before the witness is read, the executor is
+    // built, and the policies are authenticated. A failure there used to drop
+    // the acquired lease on the floor: the authority kept it under an instance
+    // id no process would ever release, and a healthy retry was fenced until
+    // the TTL.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 117)?;
+    pair.initiator.release_instance_lease()?;
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.witness.fail_reads.store(true, Ordering::Release);
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let failed = PolicyAgent::new(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    );
+    assert_eq!(
+        failed.err(),
+        Some(AgentError::Witness(WitnessError::Unavailable))
+    );
+    // The constructor's own error is what comes back, and the lease it had
+    // acquired is gone again: one acquire, one release, the release's receipt
+    // acknowledged and its row forgotten.
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 2);
+    assert_eq!(pair.initiator_authority.receipt_count()?, 0);
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    assert!(
+        repository.journaled_lease_intents()?.is_empty(),
+        "the failed constructor left lease-intent rows behind"
+    );
+
+    // With the witness back, the retry acquires at once.
+    pair.witness.fail_reads.store(false, Ordering::Release);
+    let second = PolicyAgent::new(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    )?;
+    second.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn a_constructor_failure_through_the_lease_wait_releases_the_lease() -> TestResult {
+    // The daemon's own entry point takes the same path after its acquire.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 121)?;
+    pair.initiator.release_instance_lease()?;
+    pair.witness.fail_reads.store(true, Ordering::Release);
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let failed = PolicyAgent::new_with_lease_wait(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+        Duration::ZERO,
+    );
+    assert_eq!(
+        failed.err(),
+        Some(AgentError::Witness(WitnessError::Unavailable))
+    );
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+
+    // Nothing is left to wait out: with no wait allowed at all, the retry
+    // still starts.
+    pair.witness.fail_reads.store(false, Ordering::Release);
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let second = PolicyAgent::new_with_lease_wait(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+        Duration::ZERO,
+    )?;
+    second.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn a_release_that_was_never_sent_keeps_the_fence_and_releases_on_retry() -> TestResult {
+    // A release the transport could not send used to retire the fence first
+    // and report the failure second, so the retry found no fence, dispatched
+    // nothing, and succeeded -- with the authority still holding the lease.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 118)?;
+    let before = pair.initiator_authority.active_lease()?;
+    assert!(before.is_some());
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator_authority
+        .fail_next_lease_call_before_send(LeaseCallFilter::Release);
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseUnavailable)
+    );
+    // Nothing reached the authority, and the lease is still ours to release.
+    assert_eq!(pair.initiator_authority.active_lease()?, before);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls);
+    // A stop was asked for and every secret is already gone, so guarded
+    // operations are refused from the first attempt on.
+    assert_eq!(
+        pair.initiator
+            .begin_encapsulation(BeginEncapsulation::new(
+                pair.initiator_authorization.clone(),
+                pair.responder_public_keys.clone(),
+            ))
+            .err(),
+        Some(AgentError::InstanceFenced)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+
+    // The retry dispatches exactly one release, with the fence it kept.
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert!(pair
+        .initiator
+        .journaled_lease_intents_for_test()?
+        .is_empty());
+    // And once the lease is retired, a further call dispatches nothing.
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    Ok(())
+}
+
+#[test]
+fn a_release_whose_response_and_queries_are_lost_is_proven_gone_by_snapshot() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 122)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(responder);
+
+    // The release applies at the authority, but its response is lost and both
+    // reconciling queries go unanswered. A snapshot showing no active lease is
+    // the proof that settles it.
+    initiator_authority.make_next_unknown();
+    initiator_authority.refuse_queries(true);
+    initiator.release_instance_lease()?;
+    assert_eq!(initiator_authority.active_lease()?, None);
+    // The release's own row is kept, unresolved: its receipt is still retained
+    // by the authority and still owed an acknowledgement.
+    let journaled = initiator.journaled_lease_intents_for_test()?;
+    let release_row = journaled
+        .first()
+        .copied()
+        .ok_or_else(|| io::Error::other("the release's row was forgotten"))?;
+    assert_eq!(journaled.len(), 1);
+    assert_eq!(initiator_authority.receipt_count()?, 1);
+
+    // The next start finds the row, acknowledges the receipt, and forgets it;
+    // what remains is the new acquire's own row.
+    initiator_authority.refuse_queries(false);
+    drop(initiator);
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    let restarted = PolicyAgent::new(
+        repository,
+        witness,
+        initiator_authority.clone(),
+        initiator_config,
+    )?;
+    assert_eq!(initiator_authority.receipt_count()?, 0);
+    let journaled = restarted.journaled_lease_intents_for_test()?;
+    assert_eq!(journaled.len(), 1);
+    assert!(!journaled.contains(&release_row));
+    restarted.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn a_failed_durable_cancel_at_release_still_releases_the_lease() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 123)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    // Make the session's durable cancellation fail the way a diverged store
+    // would: its row is gone, but the session is still held in memory.
+    pair.initiator
+        .desynchronize_session_for_test(encapsulated.handle)?;
+    let calls = pair.initiator_authority.lease_call_count();
+
+    // The durable failure is reported -- after the release, not instead of
+    // it: the lease is gone, and so is the secret.
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    // A poisoned agent refuses the repeat before it reaches the lease.
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InternalPoisoned)
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    Ok(())
+}

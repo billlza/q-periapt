@@ -174,8 +174,13 @@ weaker socket.
    authority answers; it is not a store fault and needs no re-provisioning.
 7. Stop and restart only through the service manager. A stop delivers
    `SIGTERM`; the daemon observes it within one second, erases its in-process
-   secrets, releases the instance lease, and exits 0, so the start that follows
-   acquires immediately. Leave `Restart=no` and `KeepAlive=false` as shipped:
+   secrets, and releases the instance lease. It exits 0 only once the
+   authority has confirmed that release or a snapshot has shown that no lease
+   of this instance remains, so the start that follows acquires immediately;
+   if the release could not be settled -- the authority unreachable, the
+   outcome unknown, or the agent poisoned -- it exits 1 with a one-line reason
+   and the lease lapses at its TTL, which the next start waits out. Leave
+   `Restart=no` and `KeepAlive=false` as shipped:
    the socket unit and the launchd `Sockets` entry start the daemon on the next
    client connection, and that is also how a crash is recovered -- the new
    process waits for the crashed one's lease to lapse (at most the authority's
@@ -185,12 +190,14 @@ weaker socket.
    launchd plist sets `ExitTimeOut` to 60 because launchd's own default of 20
    is not: the stop is observed within one maintenance interval and the
    release is a handful of bounded authority round trips of at most 5 seconds
-   each -- up to four against an authority that accepts the connection and
-   never answers, about 20 seconds worst case. A `SIGKILL` past either limit
+   each -- up to six against an authority that accepts the connection and
+   never answers, about 30 seconds worst case. A `SIGKILL` past either limit
    costs only a `redb` recovery at the next open, and the lease lapses at its
    TTL as after a crash. The daemon writes only a one-line reason to stderr
-   when it exits with an error, a refused start or a fatal serving failure;
-   the exit status is the only record of a stop.
+   when it exits with an error -- a refused start, a fatal serving failure, or
+   a stop whose release did not settle; the exit status is the only record of
+   a stop, and a non-zero status after `SIGTERM` means the lease was not
+   released and lapses at its TTL.
 
 ## macOS layout
 

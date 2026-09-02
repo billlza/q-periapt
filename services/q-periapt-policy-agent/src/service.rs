@@ -37,9 +37,9 @@ use crate::witness::{
 pub(crate) mod lease;
 
 use self::lease::{
-    acquire_instance_lease, acquire_instance_lease_within, drain_acknowledgements,
-    ensure_instance_lease, ensure_lease_covers, fence_out, forget_settled, lease_exchange,
-    lease_intent, InstanceLeaseState, LeaseCall, LeaseExchange, LEASE_VERSION_RESYNC_ATTEMPTS,
+    acquire_instance_lease, acquire_instance_lease_within, ensure_instance_lease,
+    ensure_lease_covers, erase_all_secrets, forget_settled, release_lease_state,
+    InstanceLeaseState, LeasePhase,
 };
 
 const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
@@ -421,16 +421,23 @@ pub enum AgentError {
     LocalCryptoFailure,
     /// The committed state is valid but this process has no exact compatible ABI 2 executor.
     ExecutionUnavailable,
-    /// Another process instance holds or took the exclusive key-use lease, or
-    /// the authority's lease generation was observed behind the one it issued
-    /// this instance; every in-process pending and accepted secret of this
-    /// instance was erased, and it permanently refuses lease-guarded operations.
+    /// Another process instance holds or took the exclusive key-use lease, the
+    /// authority's lease generation was observed behind the one it issued this
+    /// instance, or this instance has begun releasing its lease; every
+    /// in-process pending and accepted secret of this instance was erased, and
+    /// it permanently refuses lease-guarded operations.
     InstanceFenced,
     /// The mandatory instance-lease authority failed closed, or the durable
     /// lease-intent journal is full and could not take the row every lease
-    /// mutation needs before dispatch; the operation did not run.
+    /// mutation needs before dispatch; the operation did not run. From
+    /// [`PolicyAgent::release_instance_lease`] it means the lease is still
+    /// held by this instance and the call may be repeated.
     InstanceLeaseUnavailable,
-    /// A lease operation outcome stayed unknown after exact-operation reconciliation.
+    /// A lease operation outcome stayed unknown after exact-operation
+    /// reconciliation. From [`PolicyAgent::release_instance_lease`] the fence
+    /// is kept and the call may be repeated; from construction, the fence the
+    /// unconfirmed acquire would have granted was released again before this
+    /// was returned.
     InstanceLeaseIndeterminate,
     /// This instance could not prove lease coverage for the operation, and
     /// nothing was retained or returned. Either the authority's own snapshot,
@@ -593,6 +600,15 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// It does not wait for that lease to lapse; [`Self::new_with_lease_wait`]
     /// is the constructor for a daemon restarting after its predecessor was
     /// killed.
+    ///
+    /// A failure after the acquire -- the witness read, the executor, or the
+    /// policy authentication -- releases the lease before returning, so a
+    /// healthy retry acquires at once instead of waiting out the TTL. The
+    /// failure itself is what is returned; a release that cannot be settled
+    /// leaves the lease to lapse at its TTL, with its journal row for the next
+    /// start to settle, exactly as after a crash. An acquire whose own outcome
+    /// stayed unknown is handled the same way: the fence it would have granted
+    /// is released, and [`AgentError::InstanceLeaseIndeterminate`] is returned.
     pub fn new(
         repository: StateRepository,
         witness: W,
@@ -633,28 +649,36 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 
     /// Finish construction once the lease is held: align local state with the
     /// mandatory witness and authenticate the configured policy material.
+    ///
+    /// Everything fallible happens in `prepare_execution`, before the lease is
+    /// committed to an `Inner`, so that a failure can hand the lease back
+    /// first: left held, it would fence every retry until its TTL. The
+    /// constructor's own error is what is returned, because this process
+    /// holds no usable lease either way; a release that could not itself be
+    /// settled -- the authority unreachable -- leaves the lease to lapse at
+    /// its TTL with its journal row for the next start, exactly as after a
+    /// crash.
     fn with_lease(
         mut repository: StateRepository,
         witness: W,
         authority: A,
         config: AgentConfig,
-        lease: InstanceLeaseState,
+        mut lease: InstanceLeaseState,
     ) -> Result<Self, AgentError> {
-        align_repository(&mut repository, &witness)?;
-        let committed = repository.committed_state();
-        let engine = executor_for(&config.execution_policy, committed.state())?;
-        let local_policy = config.local_endpoint_policy.authenticate()?;
-        let peer_policy = config.peer_endpoint_policy.authenticate()?;
-        let pending_engine = if repository.pending_intent().is_some() {
-            Some(executor_for(
-                &config.execution_policy,
-                repository
-                    .pending_next_state()
-                    .ok_or(AgentError::InternalPoisoned)?,
-            )?)
-        } else {
-            None
+        let prepared = match prepare_execution(&mut repository, &witness, &config) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                let _ = release_lease_state(&repository, &authority, &mut lease);
+                let _ = forget_settled(&repository, &mut lease);
+                return Err(error);
+            }
         };
+        let PreparedExecution {
+            engine,
+            pending_engine,
+            local_policy,
+            peer_policy,
+        } = prepared;
         Ok(Self {
             inner: Mutex::new(Inner {
                 repository,
@@ -1063,60 +1087,52 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// Release the exclusive instance lease for graceful shutdown.
     ///
     /// Every in-process pending and accepted secret is erased first, so key use
-    /// stops before another instance can acquire the next lease generation.
-    /// After release this agent permanently refuses lease-guarded operations;
-    /// a successor process must construct a new agent to acquire authority.
-    /// Repeating the call after the fence is already gone succeeds idempotently.
+    /// stops before the release is dispatched and before another instance can
+    /// acquire the next lease generation. From the first attempt on, whatever
+    /// its outcome, this agent refuses lease-guarded operations with
+    /// [`AgentError::InstanceFenced`]; a successor process must construct a
+    /// new agent to acquire authority.
+    ///
+    /// It succeeds only once the authority has confirmed the release --
+    /// applied, or rejected because no lease of this instance remains -- or a
+    /// snapshot has shown that no lease of this instance remains. Until then
+    /// the fence is kept and the call may be repeated:
+    /// [`AgentError::InstanceLeaseUnavailable`] when the release could not be
+    /// sent, could not be journaled, or was declined on a condition that can
+    /// clear, and [`AgentError::InstanceLeaseIndeterminate`] when its outcome
+    /// stayed unknown and no snapshot could prove it either way. In both cases
+    /// the lease is still held by this instance. A durable cancellation that
+    /// fails during the erase is reported as [`AgentError::InternalPoisoned`]
+    /// only after the release itself has been settled; the agent is poisoned
+    /// and refuses a repeat. Once the lease is retired, repeating the call
+    /// succeeds idempotently without dispatching anything.
     ///
     /// This is the clean shutdown path, so it also forgets, durably, every
     /// journaled lease intent this process has settled -- the release's own
     /// included. A clean shutdown therefore leaves the journal empty; only a
-    /// crash leaves rows for the next start to settle.
+    /// crash, or a release the authority never confirmed, leaves rows for the
+    /// next start to settle.
     pub fn release_instance_lease(&self) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
         let inner = &mut *inner;
         ensure_live(inner)?;
-        let Some(fence) = inner.lease.fence else {
+        if inner.lease.phase == LeasePhase::Retired {
             return forget_settled(&inner.repository, &mut inner.lease);
-        };
-        fence_out(inner)?;
-        drain_acknowledgements(&inner.authority, &mut inner.lease);
-        for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
-            let intent = lease_intent(
-                &inner.lease,
-                inner.authority.wire_config(),
-                AuthorityMutationV2::ReleaseLease { fence },
-            )?;
-            match lease_exchange(
-                &inner.repository,
-                &inner.authority,
-                &mut inner.lease,
-                LeaseCall::Release,
-                intent,
-            )? {
-                LeaseExchange::Receipt(receipt) => {
-                    drain_acknowledgements(&inner.authority, &mut inner.lease);
-                    let outcome = match receipt.disposition() {
-                        AuthorityDispositionV2::Applied
-                        | AuthorityDispositionV2::Rejected(
-                            AuthorityRejectionV2::LeaseAbsent
-                            | AuthorityRejectionV2::LeaseExpired
-                            | AuthorityRejectionV2::FenceMismatch,
-                        ) => Ok(()),
-                        AuthorityDispositionV2::Rejected(_) => {
-                            Err(AgentError::InstanceLeaseUnavailable)
-                        }
-                    };
-                    // No journal write follows a release, so the rows this
-                    // process settled would otherwise wait for the next start
-                    // to find them absent. Forget them now.
-                    let forgotten = forget_settled(&inner.repository, &mut inner.lease);
-                    return outcome.and(forgotten);
-                }
-                LeaseExchange::Retry => {}
-            }
         }
-        Err(AgentError::InstanceLeaseIndeterminate)
+        // Erase first, and report a failure only once the release has been
+        // settled: `erase_pending` drops each secret before it touches the
+        // repository, so a failed durable cancellation still erases, and a
+        // lease released with its secrets gone is what a stop must leave
+        // behind whether or not the bookkeeping succeeded.
+        let erase_failure = erase_all_secrets(inner);
+        let released = release_lease_state(&inner.repository, &inner.authority, &mut inner.lease);
+        // No journal write follows a release, so the rows this process settled
+        // would otherwise wait for the next start to find them absent. Forget
+        // them now, whatever the release's outcome.
+        let forgotten = forget_settled(&inner.repository, &mut inner.lease);
+        released
+            .and(erase_failure.map_or(Ok(()), Err))
+            .and(forgotten)
     }
 
     /// Every lease intent still journaled in the repository.
@@ -1213,7 +1229,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     #[cfg(all(test, unix))]
     pub(crate) fn fence_out_for_test(&self) -> Result<(), AgentError> {
         let mut inner = self.lock()?;
-        fence_out(&mut inner)
+        lease::fence_out(&mut inner)
     }
 
     /// Make the next durable session reserve or release take this long after
@@ -1251,6 +1267,47 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
     }
+}
+
+/// What construction derives from the repository and the configuration once
+/// the lease is held, gathered before any of it is committed to an `Inner`.
+struct PreparedExecution {
+    engine: ExecutorState,
+    pending_engine: Option<ExecutorState>,
+    local_policy: AuthenticatedPolicy,
+    peer_policy: AuthenticatedPolicy,
+}
+
+/// Every fallible step of construction after the acquire: align local state
+/// with the mandatory witness, build the executor for the committed state and
+/// for a pending one, and authenticate the configured policy material. Kept
+/// apart from `with_lease` so that a failure here can release the lease.
+fn prepare_execution<W: WitnessPort>(
+    repository: &mut StateRepository,
+    witness: &W,
+    config: &AgentConfig,
+) -> Result<PreparedExecution, AgentError> {
+    align_repository(repository, witness)?;
+    let committed = repository.committed_state();
+    let engine = executor_for(&config.execution_policy, committed.state())?;
+    let local_policy = config.local_endpoint_policy.authenticate()?;
+    let peer_policy = config.peer_endpoint_policy.authenticate()?;
+    let pending_engine = if repository.pending_intent().is_some() {
+        Some(executor_for(
+            &config.execution_policy,
+            repository
+                .pending_next_state()
+                .ok_or(AgentError::InternalPoisoned)?,
+        )?)
+    } else {
+        None
+    };
+    Ok(PreparedExecution {
+        engine,
+        pending_engine,
+        local_policy,
+        peer_policy,
+    })
 }
 
 fn align_repository<W: WitnessPort>(

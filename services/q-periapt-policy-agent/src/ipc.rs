@@ -92,6 +92,11 @@ pub enum IpcError {
     Unavailable,
     /// The agent entered a fail-closed poisoned state.
     AgentFatal,
+    /// The serving loop stopped cleanly but the instance lease could not be
+    /// released: the transport refused the release, its outcome stayed
+    /// unknown, or the agent was poisoned. The lease lapses at the
+    /// authority's TTL, which the next start waits out.
+    LeaseReleaseFailed,
 }
 
 impl fmt::Display for IpcError {
@@ -108,6 +113,9 @@ impl fmt::Display for IpcError {
             Self::AuthenticationFailed => "IPC request authentication failed",
             Self::Unavailable => "IPC transport unavailable",
             Self::AgentFatal => "policy agent entered a fail-closed state",
+            Self::LeaseReleaseFailed => {
+                "instance lease was not released at stop; it lapses at the authority TTL"
+            }
         })
     }
 }
@@ -540,22 +548,29 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// This is what `serve_agent` runs. The release is attempted on every
     /// exit, the orderly stop and a fatal listener error alike, and it is what
     /// lets the next process acquire at once instead of waiting out the lease
-    /// TTL; it also erases every in-process secret first. It is best effort:
-    /// if the authority cannot be reached the lease simply lapses at its TTL,
-    /// exactly as it would after a crash, and a poisoned agent refuses the
-    /// release outright (`release_instance_lease` checks liveness first), so
-    /// after a fatal agent error the lease lapses the same way. The serving
-    /// outcome -- not the release's -- is what this returns, so a stop still
-    /// exits 0 and a fatal serving error still propagates.
+    /// TTL; it also erases every in-process secret first. A serving failure
+    /// keeps precedence: it is what caused the exit and what this returns,
+    /// whatever the release did. An orderly stop returns the release's
+    /// outcome: `Ok` only once the authority has confirmed the release or a
+    /// snapshot has proved the lease gone, and
+    /// [`IpcError::LeaseReleaseFailed`] otherwise -- the authority
+    /// unreachable, the outcome unknown, or the agent poisoned, which refuses
+    /// the release outright (`release_instance_lease` checks liveness first).
+    /// In that case the lease lapses at its TTL exactly as it would after a
+    /// crash, and the process exits 1 with that one-line reason rather than
+    /// report a stop that left the lease held as clean.
     fn serve_and_release(
         &mut self,
         listener: UnixListener,
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
         let outcome = self.serve(listener, shutdown);
-        // Best effort by design; see above.
-        let _ = self.agent.release_instance_lease();
-        outcome
+        let released = self.agent.release_instance_lease();
+        match (outcome, released) {
+            (Err(error), _) => Err(error),
+            (Ok(()), Ok(())) => Ok(()),
+            (Ok(()), Err(_)) => Err(IpcError::LeaseReleaseFailed),
+        }
     }
 
     /// Run the serving loop against a caller-supplied listener.
@@ -929,7 +944,9 @@ fn serve_agent(
     // the acquire above and this install ends the process holding the lease
     // with no release, and the next start waits that lease out. From here on
     // the orderly stop and a fatal listener error alike attempt the release;
-    // a poisoned agent refuses it, and the lease lapses at its TTL instead.
+    // one the authority does not confirm -- a poisoned agent refuses it
+    // outright -- leaves the lease to lapse at its TTL instead, and an
+    // orderly stop reports that by exiting 1.
     let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
     server.serve_and_release(listener, shutdown)
 }
@@ -1480,18 +1497,20 @@ mod tests {
 
         // launchd's default ExitTimeOut is 20 seconds. A stop is observed
         // within one maintenance interval, and the lease release that follows
-        // is up to four bounded authority round trips -- drain, release, and
-        // two reconciling queries -- so against an authority that accepts the
-        // connection and never answers the default is exactly where the
-        // daemon would be killed mid-release.
+        // is up to six bounded authority round trips -- the acknowledgement
+        // drain and the unresolved-row drain, each of which stops at its first
+        // unanswered call, the release, two reconciling queries, and one
+        // snapshot proof -- so against an authority that accepts the
+        // connection and never answers the default is where the daemon would
+        // be killed mid-release.
         assert_eq!(
             plist_value(&plist, "ExitTimeOut"),
             "<integer>60</integer>",
             "the agent plist must give the lease release longer than launchd's 20-second default"
         );
         assert!(
-            Duration::from_secs(60) > MAINTENANCE_INTERVAL + 4 * AUTHORITY_IO_TIMEOUT,
-            "ExitTimeOut must cover observing the stop plus four authority round trips"
+            Duration::from_secs(60) > MAINTENANCE_INTERVAL + 6 * AUTHORITY_IO_TIMEOUT,
+            "ExitTimeOut must cover observing the stop plus six authority round trips"
         );
     }
 

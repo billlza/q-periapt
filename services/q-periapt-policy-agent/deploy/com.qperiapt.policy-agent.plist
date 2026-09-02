@@ -141,9 +141,9 @@
       default is 20 seconds. The daemon observes the stop within one
       maintenance interval (one second), erases its in-process secrets, and
       releases the instance lease, and that release is a handful of bounded
-      authority round trips of at most 5 seconds each -- up to four against
-      an authority that accepts the connection and never answers, so about 20
-      seconds worst case, right at the default. A SIGKILL there costs only a
+      authority round trips of at most 5 seconds each -- up to six against
+      an authority that accepts the connection and never answers, so about 30
+      seconds worst case, past the default. A SIGKILL there costs only a
       redb recovery at the next open, and the lease lapses at its TTL exactly
       as after a crash; 60 gives the release room to finish instead.
     -->

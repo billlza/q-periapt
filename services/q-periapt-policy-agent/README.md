@@ -215,7 +215,9 @@ configuration revision as fixed-length big-endian binary files). Secret-key
 files are read directly into zeroizing buffers. `serve-agent` acquires the
 exclusive instance lease at startup: it waits for a crashed predecessor's
 lease to lapse and fails closed only while a holder that is still renewing
-has it.
+has it. A start that acquires the lease and then fails -- the witness
+unreachable, the executor or the policy material rejected -- releases the
+lease before returning, so the retry does not wait out a TTL.
 
 Every lease mutation the agent sends -- the acquire at start, the renew before
 each guarded operation, the re-acquire after a lapse, and the release -- is
@@ -243,9 +245,15 @@ the table; the first journal write creates it.
 Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
 from the service manager, or `SIGINT` by hand -- is observed by the serving
 loop within one maintenance interval; the daemon erases every in-process
-secret, releases the lease, and exits 0, so the next start acquires at once. A
-crash never releases the lease, and the authority lets it lapse only at its TTL
-(10 seconds to 5 minutes, as configured on the authority). A start inside that
+secret and releases the lease, and exits 0 only once the authority has
+confirmed that release or a snapshot has shown that no lease of this instance
+remains, so the next start acquires at once. If the release could not be
+settled -- the transport refused it, the journal was full, its outcome stayed
+unknown with no snapshot to prove it, or the agent was poisoned -- the daemon
+exits 1 with a one-line reason and the lease lapses at its TTL, which the next
+start waits out. A crash never releases the lease, and the authority lets it
+lapse only at its TTL (10 seconds to 5 minutes, as configured on the
+authority). A start inside that
 window waits for the lapse: it retries the same fail-closed acquire after the
 shorter of the lease's remaining life, as a fresh authority snapshot reports
 it, and one second -- never sooner than 10 ms after the last attempt, and
@@ -259,9 +267,10 @@ arrives during the wait ends the process by the default disposition, holding
 no lease; one that lands in the few seconds between the acquire and the
 handler install ends the process without a release, and the next start waits
 that lease out. The daemon writes only a one-line reason to stderr when it
-exits with an error -- a refused start or a fatal serving failure -- and
-nothing on a stop; the exit status and the authority's own state are the only
-record of a stop, a wait, or a refused start.
+exits with an error -- a refused start, a fatal serving failure, or a stop
+whose release did not settle -- and nothing on a clean stop; the exit status
+and the authority's own state are the only record of a stop, a wait, or a
+refused start.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:

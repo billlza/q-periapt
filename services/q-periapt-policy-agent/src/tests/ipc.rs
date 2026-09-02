@@ -449,3 +449,47 @@ fn stopping_the_serving_loop_releases_the_instance_lease() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_stop_whose_release_fails_is_reported_and_the_lease_is_left_for_the_ttl() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 58)?;
+    let authority = pair.initiator_authority.clone();
+    let (_, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    let socket_path = directory.join("unsent.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = AtomicBool::new(false);
+    let (outcome, server) = thread::scope(|scope| {
+        let serving = scope.spawn(|| {
+            let mut server = server;
+            let outcome = server.serve_and_release_for_test(listener, &shutdown);
+            (outcome, server)
+        });
+        thread::sleep(Duration::from_millis(200));
+        // The release the stop triggers cannot be sent.
+        authority.fail_next_lease_call_before_send(LeaseCallFilter::Release);
+        shutdown.store(true, Ordering::Release);
+        serving.join()
+    })
+    .map_err(|_| io::Error::other("serving thread panicked"))?;
+    // An orderly stop whose release did not settle is an error exit, not the
+    // clean stop that exits 0 -- and the lease was not silently dropped: the
+    // authority still holds it, for its TTL or for a retry.
+    assert_eq!(outcome, Err(crate::ipc::IpcError::LeaseReleaseFailed));
+    assert!(
+        authority.active_lease()?.is_some(),
+        "a release that was never sent must leave the lease held"
+    );
+    // It is still this instance's to release.
+    server.agent_for_test().release_instance_lease()?;
+    assert!(authority.active_lease()?.is_none());
+    Ok(())
+}

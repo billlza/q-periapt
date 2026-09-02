@@ -8,7 +8,7 @@ use super::*;
 /// (`MAX_JOURNALED_LEASE_INTENTS`) and every queued receipt has a row there,
 /// so the journal refuses a lease operation before this queue could overflow.
 const MAX_UNACKNOWLEDGED_LEASE_RECEIPTS: usize = 64;
-pub(super) const LEASE_VERSION_RESYNC_ATTEMPTS: usize = 2;
+const LEASE_VERSION_RESYNC_ATTEMPTS: usize = 2;
 /// Longest pause between two acquire attempts while a predecessor's lease is
 /// waited out; see `acquire_instance_lease_within`.
 const LEASE_WAIT_STEP: Duration = Duration::from_secs(1);
@@ -30,9 +30,11 @@ const LEASE_WAIT_MIN_PAUSE: Duration = Duration::from_millis(10);
 /// authority.
 pub(super) struct InstanceLeaseState {
     instance_id: ProcessInstanceIdV2,
-    pub(super) fence: Option<InstanceFenceV2>,
+    fence: Option<InstanceFenceV2>,
     authority_version: u64,
-    fenced: bool,
+    /// Where the lease stands in its lifecycle; see [`LeasePhase`]. Only a
+    /// `Serving` lease renews or runs a guarded operation.
+    pub(super) phase: LeasePhase,
     unacknowledged: VecDeque<DurablyRetainedAuthorityReceiptV2>,
     /// Journaled operation ids this process has settled with the authority --
     /// acknowledged, found already absent, or provably never executed. The
@@ -55,7 +57,32 @@ pub(super) struct InstanceLeaseState {
     covered_until: Option<Instant>,
 }
 
-pub(super) enum LeaseCall {
+/// Where this instance's lease stands.
+///
+/// `Serving` is the only phase that renews and runs guarded operations.
+/// `Releasing` is entered by `release_lease_state` before its first dispatch
+/// and kept whenever that release could not be settled: the fence stays, so a
+/// later call can dispatch the release again, and guarded operations are
+/// refused as fenced from the first attempt on. `Retired` is final -- the
+/// fence is gone -- and is entered by `fence_out` (a successor, a rolled-back
+/// authority, a foreign fence) or by a release the authority confirmed or a
+/// snapshot proved. Releasing never returns to Serving.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum LeasePhase {
+    Serving,
+    Releasing,
+    Retired,
+}
+
+/// Retire this instance's fence for good: no lease is held, no coverage is
+/// proven, and every guarded operation is refused from now on.
+fn retire(lease: &mut InstanceLeaseState) {
+    lease.fence = None;
+    lease.covered_until = None;
+    lease.phase = LeasePhase::Retired;
+}
+
+enum LeaseCall {
     Acquire,
     Renew,
     Release,
@@ -65,7 +92,7 @@ pub(super) enum LeaseCall {
 // recorded without heap allocation, matching the wire payload discipline.
 #[allow(clippy::large_enum_variant)]
 /// Outcome of one lease exchange after exact-operation reconciliation.
-pub(super) enum LeaseExchange {
+enum LeaseExchange {
     /// The authority returned this operation's exact authenticated receipt.
     Receipt(AuthorityReceiptV2),
     /// The operation provably never dispatched; rebuild the intent and retry.
@@ -92,7 +119,7 @@ fn authority_snapshot<A: InstanceAuthorityPort>(
     }
 }
 
-pub(super) fn lease_intent(
+fn lease_intent(
     lease: &InstanceLeaseState,
     config: DeploymentConfigRevisionV2,
     mutation: AuthorityMutationV2,
@@ -139,10 +166,7 @@ fn record_lease_receipt(
     Ok(LeaseExchange::Receipt(receipt))
 }
 
-pub(super) fn drain_acknowledgements<A: InstanceAuthorityPort>(
-    authority: &A,
-    lease: &mut InstanceLeaseState,
-) {
+fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
     while let Some(retained) = lease.unacknowledged.front() {
         let operation_id = retained.locator().operation_id();
         match authority.acknowledge(retained) {
@@ -215,7 +239,7 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
 /// acknowledgement its receipt is owed. An outcome that proves the authority
 /// never executed the operation settles the row at once; an outcome that
 /// leaves it unknown keeps the id for a later query.
-pub(super) fn lease_exchange<A: InstanceAuthorityPort>(
+fn lease_exchange<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
@@ -453,7 +477,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
         instance_id,
         fence: None,
         authority_version: 1,
-        fenced: false,
+        phase: LeasePhase::Serving,
         unacknowledged: VecDeque::new(),
         settled: Vec::new(),
         unresolved: Vec::new(),
@@ -475,13 +499,38 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
                 instance_id,
             },
         )?;
-        match lease_exchange(
+        let exchange = match lease_exchange(
             repository,
             authority,
             &mut lease,
             LeaseCall::Acquire,
             intent,
-        )? {
+        ) {
+            Ok(exchange) => exchange,
+            // Dispatched, and its outcome still unknown after reconciliation.
+            // If it applied, the authority holds a lease under this fresh
+            // instance id that nothing would ever release, and every retry
+            // would be fenced until the TTL. So hand back the fence the
+            // acquire would have granted: Applied retires it; LeaseAbsent or
+            // FenceMismatch says it never applied and retires just the same;
+            // an authority still unreachable leaves it to lapse at its TTL,
+            // as after a crash. No secret exists yet, so there is nothing to
+            // erase. The error reported is the acquire's own.
+            Err(AgentError::InstanceLeaseIndeterminate) => {
+                let generation = expected_lease_generation
+                    .checked_add(1)
+                    .ok_or(AgentError::InstanceLeaseUnavailable)?;
+                lease.fence = Some(
+                    InstanceFenceV2::new(generation, instance_id)
+                        .map_err(|_| AgentError::InstanceLeaseUnavailable)?,
+                );
+                let _ = release_lease_state(repository, authority, &mut lease);
+                let _ = forget_settled(repository, &mut lease);
+                return Err(AgentError::InstanceLeaseIndeterminate);
+            }
+            Err(error) => return Err(error),
+        };
+        match exchange {
             LeaseExchange::Receipt(receipt) => {
                 drain_acknowledgements(authority, &mut lease);
                 match receipt.disposition() {
@@ -589,6 +638,8 @@ fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
 /// Every guarded operation renews against the authority's trusted clock, so a
 /// fenced or superseded instance is rejected before it can touch a pending or
 /// accepted secret, and it erases every secret before the rejection returns.
+/// An instance that is releasing its lease, or has retired it, is refused as
+/// fenced before anything is dispatched: only a `Serving` lease renews.
 ///
 /// A lease that merely lapsed -- nobody else holds it -- is handled in one of
 /// two ways depending on where the lapse is first seen. If the renew itself is
@@ -606,7 +657,7 @@ fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
 pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
-    if inner.lease.fenced {
+    if inner.lease.phase != LeasePhase::Serving {
         return Err(AgentError::InstanceFenced);
     }
     let Some(fence) = inner.lease.fence else {
@@ -851,25 +902,23 @@ pub(super) fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
 /// After this returns, the agent permanently refuses lease-guarded operations
 /// and holds no pending or accepted secret.
 ///
-/// Whether the erasure precedes a successor's acquire depends on which caller
-/// ran it, and an earlier version of this comment asserted the strong form for
-/// both:
+/// This runs from `ensure_instance_lease` and `prove_lease_coverage`, when a
+/// renew or a snapshot has shown a successor, a rolled-back authority, or a
+/// foreign fence. It is not on the release path: `release_instance_lease`
+/// erases through `erase_all_secrets` and retires the fence only once the
+/// authority has confirmed the release or a snapshot has proved the lease gone
+/// (`release_lease_state`), so on that path the erasure does precede any
+/// successor's acquire. Here it does not: a successor's acquire is gated purely
+/// on wall-clock expiry (`plan_acquire`), with no interaction with the incumbent
+/// and no revocation, so this instance learns it was fenced only by being
+/// rejected.
 ///
-/// * From `release_instance_lease` it holds. That path erases first and only
-///   then tells the authority to release, so no successor can acquire until
-///   after this instance is empty.
-/// * From `ensure_instance_lease` it does not. That path runs when a renew was
-///   already rejected, which means the successor acquired first: a successor's
-///   acquire is gated purely on wall-clock expiry (`plan_acquire`), with no
-///   interaction with the incumbent and no revocation, so this instance learns
-///   it was fenced only by being rejected.
-///
-/// What both callers do guarantee is the erasure itself, before the rejected
-/// call returns, and that no session secret was **retained or returned** outside
-/// the window this instance could prove it held the lease -- see
-/// `prove_lease_coverage` and `ensure_lease_covers`. That is narrower than "key
-/// use has stopped": the KEM itself runs before the coverage check, and the
-/// long-term ABI 2 executor keys are outside this mechanism entirely.
+/// What is guaranteed is the erasure itself, before the rejected call returns,
+/// and that no session secret was **retained or returned** outside the window
+/// this instance could prove it held the lease -- see `prove_lease_coverage`
+/// and `ensure_lease_covers`. That is narrower than "key use has stopped": the
+/// KEM itself runs before the coverage check, and the long-term ABI 2 executor
+/// keys are outside this mechanism entirely.
 pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
@@ -881,12 +930,118 @@ pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
     // exists to guarantee. `erase_pending` drops each secret before it touches
     // the repository, so continuing past a failure still erases.
     let first_failure = erase_all_secrets(inner);
-    inner.lease.fence = None;
     // The process is fenced whether or not the durable bookkeeping succeeded;
     // that is a fact about the lease, not about the erasure.
-    inner.lease.fenced = true;
+    retire(&mut inner.lease);
     match first_failure {
         Some(error) => Err(error),
         None => Ok(()),
     }
+}
+
+/// Hand this instance's lease back to the authority, retiring the fence only
+/// once the authority has confirmed the release or a snapshot has proved that
+/// no lease of this instance remains.
+///
+/// State-only, so the constructor can run it on a lease it acquired and then
+/// could not use, with no `Inner` yet. A caller that holds secrets erases them
+/// before calling this (`PolicyAgent::release_instance_lease`).
+///
+/// The phase moves to `Releasing` before the first dispatch and stays there on
+/// every failure, with the fence kept: a release the transport could not send
+/// or the journal could not take, one the authority declined on a condition
+/// that can clear, and one whose outcome stayed unknown with no snapshot to
+/// prove it can all be dispatched again by a later call. The fence is never
+/// dropped ahead of that evidence -- dropping it early made the next call
+/// succeed with nothing dispatched while the authority still held the lease.
+///
+/// The fence dispatched is re-read on every attempt: when the release's own
+/// outcome is lost, the snapshot that stands in for it reports the fence the
+/// authority actually holds for this instance, and that is the one to release.
+///
+/// Returns `Ok(())` at once when the lease is already retired.
+pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
+    repository: &StateRepository,
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+) -> Result<(), AgentError> {
+    if lease.phase == LeasePhase::Retired {
+        return Ok(());
+    }
+    lease.phase = LeasePhase::Releasing;
+    lease.covered_until = None;
+    drain_acknowledgements(authority, lease);
+    drain_unresolved(authority, lease);
+    for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        let Some(fence) = lease.fence else {
+            return Err(AgentError::InstanceLeaseUnavailable);
+        };
+        let intent = lease_intent(
+            lease,
+            authority.wire_config(),
+            AuthorityMutationV2::ReleaseLease { fence },
+        )?;
+        match lease_exchange(repository, authority, lease, LeaseCall::Release, intent) {
+            Ok(LeaseExchange::Receipt(receipt)) => {
+                drain_acknowledgements(authority, lease);
+                return match receipt.disposition() {
+                    AuthorityDispositionV2::Applied
+                    | AuthorityDispositionV2::Rejected(
+                        AuthorityRejectionV2::LeaseAbsent
+                        | AuthorityRejectionV2::LeaseExpired
+                        | AuthorityRejectionV2::FenceMismatch,
+                    ) => {
+                        retire(lease);
+                        Ok(())
+                    }
+                    // Declined on a condition that can clear; the lease is
+                    // still this instance's to release.
+                    AuthorityDispositionV2::Rejected(_) => {
+                        Err(AgentError::InstanceLeaseUnavailable)
+                    }
+                };
+            }
+            // Provably never executed; the loop rebuilds the intent.
+            Ok(LeaseExchange::Retry) => {}
+            Err(AgentError::InstanceLeaseIndeterminate) => {
+                match lease_gone_by_snapshot(authority, lease) {
+                    Ok(None) => {
+                        retire(lease);
+                        return Ok(());
+                    }
+                    // Still held under this instance, so the release did not
+                    // apply. Release the fence the authority reports.
+                    Ok(Some(reported)) => lease.fence = Some(reported),
+                    Err(()) => return Err(AgentError::InstanceLeaseIndeterminate),
+                }
+            }
+            // Not sent, the journal full, or the repository failed: nothing
+            // was dispatched, and the fence is kept.
+            Err(error) => return Err(error),
+        }
+    }
+    Err(AgentError::InstanceLeaseIndeterminate)
+}
+
+/// Ask a snapshot whether any lease of this instance remains, when a release's
+/// own outcome could not be learned.
+///
+/// `Ok(None)` means gone: the authority reports no active lease -- it filters
+/// expired ones itself -- or one under another instance. Either way this
+/// instance holds nothing, and a successor's lease is not this code's to
+/// touch; the secrets a fence would have erased were erased before the release
+/// was dispatched. `Ok(Some(fence))` means still held under this instance,
+/// with the fence the authority reports -- which may differ in generation from
+/// the one retained here -- for the release that must follow. `Err(())` means
+/// the snapshot itself went unanswered: nothing is known.
+fn lease_gone_by_snapshot<A: InstanceAuthorityPort>(
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+) -> Result<Option<InstanceFenceV2>, ()> {
+    let snapshot = authority_snapshot(authority).map_err(|_| ())?;
+    lease.authority_version = snapshot.authority_version();
+    Ok(match snapshot.active_lease() {
+        Some(active) if active.fence().instance_id() == lease.instance_id => Some(active.fence()),
+        Some(_) | None => None,
+    })
 }
