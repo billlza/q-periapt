@@ -20,8 +20,9 @@ MSRV 1.85, and licensed `MIT OR Apache-2.0`. After an unclean shutdown all
 three stores -- repository, witness, and authority -- let `redb` finish its
 crash recovery on open. A normal stop is not one of those: `serve-agent` and
 `serve-witness` install `SIGTERM` and `SIGINT` handlers whose only action is
-to set a flag, the serving loop reads it within one maintenance interval and
-returns, and the store then closes cleanly through its destructor. Recovery
+to set a flag, the serving loop reads it within one maintenance interval -- or
+once the request in flight has been answered or refused -- and returns, and
+the store then closes cleanly through its destructor. Recovery
 still runs after a crash, a `SIGKILL`, or a stop that outran the service
 manager's stop timeout, and after any restart of the authority store, whose
 hosting process decides when its own flag is set. Because every commit is two-phase,
@@ -114,6 +115,19 @@ encrypted; deployment must provide a network boundary when state metadata is
 confidential. The reference server processes one connection at a time with a
 five-second I/O timeout. This is an explicit resource bound, but an unauthenticated
 slow client can occupy that one slot until the timeout.
+
+Every IPC request is answered or refused within one end-to-end deadline of 35
+seconds from accept. The client-paced read and the response write are each
+additionally capped at 5 seconds, and in between the agent admits each
+authority and witness round trip only while it can end before that deadline,
+refusing a lease-guarded operation whose least plan no longer fits before it
+dispatches anything. IPC status 24 means the request was refused or aborted on
+its deadline with nothing retained and its reservation released; it is not a
+fence, and the request may be retried under a fresh nonce with a fresh offer
+where the offer was consumed. A committed operation whose response could not
+be written by the deadline gets no response at all, which the client sees as a
+lost response and, for an acceptance, recovers by the exact retry described
+below; a transition it reconciles.
 
 The executable IPC face is Unix-only. It does not create its listening socket:
 the service manager does, and the daemon adopts the descriptor it is handed,
@@ -255,8 +269,9 @@ the table; the first journal write creates it.
 
 Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
 from the service manager, or `SIGINT` by hand -- is observed by the serving
-loop within one maintenance interval; the daemon erases every in-process
-secret and releases the lease, and exits 0 only once the authority has
+loop within one maintenance interval, or once the request in flight has been
+answered or refused; the daemon erases every in-process secret and releases
+the lease under a 30-second budget, and exits 0 only once the authority has
 confirmed that release or a snapshot has shown that no lease of this instance
 remains, so the next start acquires at once. If the release could not be
 settled -- the transport refused it, the journal was full, its outcome stayed

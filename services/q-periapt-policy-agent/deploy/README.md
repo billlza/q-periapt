@@ -173,7 +173,8 @@ weaker socket.
    unreachable after that many unclean stops -- fails closed until the
    authority answers; it is not a store fault and needs no re-provisioning.
 7. Stop and restart only through the service manager. A stop delivers
-   `SIGTERM`; the daemon observes it within one second, erases its in-process
+   `SIGTERM`; the daemon observes it within one second when idle, or once
+   the request in flight has been answered or refused, erases its in-process
    secrets, and releases the instance lease. It exits 0 only once the
    authority has confirmed that release or a snapshot has shown that no lease
    of this instance remains, so the start that follows acquires immediately;
@@ -187,11 +188,14 @@ weaker socket.
    lease TTL, 10 seconds to 5 minutes, plus a five-second margin) and then
    serves, without operator action, subject on Linux to systemd's start rate
    limit. systemd's default `TimeoutStopSec` of 90 seconds is ample, and the
-   launchd plist sets `ExitTimeOut` to 60 because launchd's own default of 20
-   is not: the stop is observed within one maintenance interval and the
-   release is a handful of bounded authority round trips of at most 5 seconds
-   each -- up to six against an authority that accepts the connection and
-   never answers, about 30 seconds worst case. A `SIGKILL` past either limit
+   launchd plist sets `ExitTimeOut` to 90 because launchd's own default of 20
+   is not: a stop that lands during a request is observed once that request
+   has been answered or refused -- every request runs under one end-to-end
+   deadline of 35 seconds -- and the release that follows runs under a
+   30-second budget, up to six bounded authority round trips of at most 5
+   seconds each against an authority that accepts the connection and never
+   answers, each admitted only while it can still end within the budget: 66
+   seconds worst case. A `SIGKILL` past either limit
    costs only a `redb` recovery at the next open, and the lease lapses at its
    TTL as after a crash. The daemon writes only a one-line reason to stderr
    when it exits with an error -- a refused start, a fatal serving failure, or

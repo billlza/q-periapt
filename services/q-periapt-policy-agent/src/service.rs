@@ -38,14 +38,57 @@ pub(crate) mod lease;
 
 use self::lease::{
     acquire_instance_lease, acquire_instance_lease_within, ensure_instance_lease,
-    ensure_lease_covers, erase_all_secrets, forget_settled, prove_lease_covers_retention,
-    release_lease_state, InstanceLeaseState, LeasePhase,
+    ensure_may_retain, erase_all_secrets, forget_settled, prove_lease_covers_retention,
+    release_lease_state, InstanceLeaseState, LeasePhase, OperationPlan,
 };
 
 const MAX_SIGNED_OFFER_BYTES: usize = 16 * 1024;
 const HARD_MAX_SESSIONS: usize = 1024;
 const HARD_MAX_CONFIRMED_KEYS: usize = 1024;
 const MAX_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+/// The end-to-end budget an operation gets when its caller gives it no
+/// deadline of its own: the plain (non-`_until`) methods, and the
+/// constructor's own lease work. The IPC server never relies on it; every
+/// request it serves carries the request's deadline.
+const DEFAULT_OPERATION_BUDGET: Duration = Duration::from_secs(60);
+
+/// The one end-to-end deadline of the operation currently holding the
+/// agent's lock.
+///
+/// Every blocking exchange -- each authority and witness round trip, and the
+/// retention gate before a secret becomes reachable -- is admitted against it
+/// first: a call starts only if the port's own bound on that call ends before
+/// the deadline, so an admitted call always finishes in time and a refusal
+/// costs nothing. The refusal is [`AgentError::OperationDeadlineExceeded`].
+#[derive(Clone, Copy)]
+struct OperationDeadline {
+    at: Instant,
+}
+
+impl OperationDeadline {
+    /// A deadline `budget` from now.
+    fn fresh(budget: Duration) -> Result<Self, AgentError> {
+        Instant::now()
+            .checked_add(budget)
+            .map(|at| Self { at })
+            .ok_or(AgentError::InvalidConfiguration)
+    }
+
+    /// Admit work that blocks for at most `bound`: `Ok` only if it can end
+    /// strictly before the deadline. A zero bound against a deadline already
+    /// reached is refused too, which is what makes this usable as the final
+    /// gate before retention.
+    fn admit(self, bound: Duration) -> Result<(), AgentError> {
+        if Instant::now()
+            .checked_add(bound)
+            .is_some_and(|end| end < self.at)
+        {
+            Ok(())
+        } else {
+            Err(AgentError::OperationDeadlineExceeded)
+        }
+    }
+}
 
 /// One exact signed policy document and its pinned ML-DSA-65 root.
 #[derive(Clone, Eq, PartialEq)]
@@ -466,6 +509,18 @@ pub enum AgentError {
     /// Distinct from [`Self::InstanceFenced`], which is permanent. A coverage
     /// lapse is no evidence that any successor exists.
     InstanceLeaseCoverageElapsed,
+    /// The caller's end-to-end deadline could not be met. Either the operation
+    /// was refused before its first blocking exchange, because what remained
+    /// of the deadline could not cover the least authority and witness round
+    /// trips it needs -- nothing was dispatched, journaled, erased or fenced
+    /// -- or the deadline ran out during the operation, in which case every
+    /// secret it produced was erased, its reservation released, and nothing
+    /// retained or returned. A transition the witness had already applied is
+    /// the one exception: it is committed and reported `Ok` whatever the
+    /// clock says. Not a fence, and distinct from
+    /// [`Self::InstanceLeaseCoverageElapsed`]: a local deadline says nothing
+    /// about the lease or about any successor. Retry with a longer deadline.
+    OperationDeadlineExceeded,
     /// The process linearizer was poisoned; no operation continued.
     InternalPoisoned,
 }
@@ -583,9 +638,22 @@ struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
     confirmed_keys: HashMap<ConfirmedKeyHandle, AcceptedSessionKeyV1>,
     completed_acceptances: HashMap<PendingSessionHandle, CompletedAcceptance>,
     poisoned: bool,
+    /// The deadline of the operation holding the lock; every `lock_until`
+    /// sets it before the operation reads it.
+    deadline: OperationDeadline,
 }
 
 /// Process-local façade whose one mutex is the transition/session linearization point.
+///
+/// Every operation runs under one end-to-end deadline. The `_until` variants
+/// (`begin_encapsulation_until`, `accept_initiator_finished_until`,
+/// `apply_advance_until`, `release_instance_lease_until`, and the rest) take
+/// it from the caller, and admit each authority and witness round trip only
+/// while the port's own bound on that call ends before it -- so an operation
+/// whose least plan does not fit is refused before its first exchange, and
+/// one whose deadline runs out mid-way retains nothing. The plain forms give
+/// themselves `DEFAULT_OPERATION_BUDGET` (60 seconds) from the call, for
+/// callers with no deadline of their own.
 pub struct PolicyAgent<W: WitnessPort, A: InstanceAuthorityPort> {
     inner: Mutex<Inner<W, A>>,
 }
@@ -673,7 +741,8 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// holds no usable lease either way; a release that could not itself be
     /// settled -- the authority unreachable -- leaves the lease to lapse at
     /// its TTL with its journal row for the next start, exactly as after a
-    /// crash.
+    /// crash. That release runs under its own fresh default budget, not
+    /// under whatever the failed attempt had left.
     fn with_lease(
         mut repository: StateRepository,
         witness: W,
@@ -684,7 +753,9 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         let prepared = match prepare_execution(&mut repository, &witness, &config) {
             Ok(prepared) => prepared,
             Err(error) => {
-                let _ = release_lease_state(&repository, &authority, &mut lease);
+                if let Ok(deadline) = OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET) {
+                    let _ = release_lease_state(&repository, &authority, &mut lease, deadline);
+                }
                 let _ = forget_settled(&repository, &mut lease);
                 return Err(error);
             }
@@ -710,6 +781,9 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 confirmed_keys: HashMap::new(),
                 completed_acceptances: HashMap::new(),
                 poisoned: false,
+                // Already reached, so nothing is admitted until the first
+                // `lock_until` sets the real one; every lock does.
+                deadline: OperationDeadline { at: Instant::now() },
             }),
         })
     }
@@ -724,11 +798,26 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(inner.engine.available()?.public_keys().clone())
     }
 
-    /// Authenticate and execute a normal migration state advance.
+    /// Authenticate and execute a normal migration state advance, under the
+    /// default budget.
     pub fn apply_advance(&self, canonical_signed_state: &[u8]) -> Result<(), AgentError> {
-        let mut inner = self.lock()?;
+        self.apply_advance_until(canonical_signed_state, default_deadline()?)
+    }
+
+    /// Authenticate and execute a normal migration state advance, admitting
+    /// each round trip only while it ends before `deadline`.
+    ///
+    /// Refused with [`AgentError::OperationDeadlineExceeded`] before anything
+    /// is dispatched when the least plan does not fit. A CAS the witness has
+    /// applied is committed and reported `Ok` whatever the deadline says.
+    pub fn apply_advance_until(
+        &self,
+        canonical_signed_state: &[u8],
+        deadline: Instant,
+    ) -> Result<(), AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         purge_expired(&mut inner)?;
         let intent = inner.repository.prepare_advance(canonical_signed_state)?;
         let replacement = executor_for(
@@ -742,11 +831,23 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         execute_transition(&mut inner, intent)
     }
 
-    /// Authenticate and execute a separately authorized lineage reset.
+    /// Authenticate and execute a separately authorized lineage reset, under
+    /// the default budget.
     pub fn apply_reset(&self, canonical_signed_reset: &[u8]) -> Result<(), AgentError> {
-        let mut inner = self.lock()?;
+        self.apply_reset_until(canonical_signed_reset, default_deadline()?)
+    }
+
+    /// Authenticate and execute a separately authorized lineage reset,
+    /// admitting each round trip only while it ends before `deadline`; see
+    /// [`Self::apply_advance_until`].
+    pub fn apply_reset_until(
+        &self,
+        canonical_signed_reset: &[u8],
+        deadline: Instant,
+    ) -> Result<(), AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         purge_expired(&mut inner)?;
         let intent = inner.repository.prepare_reset(canonical_signed_reset)?;
         let replacement = executor_for(
@@ -760,11 +861,19 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         execute_transition(&mut inner, intent)
     }
 
-    /// Reconcile only the durable operation ID retained after an unknown outcome.
+    /// Reconcile only the durable operation ID retained after an unknown
+    /// outcome, under the default budget.
     pub fn reconcile_transition(&self) -> Result<(), AgentError> {
-        let mut inner = self.lock()?;
+        self.reconcile_transition_until(default_deadline()?)
+    }
+
+    /// Reconcile only the durable operation ID retained after an unknown
+    /// outcome, admitting each round trip only while it ends before
+    /// `deadline`; see [`Self::apply_advance_until`].
+    pub fn reconcile_transition_until(&self, deadline: Instant) -> Result<(), AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         let intent = inner
             .repository
             .pending_intent()
@@ -778,6 +887,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     .ok_or(AgentError::InternalPoisoned)?,
             )?);
         }
+        inner.deadline.admit(inner.witness.round_trip_bound())?;
         match inner.witness.query(intent.operation_id())? {
             WitnessOutcome::Unknown => Err(AgentError::TransitionIndeterminate),
             WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => {
@@ -790,14 +900,31 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         }
     }
 
-    /// Begin encapsulation from signed capability envelopes; no raw context is accepted.
+    /// Begin encapsulation from signed capability envelopes, under the default
+    /// budget; no raw context is accepted.
     pub fn begin_encapsulation(
         &self,
         request: BeginEncapsulation,
     ) -> Result<BeginEncapsulationResult, AgentError> {
-        let mut inner = self.lock()?;
+        self.begin_encapsulation_until(request, default_deadline()?)
+    }
+
+    /// Begin encapsulation from signed capability envelopes, admitting each
+    /// round trip only while it ends before `deadline`; no raw context is
+    /// accepted.
+    ///
+    /// Refused with [`AgentError::OperationDeadlineExceeded`] before anything
+    /// is dispatched when the least plan does not fit, and aborted with the
+    /// same error, its reservation released and nothing retained, when the
+    /// deadline is reached before the secret becomes reachable.
+    pub fn begin_encapsulation_until(
+        &self,
+        request: BeginEncapsulation,
+        deadline: Instant,
+    ) -> Result<BeginEncapsulationResult, AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::RETAINING)?;
         purge_expired(&mut inner)?;
         ensure_session_capacity(&inner)?;
         let head = verify_current_head(&inner)?;
@@ -822,7 +949,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     InitiatorConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
                         .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 let (confirmation, initiator_finished) = confirmation.issue_finished();
-                ensure_lease_covers(&inner)?;
+                ensure_may_retain(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -846,7 +973,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     secret, &context, &post,
                 )
                 .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
-                ensure_lease_covers(&inner)?;
+                ensure_may_retain(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -867,14 +994,26 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         }
     }
 
-    /// Begin decapsulation from signed capability envelopes and exact ciphertexts.
+    /// Begin decapsulation from signed capability envelopes and exact
+    /// ciphertexts, under the default budget.
     pub fn begin_decapsulation(
         &self,
         request: BeginDecapsulation,
     ) -> Result<BeginDecapsulationResult, AgentError> {
-        let mut inner = self.lock()?;
+        self.begin_decapsulation_until(request, default_deadline()?)
+    }
+
+    /// Begin decapsulation from signed capability envelopes and exact
+    /// ciphertexts, admitting each round trip only while it ends before
+    /// `deadline`; see [`Self::begin_encapsulation_until`].
+    pub fn begin_decapsulation_until(
+        &self,
+        request: BeginDecapsulation,
+        deadline: Instant,
+    ) -> Result<BeginDecapsulationResult, AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::RETAINING)?;
         purge_expired(&mut inner)?;
         ensure_session_capacity(&inner)?;
         let head = verify_current_head(&inner)?;
@@ -897,7 +1036,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     InitiatorConfirmationV1::<Sha3_256Xof>::new(secret, &context, &post)
                         .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
                 let (confirmation, initiator_finished) = confirmation.issue_finished();
-                ensure_lease_covers(&inner)?;
+                ensure_may_retain(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -920,7 +1059,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                     secret, &context, &post,
                 )
                 .map_err(|error| map_confirmation_setup_error(&mut inner, error))?;
-                ensure_lease_covers(&inner)?;
+                ensure_may_retain(&inner)?;
                 let handle = reserve_pending(
                     &mut inner,
                     head,
@@ -938,7 +1077,8 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         }
     }
 
-    /// Accept I, durably release its reservation, retain K and retry state, then return R.
+    /// Accept I, durably release its reservation, retain K and retry state, then return R,
+    /// under the default budget.
     ///
     /// While the retained key remains live, an exact same-handle/same-Finished retry returns the
     /// same handle and R. Different bytes for that completed flight fail closed without replacing
@@ -948,9 +1088,23 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         handle: PendingSessionHandle,
         initiator_finished: InitiatorFinishedV1,
     ) -> Result<ResponderAcceptanceResult, AgentError> {
-        let mut inner = self.lock()?;
+        self.accept_initiator_finished_until(handle, initiator_finished, default_deadline()?)
+    }
+
+    /// Accept I under the caller's `deadline`; see
+    /// [`Self::accept_initiator_finished`] for the retry contract and
+    /// [`Self::begin_encapsulation_until`] for what a refused or lapsed
+    /// deadline leaves behind. A refusal before the witness read leaves the
+    /// pending session in place.
+    pub fn accept_initiator_finished_until(
+        &self,
+        handle: PendingSessionHandle,
+        initiator_finished: InitiatorFinishedV1,
+        deadline: Instant,
+    ) -> Result<ResponderAcceptanceResult, AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::RETAINING)?;
         if let Some(completed) = inner.completed_acceptances.get(&handle) {
             return match completed {
                 CompletedAcceptance::Responder {
@@ -983,7 +1137,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
             key_handle,
             responder_finished,
         };
-        if let Err(error) = ensure_lease_covers(&inner) {
+        if let Err(error) = ensure_may_retain(&inner) {
             // The session has already left the map and its confirmation is
             // consumed, but its durable reservation is still held. Returning
             // here without releasing it would orphan the row: `erase_pending`
@@ -1008,7 +1162,8 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(result)
     }
 
-    /// Accept the responder Finished only from an initiator pending state and retain K.
+    /// Accept the responder Finished only from an initiator pending state and retain K, under
+    /// the default budget.
     ///
     /// While the retained key remains live, an exact same-handle/same-Finished retry returns the
     /// same handle. Different bytes for that completed flight fail closed without replacing the
@@ -1018,9 +1173,21 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         handle: PendingSessionHandle,
         responder_finished: ResponderFinishedV1,
     ) -> Result<ConfirmedKeyHandle, AgentError> {
-        let mut inner = self.lock()?;
+        self.accept_responder_finished_until(handle, responder_finished, default_deadline()?)
+    }
+
+    /// Accept the responder Finished under the caller's `deadline`; see
+    /// [`Self::accept_responder_finished`] for the retry contract and
+    /// [`Self::accept_initiator_finished_until`] for the deadline's.
+    pub fn accept_responder_finished_until(
+        &self,
+        handle: PendingSessionHandle,
+        responder_finished: ResponderFinishedV1,
+        deadline: Instant,
+    ) -> Result<ConfirmedKeyHandle, AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner)?;
+        ensure_instance_lease(&mut inner, OperationPlan::RETAINING)?;
         if let Some(completed) = inner.completed_acceptances.get(&handle) {
             return match completed {
                 CompletedAcceptance::Initiator {
@@ -1049,7 +1216,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 return Err(map_confirmation_error(&mut inner, error));
             }
         };
-        if let Err(error) = ensure_lease_covers(&inner) {
+        if let Err(error) = ensure_may_retain(&inner) {
             // The session has already left the map and its confirmation is
             // consumed, but its durable reservation is still held. Returning
             // here without releasing it would orphan the row: `erase_pending`
@@ -1134,20 +1301,43 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// included. A clean shutdown therefore leaves the journal empty; only a
     /// crash, or a release the authority never confirmed, leaves rows for the
     /// next start to settle.
+    ///
+    /// Runs under the default budget; [`Self::release_instance_lease_until`]
+    /// takes the caller's deadline.
     pub fn release_instance_lease(&self) -> Result<(), AgentError> {
-        let mut inner = self.lock()?;
+        self.release_instance_lease_until(default_deadline()?)
+    }
+
+    /// [`Self::release_instance_lease`] under the caller's `deadline`.
+    ///
+    /// One authority round trip -- the release dispatch -- is the least it
+    /// needs, and that is admitted first, before anything is erased: a
+    /// refusal, [`AgentError::OperationDeadlineExceeded`], changes nothing,
+    /// the lease still serves, and the call may be repeated with a longer
+    /// deadline. Every round trip after that is admitted the same way; a
+    /// refusal once the release is under way keeps the fence for a later
+    /// call exactly as an unreachable authority does, and is never reported
+    /// as `Ok`.
+    pub fn release_instance_lease_until(&self, deadline: Instant) -> Result<(), AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         let inner = &mut *inner;
         ensure_live(inner)?;
         if inner.lease.phase == LeasePhase::Retired {
             return forget_settled(&inner.repository, &mut inner.lease);
         }
+        inner.deadline.admit(inner.authority.round_trip_bound())?;
         // Erase first, and report a failure only once the release has been
         // settled: `erase_pending` drops each secret before it touches the
         // repository, so a failed durable cancellation still erases, and a
         // lease released with its secrets gone is what a stop must leave
         // behind whether or not the bookkeeping succeeded.
         let erase_failure = erase_all_secrets(inner);
-        let released = release_lease_state(&inner.repository, &inner.authority, &mut inner.lease);
+        let released = release_lease_state(
+            &inner.repository,
+            &inner.authority,
+            &mut inner.lease,
+            inner.deadline,
+        );
         // No journal write follows a release, so the rows this process settled
         // would otherwise wait for the next start to find them absent. Forget
         // them now, whatever the release's outcome.
@@ -1286,9 +1476,29 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(inner.repository.durable_session_count_for_test()?)
     }
 
+    /// Take the lock under the default budget: the paths that make no port
+    /// call, and the plain forms of those that do.
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
-        self.inner.lock().map_err(|_| AgentError::InternalPoisoned)
+        self.lock_until(OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET)?)
     }
+
+    /// Take the lock and set the deadline every admission inside it reads.
+    fn lock_until(
+        &self,
+        deadline: OperationDeadline,
+    ) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|_| AgentError::InternalPoisoned)?;
+        inner.deadline = deadline;
+        Ok(inner)
+    }
+}
+
+/// The deadline a plain (non-`_until`) operation gives itself.
+fn default_deadline() -> Result<Instant, AgentError> {
+    OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET).map(|deadline| deadline.at)
 }
 
 /// What construction derives from the repository and the configuration once
@@ -1393,6 +1603,7 @@ fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     intent: crate::witness::WitnessIntent,
 ) -> Result<(), AgentError> {
+    inner.deadline.admit(inner.witness.round_trip_bound())?;
     match inner.witness.compare_and_advance(intent)? {
         WitnessOutcome::Unknown => Err(AgentError::TransitionIndeterminate),
         WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => {
@@ -1402,6 +1613,13 @@ fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     }
 }
 
+/// Commit a transition the witness reports applied.
+///
+/// Deliberately not gated by the operation deadline: past the witness's
+/// `Known(applied)` the transition is committed externally, the commit here is
+/// a local fsync, and the truthful answer is `Ok` whatever the clock says. A
+/// response that then misses its deadline is a lost response, which the
+/// caller reconciles.
 fn finish_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     receipt: WitnessReceipt,
@@ -1512,6 +1730,7 @@ fn verify_current_head<W: WitnessPort, A: InstanceAuthorityPort>(
         return Err(AgentError::TransitionPending);
     }
     let local = inner.repository.head()?;
+    inner.deadline.admit(inner.witness.round_trip_bound())?;
     if inner.witness.read_head()? != local {
         return Err(AgentError::RollbackOrFork);
     }
@@ -1549,11 +1768,12 @@ fn reserve_pending<W: WitnessPort, A: InstanceAuthorityPort>(
         // KEM or that fsync without this host's clock moving. This is the last
         // step before the secret becomes retained, so the check that counts
         // consults the authority: a fresh snapshot after the write, then the
-        // budgeted local rule against it (`prove_lease_covers_retention`); the
-        // check before the write only saves a wasted fsync. Whatever it
-        // reports -- coverage elapsed, the authority unreachable, or a
-        // successor that fenced this instance -- the reservation must not be
-        // left behind: `erase_pending` could never find it, and `fence_out`
+        // budgeted local rule against it and the operation's own deadline
+        // (`prove_lease_covers_retention`); the check before the write only
+        // saves a wasted fsync. Whatever it reports -- coverage elapsed, the
+        // deadline reached, the authority unreachable, or a successor that
+        // fenced this instance -- the reservation must not be left behind:
+        // `erase_pending` could never find it, and `fence_out`
         // iterates a map this handle is not in yet. So release it here and
         // drop the secret with `pending`. The capability tombstone the
         // reservation wrote stays, exactly as it does for any cancelled
@@ -1618,6 +1838,9 @@ fn prepare_acceptance<W: WitnessPort, A: InstanceAuthorityPort>(
         erase_pending(inner, handle)?;
         return Err(AgentError::StaleSession);
     }
+    // Admitted before the read, so a refused request leaves the pending
+    // session exactly as it found it.
+    inner.deadline.admit(inner.witness.round_trip_bound())?;
     if inner.witness.read_head()? != expected_head {
         erase_pending(inner, handle)?;
         return Err(AgentError::StaleSession);
@@ -1707,13 +1930,14 @@ fn retain_accepted_key<W: WitnessPort, A: InstanceAuthorityPort>(
     // without this host's clock moving. This is the last step before the
     // accepted key becomes retained, so the check that counts consults the
     // authority: a fresh snapshot after the write, then the budgeted local
-    // rule against it (`prove_lease_covers_retention`); the caller's check
-    // before the write only saves a wasted fsync. Nothing needs undoing on any
-    // of its errors: the reservation is gone, which is where an accepted
-    // session ends up either way, and `accepted` is dropped here without ever
-    // being reachable. A coverage lapse or an unreachable authority is not a
-    // fence and not a poison; a successor seen by that snapshot fences, and
-    // `fence_out` has erased every other secret by then.
+    // rule against it and the operation's own deadline
+    // (`prove_lease_covers_retention`); the caller's check before the write
+    // only saves a wasted fsync. Nothing needs undoing on any of its errors:
+    // the reservation is gone, which is where an accepted session ends up
+    // either way, and `accepted` is dropped here without ever being
+    // reachable. A coverage lapse, a reached deadline or an unreachable
+    // authority is not a fence and not a poison; a successor seen by that
+    // snapshot fences, and `fence_out` has erased every other secret by then.
     prove_lease_covers_retention(inner)?;
     if inner.confirmed_keys.insert(key_handle, accepted).is_some() {
         inner.poisoned = true;

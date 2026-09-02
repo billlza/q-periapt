@@ -55,6 +55,23 @@ const IPC_SCHEMA_VERSION: u16 = 2;
 const IPC_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const WITNESS_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
+/// The one end-to-end deadline every connection gets, from accept to the last
+/// response byte: the client-paced read (`IPC_IO_TIMEOUT`), the least plan of
+/// the largest guarded command -- Begin and Accept need three authority round
+/// trips and one witness read, Reconcile two authority round trips and two
+/// witness calls, twenty seconds either way at the transport bounds above --
+/// the client-paced write (`IPC_IO_TIMEOUT`), and five seconds of slack for
+/// one renew retry or one reconciling query. The agent admits each round
+/// trip against it and refuses, with status 24, a guarded operation whose
+/// least plan no longer fits.
+const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
+/// How long the lease release at stop may take. Against an authority that
+/// accepts the connection and never answers it is up to six bounded round
+/// trips -- the two drains, each stopping at its first unanswered call, the
+/// release, two reconciling queries and the snapshot proof -- and admission
+/// is strict, so strictly more than five of them must fit; each is admitted
+/// only while it can end within this budget.
+const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
@@ -297,14 +314,17 @@ impl RecentNonces {
 
 /// Sequential, deadline-bounded authenticated Unix server.
 ///
-/// Sequential handling deliberately caps active clients at one. Both
-/// client-paced phases are bounded by their own absolute `io_timeout` deadline,
-/// from which every framed read and write derives its remaining budget, so a
-/// client trickling one byte per interval cannot occupy the slot. The request
-/// and the response are budgeted separately because execution between them is
-/// bounded by the witness and authority timeouts rather than by the client, and
-/// those outlast one IPC timeout; a shared deadline would be spent before a
-/// committed operation could report itself. No unbounded worker or thread
+/// Sequential handling deliberately caps active clients at one. One
+/// end-to-end deadline per connection (`IPC_REQUEST_DEADLINE`) covers the
+/// read, the execution and the write. The two client-paced phases are
+/// additionally capped at `io_timeout` each, from which every framed read and
+/// write derives its remaining budget, so a client trickling one byte per
+/// interval cannot occupy the slot. Execution admits each authority and
+/// witness round trip only when it can end before the deadline, and refuses a
+/// lease-guarded operation whose least plan does not fit before it dispatches
+/// anything. A response that cannot be written by the deadline is not
+/// written: the connection closes with nothing sent, which the client sees as
+/// a lost response and recovers by exact retry. No unbounded worker or thread
 /// creation is possible.
 pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> {
     agent: PolicyAgent<W, A>,
@@ -493,16 +513,29 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     }
 
     fn handle(&mut self, stream: &mut UnixStream) -> Result<(), IpcError> {
-        let deadline = Instant::now()
-            .checked_add(self.io_timeout)
+        let (read_deadline, request_deadline) = self.deadlines_from(Instant::now())?;
+        self.handle_io(stream, read_deadline, request_deadline)
+    }
+
+    /// The two deadlines of a connection accepted at `accepted`: the request
+    /// deadline, `IPC_REQUEST_DEADLINE` from the accept, and the read
+    /// deadline, one `io_timeout` from the accept and never past the former.
+    fn deadlines_from(&self, accepted: Instant) -> Result<(Instant, Instant), IpcError> {
+        let request_deadline = accepted
+            .checked_add(IPC_REQUEST_DEADLINE)
             .ok_or(IpcError::Unavailable)?;
-        self.handle_io(stream, deadline)
+        let read_deadline = accepted
+            .checked_add(self.io_timeout)
+            .ok_or(IpcError::Unavailable)?
+            .min(request_deadline);
+        Ok((read_deadline, request_deadline))
     }
 
     fn handle_io<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
         read_deadline: Instant,
+        request_deadline: Instant,
     ) -> Result<(), IpcError> {
         let envelope = read_frame_until(stream, read_deadline).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)
@@ -511,7 +544,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         self.recent_nonces.insert(request.nonce)?;
         let request_digest =
             hash_fields(IPC_REQUEST_DIGEST_DOMAIN, &[request_body]).map_err(map_codec)?;
-        let result = self.execute(request.payload);
+        let result = self.execute(request.payload, request_deadline);
         if matches!(result, Err(AgentError::InternalPoisoned)) {
             return Err(IpcError::AgentFatal);
         }
@@ -527,19 +560,18 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         encode_response_payload(&mut encoder, payload)?;
         let response = sign_envelope(&encoder.finish(), self.server_signing_key.as_bytes())
             .map_err(map_authentication)?;
-        // The response gets its own budget rather than whatever is left of the
-        // request's. Reading is paced by the client, so it must be bounded to
-        // keep a slow one from holding this single-threaded loop. Execution is
-        // not: it is bounded by the witness and authority timeouts, and those
-        // together already exceed one IPC timeout, so a state advance would
-        // routinely exhaust a shared deadline before it produced a response.
-        // The client would then be told nothing about an operation that had
-        // already committed -- the one outcome this protocol most needs to
-        // avoid. Both phases stay separately bounded, so the connection as a
-        // whole is still bounded.
+        // The write gets what is left of the request deadline, capped at one
+        // I/O timeout because the client paces this phase too. A request
+        // deadline already reached fails `write_frame_until` on its budget
+        // before the first byte, so the connection closes with nothing
+        // written: a committed operation whose response missed the deadline
+        // is reported as a lost response -- which the client recovers by
+        // exact retry under a fresh nonce -- rather than answered on a budget
+        // the caller never granted.
         let write_deadline = Instant::now()
             .checked_add(self.io_timeout)
-            .ok_or(IpcError::Unavailable)?;
+            .ok_or(IpcError::Unavailable)?
+            .min(request_deadline);
         write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
     }
 
@@ -558,14 +590,19 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// the release outright (`release_instance_lease` checks liveness first).
     /// In that case the lease lapses at its TTL exactly as it would after a
     /// crash, and the process exits 1 with that one-line reason rather than
-    /// report a stop that left the lease held as clean.
+    /// report a stop that left the lease held as clean. The release runs
+    /// under `LEASE_RELEASE_BUDGET`, so a stop is bounded whatever the
+    /// authority does.
     fn serve_and_release(
         &mut self,
         listener: UnixListener,
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
         let outcome = self.serve(listener, shutdown);
-        let released = self.agent.release_instance_lease();
+        let released = Instant::now()
+            .checked_add(LEASE_RELEASE_BUDGET)
+            .ok_or(AgentError::InvalidConfiguration)
+            .and_then(|deadline| self.agent.release_instance_lease_until(deadline));
         match (outcome, released) {
             (Err(error), _) => Err(error),
             (Ok(()), Ok(())) => Ok(()),
@@ -620,24 +657,38 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         })
     }
 
+    /// Serve one request with both deadlines derived exactly as `handle`
+    /// derives them from the accept.
     #[cfg(test)]
     pub(crate) fn handle_io_for_test<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
     ) -> Result<(), IpcError> {
-        let deadline = Instant::now()
-            .checked_add(self.io_timeout)
-            .ok_or(IpcError::Unavailable)?;
-        self.handle_io(stream, deadline)
+        let (read_deadline, request_deadline) = self.deadlines_from(Instant::now())?;
+        self.handle_io(stream, read_deadline, request_deadline)
     }
 
+    /// Serve one request with `deadline` as both the read deadline and the
+    /// request deadline.
     #[cfg(test)]
     pub(crate) fn handle_io_with_deadline_for_test<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
         deadline: Instant,
     ) -> Result<(), IpcError> {
-        self.handle_io(stream, deadline)
+        self.handle_io(stream, deadline, deadline)
+    }
+
+    /// Serve one request with the read deadline and the request deadline
+    /// given separately.
+    #[cfg(test)]
+    pub(crate) fn handle_io_with_deadlines_for_test<T: DeadlineStream>(
+        &mut self,
+        stream: &mut T,
+        read_deadline: Instant,
+        request_deadline: Instant,
+    ) -> Result<(), IpcError> {
+        self.handle_io(stream, read_deadline, request_deadline)
     }
 
     #[cfg(test)]
@@ -645,11 +696,17 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         &self.agent
     }
 
-    fn execute(&self, payload: RequestPayload) -> Result<ResponsePayload, AgentError> {
+    /// Run one decoded request under the connection's `deadline`. The
+    /// commands that make no port call take the agent's default budget.
+    fn execute(
+        &self,
+        payload: RequestPayload,
+        deadline: Instant,
+    ) -> Result<ResponsePayload, AgentError> {
         match payload {
             RequestPayload::PublicKeys => self.agent.public_keys().map(ResponsePayload::PublicKeys),
             RequestPayload::BeginEncapsulation(request) => {
-                let result = self.agent.begin_encapsulation(request)?;
+                let result = self.agent.begin_encapsulation_until(request, deadline)?;
                 Ok(match result {
                     BeginEncapsulationResult::Initiator(result) => {
                         ResponsePayload::InitiatorEncapsulation {
@@ -667,7 +724,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 })
             }
             RequestPayload::BeginDecapsulation(request) => {
-                let result = self.agent.begin_decapsulation(request)?;
+                let result = self.agent.begin_decapsulation_until(request, deadline)?;
                 Ok(match result {
                     BeginDecapsulationResult::Initiator(result) => {
                         ResponsePayload::InitiatorDecapsulation {
@@ -684,14 +741,14 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
             }
             RequestPayload::AcceptInitiatorFinished(handle, finished) => self
                 .agent
-                .accept_initiator_finished(handle, finished)
+                .accept_initiator_finished_until(handle, finished, deadline)
                 .map(|result| ResponsePayload::ResponderAccepted {
                     key_handle: result.key_handle,
                     responder_finished: result.responder_finished,
                 }),
             RequestPayload::AcceptResponderFinished(handle, finished) => self
                 .agent
-                .accept_responder_finished(handle, finished)
+                .accept_responder_finished_until(handle, finished, deadline)
                 .map(ResponsePayload::InitiatorAccepted),
             RequestPayload::Cancel(handle) => {
                 self.agent.cancel(handle)?;
@@ -702,15 +759,15 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Advance(certificate) => {
-                self.agent.apply_advance(&certificate)?;
+                self.agent.apply_advance_until(&certificate, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Reset(certificate) => {
-                self.agent.apply_reset(&certificate)?;
+                self.agent.apply_reset_until(&certificate, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Reconcile => {
-                self.agent.reconcile_transition()?;
+                self.agent.reconcile_transition_until(deadline)?;
                 Ok(ResponsePayload::Empty)
             }
         }
@@ -819,6 +876,7 @@ fn agent_status(error: AgentError) -> u8 {
         AgentError::InstanceLeaseUnavailable => 21,
         AgentError::InstanceLeaseIndeterminate => 22,
         AgentError::InstanceLeaseCoverageElapsed => 23,
+        AgentError::OperationDeadlineExceeded => 24,
         AgentError::InternalPoisoned => 19,
     }
 }
@@ -946,7 +1004,10 @@ fn serve_agent(
     // the orderly stop and a fatal listener error alike attempt the release;
     // one the authority does not confirm -- a poisoned agent refuses it
     // outright -- leaves the lease to lapse at its TTL instead, and an
-    // orderly stop reports that by exiting 1.
+    // orderly stop reports that by exiting 1. A stop that lands during a
+    // request is observed once that request is answered or refused, within
+    // `IPC_REQUEST_DEADLINE`, and the release then runs under
+    // `LEASE_RELEASE_BUDGET`; the service managers' stop timeouts cover both.
     let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
     server.serve_and_release(listener, shutdown)
 }
@@ -1495,22 +1556,50 @@ mod tests {
             "the script's re-run instructions must name the job's own label"
         );
 
-        // launchd's default ExitTimeOut is 20 seconds. A stop is observed
-        // within one maintenance interval, and the lease release that follows
-        // is up to six bounded authority round trips -- the acknowledgement
-        // drain and the unresolved-row drain, each of which stops at its first
-        // unanswered call, the release, two reconciling queries, and one
-        // snapshot proof -- so against an authority that accepts the
-        // connection and never answers the default is where the daemon would
-        // be killed mid-release.
+        // launchd's default ExitTimeOut is 20 seconds. A stop that lands
+        // during a request is observed once that request is answered or
+        // refused -- at most IPC_REQUEST_DEADLINE -- or within one
+        // maintenance interval when the daemon is idle, and the lease release
+        // that follows runs under LEASE_RELEASE_BUDGET: 66 seconds worst
+        // case, past the default and past the 60 the plist used to give. 90
+        // is systemd's default stop timeout, which the deploy README already
+        // relies on.
         assert_eq!(
             plist_value(&plist, "ExitTimeOut"),
-            "<integer>60</integer>",
-            "the agent plist must give the lease release longer than launchd's 20-second default"
+            "<integer>90</integer>",
+            "the agent plist must give a stop that lands during a request room to finish"
         );
         assert!(
-            Duration::from_secs(60) > MAINTENANCE_INTERVAL + 6 * AUTHORITY_IO_TIMEOUT,
-            "ExitTimeOut must cover observing the stop plus six authority round trips"
+            Duration::from_secs(90)
+                > MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_RELEASE_BUDGET,
+            "ExitTimeOut must cover observing the stop after a request plus the release budget"
+        );
+    }
+
+    #[test]
+    fn the_request_deadline_covers_the_minimum_guarded_plan() {
+        // The request deadline has to admit the least plan of every guarded
+        // command after a full read phase and before a full write phase, or
+        // a healthy request against slow-but-answering ports would be refused
+        // with status 24 as a matter of course.
+        assert!(
+            IPC_REQUEST_DEADLINE
+                >= IPC_IO_TIMEOUT + 3 * AUTHORITY_IO_TIMEOUT + WITNESS_IO_TIMEOUT + IPC_IO_TIMEOUT,
+            "the request deadline must cover Begin and Accept: 3 authority + 1 witness round trips"
+        );
+        assert!(
+            IPC_REQUEST_DEADLINE
+                >= IPC_IO_TIMEOUT
+                    + 2 * AUTHORITY_IO_TIMEOUT
+                    + 2 * WITNESS_IO_TIMEOUT
+                    + IPC_IO_TIMEOUT,
+            "the request deadline must cover Reconcile: 2 authority + 2 witness round trips"
+        );
+        // Admission is strict, so five round trips need strictly more than
+        // five timeouts.
+        assert!(
+            LEASE_RELEASE_BUDGET > 5 * AUTHORITY_IO_TIMEOUT,
+            "the release budget must admit five bounded authority round trips"
         );
     }
 
@@ -1800,6 +1889,7 @@ mod tests {
         assert_eq!(agent_status(AgentError::FinishedRejected), 15);
         assert_eq!(agent_status(AgentError::LocalResourceFailure), 16);
         assert_eq!(agent_status(AgentError::LocalCryptoFailure), 17);
+        assert_eq!(agent_status(AgentError::OperationDeadlineExceeded), 24);
     }
 
     #[test]

@@ -185,8 +185,51 @@ fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestRe
     Ok(())
 }
 
+/// Frame one Reconcile (command 10) under `nonce`.
+fn framed_reconcile(signing_key: &[u8], nonce: [u8; 32]) -> TestResult<Vec<u8>> {
+    let mut body = Encoder::new(MAX_FRAME_BYTES);
+    encode_domain(&mut body, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC domain encoding failed: {error:?}")))?;
+    body.fixed(&nonce)
+        .and_then(|()| body.byte(10))
+        .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
+    let envelope = sign_envelope(&body.finish(), signing_key)
+        .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
+    let mut framed = Vec::new();
+    write_frame(&mut framed, &envelope)
+        .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
+    Ok(framed)
+}
+
+/// The status byte of one framed, signed response to the request under
+/// `expected_nonce`.
+fn response_status(
+    framed: &[u8],
+    verification_key: &[u8],
+    expected_nonce: [u8; 32],
+) -> TestResult<u8> {
+    let envelope = read_frame(&mut Cursor::new(framed))
+        .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
+    let body = verify_envelope(&envelope, verification_key)
+        .map_err(|error| io::Error::other(format!("IPC response signature failed: {error:?}")))?;
+    let mut decoder = Decoder::new(body);
+    require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
+    let nonce: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
+    assert_eq!(nonce, expected_nonce);
+    let _: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    let status = decoder
+        .byte()
+        .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
+    Ok(status)
+}
+
 #[test]
-fn the_response_write_budget_does_not_come_out_of_the_request_deadline() -> TestResult {
+fn the_response_write_budget_comes_from_the_request_deadline_not_the_read_deadline() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 23)?;
     let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
@@ -204,37 +247,188 @@ fn the_response_write_budget_does_not_come_out_of_the_request_deadline() -> Test
         server_verification_key,
     )?;
 
+    let nonce = [24u8; 32];
     let mut transport = WriteBudgetTransport {
         input: Cursor::new(framed_accept_initiator_request(
             &client_signing_key,
-            [24u8; 32],
+            nonce,
             decapsulated.handle,
             encapsulated.initiator_finished,
         )?),
         output: Vec::new(),
         write_timeout: std::cell::Cell::new(None),
     };
-    // A request deadline with almost nothing left on it, standing in for an
-    // operation whose execution consumed the budget. A real advance does this
-    // routinely: the witness and authority timeouts together outlast a single
-    // IPC timeout.
-    let read_deadline = Instant::now()
+    // A read deadline with almost nothing left on it, standing in for a
+    // request whose read phase consumed its budget, under a request deadline
+    // with plenty left. The read phase's sliver must not be what the response
+    // is written on: a request that took its time to arrive still gets its
+    // answer.
+    let now = Instant::now();
+    let read_deadline = now
         .checked_add(Duration::from_millis(50))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
-    server.handle_io_with_deadline_for_test(&mut transport, read_deadline)?;
+    let request_deadline = now
+        .checked_add(Duration::from_secs(10))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    server.handle_io_with_deadlines_for_test(&mut transport, read_deadline, request_deadline)?;
 
-    // The response was written on a fresh budget, not on the sliver left of the
-    // request's. Sharing the deadline would have failed the write outright and
-    // left the client unable to learn the outcome of a committed operation.
+    // The response was written on what the request deadline had left, capped
+    // at one I/O timeout -- never on the read deadline's sliver, and never
+    // past the request's own deadline.
     let granted = transport
         .write_timeout
         .get()
         .ok_or_else(|| io::Error::other("no write timeout was set"))?;
     assert!(
         granted > Duration::from_millis(50),
-        "response write budget {granted:?} came out of the request deadline"
+        "response write budget {granted:?} came out of the read deadline"
+    );
+    assert!(
+        granted <= Duration::from_secs(5),
+        "response write budget {granted:?} exceeds one I/O timeout"
+    );
+    assert!(
+        granted <= request_deadline.saturating_duration_since(now),
+        "response write budget {granted:?} runs past the request deadline"
     );
     assert!(!transport.output.is_empty());
+    assert_eq!(
+        response_status(&transport.output, &server_verification_key, nonce)?,
+        0
+    );
+    Ok(())
+}
+
+#[test]
+fn a_request_whose_deadline_cannot_cover_the_guarded_operation_is_refused_before_any_round_trip(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 137)?;
+    let authority = pair.initiator_authority.clone();
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([101u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([102u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+    // The real transports' bounds: five seconds per round trip. Reconcile's
+    // least plan before its own query is two authority round trips and one
+    // witness call, fifteen seconds; the request gets a fifth of a second.
+    authority.set_round_trip_bound(Duration::from_secs(5));
+    pair.witness.set_round_trip_bound(Duration::from_secs(5));
+    // Had the operation started, its coverage snapshot would have paid this.
+    authority.delay_next_snapshot(Duration::from_millis(600));
+    let lease_calls = authority.lease_call_count();
+    let journal = server.agent_for_test().journaled_lease_intents_for_test()?;
+
+    let nonce = [103u8; 32];
+    let mut transport = WriteBudgetTransport {
+        input: Cursor::new(framed_reconcile(&client_signing_key, nonce)?),
+        output: Vec::new(),
+        write_timeout: std::cell::Cell::new(None),
+    };
+    let started = Instant::now();
+    let deadline = started
+        .checked_add(Duration::from_millis(200))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    server.handle_io_with_deadline_for_test(&mut transport, deadline)?;
+    let elapsed = started.elapsed();
+
+    // Refused before the first round trip: the delayed snapshot was never
+    // requested, no renew was dispatched, nothing was journaled.
+    assert!(
+        elapsed < Duration::from_millis(600),
+        "the refused request still paid for a round trip: {elapsed:?}"
+    );
+    assert!(
+        authority.snapshot_delay_armed(),
+        "a snapshot was requested for an operation that could not fit"
+    );
+    assert_eq!(authority.lease_call_count(), lease_calls);
+    assert_eq!(
+        server.agent_for_test().journaled_lease_intents_for_test()?,
+        journal
+    );
+    // And answered, with the refusal, on what was left of the request's own
+    // deadline -- never on a fresh budget.
+    assert_eq!(
+        response_status(&transport.output, &server_verification_key, nonce)?,
+        24
+    );
+    let granted = transport
+        .write_timeout
+        .get()
+        .ok_or_else(|| io::Error::other("no write timeout was set"))?;
+    assert!(
+        granted <= Duration::from_millis(200),
+        "response write budget {granted:?} did not come from the request deadline"
+    );
+    assert_eq!(server.agent_for_test().pending_session_count(), 0);
+    // Not a fence: the agent serves on, and a reconcile with a budget of its
+    // own gets the answer it always had.
+    assert!(server.agent_for_test().public_keys().is_ok());
+    assert_eq!(
+        server.agent_for_test().reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    Ok(())
+}
+
+#[test]
+fn a_deadline_that_lapses_after_the_durable_reservation_retains_nothing_and_writes_nothing(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 138)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([104u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([105u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+    // Every port is instantaneous by its bound, so the operation is admitted
+    // in full; the reservation's fsync then outlives the deadline, and the
+    // retention gate after it is where the operation learns that.
+    server
+        .agent_for_test()
+        .delay_next_durable_write_for_test(Duration::from_millis(1_000))?;
+    let mut transport = CaptureTransport {
+        input: Cursor::new(framed_begin(
+            &client_signing_key,
+            [106u8; 32],
+            &pair.initiator_signed_offers,
+            &pair.responder_public_keys,
+        )?),
+        output: Vec::new(),
+    };
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(400))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        server.handle_io_with_deadline_for_test(&mut transport, deadline),
+        Err(crate::ipc::IpcError::Unavailable)
+    );
+    // The deadline was gone when the write began, so nothing was written --
+    // not a refusal on a fresh budget, and not a handle.
+    assert!(transport.output.is_empty());
+
+    // Durably reserved, never retained: the reservation was released rather
+    // than orphaned, and no secret survived the abort.
+    let agent = server.agent_for_test();
+    assert_eq!(agent.pending_session_count(), 0);
+    assert_eq!(agent.durable_session_count_for_test()?, 0);
+    assert_eq!(agent.confirmed_key_count(), 0);
+    // Not a fence. The offer was consumed by the reservation, so a fresh one
+    // under the default budget is what serves.
+    assert!(agent.public_keys().is_ok());
+    initiator_encapsulation(agent.begin_encapsulation(BeginEncapsulation::new(
+        pair.second_initiator_authorization,
+        pair.responder_public_keys,
+    ))?)?;
+    assert_eq!(agent.pending_session_count(), 1);
     Ok(())
 }
 

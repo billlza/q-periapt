@@ -1858,6 +1858,104 @@ fn an_authority_unreachable_at_the_retention_snapshot_retains_nothing() -> TestR
 }
 
 #[test]
+fn a_release_refused_by_its_deadline_keeps_the_lease_and_erases_nothing() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 140)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    let before = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the fixture's holder must start out holding its lease"))?;
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    // One release dispatch is the least a release needs, and at the real
+    // transport's bound it cannot end before a deadline that has already
+    // arrived.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(5));
+    assert_eq!(
+        pair.initiator.release_instance_lease_until(Instant::now()),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    // Refused before anything happened: nothing dispatched, the lease still
+    // held under the same fence, the secret still there.
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls);
+    let after = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the refused release dropped the lease"))?;
+    assert_eq!(after.fence(), before.fence());
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    // And the lease still serves: the refusal did not start the release.
+    drive_one_lease_renew(&pair.initiator)?;
+
+    // With a budget of its own the release goes through.
+    pair.initiator.release_instance_lease()?;
+    assert!(pair.initiator_authority.active_lease()?.is_none());
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn drains_yield_to_the_operation_budget_and_keep_their_obligations() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 141)?;
+    let authority = &pair.initiator_authority;
+    // Three renews whose receipts the authority will not let go of: three
+    // acknowledgements owed, three journal rows kept.
+    authority.refuse_acknowledgements(true);
+    for _ in 0..3 {
+        drive_one_lease_renew(&pair.initiator)?;
+    }
+    authority.refuse_acknowledgements(false);
+    let owed = pair.initiator.journaled_lease_intents_for_test()?;
+    assert!(owed.len() >= 3);
+    let receipts = authority.receipt_count()?;
+    assert!(receipts >= 3);
+    let lease_calls = authority.lease_call_count();
+
+    // Begin's least plan at a one-second authority bound is three seconds;
+    // give it that and a sliver, so the plan fits but no acknowledgement
+    // fits on top of it.
+    authority.set_round_trip_bound(Duration::from_secs(1));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(3_200))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation_until(
+        BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ),
+        deadline,
+    )?)?;
+    // The operation ran on its plan alone -- one renew -- and every
+    // obligation it had no room for is still owed, not dropped.
+    assert_eq!(authority.lease_call_count(), lease_calls + 1);
+    assert_eq!(authority.receipt_count()?, receipts + 1);
+    let journal = pair.initiator.journaled_lease_intents_for_test()?;
+    assert!(
+        owed.iter().all(|row| journal.contains(row)),
+        "a drain that could not fit dropped a journal row"
+    );
+
+    // A budget with room drains them: every receipt acknowledged, every row
+    // but the last operation's own forgotten.
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.second_initiator_authorization,
+        pair.responder_public_keys,
+    ))?)?;
+    assert_eq!(authority.receipt_count()?, 0);
+    let journal = pair.initiator.journaled_lease_intents_for_test()?;
+    assert!(owed.iter().all(|row| !journal.contains(row)));
+    assert_eq!(journal.len(), 1);
+    Ok(())
+}
+
+#[test]
 fn coverage_deadline_subtracts_the_divergence_budget() {
     let anchor = Instant::now();
     let budget = LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS;

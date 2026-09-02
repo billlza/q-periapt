@@ -208,6 +208,64 @@ fn execution_policy_identity_can_advance_while_old_bundle_remains_blocked() -> T
 }
 
 #[test]
+fn a_transition_the_witness_applied_before_the_deadline_lapsed_is_still_committed() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 139)?;
+    let initial_head = pair.witness.read_head()?;
+    let (advanced_state, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    // Every port is instantaneous by its bound, so the CAS is admitted while
+    // the deadline stands; it then ends well past it.
+    pair.witness
+        .delay_next_compare_and_advance(Duration::from_millis(1_500));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(1))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    pair.initiator.apply_advance_until(&certificate, deadline)?;
+    // Past the witness's applied receipt the transition is committed, and
+    // committed locally too, with nothing left to reconcile: the truthful
+    // answer is Ok whatever the clock said by then.
+    let advanced_head = pair.witness.read_head()?;
+    assert_ne!(advanced_head, initial_head);
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    assert!(pair.initiator.public_keys().is_ok());
+
+    // Whereas a CAS that could not end before the deadline is never
+    // dispatched: refused at admission, before the durable intent, with the
+    // witness and the authority untouched.
+    let (_, next_certificate) = signed_advance(
+        advanced_state,
+        &pair.migration,
+        advanced_state.posture(),
+        advanced_state.allowed_suites(),
+    )?;
+    pair.witness.set_round_trip_bound(Duration::from_secs(1));
+    let lease_calls = pair.initiator_authority.lease_call_count();
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(100))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator
+            .apply_advance_until(&next_certificate, deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert_eq!(pair.witness.read_head()?, advanced_head);
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls);
+    // Not a fence and nothing left behind: the same advance under the default
+    // budget applies.
+    pair.initiator.apply_advance(&next_certificate)?;
+    assert_ne!(pair.witness.read_head()?, advanced_head);
+    Ok(())
+}
+
+#[test]
 fn reset_cannot_rotate_to_an_unprovisioned_migration_authority() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 5)?;

@@ -138,17 +138,22 @@
     <false/>
     <!--
       How long launchd waits after SIGTERM before it sends SIGKILL. launchd's
-      default is 20 seconds. The daemon observes the stop within one
-      maintenance interval (one second), erases its in-process secrets, and
-      releases the instance lease, and that release is a handful of bounded
-      authority round trips of at most 5 seconds each -- up to six against
-      an authority that accepts the connection and never answers, so about 30
-      seconds worst case, past the default. A SIGKILL there costs only a
-      redb recovery at the next open, and the lease lapses at its TTL exactly
-      as after a crash; 60 gives the release room to finish instead.
+      default is 20 seconds. A stop that lands while a request is in flight
+      is observed once that request has been answered or refused -- every
+      request runs under one end-to-end deadline of 35 seconds -- or within
+      one maintenance interval (one second) when the daemon is idle. The
+      daemon then erases its in-process secrets and releases the instance
+      lease under a 30-second budget: up to six bounded authority round trips
+      of at most 5 seconds each against an authority that accepts the
+      connection and never answers, each admitted only while it can still
+      end within that budget. That is 66 seconds worst case, past the
+      default. A SIGKILL there costs only a redb recovery at the next open,
+      and the lease lapses at its TTL exactly as after a crash; 90 -- also
+      systemd's default stop timeout -- gives the release room to finish
+      instead.
     -->
     <key>ExitTimeOut</key>
-    <integer>60</integer>
+    <integer>90</integer>
     <key>ProcessType</key>
     <string>Background</string>
 </dict>

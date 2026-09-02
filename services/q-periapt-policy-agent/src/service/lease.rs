@@ -161,6 +161,39 @@ struct PendingAcquire {
     expected_fence: InstanceFenceV2,
 }
 
+/// The least I/O a guarded operation performs once its lease is renewed, in
+/// port round trips: what `ensure_instance_lease` reserves out of the
+/// operation's deadline before it dispatches anything, and what every drain
+/// leaves untouched.
+#[derive(Clone, Copy)]
+pub(super) struct OperationPlan {
+    authority_round_trips: u32,
+    witness_round_trips: u32,
+}
+
+impl OperationPlan {
+    /// Begin and Accept: the renew, the post-renew coverage snapshot, the
+    /// retention snapshot after the durable write, and one witness head read.
+    pub(super) const RETAINING: Self = Self {
+        authority_round_trips: 3,
+        witness_round_trips: 1,
+    };
+    /// Advance, Reset and Reconcile: the renew, the coverage snapshot, and
+    /// one witness call; Reconcile's conditional CAS after its query is
+    /// admitted on its own in `execute_transition`.
+    pub(super) const TRANSITION: Self = Self {
+        authority_round_trips: 2,
+        witness_round_trips: 1,
+    };
+
+    /// How long the plan can block at these port bounds.
+    fn reserve(self, authority_bound: Duration, witness_bound: Duration) -> Duration {
+        authority_bound
+            .saturating_mul(self.authority_round_trips)
+            .saturating_add(witness_bound.saturating_mul(self.witness_round_trips))
+    }
+}
+
 /// What resolving a pending re-acquire established.
 enum PendingAcquireOutcome {
     /// The acquire applied: the lease under its expected fence is this
@@ -258,8 +291,22 @@ fn record_lease_receipt(
     Ok(LeaseExchange::Receipt(receipt))
 }
 
-fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
+/// Acknowledge the queued receipts, in order, while each acknowledgement can
+/// end before `deadline` with `reserve` -- what the operation still needs
+/// after this drain -- left over. A receipt that does not fit stays queued,
+/// exactly as one the authority could not answer for; the next drain, or the
+/// next start, discharges it.
+fn drain_acknowledgements<A: InstanceAuthorityPort>(
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+    deadline: OperationDeadline,
+    reserve: Duration,
+) {
+    let bound = authority.round_trip_bound().saturating_add(reserve);
     while let Some(retained) = lease.unacknowledged.front() {
+        if deadline.admit(bound).is_err() {
+            return;
+        }
         let operation_id = retained.locator().operation_id();
         match authority.acknowledge(retained) {
             Ok(AuthorityOutcomeV2::Known(_)) => {
@@ -293,12 +340,23 @@ fn drain_acknowledgements<A: InstanceAuthorityPort>(authority: &A, lease: &mut I
     }
 }
 
+/// Learn what the authority did with a dispatched mutation whose response was
+/// lost, by exact query. Each query is admitted against `deadline` first; a
+/// refusal keeps the id unresolved -- the same fail-closed bookkeeping as an
+/// exhausted loop, so the mutation is asked about again before the next
+/// guarded operation and never silently abandoned -- and returns
+/// [`AgentError::OperationDeadlineExceeded`].
 fn reconcile_lease_operation<A: InstanceAuthorityPort>(
     authority: &A,
     lease: &mut InstanceLeaseState,
     intent: AuthorityIntentV2,
+    deadline: OperationDeadline,
 ) -> Result<LeaseExchange, AgentError> {
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
+        if deadline.admit(authority.round_trip_bound()).is_err() {
+            keep_unresolved(lease, intent.operation_id());
+            return Err(AgentError::OperationDeadlineExceeded);
+        }
         match authority.query(intent.operation_id()) {
             Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
                 return record_lease_receipt(lease, intent, *receipt);
@@ -331,13 +389,20 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
 /// acknowledgement its receipt is owed. An outcome that proves the authority
 /// never executed the operation settles the row at once; an outcome that
 /// leaves it unknown keeps the id for a later query.
+///
+/// The dispatch is admitted against `deadline` before the journal write, so a
+/// refused dispatch leaves no row and nothing to settle; the snapshot that
+/// resynchronises after an `AuthorityVersionMismatch` is admitted the same
+/// way, with the refused row already settled.
 fn lease_exchange<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
     call: LeaseCall,
     intent: AuthorityIntentV2,
+    deadline: OperationDeadline,
 ) -> Result<LeaseExchange, AgentError> {
+    deadline.admit(authority.round_trip_bound())?;
     journal_lease_intent(repository, lease, intent.operation_id())?;
     let outcome = match call {
         LeaseCall::Acquire => authority.acquire(intent),
@@ -349,6 +414,7 @@ fn lease_exchange<A: InstanceAuthorityPort>(
         Ok(AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)) => {
             // Refused on its precondition, never executed: settled.
             settle(lease, intent.operation_id());
+            deadline.admit(authority.round_trip_bound())?;
             let snapshot = authority_snapshot(authority)?;
             lease.authority_version = snapshot.authority_version();
             Ok(LeaseExchange::Retry)
@@ -360,7 +426,9 @@ fn lease_exchange<A: InstanceAuthorityPort>(
             keep_unresolved(lease, intent.operation_id());
             Err(AgentError::InstanceLeaseUnavailable)
         }
-        Ok(AuthorityOutcomeV2::Unknown(_)) => reconcile_lease_operation(authority, lease, intent),
+        Ok(AuthorityOutcomeV2::Unknown(_)) => {
+            reconcile_lease_operation(authority, lease, intent, deadline)
+        }
         Err(_) => {
             keep_unresolved(lease, intent.operation_id());
             Err(AgentError::InstanceLeaseUnavailable)
@@ -529,10 +597,23 @@ fn reconcile_lease_journal<A: InstanceAuthorityPort>(
 /// skipped, not queried: its receipt is the one proof of what that acquire
 /// did, so it must be read before it is acknowledged, and only
 /// `resolve_pending_acquire_state` reads it.
-fn drain_unresolved<A: InstanceAuthorityPort>(authority: &A, lease: &mut InstanceLeaseState) {
+///
+/// Each row is a query and an acknowledgement, admitted together against
+/// `deadline` with `reserve` -- what the operation still needs -- left over;
+/// a row that does not fit stays unresolved, exactly as an unanswered one.
+fn drain_unresolved<A: InstanceAuthorityPort>(
+    authority: &A,
+    lease: &mut InstanceLeaseState,
+    deadline: OperationDeadline,
+    reserve: Duration,
+) {
     let pending = lease
         .pending_acquire
         .map(|pending| pending.intent.operation_id());
+    let bound = authority
+        .round_trip_bound()
+        .saturating_mul(2)
+        .saturating_add(reserve);
     // Newest first, as before; removing the entry visited shifts only the
     // entries already visited.
     for index in (0..lease.unresolved.len()).rev() {
@@ -541,6 +622,9 @@ fn drain_unresolved<A: InstanceAuthorityPort>(authority: &A, lease: &mut Instanc
         };
         if Some(operation_id) == pending {
             continue;
+        }
+        if deadline.admit(bound).is_err() {
+            return;
         }
         match resolve_journaled_intent(authority, operation_id) {
             JournalResolution::Settled => {
@@ -573,10 +657,14 @@ fn adopt_or_reject_active_lease(
     }
 }
 
+/// One acquire attempt, under its own fresh default budget: no caller has a
+/// deadline to give the constructor, and `acquire_instance_lease_within`
+/// bounds the retries on top.
 pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
 ) -> Result<InstanceLeaseState, AgentError> {
+    let deadline = OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET)?;
     let instance_id = ProcessInstanceIdV2::from_bytes(fresh_lease_random()?)
         .map_err(|_| AgentError::LocalCryptoFailure)?;
     let mut lease = InstanceLeaseState {
@@ -612,6 +700,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
             &mut lease,
             LeaseCall::Acquire,
             intent,
+            deadline,
         ) {
             Ok(exchange) => exchange,
             // Dispatched, and its outcome still unknown after reconciliation.
@@ -622,7 +711,8 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
             // FenceMismatch says it never applied and retires just the same;
             // an authority still unreachable leaves it to lapse at its TTL,
             // as after a crash. No secret exists yet, so there is nothing to
-            // erase. The error reported is the acquire's own.
+            // erase. The error reported is the acquire's own. The release
+            // gets a fresh budget of its own, not this attempt's remainder.
             Err(AgentError::InstanceLeaseIndeterminate) => {
                 let generation = expected_lease_generation
                     .checked_add(1)
@@ -631,7 +721,10 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
                     InstanceFenceV2::new(generation, instance_id)
                         .map_err(|_| AgentError::InstanceLeaseUnavailable)?,
                 );
-                let _ = release_lease_state(repository, authority, &mut lease);
+                if let Ok(release_deadline) = OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET) {
+                    let _ =
+                        release_lease_state(repository, authority, &mut lease, release_deadline);
+                }
                 let _ = forget_settled(repository, &mut lease);
                 return Err(AgentError::InstanceLeaseIndeterminate);
             }
@@ -639,7 +732,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
         };
         match exchange {
             LeaseExchange::Receipt(receipt) => {
-                drain_acknowledgements(authority, &mut lease);
+                drain_acknowledgements(authority, &mut lease, deadline, Duration::ZERO);
                 match receipt.disposition() {
                     AuthorityDispositionV2::Applied => {
                         let generation = expected_lease_generation
@@ -781,13 +874,29 @@ fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
 /// the operation's last I/O, and a secret is retained only if that snapshot
 /// shows the lease still held by this instance with more than the budget
 /// left.
+///
+/// Admission comes first, right after the phase guard: the operation's
+/// `plan` -- its least authority and witness round trips at the ports' own
+/// bounds -- is reserved out of the operation's deadline, and an operation
+/// that cannot fit is refused with [`AgentError::OperationDeadlineExceeded`]
+/// before the resolution, the drains, any journal write or any dispatch.
+/// Every round trip after that is admitted on its own, and the drains admit
+/// each of theirs only with that reserve still left over, so settling old
+/// obligations never starves the operation they precede.
 pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
+    plan: OperationPlan,
 ) -> Result<(), AgentError> {
     if inner.lease.phase != LeasePhase::Serving {
         return Err(AgentError::InstanceFenced);
     }
-    resolve_pending_acquire(inner)?;
+    let reserve = plan.reserve(
+        inner.authority.round_trip_bound(),
+        inner.witness.round_trip_bound(),
+    );
+    inner.deadline.admit(reserve)?;
+    let deadline = inner.deadline;
+    resolve_pending_acquire(inner, reserve)?;
     // Read only now: the resolution may just have replaced the fence.
     let Some(fence) = inner.lease.fence else {
         return Err(AgentError::InstanceFenced);
@@ -798,8 +907,8 @@ pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
     if inner.lease.pending_acquire.is_some() {
         return Err(AgentError::InstanceLeaseIndeterminate);
     }
-    drain_acknowledgements(&inner.authority, &mut inner.lease);
-    drain_unresolved(&inner.authority, &mut inner.lease);
+    drain_acknowledgements(&inner.authority, &mut inner.lease, deadline, reserve);
+    drain_unresolved(&inner.authority, &mut inner.lease, deadline, reserve);
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let intent = lease_intent(
             &inner.lease,
@@ -812,9 +921,10 @@ pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
             &mut inner.lease,
             LeaseCall::Renew,
             intent,
+            deadline,
         )? {
             LeaseExchange::Receipt(receipt) => {
-                drain_acknowledgements(&inner.authority, &mut inner.lease);
+                drain_acknowledgements(&inner.authority, &mut inner.lease, deadline, reserve);
                 return match receipt.disposition() {
                     AuthorityDispositionV2::Applied
                     | AuthorityDispositionV2::Rejected(
@@ -909,6 +1019,10 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
         .ok_or(AgentError::InstanceLeaseUnavailable)?;
     let expected = InstanceFenceV2::new(generation, instance_id)
         .map_err(|_| AgentError::InstanceLeaseUnavailable)?;
+    let deadline = inner.deadline;
+    // What the drain after a successful re-acquire must leave over: the
+    // coverage snapshot that follows it.
+    let reserve = inner.authority.round_trip_bound();
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let intent = lease_intent(
             &inner.lease,
@@ -928,6 +1042,7 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
             &mut inner.lease,
             LeaseCall::Acquire,
             intent,
+            deadline,
         ) {
             Ok(LeaseExchange::Receipt(receipt)) => {
                 inner.lease.pending_acquire = None;
@@ -939,7 +1054,7 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
                     return Err(error);
                 }
                 inner.lease.fence = Some(expected);
-                drain_acknowledgements(&inner.authority, &mut inner.lease);
+                drain_acknowledgements(&inner.authority, &mut inner.lease, deadline, reserve);
                 return prove_lease_coverage(inner, expected);
             }
             // Provably never executed; the loop rebuilds the intent at the
@@ -980,20 +1095,29 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 /// the acknowledgement it is owed and drains it here; adoption through a
 /// snapshot leaves the operation `unresolved`, so `drain_unresolved` finds and
 /// acknowledges its receipt once the authority answers queries again.
+///
+/// The query and the snapshot are each admitted against `deadline` with
+/// `reserve` -- what the caller still needs afterwards -- left over; a
+/// refusal is [`AgentError::OperationDeadlineExceeded`] with the record kept,
+/// nothing having been dispatched.
 fn resolve_pending_acquire_state<A: InstanceAuthorityPort>(
     authority: &A,
     lease: &mut InstanceLeaseState,
+    deadline: OperationDeadline,
+    reserve: Duration,
 ) -> Result<Option<PendingAcquireOutcome>, AgentError> {
     let Some(pending) = lease.pending_acquire else {
         return Ok(None);
     };
     let operation_id = pending.intent.operation_id();
     let expected = pending.expected_fence;
+    let bound = authority.round_trip_bound().saturating_add(reserve);
+    deadline.admit(bound)?;
     match authority.query(operation_id) {
         Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
             lease.unresolved.retain(|id| *id != operation_id);
             record_lease_receipt(lease, pending.intent, *receipt)?;
-            drain_acknowledgements(authority, lease);
+            drain_acknowledgements(authority, lease, deadline, reserve);
             lease.pending_acquire = None;
             Ok(Some(match receipt.disposition() {
                 AuthorityDispositionV2::Applied => {
@@ -1013,6 +1137,7 @@ fn resolve_pending_acquire_state<A: InstanceAuthorityPort>(
             Ok(Some(PendingAcquireOutcome::NotExecuted))
         }
         Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
+            deadline.admit(bound)?;
             let snapshot = authority_snapshot(authority)?;
             lease.authority_version = snapshot.authority_version();
             let previous_generation = expected.generation().saturating_sub(1);
@@ -1039,11 +1164,14 @@ fn resolve_pending_acquire_state<A: InstanceAuthorityPort>(
 /// every secret -- the acquire cleared the authority's key table, exactly as
 /// when its receipt arrives in time -- or fence when another instance has
 /// held the lease since. A verdict the authority cannot yet give is returned
-/// as the state-level error, with the record kept.
+/// as the state-level error, with the record kept. `reserve` is what the
+/// operation still needs after the resolution.
 fn resolve_pending_acquire<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
+    reserve: Duration,
 ) -> Result<(), AgentError> {
-    match resolve_pending_acquire_state(&inner.authority, &mut inner.lease)? {
+    let deadline = inner.deadline;
+    match resolve_pending_acquire_state(&inner.authority, &mut inner.lease, deadline, reserve)? {
         None | Some(PendingAcquireOutcome::NotExecuted) => Ok(()),
         Some(PendingAcquireOutcome::Adopted) => erase_all_secrets(inner).map_or(Ok(()), Err),
         Some(PendingAcquireOutcome::Superseded) => {
@@ -1094,10 +1222,19 @@ fn resolve_pending_acquire<W: WitnessPort, A: InstanceAuthorityPort>(
 /// expired and `recover_expired_lease` will re-acquire. Only an active lease
 /// under a different fence, or a generation that has moved past ours, proves a
 /// successor and fences.
+///
+/// The snapshot is admitted against the operation's deadline first. A refusal
+/// takes no snapshot and proves nothing, so it clears the previous proof --
+/// the conservative outcome, as after a lapse -- and returns
+/// [`AgentError::OperationDeadlineExceeded`], which is not a fence.
 fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     fence: InstanceFenceV2,
 ) -> Result<(), AgentError> {
+    if let Err(refused) = inner.deadline.admit(inner.authority.round_trip_bound()) {
+        inner.lease.covered_until = None;
+        return Err(refused);
+    }
     let anchor = Instant::now();
     let snapshot = authority_snapshot(&inner.authority)?;
     let Some(active) = snapshot.active_lease() else {
@@ -1142,7 +1279,8 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
     Ok(())
 }
 
-/// Refuse to retain or return a secret once the proven coverage has elapsed.
+/// Refuse to retain or return a secret once the proven coverage has elapsed,
+/// or once the operation's own deadline has been reached.
 ///
 /// The lease is checked on the way in, but the work that follows is not
 /// instantaneous: a witness round trip, two signature verifications, a KEM
@@ -1150,24 +1288,33 @@ fn prove_lease_coverage<W: WitnessPort, A: InstanceAuthorityPort>(
 /// all sit between that check and the point where a secret first becomes
 /// retained.
 ///
-/// This is the local, budgeted rule against the deadline `prove_lease_coverage`
-/// recorded. It is consulted before the durable write, as an early-out that
-/// avoids paying for an fsync the operation is about to discard, and again
-/// inside `prove_lease_covers_retention`, against the fresh snapshot that
-/// check takes *after* the write. The pre-write call is an optimisation; the
+/// Two rules, in this order. First the local, budgeted coverage rule against
+/// the deadline `prove_lease_coverage` recorded
+/// ([`AgentError::InstanceLeaseCoverageElapsed`]); then the operation's
+/// deadline, admitted with a zero bound
+/// ([`AgentError::OperationDeadlineExceeded`]). Coverage goes first so that a
+/// lease lapse is never reported as a deadline. Both are consulted before the
+/// durable write, as an early-out that avoids paying for an fsync the
+/// operation is about to discard, and again inside
+/// `prove_lease_covers_retention`, against the fresh snapshot that check
+/// takes *after* the write. The pre-write call is an optimisation; the
 /// guarantee is `prove_lease_covers_retention`, and what remains between its
 /// snapshot and retention is that snapshot's own round trip plus one hash-map
-/// insert, both inside the divergence budget.
+/// insert, both inside the divergence budget. The callers own the cleanup
+/// that keeps both refusals equal in effect: nothing retained, the
+/// reservation released.
 ///
-/// It deliberately does not fence. A local deadline running out is no evidence
-/// that any successor exists, and fencing is permanent.
-pub(super) fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
+/// It deliberately does not fence. A local deadline running out, the lease's
+/// or the operation's, is no evidence that any successor exists, and fencing
+/// is permanent.
+pub(super) fn ensure_may_retain<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &Inner<W, A>,
 ) -> Result<(), AgentError> {
     match inner.lease.covered_until {
-        Some(until) if Instant::now() < until => Ok(()),
-        _ => Err(AgentError::InstanceLeaseCoverageElapsed),
+        Some(until) if Instant::now() < until => {}
+        _ => return Err(AgentError::InstanceLeaseCoverageElapsed),
     }
+    inner.deadline.admit(Duration::ZERO)
 }
 
 /// The retention check: a fresh authority observation taken after the last
@@ -1187,10 +1334,13 @@ pub(super) fn ensure_lease_covers<W: WitnessPort, A: InstanceAuthorityPort>(
 /// budget left, or the deadline it yields has already passed;
 /// [`AgentError::InstanceFenced`] when it shows a successor, a rolled-back
 /// authority or a foreign fence -- `fence_out` has erased every other secret
-/// by then -- or when this lease is releasing or retired; and
-/// [`AgentError::InstanceLeaseUnavailable`] when the snapshot is not `Known`.
-/// The caller owns the cleanup of what it was about to retain
-/// (`reserve_pending`, `retain_accepted_key`).
+/// by then -- or when this lease is releasing or retired;
+/// [`AgentError::InstanceLeaseUnavailable`] when the snapshot is not `Known`;
+/// and [`AgentError::OperationDeadlineExceeded`] when the snapshot's round
+/// trip would not end before the operation's deadline (it is then not taken),
+/// or the deadline is reached by the time the proof is checked. The caller
+/// owns the cleanup of what it was about to retain (`reserve_pending`,
+/// `retain_accepted_key`).
 pub(super) fn prove_lease_covers_retention<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
 ) -> Result<(), AgentError> {
@@ -1201,7 +1351,7 @@ pub(super) fn prove_lease_covers_retention<W: WitnessPort, A: InstanceAuthorityP
         return Err(AgentError::InstanceFenced);
     };
     prove_lease_coverage(inner, fence)?;
-    ensure_lease_covers(inner)
+    ensure_may_retain(inner)
 }
 
 /// Erase every in-process pending and accepted secret and retire this fence.
@@ -1229,7 +1379,7 @@ pub(super) fn prove_lease_covers_retention<W: WitnessPort, A: InstanceAuthorityP
 /// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` of authority clock advance beyond
 /// the local elapsed time across that observation's round trip; see
 /// `prove_lease_coverage`, `prove_lease_covers_retention` and
-/// `ensure_lease_covers`. That is narrower than "key use has stopped": the
+/// `ensure_may_retain`. That is narrower than "key use has stopped": the
 /// KEM itself runs before the coverage check, and the long-term ABI 2 executor
 /// keys are outside this mechanism entirely.
 pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
@@ -1283,20 +1433,29 @@ pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
 /// outcome is lost, the snapshot that stands in for it reports the fence the
 /// authority actually holds for this instance, and that is the one to release.
 ///
+/// Every round trip is admitted against `deadline` first, the drains and the
+/// resolution with one authority round trip -- the release itself -- kept in
+/// reserve. A refusal once the release is under way leaves the phase
+/// `Releasing` with the fence kept, exactly as an unreachable authority
+/// does, and is reported as [`AgentError::OperationDeadlineExceeded`]: never
+/// `Ok` without a receipt or a proof.
+///
 /// Returns `Ok(())` at once when the lease is already retired.
 pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
+    deadline: OperationDeadline,
 ) -> Result<(), AgentError> {
     if lease.phase == LeasePhase::Retired {
         return Ok(());
     }
     lease.phase = LeasePhase::Releasing;
     lease.covered_until = None;
-    drain_acknowledgements(authority, lease);
-    drain_unresolved(authority, lease);
-    match resolve_pending_acquire_state(authority, lease) {
+    let reserve = authority.round_trip_bound();
+    drain_acknowledgements(authority, lease, deadline, reserve);
+    drain_unresolved(authority, lease, deadline, reserve);
+    match resolve_pending_acquire_state(authority, lease, deadline, reserve) {
         Ok(None | Some(PendingAcquireOutcome::Adopted | PendingAcquireOutcome::NotExecuted)) => {}
         Ok(Some(PendingAcquireOutcome::Superseded)) => {
             retire(lease);
@@ -1320,9 +1479,16 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             authority.wire_config(),
             AuthorityMutationV2::ReleaseLease { fence },
         )?;
-        match lease_exchange(repository, authority, lease, LeaseCall::Release, intent) {
+        match lease_exchange(
+            repository,
+            authority,
+            lease,
+            LeaseCall::Release,
+            intent,
+            deadline,
+        ) {
             Ok(LeaseExchange::Receipt(receipt)) => {
-                drain_acknowledgements(authority, lease);
+                drain_acknowledgements(authority, lease, deadline, reserve);
                 return match receipt.disposition() {
                     AuthorityDispositionV2::Applied
                     | AuthorityDispositionV2::Rejected(
@@ -1343,6 +1509,9 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             // Provably never executed; the loop rebuilds the intent.
             Ok(LeaseExchange::Retry) => {}
             Err(AgentError::InstanceLeaseIndeterminate) => {
+                // The proof is one more round trip; refused, the outcome
+                // stays unknown and the fence is kept for a later call.
+                deadline.admit(reserve)?;
                 match lease_gone_by_snapshot(authority, lease) {
                     Ok(None) => {
                         retire(lease);
