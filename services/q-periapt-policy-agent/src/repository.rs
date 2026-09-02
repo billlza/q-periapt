@@ -11,6 +11,8 @@ use q_periapt_migration::{
 };
 use redb::{Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition};
 
+use crate::authority::OperationIdV2;
+use crate::authority_codec::{decode_operation_id, encode_operation_id};
 use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
 use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
 use crate::types::{
@@ -24,6 +26,14 @@ const REPOSITORY_SCHEMA: [u8; 2] = REPOSITORY_SCHEMA_VERSION.to_be_bytes();
 const MAX_HISTORY_ENTRIES: u64 = 4096;
 const MAX_DURABLE_SESSIONS: u64 = 1024;
 const MAX_USED_CAPABILITIES: u64 = 4096;
+/// Bound on the lease-intent journal: one row per lease operation this
+/// instance has journaled and not yet settled with the authority.
+///
+/// The service's in-memory acknowledgement queue has the same bound, and the
+/// journal is what makes that queue safe to lose: every queued receipt has a
+/// row here, so the journal always fills first and refuses before the queue
+/// could overflow.
+pub(crate) const MAX_JOURNALED_LEASE_INTENTS: u64 = 64;
 
 const META_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("agent_meta_v1");
 const HISTORY_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("agent_state_history_v1");
@@ -31,6 +41,15 @@ const SESSION_TABLE: TableDefinition<&[u8], &[u8]> =
     TableDefinition::new("agent_session_reservations_v1");
 const CAPABILITY_TABLE: TableDefinition<&[u8], &[u8]> =
     TableDefinition::new("agent_used_capabilities_v1");
+/// Lease intents journaled before dispatch, so that the acknowledgement each
+/// receipt is owed survives a crash. Key: the canonical operation id bytes;
+/// value: the one-byte `Prepared` tag.
+///
+/// Additive: a store provisioned before this table existed opens without it,
+/// and the first journal write creates it.
+const ACK_JOURNAL_TABLE: TableDefinition<&[u8], &[u8]> =
+    TableDefinition::new("agent_authority_ack_journal_v1");
+const ACK_JOURNAL_PREPARED: [u8; 1] = [1];
 const META_SCHEMA: &str = "schema";
 const META_HEAD: &str = "head";
 const META_PENDING: &str = "pending_transition";
@@ -230,6 +249,9 @@ impl StateRepository {
                     transaction
                         .open_table(CAPABILITY_TABLE)
                         .map_err(|_| RepositoryError::CorruptStore)?;
+                    transaction
+                        .open_table(ACK_JOURNAL_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
                     meta.insert(META_SCHEMA, REPOSITORY_SCHEMA.as_slice())
                         .map_err(|_| RepositoryError::CorruptStore)?;
                     meta.insert(META_HEAD, head.to_bytes().as_slice())
@@ -293,6 +315,7 @@ impl StateRepository {
             return Err(RepositoryError::InvalidHistory);
         }
         validate_used_capabilities(&database, durable_head)?;
+        validate_ack_journal(&database)?;
         let restart_rejections = reject_restart_sessions(&database)?;
         Ok(Self {
             database,
@@ -638,6 +661,144 @@ impl StateRepository {
                 .is_none()
             {
                 return Err(RepositoryError::SessionNotFound);
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Durably journal one lease intent before it is dispatched, and in the
+    /// same transaction forget the journaled intents this process has since
+    /// settled with the authority.
+    ///
+    /// The row is what lets a successor process discharge the acknowledgement
+    /// this operation's receipt will be owed: after a crash it queries every
+    /// journaled id, acknowledges the receipt it finds, and forgets the row.
+    /// Folding the deletions into the same commit keeps the steady-state cost
+    /// at one durable transaction per lease operation.
+    ///
+    /// Refuses with [`RepositoryError::CapacityExceeded`] when the journal
+    /// would hold more than [`MAX_JOURNALED_LEASE_INTENTS`] rows after the
+    /// deletions. Nothing is committed on refusal, the deletions included, so
+    /// the caller's settled list stays accurate.
+    pub(crate) fn journal_lease_intent(
+        &self,
+        intent: OperationIdV2,
+        forget: &[OperationIdV2],
+    ) -> Result<(), RepositoryError> {
+        let transaction = durable_write(&self.database)?;
+        {
+            let mut journal = transaction
+                .open_table(ACK_JOURNAL_TABLE)
+                .map_err(|_| RepositoryError::CorruptStore)?;
+            for id in forget {
+                journal
+                    .remove(encode_operation_id(*id).as_slice())
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+            }
+            if journal.len().map_err(|_| RepositoryError::CorruptStore)?
+                >= MAX_JOURNALED_LEASE_INTENTS
+            {
+                return Err(RepositoryError::CapacityExceeded);
+            }
+            journal
+                .insert(
+                    encode_operation_id(intent).as_slice(),
+                    ACK_JOURNAL_PREPARED.as_slice(),
+                )
+                .map_err(|_| RepositoryError::CorruptStore)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Every journaled lease intent, in key order.
+    ///
+    /// Empty for a store provisioned before the journal existed: the table is
+    /// created by the first journal write, not at open.
+    pub(crate) fn journaled_lease_intents(&self) -> Result<Vec<OperationIdV2>, RepositoryError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        let journal = match transaction.open_table(ACK_JOURNAL_TABLE) {
+            Ok(journal) => journal,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(Vec::new()),
+            Err(_) => return Err(RepositoryError::CorruptStore),
+        };
+        decode_ack_journal(&journal)
+    }
+
+    /// Durably forget journaled lease intents whose outcome is settled: their
+    /// receipts are acknowledged, or the authority never saw them.
+    pub(crate) fn forget_lease_intents(
+        &self,
+        ids: &[OperationIdV2],
+    ) -> Result<(), RepositoryError> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let transaction = durable_write(&self.database)?;
+        {
+            let mut journal = transaction
+                .open_table(ACK_JOURNAL_TABLE)
+                .map_err(|_| RepositoryError::CorruptStore)?;
+            for id in ids {
+                journal
+                    .remove(encode_operation_id(*id).as_slice())
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Test-only: remove the lease-intent journal table, leaving the store as
+    /// one provisioned before the journal existed.
+    #[cfg(all(test, unix))]
+    pub(crate) fn drop_lease_journal_table_for_test(&self) -> Result<(), RepositoryError> {
+        let transaction = durable_write(&self.database)?;
+        transaction
+            .delete_table(ACK_JOURNAL_TABLE)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Test-only: whether the lease-intent journal table exists.
+    #[cfg(all(test, unix))]
+    pub(crate) fn lease_journal_table_exists_for_test(&self) -> Result<bool, RepositoryError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        match transaction.open_table(ACK_JOURNAL_TABLE) {
+            Ok(_) => Ok(true),
+            Err(redb::TableError::TableDoesNotExist(_)) => Ok(false),
+            Err(_) => Err(RepositoryError::CorruptStore),
+        }
+    }
+
+    /// Test-only: write raw rows into the lease-intent journal, bypassing
+    /// every check the production writer makes.
+    #[cfg(all(test, unix))]
+    pub(crate) fn write_raw_lease_journal_rows_for_test(
+        &self,
+        rows: &[(&[u8], &[u8])],
+    ) -> Result<(), RepositoryError> {
+        let transaction = durable_write(&self.database)?;
+        {
+            let mut journal = transaction
+                .open_table(ACK_JOURNAL_TABLE)
+                .map_err(|_| RepositoryError::CorruptStore)?;
+            for (key, value) in rows {
+                journal
+                    .insert(*key, *value)
+                    .map_err(|_| RepositoryError::CorruptStore)?;
             }
         }
         transaction
@@ -1006,6 +1167,43 @@ fn validate_used_capabilities(
         }
     }
     Ok(())
+}
+
+/// Refuse a journal whose rows do not decode or that exceeds its bound. A
+/// store provisioned before the journal existed simply has no table yet.
+fn validate_ack_journal(database: &Database) -> Result<(), RepositoryError> {
+    let transaction = database
+        .begin_read()
+        .map_err(|_| RepositoryError::CorruptStore)?;
+    let journal = match transaction.open_table(ACK_JOURNAL_TABLE) {
+        Ok(journal) => journal,
+        Err(redb::TableError::TableDoesNotExist(_)) => return Ok(()),
+        Err(_) => return Err(RepositoryError::CorruptStore),
+    };
+    decode_ack_journal(&journal).map(drop)
+}
+
+fn decode_ack_journal(
+    journal: &impl ReadableTable<&'static [u8], &'static [u8]>,
+) -> Result<Vec<OperationIdV2>, RepositoryError> {
+    let count = journal.len().map_err(|_| RepositoryError::CorruptStore)?;
+    if count > MAX_JOURNALED_LEASE_INTENTS {
+        return Err(RepositoryError::CorruptStore);
+    }
+    let mut ids = Vec::new();
+    ids.try_reserve(usize::try_from(count).map_err(|_| RepositoryError::CorruptStore)?)
+        .map_err(|_| RepositoryError::CorruptStore)?;
+    for entry in journal
+        .range::<&[u8]>(..)
+        .map_err(|_| RepositoryError::CorruptStore)?
+    {
+        let (key, value) = entry.map_err(|_| RepositoryError::CorruptStore)?;
+        if value.value() != ACK_JOURNAL_PREPARED {
+            return Err(RepositoryError::CorruptStore);
+        }
+        ids.push(decode_operation_id(key.value()).map_err(|_| RepositoryError::CorruptStore)?);
+    }
+    Ok(ids)
 }
 
 fn encode_journal_entry(kind: JournalKind, envelope: &[u8]) -> Result<Vec<u8>, RepositoryError> {

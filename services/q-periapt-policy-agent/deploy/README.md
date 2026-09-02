@@ -118,4 +118,10 @@ weaker socket.
    binding a socket of its own. On Linux enable `q-periapt-policy-agent.socket`;
    on macOS the `Sockets` dictionary in the plist covers it. The agent then
    acquires the exclusive instance lease at startup and fails closed while
-   another unexpired instance holds it.
+   another unexpired instance holds it. Before that acquire it settles the
+   lease-intent journal in its own store: receipts a previous instance was
+   killed before acknowledging are acknowledged then, so the authority's
+   bounded receipt table is reclaimed across restarts without any operator
+   step. A start that finds all 64 journal rows unanswerable -- the authority
+   unreachable after that many unclean stops -- fails closed until the
+   authority answers; it is not a store fault and needs no re-provisioning.

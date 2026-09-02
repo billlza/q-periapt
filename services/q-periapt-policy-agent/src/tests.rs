@@ -43,7 +43,9 @@ use crate::codec::{
 };
 use crate::crypto::{EncapsulationCiphertexts, EncapsulationPublicKeys};
 use crate::filesystem::{open_private_file, OwnedPrivateDirectory, PrivateFileError};
-use crate::repository::{MigrationTrustRoots, StateRepository};
+use crate::repository::{
+    MigrationTrustRoots, RepositoryError, StateRepository, MAX_JOURNALED_LEASE_INTENTS,
+};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, EndpointIdentity, InitiatorDecapsulationResult,
@@ -525,6 +527,15 @@ struct MemoryAuthorityState {
     /// fresh, as a restore from before this instance's acquire would leave it.
     /// The snapshot then reports no lease and a generation *behind* ours.
     rollback_before_snapshot: bool,
+    /// Answer every acknowledgement with a retryable failure, so receipts stay
+    /// retained on both sides -- the authority's table and the agent's queue.
+    refuse_acknowledgements: bool,
+    /// Answer every receipt query as indeterminate, as an authority that
+    /// cannot be reached would.
+    refuse_queries: bool,
+    /// Lease mutations this authority has been asked to apply, whatever the
+    /// answer. A refusal made *before* dispatch leaves this untouched.
+    lease_calls: u64,
 }
 
 fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
@@ -576,8 +587,33 @@ impl MemoryAuthority {
                 snapshot_delay: Duration::ZERO,
                 successor_before_snapshot: false,
                 rollback_before_snapshot: false,
+                refuse_acknowledgements: false,
+                refuse_queries: false,
+                lease_calls: 0,
             })),
         })
+    }
+
+    /// Refuse (or accept again) every acknowledgement with a retryable failure.
+    fn refuse_acknowledgements(&self, refuse: bool) {
+        self.lock().refuse_acknowledgements = refuse;
+    }
+
+    /// Answer (or stop answering) every receipt query as indeterminate.
+    fn refuse_queries(&self, refuse: bool) {
+        self.lock().refuse_queries = refuse;
+    }
+
+    /// Lease mutations this authority has been asked to apply so far.
+    fn lease_call_count(&self) -> u64 {
+        self.lock().lease_calls
+    }
+
+    /// Receipts the authority is still retaining, awaiting acknowledgement.
+    fn receipt_count(&self) -> TestResult<usize> {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        Ok(state.authority.snapshot(&clock)?.receipt_count())
     }
 
     /// Between the agent's renew and its coverage snapshot, let its lease
@@ -675,6 +711,7 @@ impl MemoryAuthority {
         intent: AuthorityIntentV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityReceiptV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
+        state.lease_calls += 1;
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.apply(&clock, intent) {
             Ok(receipt) => {
@@ -746,6 +783,11 @@ impl InstanceAuthorityPort for MemoryAuthority {
         operation_id: OperationIdV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
+        if state.refuse_queries {
+            return Ok(AuthorityOutcomeV2::Unknown(
+                AuthorityUnknownV2::ResponseUnavailable,
+            ));
+        }
         if let Some(receipt) = state.authority.receipt(operation_id) {
             return Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(
                 Box::new(receipt),
@@ -768,6 +810,11 @@ impl InstanceAuthorityPort for MemoryAuthority {
         AuthorityTransportErrorV2,
     > {
         let mut state = self.lock();
+        if state.refuse_acknowledgements {
+            return Ok(AuthorityOutcomeV2::KnownFailure(
+                AuthorityKnownFailureV2::AllocationFailed,
+            ));
+        }
         Ok(
             match state.authority.acknowledge_receipt(retained.locator()) {
                 Ok(disposition) => AuthorityOutcomeV2::Known(disposition),

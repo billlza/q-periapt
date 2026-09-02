@@ -206,6 +206,27 @@ files are read directly into zeroizing buffers. `serve-agent` acquires the
 exclusive instance lease at startup and fails closed while another unexpired
 instance holds it.
 
+Every lease mutation the agent sends -- the acquire at start, the renew before
+each guarded operation, the re-acquire after a lapse, and the release -- is
+journaled in the agent's own store before it is dispatched, and the row is
+forgotten once the authority's receipt for it has been acknowledged. That
+acknowledgement is the only thing that prunes the authority's bounded receipt
+table, and it used to be owed from memory alone: a crash with one queued lost
+it for good. On every start the agent settles the journal before it acquires:
+a receipt the authority still holds is acknowledged and its row forgotten; a
+row for an operation the authority never saw is forgotten; a row the authority
+cannot answer for is kept and asked about again before each guarded operation.
+Settled rows are forgotten by the next journal write, so the steady-state cost
+is one durable transaction per lease operation, and a clean release leaves the
+journal empty. The journal holds at most 64 rows, matching the in-memory
+acknowledgement queue; reaching that takes the authority refusing 64
+consecutive acknowledgements, or as many starts against an authority that
+cannot answer. A full journal refuses the next lease operation with
+`InstanceLeaseUnavailable` before anything is dispatched, and a start that
+cannot settle any of 64 rows fails closed the same way, until the authority
+answers again. A store provisioned before the journal existed opens without
+the table; the first journal write creates it.
+
 Reference resource bounds are fail-closed and do not silently evict security
 state:
 
@@ -218,6 +239,7 @@ state:
 | Runtime session TTL | 5 minutes by default; hard maximum 24 hours |
 | Durable session reservations | 1024 |
 | Durable capability replay tombstones | 4096 per committed state |
+| Durable lease-intent journal (authority receipts awaiting acknowledgement) | 64 |
 | Canonical migration history / generation | 4096 |
 | Witness operation receipts | 4096 |
 | IPC replay nonces | 4096 within a 10-minute window |

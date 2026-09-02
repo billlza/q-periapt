@@ -725,3 +725,184 @@ fn authority_store_refuses_an_unclean_file_from_a_non_two_phase_writer() -> Test
     );
     Ok(())
 }
+
+/// A freshly provisioned agent store, for the lease-intent journal tests.
+fn provisioned_agent_store(directory: &TestDirectory) -> TestResult<(PathBuf, MigrationMaterial)> {
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+    let path = directory.join("agent.redb");
+    let (repository, _) =
+        StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+    drop(repository);
+    Ok((path, migration))
+}
+
+fn lease_operation(byte: u8) -> TestResult<OperationIdV2> {
+    Ok(OperationIdV2::new(1, [byte; 32])?)
+}
+
+#[test]
+fn journal_lease_intent_is_bounded_and_forgets_in_the_same_transaction() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let (path, migration) = provisioned_agent_store(&directory)?;
+    let repository = StateRepository::open_existing(&path, migration.roots.clone())?;
+    let bound = u8::try_from(MAX_JOURNALED_LEASE_INTENTS)?;
+    for byte in 1..=bound {
+        repository.journal_lease_intent(lease_operation(byte)?, &[])?;
+    }
+    assert_eq!(
+        repository.journaled_lease_intents()?.len(),
+        usize::from(bound)
+    );
+
+    // One past the bound is refused with nothing to forget ...
+    let overflow = lease_operation(bound + 1)?;
+    assert_eq!(
+        repository.journal_lease_intent(overflow, &[]),
+        Err(RepositoryError::CapacityExceeded)
+    );
+    assert_eq!(
+        repository.journaled_lease_intents()?.len(),
+        usize::from(bound)
+    );
+
+    // ... and accepted when the same write forgets a settled row: the
+    // deletion and the insertion are one transaction, so the row count never
+    // exceeds the bound and the settled row is gone.
+    let first = lease_operation(1)?;
+    repository.journal_lease_intent(overflow, &[first])?;
+    let journaled = repository.journaled_lease_intents()?;
+    assert_eq!(journaled.len(), usize::from(bound));
+    assert!(!journaled.contains(&first));
+    assert!(journaled.contains(&overflow));
+
+    // Forgetting is durable and indifferent to ids that are already gone.
+    repository.forget_lease_intents(&[first, lease_operation(2)?])?;
+    assert_eq!(
+        repository.journaled_lease_intents()?.len(),
+        usize::from(bound) - 1
+    );
+    drop(repository);
+    let reopened = StateRepository::open_existing(&path, migration.roots)?;
+    assert_eq!(
+        reopened.journaled_lease_intents()?.len(),
+        usize::from(bound) - 1
+    );
+    Ok(())
+}
+
+#[test]
+fn a_store_provisioned_before_the_lease_journal_opens_and_journals() -> TestResult {
+    // The journal table is additive. A store from before it existed has no
+    // such table, opens all the same, reports an empty journal, and gets the
+    // table from the first journal write -- which the agent's own acquire
+    // performs at start.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 93)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(responder);
+    initiator.release_instance_lease()?;
+    drop(initiator);
+
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    repository.drop_lease_journal_table_for_test()?;
+    assert!(!repository.lease_journal_table_exists_for_test()?);
+    drop(repository);
+
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    assert!(!repository.lease_journal_table_exists_for_test()?);
+    assert!(repository.journaled_lease_intents()?.is_empty());
+
+    let restarted = PolicyAgent::new(
+        repository,
+        witness,
+        initiator_authority.clone(),
+        initiator_config,
+    )?;
+    assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 1);
+    assert_eq!(
+        restarted.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 1);
+    assert_eq!(initiator_authority.receipt_count()?, 0);
+    Ok(())
+}
+
+#[test]
+fn a_lease_journal_beyond_its_bound_is_refused_at_open() -> TestResult {
+    // Every row is well-formed; only the count is wrong. The bound is what the
+    // service relies on to keep its in-memory bookkeeping finite, so a store
+    // that breaks it is refused rather than trusted.
+    let directory = TestDirectory::new()?;
+    let (path, migration) = provisioned_agent_store(&directory)?;
+    let repository = StateRepository::open_existing(&path, migration.roots.clone())?;
+    let bound = u8::try_from(MAX_JOURNALED_LEASE_INTENTS)?;
+    let mut keys = Vec::new();
+    for byte in 1..=bound + 1 {
+        keys.push(crate::authority_codec::encode_operation_id(
+            lease_operation(byte)?,
+        ));
+    }
+    let tag = [1u8];
+    let rows: Vec<(&[u8], &[u8])> = keys
+        .iter()
+        .map(|key| (key.as_slice(), tag.as_slice()))
+        .collect();
+    repository.write_raw_lease_journal_rows_for_test(&rows)?;
+    drop(repository);
+    assert_eq!(
+        StateRepository::open_existing(&path, migration.roots).err(),
+        Some(RepositoryError::CorruptStore)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_lease_journal_row_is_refused_at_open() -> TestResult {
+    // A key that is not a canonical operation id, or a value that is not the
+    // one tag the journal writes, is a store nothing in this crate produced.
+    let directory = TestDirectory::new()?;
+    let (path, migration) = provisioned_agent_store(&directory)?;
+    let repository = StateRepository::open_existing(&path, migration.roots.clone())?;
+    let short_key = [0x5Au8; 39];
+    let tag = [1u8];
+    repository.write_raw_lease_journal_rows_for_test(&[(short_key.as_slice(), tag.as_slice())])?;
+    drop(repository);
+    assert_eq!(
+        StateRepository::open_existing(&path, migration.roots.clone()).err(),
+        Some(RepositoryError::CorruptStore)
+    );
+
+    let (path, migration) = {
+        let policy = policy_material(20)?;
+        let migration = migration_material(&policy.authenticated)?;
+        let path = directory.join("agent-bad-tag.redb");
+        let (repository, _) =
+            StateRepository::provision_new(&path, &migration.genesis, migration.roots.clone())?;
+        drop(repository);
+        (path, migration)
+    };
+    let repository = StateRepository::open_existing(&path, migration.roots.clone())?;
+    let key = crate::authority_codec::encode_operation_id(lease_operation(1)?);
+    let unknown_tag = [2u8];
+    repository
+        .write_raw_lease_journal_rows_for_test(&[(key.as_slice(), unknown_tag.as_slice())])?;
+    drop(repository);
+    assert_eq!(
+        StateRepository::open_existing(&path, migration.roots).err(),
+        Some(RepositoryError::CorruptStore)
+    );
+    Ok(())
+}
