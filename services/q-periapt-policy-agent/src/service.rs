@@ -2071,13 +2071,19 @@ fn reconcile_lease_journal<A: InstanceAuthorityPort>(
         .map_err(|_| AgentError::LocalResourceFailure)?;
     let mut answering = true;
     for operation_id in journaled {
-        match (answering, resolve_journaled_intent(authority, operation_id)) {
-            (true, JournalResolution::Settled) => settled.push(operation_id),
-            (true, JournalResolution::Pending) => {
+        // Once one query has gone unanswered, the rest are not asked at all:
+        // evaluating the resolver first and consulting `answering` afterwards
+        // would still cost one timeout per remaining row.
+        if !answering {
+            lease.unresolved.push(operation_id);
+            continue;
+        }
+        match resolve_journaled_intent(authority, operation_id) {
+            JournalResolution::Settled => settled.push(operation_id),
+            JournalResolution::Pending => {
                 answering = false;
                 lease.unresolved.push(operation_id);
             }
-            (false, _) => lease.unresolved.push(operation_id),
         }
     }
     repository

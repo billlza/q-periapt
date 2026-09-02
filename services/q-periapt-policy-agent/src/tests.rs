@@ -537,6 +537,8 @@ struct MemoryAuthorityState {
     /// Lease mutations this authority has been asked to apply, whatever the
     /// answer. A refusal made *before* dispatch leaves this untouched.
     lease_calls: u64,
+    /// Receipt queries this authority has been asked, answered or not.
+    query_calls: u64,
 }
 
 fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
@@ -591,6 +593,7 @@ impl MemoryAuthority {
                 refuse_acknowledgements: false,
                 refuse_queries: false,
                 lease_calls: 0,
+                query_calls: 0,
             })),
         })
     }
@@ -608,6 +611,11 @@ impl MemoryAuthority {
     /// Lease mutations this authority has been asked to apply so far.
     fn lease_call_count(&self) -> u64 {
         self.lock().lease_calls
+    }
+
+    /// Receipt queries this authority has been asked so far.
+    fn query_call_count(&self) -> u64 {
+        self.lock().query_calls
     }
 
     /// Receipts the authority is still retaining, awaiting acknowledgement.
@@ -795,6 +803,7 @@ impl InstanceAuthorityPort for MemoryAuthority {
         operation_id: OperationIdV2,
     ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
+        state.query_calls += 1;
         if state.refuse_queries {
             return Ok(AuthorityOutcomeV2::Unknown(
                 AuthorityUnknownV2::ResponseUnavailable,

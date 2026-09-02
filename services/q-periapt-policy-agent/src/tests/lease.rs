@@ -871,6 +871,7 @@ fn a_start_that_cannot_settle_a_full_lease_journal_fails_closed() -> TestResult 
 
     initiator_authority.refuse_queries(true);
     let calls_before = initiator_authority.lease_call_count();
+    let queries_before = initiator_authority.query_call_count();
     assert!(matches!(
         PolicyAgent::new(
             repository,
@@ -881,6 +882,15 @@ fn a_start_that_cannot_settle_a_full_lease_journal_fails_closed() -> TestResult 
         Err(AgentError::InstanceLeaseUnavailable)
     ));
     assert_eq!(initiator_authority.lease_call_count(), calls_before);
+    // The first unanswered query ends the pass. Asking about every row would
+    // cost one authority timeout per row before the start even fails -- with
+    // the production five-second timeout, about five minutes for a full
+    // journal -- which is exactly what the pass is documented not to do.
+    assert_eq!(
+        initiator_authority.query_call_count(),
+        queries_before + 1,
+        "an unanswering authority must be asked once, not once per row"
+    );
 
     // With the authority answering, the same store starts: every row is found
     // absent and forgotten, and only the acquire's own row remains.
