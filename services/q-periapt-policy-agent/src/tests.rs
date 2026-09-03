@@ -1686,6 +1686,9 @@ struct AgentPair {
     responder: PolicyAgent<MemoryWitness, MemoryAuthority>,
     witness: MemoryWitness,
     initiator_authority: MemoryAuthority,
+    /// The responder agent's own authority, so a test can drive the responder
+    /// side's lease clock exactly as it drives the initiator's.
+    responder_authority: MemoryAuthority,
     committed: CommittedMigrationStateV1,
     migration: MigrationMaterial,
     initiator_config: AgentConfig,
@@ -1839,6 +1842,7 @@ fn agent_pair_with_limits(
         responder,
         witness,
         initiator_authority,
+        responder_authority,
         committed,
         migration,
         initiator_config,
