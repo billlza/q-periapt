@@ -1649,6 +1649,16 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(())
     }
 
+    /// Test-only: whether the durable-write delay armed above is still
+    /// unpaid, i.e. no durable session reserve or release has run since. A
+    /// test that expects a refusal *before* the write asserts this rather
+    /// than timing the refusal.
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_write_delay_armed_for_test(&self) -> Result<bool, AgentError> {
+        let inner = self.lock()?;
+        Ok(inner.repository.durable_write_delay_armed_for_test())
+    }
+
     /// Make every durable session cancellation take this long after it
     /// commits, so a test can make the stop's unbounded erase outlast a
     /// release budget the way a large session table on a slow store does.

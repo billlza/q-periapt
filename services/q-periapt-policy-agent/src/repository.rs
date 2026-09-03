@@ -357,6 +357,17 @@ impl StateRepository {
             .expect("repository test hook poisoned") = Some(delay);
     }
 
+    /// Test-only: whether the delay above is still armed. It is taken only by
+    /// a durable session write that actually committed, so this doubles as
+    /// "no durable session reserve or release has run since it was armed".
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_write_delay_armed_for_test(&self) -> bool {
+        self.delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned")
+            .is_some()
+    }
+
     /// Test-only: make every session cancellation take this long after it
     /// commits, the way a store with slow fsyncs would.
     #[cfg(all(test, unix))]

@@ -405,7 +405,7 @@ const IPC_DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-IPC-DIRECTION-PROBE/v1"
 /// How often the serving loop runs maintenance. This is the granularity of the
 /// session TTL, not a poll interval in the busy-wait sense: the wait is a real
 /// blocking `poll`, so a connection is still accepted the moment it arrives.
-const MAINTENANCE_INTERVAL: Duration = Duration::from_secs(1);
+pub(crate) const MAINTENANCE_INTERVAL: Duration = Duration::from_secs(1);
 
 /// The same interval as the `poll` timeout. `maintenance_interval_agrees_with_
 /// the_poll_timeout` pins the two together.

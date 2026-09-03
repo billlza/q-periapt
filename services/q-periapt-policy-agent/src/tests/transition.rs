@@ -219,11 +219,20 @@ fn a_transition_the_witness_applied_before_the_deadline_lapsed_is_still_committe
         pair.committed.state().allowed_suites(),
     )?;
     // Every port is instantaneous by its bound, so the CAS is admitted while
-    // the deadline stands; it then ends well past it.
+    // the deadline stands; it then ends well past it. The three-second
+    // deadline is the budget for everything before that admission -- the lease
+    // renew and its coverage snapshot, `prepare_advance`'s durable commit, and
+    // the debug build's executor provisioning -- which measures 200-300 ms
+    // unloaded and up to 620 ms under a heavily contended suite, so this keeps
+    // roughly five times the headroom a shared runner needs. The CAS delay is
+    // that deadline plus a second and a half, and the two must stay coupled:
+    // a delay that ended before the deadline lapsed would stop proving the
+    // property, which is that a CAS admitted in time still commits when it
+    // finishes late.
     pair.witness
-        .delay_next_compare_and_advance(Duration::from_millis(1_500));
+        .delay_next_compare_and_advance(Duration::from_millis(4_500));
     let deadline = Instant::now()
-        .checked_add(Duration::from_secs(1))
+        .checked_add(Duration::from_secs(3))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     pair.initiator.apply_advance_until(&certificate, deadline)?;
     // Past the witness's applied receipt the transition is committed, and

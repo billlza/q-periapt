@@ -1922,11 +1922,20 @@ mod tests {
         let (client_sk, _) = MlDsa65::generate(CLIENT_SEED);
         let (_, server_vk) = MlDsa65::generate(SERVER_SEED);
 
+        // The client's deadline covers the whole exchange, and the first thing
+        // inside it is an ML-DSA-65 signature over the request: in a debug
+        // build that alone can outlast a fraction of a second, and when it
+        // does `remaining` refuses before the connect and the call comes back
+        // `NotSent` -- the answer the *refused* endpoint below is supposed to
+        // be the only source of. Two seconds is several times the cost of one
+        // signature on a loaded runner, and the endpoint stays silent for
+        // three, so the read still runs out of deadline with the server owing
+        // a response, which is the contract under test.
         let silent_listener = TcpListener::bind("127.0.0.1:0")?;
         let silent_address = silent_listener.local_addr()?;
         let silent_thread = thread::spawn(move || {
             if let Ok((stream, _)) = silent_listener.accept() {
-                thread::sleep(Duration::from_millis(900));
+                thread::sleep(Duration::from_secs(3));
                 drop(stream);
             }
         });
@@ -1935,7 +1944,7 @@ mod tests {
             identity,
             ZeroizingBytes::from_bytes(client_sk),
             server_vk,
-            Duration::from_millis(250),
+            Duration::from_secs(2),
         )?;
         assert_eq!(
             silent_client.snapshot()?,
@@ -1961,12 +1970,14 @@ mod tests {
     ) -> TestResult<AuthenticatedTcpAuthorityV2> {
         let (client_sk, _) = MlDsa65::generate(CLIENT_SEED);
         let (_, server_vk) = MlDsa65::generate(SERVER_SEED);
+        // Wide enough that the request signature cannot be what refuses:
+        // `NotSent` from this client is the closed connection, not a budget.
         Ok(AuthenticatedTcpAuthorityV2::new(
             address,
             identity,
             ZeroizingBytes::from_bytes(client_sk),
             server_vk,
-            Duration::from_millis(250),
+            Duration::from_secs(2),
         )?)
     }
 }

@@ -315,11 +315,23 @@ fn a_request_whose_deadline_cannot_cover_the_guarded_operation_is_refused_before
     )?;
     // The real transports' bounds: five seconds per round trip. Reconcile's
     // least plan before its own query is two authority round trips and one
-    // witness call, fifteen seconds; the request gets a fifth of a second.
+    // witness call, fifteen seconds; the request gets two seconds. That is
+    // still far below the plan, so the refusal is exactly the one a fifth of a
+    // second forced, and strictly below IPC_IO_TIMEOUT, so the write budget
+    // asserted below can only have come from the request's own deadline. It is
+    // also orders of magnitude above what this path actually costs -- one
+    // framed read from a cursor, one ML-DSA-65 verify, the refusal, one
+    // ML-DSA-65 sign -- which is the headroom a loaded runner needs: the
+    // response write is budgeted from this same deadline, so at 200 ms a
+    // scheduling stall made `write_frame_until` fail on a lapsed budget and
+    // this test errored `Unavailable` on correct behaviour.
     authority.set_round_trip_bound(Duration::from_secs(5));
     pair.witness.set_round_trip_bound(Duration::from_secs(5));
     // Had the operation started, its coverage snapshot would have paid this.
-    authority.delay_next_snapshot(Duration::from_millis(600));
+    // Three seconds is longer than the request's whole deadline, so a snapshot
+    // that was actually computed could not be mistaken for a pass: it would
+    // blow the elapsed bound below and fail the response write as well.
+    authority.delay_next_snapshot(Duration::from_secs(3));
     let lease_calls = authority.lease_call_count();
     let journal = server.agent_for_test().journaled_lease_intents_for_test()?;
 
@@ -331,15 +343,18 @@ fn a_request_whose_deadline_cannot_cover_the_guarded_operation_is_refused_before
     };
     let started = Instant::now();
     let deadline = started
-        .checked_add(Duration::from_millis(200))
+        .checked_add(Duration::from_secs(2))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     server.handle_io_with_deadline_for_test(&mut transport, deadline)?;
     let elapsed = started.elapsed();
 
     // Refused before the first round trip: the delayed snapshot was never
-    // requested, no renew was dispatched, nothing was journaled.
+    // requested, no renew was dispatched, nothing was journaled. The armed
+    // snapshot delay is three seconds, so a round trip that was really paid
+    // lands well past this bound; a second and a half is five times the worst
+    // this path has been measured at under full-suite parallelism.
     assert!(
-        elapsed < Duration::from_millis(600),
+        elapsed < Duration::from_millis(1_500),
         "the refused request still paid for a round trip: {elapsed:?}"
     );
     assert!(
@@ -362,7 +377,7 @@ fn a_request_whose_deadline_cannot_cover_the_guarded_operation_is_refused_before
         .get()
         .ok_or_else(|| io::Error::other("no write timeout was set"))?;
     assert!(
-        granted <= Duration::from_millis(200),
+        granted <= Duration::from_secs(2),
         "response write budget {granted:?} did not come from the request deadline"
     );
     assert_eq!(server.agent_for_test().pending_session_count(), 0);
@@ -389,12 +404,18 @@ fn a_deadline_that_lapses_after_the_durable_reservation_retains_nothing_and_writ
         ZeroizingBytes::from_bytes(server_signing_key),
         server_verification_key,
     )?;
-    // Every port is instantaneous by its bound, so the operation is admitted
-    // in full; the reservation's fsync then outlives the deadline, and the
-    // retention gate after it is where the operation learns that.
+    // Every port is instantaneous by its bound, so nothing refuses the
+    // operation on its plan. The pre-write path -- the frame read, two
+    // ML-DSA-65 verifications, the witness round trip and the KEM -- has been
+    // measured at about 270 ms alone and 400 ms with the suite running in
+    // parallel, in a debug build; the two-second request deadline below is
+    // some five times that worst case, so the operation is admitted past the
+    // early-out at `ensure_may_retain`. The reservation's four-second fsync
+    // then outlives that deadline by two seconds, and the retention gate
+    // *after* the write is where the operation learns it.
     server
         .agent_for_test()
-        .delay_next_durable_write_for_test(Duration::from_millis(1_000))?;
+        .delay_next_durable_write_for_test(Duration::from_millis(4_000))?;
     let mut transport = CaptureTransport {
         input: Cursor::new(framed_begin(
             &client_signing_key,
@@ -404,12 +425,23 @@ fn a_deadline_that_lapses_after_the_durable_reservation_retains_nothing_and_writ
         )?),
         output: Vec::new(),
     };
-    let deadline = Instant::now()
-        .checked_add(Duration::from_millis(400))
+    let started = Instant::now();
+    let deadline = started
+        .checked_add(Duration::from_millis(2_000))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         server.handle_io_with_deadline_for_test(&mut transport, deadline),
         Err(crate::ipc::IpcError::Unavailable)
+    );
+    // The durable reservation ran: the refusal this test is about is the one
+    // after the write, not the early-out before it. Without this the test
+    // passes green with no coverage the day the pre-write check starts
+    // refusing. The slack mirrors the convention in the lease tests: 3_900
+    // against a 4_000 ms hook guards only against sleep undershoot on a
+    // coarse clock.
+    assert!(
+        started.elapsed() >= Duration::from_millis(3_900),
+        "the durable reservation did not run; the pre-write check refused instead"
     );
     // The deadline was gone when the write began, so nothing was written --
     // not a refusal on a fresh budget, and not a handle.
@@ -740,9 +772,17 @@ fn stopping_the_serving_loop_releases_the_instance_lease() -> TestResult {
         Ok(asked)
     })?;
     // One maintenance interval is the most the loop waits before it re-reads
-    // the flag; the release that follows is one in-memory authority call.
+    // the flag. The release that follows is one in-memory authority call and
+    // two durable journal writes -- the release's intent row and the write
+    // that forgets it -- so it is fsyncs, not authority I/O, that decide how
+    // long this takes: measured at 1.02-1.19 s on this host with the suite
+    // running in parallel. Four seconds on top of the interval is roughly
+    // four times that, which a shared runner's disk needs, and a sixth of
+    // LEASE_RELEASE_BUDGET, so the test still proves a stop does not sit
+    // waiting for the release budget or a request deadline.
+    let bound = crate::ipc::MAINTENANCE_INTERVAL + Duration::from_secs(4);
     assert!(
-        asked.elapsed() < Duration::from_secs(2),
+        asked.elapsed() < bound,
         "the loop took {:?} to stop",
         asked.elapsed()
     );

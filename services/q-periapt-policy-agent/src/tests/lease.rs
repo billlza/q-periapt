@@ -25,15 +25,21 @@ fn a_coverage_lapse_at_acceptance_releases_the_durable_reservation() -> TestResu
         .responder
         .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
 
-    // Lapse the coverage for the initiator's acceptance specifically: the
-    // post-renew snapshot leaves twice the divergence budget, so the
-    // acceptance starts, and the retention snapshot after the durable release
-    // sees the authority's clock reach the expiry.
+    // Lapse the coverage for the initiator's acceptance specifically. The
+    // renew sets the expiry to (renew clock + TTL); the first push moves the
+    // authority clock to (renew + TTL - 4B) before the post-renew snapshot, so
+    // `coverage_deadline` records anchor + (TTL - (TTL - 4B) - B) = anchor +
+    // three seconds of local coverage. That is what the checks and the durable
+    // release before the retention snapshot have to fit in -- measured at 83
+    // to 258 ms in a debug build -- rather than the one budget this used to
+    // leave. The two pushes still sum to exactly the TTL, so the retention
+    // snapshot after the durable release sees the authority's clock reach the
+    // expiry, and that is where the refusal comes from.
     pair.initiator_authority.advance_clock_before_next_snapshot(
-        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 4 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
     );
     pair.initiator_authority
-        .advance_clock_before_next_snapshot(2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
+        .advance_clock_before_next_snapshot(4 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
     assert_eq!(
         pair.initiator
             .accept_responder_finished(encapsulated.handle, accepted.responder_finished)
@@ -220,19 +226,25 @@ fn a_coverage_lapse_during_the_durable_reservation_retains_no_session() -> TestR
     // The coverage check before the durable reservation cannot see a lapse
     // that happens *during* it. The reservation is a real fsync, so nothing
     // in a test can make it slow on demand; the repository's test hook sleeps
-    // after the commit instead. The lapse is an authority-clock event: the
-    // post-renew snapshot leaves twice the divergence budget, so the check
-    // before the write passes, the write is made to take two and a half
-    // seconds, and the retention snapshot after it is what sees the
-    // authority's clock reach the expiry. The local clock alone no longer
+    // after the commit instead. The lapse is an authority-clock event. The
+    // renew sets the expiry to (renew clock + TTL); the first push moves the
+    // authority clock to (renew + TTL - 4B) before the post-renew snapshot, so
+    // `coverage_deadline` records anchor + (TTL - (TTL - 4B) - B) = anchor +
+    // three seconds of local coverage: enough for the witness read, the
+    // capability verifications and the KEM that run before the pre-write
+    // `ensure_may_retain` -- measured at 83 to 258 ms in a debug build -- so
+    // the check before the write passes for the right reason. The write is
+    // then made to take two and a half seconds. The two pushes still sum to
+    // exactly the TTL, so the retention snapshot after the write sees the
+    // authority's clock reach the expiry, and the local clock alone no longer
     // decides.
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 75)?;
     pair.initiator_authority.advance_clock_before_next_snapshot(
-        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 4 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
     );
     pair.initiator_authority
-        .advance_clock_before_next_snapshot(2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
+        .advance_clock_before_next_snapshot(4 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
     pair.initiator
         .delay_next_durable_write_for_test(Duration::from_millis(2_500))?;
 
@@ -265,7 +277,10 @@ fn a_coverage_lapse_during_the_durable_release_retains_no_key() -> TestResult {
     // last write before the accepted key becomes retained. A lapse during it
     // -- seen by the retention snapshot after the write -- must drop the key
     // without retaining it, leave the reservation released, and neither fence
-    // nor poison the agent.
+    // nor poison the agent. The same arithmetic as above: the first push
+    // leaves anchor + 3 s of local coverage for the release-path checks, which
+    // cost about a millisecond, and the two pushes sum to exactly the TTL so
+    // the retention snapshot still lands on the expiry.
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 77)?;
     let encapsulated =
@@ -281,10 +296,10 @@ fn a_coverage_lapse_during_the_durable_release_retains_no_key() -> TestResult {
         .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
 
     pair.initiator_authority.advance_clock_before_next_snapshot(
-        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - 4 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS,
     );
     pair.initiator_authority
-        .advance_clock_before_next_snapshot(2 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
+        .advance_clock_before_next_snapshot(4 * LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS);
     pair.initiator
         .delay_next_durable_write_for_test(Duration::from_millis(2_500))?;
     let started = Instant::now();
@@ -331,7 +346,7 @@ fn coverage_refuses_before_the_write_once_only_the_divergence_budget_is_left() -
     );
     // Armed but never paid: the refusal comes before the durable write.
     pair.initiator
-        .delay_next_durable_write_for_test(Duration::from_millis(500))?;
+        .delay_next_durable_write_for_test(Duration::from_millis(2_000))?;
 
     let started = Instant::now();
     let outcome = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
@@ -343,9 +358,24 @@ fn coverage_refuses_before_the_write_once_only_the_divergence_budget_is_left() -
         Some(AgentError::InstanceLeaseCoverageElapsed),
         "an operation without provable coverage must not return a handle"
     );
+    // The delay is still armed, so no durable session write ran: this is the
+    // deterministic half of the check, and the one that fails if the refusal
+    // ever moves after the write. `durable_session_count_for_test` below
+    // cannot tell the two apart -- the write-then-release path leaves zero
+    // rows as well.
     assert!(
-        started.elapsed() < Duration::from_millis(400),
+        pair.initiator.durable_write_delay_armed_for_test()?,
         "the durable write ran; the post-renew proof should have refused first"
+    );
+    // And the refusal stayed on the in-memory path: a lock, a memory-authority
+    // renew, one snapshot and the budgeted local rule, measured at 15-135 ms
+    // in a debug build. One second is roughly seven times that, for a slower
+    // runner, and still half the two seconds a run of the durable write would
+    // have cost, so the two outcomes stay a second apart in both directions.
+    assert!(
+        started.elapsed() < Duration::from_millis(1_000),
+        "the refusal took longer than the in-memory path should: {:?}",
+        started.elapsed()
     );
 
     // Nothing was retained and nothing was written. A coverage lapse is not a
