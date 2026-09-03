@@ -2538,7 +2538,9 @@ fn a_pending_reacquire_refused_by_the_budget_is_kept_and_dispatches_nothing() ->
     let (_before, _after) = lose_the_reacquire_response(&pair)?;
     // The resolution admits one authority round trip on top of the plan's
     // two-second reserve -- three seconds -- so a 2.5-second deadline admits
-    // the operation and refuses the resolution.
+    // the operation and refuses the resolution, with half a second of slack
+    // for the setup between `now()` and the plan's own admission (a path of
+    // a few microseconds).
     pair.initiator_authority
         .set_round_trip_bound(Duration::from_secs(1));
     let queries = pair.initiator_authority.query_call_count();
@@ -2599,7 +2601,9 @@ fn a_release_declined_on_a_clearable_condition_keeps_the_lease() -> TestResult {
     authority.drift_wire_config(false)?;
     let calls = authority.lease_call_count();
     pair.initiator.release_instance_lease()?;
-    assert!(authority.lease_call_count() > calls);
+    // Exactly one dispatch: the declined receipt already resynced the
+    // authority version, so this release needs no retry of its own.
+    assert_eq!(authority.lease_call_count(), calls + 1);
     assert_eq!(authority.active_lease()?, None);
     Ok(())
 }
