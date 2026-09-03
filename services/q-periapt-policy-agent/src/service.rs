@@ -60,15 +60,35 @@ const BEGIN_DECAPSULATION_TAG: [u8; 1] = [3];
 /// constructor's own lease work. The IPC server never relies on it; every
 /// request it serves carries the request's deadline.
 const DEFAULT_OPERATION_BUDGET: Duration = Duration::from_secs(60);
+/// How long `lock_until` sleeps between two attempts to take the agent's
+/// linearizer while another operation holds it.
+///
+/// `std::sync::Mutex` has no timed acquisition and this workspace pins and
+/// justifies every dependency, so the bounded wait is built from `try_lock`
+/// and this pause. It bounds only how late a waiter notices the lock is free,
+/// never the total wait, which the caller's own deadline clamps. One
+/// millisecond is the order of the shortest critical section this lock has --
+/// one `Durability::Immediate` two-phase commit -- so a waiter behind one
+/// durable write is not made to wait several times the work it waits for, and
+/// it is three orders of magnitude below the five-second port bounds every
+/// `OperationPlan` reserve is built from, so it perturbs no admission. The
+/// cost is at most one wake-up per millisecond of contention, on a lock the
+/// single-threaded serving loop never contends at all.
+const LINEARIZER_POLL_PAUSE: Duration = Duration::from_millis(1);
 
 /// The one end-to-end deadline of the operation currently holding the
 /// agent's lock.
 ///
-/// Every blocking exchange -- each authority and witness round trip, and the
-/// retention gate before a secret becomes reachable -- is admitted against it
-/// first: a call starts only if the port's own bound on that call ends before
-/// the deadline, so an admitted call always finishes in time and a refusal
-/// costs nothing. The refusal is [`AgentError::OperationDeadlineExceeded`].
+/// Every wait the operation performs is admitted against it first: the
+/// acquisition of the agent's one linearizer, each authority and witness
+/// round trip, and the retention gate before a secret becomes reachable. A
+/// call starts only if the port's own bound on that call ends before the
+/// deadline, so an admitted call always finishes in time and a refusal costs
+/// nothing. The refusal is [`AgentError::OperationDeadlineExceeded`].
+///
+/// `std::sync::Mutex` has no timed acquisition, so the lock is polled rather
+/// than blocked on; the door is `admit(Duration::ZERO)` and the wait ends at
+/// the deadline whatever the holder is doing.
 #[derive(Clone, Copy)]
 struct OperationDeadline {
     at: Instant,
@@ -83,15 +103,22 @@ impl OperationDeadline {
             .ok_or(AgentError::InvalidConfiguration)
     }
 
+    /// What is left of the deadline, or `None` once it is reached.
+    ///
+    /// A `Some` is never zero, so a caller that waits for what this reports
+    /// always makes progress.
+    fn remaining(self) -> Option<Duration> {
+        self.at
+            .checked_duration_since(Instant::now())
+            .filter(|left| !left.is_zero())
+    }
+
     /// Admit work that blocks for at most `bound`: `Ok` only if it can end
     /// strictly before the deadline. A zero bound against a deadline already
     /// reached is refused too, which is what makes this usable as the final
-    /// gate before retention.
+    /// gate before retention and as the gate on the lock itself.
     fn admit(self, bound: Duration) -> Result<(), AgentError> {
-        if Instant::now()
-            .checked_add(bound)
-            .is_some_and(|end| end < self.at)
-        {
+        if self.remaining().is_some_and(|left| bound < left) {
             Ok(())
         } else {
             Err(AgentError::OperationDeadlineExceeded)
@@ -546,6 +573,12 @@ pub enum AgentError {
     /// [`Self::InstanceLeaseCoverageElapsed`]: a local deadline says nothing
     /// about the lease or about any successor.
     ///
+    /// The earliest refusal is at the agent's one linearizer, and it is the
+    /// most benign: a caller that could not take the lock inside its deadline
+    /// never set a deadline on the agent, never reached the lease phase
+    /// guard, and consumed nothing at all. The list below does not apply to
+    /// it; its retry is the same request with a longer deadline.
+    ///
     /// An abort does not undo what the operation had already consumed, and
     /// that is what the retry has to account for:
     ///
@@ -736,8 +769,9 @@ struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
     confirmed_keys: HashMap<ConfirmedKeyHandle, AcceptedSessionKeyV1>,
     completed_acceptances: HashMap<PendingSessionHandle, CompletedAcceptance>,
     poisoned: bool,
-    /// The deadline of the operation holding the lock; every `lock_until`
-    /// sets it before the operation reads it.
+    /// The deadline of the operation holding the lock; `lock_until` sets it
+    /// before the operation reads it, and the idle sweep -- which admits
+    /// nothing -- installs one already reached.
     deadline: OperationDeadline,
 }
 
@@ -752,6 +786,11 @@ struct Inner<W: WitnessPort, A: InstanceAuthorityPort> {
 /// one whose deadline runs out mid-way retains nothing. The plain forms give
 /// themselves `DEFAULT_OPERATION_BUDGET` (60 seconds) from the call, for
 /// callers with no deadline of their own.
+///
+/// The deadline reaches the lock itself. A caller waits for the linearizer
+/// only while its own deadline lasts, and one that never reaches it is
+/// refused with [`AgentError::OperationDeadlineExceeded`] having consumed
+/// nothing at all -- the earliest and most benign refusal the agent makes.
 pub struct PolicyAgent<W: WitnessPort, A: InstanceAuthorityPort> {
     inner: Mutex<Inner<W, A>>,
 }
@@ -893,9 +932,23 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         })
     }
 
-    /// Return only the public encapsulation keys owned by the agent.
+    /// Return only the public encapsulation keys owned by the agent, under
+    /// the default budget.
     pub fn public_keys(&self) -> Result<EncapsulationPublicKeys, AgentError> {
-        let inner = self.lock()?;
+        self.public_keys_until(default_deadline()?)
+    }
+
+    /// Return only the public encapsulation keys owned by the agent, waiting
+    /// for the linearizer no longer than `deadline`.
+    ///
+    /// This makes no port call, so the linearizer is the only thing it waits
+    /// for; a refusal with [`AgentError::OperationDeadlineExceeded`] read
+    /// nothing and changed nothing.
+    pub fn public_keys_until(
+        &self,
+        deadline: Instant,
+    ) -> Result<EncapsulationPublicKeys, AgentError> {
+        let inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
         if inner.repository.pending_intent().is_some() {
             return Err(AgentError::TransitionPending);
@@ -1455,16 +1508,48 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(key_handle)
     }
 
-    /// Cancel a pending session and wipe its unconfirmed secret immediately.
+    /// Cancel a pending session and wipe its unconfirmed secret immediately,
+    /// under the default budget.
     pub fn cancel(&self, handle: PendingSessionHandle) -> Result<(), AgentError> {
-        let mut inner = self.lock()?;
+        self.cancel_until(handle, default_deadline()?)
+    }
+
+    /// Cancel a pending session and wipe its unconfirmed secret immediately,
+    /// waiting for the linearizer no longer than `deadline`.
+    ///
+    /// This makes no port call, so the linearizer is the only thing it waits
+    /// for. A refusal with [`AgentError::OperationDeadlineExceeded`] happens
+    /// at the door, before anything is erased: the pending session and its
+    /// durable reservation are intact, the call may be repeated, and the
+    /// session-TTL sweep remains the backstop.
+    pub fn cancel_until(
+        &self,
+        handle: PendingSessionHandle,
+        deadline: Instant,
+    ) -> Result<(), AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
         erase_pending(&mut inner, handle)
     }
 
-    /// Destroy a retained confirmed key. No secret-export API exists.
+    /// Destroy a retained confirmed key, under the default budget. No
+    /// secret-export API exists.
     pub fn destroy_key(&self, handle: ConfirmedKeyHandle) -> Result<(), AgentError> {
-        let mut inner = self.lock()?;
+        self.destroy_key_until(handle, default_deadline()?)
+    }
+
+    /// Destroy a retained confirmed key, waiting for the linearizer no longer
+    /// than `deadline`.
+    ///
+    /// This makes no port call, so the linearizer is the only thing it waits
+    /// for; a refusal with [`AgentError::OperationDeadlineExceeded`] leaves
+    /// the key retained for the retry.
+    pub fn destroy_key_until(
+        &self,
+        handle: ConfirmedKeyHandle,
+        deadline: Instant,
+    ) -> Result<(), AgentError> {
+        let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
         let destroyed = inner
             .confirmed_keys
@@ -1637,8 +1722,15 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// key material before it touches the repository, so a session whose
     /// durable reservation fails to release has still lost its secret and the
     /// sweep continues rather than stranding every session behind it.
+    ///
+    /// It also never waits. It takes the lock only if it is free, and a pass
+    /// that finds the agent busy is skipped: the operation holding the lock is
+    /// bounded by its own deadline, the four heaviest request paths purge
+    /// expired sessions themselves on entry, and the serving loop runs this
+    /// again one maintenance interval later. Waiting would only delay the next
+    /// accept by however long that operation takes.
     pub fn expire_idle_sessions(&self) {
-        let Ok(mut inner) = self.lock() else {
+        let Some(mut inner) = self.try_lock_now() else {
             return;
         };
         for handle in expired_handles(&inner, Instant::now()) {
@@ -1736,6 +1828,17 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(())
     }
 
+    /// Poison the linearizer the way a panic under it would, so a test can
+    /// see that a poisoned lock is reported at once rather than waited on.
+    #[cfg(all(test, unix))]
+    #[allow(clippy::panic)]
+    pub(crate) fn poison_linearizer_for_test(&self) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _held = self.inner.lock();
+            panic!("poisoning the linearizer for a test");
+        }));
+    }
+
     /// Number of durable session reservations the repository currently holds.
     #[cfg(all(test, unix))]
     pub(crate) fn durable_session_count_for_test(&self) -> Result<u64, AgentError> {
@@ -1743,23 +1846,65 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(inner.repository.durable_session_count_for_test()?)
     }
 
-    /// Take the lock under the default budget: the paths that make no port
-    /// call, and the plain forms of those that do.
+    /// Take the lock under the default budget. Every production path carries
+    /// a deadline of its own; this is what the test hooks use.
+    #[cfg(all(test, unix))]
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
         self.lock_until(OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET)?)
     }
 
-    /// Take the lock and set the deadline every admission inside it reads.
+    /// Take the lock within `deadline`, and set it as the deadline every
+    /// admission inside it reads.
+    ///
+    /// `std::sync::Mutex` offers no timed acquisition, so this polls
+    /// `try_lock` and sleeps `LINEARIZER_POLL_PAUSE` between attempts, the
+    /// last sleep clamped so the wait ends exactly at the deadline. A
+    /// deadline already reached is refused without an attempt, which is
+    /// `admit(Duration::ZERO)` at the door. `try_lock` is not queued, so a
+    /// waiter can be barged past by other threads; the deadline is what
+    /// bounds that, and the refusal is the same.
+    ///
+    /// Poisoning is decided on the first attempt and never waited on: no
+    /// amount of waiting clears it, and the IPC face turns
+    /// [`AgentError::InternalPoisoned`] into a fatal stop rather than into a
+    /// status-24 response.
     fn lock_until(
         &self,
         deadline: OperationDeadline,
     ) -> Result<std::sync::MutexGuard<'_, Inner<W, A>>, AgentError> {
-        let mut inner = self
-            .inner
-            .lock()
-            .map_err(|_| AgentError::InternalPoisoned)?;
-        inner.deadline = deadline;
-        Ok(inner)
+        loop {
+            // The door is `admit(Duration::ZERO)`: a deadline already reached
+            // admits nothing, not even an acquisition that would not block.
+            let Some(remaining) = deadline.remaining() else {
+                return Err(AgentError::OperationDeadlineExceeded);
+            };
+            match self.inner.try_lock() {
+                Ok(mut inner) => {
+                    inner.deadline = deadline;
+                    return Ok(inner);
+                }
+                Err(std::sync::TryLockError::Poisoned(_)) => {
+                    return Err(AgentError::InternalPoisoned)
+                }
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    std::thread::sleep(remaining.min(LINEARIZER_POLL_PAUSE));
+                }
+            }
+        }
+    }
+
+    /// Take the lock only if it is free right now.
+    ///
+    /// The one caller is the idle sweep, which must never wait: see
+    /// [`Self::expire_idle_sessions`].
+    fn try_lock_now(&self) -> Option<std::sync::MutexGuard<'_, Inner<W, A>>> {
+        let mut inner = self.inner.try_lock().ok()?;
+        // The sweep admits nothing: it makes no port call, and a future edit
+        // that added one must be refused here rather than run on a budget
+        // nobody granted. The same already-reached value the constructor
+        // installs.
+        inner.deadline = OperationDeadline { at: Instant::now() };
+        Some(inner)
     }
 }
 

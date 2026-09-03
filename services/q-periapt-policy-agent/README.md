@@ -121,13 +121,18 @@ slow client can occupy that one slot until the timeout.
 
 Every IPC request is answered or refused within one end-to-end deadline of 35
 seconds from accept. The client-paced read and the response write are each
-additionally capped at 5 seconds, and in between the agent admits each
-authority and witness round trip only while it can end before that deadline,
-refusing a lease-guarded operation whose least plan no longer fits before it
-dispatches anything. IPC status 24 means the request was refused or aborted on
-its deadline with nothing retained and its reservation released; it is not a
-fence, and the request may be retried under a fresh nonce with a fresh offer
-where the offer was consumed. An acceptance aborted after its witness read has
+additionally capped at 5 seconds, and in between the agent admits every wait
+against that deadline: first the acquisition of its one linearizer, then each
+authority and witness round trip, refusing a lease-guarded operation whose
+least plan no longer fits before it dispatches anything. Cancel, Destroy and
+the public-key read make no round trip, so the linearizer is the only thing
+they wait for, and they are refused on the same deadline. IPC status 24 means
+the request was refused or aborted on its deadline with nothing retained and
+its reservation released; it is not a fence, and the request may be retried
+under a fresh nonce with a fresh offer where the offer was consumed. A request
+that could not reach the agent's linearizer inside its deadline is refused the
+same way and consumed nothing at all, its offer included: that retry needs no
+fresh offer. An acceptance aborted after its witness read has
 consumed its handle as well: that retry is refused with `UnknownHandle`, and
 the session has to be re-established from Begin. A status 24 raised on the
 coverage snapshot that follows a lapse re-acquire comes after the erasure of

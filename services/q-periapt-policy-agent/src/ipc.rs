@@ -67,7 +67,10 @@ const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// `AuthorityVersionMismatch` and the re-dispatched renew, and against ports
 /// at their bounds its second extra round trip is refused with status 24. The
 /// agent admits each round trip against it and refuses, with status 24, a
-/// guarded operation whose least plan no longer fits.
+/// guarded operation whose least plan no longer fits. Waiting for the agent's
+/// one linearizer is inside this deadline, not on top of it: a request that
+/// spends it on a busy agent is refused with status 24 at the lock, or at the
+/// least-plan reserve that follows, and is never served late.
 const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
 /// How long the lease release at stop may take. Against an authority that
 /// accepts the connection and never answers it is up to six bounded round
@@ -352,10 +355,10 @@ impl RecentNonces {
 /// read, the execution and the write. The two client-paced phases are
 /// additionally capped at `io_timeout` each, from which every framed read and
 /// write derives its remaining budget, so a client trickling one byte per
-/// interval cannot occupy the slot. Execution admits each authority and
-/// witness round trip only when it can end before the deadline, and refuses a
-/// lease-guarded operation whose least plan does not fit before it dispatches
-/// anything. A response that cannot be written by the deadline is not
+/// interval cannot occupy the slot. Execution admits every wait against that
+/// deadline -- first the acquisition of the agent's one linearizer, then each
+/// authority and witness round trip -- and refuses a lease-guarded operation
+/// whose least plan does not fit before it dispatches anything. A response that cannot be written by the deadline is not
 /// written: the connection closes with nothing sent, which the client sees as
 /// a lost response and recovers by exact retry. No unbounded worker or thread
 /// creation is possible.
@@ -741,15 +744,20 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         &self.agent
     }
 
-    /// Run one decoded request under the connection's `deadline`. The
-    /// commands that make no port call take the agent's default budget.
+    /// Run one decoded request under the connection's `deadline`, the three
+    /// commands that make no port call included: for those three the
+    /// linearizer is the only thing they can wait on, and that is what the
+    /// deadline has to reach.
     fn execute(
         &self,
         payload: RequestPayload,
         deadline: Instant,
     ) -> Result<ResponsePayload, AgentError> {
         match payload {
-            RequestPayload::PublicKeys => self.agent.public_keys().map(ResponsePayload::PublicKeys),
+            RequestPayload::PublicKeys => self
+                .agent
+                .public_keys_until(deadline)
+                .map(ResponsePayload::PublicKeys),
             RequestPayload::BeginEncapsulation(request) => {
                 let result = self.agent.begin_encapsulation_until(request, deadline)?;
                 Ok(match result {
@@ -796,11 +804,11 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 .accept_responder_finished_until(handle, finished, deadline)
                 .map(ResponsePayload::InitiatorAccepted),
             RequestPayload::Cancel(handle) => {
-                self.agent.cancel(handle)?;
+                self.agent.cancel_until(handle, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::DestroyKey(handle) => {
-                self.agent.destroy_key(handle)?;
+                self.agent.destroy_key_until(handle, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Advance(certificate) => {

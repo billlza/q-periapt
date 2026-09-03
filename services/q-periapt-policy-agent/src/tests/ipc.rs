@@ -901,3 +901,166 @@ fn a_stop_whose_release_settles_but_whose_cleanup_fails_says_the_lease_is_gone()
     );
     Ok(())
 }
+
+/// Run `contender` while the agent's linearizer is held by the stop's
+/// unbounded erase: one pending session whose durable cancellation takes two
+/// seconds, which is longer than any deadline these tests give the contender.
+fn while_the_stops_erase_holds_the_lock<T: Send>(
+    pair: &AgentPair,
+    contender: impl FnOnce() -> T + Send,
+) -> TestResult<T> {
+    pair.initiator
+        .delay_each_session_cancel_for_test(Duration::from_secs(2))?;
+    thread::scope(|scope| -> TestResult<T> {
+        let holder = scope.spawn(|| {
+            pair.initiator
+                .release_instance_lease_within(Duration::from_secs(5))
+        });
+        // Let the erase take the lock before the contender asks for it.
+        thread::sleep(Duration::from_millis(200));
+        let outcome = contender();
+        holder
+            .join()
+            .map_err(|_| io::Error::other("the stop thread panicked"))??;
+        Ok(outcome)
+    })
+}
+
+#[test]
+fn a_caller_behind_a_busy_linearizer_is_refused_on_its_own_deadline() -> TestResult {
+    // The deadline has to reach the lock itself. The longest hold this agent
+    // has is the stop's erase -- one `Durability::Immediate` commit per
+    // pending session, charged to no deadline at all -- and a caller queued
+    // behind it used to block for the whole hold before it reached any
+    // admission check. It must instead give up on its own deadline, having
+    // set no deadline on the agent and dispatched nothing.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 201)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    let (outcome, waited) = while_the_stops_erase_holds_the_lock(&pair, || {
+        let deadline = Instant::now().checked_add(Duration::from_millis(300));
+        let started = Instant::now();
+        let outcome = deadline.map(|deadline| {
+            pair.initiator.begin_encapsulation_until(
+                BeginEncapsulation::new(
+                    pair.second_initiator_authorization.clone(),
+                    pair.responder_public_keys.clone(),
+                ),
+                deadline,
+            )
+        });
+        (outcome, started.elapsed())
+    })?;
+
+    assert!(
+        matches!(
+            outcome,
+            Some(Err(AgentError::OperationDeadlineExceeded)) | None
+        ),
+        "a caller behind the erase must be refused on its deadline: {outcome:?}"
+    );
+    assert!(
+        waited < Duration::from_secs(1),
+        "the caller waited out the holder instead of its own deadline: {waited:?}"
+    );
+    // It renewed nothing, journaled nothing and dispatched nothing: the only
+    // lease call in that window is the stop's own release.
+    assert_eq!(
+        pair.initiator_authority.lease_call_count(),
+        lease_calls + 1,
+        "the refused caller dispatched a lease call"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_idle_sweep_skips_a_busy_agent_instead_of_waiting_for_it() -> TestResult {
+    // The sweep is best-effort maintenance the serving loop runs between
+    // accepts, and the operation holding the lock is bounded by its own
+    // deadline. Waiting for it would only delay the next accept by however
+    // long that operation takes, so a pass that finds the agent busy is
+    // skipped and retried one maintenance interval later.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 202)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+
+    let waited = while_the_stops_erase_holds_the_lock(&pair, || {
+        let started = Instant::now();
+        pair.initiator.expire_idle_sessions();
+        started.elapsed()
+    })?;
+    assert!(
+        waited < Duration::from_millis(500),
+        "the sweep waited for the busy agent: {waited:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_poisoned_linearizer_is_reported_at_once_not_at_the_deadline() -> TestResult {
+    // Poisoning is decided on the first attempt and never waited on. An
+    // implementation that treated every `try_lock` failure as "would block"
+    // would answer `OperationDeadlineExceeded` thirty seconds later, which
+    // the IPC face reports as status 24 while continuing to serve, instead of
+    // the fatal stop `InternalPoisoned` gets.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 203)?;
+    pair.initiator.poison_linearizer_for_test();
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(30))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+
+    let started = Instant::now();
+    let outcome = pair.initiator.reconcile_transition_until(deadline);
+    let waited = started.elapsed();
+    assert_eq!(outcome.err(), Some(AgentError::InternalPoisoned));
+    assert!(
+        waited < Duration::from_secs(1),
+        "a poisoned linearizer was waited on for {waited:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_commands_that_make_no_port_call_honour_the_callers_deadline_too() -> TestResult {
+    // Cancel, Destroy and the public-key read admit nothing, because they
+    // make no port call. The linearizer is the only thing they can wait for,
+    // so it is the only thing their deadline has to reach -- and a refusal
+    // there is at the door, before anything is read or erased.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 204)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let reached = Instant::now();
+
+    assert_eq!(
+        pair.initiator.public_keys_until(reached).err(),
+        Some(AgentError::OperationDeadlineExceeded)
+    );
+    assert_eq!(
+        pair.initiator
+            .cancel_until(encapsulated.handle, reached)
+            .err(),
+        Some(AgentError::OperationDeadlineExceeded)
+    );
+    // Refused at the door: the session and its durable reservation are both
+    // intact, and the TTL sweep is still the backstop.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    pair.initiator.cancel(encapsulated.handle)?;
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    Ok(())
+}
