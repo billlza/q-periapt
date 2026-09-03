@@ -718,6 +718,15 @@ jobs:
         run: |
           unset RUSTFLAGS CARGO_INCREMENTAL
           sh artifact/swift-xcframework.sh
+      # This is CI's only macOS runner, and the policy agent's launchd
+      # activation, run-directory ACL and filesystem-ACL cases are all
+      # #[cfg(target_os = "macos")]: `check`'s cargo test --workspace runs on
+      # ubuntu, so those cases were compiled and executed nowhere. Same pinned
+      # 1.96.1 toolchain as the rest of this job, and placed last so the header
+      # freshness, swift test and XCFramework gates this job exists for still
+      # report before it.
+      - name: Policy-agent tests, including the macOS-only cases
+        run: cargo +1.96.1 test --locked -p q-periapt-policy-agent
 
   bindings-kotlin:
     runs-on: ubuntu-latest
