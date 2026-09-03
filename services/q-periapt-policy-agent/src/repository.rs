@@ -218,6 +218,13 @@ pub struct AuthenticatedTransition {
     kind: JournalKind,
     envelope: Vec<u8>,
     token: PendingMigrationCommitV1,
+    /// The trust roots this transition was authenticated under.
+    /// `persist_transition` refuses any transition prepared under a different
+    /// repository's roots, so a token authenticated against one repository can
+    /// never be reserved into another that shares a genesis but pins different
+    /// roots -- which would journal an envelope that repository's own replay
+    /// then rejects, bricking it on the next open.
+    roots: MigrationTrustRoots,
 }
 
 impl fmt::Debug for AuthenticatedTransition {
@@ -570,6 +577,7 @@ impl StateRepository {
             kind: JournalKind::Advance,
             envelope: canonical_certificate.to_vec(),
             token,
+            roots: self.roots.clone(),
         })
     }
 
@@ -610,6 +618,7 @@ impl StateRepository {
             kind: JournalKind::Reset,
             envelope: canonical_certificate.to_vec(),
             token,
+            roots: self.roots.clone(),
         })
     }
 
@@ -624,6 +633,20 @@ impl StateRepository {
         &mut self,
         prepared: AuthenticatedTransition,
     ) -> Result<WitnessIntent, RepositoryError> {
+        // Only a transition authenticated under this repository's own roots may
+        // be reserved here. Authentication and reservation are exposed as two
+        // halves, so without this a transition authenticated against another
+        // repository -- one sharing this genesis but pinning a different
+        // recovery or authority root -- could be reserved and committed here;
+        // its envelope would then fail this repository's own replay on the next
+        // open (`replay_history`, `reconstruct_pending`) and brick it. The
+        // binding is checked rather than re-authenticated because the roots
+        // differ precisely when re-authenticating the envelope here would have
+        // rejected it, and re-authenticating would repeat the ML-DSA work the
+        // split exists to hoist ahead of the CAS admission.
+        if prepared.roots != self.roots {
+            return Err(RepositoryError::InvalidCertificate);
+        }
         self.persist_prepared(prepared.kind, &prepared.envelope, prepared.token)
     }
 

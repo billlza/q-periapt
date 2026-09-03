@@ -315,6 +315,93 @@ fn reset_cannot_rotate_to_an_unprovisioned_migration_authority() -> TestResult {
 }
 
 #[test]
+fn a_reset_authenticated_against_another_repositorys_roots_is_refused() -> TestResult {
+    // Two deployments share one genesis and one migration authority but pin
+    // different recovery roots. A reset authenticated against A's recovery root
+    // must not be reservable into B: B rejects it directly, and persisting the
+    // foreign token would journal an envelope B's own replay then rejects,
+    // bricking B on the next open.
+    let directory = TestDirectory::new()?;
+    let policy = policy_material(20)?;
+    let migration = migration_material(&policy.authenticated)?;
+
+    // B's roots share A's migration authority -- regenerated from the fixture's
+    // fixed seed, so both open the same genesis -- and pin a distinct recovery
+    // root. If the fixture's authority seed ever changes, provisioning B below
+    // fails loudly at the genesis check.
+    let (_, authority_vk) = MlDsa65::generate([21u8; 32]);
+    let authority_id = MigrationAuthorityKeyId::from_bytes([31u8; 32]);
+    let (_, recovery_b_vk) = MlDsa65::generate([23u8; 32]);
+    let roots_b = MigrationTrustRoots::new(
+        authority_id,
+        authority_vk,
+        MigrationAuthorityKeyId::from_bytes([33u8; 32]),
+        recovery_b_vk,
+    )?;
+
+    let path_a = directory.join("a.redb");
+    let path_b = directory.join("b.redb");
+    let (repo_a, _head_a) =
+        StateRepository::provision_new(&path_a, &migration.genesis, migration.roots.clone())?;
+    let current = repo_a.committed_state();
+    let (repo_b, _head_b) =
+        StateRepository::provision_new(&path_b, &migration.genesis, roots_b.clone())?;
+    drop(repo_b);
+
+    // A reset signed by A's recovery authority, rotating to the shared migration
+    // authority so only the recovery root, not the authority root, tells the two
+    // deployments apart.
+    let next = MigrationStateV1::new(MigrationStateDraftV1 {
+        global_generation: 2,
+        chain_id: MigrationChainId::from_bytes([99u8; 32]),
+        protocol_id: current.state().protocol_id(),
+        epoch: 1,
+        previous_state_digest: current.revision().digest(),
+        authority_key_id: authority_id,
+        execution_policy_state: current.state().execution_policy_state(),
+        posture: current.state().posture(),
+        allowed_suites: current.state().allowed_suites(),
+    })?;
+    let reset = MigrationResetV1::new(
+        current.revision(),
+        next,
+        MigrationResetNonce::from_bytes([101u8; 32]),
+        MigrationAuthorityKeyId::from_bytes([32u8; 32]),
+    );
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let reset_certificate = SignedMigrationResetV1::sign(
+        reset,
+        &MlDsa65,
+        &migration.recovery_signing_key,
+        &[0u8; 32],
+        &mut signature,
+    )?
+    .encode()?;
+
+    // A authenticates it under its own recovery root; B rejects it directly.
+    let transition = repo_a.authenticate_reset(&reset_certificate)?;
+    let mut repo_b = StateRepository::open_existing(&path_b, roots_b.clone())?;
+    assert_eq!(
+        repo_b.authenticate_reset(&reset_certificate).err(),
+        Some(RepositoryError::InvalidCertificate)
+    );
+
+    // The foreign transition must not reserve into B. Without the roots binding
+    // it did, and B then failed its own replay on reopen -- bricked.
+    assert_eq!(
+        repo_b.persist_transition(transition).err(),
+        Some(RepositoryError::InvalidCertificate)
+    );
+    assert!(repo_b.pending_intent().is_none());
+    drop(repo_b);
+
+    // Nothing foreign was ever journaled, so B reopens cleanly.
+    let reopened = StateRepository::open_existing(&path_b, roots_b)?;
+    assert!(reopened.pending_intent().is_none());
+    Ok(())
+}
+
+#[test]
 fn abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operation() -> TestResult {
     use std::os::unix::fs::PermissionsExt;
 
