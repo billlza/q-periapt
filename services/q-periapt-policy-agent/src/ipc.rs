@@ -1522,11 +1522,21 @@ mod tests {
             );
         }
         let ancestors_verified = script
-            .find("verify_ancestor \"$ancestor\"")
+            .find("verify_ancestor_traversable \"$ancestor\"")
             .expect("the script must verify every ancestor of RUN_DIR");
+        // %Mp%Lp is four digits: the setuid/setgid/sticky digit, then owner,
+        // group and other. Group and other may be 0, 1, 4 or 5 -- anything
+        // without the write bit -- and every ancestor below / must also carry
+        // other-execute, so its digit is 1 or 5: a root-owned directory
+        // nobody can write but nobody can traverse either is unreachable for
+        // the transport group and for the daemon account alike.
         assert!(
             script.contains("Directory:root:[0-7][0-7][0145][0145])"),
             "the ancestor check must accept only a root-owned directory without group or other write"
+        );
+        assert!(
+            script.contains("Directory:root:[0-7][0-7][0145][15])"),
+            "every ancestor below / must also be traversable by other"
         );
         let inspected = script
             .find("if [ -L \"$RUN_DIR\" ]")
@@ -1661,6 +1671,22 @@ mod tests {
         assert!(
             script.contains(script_path),
             "the script must document the path the plist runs it from ({script_path})"
+        );
+        // BSD `install -d` applies -m to the named leaves only; an
+        // intermediate is created at the operator's umask. So the install
+        // instructions have to name /opt/qperiapt on a line of its own, at
+        // the shipped mode, before the line that creates anything under it --
+        // or an operator at umask 027 is left with a 0750 /opt/qperiapt that
+        // the ancestor check refuses as untraversable.
+        let tree_parent = rundir
+            .find("install -d -o root -g wheel -m 0755 /opt/qperiapt\n")
+            .expect("the install instructions must create /opt/qperiapt explicitly, at 0755");
+        let tree_children = rundir
+            .find("/opt/qperiapt/libexec")
+            .expect("the install instructions must create /opt/qperiapt/libexec");
+        assert!(
+            tree_parent < tree_children,
+            "/opt/qperiapt must be created before anything under it, or it keeps the umask's mode"
         );
         assert_eq!(
             plist_value(&rundir, "RunAtLoad"),
@@ -1816,6 +1842,30 @@ mod tests {
         assert!(
             stderr.contains("carries an ACL") && stderr.contains(" 0: "),
             "the refusal must name the ACL and print its entries: {stderr}"
+        );
+
+        // A deny-only entry grants nothing -- Apple's own protective ACE is
+        // exactly this -- and is refused like any other entry, because the
+        // check reads entry lines and cannot tell one kind from the other.
+        // The refusal must say so rather than tell the operator that
+        // something granted access past 0710.
+        let deny = root.path().join("deny");
+        run("/bin/mkdir", &["deny"]);
+        run("/bin/chmod", &["+a", "group:everyone deny delete", "deny"]);
+        run("/bin/chmod", &["0710", "deny"]);
+        let (accepted, stderr) = verify(&deny);
+        assert!(!accepted, "a deny-only entry must be refused too: {stderr}");
+        assert!(
+            stderr.contains("carries an ACL") && stderr.contains(" 0: "),
+            "the refusal must name the ACL and print its entries: {stderr}"
+        );
+        assert!(
+            stderr.contains("allow or deny"),
+            "the refusal must say an entry of either kind is refused: {stderr}"
+        );
+        assert!(
+            !stderr.contains("which grants what its mode denies"),
+            "a deny entry grants nothing; the refusal must not claim it does: {stderr}"
         );
 
         // With an extended attribute beside the ACL the mode field ends in

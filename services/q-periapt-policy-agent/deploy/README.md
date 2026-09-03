@@ -134,14 +134,20 @@ weaker socket.
    `root:daemon 0775` without the sticky bit, so a gid-1 process could rename
    or replace the directory under launchd; the socket therefore lives at
    `/opt/qperiapt/run/qperiapt-agent`, in the root-owned tree that holds the
-   binary. Create `/opt/qperiapt/run` as `root:wheel 0755` with the rest of
-   that tree. `com.qperiapt.policy-agent-rundir.plist` runs
+   binary. Create `/opt/qperiapt` and everything under it as `root:wheel 0755`,
+   `/opt/qperiapt` first and explicitly: `install -d` applies its `-m` to the
+   named leaves only, so a component created on the way is left at the
+   operator's umask, and a `0750` or `0700` `/opt/qperiapt` is root-owned and
+   unwritable — accepted by the ancestor check on those grounds alone — yet
+   traversable by nobody the socket is for.
+   `com.qperiapt.policy-agent-rundir.plist` runs
    `qperiapt-agent-rundir.sh` as root on every boot: it verifies with `stat`
    and `ls -lde` that every ancestor of that directory from `/` down is a real
    directory owned by root that group and other cannot write and that carries
    no ACL entry (`stat` cannot report one, `chmod 0710` does not remove one,
    and an entry granting `add_file` or `delete_child` on an ancestor is a
-   write bit by another name), creates or adopts the directory, removes any
+   write bit by another name), that every ancestor below `/` is also
+   traversable by other, creates or adopts the directory, removes any
    ACL from it (`chmod -N`), brings it to `0710` owned by the daemon account
    with the transport group, verifies that too — mode and no ACL entry — and
    only then bootstraps the agent job; a socket node inherits inheritable ACL
@@ -239,6 +245,7 @@ plist where launchd scans, and that job is the only thing that loads the agent.
 | `com.qperiapt.policy-agent-rundir.plist` | `/Library/LaunchDaemons/com.qperiapt.policy-agent-rundir.plist` | `root:wheel`, `0644` |
 | `qperiapt-agent-rundir.sh` | `/opt/qperiapt/libexec/qperiapt-agent-rundir.sh` | `root:wheel`, `0644` — it runs through `/bin/sh` and needs no execute bit |
 | `com.qperiapt.policy-agent.plist` | `/opt/qperiapt/launchd/com.qperiapt.policy-agent.plist` | `root:wheel`, `0644` |
+| — | `/opt/qperiapt` | `root:wheel`, `0755` — create it explicitly and first; `install -d` leaves an intermediate at the operator's umask |
 | — | `/opt/qperiapt/run` | `root:wheel`, `0755` — the socket directory's parent; the job verifies it and refuses to create it |
 
 `/opt/qperiapt` and everything under it must be root-owned and writable by
@@ -263,7 +270,10 @@ and verifies it rather than recreating it — and it:
    anything below it is looked at), owned by root, with no group or other
    write bit, and no ACL entry (`ls -lde` on the path itself; a listing longer
    than one line is refused, because the mode field's `+` is hidden by `@`
-   when the path also has an extended attribute); a missing one is a refusal
+   when the path also has an extended attribute); every ancestor below `/`
+   must additionally carry the other-execute bit, because one that group and
+   other cannot write but nobody can traverse is unreachable for the transport
+   group and for the daemon account alike; a missing one is a refusal
    too, because the job creates nothing whose parent it has not verified;
 3. refuses a symlink or a non-directory at `/opt/qperiapt/run/qperiapt-agent`
    without touching it; creates the directory if absent (`mkdir` without `-p`,

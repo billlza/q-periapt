@@ -106,7 +106,7 @@ verify_no_acl() {
     fi
     case "$listing" in
         *"$NL"*)
-            fail "$1 carries an ACL, which stat cannot see and which grants what its mode denies; not bootstrapping $AGENT_LABEL: $listing"
+            fail "$1 carries an ACL entry; this job accepts none, allow or deny, because stat cannot see one, chmod 0710 does not remove one, and an allow entry would grant what the mode denies; not bootstrapping $AGENT_LABEL: $listing"
             ;;
     esac
 }
@@ -164,6 +164,16 @@ fi
 # /opt/qperiapt or /opt/qperiapt/run. A missing ancestor is a refusal too: the
 # installer creates the tree, and this job never creates anything whose parent
 # it has not verified.
+#
+# Every ancestor below / must additionally be traversable by other: the last
+# permission digit has the execute bit set and the write bit clear. `install
+# -d` applies its -m to the named leaves only, so a component created on the
+# way is left at the installing operator's umask, and a 0750 or 0700
+# /opt/qperiapt is root-owned and unwritable -- it passes the check above --
+# yet no transport-group client and not the daemon account itself can reach
+# $RUN_DIR through it. A tree nobody the socket is for can traverse is not a
+# state this job may report as ready. / itself keeps the looser check: it is
+# 0755 on macOS and is not this job's to constrain further.
 
 verify_ancestor() {
     if ! ancestor_actual=$(stat -f '%HT:%Su:%Mp%Lp' "$1"); then
@@ -178,6 +188,18 @@ verify_ancestor() {
     verify_no_acl "$1"
 }
 
+# The same, plus other-execute. `ancestor_actual` is what verify_ancestor just
+# read, so this costs no second stat.
+verify_ancestor_traversable() {
+    verify_ancestor "$1"
+    case "$ancestor_actual" in
+        Directory:root:[0-7][0-7][0145][15]) ;;
+        *)
+            fail "$1 is $ancestor_actual, not a root-owned directory that group and other cannot write and that other can traverse; the transport group and $RUN_DIR_OWNER must be able to reach $RUN_DIR; not bootstrapping $AGENT_LABEL"
+            ;;
+    esac
+}
+
 # Walk /, then each component of the parent in turn: /opt, /opt/qperiapt, and
 # so on down to the parent itself.
 ancestor=
@@ -186,7 +208,7 @@ remainder=${remainder#/}
 verify_ancestor /
 while [ -n "$remainder" ]; do
     ancestor="$ancestor/${remainder%%/*}"
-    verify_ancestor "$ancestor"
+    verify_ancestor_traversable "$ancestor"
     case "$remainder" in
         */*) remainder=${remainder#*/} ;;
         *) remainder= ;;
@@ -223,8 +245,10 @@ if ! chown -h "$RUN_DIR_OWNER:$RUN_DIR_GROUP" "$RUN_DIR"; then
 fi
 # The ACL is the job's to remove exactly as the owner, group and mode are its
 # to set: an entry here was inherited from an ancestor that has since been
-# fixed, or was put there by hand, and either way grants what 0710 denies.
-# Say so before removing it; the verification below is what decides.
+# fixed, or was put there by hand, and either way is not this job's to keep --
+# an allow entry grants what 0710 denies, and nothing here can tell one kind
+# from the other before the strip. Say so before removing it; the verification
+# below is what decides.
 if listing=$(ls -lde -- "$RUN_DIR"); then
     case "$listing" in
         *"$NL"*) log warning "removing the ACL found on $RUN_DIR: $listing" ;;

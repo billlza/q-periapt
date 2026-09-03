@@ -22,7 +22,16 @@
   bootstraps the agent. Anything else is a refusal that leaves the agent
   unloaded.
 
-  Install this file, and only this file, in /Library/LaunchDaemons:
+  Install this file, and only this file, in /Library/LaunchDaemons. The first
+  line is separate and comes first on purpose: BSD `install -d` applies its -m
+  to the named leaves only, and creates any intermediate component with
+  mkdir(0777) masked by the umask (sudo's is the caller's, OR'd with 022), so
+  an operator at umask 027 or 077 would otherwise be left with /opt/qperiapt at
+  0750 or 0700 -- root-owned and unwritable, so the run-directory job's
+  ancestor check accepts it, but traversable by neither the transport group nor
+  the daemon account. `install -d` on a directory that already exists
+  re-applies -m, so the line also repairs a tree created that way.
+    sudo install -d -o root -g wheel -m 0755 /opt/qperiapt
     sudo install -d -o root -g wheel -m 0755 /opt/qperiapt/libexec \
       /opt/qperiapt/launchd /opt/qperiapt/run
     sudo install -o root -g wheel -m 0644 qperiapt-agent-rundir.sh \
