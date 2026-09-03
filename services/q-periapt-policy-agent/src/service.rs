@@ -1494,9 +1494,11 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// call exactly as an unreachable authority does, and is never reported
     /// as released.
     ///
-    /// `Err` from this function means, without exception, that the lease is
-    /// still held by this instance. The erase and the journal forget are
-    /// bookkeeping around a release that did settle, so their failure is
+    /// `Err` never means this call released the lease: it is still held by
+    /// this instance, or -- when a fence or an earlier release had already
+    /// given it up and this call was refused before dispatching anything --
+    /// there was nothing left to release. The erase and the journal forget
+    /// are bookkeeping around a release that did settle, so their failure is
     /// [`LeaseReleaseOutcome::ReleasedWithFailure`] rather than an `Err`.
     ///
     /// The erase between the admission and the release is **not** admitted
@@ -1716,8 +1718,12 @@ fn release_under_lock<W: WitnessPort, A: InstanceAuthorityPort>(
 ) -> Result<LeaseReleaseOutcome, AgentError> {
     ensure_live(inner)?;
     if inner.lease.phase == LeasePhase::Retired {
-        return forget_settled(&inner.repository, &mut inner.lease)
-            .map(|()| LeaseReleaseOutcome::Released);
+        // Nothing is held, so a failed forget is bookkeeping around a release
+        // that already settled, never a lease left behind.
+        return Ok(match forget_settled(&inner.repository, &mut inner.lease) {
+            Ok(()) => LeaseReleaseOutcome::Released,
+            Err(error) => LeaseReleaseOutcome::ReleasedWithFailure(error),
+        });
     }
     // Admitted before the erase, so a deadline too short to release the lease
     // leaves every secret where it is and the lease serving.
