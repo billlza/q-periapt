@@ -667,3 +667,51 @@ fn an_acceptance_aborted_after_the_witness_read_has_consumed_its_handle() -> Tes
     );
     Ok(())
 }
+
+#[test]
+fn an_accept_retry_returns_no_handle_once_the_coverage_it_reproved_has_elapsed() -> TestResult {
+    // The completed-acceptance retry returns a retained handle -- a lease-guarded
+    // disclosure -- and must gate it as the fresh path does. `ensure_instance_lease`
+    // proves coverage just above with no I/O since, so the budgeted local rule
+    // against that proof is the exact gate; without it the cached handle was
+    // answered even after the coverage the proof recorded had already elapsed by
+    // return. The clock step leaves the post-renew snapshot reporting
+    // TTL - (TTL - B - 200) = B + 200 ms of life, so `coverage_deadline` records
+    // anchor + 200 ms, and that same snapshot then sleeps 600 ms, so the proven
+    // coverage is some 400 ms in the past by the time the cached handle would be
+    // returned.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 176)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    pair.initiator
+        .accept_responder_finished(encapsulated.handle, accepted.responder_finished)?;
+    assert_eq!(pair.initiator.confirmed_key_count(), 1);
+
+    // The retry's renew and coverage snapshot see the step and the delay.
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS
+            - crate::service::lease::LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS
+            - 200,
+    );
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(600));
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished),
+        Err(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // A lapse is not a fence: the retained key and its completed acceptance both
+    // survive, and the handle was simply not returned.
+    assert_eq!(pair.initiator.confirmed_key_count(), 1);
+    Ok(())
+}

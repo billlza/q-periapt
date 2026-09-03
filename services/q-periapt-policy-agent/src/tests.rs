@@ -605,6 +605,17 @@ impl MemoryWitness {
             .is_zero()
     }
 
+    /// Arm the next `read_head` to let `authority`'s active lease run out before
+    /// it answers -- an authority clock step landing inside the witness round
+    /// trip a guarded operation makes between its coverage proof and the gate
+    /// that guards what it may return, with this host's clock unmoved.
+    fn advance_authority_on_next_read(&self, authority: MemoryAuthority) {
+        *self
+            .advance_authority_on_read
+            .lock()
+            .expect("memory witness hook poisoned") = Some(authority);
+    }
+
     fn replace_head(&self, head: StateHead) -> Result<(), WitnessError> {
         self.state
             .lock()

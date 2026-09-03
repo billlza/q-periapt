@@ -1407,7 +1407,18 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 CompletedAcceptance::Responder {
                     received_finished,
                     result,
-                } if *received_finished == initiator_finished => Ok(*result),
+                } if *received_finished == initiator_finished => {
+                    // Returning the retained result is a lease-guarded
+                    // disclosure, the same as retaining it was. The renew and
+                    // its coverage proof ran just above with no I/O since, so
+                    // the budgeted rule against that proof is the exact gate the
+                    // fresh path applies before it discloses. Without it a
+                    // completed acceptance is answered even once the coverage
+                    // the proof recorded has already elapsed by the time the
+                    // cached result is returned. It is not a fence.
+                    ensure_may_retain(&inner)?;
+                    Ok(*result)
+                }
                 CompletedAcceptance::Responder { .. } => {
                     Err(AgentError::ConflictingAcceptanceReplay)
                 }
@@ -1490,7 +1501,18 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 CompletedAcceptance::Initiator {
                     received_finished,
                     key_handle,
-                } if *received_finished == responder_finished => Ok(*key_handle),
+                } if *received_finished == responder_finished => {
+                    // Returning the retained handle is a lease-guarded
+                    // disclosure, the same as retaining it was. The renew and
+                    // its coverage proof ran just above with no I/O since, so
+                    // the budgeted rule against that proof is the exact gate the
+                    // fresh path applies before it discloses. Without it a
+                    // completed acceptance is answered even once the coverage
+                    // the proof recorded has already elapsed by the time the
+                    // cached handle is returned. It is not a fence.
+                    ensure_may_retain(&inner)?;
+                    Ok(*key_handle)
+                }
                 CompletedAcceptance::Initiator { .. } => {
                     Err(AgentError::ConflictingAcceptanceReplay)
                 }
@@ -2369,12 +2391,23 @@ fn lookup_begun_capability<W: WitnessPort, A: InstanceAuthorityPort>(
         // enough; the tombstone on the fresh path fails closed regardless.
         return Err(AgentError::AuthorizationRejected);
     }
+    // Clone the replay before the coverage proof so the borrow of the pending
+    // session ends: `prove_lease_covers_retention` needs `&mut inner`.
+    let replay = begun.replay.clone();
     // Returning a handle to a retained secret is a lease-guarded disclosure,
-    // exactly as retaining it was. The fresh authority observation for this
-    // call is the post-renew proof at the top of the operation; this is the
-    // budgeted rule against it, then the operation's own deadline.
+    // exactly as retaining it was, so it is gated exactly as the fresh path
+    // gates the secret it retains. The post-renew proof is consulted first as
+    // the budgeted early-out. But a witness round trip (`verify_current_head`)
+    // has run since that proof was taken, and authority time can step past the
+    // lease's expiry during that round trip without this host's clock
+    // moving -- which the recorded deadline, being local, cannot see. So a
+    // fresh authority observation is taken after that last I/O, then the
+    // budgeted rule against it and the operation's own deadline
+    // (`prove_lease_covers_retention`), exactly as `reserve_pending` does before
+    // it retains a fresh secret. Neither refusal is a fence.
     ensure_may_retain(inner)?;
-    Ok(Some(begun.replay.clone()))
+    prove_lease_covers_retention(inner)?;
+    Ok(Some(replay))
 }
 
 /// The one place a pending session leaves the map, so the Begin retry index

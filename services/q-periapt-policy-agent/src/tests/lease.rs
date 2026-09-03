@@ -2366,6 +2366,44 @@ fn a_deadline_reached_after_the_witness_read_returns_no_handle_on_a_retry() -> T
 }
 
 #[test]
+fn an_authority_clock_step_inside_the_retry_witness_read_returns_no_handle() -> TestResult {
+    // The stale post-renew proof cannot see an authority clock step that lands
+    // inside the witness read a Begin retry makes: the coverage deadline it
+    // recorded is local, and this host's clock does not move while the
+    // authority's runs the lease out. So the retry re-proves coverage against a
+    // fresh snapshot taken after that read -- exactly as the fresh path does
+    // before it retains -- and refuses when the lease has lapsed. Without that
+    // fresh proof the budgeted local rule passed and the same handle was
+    // returned outside the lease.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 162)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // The retry renews and proves coverage cleanly; then the witness read lets
+    // the authority's lease run out. No local time passes, so the deadline the
+    // post-renew proof recorded still stands and the budgeted rule alone would
+    // disclose. The fresh proof after the read is what sees the lapse.
+    pair.witness
+        .advance_authority_on_next_read(pair.initiator_authority.clone());
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // A lapse is no evidence of a successor: the session and its reservation
+    // survive, and the handle was simply not returned.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+    Ok(())
+}
+
+#[test]
 fn coverage_deadline_subtracts_the_divergence_budget() {
     let anchor = Instant::now();
     let budget = LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS;
