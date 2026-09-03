@@ -981,10 +981,11 @@ fn a_caller_behind_a_busy_linearizer_is_refused_on_its_own_deadline() -> TestRes
 #[test]
 fn the_idle_sweep_skips_a_busy_agent_instead_of_waiting_for_it() -> TestResult {
     // The sweep is best-effort maintenance the serving loop runs between
-    // accepts, and the operation holding the lock is bounded by its own
-    // deadline. Waiting for it would only delay the next accept by however
-    // long that operation takes, so a pass that finds the agent busy is
-    // skipped and retried one maintenance interval later.
+    // accepts. Waiting for the lock would only delay the next accept by
+    // however long the holder takes, and the holder built here is the
+    // unbounded one -- the stop's erase, charged to no deadline at all -- so a
+    // pass that finds the agent busy is skipped and retried one maintenance
+    // interval later.
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 202)?;
     initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
@@ -1062,5 +1063,111 @@ fn the_commands_that_make_no_port_call_honour_the_callers_deadline_too() -> Test
     pair.initiator.cancel(encapsulated.handle)?;
     assert_eq!(pair.initiator.pending_session_count(), 0);
     assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    Ok(())
+}
+
+/// Frame one of the three commands that make no port call: the public-key
+/// read (command 1), or a Cancel (6) or a Destroy (7) over `handle`.
+fn framed_no_port_call_command(
+    signing_key: &[u8],
+    nonce: [u8; 32],
+    command: u8,
+    handle: Option<[u8; 32]>,
+) -> TestResult<Vec<u8>> {
+    let mut body = Encoder::new(MAX_FRAME_BYTES);
+    encode_domain(&mut body, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC domain encoding failed: {error:?}")))?;
+    body.fixed(&nonce)
+        .and_then(|()| body.byte(command))
+        .and_then(|()| match handle {
+            Some(bytes) => body.fixed(&bytes),
+            None => Ok(()),
+        })
+        .map_err(|error| io::Error::other(format!("IPC request encoding failed: {error:?}")))?;
+    let envelope = sign_envelope(&body.finish(), signing_key)
+        .map_err(|error| io::Error::other(format!("IPC request signing failed: {error:?}")))?;
+    let mut framed = Vec::new();
+    write_frame(&mut framed, &envelope)
+        .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
+    Ok(framed)
+}
+
+#[test]
+fn the_ipc_face_gives_a_no_port_call_command_the_connections_deadline() -> TestResult {
+    // The test above calls the three `_until` forms directly, so it says
+    // nothing about which form the IPC face reaches for. That wiring needs
+    // pinning here: the plain `cancel`, `destroy_key` and `public_keys`
+    // differ from it only in the budget the linearizer wait gets --
+    // `DEFAULT_OPERATION_BUDGET`, sixty seconds, rather than the connection's
+    // own deadline -- so a request queued behind a long hold would keep the
+    // one connection slot for a minute, well past `IPC_REQUEST_DEADLINE`, and
+    // still answer nothing.
+    //
+    // The hold here is permanent, which is the shape of the longest one this
+    // agent has: the stop's erase, one durable cancellation per pending
+    // session and charged to no deadline at all. Each request must come back
+    // on its own deadline. Nothing is written back, and that is the contract:
+    // a deadline the wait consumed leaves no budget for the response, so the
+    // client sees the connection close and recovers by exact retry.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 205)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([106u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([107u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+    server.agent_for_test().hold_linearizer_for_test();
+
+    // The Destroy handle names no retained key, and the public-key read needs
+    // no handle at all: neither request reaches the state that would tell,
+    // because the linearizer is as far as any of the three gets.
+    for (command, handle, nonce) in [
+        (1u8, None, [108u8; 32]),
+        (6u8, Some(*encapsulated.handle.as_bytes()), [109u8; 32]),
+        (7u8, Some([7u8; 32]), [110u8; 32]),
+    ] {
+        let mut transport = WriteBudgetTransport {
+            input: Cursor::new(framed_no_port_call_command(
+                &client_signing_key,
+                nonce,
+                command,
+                handle,
+            )?),
+            output: Vec::new(),
+            write_timeout: std::cell::Cell::new(None),
+        };
+        let started = Instant::now();
+        let deadline = started
+            .checked_add(Duration::from_millis(300))
+            .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+        let outcome = server.handle_io_with_deadline_for_test(&mut transport, deadline);
+        let waited = started.elapsed();
+
+        // Five seconds is an order of magnitude above the deadline this
+        // request carries and an order of magnitude below the sixty-second
+        // budget the plain forms would give the wait, so a loaded runner
+        // cannot make a correct agent look like a stalled one.
+        assert!(
+            waited < Duration::from_secs(5),
+            "command {command} held the connection past its deadline: {waited:?}"
+        );
+        assert_eq!(
+            outcome,
+            Err(crate::ipc::IpcError::Unavailable),
+            "command {command} answered on a budget the caller never granted"
+        );
+        assert!(
+            transport.output.is_empty(),
+            "command {command} wrote a response past the connection deadline"
+        );
+    }
     Ok(())
 }

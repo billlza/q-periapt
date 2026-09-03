@@ -1652,14 +1652,15 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 
     /// [`Self::release_instance_lease`] under the caller's `deadline`.
     ///
-    /// One authority round trip -- the release dispatch -- is the least it
-    /// needs, and that is admitted first, before anything is erased: a
-    /// refusal, [`AgentError::OperationDeadlineExceeded`], changes nothing,
-    /// the lease still serves, and the call may be repeated with a longer
-    /// deadline. Every round trip after that is admitted the same way; a
-    /// refusal once the release is under way keeps the fence for a later
-    /// call exactly as an unreachable authority does, and is never reported
-    /// as released.
+    /// One authority round trip -- the release dispatch -- and the durable
+    /// journal commit `lease_exchange` admits with it
+    /// (`DURABLE_COMMIT_RESERVE`) are the least it needs, and that pair is
+    /// admitted first, before anything is erased: a refusal,
+    /// [`AgentError::OperationDeadlineExceeded`], changes nothing, the lease
+    /// still serves, and the call may be repeated with a longer deadline.
+    /// Every round trip after that is admitted the same way; a refusal once
+    /// the release is under way keeps the fence for a later call exactly as
+    /// an unreachable authority does, and is never reported as released.
     ///
     /// `Err` never means this call released the lease: it is still held by
     /// this instance, or -- when a fence or an earlier release had already
@@ -1688,12 +1689,13 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     ///
     /// The difference from [`Self::release_instance_lease_until`] is the
     /// accounting, not the order: the pre-erase admission of one authority
-    /// round trip still comes first, so a budget too short to release erases
-    /// nothing. What follows it -- one durable `cancel_session` per pending
-    /// session, up to `HARD_MAX_SESSIONS` of them, two fsyncs each -- is
-    /// charged to the caller's stop timeout rather than to `budget`, and the
-    /// release then runs under a deadline `budget` from the moment the last
-    /// secret is gone. Charging the erase to the release budget instead would
+    /// round trip and the release dispatch's own journal commit still comes
+    /// first, so a budget too short to release erases nothing. What follows
+    /// it -- one durable `cancel_session` per pending session, up to
+    /// `HARD_MAX_SESSIONS` of them, two fsyncs each -- is charged to the
+    /// caller's stop timeout rather than to `budget`, and the release then
+    /// runs under a deadline `budget` from the moment the last secret is
+    /// gone. Charging the erase to the release budget instead would
     /// let a large session table on a slow store spend it before the release
     /// is dispatched, leaving the lease to lapse at its TTL.
     pub fn release_instance_lease_within(
@@ -1754,11 +1756,15 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// sweep continues rather than stranding every session behind it.
     ///
     /// It also never waits. It takes the lock only if it is free, and a pass
-    /// that finds the agent busy is skipped: the operation holding the lock is
-    /// bounded by its own deadline, the four heaviest request paths purge
-    /// expired sessions themselves on entry, and the serving loop runs this
-    /// again one maintenance interval later. Waiting would only delay the next
-    /// accept by however long that operation takes.
+    /// that finds the agent busy is skipped: the four heaviest request paths
+    /// purge expired sessions themselves on entry, and the serving loop runs
+    /// this again one maintenance interval later. Waiting would only delay the
+    /// next accept by however long the holder takes -- and that is not always
+    /// its deadline, because the durable work no deadline admits runs on top
+    /// of it: the stop's erase, one `Durability::Immediate` commit per pending
+    /// session and charged to the stop timeout alone, is the unbounded case,
+    /// and the purge those four request paths run on entry is the same
+    /// unadmitted work.
     pub fn expire_idle_sessions(&self) {
         let Some(mut inner) = self.try_lock_now() else {
             return;
@@ -1867,6 +1873,25 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
             let _held = self.inner.lock();
             panic!("poisoning the linearizer for a test");
         }));
+    }
+
+    /// Take the linearizer and never give it back, so a test can drive an
+    /// agent whose lock is held past every deadline a caller could give it --
+    /// the stop's erase is the real holder of that shape, bounded by no
+    /// deadline at all.
+    ///
+    /// The guard is leaked deliberately: the hold has to outlive every borrow
+    /// of this agent, including the move into the IPC server, which no scoped
+    /// thread can survive. Nothing else may use this agent afterwards; every
+    /// call on it waits out its own deadline and is refused. Dropping a locked
+    /// `Mutex` is well defined, so the agent still drops normally at the end
+    /// of the test.
+    #[cfg(all(test, unix))]
+    pub(crate) fn hold_linearizer_for_test(&self) {
+        match self.inner.lock() {
+            Ok(held) => std::mem::forget(held),
+            Err(poisoned) => std::mem::forget(poisoned.into_inner()),
+        }
     }
 
     /// Number of durable session reservations the repository currently holds.
