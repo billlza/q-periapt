@@ -870,8 +870,11 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// Authenticate and execute a normal migration state advance, admitting
     /// each round trip only while it ends before `deadline`.
     ///
-    /// Refused with [`AgentError::OperationDeadlineExceeded`] before anything
-    /// is dispatched when the least plan does not fit. A CAS the witness has
+    /// Refused with [`AgentError::OperationDeadlineExceeded`] before any
+    /// durable intent is written: either the least plan does not fit, or what
+    /// is left of the deadline after the lease work cannot cover the witness
+    /// CAS. A lease renew may already have been dispatched by then, but
+    /// nothing is journaled and no Reconcile is owed. A CAS the witness has
     /// applied is committed and reported `Ok` whatever the deadline says.
     pub fn apply_advance_until(
         &self,
@@ -882,6 +885,11 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ensure_live(&inner)?;
         ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         purge_expired(&mut inner)?;
+        // The witness bound is admitted here, before the durable intent, and
+        // not at the dispatch: a refusal after the intent is on disk would
+        // strand a pending transition that only Reconcile clears. Past that
+        // durable commitment the clock no longer decides.
+        inner.deadline.admit(inner.witness.round_trip_bound())?;
         let intent = inner.repository.prepare_advance(canonical_signed_state)?;
         let replacement = executor_for(
             &inner.config.execution_policy,
@@ -891,7 +899,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 .ok_or(AgentError::InternalPoisoned)?,
         )?;
         inner.pending_engine = Some(replacement);
-        execute_transition(&mut inner, intent)
+        dispatch_transition(&mut inner, intent)
     }
 
     /// Authenticate and execute a separately authorized lineage reset, under
@@ -912,6 +920,9 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ensure_live(&inner)?;
         ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         purge_expired(&mut inner)?;
+        // Admitted before the durable intent, for the reason given on
+        // `apply_advance_until`.
+        inner.deadline.admit(inner.witness.round_trip_bound())?;
         let intent = inner.repository.prepare_reset(canonical_signed_reset)?;
         let replacement = executor_for(
             &inner.config.execution_policy,
@@ -921,7 +932,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
                 .ok_or(AgentError::InternalPoisoned)?,
         )?;
         inner.pending_engine = Some(replacement);
-        execute_transition(&mut inner, intent)
+        dispatch_transition(&mut inner, intent)
     }
 
     /// Reconcile only the durable operation ID retained after an unknown
@@ -1826,11 +1837,30 @@ fn executor_for(
     .map_err(AgentError::from)
 }
 
+/// Admit the witness round trip, then dispatch the CAS.
+///
+/// Used where the CAS follows a round trip of its own that the operation's
+/// plan did not reserve -- Reconcile's conditional CAS after its query -- so
+/// the bound has to be admitted here. Advance and Reset admit it before they
+/// write their durable intent and call [`dispatch_transition`] directly.
 fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     intent: crate::witness::WitnessIntent,
 ) -> Result<(), AgentError> {
     inner.deadline.admit(inner.witness.round_trip_bound())?;
+    dispatch_transition(inner, intent)
+}
+
+/// Dispatch one witness CAS and account for what it answered.
+///
+/// Deliberately takes no admission of its own: past the durable intent the
+/// clock no longer decides. Refusing here would strand a pending transition
+/// the witness never saw, which only Reconcile clears; the caller is
+/// responsible for admitting the round trip while nothing is committed.
+fn dispatch_transition<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+    intent: crate::witness::WitnessIntent,
+) -> Result<(), AgentError> {
     match inner.witness.compare_and_advance(intent)? {
         WitnessOutcome::Unknown => Err(AgentError::TransitionIndeterminate),
         WitnessOutcome::Known(receipt) if receipt.is_exact_applied(intent) => {

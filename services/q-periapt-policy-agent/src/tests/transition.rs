@@ -395,3 +395,109 @@ fn crash_after_durable_intent_child() -> TestResult {
     repository.prepare_advance(&certificate)?;
     std::process::exit(86);
 }
+
+/// A deadline that fits the transition plan but not the witness CAS once the
+/// lease work has been paid for. Both ports report a zero authority bound, so
+/// the TRANSITION plan reserve is the 500 ms witness bound and is admitted at
+/// t = 0 with 500 ms of margin; the post-renew coverage snapshot then burns
+/// 900 ms, leaving about 100 ms, so the 500 ms CAS bound cannot be admitted,
+/// with 400 ms of margin. The refusal must land before the durable intent:
+/// journaled, it would leave a pending transition only Reconcile clears.
+#[test]
+fn a_deadline_that_lapses_after_the_lease_leaves_no_durable_intent() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 141)?;
+    let initial_head = pair.witness.read_head()?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.witness
+        .set_round_trip_bound(Duration::from_millis(500));
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(900));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(1))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.apply_advance_until(&certificate, deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+
+    // Nothing was dispatched to the witness and nothing was journaled: the
+    // agent still answers, and there is no pending transition to reconcile.
+    assert_eq!(pair.witness.read_head()?, initial_head);
+    assert!(pair.initiator.public_keys().is_ok());
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    // And the same advance under a budget of its own applies.
+    pair.witness.set_round_trip_bound(Duration::ZERO);
+    pair.initiator.apply_advance(&certificate)?;
+    assert_ne!(pair.witness.read_head()?, initial_head);
+    Ok(())
+}
+
+/// The same arithmetic as `a_deadline_that_lapses_after_the_lease_leaves_no_
+/// durable_intent`, on the reset path, which prepares its own durable intent
+/// the same way.
+#[test]
+fn a_reset_refused_after_the_lease_leaves_no_durable_intent() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 142)?;
+    let initial_head = pair.witness.read_head()?;
+    let current = pair.committed;
+    let next = MigrationStateV1::new(MigrationStateDraftV1 {
+        global_generation: 2,
+        chain_id: MigrationChainId::from_bytes([99u8; 32]),
+        protocol_id: current.state().protocol_id(),
+        epoch: 1,
+        previous_state_digest: current.revision().digest(),
+        authority_key_id: current.state().authority_key_id(),
+        execution_policy_state: current.state().execution_policy_state(),
+        posture: current.state().posture(),
+        allowed_suites: current.state().allowed_suites(),
+    })?;
+    let reset = MigrationResetV1::new(
+        current.revision(),
+        next,
+        MigrationResetNonce::from_bytes([102u8; 32]),
+        MigrationAuthorityKeyId::from_bytes([32u8; 32]),
+    );
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let signed = SignedMigrationResetV1::sign(
+        reset,
+        &MlDsa65,
+        &pair.migration.recovery_signing_key,
+        &[0u8; 32],
+        &mut signature,
+    )?;
+    let encoded = signed.encode()?;
+
+    pair.witness
+        .set_round_trip_bound(Duration::from_millis(500));
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(900));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(1))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.apply_reset_until(&encoded, deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+
+    assert_eq!(pair.witness.read_head()?, initial_head);
+    assert!(pair.initiator.public_keys().is_ok());
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    // The same reset under a budget of its own applies.
+    pair.witness.set_round_trip_bound(Duration::ZERO);
+    pair.initiator.apply_reset(&encoded)?;
+    assert_ne!(pair.witness.read_head()?, initial_head);
+    Ok(())
+}
