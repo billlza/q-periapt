@@ -543,6 +543,23 @@ impl fmt::Display for AgentError {
 
 impl std::error::Error for AgentError {}
 
+/// What a settled lease release left behind.
+///
+/// Only produced where the lease is provably gone: the authority confirmed
+/// the release, a snapshot proved no lease of this instance remains, or the
+/// lease was already retired. A release that did not settle is an
+/// [`AgentError`], never one of these.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LeaseReleaseOutcome {
+    /// The lease is released and the bookkeeping that follows it succeeded.
+    Released,
+    /// The lease is released -- a successor acquires at once -- but a durable
+    /// session cancellation during the erase, or the journal forget after the
+    /// release, failed. The carried error is the first failure; every
+    /// in-process secret is gone either way, and the agent is poisoned.
+    ReleasedWithFailure(AgentError),
+}
+
 impl From<RepositoryError> for AgentError {
     fn from(error: RepositoryError) -> Self {
         match error {
@@ -1416,10 +1433,13 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// clear, and [`AgentError::InstanceLeaseIndeterminate`] when its outcome
     /// stayed unknown and no snapshot could prove it either way. In both cases
     /// the lease is still held by this instance. A durable cancellation that
-    /// fails during the erase is reported as [`AgentError::InternalPoisoned`]
-    /// only after the release itself has been settled; the agent is poisoned
-    /// and refuses a repeat. Once the lease is retired, repeating the call
-    /// succeeds idempotently without dispatching anything.
+    /// fails during the erase, or a journal forget that fails after the
+    /// release, is reported by [`Self::release_instance_lease_until`] as
+    /// [`LeaseReleaseOutcome::ReleasedWithFailure`] -- the lease really is
+    /// gone -- which this flattening form returns as
+    /// [`AgentError::InternalPoisoned`]; the agent is poisoned and refuses a
+    /// repeat. Once the lease is retired, repeating the call succeeds
+    /// idempotently without dispatching anything.
     ///
     /// A re-acquire whose outcome is still unknown is resolved first, by the
     /// same exact query and snapshot the guarded operations use; when the
@@ -1434,9 +1454,13 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// next start to settle.
     ///
     /// Runs under the default budget; [`Self::release_instance_lease_until`]
-    /// takes the caller's deadline.
+    /// takes the caller's deadline and [`Self::release_instance_lease_within`]
+    /// a budget the erase is not charged to.
     pub fn release_instance_lease(&self) -> Result<(), AgentError> {
-        self.release_instance_lease_until(default_deadline()?)
+        match self.release_instance_lease_until(default_deadline()?)? {
+            LeaseReleaseOutcome::Released => Ok(()),
+            LeaseReleaseOutcome::ReleasedWithFailure(error) => Err(error),
+        }
     }
 
     /// [`Self::release_instance_lease`] under the caller's `deadline`.
@@ -1448,34 +1472,47 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// deadline. Every round trip after that is admitted the same way; a
     /// refusal once the release is under way keeps the fence for a later
     /// call exactly as an unreachable authority does, and is never reported
-    /// as `Ok`.
-    pub fn release_instance_lease_until(&self, deadline: Instant) -> Result<(), AgentError> {
+    /// as released.
+    ///
+    /// `Err` from this function means, without exception, that the lease is
+    /// still held by this instance. The erase and the journal forget are
+    /// bookkeeping around a release that did settle, so their failure is
+    /// [`LeaseReleaseOutcome::ReleasedWithFailure`] rather than an `Err`.
+    ///
+    /// The erase between the admission and the release is **not** admitted
+    /// against `deadline`: it costs one `Durability::Immediate` two-phase
+    /// commit per pending session, up to `HARD_MAX_SESSIONS` of them, and
+    /// nothing may be skipped. A caller that owns the wall clock rather than
+    /// an instant -- the stop path -- should use
+    /// [`Self::release_instance_lease_within`], which gives the release its
+    /// budget afresh once the erase is done.
+    pub fn release_instance_lease_until(
+        &self,
+        deadline: Instant,
+    ) -> Result<LeaseReleaseOutcome, AgentError> {
         let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
-        let inner = &mut *inner;
-        ensure_live(inner)?;
-        if inner.lease.phase == LeasePhase::Retired {
-            return forget_settled(&inner.repository, &mut inner.lease);
-        }
-        inner.deadline.admit(inner.authority.round_trip_bound())?;
-        // Erase first, and report a failure only once the release has been
-        // settled: `erase_pending` drops each secret before it touches the
-        // repository, so a failed durable cancellation still erases, and a
-        // lease released with its secrets gone is what a stop must leave
-        // behind whether or not the bookkeeping succeeded.
-        let erase_failure = erase_all_secrets(inner);
-        let released = release_lease_state(
-            &inner.repository,
-            &inner.authority,
-            &mut inner.lease,
-            inner.deadline,
-        );
-        // No journal write follows a release, so the rows this process settled
-        // would otherwise wait for the next start to find them absent. Forget
-        // them now, whatever the release's outcome.
-        let forgotten = forget_settled(&inner.repository, &mut inner.lease);
-        released
-            .and(erase_failure.map_or(Ok(()), Err))
-            .and(forgotten)
+        release_under_lock(&mut inner, None)
+    }
+
+    /// [`Self::release_instance_lease`] with `budget` for the release itself,
+    /// measured from after the erase.
+    ///
+    /// The difference from [`Self::release_instance_lease_until`] is the
+    /// accounting, not the order: the pre-erase admission of one authority
+    /// round trip still comes first, so a budget too short to release erases
+    /// nothing. What follows it -- one durable `cancel_session` per pending
+    /// session, up to `HARD_MAX_SESSIONS` of them, two fsyncs each -- is
+    /// charged to the caller's stop timeout rather than to `budget`, and the
+    /// release then runs under a deadline `budget` from the moment the last
+    /// secret is gone. Charging the erase to the release budget instead would
+    /// let a large session table on a slow store spend it before the release
+    /// is dispatched, leaving the lease to lapse at its TTL.
+    pub fn release_instance_lease_within(
+        &self,
+        budget: Duration,
+    ) -> Result<LeaseReleaseOutcome, AgentError> {
+        let mut inner = self.lock_until(OperationDeadline::fresh(budget)?)?;
+        release_under_lock(&mut inner, Some(budget))
     }
 
     /// Every lease intent still journaled in the repository.
@@ -1590,6 +1627,21 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         Ok(())
     }
 
+    /// Make every durable session cancellation take this long after it
+    /// commits, so a test can make the stop's unbounded erase outlast a
+    /// release budget the way a large session table on a slow store does.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_each_session_cancel_for_test(
+        &self,
+        delay: Duration,
+    ) -> Result<(), AgentError> {
+        let inner = self.lock()?;
+        inner
+            .repository
+            .delay_after_each_session_cancel_for_test(delay);
+        Ok(())
+    }
+
     /// Fail the next lease-journal write as a corrupt store would, before
     /// anything is committed, so a test can see what a lease operation does
     /// when its intent cannot be journaled for storage reasons.
@@ -1630,6 +1682,50 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 /// The deadline a plain (non-`_until`) operation gives itself.
 fn default_deadline() -> Result<Instant, AgentError> {
     OperationDeadline::fresh(DEFAULT_OPERATION_BUDGET).map(|deadline| deadline.at)
+}
+
+/// The body of every release: erase, release, forget, with `Err` reserved for
+/// a lease this instance still holds.
+///
+/// `budget_after_erase` is `Some` for the callers that own a budget rather
+/// than an instant: the release deadline is then re-derived once the erase is
+/// done, so the unadmitted durable cancellations do not spend it.
+fn release_under_lock<W: WitnessPort, A: InstanceAuthorityPort>(
+    inner: &mut Inner<W, A>,
+    budget_after_erase: Option<Duration>,
+) -> Result<LeaseReleaseOutcome, AgentError> {
+    ensure_live(inner)?;
+    if inner.lease.phase == LeasePhase::Retired {
+        return forget_settled(&inner.repository, &mut inner.lease)
+            .map(|()| LeaseReleaseOutcome::Released);
+    }
+    // Admitted before the erase, so a deadline too short to release the lease
+    // leaves every secret where it is and the lease serving.
+    inner.deadline.admit(inner.authority.round_trip_bound())?;
+    // Erase first, and report a failure only once the release has been
+    // settled: `erase_pending` drops each secret before it touches the
+    // repository, so a failed durable cancellation still erases, and a
+    // lease released with its secrets gone is what a stop must leave
+    // behind whether or not the bookkeeping succeeded.
+    let erase_failure = erase_all_secrets(inner);
+    if let Some(budget) = budget_after_erase {
+        inner.deadline = OperationDeadline::fresh(budget)?;
+    }
+    let released = release_lease_state(
+        &inner.repository,
+        &inner.authority,
+        &mut inner.lease,
+        inner.deadline,
+    );
+    // No journal write follows a release, so the rows this process settled
+    // would otherwise wait for the next start to find them absent. Forget
+    // them now, whatever the release's outcome.
+    let forgotten = forget_settled(&inner.repository, &mut inner.lease);
+    released?;
+    Ok(match erase_failure.map_or(Ok(()), Err).and(forgotten) {
+        Ok(()) => LeaseReleaseOutcome::Released,
+        Err(error) => LeaseReleaseOutcome::ReleasedWithFailure(error),
+    })
 }
 
 /// What construction derives from the repository and the configuration once

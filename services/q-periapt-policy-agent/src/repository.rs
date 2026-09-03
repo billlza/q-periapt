@@ -191,6 +191,12 @@ pub struct StateRepository {
     /// that on demand.
     #[cfg(all(test, unix))]
     delay_after_next_durable_write: std::sync::Mutex<Option<std::time::Duration>>,
+    /// Test-only: sleep this long after every session cancellation commits,
+    /// standing in for a store whose fsyncs are slow. The stop erases one
+    /// session per durable commit and no deadline bounds that, which a test
+    /// can only exercise if the erase can be made to outlast a budget.
+    #[cfg(all(test, unix))]
+    delay_after_each_session_cancel: std::sync::Mutex<Option<std::time::Duration>>,
     /// Test-only: fail the next lease-journal write the way a corrupt store
     /// would, before anything is committed, so a test can see what a lease
     /// operation does when its intent cannot be journaled for storage reasons.
@@ -279,6 +285,8 @@ impl StateRepository {
                         #[cfg(all(test, unix))]
                         delay_after_next_durable_write: std::sync::Mutex::new(None),
                         #[cfg(all(test, unix))]
+                        delay_after_each_session_cancel: std::sync::Mutex::new(None),
+                        #[cfg(all(test, unix))]
                         fail_next_lease_journal_write: std::sync::Mutex::new(false),
                     },
                     head,
@@ -333,6 +341,8 @@ impl StateRepository {
             #[cfg(all(test, unix))]
             delay_after_next_durable_write: std::sync::Mutex::new(None),
             #[cfg(all(test, unix))]
+            delay_after_each_session_cancel: std::sync::Mutex::new(None),
+            #[cfg(all(test, unix))]
             fail_next_lease_journal_write: std::sync::Mutex::new(false),
         })
     }
@@ -343,6 +353,16 @@ impl StateRepository {
     pub(crate) fn delay_after_next_durable_write_for_test(&self, delay: std::time::Duration) {
         *self
             .delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned") = Some(delay);
+    }
+
+    /// Test-only: make every session cancellation take this long after it
+    /// commits, the way a store with slow fsyncs would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_after_each_session_cancel_for_test(&self, delay: std::time::Duration) {
+        *self
+            .delay_after_each_session_cancel
             .lock()
             .expect("repository test hook poisoned") = Some(delay);
     }
@@ -377,6 +397,17 @@ impl StateRepository {
             .lock()
             .expect("repository test hook poisoned")
             .take();
+        if let Some(delay) = pending {
+            std::thread::sleep(delay);
+        }
+    }
+
+    #[cfg(all(test, unix))]
+    fn sleep_after_session_cancel_for_test(&self) {
+        let pending = *self
+            .delay_after_each_session_cancel
+            .lock()
+            .expect("repository test hook poisoned");
         if let Some(delay) = pending {
             std::thread::sleep(delay);
         }
@@ -697,7 +728,10 @@ impl StateRepository {
         }
         transaction
             .commit()
-            .map_err(|_| RepositoryError::CorruptStore)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_session_cancel_for_test();
+        Ok(())
     }
 
     /// Durably journal one lease intent before it is dispatched, and in the

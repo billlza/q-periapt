@@ -192,29 +192,39 @@ weaker socket.
    authority has confirmed that release or a snapshot has shown that no lease
    of this instance remains, so the start that follows acquires immediately;
    if the release could not be settled -- the authority unreachable, the
-   outcome unknown, or the agent poisoned -- it exits 1 with a one-line reason
-   and the lease lapses at its TTL, which the next start waits out. Leave
-   `Restart=no` and `KeepAlive=false` as shipped:
+   outcome unknown with no snapshot to prove it, the lease-intent journal
+   full, the release budget too short to dispatch, or the agent already
+   poisoned when the stop arrived -- it exits 1 with a one-line reason and the
+   lease lapses at its TTL, which the next start waits out. A release that
+   did settle but whose durable cleanup afterwards failed also exits 1, and
+   there the lease is gone and the next start acquires at once. Leave
+   `Restart=no`, `KeepAlive=false` and `TimeoutStopSec=90` as shipped:
    the socket unit and the launchd `Sockets` entry start the daemon on the next
    client connection, and that is also how a crash is recovered -- the new
    process waits for the crashed one's lease to lapse (at most the authority's
    lease TTL, 10 seconds to 5 minutes, plus a five-second margin) and then
    serves, without operator action, subject on Linux to systemd's start rate
-   limit. systemd's default `TimeoutStopSec` of 90 seconds is ample, and the
-   launchd plist sets `ExitTimeOut` to 90 because launchd's own default of 20
-   is not: a stop that lands during a request is observed once that request
-   has been answered or refused -- every request runs under one end-to-end
-   deadline of 35 seconds -- and the release that follows runs under a
-   30-second budget, up to six bounded authority round trips of at most 5
+   limit. The unit sets `TimeoutStopSec=90` and the launchd plist sets
+   `ExitTimeOut` to 90 because neither manager's default can be relied on:
+   launchd's is 20 seconds, and systemd's 90 is `DefaultTimeoutStopSec=` in
+   the host's `system.conf`, which a distribution or a hardening baseline may
+   have lowered below the worst case below. That worst case: a stop that lands
+   during a request is observed once that request has been answered or refused
+   -- every request runs under one end-to-end deadline of 35 seconds -- the
+   erase that follows costs one durable two-phase commit per pending session,
+   up to 1024 of them, which nothing may skip and no deadline bounds, budgeted
+   at 20 seconds, and only then does the release run, under a 30-second budget
+   of its own, up to six bounded authority round trips of at most 5
    seconds each against an authority that accepts the connection and never
-   answers, each admitted only while it can still end within the budget: 66
+   answers, each admitted only while it can still end within the budget: 86
    seconds worst case. A `SIGKILL` past either limit
    costs only a `redb` recovery at the next open, and the lease lapses at its
    TTL as after a crash. The daemon writes only a one-line reason to stderr
    when it exits with an error -- a refused start, a fatal serving failure, or
-   a stop whose release did not settle; the exit status is the only record of
-   a stop, and a non-zero status after `SIGTERM` means the lease was not
-   released and lapses at its TTL.
+   a stop that did not complete cleanly; the exit status is the only record of
+   a stop, and a non-zero status after `SIGTERM` means the stop did not
+   complete cleanly, with the one-line reason on stderr saying whether the
+   lease was released.
 
 ## macOS layout
 

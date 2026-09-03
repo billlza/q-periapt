@@ -1901,6 +1901,46 @@ fn a_release_refused_by_its_deadline_keeps_the_lease_and_erases_nothing() -> Tes
 }
 
 #[test]
+fn the_stops_erase_is_not_charged_to_the_release_budget() -> TestResult {
+    // The erase before a release is one durable commit per pending session,
+    // up to HARD_MAX_SESSIONS of them, and no deadline bounds it: nothing may
+    // be skipped, every secret must go. So the budget the stop gives the
+    // release is measured from after the erase. Charged to the release
+    // instead, a large session table on a slow store would spend it before
+    // the release was dispatched and leave the lease to lapse at its TTL.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 168)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    // One session whose cancellation alone takes four times the whole budget.
+    pair.initiator
+        .delay_each_session_cancel_for_test(Duration::from_millis(400))?;
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_millis(20));
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    let started = Instant::now();
+    assert_eq!(
+        pair.initiator
+            .release_instance_lease_within(Duration::from_millis(100))?,
+        LeaseReleaseOutcome::Released
+    );
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed >= Duration::from_millis(400),
+        "the erase did not run at all: {elapsed:?}"
+    );
+    // The release was dispatched and settled even so, and the secret is gone.
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls + 1);
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
 fn drains_yield_to_the_operation_budget_and_keep_their_obligations() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 141)?;

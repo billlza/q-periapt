@@ -43,7 +43,8 @@ use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
-    PendingSessionHandle, PolicyAgent, SessionAuthorization, SignedPolicyBundle,
+    LeaseReleaseOutcome, PendingSessionHandle, PolicyAgent, SessionAuthorization,
+    SignedPolicyBundle,
 };
 use crate::signals::install_termination_handlers;
 use crate::witness::{AuthenticatedTcpWitness, ReferenceWitnessServer};
@@ -75,6 +76,45 @@ const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
 /// longer fits is refused rather than started: the stop is bounded by this
 /// budget whatever the authority does.
 const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
+/// Wall time the stop's erase may take, on top of `LEASE_RELEASE_BUDGET`.
+///
+/// The release erases every in-process secret before it dispatches anything,
+/// and each pending session costs one durable `cancel_session`: a
+/// `Durability::Immediate` two-phase commit, two fsyncs. Nothing may be
+/// skipped -- every secret must go -- so the erase is bounded by the store's
+/// commit latency and not by any deadline this code holds, which is why
+/// `release_instance_lease_within` gives the release its budget afresh
+/// afterwards rather than charging the erase to it.
+///
+/// This is the term the service managers' stop timeouts have to carry for it.
+/// At most `HARD_MAX_SESSIONS` (1024) sessions are pending, and a durable
+/// cancellation measured about 9 ms on APFS/SSD with the pinned redb, so the
+/// hard maximum is a little under 10 seconds; 20 leaves roughly twice that
+/// for a slower store. The arithmetic the shipped templates must satisfy is
+/// `MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_ERASE_BOUND +
+/// LEASE_RELEASE_BUDGET` = 86 seconds, which
+/// `the_deployment_templates_agree_with_this_code` holds them to.
+const LEASE_ERASE_BOUND: Duration = Duration::from_secs(20);
+/// The stop timeout both deployment templates declare: systemd
+/// `TimeoutStopSec=` and launchd `ExitTimeOut`. Neither manager's default can
+/// be relied on -- launchd's is 20 seconds, and systemd's 90 is
+/// `DefaultTimeoutStopSec=` in the host's `system.conf`, which a distribution
+/// or a hardening baseline may have lowered -- so both templates write it out
+/// and `the_deployment_templates_agree_with_this_code` holds them to this
+/// value.
+const SERVICE_MANAGER_STOP_TIMEOUT: Duration = Duration::from_secs(90);
+// A stop is observed within one maintenance interval when the daemon is idle,
+// or once the request in flight has been answered or refused; the erase that
+// follows is charged to no deadline at all; and the release then runs under
+// its own budget. A stop timeout that does not exceed the sum has the daemon
+// killed mid-release, leaving the lease to lapse at its TTL.
+const _: () = assert!(
+    SERVICE_MANAGER_STOP_TIMEOUT.as_secs()
+        > MAINTENANCE_INTERVAL.as_secs()
+            + IPC_REQUEST_DEADLINE.as_secs()
+            + LEASE_ERASE_BOUND.as_secs()
+            + LEASE_RELEASE_BUDGET.as_secs()
+);
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
@@ -112,11 +152,22 @@ pub enum IpcError {
     Unavailable,
     /// The agent entered a fail-closed poisoned state.
     AgentFatal,
-    /// The serving loop stopped cleanly but the instance lease could not be
-    /// released: the transport refused the release, its outcome stayed
-    /// unknown, or the agent was poisoned. The lease lapses at the
-    /// authority's TTL, which the next start waits out.
+    /// The serving loop stopped cleanly but the instance lease is still held:
+    /// the transport refused the release, its outcome stayed unknown with no
+    /// snapshot to prove it, the lease-intent journal was full, the release
+    /// budget could not cover the dispatch, or the agent was already poisoned
+    /// when the stop arrived, which `ensure_live` refuses before dispatching
+    /// anything. The lease lapses at the authority's TTL, which the next start
+    /// waits out.
     LeaseReleaseFailed,
+    /// The serving loop stopped cleanly and the instance lease **was**
+    /// released -- the authority confirmed it, or a snapshot proved it gone,
+    /// so the next start acquires at once -- but the bookkeeping around the
+    /// release failed: a durable session cancellation during the erase, or
+    /// the journal forget after it. Every in-process secret is still gone;
+    /// the agent is poisoned and the store may have diverged, so the exit is
+    /// non-zero.
+    LeaseReleasedStateNotRecorded,
 }
 
 impl fmt::Display for IpcError {
@@ -135,6 +186,10 @@ impl fmt::Display for IpcError {
             Self::AgentFatal => "policy agent entered a fail-closed state",
             Self::LeaseReleaseFailed => {
                 "instance lease was not released at stop; it lapses at the authority TTL"
+            }
+            Self::LeaseReleasedStateNotRecorded => {
+                "instance lease was released at stop, but local state could not be recorded; \
+                 the next start acquires at once"
             }
         })
     }
@@ -586,29 +641,41 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// TTL; it also erases every in-process secret first. A serving failure
     /// keeps precedence: it is what caused the exit and what this returns,
     /// whatever the release did. An orderly stop returns the release's
-    /// outcome: `Ok` only once the authority has confirmed the release or a
-    /// snapshot has proved the lease gone, and
-    /// [`IpcError::LeaseReleaseFailed`] otherwise -- the authority
-    /// unreachable, the outcome unknown, or the agent poisoned, which refuses
-    /// the release outright (`release_instance_lease` checks liveness first).
-    /// In that case the lease lapses at its TTL exactly as it would after a
-    /// crash, and the process exits 1 with that one-line reason rather than
-    /// report a stop that left the lease held as clean. The release runs
-    /// under `LEASE_RELEASE_BUDGET`, so a stop is bounded whatever the
-    /// authority does.
+    /// outcome, and there are three:
+    ///
+    /// * `Ok` -- the authority confirmed the release or a snapshot proved the
+    ///   lease gone, and the erase and the journal forget both succeeded.
+    /// * [`IpcError::LeaseReleaseFailed`] -- the lease is still held: the
+    ///   transport refused the release, its outcome stayed unknown with no
+    ///   snapshot to prove it, the lease-intent journal was full, the release
+    ///   budget could not cover the dispatch, or the agent was already
+    ///   poisoned when the stop arrived, which refuses the release outright
+    ///   (`release_instance_lease_within` checks liveness first). The lease
+    ///   lapses at its TTL exactly as it would after a crash.
+    /// * [`IpcError::LeaseReleasedStateNotRecorded`] -- the lease is released
+    ///   and the next start acquires at once, but a durable session
+    ///   cancellation or the journal forget failed.
+    ///
+    /// Either failure exits 1 with that one-line reason rather than report an
+    /// unclean stop as clean. The release runs under `LEASE_RELEASE_BUDGET`,
+    /// measured from after the erase (`LEASE_ERASE_BOUND` is what the stop
+    /// timeout carries for that), so a stop is bounded whatever the authority
+    /// does.
     fn serve_and_release(
         &mut self,
         listener: UnixListener,
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
         let outcome = self.serve(listener, shutdown);
-        let released = Instant::now()
-            .checked_add(LEASE_RELEASE_BUDGET)
-            .ok_or(AgentError::InvalidConfiguration)
-            .and_then(|deadline| self.agent.release_instance_lease_until(deadline));
+        let released = self
+            .agent
+            .release_instance_lease_within(LEASE_RELEASE_BUDGET);
         match (outcome, released) {
             (Err(error), _) => Err(error),
-            (Ok(()), Ok(())) => Ok(()),
+            (Ok(()), Ok(LeaseReleaseOutcome::Released)) => Ok(()),
+            (Ok(()), Ok(LeaseReleaseOutcome::ReleasedWithFailure(_))) => {
+                Err(IpcError::LeaseReleasedStateNotRecorded)
+            }
             (Ok(()), Err(_)) => Err(IpcError::LeaseReleaseFailed),
         }
     }
@@ -1007,10 +1074,13 @@ fn serve_agent(
     // the orderly stop and a fatal listener error alike attempt the release;
     // one the authority does not confirm -- a poisoned agent refuses it
     // outright -- leaves the lease to lapse at its TTL instead, and an
-    // orderly stop reports that by exiting 1. A stop that lands during a
-    // request is observed once that request is answered or refused, within
-    // `IPC_REQUEST_DEADLINE`, and the release then runs under
-    // `LEASE_RELEASE_BUDGET`; the service managers' stop timeouts cover both.
+    // orderly stop reports that by exiting 1, as it does a release that
+    // settled but whose durable bookkeeping failed. A stop that lands during
+    // a request is observed once that request is answered or refused, within
+    // `IPC_REQUEST_DEADLINE`; the erase that follows costs one durable commit
+    // per pending session (`LEASE_ERASE_BOUND`) and the release then runs
+    // under `LEASE_RELEASE_BUDGET`. The service managers' stop timeouts cover
+    // all three.
     let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
     server.serve_and_release(listener, shutdown)
 }
@@ -1611,23 +1681,45 @@ mod tests {
             "the script's re-run instructions must name the job's own label"
         );
 
-        // launchd's default ExitTimeOut is 20 seconds. A stop that lands
-        // during a request is observed once that request is answered or
-        // refused -- at most IPC_REQUEST_DEADLINE -- or within one
-        // maintenance interval when the daemon is idle, and the lease release
-        // that follows runs under LEASE_RELEASE_BUDGET: 66 seconds worst
-        // case, past the default and past the 60 the plist used to give. 90
-        // is systemd's default stop timeout, which the deploy README already
-        // relies on.
+        // Neither manager's default stop timeout can be relied on, so both
+        // templates pin their own. A stop that lands during a request is
+        // observed once that request is answered or refused -- at most
+        // IPC_REQUEST_DEADLINE -- or within one maintenance interval when the
+        // daemon is idle; the erase that follows costs one durable commit per
+        // pending session (LEASE_ERASE_BOUND), and the release after it runs
+        // under LEASE_RELEASE_BUDGET. That is 1 + 35 + 20 + 30 = 86 seconds
+        // worst case, past launchd's 20-second default and past the 60 the
+        // plist used to give. systemd's 90 is DefaultTimeoutStopSec= in the
+        // host's system.conf, which a host may have lowered, so the unit
+        // writes the value out rather than inheriting it.
+        let pinned = SERVICE_MANAGER_STOP_TIMEOUT.as_secs();
         assert_eq!(
             plist_value(&plist, "ExitTimeOut"),
-            "<integer>90</integer>",
+            format!("<integer>{pinned}</integer>"),
             "the agent plist must give a stop that lands during a request room to finish"
         );
+        let stop_timeout = service
+            .lines()
+            .find_map(|line| line.strip_prefix("TimeoutStopSec="))
+            .expect(
+                "the unit must pin its own TimeoutStopSec rather than inherit the host's \
+                 DefaultTimeoutStopSec",
+            );
+        let seconds: u64 = stop_timeout
+            .parse()
+            .expect("the unit's stop timeout must be a bare integer of seconds");
+        assert_eq!(
+            seconds, pinned,
+            "the unit's stop timeout must be the same {pinned} seconds the plist gives"
+        );
         assert!(
-            Duration::from_secs(90)
-                > MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_RELEASE_BUDGET,
-            "ExitTimeOut must cover observing the stop after a request plus the release budget"
+            Duration::from_secs(seconds)
+                > MAINTENANCE_INTERVAL
+                    + IPC_REQUEST_DEADLINE
+                    + LEASE_ERASE_BOUND
+                    + LEASE_RELEASE_BUDGET,
+            "the stop timeout must cover observing the stop after a request, the erase of \
+             every pending session, and the release budget"
         );
     }
 

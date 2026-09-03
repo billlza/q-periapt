@@ -796,3 +796,58 @@ fn a_stop_whose_release_fails_is_reported_and_the_lease_is_left_for_the_ttl() ->
     assert!(authority.active_lease()?.is_none());
     Ok(())
 }
+
+#[test]
+fn a_stop_whose_release_settles_but_whose_cleanup_fails_says_the_lease_is_gone() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 59)?;
+    let authority = pair.initiator_authority.clone();
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    // The session's durable cancellation will fail the way a diverged store
+    // makes it: its row is already gone, but the secret is still held in
+    // memory and the stop's erase must still drop it.
+    pair.initiator
+        .desynchronize_session_for_test(encapsulated.handle)?;
+    let (_, client_verification_key) = MlDsa65::generate([95u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([96u8; 32]);
+    let server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    let socket_path = directory.join("recorded.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = AtomicBool::new(true);
+    let (outcome, server) = thread::scope(|scope| {
+        let serving = scope.spawn(|| {
+            let mut server = server;
+            let outcome = server.serve_and_release_for_test(listener, &shutdown);
+            (outcome, server)
+        });
+        serving.join()
+    })
+    .map_err(|_| io::Error::other("serving thread panicked"))?;
+
+    // The release itself settled: the authority holds nothing, so the next
+    // start acquires at once. Only the bookkeeping after it failed, and the
+    // stop must say exactly that rather than send the operator looking for a
+    // lease that has to lapse.
+    assert_eq!(
+        outcome,
+        Err(crate::ipc::IpcError::LeaseReleasedStateNotRecorded)
+    );
+    assert_eq!(authority.active_lease()?, None);
+    assert_eq!(server.agent_for_test().pending_session_count(), 0);
+    let reason = format!("{}", crate::ipc::IpcError::LeaseReleasedStateNotRecorded);
+    assert!(
+        !reason.contains("was not released") && !reason.contains("TTL"),
+        "the reason must not claim the lease is still held: {reason}"
+    );
+    Ok(())
+}

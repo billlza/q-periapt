@@ -45,6 +45,20 @@ ExecStart=/opt/qperiapt/bin/q-periapt-policy-agent serve-agent \
     ${QPERIAPT_AUTHORITY_ENDPOINT} \
     /var/lib/qperiapt-agent/config
 Restart=no
+# How long systemd waits after SIGTERM before it sends SIGKILL. A stop that
+# lands while a request is in flight is observed only once that request has
+# been answered or refused -- every request runs under one end-to-end deadline
+# of 35 seconds -- or within one maintenance interval (1 second) when the
+# daemon is idle. The daemon then erases its in-process secrets, one durable
+# two-phase commit per pending session and up to 1024 of them, budgeted at 20
+# seconds, and releases the instance lease under a 30-second budget: 86 seconds
+# worst case. This is written out rather than left to DefaultTimeoutStopSec=,
+# which is host configuration in system.conf that distributions and hardening
+# baselines shorten; a SIGKILL below 86 seconds cuts the daemon off mid-release,
+# leaving the lease to lapse at its TTL and costing a redb recovery at the next
+# open. No KillMode= is set: the daemon is a single process, so the default
+# control-group kill is already the right one.
+TimeoutStopSec=90
 
 # Secrets hygiene: no core dumps, no new privileges, owner-only umask.
 LimitCORE=0

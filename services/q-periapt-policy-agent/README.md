@@ -283,14 +283,20 @@ the table; the first journal write creates it.
 Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
 from the service manager, or `SIGINT` by hand -- is observed by the serving
 loop within one maintenance interval, or once the request in flight has been
-answered or refused; the daemon erases every in-process secret and releases
-the lease under a 30-second budget, and exits 0 only once the authority has
+answered or refused; the daemon erases every in-process secret -- one durable
+commit per pending session, charged to the stop timeout and not to any
+deadline, because nothing may be skipped -- then releases the lease under a
+30-second budget of its own, and exits 0 only once the authority has
 confirmed that release or a snapshot has shown that no lease of this instance
 remains, so the next start acquires at once. If the release could not be
 settled -- the transport refused it, the journal was full, its outcome stayed
-unknown with no snapshot to prove it, or the agent was poisoned -- the daemon
-exits 1 with a one-line reason and the lease lapses at its TTL, which the next
-start waits out. A crash never releases the lease, and the authority lets it
+unknown with no snapshot to prove it, the release budget could not cover the
+dispatch, or the agent was already poisoned when the stop arrived -- the
+daemon exits 1 with a one-line reason and the lease lapses at its TTL, which
+the next start waits out. A release that did settle but whose durable cleanup
+afterwards failed -- a session cancellation, or the journal forget -- exits 1
+too, with its own reason: there the lease is released and the next start
+acquires at once. A crash never releases the lease, and the authority lets it
 lapse only at its TTL (10 seconds to 5 minutes, as configured on the
 authority). A start inside that
 window waits for the lapse: it retries the same fail-closed acquire after the

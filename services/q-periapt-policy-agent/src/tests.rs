@@ -52,7 +52,7 @@ use crate::repository::{
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, EndpointIdentity, InitiatorDecapsulationResult,
-    InitiatorEncapsulationResult, PolicyAgent, ResponderDecapsulationResult,
+    InitiatorEncapsulationResult, LeaseReleaseOutcome, PolicyAgent, ResponderDecapsulationResult,
     ResponderEncapsulationResult, SessionAuthorization, SignedPolicyBundle,
 };
 use crate::types::{
