@@ -119,14 +119,19 @@ confidential. The reference server processes one connection at a time with a
 five-second I/O timeout. This is an explicit resource bound, but an unauthenticated
 slow client can occupy that one slot until the timeout.
 
-Every IPC request is answered or refused within one end-to-end deadline of 35
+Every IPC request is answered or refused within one end-to-end deadline of 36
 seconds from accept. The client-paced read and the response write are each
 additionally capped at 5 seconds, and in between the agent admits every wait
 against that deadline: first the acquisition of its one linearizer, then each
 authority and witness round trip, refusing a lease-guarded operation whose
 least plan no longer fits before it dispatches anything. Cancel, Destroy and
 the public-key read make no round trip, so the linearizer is the only thing
-they wait for, and they are refused on the same deadline. IPC status 24 means
+they wait for, and they are refused on the same deadline. A round trip a
+durable commit must precede -- the lease-intent journal write before every
+lease mutation -- is admitted together with that commit, reserved at one
+second, so the commit cannot push the call it precedes past the deadline; a
+store slower than that reserve is outside the model, as an authority clock
+that gains more than a second within one round trip is. IPC status 24 means
 the request was refused or aborted on its deadline with nothing retained and
 its reservation released; it is not a fence, and the request may be retried
 under a fresh nonce with a fresh offer where the offer was consumed. A request

@@ -843,3 +843,106 @@ fn an_acquire_whose_response_and_queries_are_lost_at_construction_releases_the_e
     assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 1);
     Ok(())
 }
+
+#[test]
+fn a_dispatch_that_cannot_cover_its_journal_commit_leaves_no_row() -> TestResult {
+    // Every lease mutation journals its intent durably -- one
+    // `Durability::Immediate` two-phase commit -- and only then dispatches.
+    // Admitting the dispatch on its bare round-trip bound before that commit
+    // bounded the call from its own start, not from the admission: the commit
+    // ran first and the mutation could end past the caller's deadline. The
+    // commit is now admitted with the dispatch it precedes
+    // (`DURABLE_COMMIT_RESERVE`), so a deadline that cannot cover both
+    // refuses before the journal write, leaving no row and nothing to settle.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 176)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    let journal = pair.initiator.journaled_lease_intents_for_test()?;
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    // The pre-erase gate needs the release's round trip and its journal
+    // commit -- two seconds -- and passes with half a second to spare. The
+    // erase then sleeps 900 ms, so the release dispatch is admitted with
+    // about 1.6 seconds left: enough for its bare one-second bound, which is
+    // what used to let it through, and not for the commit it must pay first.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(1));
+    pair.initiator
+        .delay_each_session_cancel_for_test(Duration::from_millis(900))?;
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(2_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.release_instance_lease_until(deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+
+    // Nothing was dispatched and nothing was journaled: the authority still
+    // holds this instance's lease, and no row was added for an intent that
+    // never left the process. (Rows may still *leave* the journal here: the
+    // release forgets what earlier operations had already settled.)
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls);
+    assert!(
+        pair.initiator
+            .journaled_lease_intents_for_test()?
+            .iter()
+            .all(|row| journal.contains(row)),
+        "the refused dispatch journaled a row"
+    );
+    assert!(pair.initiator_authority.active_lease()?.is_some());
+    // The erase preceded the refusal, as the release contract says it does.
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+
+    // A retry under a budget of its own releases.
+    pair.initiator.release_instance_lease()?;
+    assert!(pair.initiator_authority.active_lease()?.is_none());
+    Ok(())
+}
+
+#[test]
+fn a_guarded_operation_reserves_the_journal_commit_its_renew_must_pay() -> TestResult {
+    // The same reserve, at the plan gate. `OperationPlan` is what
+    // `ensure_instance_lease` holds back before the resolution, the drains,
+    // any journal write or any dispatch, so the renew's own journal commit
+    // has to be part of it -- otherwise a drain could spend the second the
+    // renew's commit needs and the operation would be refused after the
+    // drains rather than before them.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 177)?;
+    let journal = pair.initiator.journaled_lease_intents_for_test()?;
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    // Reconcile's least plan at a one-second authority bound -- the memory
+    // witness reports zero -- is two round trips plus one
+    // DURABLE_COMMIT_RESERVE: three seconds.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(1));
+    let short = Instant::now()
+        .checked_add(Duration::from_millis(2_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.reconcile_transition_until(short),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls);
+    assert_eq!(pair.initiator.journaled_lease_intents_for_test()?, journal);
+
+    // With room for the commit as well as the round trips the same call
+    // renews and gets as far as finding nothing to reconcile.
+    let long = Instant::now()
+        .checked_add(Duration::from_millis(3_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.reconcile_transition_until(long),
+        Err(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    assert_eq!(
+        pair.initiator_authority.lease_call_count(),
+        lease_calls + 1,
+        "the renew must have been dispatched once the plan fitted"
+    );
+    Ok(())
+}

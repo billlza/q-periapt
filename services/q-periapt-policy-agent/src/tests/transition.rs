@@ -407,11 +407,13 @@ fn crash_after_durable_intent_child() -> TestResult {
 
 /// A deadline that fits the transition plan but not the witness CAS once the
 /// lease work has been paid for. Both ports report a zero authority bound, so
-/// the TRANSITION plan reserve is the 500 ms witness bound and is admitted at
-/// t = 0 with 500 ms of margin; the post-renew coverage snapshot then burns
-/// 900 ms, leaving about 100 ms, so the 500 ms CAS bound cannot be admitted,
-/// with 400 ms of margin. The refusal must land before the durable intent:
-/// journaled, it would leave a pending transition only Reconcile clears.
+/// the TRANSITION plan reserve is the 500 ms witness bound plus the renew's
+/// own journal commit (`DURABLE_COMMIT_RESERVE`, one second): 1.5 s, admitted
+/// at t = 0 with a second of margin. The post-renew coverage snapshot then
+/// burns 2.2 s, leaving about 300 ms, so the 500 ms CAS bound cannot be
+/// admitted, with 200 ms of margin. The refusal must land before the durable
+/// intent: journaled, it would leave a pending transition only Reconcile
+/// clears.
 #[test]
 fn a_deadline_that_lapses_after_the_lease_leaves_no_durable_intent() -> TestResult {
     let directory = TestDirectory::new()?;
@@ -426,9 +428,9 @@ fn a_deadline_that_lapses_after_the_lease_leaves_no_durable_intent() -> TestResu
     pair.witness
         .set_round_trip_bound(Duration::from_millis(500));
     pair.initiator_authority
-        .delay_next_snapshot(Duration::from_millis(900));
+        .delay_next_snapshot(Duration::from_millis(2_200));
     let deadline = Instant::now()
-        .checked_add(Duration::from_secs(1))
+        .checked_add(Duration::from_millis(2_500))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.apply_advance_until(&certificate, deadline),
@@ -489,9 +491,9 @@ fn a_reset_refused_after_the_lease_leaves_no_durable_intent() -> TestResult {
     pair.witness
         .set_round_trip_bound(Duration::from_millis(500));
     pair.initiator_authority
-        .delay_next_snapshot(Duration::from_millis(900));
+        .delay_next_snapshot(Duration::from_millis(2_200));
     let deadline = Instant::now()
-        .checked_add(Duration::from_secs(1))
+        .checked_add(Duration::from_millis(2_500))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.apply_reset_until(&encoded, deadline),

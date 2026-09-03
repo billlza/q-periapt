@@ -167,29 +167,42 @@ struct PendingAcquire {
     expected_fence: InstanceFenceV2,
 }
 
-/// The least I/O a guarded operation performs once its lease is renewed, in
-/// port round trips: what `ensure_instance_lease` reserves out of the
-/// operation's deadline before it dispatches anything, and what every drain
-/// leaves untouched.
+/// The least I/O a guarded operation performs once its lease is renewed --
+/// its port round trips at the ports' own bounds, and the durable commits the
+/// deadline must cover before them: what `ensure_instance_lease` reserves out
+/// of the operation's deadline before it dispatches anything, and what every
+/// drain leaves untouched.
+///
+/// A commit is counted only where it stands between an admission and the
+/// dispatch that admission authorizes, so that the reserve covers the same
+/// work `lease_exchange` and the transition paths admit for themselves. The
+/// retaining path's `reserve_session` is deliberately not counted: the call
+/// after it is admitted *after* it, so a slow commit there costs a refusal,
+/// never an unadmitted dispatch.
 #[derive(Clone, Copy)]
 pub(super) struct OperationPlan {
     authority_round_trips: u32,
     witness_round_trips: u32,
+    durable_commits: u32,
 }
 
 impl OperationPlan {
     /// Begin and Accept: the renew, the post-renew coverage snapshot, the
-    /// retention snapshot after the durable write, and one witness head read.
+    /// retention snapshot after the durable write, and one witness head read,
+    /// with the renew's own lease-intent journal commit.
     pub(super) const RETAINING: Self = Self {
         authority_round_trips: 3,
         witness_round_trips: 1,
+        durable_commits: 1,
     };
     /// Advance, Reset and Reconcile: the renew, the coverage snapshot, and
-    /// one witness call; Reconcile's conditional CAS after its query is
-    /// admitted on its own in `execute_transition`.
+    /// one witness call, with the renew's own lease-intent journal commit;
+    /// Reconcile's conditional CAS after its query is admitted on its own in
+    /// `execute_transition`.
     pub(super) const TRANSITION: Self = Self {
         authority_round_trips: 2,
         witness_round_trips: 1,
+        durable_commits: 1,
     };
 
     /// How long the plan can block at these port bounds.
@@ -197,6 +210,7 @@ impl OperationPlan {
         authority_bound
             .saturating_mul(self.authority_round_trips)
             .saturating_add(witness_bound.saturating_mul(self.witness_round_trips))
+            .saturating_add(DURABLE_COMMIT_RESERVE.saturating_mul(self.durable_commits))
     }
 }
 
@@ -397,10 +411,16 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
 /// never executed the operation settles the row at once; an outcome that
 /// leaves it unknown keeps the id for a later query.
 ///
-/// The dispatch is admitted against `deadline` before the journal write, so a
-/// refused dispatch leaves no row and nothing to settle; the snapshot that
-/// resynchronises after an `AuthorityVersionMismatch` is admitted the same
-/// way, with the refused row already settled.
+/// The dispatch is admitted against `deadline` before the journal write, and
+/// the journal's own durable commit is admitted with it
+/// (`DURABLE_COMMIT_RESERVE`): a refused dispatch still leaves no row and
+/// nothing to settle, and an admitted one has room for the commit as well as
+/// the round trip it precedes, so the mutation ends before the deadline
+/// unless the store outruns the reserve -- which is out of model exactly as
+/// an authority clock outrunning `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` is.
+/// The snapshot that resynchronises after an `AuthorityVersionMismatch`
+/// journals nothing and is admitted on its round trip alone, with the refused
+/// row already settled.
 fn lease_exchange<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
@@ -409,7 +429,7 @@ fn lease_exchange<A: InstanceAuthorityPort>(
     intent: AuthorityIntentV2,
     deadline: OperationDeadline,
 ) -> Result<LeaseExchange, AgentError> {
-    deadline.admit(authority.round_trip_bound())?;
+    deadline.admit(DURABLE_COMMIT_RESERVE.saturating_add(authority.round_trip_bound()))?;
     journal_lease_intent(repository, lease, intent.operation_id())?;
     let outcome = match call {
         LeaseCall::Acquire => authority.acquire(intent),
@@ -710,13 +730,17 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
     // What the journal pass must leave the acquire: the pre-acquire snapshot
     // below, the acquire dispatch `lease_exchange` admits, and the snapshot
     // that follows a rejected or resynchronised attempt -- three authority
-    // round trips.
+    // round trips -- plus the acquire's own journal commit, which
+    // `lease_exchange` admits together with that dispatch.
     reconcile_lease_journal(
         repository,
         authority,
         &mut lease,
         deadline,
-        authority.round_trip_bound().saturating_mul(3),
+        authority
+            .round_trip_bound()
+            .saturating_mul(3)
+            .saturating_add(DURABLE_COMMIT_RESERVE),
     )?;
     deadline.admit(authority.round_trip_bound())?;
     let snapshot = authority_snapshot(authority)?;
@@ -934,7 +958,8 @@ fn lease_wait_pause<A: InstanceAuthorityPort>(authority: &A) -> Duration {
 ///
 /// Admission comes first, right after the phase guard: the operation's
 /// `plan` -- its least authority and witness round trips at the ports' own
-/// bounds -- is reserved out of the operation's deadline, and an operation
+/// bounds, and the durable commits those dispatches must pay for first --
+/// is reserved out of the operation's deadline, and an operation
 /// that cannot fit is refused with [`AgentError::OperationDeadlineExceeded`]
 /// before the resolution, the drains, any journal write or any dispatch.
 /// Every round trip after that is admitted on its own, and the drains admit
@@ -1081,7 +1106,8 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
         .map_err(|_| AgentError::InstanceLeaseUnavailable)?;
     let deadline = inner.deadline;
     // What the drain after a successful re-acquire must leave over: the
-    // coverage snapshot that follows it.
+    // coverage snapshot that follows it. One bare round trip -- that snapshot
+    // journals nothing, so it carries no commit reserve.
     let reserve = inner.authority.round_trip_bound();
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let intent = lease_intent(
@@ -1500,8 +1526,9 @@ pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
 /// authority actually holds for this instance, and that is the one to release.
 ///
 /// Every round trip is admitted against `deadline` first, the drains and the
-/// resolution with one authority round trip -- the release dispatch -- kept in
-/// reserve. That dispatch and the snapshot that stands in for a release whose
+/// resolution with the release dispatch -- one authority round trip and the
+/// durable journal commit it is admitted with -- kept in reserve. That
+/// dispatch and the snapshot that stands in for a release whose
 /// outcome was lost are this call's own: a refusal of either leaves the phase
 /// `Releasing` with the fence kept, exactly as an unreachable authority does,
 /// and is reported as [`AgentError::OperationDeadlineExceeded`] -- never `Ok`
@@ -1524,9 +1551,14 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
     lease.phase = LeasePhase::Releasing;
     lease.covered_until = None;
     let reserve = authority.round_trip_bound();
-    drain_acknowledgements(authority, lease, deadline, reserve);
-    drain_unresolved(authority, lease, deadline, reserve);
-    match resolve_pending_acquire_state(authority, lease, deadline, reserve) {
+    // What the drains and the resolution must leave the release: its own
+    // journal commit as well as its round trip, because `lease_exchange`
+    // admits the two together. The snapshot that stands in for a lost release
+    // journals nothing and keeps the bare bound.
+    let dispatch_reserve = reserve.saturating_add(DURABLE_COMMIT_RESERVE);
+    drain_acknowledgements(authority, lease, deadline, dispatch_reserve);
+    drain_unresolved(authority, lease, deadline, dispatch_reserve);
+    match resolve_pending_acquire_state(authority, lease, deadline, dispatch_reserve) {
         Ok(None | Some(PendingAcquireOutcome::Adopted | PendingAcquireOutcome::NotExecuted)) => {}
         Ok(Some(PendingAcquireOutcome::Superseded)) => {
             retire(lease);

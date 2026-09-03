@@ -216,13 +216,13 @@ weaker socket.
    the host's `system.conf`, which a distribution or a hardening baseline may
    have lowered below the worst case below. That worst case: a stop that lands
    during a request is observed once that request has been answered or refused
-   -- every request runs under one end-to-end deadline of 35 seconds -- the
+   -- every request runs under one end-to-end deadline of 36 seconds -- the
    erase that follows costs one durable two-phase commit per pending session,
    up to 1024 of them, which nothing may skip and no deadline bounds, budgeted
    at 20 seconds, and only then does the release run, under a 30-second budget
    of its own, up to six bounded authority round trips of at most 5
    seconds each against an authority that accepts the connection and never
-   answers, each admitted only while it can still end within the budget: 86
+   answers, each admitted only while it can still end within the budget: 87
    seconds worst case. A `SIGKILL` past either limit
    costs only a `redb` recovery at the next open, and the lease lapses at its
    TTL as after a crash. The daemon writes only a one-line reason to stderr

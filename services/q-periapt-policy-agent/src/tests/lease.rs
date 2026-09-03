@@ -1849,13 +1849,14 @@ fn a_release_whose_budget_excludes_the_resolution_releases_the_expected_fence() 
     pair.initiator_authority.refuse_queries(false);
     let queries = pair.initiator_authority.query_call_count();
 
-    // The arithmetic, not a timing guess: the release keeps one round-trip
-    // bound (30 s) in reserve, so the resolution is admitted only with 60 s
-    // left -- its own bound plus that reserve -- while the release itself
-    // needs 30. A 45-second budget therefore refuses the one and admits the
-    // other, with about fifteen seconds of slack on each comparison, and both
-    // fake ports answer in process without blocking. Never narrow this margin
-    // to make the test quicker: nothing here waits for it.
+    // The arithmetic, not a timing guess: the release keeps its own dispatch
+    // in reserve -- one round-trip bound (30 s) and the journal commit it is
+    // admitted with (1 s) -- so the resolution is admitted only with 61 s
+    // left, while the release itself needs 31. A 45-second budget therefore
+    // refuses the one and admits the other, with about fourteen seconds of
+    // slack on each comparison, and both fake ports answer in process without
+    // blocking. Never narrow this margin to make the test quicker: nothing
+    // here waits for it.
     pair.initiator_authority
         .set_round_trip_bound(Duration::from_secs(30));
     let deadline = Instant::now()
@@ -2114,9 +2115,13 @@ fn the_stops_erase_is_not_charged_to_the_release_budget() -> TestResult {
         pair.responder_public_keys.clone(),
     ))?)?;
     assert_eq!(pair.initiator.pending_session_count(), 1);
-    // One session whose cancellation alone takes four times the whole budget.
+    // One session whose cancellation alone outlasts the whole budget. The
+    // budget itself has to exceed what the release really needs -- one
+    // authority round trip and the DURABLE_COMMIT_RESERVE its journal write
+    // is admitted with, 1.02 seconds here -- because the pre-erase gate is
+    // what a budget too short to release is refused by.
     pair.initiator
-        .delay_each_session_cancel_for_test(Duration::from_millis(400))?;
+        .delay_each_session_cancel_for_test(Duration::from_millis(1_600))?;
     pair.initiator_authority
         .set_round_trip_bound(Duration::from_millis(20));
     let lease_calls = pair.initiator_authority.lease_call_count();
@@ -2124,12 +2129,12 @@ fn the_stops_erase_is_not_charged_to_the_release_budget() -> TestResult {
     let started = Instant::now();
     assert_eq!(
         pair.initiator
-            .release_instance_lease_within(Duration::from_millis(100))?,
+            .release_instance_lease_within(Duration::from_millis(1_500))?,
         LeaseReleaseOutcome::Released
     );
     let elapsed = started.elapsed();
     assert!(
-        elapsed >= Duration::from_millis(400),
+        elapsed >= Duration::from_millis(1_600),
         "the erase did not run at all: {elapsed:?}"
     );
     // The release was dispatched and settled even so, and the secret is gone.
@@ -2157,12 +2162,14 @@ fn drains_yield_to_the_operation_budget_and_keep_their_obligations() -> TestResu
     assert!(receipts >= 3);
     let lease_calls = authority.lease_call_count();
 
-    // Begin's least plan at a one-second authority bound is three seconds;
-    // give it that and a sliver, so the plan fits but no acknowledgement
-    // fits on top of it.
+    // Begin's least plan at a one-second authority bound is four seconds --
+    // three round trips plus the renew's own journal commit, reserved at
+    // DURABLE_COMMIT_RESERVE -- so give it that and a sliver: the plan fits
+    // but no acknowledgement, which needs a round trip on top of the whole
+    // reserve, fits with it.
     authority.set_round_trip_bound(Duration::from_secs(1));
     let deadline = Instant::now()
-        .checked_add(Duration::from_millis(3_200))
+        .checked_add(Duration::from_millis(4_200))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     initiator_encapsulation(pair.initiator.begin_encapsulation_until(
         BeginEncapsulation::new(
@@ -2792,16 +2799,17 @@ fn a_drain_refused_by_the_budget_keeps_every_unresolved_row() -> TestResult {
 
     // The authority answers again, so only the budget can stop the drain.
     // Reconcile's least plan at a one-second authority bound -- its witness
-    // bound is zero -- is two authority round trips: two seconds. The drain
-    // admits two round trips *on top of* that reserve, four seconds, so a
-    // 2.5-second deadline lets the operation in and refuses every row, with
+    // bound is zero -- is two authority round trips plus the renew's own
+    // journal commit (`DURABLE_COMMIT_RESERVE`): three seconds. The drain
+    // admits a round trip *on top of* that reserve, four seconds, so a
+    // 3.5-second deadline lets the operation in and refuses every row, with
     // half a second of slack for the setup between `now()` and the plan's own
     // admission.
     initiator_authority.refuse_queries(false);
     initiator_authority.set_round_trip_bound(Duration::from_secs(1));
     let queries = initiator_authority.query_call_count();
     let deadline = Instant::now()
-        .checked_add(Duration::from_millis(2_500))
+        .checked_add(Duration::from_millis(3_500))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert!(restarted.reconcile_transition_until(deadline).is_err());
     // Refused before it asked anything, and nothing forgotten.
@@ -2824,17 +2832,18 @@ fn a_pending_reacquire_refused_by_the_budget_is_kept_and_dispatches_nothing() ->
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 166)?;
     let (_before, _after) = lose_the_reacquire_response(&pair)?;
-    // The resolution admits one authority round trip on top of the plan's
-    // two-second reserve -- three seconds -- so a 2.5-second deadline admits
-    // the operation and refuses the resolution, with half a second of slack
-    // for the setup between `now()` and the plan's own admission (a path of
-    // a few microseconds).
+    // The plan's reserve at a one-second authority bound is two round trips
+    // plus the renew's own journal commit -- three seconds -- and the
+    // resolution admits one more round trip on top of it, four. A 3.5-second
+    // deadline therefore admits the operation and refuses the resolution,
+    // with half a second of slack on each comparison for the setup between
+    // `now()` and the plan's own admission (a path of a few microseconds).
     pair.initiator_authority
-        .set_round_trip_bound(Duration::from_secs(30));
+        .set_round_trip_bound(Duration::from_secs(1));
     let queries = pair.initiator_authority.query_call_count();
     let calls = pair.initiator_authority.lease_call_count();
     let deadline = Instant::now()
-        .checked_add(Duration::from_millis(2_500))
+        .checked_add(Duration::from_millis(3_500))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.reconcile_transition_until(deadline),

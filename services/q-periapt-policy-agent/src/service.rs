@@ -28,7 +28,7 @@ use crate::authority_transport::InstanceAuthorityPort;
 use crate::crypto::{
     Abi2Engine, Abi2EngineError, EncapsulationCiphertexts, EncapsulationPublicKeys,
 };
-use crate::repository::{RepositoryError, StateRepository};
+use crate::repository::{RepositoryError, StateRepository, DURABLE_COMMIT_RESERVE};
 use crate::types::{SessionId, StateHead};
 use crate::witness::{
     WitnessDisposition, WitnessError, WitnessOutcome, WitnessPort, WitnessReceipt,
@@ -84,7 +84,11 @@ const LINEARIZER_POLL_PAUSE: Duration = Duration::from_millis(1);
 /// round trip, and the retention gate before a secret becomes reachable. A
 /// call starts only if the port's own bound on that call ends before the
 /// deadline, so an admitted call always finishes in time and a refusal costs
-/// nothing. The refusal is [`AgentError::OperationDeadlineExceeded`].
+/// nothing. Where a durable commit stands between the admission and the call
+/// -- the lease-intent journal before a lease mutation -- that commit is
+/// admitted with the call at `DURABLE_COMMIT_RESERVE`, so the guarantee holds
+/// under that stated commit-latency model and not otherwise. The refusal is
+/// [`AgentError::OperationDeadlineExceeded`].
 ///
 /// `std::sync::Mutex` has no timed acquisition, so the lock is polled rather
 /// than blocked on; the door is `admit(Duration::ZERO)` and the wait ends at
@@ -564,7 +568,9 @@ pub enum AgentError {
     /// The caller's end-to-end deadline could not be met. Either the operation
     /// was refused before its first blocking exchange, because what remained
     /// of the deadline could not cover the least authority and witness round
-    /// trips it needs -- nothing was dispatched, journaled, erased or fenced
+    /// trips it needs, and the durable commit each of those dispatches must
+    /// pay for first (`DURABLE_COMMIT_RESERVE`) -- nothing was dispatched,
+    /// journaled, erased or fenced
     /// -- or the deadline ran out during the operation, in which case every
     /// secret it produced was erased, its reservation released, and nothing
     /// retained or returned. A transition the witness had already applied is
@@ -1933,8 +1939,15 @@ fn release_under_lock<W: WitnessPort, A: InstanceAuthorityPort>(
         });
     }
     // Admitted before the erase, so a deadline too short to release the lease
-    // leaves every secret where it is and the lease serving.
-    inner.deadline.admit(inner.authority.round_trip_bound())?;
+    // leaves every secret where it is and the lease serving. What the release
+    // really needs is its round trip and the journal commit `lease_exchange`
+    // admits with it, so the gate covers both.
+    inner.deadline.admit(
+        inner
+            .authority
+            .round_trip_bound()
+            .saturating_add(DURABLE_COMMIT_RESERVE),
+    )?;
     // Erase first, and report a failure only once the release has been
     // settled: `erase_pending` drops each secret before it touches the
     // repository, so a failed durable cancellation still erases, and a

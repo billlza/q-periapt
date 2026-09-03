@@ -59,25 +59,27 @@ const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// The one end-to-end deadline every connection gets, from accept to the last
 /// response byte: the client-paced read (`IPC_IO_TIMEOUT`), the least plan of
 /// the largest guarded command -- Begin and Accept need three authority round
-/// trips and one witness read, Reconcile two authority round trips and two
-/// witness calls, twenty seconds either way at the transport bounds above --
-/// the client-paced write (`IPC_IO_TIMEOUT`), and five seconds of slack for
-/// one extra authority round trip -- a reconciling query that finds the
-/// receipt. A renew retry is two: the resync snapshot after an
-/// `AuthorityVersionMismatch` and the re-dispatched renew, and against ports
-/// at their bounds its second extra round trip is refused with status 24. The
-/// agent admits each round trip against it and refuses, with status 24, a
-/// guarded operation whose least plan no longer fits. Waiting for the agent's
-/// one linearizer is inside this deadline, not on top of it: a request that
-/// spends it on a busy agent is refused with status 24 at the lock, or at the
-/// least-plan reserve that follows, and is never served late.
-const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
+/// trips, one witness read and the renew's own durable journal commit,
+/// Reconcile two authority round trips, two witness calls and that same
+/// commit, twenty-one seconds either way at the transport bounds above and
+/// `DURABLE_COMMIT_RESERVE` -- the client-paced write (`IPC_IO_TIMEOUT`), and
+/// five seconds of slack for one extra authority round trip -- a reconciling
+/// query that finds the receipt. A renew retry is two: the resync snapshot
+/// after an `AuthorityVersionMismatch` and the re-dispatched renew, and
+/// against ports at their bounds its second extra round trip is refused with
+/// status 24. The agent admits each round trip against it and refuses, with
+/// status 24, a guarded operation whose least plan no longer fits. Waiting
+/// for the agent's one linearizer is inside this deadline, not on top of it:
+/// a request that spends it on a busy agent is refused with status 24 at the
+/// lock, or at the least-plan reserve that follows, and is never served late.
+const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(36);
 /// How long the lease release at stop may take. Against an authority that
 /// accepts the connection and never answers it is up to six bounded round
 /// trips -- the two drains, each stopping at its first unanswered call, the
 /// release, two reconciling queries and the snapshot proof -- each admitted
 /// only while it can end strictly within what is left of this budget. So
-/// the budget must exceed five full bounds for the release and its queries
+/// the budget must exceed five full bounds, and the durable journal commit
+/// the release dispatch is admitted with, for the release and its queries
 /// to be reached behind two unanswered drains, and a round trip that no
 /// longer fits is refused rather than started: the stop is bounded by this
 /// budget whatever the authority does.
@@ -1303,6 +1305,7 @@ mod tests {
 
     use super::*;
     use crate::codec::read_frame;
+    use crate::repository::DURABLE_COMMIT_RESERVE;
     use crate::witness::WitnessPort;
 
     fn deploy_file(name: &str) -> String {
@@ -1366,7 +1369,7 @@ mod tests {
     /// hard maximum is a little under 10 seconds; 20 leaves roughly twice that
     /// for a slower store. The arithmetic the shipped templates must satisfy is
     /// `MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_ERASE_BOUND +
-    /// LEASE_RELEASE_BUDGET` = 86 seconds, which
+    /// LEASE_RELEASE_BUDGET` = 87 seconds, which
     /// `the_deployment_templates_agree_with_this_code` holds them to.
     const LEASE_ERASE_BOUND: Duration = Duration::from_secs(20);
     /// The stop timeout both deployment templates declare: systemd
@@ -1779,7 +1782,7 @@ mod tests {
         // IPC_REQUEST_DEADLINE -- or within one maintenance interval when the
         // daemon is idle; the erase that follows costs one durable commit per
         // pending session (LEASE_ERASE_BOUND), and the release after it runs
-        // under LEASE_RELEASE_BUDGET. That is 1 + 35 + 20 + 30 = 86 seconds
+        // under LEASE_RELEASE_BUDGET. That is 1 + 36 + 20 + 30 = 87 seconds
         // worst case, past launchd's 20-second default and past the 60 the
         // plist used to give. systemd's 90 is DefaultTimeoutStopSec= in the
         // host's system.conf, which a host may have lowered, so the unit
@@ -2001,35 +2004,51 @@ mod tests {
         // command after a full read phase and before a full write phase, or
         // a healthy request against slow-but-answering ports would be refused
         // with status 24 as a matter of course.
+        // Every least plan carries the renew's own lease-intent journal
+        // commit: `lease_exchange` admits that commit together with the
+        // dispatch it precedes, so the deadline has to cover both.
         assert!(
             IPC_REQUEST_DEADLINE
-                >= IPC_IO_TIMEOUT + 3 * AUTHORITY_IO_TIMEOUT + WITNESS_IO_TIMEOUT + IPC_IO_TIMEOUT,
-            "the request deadline must cover Begin and Accept: 3 authority + 1 witness round trips"
+                >= IPC_IO_TIMEOUT
+                    + 3 * AUTHORITY_IO_TIMEOUT
+                    + WITNESS_IO_TIMEOUT
+                    + DURABLE_COMMIT_RESERVE
+                    + IPC_IO_TIMEOUT,
+            "the request deadline must cover Begin and Accept: 3 authority + 1 witness round \
+             trips and the renew's journal commit"
         );
         assert!(
             IPC_REQUEST_DEADLINE
                 >= IPC_IO_TIMEOUT
                     + 2 * AUTHORITY_IO_TIMEOUT
                     + 2 * WITNESS_IO_TIMEOUT
+                    + DURABLE_COMMIT_RESERVE
                     + IPC_IO_TIMEOUT,
-            "the request deadline must cover Reconcile: 2 authority + 2 witness round trips"
+            "the request deadline must cover Reconcile: 2 authority + 2 witness round trips and \
+             the renew's journal commit"
         );
         // The slack over the largest least plan is exactly one authority round
-        // trip: 35 - (5 read + 3*5 authority + 5 witness + 5 write) = 5. That
-        // covers one reconciling query, not a renew retry, which costs two --
-        // the resync snapshot in `lease_exchange` plus the re-dispatched
-        // renew.
+        // trip: 36 - (5 read + 3*5 authority + 5 witness + 1 journal commit +
+        // 5 write) = 5. That covers one reconciling query, not a renew retry,
+        // which costs two -- the resync snapshot in `lease_exchange` plus the
+        // re-dispatched renew.
         assert_eq!(
             IPC_REQUEST_DEADLINE
-                - (IPC_IO_TIMEOUT + 3 * AUTHORITY_IO_TIMEOUT + WITNESS_IO_TIMEOUT + IPC_IO_TIMEOUT),
+                - (IPC_IO_TIMEOUT
+                    + 3 * AUTHORITY_IO_TIMEOUT
+                    + WITNESS_IO_TIMEOUT
+                    + DURABLE_COMMIT_RESERVE
+                    + IPC_IO_TIMEOUT),
             AUTHORITY_IO_TIMEOUT,
             "the request deadline's slack is one authority round trip, not a renew retry's two"
         );
         // Admission is strict, so five round trips need strictly more than
-        // five timeouts.
+        // five timeouts, and the release dispatch among them is admitted with
+        // its journal commit.
         assert!(
-            LEASE_RELEASE_BUDGET > 5 * AUTHORITY_IO_TIMEOUT,
-            "the release budget must admit five bounded authority round trips"
+            LEASE_RELEASE_BUDGET > 5 * AUTHORITY_IO_TIMEOUT + DURABLE_COMMIT_RESERVE,
+            "the release budget must admit five bounded authority round trips and the release \
+             dispatch's journal commit"
         );
     }
 

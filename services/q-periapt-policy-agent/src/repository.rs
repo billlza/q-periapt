@@ -2,6 +2,7 @@
 
 use core::fmt;
 use std::path::Path;
+use std::time::Duration;
 
 use q_periapt_backends::{MlDsa65, ML_DSA_65_VK_LEN};
 use q_periapt_migration::{
@@ -34,6 +35,35 @@ const MAX_USED_CAPABILITIES: u64 = 4096;
 /// row here, so the journal always fills first and refuses before the queue
 /// could overflow.
 pub(crate) const MAX_JOURNALED_LEASE_INTENTS: u64 = 64;
+/// Wall time a deadline reserves for one `durable_write` commit --
+/// `Durability::Immediate` plus two-phase commit, two fsyncs -- where that
+/// commit stands between an admission and the port call it authorizes.
+///
+/// There are exactly two such places, and both write an intent that the call
+/// after them is the whole point of: the lease-intent journal before every
+/// lease mutation (`service::lease::lease_exchange`), and the prepared
+/// transition before a witness compare-and-swap
+/// (`PolicyAgent::apply_advance_until`). A port bound counted from the
+/// dispatch alone does not cover them: the commit runs first, so the call it
+/// precedes can end after the caller's deadline. Admitting the reserve
+/// together with the bound is what closes that.
+///
+/// One second. A durable session cancellation -- the same shape, a handful of
+/// small keys in one transaction -- measured about 9 ms on APFS/SSD with the
+/// pinned redb, so this is roughly a hundred times the measured cost: the
+/// headroom a contended store's fsync tail needs, while staying well inside
+/// the five-second port bounds every reserve is built from.
+///
+/// It is a modelled bound and not an enforced one. Nothing here can bound an
+/// fsync, redb exposes no write timeout, and a commit cannot be cancelled, so
+/// a store slower than this dispatches anyway and the operation ends late --
+/// exactly as an authority clock that gains more than
+/// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` within one round trip is out of
+/// model. Durable work with no port call behind it is charged to no deadline
+/// at all rather than to this: the stop's erase is up to 1024 such commits,
+/// none of them skippable, and the service manager's stop timeout is what
+/// carries it.
+pub(crate) const DURABLE_COMMIT_RESERVE: Duration = Duration::from_secs(1);
 
 const META_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("agent_meta_v1");
 const HISTORY_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("agent_state_history_v1");
