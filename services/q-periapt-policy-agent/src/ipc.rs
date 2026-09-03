@@ -81,43 +81,15 @@ const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
 const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
 /// Wall time the stop's erase may take, on top of `LEASE_RELEASE_BUDGET`.
 ///
-/// The release erases every in-process secret before it dispatches anything,
-/// and each pending session costs one durable `cancel_session`: a
-/// `Durability::Immediate` two-phase commit, two fsyncs. Nothing may be
-/// skipped -- every secret must go -- so the erase is bounded by the store's
-/// commit latency and not by any deadline this code holds, which is why
-/// `release_instance_lease_within` gives the release its budget afresh
-/// afterwards rather than charging the erase to it.
-///
-/// This is the term the service managers' stop timeouts have to carry for it.
-/// At most `HARD_MAX_SESSIONS` (1024) sessions are pending, and a durable
-/// cancellation measured about 9 ms on APFS/SSD with the pinned redb, so the
-/// hard maximum is a little under 10 seconds; 20 leaves roughly twice that
-/// for a slower store. The arithmetic the shipped templates must satisfy is
-/// `MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_ERASE_BOUND +
-/// LEASE_RELEASE_BUDGET` = 86 seconds, which
-/// `the_deployment_templates_agree_with_this_code` holds them to.
-const LEASE_ERASE_BOUND: Duration = Duration::from_secs(20);
-/// The stop timeout both deployment templates declare: systemd
-/// `TimeoutStopSec=` and launchd `ExitTimeOut`. Neither manager's default can
-/// be relied on -- launchd's is 20 seconds, and systemd's 90 is
-/// `DefaultTimeoutStopSec=` in the host's `system.conf`, which a distribution
-/// or a hardening baseline may have lowered -- so both templates write it out
-/// and `the_deployment_templates_agree_with_this_code` holds them to this
-/// value.
-const SERVICE_MANAGER_STOP_TIMEOUT: Duration = Duration::from_secs(90);
-// A stop is observed within one maintenance interval when the daemon is idle,
-// or once the request in flight has been answered or refused; the erase that
-// follows is charged to no deadline at all; and the release then runs under
-// its own budget. A stop timeout that does not exceed the sum has the daemon
-// killed mid-release, leaving the lease to lapse at its TTL.
-const _: () = assert!(
-    SERVICE_MANAGER_STOP_TIMEOUT.as_secs()
-        > MAINTENANCE_INTERVAL.as_secs()
-            + IPC_REQUEST_DEADLINE.as_secs()
-            + LEASE_ERASE_BOUND.as_secs()
-            + LEASE_RELEASE_BUDGET.as_secs()
-);
+// A stop has to fit inside the timeout the service managers give it:
+// observing the stop (one maintenance interval when idle, or the request in
+// flight finishing under `IPC_REQUEST_DEADLINE`), then the erase of every
+// pending session, then the release under `LEASE_RELEASE_BUDGET`. The erase
+// is deliberately bounded by nothing this code holds -- every secret must go
+// -- which is why `release_instance_lease_within` gives the release its
+// budget afresh afterwards. The two numbers the shipped templates declare for
+// that arithmetic, and the assertion that they cover it, sit beside their one
+// consumer, `the_deployment_templates_agree_with_this_code`.
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
@@ -1371,6 +1343,44 @@ mod tests {
             .filter_map(|line| line.strip_prefix("<string>")?.strip_suffix("</string>"))
             .collect()
     }
+
+    /// The release erases every in-process secret before it dispatches anything,
+    /// and each pending session costs one durable `cancel_session`: a
+    /// `Durability::Immediate` two-phase commit, two fsyncs. Nothing may be
+    /// skipped -- every secret must go -- so the erase is bounded by the store's
+    /// commit latency and not by any deadline this code holds, which is why
+    /// `release_instance_lease_within` gives the release its budget afresh
+    /// afterwards rather than charging the erase to it.
+    ///
+    /// This is the term the service managers' stop timeouts have to carry for it.
+    /// At most `HARD_MAX_SESSIONS` (1024) sessions are pending, and a durable
+    /// cancellation measured about 9 ms on APFS/SSD with the pinned redb, so the
+    /// hard maximum is a little under 10 seconds; 20 leaves roughly twice that
+    /// for a slower store. The arithmetic the shipped templates must satisfy is
+    /// `MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_ERASE_BOUND +
+    /// LEASE_RELEASE_BUDGET` = 86 seconds, which
+    /// `the_deployment_templates_agree_with_this_code` holds them to.
+    const LEASE_ERASE_BOUND: Duration = Duration::from_secs(20);
+    /// The stop timeout both deployment templates declare: systemd
+    /// `TimeoutStopSec=` and launchd `ExitTimeOut`. Neither manager's default can
+    /// be relied on -- launchd's is 20 seconds, and systemd's 90 is
+    /// `DefaultTimeoutStopSec=` in the host's `system.conf`, which a distribution
+    /// or a hardening baseline may have lowered -- so both templates write it out
+    /// and `the_deployment_templates_agree_with_this_code` holds them to this
+    /// value.
+    const SERVICE_MANAGER_STOP_TIMEOUT: Duration = Duration::from_secs(90);
+    // A stop is observed within one maintenance interval when the daemon is idle,
+    // or once the request in flight has been answered or refused; the erase that
+    // follows is charged to no deadline at all; and the release then runs under
+    // its own budget. A stop timeout that does not exceed the sum has the daemon
+    // killed mid-release, leaving the lease to lapse at its TTL.
+    const _: () = assert!(
+        SERVICE_MANAGER_STOP_TIMEOUT.as_secs()
+            > MAINTENANCE_INTERVAL.as_secs()
+                + IPC_REQUEST_DEADLINE.as_secs()
+                + LEASE_ERASE_BOUND.as_secs()
+                + LEASE_RELEASE_BUDGET.as_secs()
+    );
 
     /// The shipped templates encode contracts this code enforces, and nothing
     /// else checked them. Two defects reached this branch that way: endpoints
