@@ -177,16 +177,22 @@ session that Begin created remains live in the same process, the agent returns
 the same handle, ciphertexts and initiator Finished. Different public input or a
 different Begin command under the same capability fails with
 `AuthorizationRejected` and erases nothing. Cancel, expiry, acceptance, Finished
-rejection, a committed transition, fencing and restart end that window, after
-which the durable capability tombstone answers with `AuthorizationRejected`. If a
-successful acceptance response is lost while being written, the client may send
-the exact same handle and Finished under a newly signed nonce; while the same
-process and retained key remain live, the bounded completed-acceptance cache
-returns the same key handle and, for the responder, the same R. Different
-Finished bytes fail as a conflicting replay. Destroy, committed transition, or
-process restart clears that cache. Neither `AcceptedSessionKeyV1` nor R is
-persisted or recovered after a crash; the durable capability-session tombstone
-remains, so recovery requires a new authenticated session rather than reuse.
+rejection, a lease lapse recovered by re-acquire, restart, a committed
+transition and fencing end that window. After the first six the durable
+capability tombstone answers with `AuthorizationRejected`. After a committed
+transition the tombstone table is already cleared, and the old offers fail the
+current-state checks instead -- the same `AuthorizationRejected`. After fencing
+the instance is retired and every operation, this retry included, is refused
+with `InstanceFenced` at the lease phase guard, before the retry index or the
+tombstone is consulted. If a successful acceptance response is lost while being
+written, the client may send the exact same handle and Finished under a newly
+signed nonce; while the same process and retained key remain live, the bounded
+completed-acceptance cache returns the same key handle and, for the responder,
+the same R. Different Finished bytes fail as a conflicting replay. Destroy,
+committed transition, or process restart clears that cache. Neither
+`AcceptedSessionKeyV1` nor R is persisted or recovered after a crash; the
+durable capability-session tombstone remains, so recovery requires a new
+authenticated session rather than reuse.
 
 The executable accepts exactly one of these command shapes:
 
@@ -269,16 +275,22 @@ same way, and when the authority can answer neither it releases that expected
 fence.
 Settled rows are forgotten by the next journal write, so the steady-state cost
 is one durable transaction per lease operation, and a clean release leaves the
-journal empty. The journal holds at most 64 rows, matching the in-memory
-acknowledgement queue; reaching that takes the authority refusing 64
-consecutive acknowledgements, 64 consecutive lease operations that failed or
-stayed indeterminate at dispatch against an authority that could not then be
-queried, or as many starts against an authority that cannot answer. A full
-journal refuses the next lease operation with
-`InstanceLeaseUnavailable` before anything is dispatched, and a start that
-cannot settle any of 64 rows fails closed the same way, until the authority
-answers again. A store provisioned before the journal existed opens without
-the table; the first journal write creates it.
+journal empty unless a row could not be settled -- notably a re-acquire the
+release adopted from a snapshot because the authority was still refusing
+queries, whose row and receipt wait for the next start. The journal holds at
+most 64 rows, matching the in-memory acknowledgement queue; reaching that takes
+the authority refusing 64 consecutive acknowledgements, 64 consecutive lease
+operations that failed or stayed indeterminate at dispatch against an authority
+that could not then be queried, or as many starts whose acquire was journaled
+and dispatched but left unsettled -- half as many when such a start's own
+release goes unanswered too and journals a second row. A start against an
+authority that cannot answer at all adds nothing: it is refused at the
+pre-acquire snapshot, before any dispatch and before any journal write. A full
+journal refuses the next lease operation with `InstanceLeaseUnavailable` before
+anything is dispatched, and a start that cannot settle any of 64 rows fails
+closed the same way, until the authority answers again. A store provisioned
+before the journal existed opens without the table; the first journal write
+creates it.
 
 Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
 from the service manager, or `SIGINT` by hand -- is observed by the serving

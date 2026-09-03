@@ -966,6 +966,122 @@ fn a_start_that_cannot_settle_a_full_lease_journal_fails_closed() -> TestResult 
 }
 
 #[test]
+fn a_start_against_an_unanswering_authority_journals_nothing() -> TestResult {
+    // The journal fills from lease operations that were *dispatched*: the
+    // first row is written inside `lease_exchange`, and `acquire_instance_lease`
+    // reaches it only after the pre-acquire snapshot. A start against an
+    // authority that cannot answer at all is refused at that snapshot, before
+    // any dispatch and before any journal write, so repeating such a start
+    // never fills the 64 rows -- which is what the README's arithmetic now
+    // says.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 172)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(responder);
+    initiator.release_instance_lease()?;
+    drop(initiator);
+    initiator_authority.refuse_snapshots(true);
+    initiator_authority.refuse_queries(true);
+    let calls = initiator_authority.lease_call_count();
+    for _ in 0..3 {
+        let repository =
+            StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+        assert_eq!(
+            PolicyAgent::new(
+                repository,
+                witness.clone(),
+                initiator_authority.clone(),
+                initiator_config.clone(),
+            )
+            .err(),
+            Some(AgentError::InstanceLeaseUnavailable)
+        );
+        let repository =
+            StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+        assert!(
+            repository.journaled_lease_intents()?.is_empty(),
+            "a start refused at its pre-acquire snapshot must journal nothing"
+        );
+        assert_eq!(initiator_authority.lease_call_count(), calls);
+    }
+    Ok(())
+}
+
+#[test]
+fn each_start_whose_acquire_stays_unsettled_journals_its_row() -> TestResult {
+    // What a start does add to the journal, against an authority that answers
+    // snapshots but no query: its acquire's row. The compensating release that
+    // follows is answered, so `forget_settled` drops that row and one start
+    // costs exactly one. A start whose own release goes unanswered too costs
+    // two, which is the "half as many" in the README's row arithmetic.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 173)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(responder);
+    initiator.release_instance_lease()?;
+    drop(initiator);
+    initiator_authority.refuse_queries(true);
+    for expected_rows in 1..=2 {
+        // Journaled, then refused by the transport before it was sent: the row
+        // stays, because only a query could prove the acquire never ran.
+        initiator_authority.fail_next_lease_call_before_send(LeaseCallFilter::Acquire);
+        let repository =
+            StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+        assert_eq!(
+            PolicyAgent::new(
+                repository,
+                witness.clone(),
+                initiator_authority.clone(),
+                initiator_config.clone(),
+            )
+            .err(),
+            Some(AgentError::InstanceLeaseUnavailable)
+        );
+        let repository =
+            StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+        assert_eq!(repository.journaled_lease_intents()?.len(), expected_rows);
+    }
+
+    // Both dispatches lost on the wire this time: the acquire's row and the
+    // compensating release's both stay, so this one start costs two.
+    initiator_authority.lose_lease_calls_before_apply(LeaseCallFilter::Any, 2);
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    assert_eq!(
+        PolicyAgent::new(
+            repository,
+            witness.clone(),
+            initiator_authority.clone(),
+            initiator_config.clone(),
+        )
+        .err(),
+        Some(AgentError::InstanceLeaseIndeterminate)
+    );
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    assert_eq!(repository.journaled_lease_intents()?.len(), 4);
+    Ok(())
+}
+
+#[test]
 fn rows_the_authority_could_not_answer_for_at_start_are_settled_by_a_later_operation() -> TestResult
 {
     // Rows kept unresolved at start are not left for the *next* start: each
@@ -1667,6 +1783,15 @@ fn release_after_a_lost_reacquire_releases_the_new_lease() -> TestResult {
     lose_the_reacquire_response(&pair)?;
     pair.initiator.release_instance_lease()?;
     assert_eq!(pair.initiator_authority.active_lease()?, None);
+    // The release itself was confirmed `Applied`, yet this clean shutdown
+    // leaves the journal non-empty: the adoption proves the fence, not the
+    // receipt, so the re-acquire's row -- skipped by `drain_unresolved`,
+    // because it is the pending record's -- and the receipt it owes both
+    // survive a release that could not ask a question the authority was still
+    // refusing. Case (a)'s empty journal above is the contrast; the next start
+    // on this store settles both, once a query can be answered.
+    assert_eq!(pair.initiator.journaled_lease_intents_for_test()?.len(), 1);
+    assert_eq!(pair.initiator_authority.receipt_count()?, 1);
     let successor_repository =
         StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
     let successor = PolicyAgent::new(
@@ -1704,6 +1829,50 @@ fn release_after_a_lost_reacquire_releases_the_new_lease() -> TestResult {
         pair.initiator_config.clone(),
     )?;
     successor.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn a_release_whose_budget_excludes_the_resolution_releases_the_expected_fence() -> TestResult {
+    // The resolution is best-effort against the release's own budget, and a
+    // budget with room for the release but not for the resolution on top of
+    // it takes the same path as an authority that can answer neither: the
+    // pending record is dropped and the fence the re-acquire would have
+    // produced is the one released. The docs on `release_lease_state` and
+    // `PolicyAgent::release_instance_lease` name both triggers.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 168)?;
+    lose_the_reacquire_response(&pair)?;
+    // The authority demonstrably *can* answer now: only the budget refuses
+    // the resolution, and the unchanged query count below proves it was never
+    // dispatched.
+    pair.initiator_authority.refuse_queries(false);
+    let queries = pair.initiator_authority.query_call_count();
+
+    // The arithmetic, not a timing guess: the release keeps one round-trip
+    // bound (30 s) in reserve, so the resolution is admitted only with 60 s
+    // left -- its own bound plus that reserve -- while the release itself
+    // needs 30. A 45-second budget therefore refuses the one and admits the
+    // other, with about fifteen seconds of slack on each comparison, and both
+    // fake ports answer in process without blocking. Never narrow this margin
+    // to make the test quicker: nothing here waits for it.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(30));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(45))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.release_instance_lease_until(deadline)?,
+        LeaseReleaseOutcome::Released
+    );
+    assert_eq!(
+        pair.initiator_authority.query_call_count(),
+        queries,
+        "the resolution must not have been dispatched"
+    );
+    // The expected fence was the one released: the authority holds the lease
+    // that re-acquire took, and only a release naming its fence retires it.
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
     Ok(())
 }
 
@@ -2055,7 +2224,10 @@ fn a_coverage_lapse_on_a_begin_retry_returns_no_handle_and_erases_nothing() -> T
     assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
 
     // A fence is: the session went with every other secret, and the retry is
-    // refused before the index is consulted.
+    // refused before the index is consulted. This pins the fencing clause of
+    // the exact-retry contract on `begin_encapsulation` -- refused with
+    // `InstanceFenced` at the lease phase guard, never answered by the
+    // tombstone.
     pair.initiator.fence_out_for_test()?;
     assert_eq!(
         pair.initiator.begin_encapsulation(BeginEncapsulation::new(
@@ -2066,6 +2238,42 @@ fn a_coverage_lapse_on_a_begin_retry_returns_no_handle_and_erases_nothing() -> T
     );
     assert_eq!(pair.initiator.pending_session_count(), 0);
     assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    Ok(())
+}
+
+#[test]
+fn a_reacquire_after_a_lapse_ends_the_begin_retry_window() -> TestResult {
+    // The other clause of the exact-retry contract that is not the tombstone's
+    // doing: a lease lapse recovered by re-acquire. The re-acquire erases
+    // every in-process secret -- the acquire clears the authority's key table,
+    // so nothing may be carried across it -- and that takes the pending
+    // session and the retry index with it. The durable tombstone the Begin
+    // wrote is untouched by any of it, so the byte-identical retry is refused
+    // as the consumed authorization it is, rather than answered with the
+    // handle of a session that no longer exists.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 171)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // The retry's own renew is rejected as expired and recovers by
+    // re-acquiring at this instance's own generation: no successor exists, so
+    // this is a recovery, not a fence.
+    pair.initiator_authority.expire_active_lease();
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    assert!(pair.initiator.public_keys().is_ok());
     Ok(())
 }
 
@@ -2380,6 +2588,86 @@ fn a_constructor_acquire_whose_outcome_is_lost_releases_the_lease() -> TestResul
 }
 
 #[test]
+fn a_constructor_release_that_cannot_settle_leaves_the_lease_to_lapse() -> TestResult {
+    // The compensating release in the indeterminate arm is best-effort, and
+    // the `InstanceLeaseIndeterminate` doc says so rather than promising the
+    // fence was released. Here the acquire applies with its response lost and
+    // every query refused, the release is lost on the wire too, and the
+    // snapshot that would have stood in for it is unanswered: nothing
+    // settles, so the lease the acquire took stays at the authority until its
+    // TTL and the next start is fenced, exactly as after a crash.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 169)?;
+    pair.initiator.release_instance_lease()?;
+    let before = pair
+        .initiator_authority
+        .lock()
+        .authority
+        .persistent_meta()
+        .lease_generation;
+    pair.initiator_authority.lose_next_acquire_and_queries();
+    pair.initiator_authority
+        .lose_next_lease_call_before_apply(LeaseCallFilter::Release);
+    // One snapshot passes -- the pre-acquire one, without which nothing is
+    // dispatched -- and the next, the one the lost release asks for, does not.
+    pair.initiator_authority.lose_snapshot_after(1);
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    assert_eq!(
+        PolicyAgent::new(
+            repository,
+            pair.witness.clone(),
+            pair.initiator_authority.clone(),
+            pair.initiator_config.clone(),
+        )
+        .err(),
+        Some(AgentError::InstanceLeaseIndeterminate)
+    );
+
+    // The release really was dispatched, and left unsettled: the store holds
+    // its journal row beside the acquire's.
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    assert_eq!(repository.journaled_lease_intents()?.len(), 2);
+    drop(repository);
+
+    // The fence was not released: the authority still holds the lease the
+    // lost acquire took, one generation past the pre-acquire one.
+    let held = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the lost acquire's lease is gone"))?;
+    assert_eq!(held.fence().generation(), before + 1);
+
+    // So a restart before the TTL is refused, and only the lapse frees it.
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    assert_eq!(
+        PolicyAgent::new(
+            repository,
+            pair.witness.clone(),
+            pair.initiator_authority.clone(),
+            pair.initiator_config.clone(),
+        )
+        .err(),
+        Some(AgentError::InstanceFenced)
+    );
+    pair.initiator_authority
+        .advance_clock(MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1);
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let restarted = PolicyAgent::new_with_lease_wait(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+        Duration::ZERO,
+    )?;
+    restarted.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
 fn a_release_with_no_receipt_and_no_proof_is_indeterminate_and_keeps_the_fence() -> TestResult {
     // The release applies at the authority, its response is lost, the
     // reconciling queries are refused, and the snapshot that stands in for
@@ -2542,7 +2830,7 @@ fn a_pending_reacquire_refused_by_the_budget_is_kept_and_dispatches_nothing() ->
     // for the setup between `now()` and the plan's own admission (a path of
     // a few microseconds).
     pair.initiator_authority
-        .set_round_trip_bound(Duration::from_secs(1));
+        .set_round_trip_bound(Duration::from_secs(30));
     let queries = pair.initiator_authority.query_call_count();
     let calls = pair.initiator_authority.lease_call_count();
     let deadline = Instant::now()

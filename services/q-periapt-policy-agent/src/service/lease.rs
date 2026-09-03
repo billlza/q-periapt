@@ -154,8 +154,13 @@ fn retire(lease: &mut InstanceLeaseState) {
 /// exact acquire applied: the next generation under this process's own fresh
 /// instance id, which no other process can produce. `intent` is the exact
 /// intent dispatched, so the receipt found for it can be matched the way every
-/// other receipt is. Only `resolve_pending_acquire_state` clears the record
-/// with a verdict; `retire` drops it with the fence.
+/// other receipt is. The record outlives `recover_expired_lease` only when
+/// that call left the outcome unknown; from then on
+/// `resolve_pending_acquire_state` clears it with a verdict,
+/// `release_lease_state` consumes it without one -- promoting
+/// `expected_fence` to `lease.fence` when the resolution cannot complete,
+/// because every answer that release can then get settles this instance --
+/// and `retire` drops it with the fence.
 #[derive(Clone, Copy)]
 struct PendingAcquire {
     intent: AuthorityIntentV2,
@@ -1480,23 +1485,31 @@ pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
 /// exact query and snapshot the guarded operations use: adopted, its fence is
 /// the one released; never executed, the pre-acquire fence is; superseded,
 /// there is nothing of this instance's to release and it retires at once.
-/// When the authority can answer neither, the release is dispatched with the
-/// fence that re-acquire would have produced: the authority answers `Applied`
-/// if the acquire applied, and `LeaseAbsent`, `LeaseExpired` or
-/// `FenceMismatch` if it did not -- the pre-acquire lease had already lapsed
-/// when the re-acquire was dispatched -- and each of those retires this
-/// instance.
+/// When the resolution cannot complete -- the authority answers neither the
+/// query nor the snapshot, or the deadline has no room for it on top of the
+/// release held in reserve -- the record is dropped and the release is
+/// dispatched with the fence that re-acquire would have produced: the
+/// authority answers `Applied` if the acquire applied, and `LeaseAbsent`,
+/// `LeaseExpired` or `FenceMismatch` if it did not -- the pre-acquire lease
+/// had already lapsed when the re-acquire was dispatched -- and each of those
+/// retires this instance. The acquire's own row stays in `unresolved`, for a
+/// later drain or the next start to settle.
 ///
 /// The fence dispatched is re-read on every attempt: when the release's own
 /// outcome is lost, the snapshot that stands in for it reports the fence the
 /// authority actually holds for this instance, and that is the one to release.
 ///
 /// Every round trip is admitted against `deadline` first, the drains and the
-/// resolution with one authority round trip -- the release itself -- kept in
-/// reserve. A refusal once the release is under way leaves the phase
-/// `Releasing` with the fence kept, exactly as an unreachable authority
-/// does, and is reported as [`AgentError::OperationDeadlineExceeded`]: never
-/// `Ok` without a receipt or a proof.
+/// resolution with one authority round trip -- the release dispatch -- kept in
+/// reserve. That dispatch and the snapshot that stands in for a release whose
+/// outcome was lost are this call's own: a refusal of either leaves the phase
+/// `Releasing` with the fence kept, exactly as an unreachable authority does,
+/// and is reported as [`AgentError::OperationDeadlineExceeded`] -- never `Ok`
+/// without a receipt or a proof. The drains and the resolution before them are
+/// best-effort, and their refusals are not reported: a drain that does not fit
+/// leaves its rows owed, and a resolution that does not fit drops the pending
+/// record and pins the expected fence exactly as an authority that can answer
+/// neither does.
 ///
 /// Returns `Ok(())` at once when the lease is already retired.
 pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
@@ -1519,9 +1532,12 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             retire(lease);
             return Ok(());
         }
-        // Unresolvable: release the fence the re-acquire would have produced.
-        // Every answer that release can get retires this instance, so there is
-        // nothing left for a later call to resolve.
+        // Unresolved -- the authority could answer neither the query nor the
+        // snapshot, or the resolution did not fit the deadline with the
+        // release kept in reserve. Either way, release the fence the
+        // re-acquire would have produced: every answer that release can get
+        // retires this instance, so there is nothing left for a later call to
+        // resolve.
         Err(_) => {
             if let Some(pending) = lease.pending_acquire.take() {
                 lease.fence = Some(pending.expected_fence);

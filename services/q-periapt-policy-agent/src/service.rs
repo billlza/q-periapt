@@ -502,8 +502,13 @@ pub enum AgentError {
     /// operation dispatches anything; no renew is sent with the pre-acquire
     /// fence while that outcome is unknown. From
     /// [`PolicyAgent::release_instance_lease`] the fence is kept and the call
-    /// may be repeated; from construction, the fence the unconfirmed acquire
-    /// would have granted was released again before this was returned.
+    /// may be repeated; from construction, a release of the fence the
+    /// unconfirmed acquire would have granted was attempted, under its own
+    /// fresh budget, before this was returned. That release is best-effort:
+    /// if it could not be settled -- the authority still unreachable -- the
+    /// lease lapses only at its TTL, and a restart before then is refused
+    /// with [`Self::InstanceFenced`], exactly as after a crash. Use
+    /// [`PolicyAgent::new_with_lease_wait`] to wait that TTL out.
     InstanceLeaseIndeterminate,
     /// This instance could not prove lease coverage for the operation, and
     /// nothing was retained or returned. Either the authority's own snapshot,
@@ -992,9 +997,16 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// and reserves nothing, so a Begin whose response was lost is recovered
     /// rather than stranded. Different public input under the same capability
     /// fails with [`AgentError::AuthorizationRejected`] and erases nothing.
-    /// Cancel, expiry, acceptance, Finished rejection, a committed transition,
-    /// fencing and restart end that window; the durable capability tombstone
-    /// then answers with [`AgentError::AuthorizationRejected`].
+    /// Cancel, expiry, acceptance, Finished rejection, a lease lapse recovered
+    /// by re-acquire, restart, a committed transition and fencing end that
+    /// window. After the first six the durable capability tombstone answers
+    /// with [`AgentError::AuthorizationRejected`]. After a committed
+    /// transition the tombstone table is already cleared, and the old offers
+    /// fail the current-state checks instead -- the same
+    /// [`AgentError::AuthorizationRejected`]. After fencing the instance is
+    /// retired and every operation, this retry included, is refused with
+    /// [`AgentError::InstanceFenced`] at the lease phase guard, before the
+    /// retry index or the tombstone is consulted.
     pub fn begin_encapsulation(
         &self,
         request: BeginEncapsulation,
@@ -1129,10 +1141,16 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// -- returns the same handle and, for the initiator, the same Initiator
     /// Finished, and reserves nothing. Different ciphertexts under the same
     /// capability fail with [`AgentError::AuthorizationRejected`] and erase
-    /// nothing. Cancel, expiry, acceptance, Finished rejection, a committed
-    /// transition, fencing and restart end that window; the durable
-    /// capability tombstone then answers with
-    /// [`AgentError::AuthorizationRejected`].
+    /// nothing. Cancel, expiry, acceptance, Finished rejection, a lease lapse
+    /// recovered by re-acquire, restart, a committed transition and fencing
+    /// end that window. After the first six the durable capability tombstone
+    /// answers with [`AgentError::AuthorizationRejected`]. After a committed
+    /// transition the tombstone table is already cleared, and the old offers
+    /// fail the current-state checks instead -- the same
+    /// [`AgentError::AuthorizationRejected`]. After fencing the instance is
+    /// retired and every operation, this retry included, is refused with
+    /// [`AgentError::InstanceFenced`] at the lease phase guard, before the
+    /// retry index or the tombstone is consulted.
     pub fn begin_decapsulation(
         &self,
         request: BeginDecapsulation,
@@ -1463,15 +1481,21 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     ///
     /// A re-acquire whose outcome is still unknown is resolved first, by the
     /// same exact query and snapshot the guarded operations use; when the
-    /// authority can answer neither, the release is dispatched with the fence
-    /// that re-acquire would have produced, so whichever lease this instance
-    /// may hold is the one released.
+    /// resolution cannot complete -- the authority answers neither, or the
+    /// deadline has no room for it on top of the release it keeps in reserve
+    /// -- the release is dispatched with the fence that re-acquire would have
+    /// produced, so whichever lease this instance may hold is the one
+    /// released.
     ///
     /// This is the clean shutdown path, so it also forgets, durably, every
     /// journaled lease intent this process has settled -- the release's own
-    /// included. A clean shutdown therefore leaves the journal empty; only a
-    /// crash, or a release the authority never confirmed, leaves rows for the
-    /// next start to settle.
+    /// included. A clean shutdown therefore leaves the journal empty whenever
+    /// every row could be settled: a crash, a release the authority never
+    /// confirmed, and a re-acquire adopted from a snapshot while the authority
+    /// was still refusing queries each leave a row for the next start to
+    /// settle. That last one is the confirmed-release case -- the adoption
+    /// proves the fence but not the receipt, so the acquire's row and the
+    /// receipt it owes stay until a query can be answered.
     ///
     /// Runs under the default budget; [`Self::release_instance_lease_until`]
     /// takes the caller's deadline and [`Self::release_instance_lease_within`]
