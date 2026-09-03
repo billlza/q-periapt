@@ -1173,12 +1173,16 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 /// else is dispatched under this lease.
 ///
 /// The exact receipt query is the proof of record: `Found` says what the
-/// authority did with this very intent, and `AbsentAtVersion` is the only
-/// evidence ever accepted that it never executed. When the query cannot be
-/// answered a snapshot stands in, and a snapshot can prove only the positive
-/// cases. An active lease carrying exactly the expected fence -- the next
-/// generation under this process's fresh instance id, which nothing else can
-/// produce -- is this process's own and is adopted, as the constructor adopts
+/// authority did with this very intent. `AbsentAtVersion` proves only that the
+/// authority now holds no receipt for this id -- which a recovery copy sharing
+/// this journal produces by acknowledging away the receipt of an acquire that
+/// applied -- so it is resolved against a snapshot too, and only the authority
+/// still standing at the pre-acquire generation proves the acquire never ran.
+/// When the query cannot be answered a snapshot stands in, and a snapshot can
+/// prove only the positive cases. An active lease carrying exactly the expected
+/// fence -- the next generation under this process's fresh instance id, which
+/// nothing else can produce -- is this process's own and is adopted, as the
+/// constructor adopts
 /// a lease whose acquire response was lost. An active lease under any other
 /// fence, a generation past the expected one, or one behind the pre-acquire
 /// generation (an authority rolled back beneath a lease it granted) all mean
@@ -1190,9 +1194,12 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
 /// keeps it too, with [`AgentError::InstanceLeaseUnavailable`].
 ///
 /// `Ok(None)` means nothing was pending. Adoption through the receipt queues
-/// the acknowledgement it is owed and drains it here; adoption through a
-/// snapshot leaves the operation `unresolved`, so `drain_unresolved` finds and
-/// acknowledges its receipt once the authority answers queries again.
+/// the acknowledgement it is owed and drains it here. Adoption through a snapshot
+/// after a query the authority could not answer leaves the operation
+/// `unresolved`, so `drain_unresolved` finds and acknowledges its receipt once
+/// the authority answers queries again; adoption (or any outcome) after a query
+/// that answered `AbsentAtVersion` instead settles the operation, because a
+/// receipt proven absent owes no acknowledgement.
 ///
 /// The query and the snapshot are each admitted against `deadline` with
 /// `reserve` -- what the caller still needs afterwards -- left over; a
@@ -1225,14 +1232,64 @@ fn resolve_pending_acquire_state<A: InstanceAuthorityPort>(
                 AuthorityDispositionV2::Rejected(_) => PendingAcquireOutcome::Superseded,
             }))
         }
-        Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion {
-            authority_version,
-        })) => {
+        Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::AbsentAtVersion { .. })) => {
+            // The receipt is absent, which proves the authority owes no
+            // acknowledgement for this id -- but not, on its own, that the
+            // re-acquire never executed. A recovery copy sharing this journal
+            // settles it on startup: it queries this very operation, finds the
+            // receipt of an acquire that DID apply, acknowledges it away, and
+            // exits because this instance still holds the lease. After that, this
+            // exact query reports the receipt absent for an acquire that
+            // applied -- and reading that as "never executed" kept the
+            // pre-acquire fence, whose next renew the authority, now holding the
+            // next generation under this very instance, rejected as a fence
+            // mismatch, fencing this instance permanently with its own lease
+            // live and no successor anywhere. So absence is resolved the same way
+            // a lost response is: against a snapshot. A live lease under exactly
+            // the expected fence is this process's own re-acquire and is adopted;
+            // a live lease under any other fence is a successor. With no live
+            // lease the only safe read is the generation counter, and it proves
+            // only one thing: the authority still standing at the pre-acquire
+            // generation proves the acquire never advanced it and so never
+            // executed. A bare advance past that generation cannot be
+            // attributed -- this process's own re-acquire and a foreign acquire
+            // from the same generation both produce it -- so it fences. The
+            // snapshot is admitted before the record is touched, so a refusal
+            // leaves the pending acquire intact to retry.
+            deadline.admit(bound)?;
+            let snapshot = authority_snapshot(authority)?;
+            let previous_generation = expected.generation().saturating_sub(1);
+            let outcome = match snapshot.active_lease() {
+                Some(active) if active.fence() == expected => {
+                    lease.fence = Some(expected);
+                    PendingAcquireOutcome::Adopted
+                }
+                Some(_) => PendingAcquireOutcome::Superseded,
+                // Still at the pre-acquire generation: the acquire never bumped
+                // it, so it never executed. The receipt was never written, not
+                // acknowledged away, and this is the genuine never-executed case
+                // that must make progress under the pre-acquire fence.
+                None if snapshot.lease_generation() == previous_generation => {
+                    PendingAcquireOutcome::NotExecuted
+                }
+                // A generation past the pre-acquire one exists but no lease is
+                // live, so there is no fence to read an instance id from and the
+                // advance cannot be attributed to this process: our own
+                // re-acquire and a foreign acquire from the same generation both
+                // produce it, and receipt-absence cannot tell them apart. Only
+                // the live-lease arm above, which checks the full fence, can
+                // prove it was ours. So fence rather than adopt a generation
+                // another instance may have held (a rolled-back authority, a
+                // generation below the pre-acquire one, fences here too).
+                None => PendingAcquireOutcome::Superseded,
+            };
+            // The receipt is provably absent, so nothing is owed for this id
+            // whatever the outcome: settle its journal row and drop the record.
             lease.unresolved.retain(|id| *id != operation_id);
             settle(lease, operation_id);
-            lease.authority_version = authority_version;
+            lease.authority_version = snapshot.authority_version();
             lease.pending_acquire = None;
-            Ok(Some(PendingAcquireOutcome::NotExecuted))
+            Ok(Some(outcome))
         }
         Ok(AuthorityOutcomeV2::KnownFailure(_) | AuthorityOutcomeV2::Unknown(_)) | Err(_) => {
             deadline.admit(bound)?;

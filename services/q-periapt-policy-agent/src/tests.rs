@@ -1034,6 +1034,57 @@ impl MemoryAuthority {
         Ok(state.authority.snapshot(&clock)?.receipt_count())
     }
 
+    /// Model a recovery copy sharing this deployment: for each operation the
+    /// live instance journaled, find its retained receipt and acknowledge it
+    /// away -- exactly what a second instance's start-up journal pass does,
+    /// before it finds the lease already held and exits. After this, the live
+    /// instance's own exact query reports the receipt absent for an operation
+    /// that did execute.
+    fn acknowledge_journaled_receipts(&self, operations: &[OperationIdV2]) -> TestResult {
+        let mut state = self.lock();
+        for operation_id in operations {
+            if let Some(receipt) = state.authority.receipt(*operation_id) {
+                state
+                    .authority
+                    .acknowledge_receipt(receipt.locator())
+                    .map_err(|error| io::Error::other(format!("{error:?}")))?;
+            }
+        }
+        Ok(())
+    }
+
+    /// A foreign instance acquires the lease from the authority's current
+    /// generation and then lets it lapse -- a successor that held key-use
+    /// authority and is now gone, leaving the snapshot showing no active lease at
+    /// an advanced generation. Unlike `install_successor` this needs no live
+    /// incumbent, so it models a takeover during a lapse this instance never
+    /// recovered from.
+    fn foreign_successor_acquires_and_lapses(&self) -> TestResult {
+        let mut state = self.lock();
+        let clock = FixedClock(state.now_millis);
+        let current = state.authority.snapshot(&clock)?;
+        let intent = AuthorityIntentV2::new(
+            OperationIdV2::new(current.authority_version(), [0xC3u8; 32])?,
+            current.authority_version(),
+            state.config,
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation: current.lease_generation(),
+                instance_id: ProcessInstanceIdV2::from_bytes([0x3Cu8; 32])?,
+            },
+        )?;
+        let receipt = state.authority.apply(&clock, intent)?;
+        assert!(
+            matches!(receipt.disposition(), AuthorityDispositionV2::Applied),
+            "the foreign successor's acquire must apply"
+        );
+        state
+            .authority
+            .acknowledge_receipt(receipt.locator())
+            .map_err(|error| io::Error::other(format!("{error:?}")))?;
+        state.now_millis += MEMORY_AUTHORITY_LEASE_TTL_MILLIS + 1;
+        Ok(())
+    }
+
     /// Between the agent's renew and its coverage snapshot, let its lease
     /// expire and have another instance acquire -- and lapse -- the next
     /// generation. This is what a real takeover looks like from the snapshot:

@@ -1759,6 +1759,112 @@ fn a_successor_after_a_lost_reacquire_still_fences() -> TestResult {
 }
 
 #[test]
+fn a_recovery_copy_that_acknowledges_a_live_reacquire_does_not_fence_the_original() -> TestResult {
+    // Round-4 finding #3 resurfacing through acknowledgement. The re-acquire
+    // after a lapse applied, but its response and both reconciling queries were
+    // lost. Before the original learns the outcome, a recovery copy sharing this
+    // journal settles it on start-up: it queries the re-acquire, finds the
+    // receipt, acknowledges it away, then exits because this instance still
+    // holds the lease. The original's exact query now reports the receipt
+    // absent -- and reading that as "never executed" kept the pre-acquire fence,
+    // whose renew the authority (holding the next generation under this very
+    // instance) rejected as a fence mismatch, fencing the original permanently
+    // with its own lease live and no successor anywhere. It must instead adopt
+    // the lease the snapshot still shows under its own fence.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 130)?;
+    let (before, after) = lose_the_reacquire_response(&pair)?;
+    assert_eq!(pair.initiator_authority.receipt_count()?, 1);
+
+    // The recovery copy acknowledges the re-acquire's receipt away, then the
+    // original's transport recovers.
+    let journaled = pair.initiator.journaled_lease_intents_for_test()?;
+    pair.initiator_authority
+        .acknowledge_journaled_receipts(&journaled)?;
+    assert_eq!(pair.initiator_authority.receipt_count()?, 0);
+    pair.initiator_authority.refuse_queries(false);
+
+    // The absent receipt is resolved against the snapshot, which still shows the
+    // re-acquired lease under this instance's own fence: adopt it, renew under
+    // it, and stay usable. One renew, no acquire, no fence.
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(
+        pair.initiator_authority
+            .active_lease()?
+            .map(|lease| lease.fence()),
+        Some(after.fence())
+    );
+    assert_ne!(after.fence().generation(), before.fence().generation());
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    Ok(())
+}
+
+#[test]
+fn a_lost_reacquire_fences_when_a_foreign_successor_took_the_next_generation() -> TestResult {
+    // The other side of the acknowledgement coin: an absent receipt must not be
+    // read as "our own lapse to recover from". The re-acquire never reached the
+    // authority, so its receipt is absent; meanwhile a foreign instance acquired
+    // the next generation and then lapsed too, leaving the snapshot showing no
+    // active lease at that advanced generation. With no live fence to read an
+    // instance id from, the advance cannot be attributed to this process -- our
+    // own re-acquire and a foreign acquire from the same generation both produce
+    // it -- so it must fence, not adopt a generation another instance held.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 131)?;
+    let before = pair.initiator_authority.lock().authority.persistent_meta();
+    pair.initiator_authority.expire_active_lease();
+    pair.initiator_authority
+        .lose_next_lease_call_before_apply(LeaseCallFilter::Acquire);
+    pair.initiator_authority.refuse_queries(true);
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::InstanceLeaseIndeterminate)
+    );
+    // The re-acquire is journaled but never executed, so the generation is
+    // unmoved.
+    assert_eq!(
+        pair.initiator_authority
+            .lock()
+            .authority
+            .persistent_meta()
+            .lease_generation,
+        before.lease_generation
+    );
+
+    // A foreign instance takes the next generation and lapses.
+    pair.initiator_authority
+        .foreign_successor_acquires_and_lapses()?;
+    assert_eq!(
+        pair.initiator_authority
+            .lock()
+            .authority
+            .persistent_meta()
+            .lease_generation,
+        before.lease_generation + 1
+    );
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+
+    // The original's query now answers AbsentAtVersion and the snapshot shows an
+    // advanced generation with no live lease: fence, not recover.
+    pair.initiator_authority.refuse_queries(false);
+    assert_eq!(
+        pair.initiator
+            .begin_encapsulation(BeginEncapsulation::new(
+                pair.initiator_authorization,
+                pair.responder_public_keys.clone(),
+            ))
+            .err(),
+        Some(AgentError::InstanceFenced)
+    );
+    Ok(())
+}
+
+#[test]
 fn release_after_a_lost_reacquire_releases_the_new_lease() -> TestResult {
     // (a) The authority answers queries again by the time of the release: the
     // exact receipt adopts the re-acquired fence, and that lease is released,
