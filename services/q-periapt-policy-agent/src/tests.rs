@@ -733,6 +733,15 @@ struct MemoryAuthorityState {
     /// after it, so the acquire applies but the agent cannot learn that it
     /// did.
     lose_next_acquire_and_queries: bool,
+    /// Before the next acquire: lose its response alone, leaving queries
+    /// answered, so the reconciliation inside the very same call is what
+    /// learns the outcome.
+    lose_next_acquire_response: bool,
+    /// Before the next receipt query is answered: acknowledge away the receipt
+    /// it would have found. That is a recovery copy sharing this journal
+    /// landing between the dispatch and the reconciling query, so the query
+    /// reports absent for an operation that did apply.
+    acknowledge_before_next_query: bool,
     /// Lose the next `n` lease calls this filter selects on the wire, before
     /// the authority applies them. The calls are not counted; the operation
     /// id each carried is kept in `lost_operation`.
@@ -868,6 +877,8 @@ impl MemoryAuthority {
                 now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
                 unknown_after_apply: false,
                 lose_next_acquire_and_queries: false,
+                lose_next_acquire_response: false,
+                acknowledge_before_next_query: false,
                 lose_lease_calls_before_apply: None,
                 lost_operation: None,
                 fail_next_lease_call_before_send: None,
@@ -920,6 +931,21 @@ impl MemoryAuthority {
     /// did.
     fn lose_next_acquire_and_queries(&self) {
         self.lock().lose_next_acquire_and_queries = true;
+    }
+
+    /// Before the next acquire: lose its response alone. Queries keep
+    /// answering, so the reconciliation inside the same call learns the
+    /// outcome -- the commoner shape of a lost response, and the one
+    /// `lease_exchange` reconciles inline rather than deferring.
+    fn lose_next_acquire_response(&self) {
+        self.lock().lose_next_acquire_response = true;
+    }
+
+    /// Acknowledge away the receipt the next receipt query would find, just
+    /// before that query is answered: a recovery copy sharing this journal
+    /// landing between a dispatch and its reconciling query.
+    fn acknowledge_before_next_query(&self) {
+        self.lock().acknowledge_before_next_query = true;
     }
 
     /// Lose the next lease call `filter` selects on the wire, before the
@@ -1315,6 +1341,9 @@ impl InstanceAuthorityPort for MemoryAuthority {
                 state.unknown_after_apply = true;
                 state.refuse_queries = true;
             }
+            if core::mem::take(&mut state.lose_next_acquire_response) {
+                state.unknown_after_apply = true;
+            }
         }
         self.lease_call(AuthorityCommandV2::Acquire, intent)
     }
@@ -1339,6 +1368,15 @@ impl InstanceAuthorityPort for MemoryAuthority {
     ) -> Result<AuthorityOutcomeV2<AuthorityQueryResultV2>, AuthorityTransportErrorV2> {
         let mut state = self.lock();
         state.query_calls += 1;
+        // A recovery copy sharing this journal, landing between the dispatch
+        // and this query: it finds the receipt and acknowledges it away, so
+        // what follows reports absent for an operation that did apply.
+        if core::mem::take(&mut state.acknowledge_before_next_query) {
+            if let Some(receipt) = state.authority.receipt(operation_id) {
+                let locator = receipt.locator();
+                let _ = state.authority.acknowledge_receipt(locator);
+            }
+        }
         if let Some(failure) = state.refuse_next_query_with.take() {
             return Ok(AuthorityOutcomeV2::KnownFailure(failure));
         }

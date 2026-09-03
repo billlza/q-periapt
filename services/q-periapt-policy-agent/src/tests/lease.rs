@@ -1374,6 +1374,67 @@ fn a_recovery_copy_that_acknowledges_a_live_reacquire_does_not_fence_the_origina
 }
 
 #[test]
+fn a_recovery_copy_that_acknowledges_a_reacquire_reconciled_inline_does_not_fence_it() -> TestResult
+{
+    // The same acknowledgement race on the sibling path. Here only the
+    // acquire's *response* is lost: the authority keeps answering queries, so
+    // `lease_exchange` reconciles inline instead of deferring to
+    // `resolve_pending_acquire_state`. A recovery copy sharing this journal
+    // lands between the dispatch and that reconciling query and acknowledges
+    // the receipt away, so the query answers absent for an acquire that
+    // applied. Reading that as "provably never executed" re-dispatched the
+    // acquire at the pre-acquire generation, which the authority -- holding the
+    // next generation under this very instance -- rejects as held, and
+    // `recover_expired_lease` fenced the instance permanently on that
+    // rejection, with its own lease live and no successor anywhere. It must
+    // instead adopt the lease the snapshot shows under its own fence.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 136)?;
+    let before = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("initial lease missing"))?;
+    pair.initiator_authority.expire_active_lease();
+    pair.initiator_authority.lose_next_acquire_response();
+    pair.initiator_authority.acknowledge_before_next_query();
+
+    // One renew (rejected as expired) and one acquire (applied, response lost),
+    // and the operation still completes under the adopted fence.
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 2);
+    let adopted = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the re-acquired lease is gone"))?;
+    assert_eq!(
+        adopted.fence().instance_id(),
+        before.fence().instance_id(),
+        "the live lease is this instance's own re-acquire"
+    );
+    assert_eq!(
+        adopted.fence().generation(),
+        before.fence().generation() + 1
+    );
+    // And permanently usable: the next operation renews under the adopted
+    // fence rather than acquiring or fencing.
+    let calls = pair.initiator_authority.lease_call_count();
+    drive_one_lease_renew(&pair.initiator)?;
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    assert_eq!(
+        pair.initiator_authority
+            .active_lease()?
+            .map(|lease| lease.fence()),
+        Some(adopted.fence())
+    );
+    Ok(())
+}
+
+#[test]
 fn a_lost_reacquire_fences_when_a_foreign_successor_took_the_next_generation() -> TestResult {
     // The other side of the acknowledgement coin: an absent receipt must not be
     // read as "our own lapse to recover from". The re-acquire never reached the
@@ -1421,6 +1482,7 @@ fn a_lost_reacquire_fences_when_a_foreign_successor_took_the_next_generation() -
     // The original's query now answers AbsentAtVersion and the snapshot shows an
     // advanced generation with no live lease: fence, not recover.
     pair.initiator_authority.refuse_queries(false);
+    let calls = pair.initiator_authority.lease_call_count();
     assert_eq!(
         pair.initiator
             .begin_encapsulation(BeginEncapsulation::new(
@@ -1430,6 +1492,11 @@ fn a_lost_reacquire_fences_when_a_foreign_successor_took_the_next_generation() -
             .err(),
         Some(AgentError::InstanceFenced)
     );
+    // And the resolution is what decided it, not a later rejection: reading the
+    // absent receipt as "never executed" instead kept the pre-acquire fence and
+    // reached the same error only through a renew dispatched under it. Not one
+    // lease call left this instance.
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls);
     Ok(())
 }
 
