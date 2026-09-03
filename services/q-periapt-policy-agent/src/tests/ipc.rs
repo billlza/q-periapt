@@ -1188,8 +1188,14 @@ fn ipc_server_material_is_read_and_validated_before_the_lease_is_acquired() -> T
     // before it acquires the lease, so a missing or malformed key is refused
     // before the process holds a lease that only its TTL would then release. The
     // earlier order acquired first and read these keys afterwards, stranding the
-    // lease on any fault here. Exercise the reader directly: in `serve_agent` the
-    // acquire is the very next step, so a fault caught here can strand nothing.
+    // lease on any fault here.
+    //
+    // What pins the *ordering* is the signature, not this test: the acquire
+    // lives in `acquire_and_serve`, which takes the validated
+    // `IpcServerMaterial` by value, so there is nothing to call it with until
+    // this reader has succeeded and no statement order left to get wrong. What
+    // this test pins is the other half -- that the reader really does refuse
+    // the faults, so that the step before the acquire is the one that fails.
     let valid = TestDirectory::new()?;
     let (_, client_vk) = MlDsa65::generate([31u8; 32]);
     let (server_sk, server_vk) = MlDsa65::generate([32u8; 32]);

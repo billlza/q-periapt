@@ -492,12 +492,16 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// Build the server from key material already validated by
     /// `read_ipc_server_material`, taking ownership of the agent.
     ///
-    /// Infallible on purpose. `new` re-validates, and that validation draws
-    /// entropy (the direction-isolation probe signs), so calling it after the
-    /// lease is acquired would re-introduce a fallible step that, on failure,
-    /// drops the agent with no release and strands the lease until its TTL.
-    /// `serve_agent` validates once, before the acquire, and then builds through
-    /// this so nothing between the acquire and the serving loop can fail.
+    /// Infallible on purpose. The validation is `validate_ipc_server_material`,
+    /// and it draws entropy -- the direction-isolation probe signs -- so a
+    /// constructor that re-ran it after the lease is acquired would
+    /// re-introduce a fallible step that, on failure, drops the agent with no
+    /// release and strands the lease until its TTL. That is why no such
+    /// constructor exists: `read_ipc_server_material` is the one production
+    /// caller of the validation and runs before the acquire, `new_for_test` is
+    /// the only re-validating constructor left and is test-only, and the
+    /// production path builds through this so nothing between the acquire and
+    /// the serving loop can fail.
     fn from_validated_material(
         agent: PolicyAgent<W, A>,
         material: IpcServerMaterial,
@@ -1102,12 +1106,39 @@ fn serve_agent(
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let config = load_agent_config(&configuration)?;
     // Read and validate every remaining pinned key BEFORE the lease is acquired.
-    // The acquire below is the last fallible step that reads the configuration;
-    // the earlier order acquired first and read these IPC keys afterwards, so a
+    // The acquire is the last fallible step that reads the configuration; the
+    // earlier order acquired first and read these IPC keys afterwards, so a
     // missing or malformed one exited without releasing the lease it already
     // held, and the next start had to wait that lease out at its TTL. Reading
     // them here refuses that fault before any lease exists.
     let ipc_material = read_ipc_server_material(&configuration)?;
+    acquire_and_serve(
+        listener,
+        ipc_material,
+        repository,
+        witness,
+        authority,
+        config,
+    )
+}
+
+/// Acquire the instance lease, then serve on it and release it.
+///
+/// Split out so the ordering is carried by the signature rather than by
+/// statement order: the acquire happens here, and there is nothing to call this
+/// with until `read_ipc_server_material` has returned validated
+/// [`IpcServerMaterial`]. A refactor cannot hoist the acquire above that read
+/// without first taking the material out of the parameter list, which is the
+/// stranded-lease bug this ordering exists to prevent -- an exit with the lease
+/// still held, which the next start can only wait out at the authority's TTL.
+fn acquire_and_serve(
+    listener: UnixListener,
+    ipc_material: IpcServerMaterial,
+    repository: StateRepository,
+    witness: AuthenticatedTcpWitness,
+    authority: AuthenticatedTcpAuthorityV2,
+    config: AgentConfig,
+) -> Result<(), IpcError> {
     // A predecessor that was killed rather than stopped never released its
     // lease, and the authority lets that lease lapse only at the TTL it
     // granted. Wait that out rather than failing: with `Restart=no` a failure
@@ -1132,7 +1163,7 @@ fn serve_agent(
     // service manager's stop timeout. If installing them fails, hand the lease
     // back rather than exit still holding it and make the next start wait it out;
     // this is the only fallible step left between the acquire and the release,
-    // because the IPC material was validated before the acquire and the server is
+    // because the IPC material arrived here already validated and the server is
     // built from it below without re-validating -- so nothing after this draws
     // entropy or can otherwise fail and drop the agent with the lease unreleased.
     let shutdown = match install_termination_handlers() {
