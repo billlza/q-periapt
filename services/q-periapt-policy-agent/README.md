@@ -119,25 +119,52 @@ confidential. The reference server processes one connection at a time with a
 five-second I/O timeout. This is an explicit resource bound, but an unauthenticated
 slow client can occupy that one slot until the timeout.
 
-Every IPC request is answered or refused within one end-to-end deadline of 36
-seconds from accept. The client-paced read and the response write are each
-additionally capped at 5 seconds, and in between the agent admits every wait
-against that deadline: first the acquisition of its one linearizer, then each
-authority and witness round trip, refusing a lease-guarded operation whose
-least plan no longer fits before it dispatches anything. Cancel, Destroy and
-the public-key read make no round trip, so the linearizer is the only thing
-they wait for, and they are refused on the same deadline. A round trip a
-durable commit must precede -- the lease-intent journal write before every
-lease mutation, and the transition intent an Advance or a Reset writes before
-its witness compare-and-swap -- is admitted together with that commit,
-reserved at one second, so the commit cannot push the call it precedes past
-the deadline; a store slower than that reserve is outside the model, as an
-authority clock that gains more than a second within one round trip is. A
-transition reserves the second one because the intent cannot be taken back
-once written: an Advance whose remaining budget cannot cover both that commit
-and the swap is refused before the intent is written, never after, and that
-reserve comes out of the transition path's own headroom, so the 36 seconds is
-unchanged. IPC status 24 means the request was refused or aborted on its
+Every IPC request is bounded by one end-to-end deadline of 36 seconds, measured
+from the accept of its connection. The deadline is an admission rule and not a
+timer that cancels work: each wait is entered only if that wait's own bound ends
+before the deadline, and is refused with status 24 otherwise, so an admitted
+wait always finishes in time and a refusal costs nothing. What is admitted is
+the acquisition of the agent's one linearizer, every authority and witness round
+trip, and the retention gate a secret passes before it becomes reachable; a
+lease-guarded operation whose least plan no longer fits is refused before it
+dispatches anything. The client-paced read and the response write are each
+additionally capped at 5 seconds and clamped to that deadline. Cancel, Destroy
+and the public-key read make no round trip, so the linearizer is the only thing
+they wait for, and they are refused on the same deadline.
+
+Three kinds of work are not measured against the deadline, and an operator
+sizing a timeout has to allow for them. The first is durable commits, which are
+reserved rather than measured. A round trip a durable commit must precede -- the
+lease-intent journal write before every lease mutation, and the transition
+intent an Advance or a Reset writes before its witness compare-and-swap -- is
+admitted together with that commit at a fixed one-second reserve
+(`DURABLE_COMMIT_RESERVE`), so the commit cannot push the call it precedes past
+the deadline. That is a modelled bound, not an enforced one: nothing here can
+bound an `fsync`, `redb` exposes no write timeout, and a commit cannot be
+cancelled, so a store slower than the reserve dispatches anyway and the request
+ends late -- outside the model, exactly as an authority clock that gains more
+than a second within one round trip is. A transition reserves the second one
+because the intent cannot be taken back once written: an Advance whose remaining
+budget cannot cover both that commit and the swap is refused before the intent
+is written, never after, and that reserve comes out of the transition path's own
+headroom, so the 36 seconds is unchanged.
+
+The second is erasing expired sessions, which is charged to no deadline at all,
+because every secret must go and nothing about that erase may be skipped or
+refused. It costs one durable two-phase commit per expired session. The serving
+loop's TTL sweep runs between connections, ahead of the accept that starts a
+deadline, so it can delay a queued client without being counted against anyone's
+36 seconds; it takes the linearizer only if it is already free and is skipped
+whenever the agent is busy. Advance, Reset, both Begins and an acceptance run
+the same purge on entry, inside the request and charged to nothing. The third
+is local computation -- the KEM, the signature verifications, hashing and
+framing -- unadmitted in the same way, bounded by the machine and not by this
+code. So the 36 seconds bounds the waits the agent chooses to enter, and the
+wall clock a client sees is that plus whatever those unmeasured phases cost; the
+stop timeouts below budget the erase separately, at 20 seconds, rather than
+fold it into the deadline.
+
+IPC status 24 means the request was refused or aborted on its
 deadline with nothing retained, its reservation released and no transition
 left pending; it is not a fence, and the request may be retried
 under a fresh nonce with a fresh offer where the offer was consumed. A request

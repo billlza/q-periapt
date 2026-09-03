@@ -75,7 +75,21 @@ const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// the same deadline covers it. Waiting
 /// for the agent's one linearizer is inside this deadline, not on top of it:
 /// a request that spends it on a busy agent is refused with status 24 at the
-/// lock, or at the least-plan reserve that follows, and is never served late.
+/// lock, or at the least-plan reserve that follows, rather than queued on top
+/// of it.
+///
+/// What it bounds is admission, not wall clock, and three things sit outside
+/// it. The durable commits `DURABLE_COMMIT_RESERVE` stands in for are modelled
+/// at one second rather than measured, so a store slower than that reserve
+/// ends the request late. `expire_idle_sessions` runs in the serving loop
+/// ahead of the `accept` that starts this clock, and the same purge runs on
+/// entry to Advance, Reset, both Begins and an acceptance: durable erases no
+/// deadline admits, because no secret may be left behind in order to fit one.
+/// And local computation -- the KEM, the signature verifications, hashing,
+/// framing -- is admitted nowhere. So a client's wall clock is this deadline
+/// plus whatever those phases cost, which is why the stop-timeout arithmetic
+/// in `the_deployment_templates_agree_with_this_code` budgets the erase
+/// separately (`LEASE_ERASE_BOUND`) instead of folding it in here.
 const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(36);
 /// How long the lease release at stop may take. Against an authority that
 /// accepts the connection and never answers it is up to six bounded round
@@ -357,8 +371,9 @@ impl RecentNonces {
 /// Sequential, deadline-bounded authenticated Unix server.
 ///
 /// Sequential handling deliberately caps active clients at one. One
-/// end-to-end deadline per connection (`IPC_REQUEST_DEADLINE`) covers the
-/// read, the execution and the write. The two client-paced phases are
+/// end-to-end deadline per connection (`IPC_REQUEST_DEADLINE`) spans the read,
+/// the execution and the write, and admits each of the waits inside them; what
+/// it does not cover is listed on the constant. The two client-paced phases are
 /// additionally capped at `io_timeout` each, from which every framed read and
 /// write derives its remaining budget, so a client trickling one byte per
 /// interval cannot occupy the slot. Execution admits every wait against that
@@ -1132,7 +1147,8 @@ fn serve_agent(
     // outright -- leaves the lease to lapse at its TTL instead, and an orderly
     // stop reports that by exiting 1, as it does a release that settled but whose
     // durable bookkeeping failed. A stop that lands during a request is observed
-    // once that request is answered or refused, within `IPC_REQUEST_DEADLINE`; the
+    // once that request is answered or refused, which `IPC_REQUEST_DEADLINE` bounds
+    // by admission rather than by wall clock (see the constant); the
     // erase that follows costs one durable commit per pending session
     // (`LEASE_ERASE_BOUND`) and the release then runs under `LEASE_RELEASE_BUDGET`.
     // The service managers' stop timeouts cover all three.
@@ -1848,15 +1864,16 @@ mod tests {
 
         // Neither manager's default stop timeout can be relied on, so both
         // templates pin their own. A stop that lands during a request is
-        // observed once that request is answered or refused -- at most
-        // IPC_REQUEST_DEADLINE -- or within one maintenance interval when the
-        // daemon is idle; the erase that follows costs one durable commit per
-        // pending session (LEASE_ERASE_BOUND), and the release after it runs
-        // under LEASE_RELEASE_BUDGET. That is 1 + 36 + 20 + 30 = 87 seconds
-        // worst case, past launchd's 20-second default and past the 60 the
-        // plist used to give. systemd's 90 is DefaultTimeoutStopSec= in the
-        // host's system.conf, which a host may have lowered, so the unit
-        // writes the value out rather than inheriting it.
+        // observed once that request is answered or refused -- bounded by
+        // IPC_REQUEST_DEADLINE through admission, not measured -- or within one
+        // maintenance interval when the daemon is idle; the erase that follows
+        // costs one durable commit per pending session (LEASE_ERASE_BOUND), and
+        // the release after it runs under LEASE_RELEASE_BUDGET. That is
+        // 1 + 36 + 20 + 30 = 87 seconds of budgeted terms, past launchd's
+        // 20-second default and past the 60 the plist used to give. systemd's
+        // 90 is DefaultTimeoutStopSec= in the host's system.conf, which a host
+        // may have lowered, so the unit writes the value out rather than
+        // inheriting it.
         let pinned = SERVICE_MANAGER_STOP_TIMEOUT.as_secs();
         assert_eq!(
             plist_value(&plist, "ExitTimeOut"),

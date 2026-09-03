@@ -146,16 +146,19 @@
       How long launchd waits after SIGTERM before it sends SIGKILL. launchd's
       default is 20 seconds. A stop that lands while a request is in flight
       is observed once that request has been answered or refused -- every
-      request runs under one end-to-end deadline of 36 seconds -- or within
-      one maintenance interval (one second) when the daemon is idle. The
-      daemon then erases its in-process secrets -- one durable two-phase
-      commit per pending session, up to 1024 of them, which nothing may skip
-      and no deadline bounds, budgeted separately at 20 seconds -- and only
-      then releases the instance lease, under a 30-second budget of its own:
-      up to six bounded authority round trips of at most 5 seconds each
-      against an authority that accepts the connection and never answers,
-      each admitted only while it can still end within that budget. That is
-      87 seconds worst case, past the default. A SIGKILL there costs only a
+      request admits its waits against one end-to-end deadline of 36 seconds,
+      with the durable commits in between covered by a one-second reserve
+      rather than measured -- or within one maintenance interval (one second)
+      when the daemon is idle. The daemon then erases its in-process secrets
+      -- one durable two-phase commit per pending session, up to 1024 of them,
+      which nothing may skip and no deadline bounds, budgeted separately at 20
+      seconds -- and only then releases the instance lease, under a 30-second
+      budget of its own: up to six bounded authority round trips of at most 5
+      seconds each against an authority that accepts the connection and never
+      answers, each admitted only while it can still end within that budget.
+      That is 87 seconds, a sum of budgeted terms and not a measured wall
+      clock, and past the default; a store whose commits run slower than their
+      reserve can exceed it. A SIGKILL there costs only a
       redb recovery at the next open, and the lease lapses at its TTL exactly
       as after a crash; 90 -- the same value the systemd unit pins with
       TimeoutStopSec= -- gives the erase and the release room to finish

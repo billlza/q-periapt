@@ -91,6 +91,14 @@ const LINEARIZER_POLL_PAUSE: Duration = Duration::from_millis(1);
 /// so the guarantee holds under that stated commit-latency model and not
 /// otherwise. The refusal is [`AgentError::OperationDeadlineExceeded`].
 ///
+/// So this bounds the waits an operation enters, not the wall clock it takes.
+/// Besides the modelled reserve above, the erase of expired sessions is
+/// charged to no deadline whatever: it is one durable commit per session and
+/// nothing about it may be skipped to fit a budget, so both the idle sweep
+/// ([`PolicyAgent::expire_idle_sessions`], which installs a deadline already
+/// reached) and the purge the heaviest request paths run on entry sit outside
+/// this. The service manager's stop timeout is what carries that work.
+///
 /// `std::sync::Mutex` has no timed acquisition, so the lock is polled rather
 /// than blocked on; the door is `admit(Duration::ZERO)` and the wait ends at
 /// the deadline whatever the holder is doing.
