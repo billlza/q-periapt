@@ -1599,6 +1599,51 @@ mod tests {
             script.contains("ls -lde -- \"$1\""),
             "stat has no ACL format on macOS; the check must read ls -e entries"
         );
+        // Reading the entries is only half of it: the check has to refuse on
+        // them. `the_run_directory_job_refuses_the_acl_stat_cannot_see` runs
+        // the shipped text against real ACLs, but it is macOS-only and CI runs
+        // this crate's tests on Linux alone, so a `verify_no_acl` that never
+        // exits non-zero would pass every gate a contributor sees. These pin
+        // the exit path textually, on the function's own body rather than on
+        // the whole script, so a `fail` somewhere else cannot satisfy them.
+        let acl_check = script
+            .find("verify_no_acl() {")
+            .expect("the script must define verify_no_acl");
+        let acl_body = script
+            .get(acl_check..)
+            .and_then(|rest| rest.find("\n}\n").and_then(|end| rest.get(..end)))
+            .expect("verify_no_acl must close");
+        assert!(
+            acl_body.contains("case \"$listing\" in") && acl_body.contains("*\"$NL\"*)"),
+            "an entry line after the listing is the discriminator: {acl_body}"
+        );
+        let arm = acl_body
+            .find("*\"$NL\"*)")
+            .expect("verify_no_acl must match the entry-line shape");
+        let arm_body = acl_body
+            .get(arm..)
+            .and_then(|rest| rest.find(";;").and_then(|end| rest.get(..end)))
+            .expect("the entry-line arm must close");
+        assert!(
+            arm_body.contains("fail \"$1 carries an ACL"),
+            "verify_no_acl must refuse on an ACL entry line: a socket bound in an \
+             ACL-bearing directory inherits entries that defeat SockPathMode"
+        );
+        assert!(
+            acl_body.contains("fail \"could not list $1\""),
+            "a listing that cannot be read is a refusal too, not a pass"
+        );
+        assert_eq!(
+            acl_body.matches("fail ").count(),
+            2,
+            "verify_no_acl refuses on exactly two conditions, the unreadable \
+             listing and the ACL entry: {acl_body}"
+        );
+        assert!(
+            !acl_body.contains("return") && !acl_body.contains("exit "),
+            "verify_no_acl must leave only through fail: an early success would \
+             turn the ACL arm into a no-op: {acl_body}"
+        );
         let ancestor_check = script
             .find("verify_ancestor() {")
             .expect("the script must define verify_ancestor");
