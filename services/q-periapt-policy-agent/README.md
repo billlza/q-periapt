@@ -127,10 +127,15 @@ refusing a lease-guarded operation whose least plan no longer fits before it
 dispatches anything. IPC status 24 means the request was refused or aborted on
 its deadline with nothing retained and its reservation released; it is not a
 fence, and the request may be retried under a fresh nonce with a fresh offer
-where the offer was consumed. A committed operation whose response could not
-be written by the deadline gets no response at all, which the client sees as a
-lost response and, for a Begin or an acceptance, recovers by the exact retry
-described below; a transition it reconciles.
+where the offer was consumed. An acceptance aborted after its witness read has
+consumed its handle as well: that retry is refused with `UnknownHandle`, and
+the session has to be re-established from Begin. A status 24 raised on the
+coverage snapshot that follows a lapse re-acquire comes after the erasure of
+every in-process secret, so the deadline is what a longer one recovers, not the
+keys. A committed operation whose response could not be written by the deadline
+gets no response at all, which the client sees as a lost response and, for a
+Begin or an acceptance, recovers by the exact retry described below; a
+transition it reconciles.
 
 The executable IPC face is Unix-only. It does not create its listening socket:
 the service manager does, and the daemon adopts the descriptor it is handed,

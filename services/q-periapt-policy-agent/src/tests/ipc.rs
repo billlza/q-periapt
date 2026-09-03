@@ -456,6 +456,16 @@ fn a_deadline_that_lapses_after_the_durable_reservation_retains_nothing_and_writ
     // Not a fence. The offer was consumed by the reservation, so a fresh one
     // under the default budget is what serves.
     assert!(agent.public_keys().is_ok());
+    // The reservation was released, but the tombstone it wrote was not: the
+    // same offer is refused as the consumed authorization it is, under any
+    // deadline. That is what the status-24 contract promises the client.
+    assert_eq!(
+        agent.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
     initiator_encapsulation(agent.begin_encapsulation(BeginEncapsulation::new(
         pair.second_initiator_authorization,
         pair.responder_public_keys,

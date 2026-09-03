@@ -524,6 +524,13 @@ pub enum AgentError {
     /// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` (one second) of authority clock
     /// advance beyond this host's elapsed time.
     ///
+    /// What such an abort had already consumed is not undone, and it is the
+    /// same set as for [`Self::OperationDeadlineExceeded`], which enumerates
+    /// it: the Begin's offer stays consumed by its tombstone, an acceptance
+    /// aborted after its witness read has lost its handle, and a lapse
+    /// reported on the coverage snapshot after a re-acquire follows the
+    /// erasure of every in-process secret, not only this operation's.
+    ///
     /// Distinct from [`Self::InstanceFenced`], which is permanent. A coverage
     /// lapse is no evidence that any successor exists.
     InstanceLeaseCoverageElapsed,
@@ -537,7 +544,28 @@ pub enum AgentError {
     /// the one exception: it is committed and reported `Ok` whatever the
     /// clock says. Not a fence, and distinct from
     /// [`Self::InstanceLeaseCoverageElapsed`]: a local deadline says nothing
-    /// about the lease or about any successor. Retry with a longer deadline.
+    /// about the lease or about any successor.
+    ///
+    /// An abort does not undo what the operation had already consumed, and
+    /// that is what the retry has to account for:
+    ///
+    /// * Begin: the reservation is released, but the capability tombstone it
+    ///   wrote stays -- the offer was consumed the moment it was reserved --
+    ///   so that offer now answers [`Self::AuthorizationRejected`] and the
+    ///   retry needs a fresh one.
+    /// * Acceptance: an abort after the witness read has already consumed the
+    ///   pending session and durably cancelled it, so the handle is gone: a
+    ///   retry answers [`Self::UnknownHandle`] and the flight must be re-run
+    ///   from Begin; the peer's Finished for that handle can never be
+    ///   accepted. A refusal before that read leaves the session in place.
+    /// * Re-acquire after a lapse: when the deadline is reached on the
+    ///   coverage snapshot that follows a successful re-acquire, the
+    ///   re-acquire has already erased every in-process secret -- every
+    ///   pending session and every confirmed key, not only this operation's
+    ///   -- so a longer deadline recovers the agent, not the keys.
+    ///
+    /// Retry with a longer deadline, then: with a fresh offer where the offer
+    /// was consumed, and from the start of the handshake where the handle was.
     OperationDeadlineExceeded,
     /// The process linearizer was poisoned; no operation continued.
     InternalPoisoned,

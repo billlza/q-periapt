@@ -604,3 +604,66 @@ fn begin_exact_retry_needs_no_free_session_slot() -> TestResult {
     assert_eq!(pair.initiator.pending_session_count(), 1);
     Ok(())
 }
+
+#[test]
+fn an_acceptance_aborted_after_the_witness_read_has_consumed_its_handle() -> TestResult {
+    // What a status-24 abort costs an acceptance, which the
+    // `OperationDeadlineExceeded` doc and the README now state: the witness
+    // read is the last point at which a refusal leaves the session in place.
+    // Past it the session has left the map, its confirmation is consumed and
+    // its durable reservation is released, so the retry is not a retry at all
+    // -- the handle is gone and the flight has to be re-run from Begin.
+    //
+    // Arithmetic: the prologue before the read -- the renew, the coverage
+    // snapshot and the purge -- has to fit the two-second deadline, which is
+    // several times what it costs even under a contended suite, and the read
+    // then takes four seconds, so the gate after it is reached two seconds
+    // past the deadline however the prologue was scheduled. The lease's own
+    // ten-second TTL still covers that read, so this is the deadline's
+    // refusal and not a coverage lapse.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 174)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+
+    pair.witness.delay_next_read_head(Duration::from_secs(4));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(2))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.accept_responder_finished_until(
+            encapsulated.handle,
+            accepted.responder_finished,
+            deadline,
+        ),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert!(
+        !pair.witness.read_head_delay_armed(),
+        "the read never ran; the refusal came before the gate under test"
+    );
+
+    // Nothing was retained, and nothing of this session is left: no key, no
+    // in-memory session, and no durable reservation to orphan.
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (0, 0));
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+
+    // So the retry, however long its deadline, answers `UnknownHandle`: this
+    // flight can only be re-run from Begin.
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished),
+        Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}

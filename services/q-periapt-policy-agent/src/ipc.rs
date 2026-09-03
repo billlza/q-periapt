@@ -62,9 +62,12 @@ const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// trips and one witness read, Reconcile two authority round trips and two
 /// witness calls, twenty seconds either way at the transport bounds above --
 /// the client-paced write (`IPC_IO_TIMEOUT`), and five seconds of slack for
-/// one renew retry or one reconciling query. The agent admits each round
-/// trip against it and refuses, with status 24, a guarded operation whose
-/// least plan no longer fits.
+/// one extra authority round trip -- a reconciling query that finds the
+/// receipt. A renew retry is two: the resync snapshot after an
+/// `AuthorityVersionMismatch` and the re-dispatched renew, and against ports
+/// at their bounds its second extra round trip is refused with status 24. The
+/// agent admits each round trip against it and refuses, with status 24, a
+/// guarded operation whose least plan no longer fits.
 const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
 /// How long the lease release at stop may take. Against an authority that
 /// accepts the connection and never answers it is up to six bounded round
@@ -1992,6 +1995,17 @@ mod tests {
                     + 2 * WITNESS_IO_TIMEOUT
                     + IPC_IO_TIMEOUT,
             "the request deadline must cover Reconcile: 2 authority + 2 witness round trips"
+        );
+        // The slack over the largest least plan is exactly one authority round
+        // trip: 35 - (5 read + 3*5 authority + 5 witness + 5 write) = 5. That
+        // covers one reconciling query, not a renew retry, which costs two --
+        // the resync snapshot in `lease_exchange` plus the re-dispatched
+        // renew.
+        assert_eq!(
+            IPC_REQUEST_DEADLINE
+                - (IPC_IO_TIMEOUT + 3 * AUTHORITY_IO_TIMEOUT + WITNESS_IO_TIMEOUT + IPC_IO_TIMEOUT),
+            AUTHORITY_IO_TIMEOUT,
+            "the request deadline's slack is one authority round trip, not a renew retry's two"
         );
         // Admission is strict, so five round trips need strictly more than
         // five timeouts.
