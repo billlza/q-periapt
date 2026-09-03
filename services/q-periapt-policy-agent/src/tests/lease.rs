@@ -2062,3 +2062,83 @@ fn coverage_deadline_subtracts_the_divergence_budget() {
         Some(anchor + Duration::from_millis(500))
     );
 }
+
+#[test]
+fn a_start_journal_pass_that_cannot_fit_the_budget_leaves_its_rows_for_later() -> TestResult {
+    // The start's journal pass runs inside the acquire's own 60-second
+    // budget. Each row is a query plus an acknowledgement -- two round trips
+    // -- and the acquire needs three of its own kept in reserve: the
+    // pre-acquire snapshot, the acquire dispatch, and the snapshot after a
+    // rejected or resynchronised attempt. At a 25-second bound that is
+    // 2 * 25 + 3 * 25 = 125 seconds against 60, so no row fits and none is
+    // asked about; the acquire still happens, and the rows wait for a later
+    // guarded operation exactly as unanswered ones do.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 169)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(responder);
+    initiator.release_instance_lease()?;
+    drop(initiator);
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    let mut journaled = Vec::new();
+    for byte in 1..=4u8 {
+        let operation_id = OperationIdV2::new(1, [byte; 32])?;
+        repository.journal_lease_intent(operation_id, &[])?;
+        journaled.push(operation_id);
+    }
+
+    initiator_authority.set_round_trip_bound(Duration::from_secs(25));
+    let queries_before = initiator_authority.query_call_count();
+    let restarted = PolicyAgent::new(
+        repository,
+        witness.clone(),
+        initiator_authority.clone(),
+        initiator_config.clone(),
+    )?;
+    assert_eq!(
+        initiator_authority.query_call_count(),
+        queries_before,
+        "a row that cannot fit the budget must not be asked about"
+    );
+    let after = restarted.journaled_lease_intents_for_test()?;
+    for operation_id in &journaled {
+        assert!(
+            after.contains(operation_id),
+            "a row refused admission must stay journaled for the next attempt"
+        );
+    }
+
+    // And the admission is not a refusal of everything unconditionally: with
+    // a bound that leaves room, the same rows are settled and forgotten.
+    restarted.release_instance_lease()?;
+    drop(restarted);
+    initiator_authority.set_round_trip_bound(Duration::ZERO);
+    let repository = StateRepository::open_existing(&initiator_repository_path, migration.roots)?;
+    assert_eq!(repository.journaled_lease_intents()?.len(), journaled.len());
+    let restarted = PolicyAgent::new(
+        repository,
+        witness,
+        initiator_authority.clone(),
+        initiator_config,
+    )?;
+    let after = restarted.journaled_lease_intents_for_test()?;
+    assert_eq!(
+        after.len(),
+        1,
+        "with room in the budget every row is settled and forgotten"
+    );
+    for operation_id in &journaled {
+        assert!(!after.contains(operation_id));
+    }
+    Ok(())
+}

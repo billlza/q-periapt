@@ -735,13 +735,16 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// or duplicate deployment cannot start using keys next to the live holder.
     ///
     /// Before the acquire, the lease-intent journal a previous process left in
-    /// the repository is settled: every journaled operation is queried, a
+    /// the repository is settled: each journaled operation is queried, a
     /// receipt the authority still holds is acknowledged, and settled rows are
-    /// forgotten. Rows the authority cannot yet answer for are kept and retried
-    /// before each guarded operation. If all `MAX_JOURNALED_LEASE_INTENTS`
-    /// rows remain unresolved, construction fails closed with
-    /// [`AgentError::InstanceLeaseUnavailable`] rather than dispatch an acquire
-    /// it could not journal.
+    /// forgotten. That pass runs inside the acquire's own budget, admitted a
+    /// row at a time with what the acquire itself needs kept in reserve, so
+    /// rows the authority cannot yet answer for -- and rows the budget can no
+    /// longer cover -- are kept and retried before each guarded operation
+    /// instead of starving the acquire they precede. If all
+    /// `MAX_JOURNALED_LEASE_INTENTS` rows remain unresolved, construction
+    /// fails closed with [`AgentError::InstanceLeaseUnavailable`] rather than
+    /// dispatch an acquire it could not journal.
     ///
     /// It does not wait for that lease to lapse; [`Self::new_with_lease_wait`]
     /// is the constructor for a daemon restarting after its predecessor was

@@ -561,10 +561,20 @@ fn resolve_journaled_intent<A: InstanceAuthorityPort>(
 /// fails the start closed with [`AgentError::InstanceLeaseUnavailable`]: the
 /// acquire's own journal write, which every dispatch makes first, is refused,
 /// so nothing is dispatched. The next start asks again.
+///
+/// Each row is a query and an acknowledgement, admitted together against
+/// `deadline` with `reserve` -- what the acquire itself still needs -- left
+/// over, exactly as `drain_unresolved` admits its rows. A row that no longer
+/// fits is not asked about and stays unresolved, the same bookkeeping an
+/// unanswered one gets: the next guarded operation retries it. Without that
+/// admission a full journal of slow rows would cost the acquire its whole
+/// budget before its first dispatch.
 fn reconcile_lease_journal<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
     lease: &mut InstanceLeaseState,
+    deadline: OperationDeadline,
+    reserve: Duration,
 ) -> Result<(), AgentError> {
     let journaled = repository.journaled_lease_intents()?;
     let mut settled = Vec::new();
@@ -575,12 +585,18 @@ fn reconcile_lease_journal<A: InstanceAuthorityPort>(
         .unresolved
         .try_reserve(journaled.len())
         .map_err(|_| AgentError::LocalResourceFailure)?;
+    // Two round trips: a row costs a query and, when the authority still
+    // holds its receipt, the acknowledgement that discharges it.
+    let bound = authority
+        .round_trip_bound()
+        .saturating_mul(2)
+        .saturating_add(reserve);
     let mut answering = true;
     for operation_id in journaled {
         // Once one query has gone unanswered, the rest are not asked at all:
         // evaluating the resolver first and consulting `answering` afterwards
         // would still cost one timeout per remaining row.
-        if !answering {
+        if !answering || deadline.admit(bound).is_err() {
             lease.unresolved.push(operation_id);
             continue;
         }
@@ -686,7 +702,18 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
         unresolved: Vec::new(),
         covered_until: None,
     };
-    reconcile_lease_journal(repository, authority, &mut lease)?;
+    // What the journal pass must leave the acquire: the pre-acquire snapshot
+    // below, the acquire dispatch `lease_exchange` admits, and the snapshot
+    // that follows a rejected or resynchronised attempt -- three authority
+    // round trips.
+    reconcile_lease_journal(
+        repository,
+        authority,
+        &mut lease,
+        deadline,
+        authority.round_trip_bound().saturating_mul(3),
+    )?;
+    deadline.admit(authority.round_trip_bound())?;
     let snapshot = authority_snapshot(authority)?;
     lease.authority_version = snapshot.authority_version();
     if snapshot.active_lease().is_some() {
@@ -756,6 +783,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
                         AuthorityRejectionV2::LeaseHeld
                         | AuthorityRejectionV2::LeaseGenerationMismatch,
                     ) => {
+                        deadline.admit(authority.round_trip_bound())?;
                         let snapshot = authority_snapshot(authority)?;
                         if adopt_or_reject_active_lease(
                             &mut lease,
@@ -771,6 +799,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
                 }
             }
             LeaseExchange::Retry => {
+                deadline.admit(authority.round_trip_bound())?;
                 let snapshot = authority_snapshot(authority)?;
                 if adopt_or_reject_active_lease(
                     &mut lease,
