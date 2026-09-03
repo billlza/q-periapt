@@ -128,12 +128,18 @@ least plan no longer fits before it dispatches anything. Cancel, Destroy and
 the public-key read make no round trip, so the linearizer is the only thing
 they wait for, and they are refused on the same deadline. A round trip a
 durable commit must precede -- the lease-intent journal write before every
-lease mutation -- is admitted together with that commit, reserved at one
-second, so the commit cannot push the call it precedes past the deadline; a
-store slower than that reserve is outside the model, as an authority clock
-that gains more than a second within one round trip is. IPC status 24 means
-the request was refused or aborted on its deadline with nothing retained and
-its reservation released; it is not a fence, and the request may be retried
+lease mutation, and the transition intent an Advance or a Reset writes before
+its witness compare-and-swap -- is admitted together with that commit,
+reserved at one second, so the commit cannot push the call it precedes past
+the deadline; a store slower than that reserve is outside the model, as an
+authority clock that gains more than a second within one round trip is. A
+transition reserves the second one because the intent cannot be taken back
+once written: an Advance whose remaining budget cannot cover both that commit
+and the swap is refused before the intent is written, never after, and that
+reserve comes out of the transition path's own headroom, so the 36 seconds is
+unchanged. IPC status 24 means the request was refused or aborted on its
+deadline with nothing retained, its reservation released and no transition
+left pending; it is not a fence, and the request may be retried
 under a fresh nonce with a fresh offer where the offer was consumed. A request
 that could not reach the agent's linearizer inside its deadline is refused the
 same way and consumed nothing at all, its offer included: that retry needs no

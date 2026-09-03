@@ -195,11 +195,20 @@ impl OperationPlan {
         witness_round_trips: 1,
         durable_commits: 1,
     };
-    /// Advance, Reset and Reconcile: the renew, the coverage snapshot, and
-    /// one witness call, with the renew's own lease-intent journal commit;
-    /// Reconcile's conditional CAS after its query is admitted on its own in
-    /// `execute_transition`.
+    /// Advance and Reset: the renew, the coverage snapshot and the witness
+    /// CAS, with two durable commits -- the renew's own lease-intent journal
+    /// write, and the transition intent the CAS is dispatched for, which is
+    /// admitted with that CAS because it cannot be taken back once written.
     pub(super) const TRANSITION: Self = Self {
+        authority_round_trips: 2,
+        witness_round_trips: 1,
+        durable_commits: 2,
+    };
+    /// Reconcile: the renew, the coverage snapshot and the witness query,
+    /// with the renew's journal commit alone -- its transition intent is
+    /// already on disk, and the conditional CAS after the query is admitted
+    /// on its own in `execute_transition`, with nothing durable before it.
+    pub(super) const RECONCILE: Self = Self {
         authority_round_trips: 2,
         witness_round_trips: 1,
         durable_commits: 1,

@@ -405,15 +405,17 @@ fn crash_after_durable_intent_child() -> TestResult {
     std::process::exit(86);
 }
 
-/// A deadline that fits the transition plan but not the witness CAS once the
-/// lease work has been paid for. Both ports report a zero authority bound, so
-/// the TRANSITION plan reserve is the 500 ms witness bound plus the renew's
-/// own journal commit (`DURABLE_COMMIT_RESERVE`, one second): 1.5 s, admitted
-/// at t = 0 with a second of margin. The post-renew coverage snapshot then
-/// burns 2.2 s, leaving about 300 ms, so the 500 ms CAS bound cannot be
-/// admitted, with 200 ms of margin. The refusal must land before the durable
-/// intent: journaled, it would leave a pending transition only Reconcile
-/// clears.
+/// A deadline that fits the transition plan but not even the witness CAS
+/// alone once the lease work has been paid for. Both ports report a zero
+/// authority bound, so the TRANSITION plan reserve is the 500 ms witness
+/// bound plus two `DURABLE_COMMIT_RESERVE`s -- the renew's journal write and
+/// the transition intent -- 2.5 s, admitted at t = 0 with 500 ms of margin.
+/// The post-renew coverage snapshot then burns 2.6 s, leaving about 400 ms,
+/// so not even the bare 500 ms CAS bound can be admitted. The refusal must
+/// land before the durable intent: committed, it would leave a pending
+/// transition only Reconcile clears. (`a_transition_that_cannot_cover_its_
+/// durable_intent_is_refused_before_it` covers the budget in between, which
+/// the CAS bound alone fits and the intent's commit does not.)
 #[test]
 fn a_deadline_that_lapses_after_the_lease_leaves_no_durable_intent() -> TestResult {
     let directory = TestDirectory::new()?;
@@ -428,9 +430,9 @@ fn a_deadline_that_lapses_after_the_lease_leaves_no_durable_intent() -> TestResu
     pair.witness
         .set_round_trip_bound(Duration::from_millis(500));
     pair.initiator_authority
-        .delay_next_snapshot(Duration::from_millis(2_200));
+        .delay_next_snapshot(Duration::from_millis(2_600));
     let deadline = Instant::now()
-        .checked_add(Duration::from_millis(2_500))
+        .checked_add(Duration::from_millis(3_000))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.apply_advance_until(&certificate, deadline),
@@ -491,9 +493,9 @@ fn a_reset_refused_after_the_lease_leaves_no_durable_intent() -> TestResult {
     pair.witness
         .set_round_trip_bound(Duration::from_millis(500));
     pair.initiator_authority
-        .delay_next_snapshot(Duration::from_millis(2_200));
+        .delay_next_snapshot(Duration::from_millis(2_600));
     let deadline = Instant::now()
-        .checked_add(Duration::from_millis(2_500))
+        .checked_add(Duration::from_millis(3_000))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.apply_reset_until(&encoded, deadline),
@@ -510,5 +512,129 @@ fn a_reset_refused_after_the_lease_leaves_no_durable_intent() -> TestResult {
     pair.witness.set_round_trip_bound(Duration::ZERO);
     pair.initiator.apply_reset(&encoded)?;
     assert_ne!(pair.witness.read_head()?, initial_head);
+    Ok(())
+}
+
+#[test]
+fn a_transition_that_cannot_cover_its_durable_intent_is_refused_before_it() -> TestResult {
+    // Between the last admission and the witness CAS an Advance commits its
+    // transition intent durably, and that commit cannot be taken back: a
+    // refusal past it would strand a pending transition only Reconcile
+    // clears. So the commit is admitted with the CAS it precedes, at
+    // DURABLE_COMMIT_RESERVE, and a budget that covers the CAS bound alone is
+    // no longer enough.
+    //
+    // Both ports report a zero authority bound and a 500 ms witness bound, so
+    // the plan reserve is 2.5 s and is admitted at t = 0 with 500 ms to
+    // spare. The coverage snapshot then burns 2 s, leaving about a second:
+    // more than the 500 ms CAS bound, which is what used to let the intent be
+    // written, and less than the 1.5 s the commit and the CAS now need
+    // together.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 143)?;
+    let initial_head = pair.witness.read_head()?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    pair.witness
+        .set_round_trip_bound(Duration::from_millis(500));
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(2_000));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(3_000))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.apply_advance_until(&certificate, deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+
+    // Refused before the intent: nothing was dispatched to the witness, the
+    // agent still answers, and there is no pending transition to reconcile.
+    assert_eq!(pair.witness.read_head()?, initial_head);
+    assert!(pair.initiator.public_keys().is_ok());
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    // And the same advance under a budget of its own applies.
+    pair.witness.set_round_trip_bound(Duration::ZERO);
+    pair.initiator.apply_advance(&certificate)?;
+    assert_ne!(pair.witness.read_head()?, initial_head);
+    Ok(())
+}
+
+#[test]
+fn a_rejected_certificate_is_reported_as_rejected_under_any_deadline() -> TestResult {
+    // The certificate is authenticated before the admission that guards the
+    // durable intent, not after it. That is deliberate on both counts: a
+    // certificate this agent rejects costs nothing durable and is reported as
+    // rejected whatever the clock says, and an executor that cannot be built
+    // fails while there is still nothing on disk to strand. The arithmetic is
+    // the one from `a_transition_that_cannot_cover_its_durable_intent_is_
+    // refused_before_it`, so the admission below would refuse -- and does not
+    // get the chance.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 144)?;
+    let initial_head = pair.witness.read_head()?;
+    pair.witness
+        .set_round_trip_bound(Duration::from_millis(500));
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(2_000));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(3_000))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    // The genesis certificate is not an advance: the state machine rejects it
+    // outright.
+    assert_eq!(
+        pair.initiator
+            .apply_advance_until(&pair.migration.genesis, deadline),
+        Err(AgentError::Repository(RepositoryError::InvalidCertificate))
+    );
+    assert_eq!(pair.witness.read_head()?, initial_head);
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
+    Ok(())
+}
+
+#[test]
+fn reconcile_is_not_charged_the_advance_paths_durable_reserve() -> TestResult {
+    // Reconcile's intent is already on disk, and nothing durable stands
+    // between its admission and its witness call, so it reserves one durable
+    // commit -- its renew's journal write -- where Advance and Reset reserve
+    // two. Under a single shared plan the deadline here would be refused.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 145)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    // The witness applies the CAS and then loses the answer, so the intent
+    // stays pending and Reconcile is what finishes it.
+    pair.witness.make_next_unknown();
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::TransitionIndeterminate)
+    );
+
+    // At a one-second authority bound and a zero witness bound, Reconcile's
+    // plan is three seconds -- two round trips and the renew's journal commit
+    // -- and Advance's would be four.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(1));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(3_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    pair.initiator.reconcile_transition_until(deadline)?;
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::Repository(RepositoryError::NoPendingTransition))
+    );
     Ok(())
 }

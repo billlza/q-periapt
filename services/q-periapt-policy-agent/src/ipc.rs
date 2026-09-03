@@ -68,7 +68,11 @@ const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// after an `AuthorityVersionMismatch` and the re-dispatched renew, and
 /// against ports at their bounds its second extra round trip is refused with
 /// status 24. The agent admits each round trip against it and refuses, with
-/// status 24, a guarded operation whose least plan no longer fits. Waiting
+/// status 24, a guarded operation whose least plan no longer fits. A
+/// transition's plan is one authority round trip smaller than Begin and
+/// Accept's, and the second `DURABLE_COMMIT_RESERVE` it carries -- the intent
+/// it cannot take back once written -- is charged out of that difference, so
+/// the same deadline covers it. Waiting
 /// for the agent's one linearizer is inside this deadline, not on top of it:
 /// a request that spends it on a busy agent is refused with status 24 at the
 /// lock, or at the least-plan reserve that follows, and is never served late.
@@ -2041,6 +2045,22 @@ mod tests {
                     + IPC_IO_TIMEOUT),
             AUTHORITY_IO_TIMEOUT,
             "the request deadline's slack is one authority round trip, not a renew retry's two"
+        );
+        // A transition's least plan is one authority round trip smaller than
+        // Begin and Accept's, and it spends part of that difference on the
+        // second commit it cannot abandon: the intent it writes between its
+        // last admission and the witness CAS. Its envelope, with the
+        // reconciling query's slack intact, is 5 + 10 + 5 + 2 + 5 + 5 = 32.
+        assert!(
+            IPC_REQUEST_DEADLINE
+                >= IPC_IO_TIMEOUT
+                    + 2 * AUTHORITY_IO_TIMEOUT
+                    + WITNESS_IO_TIMEOUT
+                    + 2 * DURABLE_COMMIT_RESERVE
+                    + AUTHORITY_IO_TIMEOUT
+                    + IPC_IO_TIMEOUT,
+            "the request deadline must cover Advance and Reset: the lease work, the durable \
+             intent and the CAS, with the reconciling query's slack left over"
         );
         // Admission is strict, so five round trips need strictly more than
         // five timeouts, and the release dispatch among them is admitted with

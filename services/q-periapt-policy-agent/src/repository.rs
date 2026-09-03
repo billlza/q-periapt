@@ -207,6 +207,32 @@ struct PreparedTransition {
     envelope: Vec<u8>,
 }
 
+/// One certificate this repository has authenticated and reserved nothing
+/// for.
+///
+/// Holding one costs nothing and commits to nothing: the state machine
+/// absorbs its token only at `commit`, so dropping this leaves the repository
+/// exactly as it was. `StateRepository::persist_transition` is what turns it
+/// into the durable intent a witness CAS may then be dispatched for.
+pub struct AuthenticatedTransition {
+    kind: JournalKind,
+    envelope: Vec<u8>,
+    token: PendingMigrationCommitV1,
+}
+
+impl fmt::Debug for AuthenticatedTransition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AuthenticatedTransition([redacted])")
+    }
+}
+
+impl AuthenticatedTransition {
+    /// The state a witness CAS for this transition would move the lineage to.
+    pub(crate) fn next_state(&self) -> q_periapt_migration::MigrationStateV1 {
+        self.token.next_state()
+    }
+}
+
 /// Transactional local state. All methods require exclusive access from the service linearizer.
 pub struct StateRepository {
     database: Database,
@@ -501,10 +527,30 @@ impl StateRepository {
     }
 
     /// Authenticate and durably reserve one normal state certificate before witness CAS.
+    ///
+    /// The two halves are also available separately, and the service uses
+    /// them that way on purpose: authentication has no durable and no
+    /// external effect, so paying for it before the admission that guards the
+    /// commit keeps the un-admitted stretch to the commit alone, and keeps an
+    /// executor that cannot be built from stranding an intent already on
+    /// disk. A caller with no deadline to honour can use this pair.
     pub fn prepare_advance(
         &mut self,
         canonical_certificate: &[u8],
     ) -> Result<WitnessIntent, RepositoryError> {
+        let prepared = self.authenticate_advance(canonical_certificate)?;
+        self.persist_transition(prepared)
+    }
+
+    /// Authenticate one normal state certificate, durably reserving nothing.
+    ///
+    /// Takes `&self`: the state machine absorbs the token only at `commit`,
+    /// so the result can be held across the `&mut` borrow `persist_transition`
+    /// needs.
+    pub fn authenticate_advance(
+        &self,
+        canonical_certificate: &[u8],
+    ) -> Result<AuthenticatedTransition, RepositoryError> {
         if self.pending.is_some() {
             return Err(RepositoryError::TransitionPending);
         }
@@ -520,14 +566,30 @@ impl StateRepository {
                 &self.roots.authority_verification_key,
             )
             .map_err(|_| RepositoryError::InvalidCertificate)?;
-        self.persist_prepared(JournalKind::Advance, canonical_certificate, token)
+        Ok(AuthenticatedTransition {
+            kind: JournalKind::Advance,
+            envelope: canonical_certificate.to_vec(),
+            token,
+        })
     }
 
-    /// Authenticate and durably reserve one separately authorized reset before witness CAS.
+    /// Authenticate and durably reserve one separately authorized reset before
+    /// witness CAS. See [`Self::prepare_advance`] for why the service uses the
+    /// two halves separately.
     pub fn prepare_reset(
         &mut self,
         canonical_certificate: &[u8],
     ) -> Result<WitnessIntent, RepositoryError> {
+        let prepared = self.authenticate_reset(canonical_certificate)?;
+        self.persist_transition(prepared)
+    }
+
+    /// Authenticate one separately authorized reset, durably reserving
+    /// nothing; see [`Self::authenticate_advance`].
+    pub fn authenticate_reset(
+        &self,
+        canonical_certificate: &[u8],
+    ) -> Result<AuthenticatedTransition, RepositoryError> {
         if self.pending.is_some() {
             return Err(RepositoryError::TransitionPending);
         }
@@ -544,7 +606,25 @@ impl StateRepository {
         if token.next_state().authority_key_id() != self.roots.authority_key_id {
             return Err(RepositoryError::UnprovisionedAuthority);
         }
-        self.persist_prepared(JournalKind::Reset, canonical_certificate, token)
+        Ok(AuthenticatedTransition {
+            kind: JournalKind::Reset,
+            envelope: canonical_certificate.to_vec(),
+            token,
+        })
+    }
+
+    /// Durably reserve one already authenticated transition before witness
+    /// CAS.
+    ///
+    /// This is the one durable commit a transition cannot take back, so its
+    /// caller must have admitted the commit and the CAS that follows it
+    /// together: a refusal after this point would strand a pending transition
+    /// that only Reconcile clears.
+    pub fn persist_transition(
+        &mut self,
+        prepared: AuthenticatedTransition,
+    ) -> Result<WitnessIntent, RepositoryError> {
+        self.persist_prepared(prepared.kind, &prepared.envelope, prepared.token)
     }
 
     /// Finish the local transaction only for the exact authenticated applied receipt.

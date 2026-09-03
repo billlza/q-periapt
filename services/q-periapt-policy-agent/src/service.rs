@@ -84,11 +84,12 @@ const LINEARIZER_POLL_PAUSE: Duration = Duration::from_millis(1);
 /// round trip, and the retention gate before a secret becomes reachable. A
 /// call starts only if the port's own bound on that call ends before the
 /// deadline, so an admitted call always finishes in time and a refusal costs
-/// nothing. Where a durable commit stands between the admission and the call
-/// -- the lease-intent journal before a lease mutation -- that commit is
-/// admitted with the call at `DURABLE_COMMIT_RESERVE`, so the guarantee holds
-/// under that stated commit-latency model and not otherwise. The refusal is
-/// [`AgentError::OperationDeadlineExceeded`].
+/// nothing. Local work is not admitted, with one exception: where a durable
+/// commit stands between the admission and the call -- the lease-intent
+/// journal before a lease mutation, the prepared intent before a transition's
+/// CAS -- that commit is admitted with the call at `DURABLE_COMMIT_RESERVE`,
+/// so the guarantee holds under that stated commit-latency model and not
+/// otherwise. The refusal is [`AgentError::OperationDeadlineExceeded`].
 ///
 /// `std::sync::Mutex` has no timed acquisition, so the lock is polled rather
 /// than blocked on; the door is `admit(Duration::ZERO)` and the wait ends at
@@ -568,8 +569,9 @@ pub enum AgentError {
     /// The caller's end-to-end deadline could not be met. Either the operation
     /// was refused before its first blocking exchange, because what remained
     /// of the deadline could not cover the least authority and witness round
-    /// trips it needs, and the durable commit each of those dispatches must
-    /// pay for first (`DURABLE_COMMIT_RESERVE`) -- nothing was dispatched,
+    /// trips it needs, and the durable commits it cannot abandon
+    /// (`DURABLE_COMMIT_RESERVE` each: the journal row before every lease
+    /// dispatch, and a transition's own intent) -- nothing was dispatched,
     /// journaled, erased or fenced
     /// -- or the deadline ran out during the operation, in which case every
     /// secret it produced was erased, its reservation released, and nothing
@@ -972,11 +974,21 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// each round trip only while it ends before `deadline`.
     ///
     /// Refused with [`AgentError::OperationDeadlineExceeded`] before any
-    /// durable intent is written: either the least plan does not fit, or what
-    /// is left of the deadline after the lease work cannot cover the witness
-    /// CAS. A lease renew may already have been dispatched by then, but
-    /// nothing is journaled and no Reconcile is owed. A CAS the witness has
-    /// applied is committed and reported `Ok` whatever the deadline says.
+    /// durable intent is written: the least plan does not fit, or what is
+    /// left after the lease work cannot cover both the durable intent and the
+    /// witness CAS. The certificate is authenticated and the replacement
+    /// executor built before that admission, so a certificate this agent
+    /// rejects is reported as rejected whatever the clock says, and no engine
+    /// failure can strand an intent. A lease renew, and the journal row every
+    /// dispatch writes first, may already have been made by then; both are
+    /// the lease's own bookkeeping, which the next operation's drains settle,
+    /// and no transition is pending and no Reconcile is owed. Past the
+    /// durable intent the clock no longer decides: the CAS is dispatched and
+    /// its outcome reported truthfully, and a CAS the witness has applied is
+    /// committed and reported `Ok` whatever the deadline says. A durable
+    /// commit that blocks longer than the second reserved for it
+    /// (`DURABLE_COMMIT_RESERVE`) is the one way the CAS can start after the
+    /// deadline; the store bounds that, not this deadline.
     pub fn apply_advance_until(
         &self,
         canonical_signed_state: &[u8],
@@ -986,19 +998,30 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ensure_live(&inner)?;
         ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         purge_expired(&mut inner)?;
-        // The witness bound is admitted here, before the durable intent, and
-        // not at the dispatch: a refusal after the intent is on disk would
-        // strand a pending transition that only Reconcile clears. Past that
-        // durable commitment the clock no longer decides.
-        inner.deadline.admit(inner.witness.round_trip_bound())?;
-        let intent = inner.repository.prepare_advance(canonical_signed_state)?;
-        let replacement = executor_for(
-            &inner.config.execution_policy,
-            inner
-                .repository
-                .pending_next_state()
-                .ok_or(AgentError::InternalPoisoned)?,
-        )?;
+        // Authenticated and provisioned before the admission below, not after
+        // it: neither has any durable or external effect, so paying for them
+        // here keeps the un-admitted stretch to the durable commit alone --
+        // and an executor that cannot be built now fails while there is still
+        // nothing on disk to strand.
+        let prepared = inner
+            .repository
+            .authenticate_advance(canonical_signed_state)?;
+        let replacement = executor_for(&inner.config.execution_policy, prepared.next_state())?;
+        // Admitted here, before the durable intent, and not at the dispatch:
+        // a refusal after the intent is on disk would strand a pending
+        // transition that only Reconcile clears, and this agent does not
+        // abandon one. So the admission covers everything from here to the
+        // end of the CAS: the intent's own commit, charged at
+        // DURABLE_COMMIT_RESERVE, and the CAS at the witness's bound. Past
+        // the commit the clock no longer decides.
+        inner
+            .deadline
+            .admit(DURABLE_COMMIT_RESERVE.saturating_add(inner.witness.round_trip_bound()))?;
+        let intent = inner.repository.persist_transition(prepared)?;
+        // Only now: an executor published for a transition that then failed
+        // to persist would be reused by a later `reconcile_transition_until`,
+        // which rebuilds only when this field is `None` -- an executor for
+        // the wrong next state.
         inner.pending_engine = Some(replacement);
         dispatch_transition(&mut inner, intent)
     }
@@ -1021,17 +1044,18 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
         ensure_live(&inner)?;
         ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
         purge_expired(&mut inner)?;
-        // Admitted before the durable intent, for the reason given on
-        // `apply_advance_until`.
-        inner.deadline.admit(inner.witness.round_trip_bound())?;
-        let intent = inner.repository.prepare_reset(canonical_signed_reset)?;
-        let replacement = executor_for(
-            &inner.config.execution_policy,
-            inner
-                .repository
-                .pending_next_state()
-                .ok_or(AgentError::InternalPoisoned)?,
-        )?;
+        let prepared = inner
+            .repository
+            .authenticate_reset(canonical_signed_reset)?;
+        let replacement = executor_for(&inner.config.execution_policy, prepared.next_state())?;
+        // Admitted before the durable intent, and covering it, for the reason
+        // given on `apply_advance_until`; the authentication and the executor
+        // above are paid for before it for the same reason.
+        inner
+            .deadline
+            .admit(DURABLE_COMMIT_RESERVE.saturating_add(inner.witness.round_trip_bound()))?;
+        let intent = inner.repository.persist_transition(prepared)?;
+        // After the persist, never before it; see `apply_advance_until`.
         inner.pending_engine = Some(replacement);
         dispatch_transition(&mut inner, intent)
     }
@@ -1048,7 +1072,7 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     pub fn reconcile_transition_until(&self, deadline: Instant) -> Result<(), AgentError> {
         let mut inner = self.lock_until(OperationDeadline { at: deadline })?;
         ensure_live(&inner)?;
-        ensure_instance_lease(&mut inner, OperationPlan::TRANSITION)?;
+        ensure_instance_lease(&mut inner, OperationPlan::RECONCILE)?;
         let intent = inner
             .repository
             .pending_intent()
@@ -2076,8 +2100,11 @@ fn executor_for(
 ///
 /// Used where the CAS follows a round trip of its own that the operation's
 /// plan did not reserve -- Reconcile's conditional CAS after its query -- so
-/// the bound has to be admitted here. Advance and Reset admit it before they
-/// write their durable intent and call [`dispatch_transition`] directly.
+/// the bound has to be admitted here. The bare bound is right for it:
+/// Reconcile's intent is already on disk, so nothing durable stands between
+/// this admission and its CAS. Advance and Reset admit the witness bound
+/// together with the reserve for the durable intent they are about to write,
+/// then call [`dispatch_transition`] directly.
 fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     intent: crate::witness::WitnessIntent,
@@ -2091,7 +2118,8 @@ fn execute_transition<W: WitnessPort, A: InstanceAuthorityPort>(
 /// Deliberately takes no admission of its own: past the durable intent the
 /// clock no longer decides. Refusing here would strand a pending transition
 /// the witness never saw, which only Reconcile clears; the caller is
-/// responsible for admitting the round trip while nothing is committed.
+/// responsible for admitting the round trip, and any durable commit that
+/// precedes it, while nothing is committed.
 fn dispatch_transition<W: WitnessPort, A: InstanceAuthorityPort>(
     inner: &mut Inner<W, A>,
     intent: crate::witness::WitnessIntent,
