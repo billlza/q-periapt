@@ -1171,3 +1171,57 @@ fn the_ipc_face_gives_a_no_port_call_command_the_connections_deadline() -> TestR
     }
     Ok(())
 }
+
+/// Write `bytes` as a fresh 0600 config file `name` under `directory`, the way a
+/// deployment provisions the protected configuration.
+fn write_private_config(directory: &Path, name: &str, bytes: &[u8]) -> TestResult {
+    let mut file = open_private_file(&directory.join(name), true)
+        .map_err(|_| io::Error::other("failed to create private config"))?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    Ok(())
+}
+
+#[test]
+fn ipc_server_material_is_read_and_validated_before_the_lease_is_acquired() -> TestResult {
+    // `serve_agent` reads and validates the pinned IPC keys through this reader
+    // before it acquires the lease, so a missing or malformed key is refused
+    // before the process holds a lease that only its TTL would then release. The
+    // earlier order acquired first and read these keys afterwards, stranding the
+    // lease on any fault here. Exercise the reader directly: in `serve_agent` the
+    // acquire is the very next step, so a fault caught here can strand nothing.
+    let valid = TestDirectory::new()?;
+    let (_, client_vk) = MlDsa65::generate([31u8; 32]);
+    let (server_sk, server_vk) = MlDsa65::generate([32u8; 32]);
+    write_private_config(valid.path(), "ipc-client-vk.bin", &client_vk)?;
+    write_private_config(valid.path(), "ipc-server-sk.bin", &server_sk)?;
+    write_private_config(valid.path(), "ipc-server-vk.bin", &server_vk)?;
+    let configuration = OwnedPrivateDirectory::open(valid.path())
+        .map_err(|_| io::Error::other("configuration directory is not private"))?;
+    assert!(crate::ipc::read_ipc_server_material(&configuration).is_ok());
+
+    // A zeroed client key -- a real configuration fault -- is refused here, with
+    // no lease anywhere in sight.
+    let zeroed = TestDirectory::new()?;
+    write_private_config(zeroed.path(), "ipc-client-vk.bin", &[0u8; ML_DSA_65_VK_LEN])?;
+    write_private_config(zeroed.path(), "ipc-server-sk.bin", &server_sk)?;
+    write_private_config(zeroed.path(), "ipc-server-vk.bin", &server_vk)?;
+    let configuration = OwnedPrivateDirectory::open(zeroed.path())
+        .map_err(|_| io::Error::other("configuration directory is not private"))?;
+    assert_eq!(
+        crate::ipc::read_ipc_server_material(&configuration).err(),
+        Some(crate::ipc::IpcError::InvalidConfiguration)
+    );
+
+    // A missing key is refused the same way.
+    let missing = TestDirectory::new()?;
+    write_private_config(missing.path(), "ipc-server-sk.bin", &server_sk)?;
+    write_private_config(missing.path(), "ipc-server-vk.bin", &server_vk)?;
+    let configuration = OwnedPrivateDirectory::open(missing.path())
+        .map_err(|_| io::Error::other("configuration directory is not private"))?;
+    assert_eq!(
+        crate::ipc::read_ipc_server_material(&configuration).err(),
+        Some(crate::ipc::IpcError::InvalidConfiguration)
+    );
+    Ok(())
+}

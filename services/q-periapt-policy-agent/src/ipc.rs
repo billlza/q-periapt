@@ -450,31 +450,51 @@ fn validate_ipc_direction_isolation(
     Ok(())
 }
 
+/// Validate the pinned IPC request/response key material, without needing an
+/// agent. `read_ipc_server_material` runs this before the lease is acquired, and
+/// the server is then built from the validated material without re-validating
+/// (`from_validated_material`), so no check -- and no entropy the probe draws --
+/// runs after the acquire where a failure would strand the lease. Keeping the
+/// check here lets the production entry validate every key ahead of the
+/// irreversible acquire.
+fn validate_ipc_server_material(
+    client_verification_key: &[u8; ML_DSA_65_VK_LEN],
+    server_signing_key: &ZeroizingBytes<ML_DSA_65_SK_LEN>,
+    server_verification_key: &[u8; ML_DSA_65_VK_LEN],
+    io_timeout: Duration,
+) -> Result<(), IpcError> {
+    if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    validate_ipc_direction_isolation(
+        client_verification_key,
+        server_signing_key.as_bytes(),
+        server_verification_key,
+    )
+}
+
 impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, A> {
-    /// Configure pinned request/response keys. The listener is supplied
-    /// separately by the service manager; this server never creates one.
-    fn new(
+    /// Build the server from key material already validated by
+    /// `read_ipc_server_material`, taking ownership of the agent.
+    ///
+    /// Infallible on purpose. `new` re-validates, and that validation draws
+    /// entropy (the direction-isolation probe signs), so calling it after the
+    /// lease is acquired would re-introduce a fallible step that, on failure,
+    /// drops the agent with no release and strands the lease until its TTL.
+    /// `serve_agent` validates once, before the acquire, and then builds through
+    /// this so nothing between the acquire and the serving loop can fail.
+    fn from_validated_material(
         agent: PolicyAgent<W, A>,
-        client_verification_key: [u8; ML_DSA_65_VK_LEN],
-        server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
-        server_verification_key: [u8; ML_DSA_65_VK_LEN],
+        material: IpcServerMaterial,
         io_timeout: Duration,
-    ) -> Result<Self, IpcError> {
-        if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
-            return Err(IpcError::InvalidConfiguration);
-        }
-        validate_ipc_direction_isolation(
-            &client_verification_key,
-            server_signing_key.as_bytes(),
-            &server_verification_key,
-        )?;
-        Ok(Self {
+    ) -> Self {
+        Self {
             agent,
-            client_verification_key,
-            server_signing_key,
+            client_verification_key: material.client_verification_key,
+            server_signing_key: material.server_signing_key,
             io_timeout,
             recent_nonces: RecentNonces::new(),
-        })
+        }
     }
 
     /// Serve one request per accepted connection with bounded sequential
@@ -694,21 +714,20 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
         server_verification_key: [u8; ML_DSA_65_VK_LEN],
     ) -> Result<Self, IpcError> {
-        if client_verification_key.iter().all(|byte| *byte == 0) {
-            return Err(IpcError::InvalidConfiguration);
-        }
-        validate_ipc_direction_isolation(
+        validate_ipc_server_material(
             &client_verification_key,
-            server_signing_key.as_bytes(),
+            &server_signing_key,
             &server_verification_key,
+            IPC_IO_TIMEOUT,
         )?;
-        Ok(Self {
+        Ok(Self::from_validated_material(
             agent,
-            client_verification_key,
-            server_signing_key,
-            io_timeout: IPC_IO_TIMEOUT,
-            recent_nonces: RecentNonces::new(),
-        })
+            IpcServerMaterial {
+                client_verification_key,
+                server_signing_key,
+            },
+            IPC_IO_TIMEOUT,
+        ))
     }
 
     /// Serve one request with both deadlines derived exactly as `handle`
@@ -992,6 +1011,44 @@ where
     Err(IpcError::InvalidConfiguration)
 }
 
+/// The pinned IPC request/response key material `serve_agent` reads and
+/// validates before it acquires the lease.
+///
+/// It holds only what the server keeps -- the client verification key and the
+/// server signing key. The server verification key is read and used to validate
+/// the pair (its direction-isolation probe) inside `read_ipc_server_material`,
+/// which is the one place that check, and the entropy its signature draws, runs;
+/// it is not retained, so building the server from this material draws no
+/// entropy and cannot fail.
+pub(crate) struct IpcServerMaterial {
+    client_verification_key: [u8; ML_DSA_65_VK_LEN],
+    server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+}
+
+/// Read and validate the pinned IPC keys from the protected configuration.
+///
+/// Run before the lease is acquired, so a missing or malformed IPC key -- like
+/// every other configuration fault, and like the entropy the direction-isolation
+/// probe draws -- is refused before this process holds a lease that only its TTL
+/// would then release.
+pub(crate) fn read_ipc_server_material(
+    configuration: &OwnedPrivateDirectory,
+) -> Result<IpcServerMaterial, IpcError> {
+    let client_verification_key = read_array(configuration, "ipc-client-vk.bin")?;
+    let server_signing_key = read_secret(configuration, "ipc-server-sk.bin")?;
+    let server_verification_key = read_array(configuration, "ipc-server-vk.bin")?;
+    validate_ipc_server_material(
+        &client_verification_key,
+        &server_signing_key,
+        &server_verification_key,
+        IPC_IO_TIMEOUT,
+    )?;
+    Ok(IpcServerMaterial {
+        client_verification_key,
+        server_signing_key,
+    })
+}
+
 fn serve_agent(
     socket_path: &Path,
     repository_path: &Path,
@@ -1029,6 +1086,13 @@ fn serve_agent(
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let config = load_agent_config(&configuration)?;
+    // Read and validate every remaining pinned key BEFORE the lease is acquired.
+    // The acquire below is the last fallible step that reads the configuration;
+    // the earlier order acquired first and read these IPC keys afterwards, so a
+    // missing or malformed one exited without releasing the lease it already
+    // held, and the next start had to wait that lease out at its TTL. Reading
+    // them here refuses that fault before any lease exists.
+    let ipc_material = read_ipc_server_material(&configuration)?;
     // A predecessor that was killed rather than stopped never released its
     // lease, and the authority lets that lease lapse only at the TTL it
     // granted. Wait that out rather than failing: with `Restart=no` a failure
@@ -1045,32 +1109,34 @@ fn serve_agent(
         STARTUP_LEASE_WAIT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
-    let mut server = UnixIpcServer::new(
-        agent,
-        read_array(&configuration, "ipc-client-vk.bin")?,
-        read_secret(&configuration, "ipc-server-sk.bin")?,
-        read_array(&configuration, "ipc-server-vk.bin")?,
-        IPC_IO_TIMEOUT,
-    )?;
-    // Only now is there something to release, so only now are the handlers
-    // installed. A stop that arrives earlier -- during the lease wait above in
-    // particular, which can last minutes -- keeps the default disposition and
-    // ends the process at once, holding no lease. Latching it instead would
-    // have the daemon sit out the whole wait and only then exit, which is
-    // longer than the service manager's stop timeout. One that lands between
-    // the acquire above and this install ends the process holding the lease
-    // with no release, and the next start waits that lease out. From here on
-    // the orderly stop and a fatal listener error alike attempt the release;
-    // one the authority does not confirm -- a poisoned agent refuses it
-    // outright -- leaves the lease to lapse at its TTL instead, and an
-    // orderly stop reports that by exiting 1, as it does a release that
-    // settled but whose durable bookkeeping failed. A stop that lands during
-    // a request is observed once that request is answered or refused, within
-    // `IPC_REQUEST_DEADLINE`; the erase that follows costs one durable commit
-    // per pending session (`LEASE_ERASE_BOUND`) and the release then runs
-    // under `LEASE_RELEASE_BUDGET`. The service managers' stop timeouts cover
-    // all three.
-    let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
+    // The lease is held from here. Install the termination handlers only now: a
+    // stop that arrives earlier -- during the lease wait above in particular,
+    // which can last minutes -- keeps the default disposition and ends the
+    // process at once, holding no lease. Latching it instead would have the
+    // daemon sit out the whole wait and only then exit, which is longer than the
+    // service manager's stop timeout. If installing them fails, hand the lease
+    // back rather than exit still holding it and make the next start wait it out;
+    // this is the only fallible step left between the acquire and the release,
+    // because the IPC material was validated before the acquire and the server is
+    // built from it below without re-validating -- so nothing after this draws
+    // entropy or can otherwise fail and drop the agent with the lease unreleased.
+    let shutdown = match install_termination_handlers() {
+        Ok(shutdown) => shutdown,
+        Err(_) => {
+            let _ = agent.release_instance_lease();
+            return Err(IpcError::Unavailable);
+        }
+    };
+    // From here on the orderly stop and a fatal listener error alike attempt the
+    // release; one the authority does not confirm -- a poisoned agent refuses it
+    // outright -- leaves the lease to lapse at its TTL instead, and an orderly
+    // stop reports that by exiting 1, as it does a release that settled but whose
+    // durable bookkeeping failed. A stop that lands during a request is observed
+    // once that request is answered or refused, within `IPC_REQUEST_DEADLINE`; the
+    // erase that follows costs one durable commit per pending session
+    // (`LEASE_ERASE_BOUND`) and the release then runs under `LEASE_RELEASE_BUDGET`.
+    // The service managers' stop timeouts cover all three.
+    let mut server = UnixIpcServer::from_validated_material(agent, ipc_material, IPC_IO_TIMEOUT);
     server.serve_and_release(listener, shutdown)
 }
 
