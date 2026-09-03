@@ -526,6 +526,11 @@ struct MemoryWitness {
     /// Sleep this long at the top of the next `compare_and_advance`, the way
     /// a slow network round trip would.
     delay_next_compare_and_advance: Arc<Mutex<Duration>>,
+    /// Sleep this long at the top of the next `read_head`. That read is the
+    /// I/O between an operation's coverage proof and the checks that guard
+    /// what it may retain or return, so this is where a slow witness spends
+    /// a budget the operation was admitted under.
+    delay_next_read_head: Arc<Mutex<Duration>>,
 }
 
 struct MemoryWitnessState {
@@ -545,6 +550,7 @@ impl MemoryWitness {
             advance_authority_on_read: Arc::new(Mutex::new(None)),
             round_trip_bound: Arc::new(Mutex::new(Duration::ZERO)),
             delay_next_compare_and_advance: Arc::new(Mutex::new(Duration::ZERO)),
+            delay_next_read_head: Arc::new(Mutex::new(Duration::ZERO)),
         }
     }
 
@@ -579,6 +585,26 @@ impl MemoryWitness {
             .is_zero()
     }
 
+    /// Make the next `read_head` take this long before it answers.
+    fn delay_next_read_head(&self, delay: Duration) {
+        *self
+            .delay_next_read_head
+            .lock()
+            .expect("memory witness hook poisoned") = delay;
+    }
+
+    /// Whether the read delay above is still armed. `read_head` takes it with
+    /// `mem::take`, so this doubles as "no head read has run since the delay
+    /// was armed" -- which is how a test tells a refusal that came *after*
+    /// the witness read from one that came before it.
+    fn read_head_delay_armed(&self) -> bool {
+        !self
+            .delay_next_read_head
+            .lock()
+            .expect("memory witness hook poisoned")
+            .is_zero()
+    }
+
     fn replace_head(&self, head: StateHead) -> Result<(), WitnessError> {
         self.state
             .lock()
@@ -592,6 +618,15 @@ impl WitnessPort for MemoryWitness {
     fn read_head(&self) -> Result<StateHead, WitnessError> {
         if self.fail_reads.load(Ordering::Acquire) {
             return Err(WitnessError::Unavailable);
+        }
+        let delay = core::mem::take(
+            &mut *self
+                .delay_next_read_head
+                .lock()
+                .map_err(|_| WitnessError::Persistence)?,
+        );
+        if !delay.is_zero() {
+            thread::sleep(delay);
         }
         if let Some(authority) = self
             .advance_authority_on_read
@@ -930,6 +965,25 @@ impl MemoryAuthority {
     /// Lose the next acknowledgement's response; the receipt stays retained.
     fn lose_next_acknowledgement(&self) {
         self.lock().lose_next_acknowledgement = true;
+    }
+
+    /// Advertise a deployment config revision the authority does not hold, so
+    /// every lease intent built from `wire_config` comes back
+    /// `Rejected(ConfigurationMismatch)` -- the shape of a deployment config
+    /// that advanced under a running process. `false` restores the revision
+    /// the authority actually holds.
+    ///
+    /// Only the advertised revision drifts: `apply` checks the expected
+    /// authority version before it plans, so that has to stay in step or the
+    /// intent is refused on the version instead of ever reaching the config.
+    fn drift_wire_config(&self, drifted: bool) -> TestResult {
+        let mut state = self.lock();
+        state.config = if drifted {
+            DeploymentConfigRevisionV2::new(2, [46u8; 32])?
+        } else {
+            state.authority.persistent_meta().config
+        };
+        Ok(())
     }
 
     /// What `round_trip_bound` reports from now on.

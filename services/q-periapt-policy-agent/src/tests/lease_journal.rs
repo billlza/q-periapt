@@ -775,3 +775,71 @@ fn a_lost_acquire_whose_query_misses_the_budget_still_releases_the_fence() -> Te
         authority.report_bound_once_after_next_lease_call(Duration::from_secs(120));
     })
 }
+
+#[test]
+fn an_acquire_whose_response_and_queries_are_lost_at_construction_releases_the_expected_fence(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let store = release_and_drop(agent_pair(&directory, 154)?)?;
+    let before = store.authority.lock().authority.persistent_meta();
+    let calls = store.authority.lease_call_count();
+    // The acquire applies, its response is lost, and every query after it is
+    // refused: the constructor can neither use the lease nor learn it has one.
+    store.authority.lose_next_acquire_and_queries();
+    assert_eq!(
+        PolicyAgent::new(
+            store.repository,
+            store.witness.clone(),
+            store.authority.clone(),
+            store.config.clone(),
+        )
+        .err(),
+        Some(AgentError::InstanceLeaseIndeterminate)
+    );
+    // The fence the acquire would have granted was handed back rather than
+    // left to lapse. This is the assertion that fails if the release in the
+    // indeterminate arm is ever dropped.
+    assert_eq!(store.authority.active_lease()?, None);
+    // And the acquire really did apply, so that release was not a no-op.
+    assert_eq!(
+        store
+            .authority
+            .lock()
+            .authority
+            .persistent_meta()
+            .lease_generation,
+        before.lease_generation + 1
+    );
+    // Three calls, deterministic under this fixture: the acquire (applied, its
+    // response lost), a release refused on its stale authority version
+    // (AuthorityVersionMismatch -> LeaseExchange::Retry), and the resynced
+    // release that applies. Not a bound: leave it exact.
+    assert_eq!(store.authority.lease_call_count(), calls + 3);
+
+    // What the store is left holding is exactly the lost acquire's own row,
+    // and what the authority is left holding is exactly that acquire's
+    // receipt: the release's two rows were both settled -- the first proven
+    // never to have run, the second acknowledged -- and forgotten, the first
+    // by the second's journal write and the second by `forget_settled`. An
+    // assertion that the journal is empty would be wrong, and an unbounded
+    // one would not notice a dropped `forget_settled`.
+    let repository = StateRepository::open_existing(&store.path, store.roots.clone())?;
+    let journaled = repository.journaled_lease_intents()?;
+    assert_eq!(journaled.len(), 1);
+    assert_eq!(store.authority.receipt_count()?, 1);
+
+    // With the queries answering again the next start acquires normally, on
+    // its own acquire alone -- `new`, not `new_with_lease_wait`, so no TTL was
+    // waited out -- and settles what the failed start left behind.
+    store.authority.refuse_queries(false);
+    let calls = store.authority.lease_call_count();
+    let restarted = PolicyAgent::new(
+        repository,
+        store.witness.clone(),
+        store.authority.clone(),
+        store.config.clone(),
+    )?;
+    assert_eq!(store.authority.lease_call_count(), calls + 1);
+    assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 1);
+    Ok(())
+}

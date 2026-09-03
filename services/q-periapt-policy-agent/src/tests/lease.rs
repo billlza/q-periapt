@@ -2070,6 +2070,87 @@ fn a_coverage_lapse_on_a_begin_retry_returns_no_handle_and_erases_nothing() -> T
 }
 
 #[test]
+fn a_coverage_lapse_after_the_post_renew_proof_returns_no_handle_on_a_retry() -> TestResult {
+    // The cut above lands before the post-renew proof, so it never reaches the
+    // gate that guards the replay itself. This one lands after it. The renew
+    // applies and the proof succeeds -- with almost nothing left: the clock
+    // step leaves the snapshot reporting TTL - (TTL - B - 200) = B + 200 ms of
+    // life, so `coverage_deadline` records anchor + 200 ms, and the anchor is
+    // taken before the snapshot request. That same snapshot then sleeps 600
+    // ms, so the proven coverage is already some 400 ms in the past by the
+    // time the head read and the two ML-DSA-65 verifications in
+    // `build_contract` are done and the replay index is consulted. The bound
+    // is one-sided: only 400 ms of backwards clock drift could make this pass
+    // for the wrong reason.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 160)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS - LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS - 200,
+    );
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(600));
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // The lapse is not evidence of a successor: the session and its durable
+    // reservation both survive, and the handle was simply not returned.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+    Ok(())
+}
+
+#[test]
+fn a_deadline_reached_after_the_witness_read_returns_no_handle_on_a_retry() -> TestResult {
+    // The other half of the same gate: coverage stands, but the operation's
+    // own deadline is gone. The witness head read is the last I/O before the
+    // replay index, and it is admitted against the deadline before it runs --
+    // so a read that ends after the deadline leaves the replay to be refused
+    // by the gate and nothing else.
+    //
+    // Arithmetic: everything before that admission -- the renew, the coverage
+    // snapshot and the purge -- has to fit in the two-second deadline, which
+    // is several times what it costs even under a contended suite; the read
+    // then takes four seconds, so the gate is reached two seconds past the
+    // deadline however the prologue was scheduled. The armed-delay assertion
+    // is what makes that sound: had the prologue overrun instead, the refusal
+    // would have come from the admission before the read and the delay would
+    // still be armed.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 161)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    pair.witness.delay_next_read_head(Duration::from_secs(4));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(2))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.begin_encapsulation_until(
+            BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+            deadline,
+        ),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert!(
+        !pair.witness.read_head_delay_armed(),
+        "the read never ran; the refusal came before the gate under test"
+    );
+    // Nothing erased, nothing released: a lapsed budget is not a fence.
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+    Ok(())
+}
+
+#[test]
 fn coverage_deadline_subtracts_the_divergence_budget() {
     let anchor = Instant::now();
     let budget = LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS;
@@ -2251,5 +2332,274 @@ fn a_release_whose_every_dispatch_stays_unknown_is_indeterminate() -> TestResult
     pair.initiator_authority.refuse_queries(false);
     pair.initiator.release_instance_lease()?;
     assert_eq!(pair.initiator_authority.active_lease()?, None);
+    Ok(())
+}
+
+#[test]
+fn a_constructor_acquire_whose_outcome_is_lost_releases_the_lease() -> TestResult {
+    // The acquire applies but its response and every query after it are lost,
+    // so the constructor cannot learn whether it holds a lease. Without the
+    // release in the indeterminate arm the authority keeps one under a fresh
+    // instance id no process will ever release, and every restart is fenced
+    // until the TTL.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 162)?;
+    pair.initiator.release_instance_lease()?;
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator_authority.lose_next_acquire_and_queries();
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let failed = PolicyAgent::new(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+    );
+    assert_eq!(failed.err(), Some(AgentError::InstanceLeaseIndeterminate));
+    // With the queries answering again, the lease the lost acquire took is
+    // gone: the expected fence was released before the error returned.
+    pair.initiator_authority.refuse_queries(false);
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    // Three calls: the acquire, a release still carrying the authority version
+    // from before the lost acquire -- answered AuthorityVersionMismatch -- and
+    // the resync retry that applies. Do not simplify this to two.
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 3);
+
+    // The successor starts at once, with no wait allowed at all.
+    let repository =
+        StateRepository::open_existing(&pair.old_snapshot_path, pair.migration.roots.clone())?;
+    let second = PolicyAgent::new_with_lease_wait(
+        repository,
+        pair.witness.clone(),
+        pair.initiator_authority.clone(),
+        pair.initiator_config.clone(),
+        Duration::ZERO,
+    )?;
+    second.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn a_release_with_no_receipt_and_no_proof_is_indeterminate_and_keeps_the_fence() -> TestResult {
+    // The release applies at the authority, its response is lost, the
+    // reconciling queries are refused, and the snapshot that stands in for
+    // the missing receipt is unanswered too: nothing is proved, so the call
+    // must not report success and must not drop the fence -- an `Ok` here
+    // exits stop(8) 0 while the authority may still hold the lease.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 163)?;
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator_authority.make_next_unknown();
+    pair.initiator_authority.refuse_queries(true);
+    pair.initiator_authority.refuse_snapshots(true);
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseIndeterminate)
+    );
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls + 1);
+    // The fence is kept: the phase stayed `Releasing`.
+    assert_eq!(
+        pair.initiator
+            .begin_encapsulation(BeginEncapsulation::new(
+                pair.initiator_authorization.clone(),
+                pair.responder_public_keys.clone(),
+            ))
+            .err(),
+        Some(AgentError::InstanceFenced)
+    );
+    // The release's row is still journaled, unresolved.
+    assert_eq!(pair.initiator.journaled_lease_intents_for_test()?.len(), 1);
+    // Once snapshots are answered again, a later call settles it. That retry
+    // re-dispatches, so it costs further lease calls; what matters is that
+    // this call, and not the indeterminate one, is the one that reports Ok.
+    pair.initiator_authority.refuse_snapshots(false);
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    Ok(())
+}
+
+#[test]
+fn a_lapsed_own_reacquire_is_indeterminate_not_a_permanent_fence() -> TestResult {
+    // The re-acquire applied at G+1 under this instance's own id, its response
+    // and every query were lost, and then that lease itself lapsed. The
+    // snapshot now shows no active lease at exactly the expected generation --
+    // indistinguishable from an acquire still in flight -- so it decides
+    // nothing: the record is kept and the caller is told indeterminate.
+    // Fencing here would retire the instance permanently with no successor
+    // anywhere.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 164)?;
+    let (before, after) = lose_the_reacquire_response(&pair)?;
+    pair.initiator_authority.expire_active_lease();
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    assert_eq!(
+        pair.initiator_authority
+            .lock()
+            .authority
+            .persistent_meta()
+            .lease_generation,
+        after.fence().generation()
+    );
+    let calls = pair.initiator_authority.lease_call_count();
+    for _ in 0..2 {
+        assert_eq!(
+            pair.initiator
+                .begin_encapsulation(BeginEncapsulation::new(
+                    pair.initiator_authorization.clone(),
+                    pair.responder_public_keys.clone(),
+                ))
+                .err(),
+            Some(AgentError::InstanceLeaseIndeterminate)
+        );
+        assert_eq!(pair.initiator_authority.lease_call_count(), calls);
+    }
+    // Queries answered: the exact receipt adopts (G+1, I), the renew under it
+    // is rejected as expired, and a fresh acquire yields G+2 under the same
+    // instance id -- recovery, not a fence.
+    pair.initiator_authority.refuse_queries(false);
+    pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?;
+    let active = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("no lease after recovery"))?;
+    assert_eq!(active.fence().instance_id(), before.fence().instance_id());
+    assert_eq!(active.fence().generation(), before.fence().generation() + 2);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_drain_refused_by_the_budget_keeps_every_unresolved_row() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 173)?;
+    let AgentPair {
+        initiator,
+        responder,
+        witness,
+        initiator_authority,
+        migration,
+        initiator_config,
+        initiator_repository_path,
+        ..
+    } = pair;
+    drop(responder);
+    initiator.release_instance_lease()?;
+    drop(initiator);
+    let repository =
+        StateRepository::open_existing(&initiator_repository_path, migration.roots.clone())?;
+    for byte in [0x11u8, 0x22, 0x33] {
+        repository.journal_lease_intent(OperationIdV2::new(1, [byte; 32])?, &[])?;
+    }
+    initiator_authority.refuse_queries(true);
+    let restarted = PolicyAgent::new(
+        repository,
+        witness,
+        initiator_authority.clone(),
+        initiator_config,
+    )?;
+    assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 4);
+
+    // The authority answers again, so only the budget can stop the drain.
+    // Reconcile's least plan at a one-second authority bound -- its witness
+    // bound is zero -- is two authority round trips: two seconds. The drain
+    // admits two round trips *on top of* that reserve, four seconds, so a
+    // 2.5-second deadline lets the operation in and refuses every row, with
+    // half a second of slack for the setup between `now()` and the plan's own
+    // admission.
+    initiator_authority.refuse_queries(false);
+    initiator_authority.set_round_trip_bound(Duration::from_secs(1));
+    let queries = initiator_authority.query_call_count();
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(2_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert!(restarted.reconcile_transition_until(deadline).is_err());
+    // Refused before it asked anything, and nothing forgotten.
+    assert_eq!(initiator_authority.query_call_count(), queries);
+    assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 4);
+    // Still owed, not dropped: the next default-budget operation asks about
+    // all three and its journal write forgets them. The query count is what
+    // fails if a regression settles or forgets a row before the admit; the
+    // journal length is what fails if one is taken off `unresolved` without
+    // being settled, and neither alone tells those apart.
+    initiator_authority.set_round_trip_bound(Duration::ZERO);
+    drive_one_lease_renew(&restarted)?;
+    assert_eq!(initiator_authority.query_call_count(), queries + 3);
+    assert_eq!(restarted.journaled_lease_intents_for_test()?.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_pending_reacquire_refused_by_the_budget_is_kept_and_dispatches_nothing() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 166)?;
+    let (_before, _after) = lose_the_reacquire_response(&pair)?;
+    // The resolution admits one authority round trip on top of the plan's
+    // two-second reserve -- three seconds -- so a 2.5-second deadline admits
+    // the operation and refuses the resolution.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(1));
+    let queries = pair.initiator_authority.query_call_count();
+    let calls = pair.initiator_authority.lease_call_count();
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(2_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.reconcile_transition_until(deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert_eq!(pair.initiator_authority.query_call_count(), queries);
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls);
+    // The record survives: under the default budget the same lost re-acquire
+    // is adopted rather than lost.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::ZERO);
+    pair.initiator_authority.refuse_queries(false);
+    drive_one_lease_renew(&pair.initiator)?;
+    Ok(())
+}
+
+#[test]
+fn a_release_declined_on_a_clearable_condition_keeps_the_lease() -> TestResult {
+    // A deployment config that advanced under a running process: every lease
+    // intent this agent builds now names a revision the authority does not
+    // hold, and the authority declines it with `ConfigurationMismatch` before
+    // it ever looks at the lease. That is a condition that can clear, so the
+    // lease is still this instance's to release: the call must report the
+    // refusal and keep the fence, never retire on it.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 167)?;
+    let authority = &pair.initiator_authority;
+    let held = authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the fixture must start out holding its lease"))?;
+    authority.drift_wire_config(true)?;
+    let calls = authority.lease_call_count();
+
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseUnavailable)
+    );
+    // The declined arm returns without re-looping: one dispatch, no resync.
+    assert_eq!(authority.lease_call_count(), calls + 1);
+    // And the authority still holds this instance's lease, under the same
+    // fence it held before.
+    assert_eq!(
+        authority.active_lease()?.map(|lease| lease.fence()),
+        Some(held.fence())
+    );
+
+    // Config back in step: the release goes through and dispatches to do it.
+    // Under a mutation that retired the lease on the decline this second call
+    // short-circuits on the retired phase, dispatches nothing, and leaves the
+    // authority holding the lease -- which both of the next two assertions
+    // catch.
+    authority.drift_wire_config(false)?;
+    let calls = authority.lease_call_count();
+    pair.initiator.release_instance_lease()?;
+    assert!(authority.lease_call_count() > calls);
+    assert_eq!(authority.active_lease()?, None);
     Ok(())
 }
