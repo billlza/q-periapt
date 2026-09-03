@@ -1141,9 +1141,23 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// Refused with [`AgentError::OperationDeadlineExceeded`] before anything
     /// is dispatched when the least plan does not fit, and aborted with the
     /// same error, its reservation released and nothing retained, when the
-    /// deadline is reached before the secret becomes reachable. An exact
-    /// retry is answered only under proven lease coverage and before the
-    /// deadline; it dispatches nothing beyond the renew.
+    /// deadline is reached before the secret becomes reachable.
+    ///
+    /// An exact retry reserves nothing durably, but it is not free: it
+    /// dispatches the renew, the coverage snapshot that follows it, the
+    /// witness head read, and the retention snapshot that gates the
+    /// disclosure -- the same `OperationPlan::RETAINING` budget of three
+    /// authority round trips and one witness round trip the fresh path is
+    /// admitted against. It is refused rather than answered when that budget
+    /// does not fit the caller's remaining deadline
+    /// ([`AgentError::OperationDeadlineExceeded`]), when the authority cannot
+    /// be reached for either snapshot ([`AgentError::InstanceLeaseUnavailable`]),
+    /// or when the coverage it re-proves has elapsed
+    /// ([`AgentError::InstanceLeaseCoverageElapsed`]). And it can fence: the
+    /// retention snapshot fences exactly as it does on the fresh path when it
+    /// shows a successor, a rolled-back authority or a foreign fence, erasing
+    /// the retried session along with every other secret and answering
+    /// [`AgentError::InstanceFenced`].
     pub fn begin_encapsulation_until(
         &self,
         request: BeginEncapsulation,
@@ -2412,7 +2426,14 @@ fn lookup_begun_capability<W: WitnessPort, A: InstanceAuthorityPort>(
     // fresh authority observation is taken after that last I/O, then the
     // budgeted rule against it and the operation's own deadline
     // (`prove_lease_covers_retention`), exactly as `reserve_pending` does before
-    // it retains a fresh secret. Neither refusal is a fence.
+    // it retains a fresh secret.
+    //
+    // The budgeted early-out is not a fence: a local deadline running out is no
+    // evidence that a successor exists. The fresh proof is, exactly as it is on
+    // the fresh path -- a snapshot showing a successor, a rolled-back authority
+    // or a foreign fence retires this instance and erases every secret, this
+    // retry's own session included, and the retry answers `InstanceFenced`
+    // instead of the replay.
     ensure_may_retain(inner)?;
     prove_lease_covers_retention(inner)?;
     Ok(Some(replay))
