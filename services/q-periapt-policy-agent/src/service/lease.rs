@@ -748,7 +748,18 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
             // as after a crash. No secret exists yet, so there is nothing to
             // erase. The error reported is the acquire's own. The release
             // gets a fresh budget of its own, not this attempt's remainder.
-            Err(AgentError::InstanceLeaseIndeterminate) => {
+            //
+            // The discriminator is the evidence, not the error variant: the
+            // id is unresolved exactly when the acquire was dispatched and
+            // its outcome never learned -- the reconciliation out of
+            // attempts (`InstanceLeaseIndeterminate`), its query refused
+            // closed (`InstanceLeaseUnavailable`), or the query outside the
+            // budget (`OperationDeadlineExceeded`). Every one of those can
+            // leave a lease held under this fresh instance id.
+            Err(error) => {
+                if !lease.unresolved.contains(&intent.operation_id()) {
+                    return Err(error);
+                }
                 let generation = expected_lease_generation
                     .checked_add(1)
                     .ok_or(AgentError::InstanceLeaseUnavailable)?;
@@ -761,9 +772,8 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
                         release_lease_state(repository, authority, &mut lease, release_deadline);
                 }
                 let _ = forget_settled(repository, &mut lease);
-                return Err(AgentError::InstanceLeaseIndeterminate);
+                return Err(error);
             }
-            Err(error) => return Err(error),
         };
         match exchange {
             LeaseExchange::Receipt(receipt) => {
@@ -811,7 +821,12 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
             }
         }
     }
-    Err(AgentError::InstanceLeaseIndeterminate)
+    // The loop is only exhausted by attempts that provably granted nothing:
+    // a `Retry` the authority proved it never executed, or an acquire it
+    // rejected as held or generation-mismatched whose snapshot then reported
+    // no active lease. No fence was issued and no compensating release is
+    // owed, unlike the dispatched-and-unresolved branch above.
+    Err(AgentError::InstanceLeaseUnavailable)
 }
 
 /// Acquire the instance lease, waiting up to `max_wait` for another holder's
@@ -986,7 +1001,10 @@ pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
             LeaseExchange::Retry => {}
         }
     }
-    Err(AgentError::InstanceLeaseIndeterminate)
+    // Every attempt was refused on its authority-version precondition and
+    // settled, so the renew provably never ran; the lease is untouched and
+    // the call may be repeated.
+    Err(AgentError::InstanceLeaseUnavailable)
 }
 
 /// Erase every in-process pending and accepted secret, reporting the first
@@ -1105,7 +1123,10 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
             }
         }
     }
-    Err(AgentError::InstanceLeaseIndeterminate)
+    // Every attempt was refused on its authority-version precondition and
+    // settled, so the re-acquire provably never ran; the pre-acquire fence
+    // stands and the call may be repeated.
+    Err(AgentError::InstanceLeaseUnavailable)
 }
 
 /// Learn the outcome of a re-acquire whose response was lost, before anything
@@ -1507,6 +1528,10 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             }
         }
     }
+    // Whether any attempt left a dispatch whose outcome was never learned:
+    // the loop can also be exhausted purely by version-mismatch resyncs,
+    // which prove the release never ran.
+    let mut outcome_unknown = false;
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         let Some(fence) = lease.fence else {
             return Err(AgentError::InstanceLeaseUnavailable);
@@ -1546,6 +1571,10 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             // Provably never executed; the loop rebuilds the intent.
             Ok(LeaseExchange::Retry) => {}
             Err(AgentError::InstanceLeaseIndeterminate) => {
+                // This route dispatched and could not learn the outcome: its
+                // journal id is genuinely unresolved, so an exhausted loop
+                // here is unknown rather than proven.
+                outcome_unknown = true;
                 // The proof is one more round trip; refused, the outcome
                 // stays unknown and the fence is kept for a later call.
                 deadline.admit(reserve)?;
@@ -1565,7 +1594,15 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             Err(error) => return Err(error),
         }
     }
-    Err(AgentError::InstanceLeaseIndeterminate)
+    // A loop exhausted purely by version-mismatch resyncs proves the release
+    // never ran -- the release contract's "declined on a condition that can
+    // clear" arm -- while one that dispatched without learning an outcome is
+    // the strict unknown case.
+    if outcome_unknown {
+        Err(AgentError::InstanceLeaseIndeterminate)
+    } else {
+        Err(AgentError::InstanceLeaseUnavailable)
+    }
 }
 
 /// Ask a snapshot whether any lease of this instance remains, when a release's

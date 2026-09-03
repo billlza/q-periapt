@@ -35,6 +35,10 @@ struct ReleasedStore {
     witness: MemoryWitness,
     authority: MemoryAuthority,
     config: AgentConfig,
+    /// Where that store lives, with the roots to reopen it: a test that
+    /// expects the start to fail needs a second one on the same store.
+    path: PathBuf,
+    roots: MigrationTrustRoots,
 }
 
 fn release_and_drop(pair: AgentPair) -> TestResult<ReleasedStore> {
@@ -59,6 +63,8 @@ fn release_and_drop(pair: AgentPair) -> TestResult<ReleasedStore> {
         witness,
         authority: initiator_authority,
         config: initiator_config,
+        path: initiator_repository_path,
+        roots: migration.roots,
     })
 }
 
@@ -691,4 +697,73 @@ fn lease_journal_crash_after_dispatch_child() -> TestResult {
     // the receipt; returns only on failure.
     agent.release_instance_lease()?;
     Err(io::Error::other("the lease journal crash child did not exit").into())
+}
+
+/// A start whose acquire was dispatched and whose outcome was never learned
+/// must hand back the fence that acquire would have granted, whatever error
+/// carries that state out. The fence is the next generation under this
+/// process's own fresh instance id: had the acquire applied, nothing else
+/// could ever release it and every retry would be fenced until the TTL.
+fn a_lost_acquire_releases_its_fence(
+    session_byte: u8,
+    expected: AgentError,
+    arm: fn(&MemoryAuthority),
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let store = release_and_drop(agent_pair(&directory, session_byte)?)?;
+    let calls_before = store.authority.lease_call_count();
+    // The acquire applies and its response is lost; what the caller arms is
+    // what stops the reconciliation from learning that it did.
+    store.authority.make_next_unknown();
+    arm(&store.authority);
+
+    let outcome = PolicyAgent::new(
+        store.repository,
+        store.witness.clone(),
+        store.authority.clone(),
+        store.config.clone(),
+    );
+    assert_eq!(outcome.err(), Some(expected));
+    // Three calls reached the authority: the acquire, then the release that
+    // handed its fence straight back -- refused once on the authority version
+    // the lost response never told this process about, which settles and
+    // resynchronises, and applied at the refreshed one. Nothing is held, no
+    // receipt is left retained, and the journal is empty again.
+    assert_eq!(store.authority.lease_call_count(), calls_before + 3);
+    assert_eq!(store.authority.active_lease()?, None);
+    assert_eq!(store.authority.receipt_count()?, 0);
+    let repository = StateRepository::open_existing(&store.path, store.roots.clone())?;
+    assert!(repository.journaled_lease_intents()?.is_empty());
+
+    // So the next start acquires at once instead of being fenced by a lease
+    // this process left behind and would never have released.
+    let restarted = PolicyAgent::new(
+        repository,
+        store.witness,
+        store.authority.clone(),
+        store.config,
+    )?;
+    restarted.release_instance_lease()?;
+    Ok(())
+}
+
+#[test]
+fn a_lost_acquire_whose_query_is_refused_closed_still_releases_the_fence() -> TestResult {
+    // A closed refusal of the reconciling query is not an unknown outcome by
+    // its error variant, but the acquire's own outcome is exactly as unknown
+    // as it is after an exhausted reconciliation.
+    a_lost_acquire_releases_its_fence(160, AgentError::InstanceLeaseUnavailable, |authority| {
+        authority.refuse_next_query_with(AuthorityKnownFailureV2::RateLimited);
+    })
+}
+
+#[test]
+fn a_lost_acquire_whose_query_misses_the_budget_still_releases_the_fence() -> TestResult {
+    // The reconciling query is the first round trip admitted after the lost
+    // dispatch, and a bound larger than the constructor's whole budget makes
+    // it the one that cannot fit. Every later read reports the usual zero, so
+    // the compensating release runs on its own fresh budget.
+    a_lost_acquire_releases_its_fence(161, AgentError::OperationDeadlineExceeded, |authority| {
+        authority.report_bound_once_after_next_lease_call(Duration::from_secs(120));
+    })
 }

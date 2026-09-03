@@ -2142,3 +2142,84 @@ fn a_start_journal_pass_that_cannot_fit_the_budget_leaves_its_rows_for_later() -
     }
     Ok(())
 }
+
+#[test]
+fn a_renew_refused_on_its_version_precondition_every_attempt_is_unavailable() -> TestResult {
+    // `AuthorityVersionMismatch` is a proven non-execution: the authority
+    // refused the mutation on its precondition and settled its journal row.
+    // A resync loop exhausted by nothing but those has learned that the renew
+    // never ran, which is not an unknown outcome -- reporting it as one would
+    // send an operator looking for a mutation that never happened.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 170)?;
+    let before = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the fixture's holder must hold its lease"))?;
+    pair.initiator_authority
+        .refuse_lease_calls_with(AuthorityKnownFailureV2::AuthorityVersionMismatch, 2);
+
+    // The cheapest lease-guarded operation: it renews before it looks for a
+    // pending transition, so the renew's own error is what comes back.
+    assert_eq!(
+        pair.initiator.reconcile_transition(),
+        Err(AgentError::InstanceLeaseUnavailable)
+    );
+    // Nothing executed: the same lease, at the same generation.
+    let after = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the refused renews dropped the lease"))?;
+    assert_eq!(after.fence(), before.fence());
+    // And the lease still serves: the next renew goes through.
+    drive_one_lease_renew(&pair.initiator)?;
+    Ok(())
+}
+
+#[test]
+fn a_release_refused_on_its_version_precondition_every_attempt_is_unavailable() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 171)?;
+    let before = pair.initiator_authority.active_lease()?;
+    assert!(before.is_some());
+    pair.initiator_authority
+        .refuse_lease_calls_with(AuthorityKnownFailureV2::AuthorityVersionMismatch, 2);
+
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseUnavailable)
+    );
+    // Provably never executed, so the lease is still this instance's to
+    // release and the call may simply be repeated.
+    assert_eq!(pair.initiator_authority.active_lease()?, before);
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    Ok(())
+}
+
+#[test]
+fn a_release_whose_every_dispatch_stays_unknown_is_indeterminate() -> TestResult {
+    // The other route out of the same loop: each release was dispatched, its
+    // response lost, and the queries that would have resolved it refused, so
+    // its journal id is genuinely unresolved and the snapshot that follows
+    // reports the lease still held. That is the strict unknown case and must
+    // stay `InstanceLeaseIndeterminate`.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 172)?;
+    let before = pair.initiator_authority.active_lease()?;
+    assert!(before.is_some());
+    pair.initiator_authority
+        .lose_lease_calls_before_apply(LeaseCallFilter::Release, 2);
+    pair.initiator_authority.refuse_queries(true);
+
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseIndeterminate)
+    );
+    assert_eq!(pair.initiator_authority.active_lease()?, before);
+    // Once the authority answers again the retry releases that same lease.
+    pair.initiator_authority.refuse_queries(false);
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    Ok(())
+}

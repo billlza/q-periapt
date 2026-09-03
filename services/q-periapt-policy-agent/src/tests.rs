@@ -676,18 +676,19 @@ struct MemoryAuthorityState {
     /// after it, so the acquire applies but the agent cannot learn that it
     /// did.
     lose_next_acquire_and_queries: bool,
-    /// Lose the next lease call this filter selects on the wire, before the
-    /// authority applies it. The call is not counted; the operation id it
-    /// carried is kept in `lost_operation`.
-    lose_next_lease_call_before_apply: Option<LeaseCallFilter>,
+    /// Lose the next `n` lease calls this filter selects on the wire, before
+    /// the authority applies them. The calls are not counted; the operation
+    /// id each carried is kept in `lost_operation`.
+    lose_lease_calls_before_apply: Option<(LeaseCallFilter, u32)>,
     /// The operation id of the last lease call lost before apply.
     lost_operation: Option<OperationIdV2>,
     /// Fail the next lease call this filter selects before it is sent. The
     /// call is not counted.
     fail_next_lease_call_before_send: Option<LeaseCallFilter>,
-    /// Answer the next lease call with this closed failure instead of
-    /// applying it. The call is not counted: the authority never saw it.
-    refuse_next_lease_call_with: Option<AuthorityKnownFailureV2>,
+    /// Answer the next `n` lease calls with this closed failure instead of
+    /// applying them. The calls are not counted: the authority never saw
+    /// them.
+    refuse_lease_calls_with: Option<(AuthorityKnownFailureV2, u32)>,
     /// Answer the next receipt query with this closed failure. The query is
     /// counted.
     refuse_next_query_with: Option<AuthorityKnownFailureV2>,
@@ -720,6 +721,13 @@ struct MemoryAuthorityState {
     /// What `round_trip_bound` reports. In-memory calls are instantaneous,
     /// so this is zero unless a test says otherwise.
     round_trip_bound: Duration,
+    /// Report this bound from the *next* `round_trip_bound` read and then go
+    /// back to the field above. Armed by the hook below once a lease call has
+    /// been made, which is how a test makes exactly the reconciling round
+    /// trip after a lost dispatch too large for what the budget has left.
+    round_trip_bound_once: Option<Duration>,
+    /// Arms `round_trip_bound_once` after the next lease call.
+    round_trip_bound_once_after_next_lease_call: Option<Duration>,
     /// Answer every acknowledgement with a retryable failure, so receipts stay
     /// retained on both sides -- the authority's table and the agent's queue.
     refuse_acknowledgements: bool,
@@ -797,10 +805,10 @@ impl MemoryAuthority {
                 now_millis: MEMORY_AUTHORITY_EPOCH_MILLIS,
                 unknown_after_apply: false,
                 lose_next_acquire_and_queries: false,
-                lose_next_lease_call_before_apply: None,
+                lose_lease_calls_before_apply: None,
                 lost_operation: None,
                 fail_next_lease_call_before_send: None,
-                refuse_next_lease_call_with: None,
+                refuse_lease_calls_with: None,
                 refuse_next_query_with: None,
                 mismatch_next_acknowledgement: false,
                 lose_next_acknowledgement: false,
@@ -812,6 +820,8 @@ impl MemoryAuthority {
                 lose_snapshot_after: None,
                 snapshot_calls: 0,
                 round_trip_bound: Duration::ZERO,
+                round_trip_bound_once: None,
+                round_trip_bound_once_after_next_lease_call: None,
                 refuse_acknowledgements: false,
                 refuse_queries: false,
                 lease_calls: 0,
@@ -852,7 +862,13 @@ impl MemoryAuthority {
     /// authority applies it. The call is not counted; its operation id is
     /// kept for `lost_operation`.
     fn lose_next_lease_call_before_apply(&self, filter: LeaseCallFilter) {
-        self.lock().lose_next_lease_call_before_apply = Some(filter);
+        self.lose_lease_calls_before_apply(filter, 1);
+    }
+
+    /// The same, for the next `count` calls `filter` selects, so a resync
+    /// loop can be run out with every dispatch's outcome unknown.
+    fn lose_lease_calls_before_apply(&self, filter: LeaseCallFilter, count: u32) {
+        self.lock().lose_lease_calls_before_apply = Some((filter, count));
     }
 
     /// The operation id of the last lease call lost before apply, if any.
@@ -869,7 +885,13 @@ impl MemoryAuthority {
     /// Answer the next lease call with `failure` instead of applying it. The
     /// call is not counted: the authority never saw it.
     fn refuse_next_lease_call_with(&self, failure: AuthorityKnownFailureV2) {
-        self.lock().refuse_next_lease_call_with = Some(failure);
+        self.refuse_lease_calls_with(failure, 1);
+    }
+
+    /// The same, for the next `count` lease calls, so a resync loop can be
+    /// run out with every attempt refused on its precondition.
+    fn refuse_lease_calls_with(&self, failure: AuthorityKnownFailureV2, count: u32) {
+        self.lock().refuse_lease_calls_with = Some((failure, count));
     }
 
     /// Answer the next receipt query with `failure`. The query is counted.
@@ -891,6 +913,14 @@ impl MemoryAuthority {
     /// What `round_trip_bound` reports from now on.
     fn set_round_trip_bound(&self, bound: Duration) {
         self.lock().round_trip_bound = bound;
+    }
+
+    /// Report `bound` from the one `round_trip_bound` read that follows the
+    /// next lease call, and the usual bound from every other read. The read
+    /// after a dispatch is the reconciliation's own admission, so this is how
+    /// a test makes exactly that round trip miss the budget.
+    fn report_bound_once_after_next_lease_call(&self, bound: Duration) {
+        self.lock().round_trip_bound_once_after_next_lease_call = Some(bound);
     }
 
     /// Lease mutations this authority has been asked to apply so far.
@@ -1040,10 +1070,18 @@ impl MemoryAuthority {
         // The one-shot transport hooks come first: none of them reaches the
         // authority, so none of them counts as a call it was asked to apply.
         if state
-            .lose_next_lease_call_before_apply
-            .is_some_and(|filter| filter.selects(command))
+            .lose_lease_calls_before_apply
+            .is_some_and(|(filter, _)| filter.selects(command))
         {
-            state.lose_next_lease_call_before_apply = None;
+            state.lose_lease_calls_before_apply =
+                state
+                    .lose_lease_calls_before_apply
+                    .and_then(|(filter, remaining)| {
+                        remaining
+                            .checked_sub(1)
+                            .filter(|left| *left > 0)
+                            .map(|left| (filter, left))
+                    });
             state.lost_operation = Some(intent.operation_id());
             return Ok(AuthorityOutcomeV2::Unknown(
                 AuthorityUnknownV2::RequestWriteIndeterminate,
@@ -1056,10 +1094,15 @@ impl MemoryAuthority {
             state.fail_next_lease_call_before_send = None;
             return Err(AuthorityTransportErrorV2::NotSent);
         }
-        if let Some(failure) = state.refuse_next_lease_call_with.take() {
+        if let Some((failure, remaining)) = state.refuse_lease_calls_with {
+            state.refuse_lease_calls_with = remaining
+                .checked_sub(1)
+                .filter(|left| *left > 0)
+                .map(|left| (failure, left));
             return Ok(AuthorityOutcomeV2::KnownFailure(failure));
         }
         state.lease_calls += 1;
+        state.round_trip_bound_once = state.round_trip_bound_once_after_next_lease_call.take();
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.apply(&clock, intent) {
             Ok(receipt) => {
@@ -1216,7 +1259,11 @@ impl InstanceAuthorityPort for MemoryAuthority {
     }
 
     fn round_trip_bound(&self) -> Duration {
-        self.lock().round_trip_bound
+        let mut state = self.lock();
+        match state.round_trip_bound_once.take() {
+            Some(once) => once,
+            None => state.round_trip_bound,
+        }
     }
 }
 

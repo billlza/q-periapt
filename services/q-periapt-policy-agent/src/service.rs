@@ -489,7 +489,10 @@ pub enum AgentError {
     /// the authority could not be observed immediately before a secret would
     /// have been retained, it was aborted with nothing retained and, for a
     /// Begin or an Accept whose offer was already consumed, its reservation
-    /// released. From [`PolicyAgent::release_instance_lease`] it means the
+    /// released. It also covers a lease mutation the authority refused on its
+    /// authority-version precondition on every resync attempt: the version
+    /// moved under each dispatch, nothing executed, and the call may be
+    /// repeated. From [`PolicyAgent::release_instance_lease`] it means the
     /// lease is still held by this instance and the call may be repeated.
     InstanceLeaseUnavailable,
     /// A lease operation outcome stayed unknown after exact-operation
@@ -756,8 +759,11 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// failure itself is what is returned; a release that cannot be settled
     /// leaves the lease to lapse at its TTL, with its journal row for the next
     /// start to settle, exactly as after a crash. An acquire whose own outcome
-    /// stayed unknown is handled the same way: the fence it would have granted
-    /// is released, and [`AgentError::InstanceLeaseIndeterminate`] is returned.
+    /// stayed unknown is handled the same way, whichever error carries that
+    /// state out: the fence it would have granted is released before the
+    /// acquire's own error -- [`AgentError::InstanceLeaseIndeterminate`],
+    /// [`AgentError::InstanceLeaseUnavailable`] or
+    /// [`AgentError::OperationDeadlineExceeded`] -- is returned.
     pub fn new(
         repository: StateRepository,
         witness: W,
