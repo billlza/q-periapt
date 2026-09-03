@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::fs;
 use std::io::{self, Cursor, Read, Write};
@@ -568,6 +568,17 @@ impl MemoryWitness {
             .expect("memory witness hook poisoned") = delay;
     }
 
+    /// Whether the delay above is still armed. `compare_and_advance` takes it
+    /// with `mem::take`, so this doubles as "no compare has run since the
+    /// delay was armed".
+    fn compare_delay_armed(&self) -> bool {
+        !self
+            .delay_next_compare_and_advance
+            .lock()
+            .expect("memory witness hook poisoned")
+            .is_zero()
+    }
+
     fn replace_head(&self, head: StateHead) -> Result<(), WitnessError> {
         self.state
             .lock()
@@ -692,10 +703,16 @@ struct MemoryAuthorityState {
     /// Answer the next receipt query with this closed failure. The query is
     /// counted.
     refuse_next_query_with: Option<AuthorityKnownFailureV2>,
-    /// Prune the receipt the next acknowledgement names, but answer as if the
-    /// locator had matched nothing retained -- the shape of an authority whose
-    /// table no longer holds what the agent remembers.
-    mismatch_next_acknowledgement: bool,
+    /// Arm the locator of the next acknowledgement seen for the set below.
+    arm_mismatch_next_acknowledgement: bool,
+    /// Answer every acknowledgement of one of these operation ids with
+    /// `ReceiptAcknowledgementMismatch`, keeping the receipt retained: the
+    /// authority holds a receipt under this operation id whose resulting
+    /// authority version the locator cannot discharge
+    /// (`ResultingVersionMismatch`). Absence is not this answer; a vacant
+    /// entry acknowledges as `AlreadyAbsent`, a `Known` outcome. The real
+    /// authority answers this way on every attempt, so this set is sticky.
+    mismatching_receipts: HashSet<OperationIdV2>,
     /// Lose the next acknowledgement's response; the receipt stays retained.
     lose_next_acknowledgement: bool,
     /// Clock steps to apply just before the next snapshots, one per snapshot
@@ -810,7 +827,8 @@ impl MemoryAuthority {
                 fail_next_lease_call_before_send: None,
                 refuse_lease_calls_with: None,
                 refuse_next_query_with: None,
-                mismatch_next_acknowledgement: false,
+                arm_mismatch_next_acknowledgement: false,
+                mismatching_receipts: HashSet::new(),
                 lose_next_acknowledgement: false,
                 advance_before_snapshot: VecDeque::new(),
                 snapshot_delay: Duration::ZERO,
@@ -899,10 +917,14 @@ impl MemoryAuthority {
         self.lock().refuse_next_query_with = Some(failure);
     }
 
-    /// Prune the receipt the next acknowledgement names, but answer as if the
-    /// locator had matched nothing retained.
+    /// Answer every acknowledgement of the next locator seen -- and of that
+    /// locator thereafter -- with `ReceiptAcknowledgementMismatch`, keeping
+    /// the receipt retained: the authority holds a receipt under this
+    /// operation id whose resulting authority version the locator cannot
+    /// discharge. Absence is not this answer; a vacant entry acknowledges as
+    /// `AlreadyAbsent`, a `Known` outcome.
     fn mismatch_next_acknowledgement(&self) {
-        self.lock().mismatch_next_acknowledgement = true;
+        self.lock().arm_mismatch_next_acknowledgement = true;
     }
 
     /// Lose the next acknowledgement's response; the receipt stays retained.
@@ -1236,9 +1258,19 @@ impl InstanceAuthorityPort for MemoryAuthority {
                 AuthorityKnownFailureV2::AllocationFailed,
             ));
         }
-        if core::mem::take(&mut state.mismatch_next_acknowledgement) {
-            // The authority forgets the receipt, whatever the agent hears.
-            let _ = state.authority.acknowledge_receipt(retained.locator());
+        if core::mem::take(&mut state.arm_mismatch_next_acknowledgement) {
+            state
+                .mismatching_receipts
+                .insert(retained.locator().operation_id());
+        }
+        if state
+            .mismatching_receipts
+            .contains(&retained.locator().operation_id())
+        {
+            // The receipt stays retained: what the authority holds under this
+            // id is not what this locator can discharge, and no retry of the
+            // agent's changes that. Pruning it here would make the mismatch
+            // transient, which no authority produces.
             return Ok(AuthorityOutcomeV2::KnownFailure(
                 AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch,
             ));
@@ -2044,7 +2076,9 @@ mod fixture_hooks {
         ));
         assert_eq!(authority.receipt_count()?, 1);
 
-        // A mismatched acknowledgement prunes the receipt but says it did not.
+        // A mismatched acknowledgement does not prune: the receipt stays
+        // retained, exactly as an authority holding a receipt this locator
+        // cannot discharge leaves it.
         authority.mismatch_next_acknowledgement();
         assert!(matches!(
             authority.acknowledge(&retained)?,
@@ -2052,11 +2086,30 @@ mod fixture_hooks {
                 AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch
             )
         ));
-        assert_eq!(authority.receipt_count()?, 0);
+        assert_eq!(authority.receipt_count()?, 1);
 
-        // And the plain path afterwards: a vacant entry acknowledges cleanly.
+        // And the condition is persistent: this locator can never discharge
+        // what the authority holds, so every later attempt answers the same.
         assert!(matches!(
             authority.acknowledge(&retained)?,
+            AuthorityOutcomeV2::KnownFailure(
+                AuthorityKnownFailureV2::ReceiptAcknowledgementMismatch
+            )
+        ));
+        assert_eq!(authority.receipt_count()?, 1);
+
+        // A receipt that was never armed acknowledges cleanly, so the hook
+        // refuses one locator rather than every acknowledgement. The clock has
+        // to move first, or the renew extends nothing and is rejected.
+        authority.advance_clock(1_000);
+        let renew = fenced_intent(&authority, 9, |lease| AuthorityMutationV2::RenewLease {
+            fence: lease.fence(),
+        })?;
+        let other_retained = DurablyRetainedAuthorityReceiptV2::after_durable_commit(applied(
+            authority.renew(renew),
+        )?)?;
+        assert!(matches!(
+            authority.acknowledge(&other_retained)?,
             AuthorityOutcomeV2::Known(_)
         ));
         Ok(())
@@ -2159,18 +2212,24 @@ mod fixture_hooks {
             FenceToken::generate()?,
         )?;
         witness.delay_next_compare_and_advance(Duration::from_millis(50));
+        assert!(witness.compare_delay_armed());
         let started = Instant::now();
         assert!(matches!(
             witness.compare_and_advance(intent)?,
             WitnessOutcome::Known(_)
         ));
         assert!(started.elapsed() >= Duration::from_millis(50));
-        let started = Instant::now();
         assert!(matches!(
             witness.compare_and_advance(intent)?,
             WitnessOutcome::Known(_)
         ));
-        assert!(started.elapsed() < Duration::from_millis(50));
+        // "Paid once" is a fact about the hook's state, not about how fast the
+        // second call returned: an in-memory compare that lost the CPU for
+        // fifty milliseconds is not a re-armed delay.
+        assert!(
+            !witness.compare_delay_armed(),
+            "the first compare must consume the delay, so the second pays nothing"
+        );
         Ok(())
     }
 

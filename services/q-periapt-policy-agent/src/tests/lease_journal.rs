@@ -253,7 +253,9 @@ fn an_unmatchable_receipt_is_dropped_from_the_queue_and_its_row_settled_without_
     // The renew's receipt cannot be discharged by our locator: the drain drops
     // it and settles its row, and the operation itself is unaffected.
     drive_one_lease_renew(&pair.initiator)?;
-    assert_eq!(authority.receipt_count()?, 0);
+    // The entry is dropped from our queue and its row settled; the receipt
+    // itself is the authority's to prune, and it keeps holding it.
+    assert_eq!(authority.receipt_count()?, 1);
     // Settled only marks the row; the next journal write forgets it.
     let first_renew = only_row(&journal_of(&pair.initiator)?)?;
     pair.initiator.public_keys()?;
@@ -265,7 +267,11 @@ fn an_unmatchable_receipt_is_dropped_from_the_queue_and_its_row_settled_without_
     assert_eq!(journaled.len(), 1);
     assert!(!journaled.contains(&first_renew));
     drive_one_lease_renew(&pair.initiator)?;
-    assert_eq!(authority.receipt_count()?, 0);
+    // The unmatchable head was dropped, so the two later renews' receipts were
+    // acknowledged normally and did not pile up behind it. Under a drain that
+    // kept the unmatchable head queued the queue -- which drains strictly in
+    // order -- would still be holding all three.
+    assert_eq!(authority.receipt_count()?, 1);
     Ok(())
 }
 
@@ -289,7 +295,9 @@ fn an_unmatchable_receipt_is_dropped_from_the_queue_and_its_row_settled_without_
     let journaled = restarted.journaled_lease_intents_for_test()?;
     assert_eq!(journaled.len(), 1);
     assert!(!journaled.contains(&store.stranded));
-    assert_eq!(store.authority.receipt_count()?, 0);
+    // The stranded row is settled by the resolver and never re-queued; the
+    // receipt stays in the authority's own bounded table.
+    assert_eq!(store.authority.receipt_count()?, 1);
     drive_one_lease_renew(&restarted)?;
     Ok(())
 }
