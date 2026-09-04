@@ -26,7 +26,7 @@ q-periapt-sig = { version = "=0.1.5", path = "../../crates/q-periapt-sig" }
 # workspace's Rust 1.85 floor; the current 4.2 release requires Rust 1.89. The
 # exact pin also fixes the durable file-format implementation reviewed for this
 # non-publishable service.
-redb = "=2.6.3"
+redb = "=4.2.0"
 
 [target.'cfg(unix)'.dependencies]
 # Descriptor-relative opens keep the durable-state boundary beneath an already
