@@ -1911,6 +1911,58 @@ fn a_release_refused_by_its_deadline_keeps_the_lease_and_erases_nothing() -> Tes
 }
 
 #[test]
+fn a_release_refused_at_the_pre_erase_gate_keeps_every_secret() -> TestResult {
+    // The sibling above is refused by `lock_until`, at the door: its deadline
+    // has already arrived, so `release_under_lock` is never entered and the
+    // gate that names this behaviour never runs. A deadline still in the
+    // future but shorter than the release's own least plan is what reaches
+    // it, and it is the only thing standing between a short deadline and an
+    // unbounded erase of every live key for nothing.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 181)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+    let before = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the fixture's holder must start out holding its lease"))?;
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    // One second of budget against a five-second round trip: the lock is
+    // taken, `release_under_lock` is entered, and the release's round trip
+    // plus its journal commit do not fit.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(5));
+    assert_eq!(
+        pair.initiator
+            .release_instance_lease_until(Instant::now() + Duration::from_secs(1)),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    // Nothing dispatched, and -- this is what the gate buys -- the pending
+    // secret and its durable reservation are both still there.
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+    let after = pair
+        .initiator_authority
+        .active_lease()?
+        .ok_or_else(|| io::Error::other("the refused release dropped the lease"))?;
+    assert_eq!(after.fence(), before.fence());
+
+    // And with a budget that fits, the same call releases and erases.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::ZERO);
+    pair.initiator.release_instance_lease()?;
+    assert!(pair.initiator_authority.active_lease()?.is_none());
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
 fn the_stops_erase_is_not_charged_to_the_release_budget() -> TestResult {
     // The erase before a release is one durable commit per pending session,
     // up to HARD_MAX_SESSIONS of them, and no deadline bounds it: nothing may

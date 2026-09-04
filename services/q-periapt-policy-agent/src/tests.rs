@@ -512,6 +512,13 @@ fn decode_begin_encapsulation_response(
 struct MemoryWitness {
     state: Arc<Mutex<MemoryWitnessState>>,
     unknown_after_apply: Arc<AtomicBool>,
+    /// Once, at the next `query`: answer with an `Applied` receipt filed under
+    /// the queried operation id whose stored intent is a *different* one --
+    /// same successor head, a different attested predecessor. The wire admits
+    /// such a receipt (its shape is valid and the client transport checks only
+    /// the operation id), and a tampered witness store opens with one, so
+    /// `WitnessReceipt::is_exact_applied` is the only thing that rejects it.
+    foreign_intent_on_next_query: Arc<AtomicBool>,
     /// Answer every `read_head` with `Unavailable` while set, as a witness
     /// that cannot be reached would.
     fail_reads: Arc<AtomicBool>,
@@ -546,6 +553,7 @@ impl MemoryWitness {
                 operations: HashMap::new(),
             })),
             unknown_after_apply: Arc::new(AtomicBool::new(false)),
+            foreign_intent_on_next_query: Arc::new(AtomicBool::new(false)),
             fail_reads: Arc::new(AtomicBool::new(false)),
             advance_authority_on_read: Arc::new(Mutex::new(None)),
             round_trip_bound: Arc::new(Mutex::new(Duration::ZERO)),
@@ -556,6 +564,12 @@ impl MemoryWitness {
 
     fn make_next_unknown(&self) {
         self.unknown_after_apply.store(true, Ordering::Release);
+    }
+
+    /// Arm the receipt described on `foreign_intent_on_next_query`.
+    fn answer_next_query_with_a_foreign_intent(&self) {
+        self.foreign_intent_on_next_query
+            .store(true, Ordering::Release);
     }
 
     /// What `round_trip_bound` reports from now on.
@@ -687,13 +701,30 @@ impl WitnessPort for MemoryWitness {
 
     fn query(&self, operation_id: OperationId) -> Result<WitnessOutcome, WitnessError> {
         let state = self.state.lock().map_err(|_| WitnessError::Persistence)?;
-        Ok(WitnessOutcome::Known(Box::new(
-            state
-                .operations
-                .get(&operation_id)
-                .copied()
-                .unwrap_or_else(|| WitnessReceipt::not_applied(state.head)),
-        )))
+        let stored = state.operations.get(&operation_id).copied();
+        if self
+            .foreign_intent_on_next_query
+            .swap(false, Ordering::AcqRel)
+        {
+            let filed = stored
+                .and_then(WitnessReceipt::intent)
+                .ok_or(WitnessError::InvalidIntent)?;
+            // Same operation id, same successor head, a different attested
+            // predecessor. `FenceToken::generate` cannot collide with the one
+            // it replaces in any run that matters.
+            let foreign = WitnessIntent::new(
+                operation_id,
+                filed.advance(),
+                FenceToken::generate().map_err(|_| WitnessError::InvalidIntent)?,
+                filed.next().fence(),
+            )?;
+            return Ok(WitnessOutcome::Known(Box::new(WitnessReceipt::applied(
+                foreign,
+            ))));
+        }
+        Ok(WitnessOutcome::Known(Box::new(stored.unwrap_or_else(
+            || WitnessReceipt::not_applied(state.head),
+        ))))
     }
 
     fn round_trip_bound(&self) -> Duration {

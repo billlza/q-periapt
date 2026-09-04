@@ -112,6 +112,61 @@ fn unknown_transition_reconciles_same_operation_and_stales_old_session() -> Test
 }
 
 #[test]
+fn a_reconcile_answered_for_a_different_intent_commits_nothing() -> TestResult {
+    // `is_exact_applied` is the sole gate between a witness answer and an
+    // irreversible local commit, and nothing exercised its binding to the
+    // exact intent: the in-process witness only ever files receipts for the
+    // intent it was asked about, so deleting that conjunct left the whole
+    // suite green. The receipt this arranges is one the wire admits and the
+    // client transport cannot refuse -- it checks only the operation id --
+    // and one a tampered witness store opens cleanly with, because the stored
+    // shape is verified against the store head and never against the
+    // predecessor the receipt attests.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 182)?;
+    let pending = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let (_, certificate) = signed_advance(
+        pair.committed.state(),
+        &pair.migration,
+        pair.committed.state().posture(),
+        pair.committed.state().allowed_suites(),
+    )?;
+    let stale = |agent: &PolicyAgent<MemoryWitness, MemoryAuthority>| {
+        agent.accept_responder_finished(pending.handle, ResponderFinishedV1::from_bytes([0u8; 32]))
+    };
+
+    // The CAS applies and its outcome is lost, so a pending intent is left for
+    // the reconcile to resolve by exact query.
+    pair.witness.make_next_unknown();
+    assert_eq!(
+        pair.initiator.apply_advance(&certificate),
+        Err(AgentError::TransitionIndeterminate)
+    );
+    assert_eq!(stale(&pair.initiator), Err(AgentError::TransitionPending));
+
+    pair.witness.answer_next_query_with_a_foreign_intent();
+    assert_eq!(
+        pair.initiator.reconcile_transition(),
+        Err(AgentError::Repository(
+            crate::RepositoryError::WitnessMismatch
+        ))
+    );
+    // Nothing was committed on that answer: the transition is still pending,
+    // so the local head did not advance -- and the durable history, the
+    // session table and the capability table were not rewritten -- against a
+    // receipt attesting some other predecessor.
+    assert_eq!(stale(&pair.initiator), Err(AgentError::TransitionPending));
+
+    // The honest answer settles the same intent, so the refusal above was the
+    // binding at work and not an unreachable reconcile.
+    pair.initiator.reconcile_transition()?;
+    assert_eq!(stale(&pair.initiator), Err(AgentError::UnknownHandle));
+    Ok(())
+}
+
+#[test]
 fn valid_incompatible_state_commits_without_executor_and_later_state_recovers() -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, 4)?;

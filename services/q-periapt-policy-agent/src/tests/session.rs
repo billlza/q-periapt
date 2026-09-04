@@ -511,6 +511,29 @@ fn begin_decapsulation_exact_retry_returns_the_same_handle_and_damaged_ciphertex
     );
     assert_eq!(pair.responder.pending_session_count(), 1);
 
+    // The same, damaging the traditional half instead. Every damaged-
+    // ciphertext case in this suite flips a byte of the ML-KEM half and passes
+    // the X25519 half through, so the digest's traditional half decided
+    // nothing anywhere: dropping it from `begin_request_digest` left the whole
+    // suite green while this request -- a different X25519 ciphertext under
+    // the same capability -- was answered with the *other* ciphertext's handle
+    // and secret instead of being refused.
+    let mut damaged_traditional = *encapsulated.ciphertexts.traditional();
+    if let Some(first_byte) = damaged_traditional.first_mut() {
+        *first_byte ^= 1;
+    }
+    let damaged =
+        EncapsulationCiphertexts::from_slices(encapsulated.ciphertexts.pq(), &damaged_traditional)?;
+    assert_eq!(
+        pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            damaged,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.responder.pending_session_count(), 1);
+    assert_eq!(pair.responder.durable_session_count_for_test()?, 1);
+
     // Acceptance consumes the capability for good.
     let decapsulated = responder_decapsulation(first)?;
     pair.responder
