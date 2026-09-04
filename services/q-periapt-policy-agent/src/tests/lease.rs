@@ -991,6 +991,74 @@ fn a_release_whose_response_and_queries_are_lost_is_proven_gone_by_snapshot() ->
     Ok(())
 }
 
+/// A release the authority applied whose response was lost, with the
+/// reconciliation then stopped in `arm`'s way.
+///
+/// Every such stop leaves the same evidence -- the release was dispatched and
+/// what it did was never learned -- and none of them may be reported as a
+/// lease still held: `release_instance_lease_until` promises that `Err` never
+/// means this call released the lease, and the stop path turns an `Err` into
+/// exit 1 and an operator-facing line saying the lease is stranded until its
+/// TTL. So each one is settled by the same snapshot proof.
+fn a_lost_release_is_proven_gone_by_snapshot(
+    session_byte: u8,
+    arm: fn(&MemoryAuthority),
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, session_byte)?;
+    assert!(pair.initiator_authority.active_lease()?.is_some());
+    // The release reaches the authority and applies; its response is lost, and
+    // what the caller arms is what stops the reconciliation from learning that
+    // it did.
+    pair.initiator_authority.make_next_unknown();
+    arm(&pair.initiator_authority);
+
+    let snapshots_before = pair.initiator_authority.snapshot_call_count();
+    pair.initiator.release_instance_lease()?;
+    // Exactly one snapshot, taken by the release itself: this is the assertion
+    // that fails when the release decides on the error variant instead, which
+    // takes no snapshot and reports the applied release as a lease still held.
+    assert_eq!(
+        pair.initiator_authority.snapshot_call_count(),
+        snapshots_before + 1
+    );
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    // The release's own row is kept, unresolved: the authority still retains
+    // its receipt and is still owed the acknowledgement.
+    assert_eq!(pair.initiator.journaled_lease_intents_for_test()?.len(), 1);
+    assert_eq!(pair.initiator_authority.receipt_count()?, 1);
+    // And the retired lease dispatches nothing on a further call.
+    let calls = pair.initiator_authority.lease_call_count();
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.lease_call_count(), calls);
+    Ok(())
+}
+
+#[test]
+fn a_release_whose_response_is_lost_and_query_refused_closed_is_proven_gone_by_snapshot(
+) -> TestResult {
+    // What the reference authority answers every request with while its
+    // bounded nonce table is full. The reconciling query returns
+    // `InstanceLeaseUnavailable`, whose variant alone would say the lease is
+    // still this instance's to release -- and the lease is already gone.
+    a_lost_release_is_proven_gone_by_snapshot(179, |authority| {
+        authority.refuse_next_query_with(AuthorityKnownFailureV2::RateLimited);
+    })
+}
+
+#[test]
+fn a_release_whose_response_is_lost_and_query_misses_the_budget_is_proven_gone_by_snapshot(
+) -> TestResult {
+    // The reconciling query is the first round trip admitted after the lost
+    // dispatch, and a bound larger than the whole release budget makes it the
+    // one that cannot fit. `OperationDeadlineExceeded` is documented as
+    // changing nothing, which is exactly what it must not be taken for here.
+    // Every later read reports the usual bound, so the snapshot proof fits.
+    a_lost_release_is_proven_gone_by_snapshot(180, |authority| {
+        authority.report_bound_once_after_next_lease_call(Duration::from_secs(120));
+    })
+}
+
 #[test]
 fn a_failed_durable_cancel_at_release_still_releases_the_lease() -> TestResult {
     let directory = TestDirectory::new()?;
