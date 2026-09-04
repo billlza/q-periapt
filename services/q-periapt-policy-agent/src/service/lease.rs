@@ -263,6 +263,74 @@ enum LeaseExchange {
     AbsentReceipt,
 }
 
+/// What a failed lease exchange proves about the mutation it carried.
+///
+/// This is the discriminator every caller that must decide "did the authority
+/// execute this?" reads. The error variant is not that discriminator: the
+/// same [`AgentError::InstanceLeaseUnavailable`] is returned both by a
+/// transport that proved no byte was sent and by a reconciling query that was
+/// itself refused after the mutation had already been dispatched, and those
+/// two say opposite things about the authority's state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LeaseDispatchEvidence {
+    /// The authority provably did not execute the mutation: the dispatch was
+    /// refused by the deadline before anything was sent, the journal write
+    /// that precedes every dispatch failed, the transport proved no request
+    /// byte was accepted (`AuthorityTransportErrorV2` is defined as exactly
+    /// that), or the authority answered an authenticated closed failure --
+    /// `AuthorityOutcomeV2::KnownFailure`, which the wire defines as proving
+    /// no ambiguous store result.
+    NeverExecuted,
+    /// The mutation reached the authority and this process could not learn
+    /// what it did: the response was lost and the reconciling query was then
+    /// refused by the deadline, answered with a closed failure, or ran out of
+    /// attempts -- or the authority answered with a receipt for a different
+    /// intent, which says nothing about this one. The operation id is left
+    /// unresolved in every one of those cases, and the mutation may have
+    /// applied.
+    OutcomeUnknown,
+}
+
+/// One lease exchange's failure, carrying what it proves about the dispatch.
+struct LeaseExchangeFailure {
+    error: AgentError,
+    evidence: LeaseDispatchEvidence,
+}
+
+impl LeaseExchangeFailure {
+    /// The authority provably did not execute the mutation.
+    fn never_executed(error: AgentError) -> Self {
+        Self {
+            error,
+            evidence: LeaseDispatchEvidence::NeverExecuted,
+        }
+    }
+
+    /// The mutation was dispatched and its outcome was never learned.
+    fn outcome_unknown(error: AgentError) -> Self {
+        Self {
+            error,
+            evidence: LeaseDispatchEvidence::OutcomeUnknown,
+        }
+    }
+}
+
+/// Every fallible step that `lease_exchange` propagates with `?` runs either
+/// before the dispatch -- the deadline admission and the journal write -- or
+/// after an authenticated closed failure has already proved the dispatch did
+/// not execute, so `?` inside it always means [`LeaseDispatchEvidence::NeverExecuted`].
+impl From<AgentError> for LeaseExchangeFailure {
+    fn from(error: AgentError) -> Self {
+        Self::never_executed(error)
+    }
+}
+
+impl From<LeaseExchangeFailure> for AgentError {
+    fn from(failure: LeaseExchangeFailure) -> Self {
+        failure.error
+    }
+}
+
 fn fresh_lease_random() -> Result<[u8; 32], AgentError> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(|_| AgentError::LocalCryptoFailure)?;
@@ -298,9 +366,14 @@ fn record_lease_receipt(
     lease: &mut InstanceLeaseState,
     intent: AuthorityIntentV2,
     receipt: AuthorityReceiptV2,
-) -> Result<LeaseExchange, AgentError> {
+) -> Result<LeaseExchange, LeaseExchangeFailure> {
     if receipt.intent() != intent {
-        return Err(AgentError::InstanceLeaseUnavailable);
+        // The authority answered, so the mutation was dispatched, and the
+        // receipt it answered with is about some other intent: what this one
+        // did is exactly as unknown as after a lost response.
+        return Err(LeaseExchangeFailure::outcome_unknown(
+            AgentError::InstanceLeaseUnavailable,
+        ));
     }
     lease.authority_version = receipt.resulting_authority_version();
     // The lease view is RAM-only: after a crash the successor process starts a
@@ -386,16 +459,24 @@ fn drain_acknowledgements<A: InstanceAuthorityPort>(
 /// exhausted loop, so the mutation is asked about again before the next
 /// guarded operation and never silently abandoned -- and returns
 /// [`AgentError::OperationDeadlineExceeded`].
+///
+/// This function is only ever entered after the mutation has been dispatched,
+/// so every one of its failure exits is
+/// [`LeaseDispatchEvidence::OutcomeUnknown`] -- the mutation may have applied.
+/// The three exits report three different errors, which is why callers that
+/// must decide whether the mutation ran read the evidence and not the variant.
 fn reconcile_lease_operation<A: InstanceAuthorityPort>(
     authority: &A,
     lease: &mut InstanceLeaseState,
     intent: AuthorityIntentV2,
     deadline: OperationDeadline,
-) -> Result<LeaseExchange, AgentError> {
+) -> Result<LeaseExchange, LeaseExchangeFailure> {
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
         if deadline.admit(authority.round_trip_bound()).is_err() {
             keep_unresolved(lease, intent.operation_id());
-            return Err(AgentError::OperationDeadlineExceeded);
+            return Err(LeaseExchangeFailure::outcome_unknown(
+                AgentError::OperationDeadlineExceeded,
+            ));
         }
         match authority.query(intent.operation_id()) {
             Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(receipt))) => {
@@ -417,13 +498,17 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
             }
             Ok(AuthorityOutcomeV2::KnownFailure(_)) => {
                 keep_unresolved(lease, intent.operation_id());
-                return Err(AgentError::InstanceLeaseUnavailable);
+                return Err(LeaseExchangeFailure::outcome_unknown(
+                    AgentError::InstanceLeaseUnavailable,
+                ));
             }
             Ok(AuthorityOutcomeV2::Unknown(_)) | Err(_) => {}
         }
     }
     keep_unresolved(lease, intent.operation_id());
-    Err(AgentError::InstanceLeaseIndeterminate)
+    Err(LeaseExchangeFailure::outcome_unknown(
+        AgentError::InstanceLeaseIndeterminate,
+    ))
 }
 
 /// Dispatch one lease mutation, journaling its intent durably first.
@@ -445,6 +530,13 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
 /// The snapshot that resynchronises after an `AuthorityVersionMismatch`
 /// journals nothing and is admitted on its round trip alone, with the refused
 /// row already settled.
+///
+/// Every failure is returned as a [`LeaseExchangeFailure`], which carries what
+/// it proves about the dispatch alongside the error. Callers that must decide
+/// whether the authority executed the mutation -- the release above all, which
+/// may only give up its fence against evidence -- read
+/// [`LeaseExchangeFailure::evidence`]; the error variant cannot answer that
+/// question, because one variant is reached both before and after a dispatch.
 fn lease_exchange<A: InstanceAuthorityPort>(
     repository: &StateRepository,
     authority: &A,
@@ -452,7 +544,7 @@ fn lease_exchange<A: InstanceAuthorityPort>(
     call: LeaseCall,
     intent: AuthorityIntentV2,
     deadline: OperationDeadline,
-) -> Result<LeaseExchange, AgentError> {
+) -> Result<LeaseExchange, LeaseExchangeFailure> {
     deadline.admit(DURABLE_COMMIT_RESERVE.saturating_add(authority.round_trip_bound()))?;
     journal_lease_intent(repository, lease, intent.operation_id())?;
     let outcome = match call {
@@ -470,19 +562,28 @@ fn lease_exchange<A: InstanceAuthorityPort>(
             lease.authority_version = snapshot.authority_version();
             Ok(LeaseExchange::Retry)
         }
-        // Any other known failure says the authority declined to execute, but
-        // the proof this code relies on elsewhere is a query, not a failure
-        // code; keep the id and let the next drain ask.
+        // Any other known failure is an authenticated closed answer, which the
+        // wire defines as proving the authority reached no ambiguous store
+        // result: it declined to execute. The id is still kept rather than
+        // settled, because settling is a claim about the acknowledgement the
+        // authority owes and the proof this code relies on for that is a
+        // query, not a failure code; let the next drain ask.
         Ok(AuthorityOutcomeV2::KnownFailure(_)) => {
             keep_unresolved(lease, intent.operation_id());
-            Err(AgentError::InstanceLeaseUnavailable)
+            Err(LeaseExchangeFailure::never_executed(
+                AgentError::InstanceLeaseUnavailable,
+            ))
         }
         Ok(AuthorityOutcomeV2::Unknown(_)) => {
             reconcile_lease_operation(authority, lease, intent, deadline)
         }
+        // `AuthorityTransportErrorV2` is defined as the failures that prove no
+        // request byte was accepted by the socket, so nothing was dispatched.
         Err(_) => {
             keep_unresolved(lease, intent.operation_id());
-            Err(AgentError::InstanceLeaseUnavailable)
+            Err(LeaseExchangeFailure::never_executed(
+                AgentError::InstanceLeaseUnavailable,
+            ))
         }
     }
 }
@@ -803,14 +904,15 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
             // gets a fresh budget of its own, not this attempt's remainder.
             //
             // The discriminator is the evidence, not the error variant: the
-            // id is unresolved exactly when the acquire was dispatched and
-            // its outcome never learned -- the reconciliation out of
-            // attempts (`InstanceLeaseIndeterminate`), its query refused
-            // closed (`InstanceLeaseUnavailable`), or the query outside the
-            // budget (`OperationDeadlineExceeded`). Every one of those can
-            // leave a lease held under this fresh instance id.
-            Err(error) => {
-                if !lease.unresolved.contains(&intent.operation_id()) {
+            // acquire was dispatched with its outcome never learned -- the
+            // reconciliation out of attempts (`InstanceLeaseIndeterminate`),
+            // its query refused closed (`InstanceLeaseUnavailable`), or the
+            // query outside the budget (`OperationDeadlineExceeded`). Every
+            // one of those can leave a lease held under this fresh instance
+            // id; nothing else can, so nothing else pays for a release.
+            Err(failure) => {
+                let error = failure.error;
+                if failure.evidence != LeaseDispatchEvidence::OutcomeUnknown {
                     return Err(error);
                 }
                 let generation = expected_lease_generation
@@ -1227,11 +1329,15 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
                     PendingAcquireOutcome::NotExecuted => {}
                 }
             }
-            Err(error) => {
-                if !inner.lease.unresolved.contains(&intent.operation_id()) {
+            // The pending record is what makes a re-acquire whose outcome was
+            // never learned resolvable later, so it is kept on exactly that
+            // evidence and dropped on every failure that proves the authority
+            // executed nothing.
+            Err(failure) => {
+                if failure.evidence != LeaseDispatchEvidence::OutcomeUnknown {
                     inner.lease.pending_acquire = None;
                 }
-                return Err(error);
+                return Err(failure.error);
             }
         }
     }
@@ -1778,9 +1884,15 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             // intent either way, because a release the authority has already
             // applied is answered `LeaseAbsent` and retires just the same.
             Ok(LeaseExchange::Retry | LeaseExchange::AbsentReceipt) => {}
-            Err(AgentError::InstanceLeaseIndeterminate) => {
-                // This route dispatched and could not learn the outcome: its
-                // journal id is genuinely unresolved, so an exhausted loop
+            // Dispatched, with the outcome never learned -- the reconciling
+            // query refused by the deadline, answered with a closed failure,
+            // or out of attempts. Those three report three different errors,
+            // so the discriminator here is the evidence and not the variant:
+            // any of them may sit on a release the authority applied, and
+            // reporting one as still held would break this call's own
+            // contract that `Err` never means the lease was released.
+            Err(failure) if failure.evidence == LeaseDispatchEvidence::OutcomeUnknown => {
+                // The journal id is genuinely unresolved, so an exhausted loop
                 // here is unknown rather than proven.
                 outcome_unknown = true;
                 // The proof is one more round trip; refused, the outcome
@@ -1797,9 +1909,11 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
                     Err(()) => return Err(AgentError::InstanceLeaseIndeterminate),
                 }
             }
-            // Not sent, the journal full, or the repository failed: nothing
-            // was dispatched, and the fence is kept.
-            Err(error) => return Err(error),
+            // Refused by the deadline before anything was sent, the journal
+            // full, the repository failed, the transport proved no byte left,
+            // or the authority answered an authenticated closed failure:
+            // nothing was executed, and the fence is kept.
+            Err(failure) => return Err(failure.error),
         }
     }
     // A loop exhausted purely by version-mismatch resyncs proves the release
