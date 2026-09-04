@@ -26,8 +26,12 @@ qperiapt scan <path> [--json]
 `qperiapt cbom` does not carry a hand-written inventory: it derives every row
 from the suite crates it links (`q-periapt-core`, `q-periapt-sig`,
 `q-periapt-policy`, `q-periapt-backends`), taking each identifier from the
-backend's own algorithm name and each NIST level from the table the policy layer
-enforces. The default build therefore lists exactly the nine assets the default
+backend's own algorithm name, and each NIST level from the signature layer
+(`SigAlg::nist_level`) or from the strength table the downgrade floor is
+enforced against (`q_periapt_policy::nist_level`). The traditional hybrid
+partner and the two FIPS 202 rows publish a declared 0, because no NIST level
+ranks them — not because a lookup came back empty. The default build lists
+exactly the nine assets the default
 backend set ships — ML-KEM-512/768/1024, X25519, ML-DSA-44/65/87, SHA3-256 and
 SHAKE-256 — and the three SLH-DSA rows appear only when `--features slh-dsa`
 actually compiles those parameter sets (which also pulls in `fips205`).

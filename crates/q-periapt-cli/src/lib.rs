@@ -38,11 +38,89 @@ struct AssetMetadata {
     note: &'static str,
 }
 
+/// The NIST quantum-security level a row publishes, with the statement that
+/// establishes it.
+///
+/// The four constructors below are the only ways to obtain one, and none of
+/// them can answer "unknown": three read a number a crate asserts, and the
+/// fourth records the single editorial fact this CBOM declares. There is no
+/// `Default`, no conversion from a bare `u8`, and no path that turns a failed
+/// lookup into a value — so a level no layer can supply stops the emission
+/// instead of reaching an auditor as `0`.
+#[derive(Clone, Copy)]
+struct NistLevel(u8);
+
+impl NistLevel {
+    /// The level `q_periapt_policy::nist_level` states for a leveled
+    /// post-quantum identifier — in this inventory, the three ML-KEM rows.
+    ///
+    /// That table is the one the downgrade floor is enforced against, so the
+    /// number an auditor reads here is the number the runtime refuses to go
+    /// below. It answers `None` only for identifiers that are not leveled
+    /// post-quantum algorithms, and no such row reaches this constructor: they
+    /// are built by [`NistLevel::traditional_partner`] and
+    /// [`NistLevel::declared_sponge`] instead. A `None` here therefore means a
+    /// backend reports a key-establishment identifier the policy layer does not
+    /// level, for which there is no number to publish — so the emission stops.
+    /// `tests/cbom_inventory.rs` fails before a build can get this far.
+    fn from_policy(id: &str) -> Self {
+        Self(
+            q_periapt_policy::nist_level(id)
+                .expect("the policy layer levels every ML-KEM row this CBOM publishes"),
+        )
+    }
+
+    /// The level the signature layer states for `alg`.
+    ///
+    /// `SigAlg::nist_level` is total — every variant has one — so nothing can
+    /// be missing here. It is an independent second statement of the same
+    /// claim the policy layer's table makes, and `tests/cbom_inventory.rs`
+    /// cross-checks the two.
+    fn from_signature(alg: SigAlg) -> Self {
+        Self(alg.nist_level())
+    }
+
+    /// Level 0 for the traditional hybrid partner.
+    ///
+    /// Two policy-layer statements produce this number: `is_traditional`
+    /// recognises the identifier, and the strength table levels it not at all,
+    /// because a NIST PQ level would claim quantum resistance it does not have.
+    /// The 0 is therefore derived rather than assumed, and a partner the policy
+    /// layer stopped recognising — or started leveling — stops the emission
+    /// here instead of publishing a stale claim.
+    fn traditional_partner(id: &str) -> Self {
+        assert!(
+            q_periapt_policy::is_traditional(id) && q_periapt_policy::nist_level(id).is_none(),
+            "{id} is no longer the policy layer's unleveled traditional partner"
+        );
+        Self(0)
+    }
+
+    /// Level 0 declared for a FIPS 202 sponge function.
+    ///
+    /// This is the one level in the CBOM that no crate states, because none
+    /// has one to state: NIST's levels rank KEMs and signature schemes, not the
+    /// digest or XOF a combiner absorbs into. The policy layer's silence about
+    /// SHA3-256 and SHAKE-256 is thus the expected answer rather than a missing
+    /// one, and this constructor records that as a fact of the standard.
+    /// `tests/cbom_inventory.rs` pins it by failing if the policy layer ever
+    /// does level either identifier.
+    const fn declared_sponge() -> Self {
+        Self(0)
+    }
+
+    /// The number to emit.
+    const fn get(self) -> u8 {
+        self.0
+    }
+}
+
 /// One CBOM row: a derived identity joined to its metadata.
 struct CryptoAsset {
     name: &'static str,
-    /// NIST PQ security level 1/2/3/5, or 0 for a (quantum-vulnerable) classical alg.
-    nist_quantum_level: u8,
+    /// NIST PQ security level 1/2/3/5, or 0 for a row no layer levels — see
+    /// [`NistLevel`] for the statement behind each one.
+    nist_quantum_level: NistLevel,
     meta: AssetMetadata,
 }
 
@@ -51,17 +129,21 @@ const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "key-agree"];
 const SIGNATURE_FUNCTIONS: &[&str] = &["keygen", "sign", "verify"];
 const DIGEST_FUNCTIONS: &[&str] = &["digest"];
 
-/// A row whose level comes from the policy layer's strength table.
-///
-/// `q_periapt_policy::nist_level` is the table the downgrade floor is enforced
-/// against, so the number an auditor reads here is the number the runtime
-/// refuses to go below. It answers `None` for an identifier that is not a
-/// leveled post-quantum algorithm — the traditional hybrid partner and the
-/// hashes — which this CBOM spells `0`.
+/// A row named by its backend and leveled by the policy layer's strength table.
 fn policy_leveled_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
     CryptoAsset {
         name,
-        nist_quantum_level: q_periapt_policy::nist_level(name).unwrap_or(0),
+        nist_quantum_level: NistLevel::from_policy(name),
+        meta,
+    }
+}
+
+/// The traditional hybrid partner's row: named by its backend, and level 0
+/// because the policy layer classifies it as traditional and levels it not.
+fn traditional_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
+    CryptoAsset {
+        name,
+        nist_quantum_level: NistLevel::traditional_partner(name),
         meta,
     }
 }
@@ -70,7 +152,16 @@ fn policy_leveled_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
 fn signature_row(alg: SigAlg, meta: AssetMetadata) -> CryptoAsset {
     CryptoAsset {
         name: alg.id(),
-        nist_quantum_level: alg.nist_level(),
+        nist_quantum_level: NistLevel::from_signature(alg),
+        meta,
+    }
+}
+
+/// A FIPS 202 sponge row, at the declared level 0.
+fn sponge_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
+    CryptoAsset {
+        name,
+        nist_quantum_level: NistLevel::declared_sponge(),
         meta,
     }
 }
@@ -78,8 +169,13 @@ fn signature_row(alg: SigAlg, meta: AssetMetadata) -> CryptoAsset {
 /// Key-establishment and ML-DSA assets, present in every build.
 ///
 /// Every identifier is the one the linked backend reports for itself, so a
-/// removed or renamed backend is a build failure here rather than a released
-/// CBOM claiming an algorithm the suite does not ship — or omitting one it does.
+/// backend that is removed or renamed is a build failure here rather than a
+/// released CBOM claiming an algorithm the suite does not ship. The opposite
+/// drift is not caught here and cannot be: a backend *added* to
+/// `q-periapt-backends` still compiles, and is simply missing from this list.
+/// Nothing in this crate enumerates that crate's declarations, so the guard for
+/// an addition is `artifact/test_cbom_backend_inventory.py`, which re-reads them
+/// from the backends crate's source and fails on one no row accounts for.
 fn key_and_signature_assets() -> Vec<CryptoAsset> {
     vec![
         policy_leveled_row(
@@ -112,7 +208,7 @@ fn key_and_signature_assets() -> Vec<CryptoAsset> {
                 note: "FIPS 203; enhanced (L5) PQ KEM component.",
             },
         ),
-        policy_leveled_row(
+        traditional_row(
             X25519.algorithm(),
             AssetMetadata {
                 primitive: "key-agree",
@@ -194,16 +290,23 @@ fn slh_dsa_assets() -> Vec<CryptoAsset> {
     Vec::new()
 }
 
-/// The combiner XOF carries no algorithm identifier — `Xof256` reports none —
-/// so the two hash rows below are the only names this file still writes out.
-/// Naming the backend that provides both keeps its removal a build failure
-/// rather than a stale claim.
+/// The combiner sponge carries no algorithm identifier — `Xof256` reports none
+/// — so the two rows below are the only names this file still writes out.
+///
+/// `Sha3_256Xof` anchors the SHA3-256 row alone: its `squeeze32` returns the
+/// SHA3-256 digest of the combiner transcript, which is exactly what that row
+/// describes, and naming the type keeps its removal a build failure rather than
+/// a stale claim. The SHAKE-256 row has no anchor here. No backend reports it
+/// as its algorithm: it is the XOF `MlKem768XWingSeed` expands its 32-byte
+/// X-Wing seed with, through a private helper this crate cannot name. That row
+/// is therefore written from the standard rather than derived, and the
+/// inventory guard is what holds it to the backend set.
 const _: fn() -> Sha3_256Xof = <Sha3_256Xof as Xof256>::new;
 
 /// Hash and XOF assets, present in every build.
 fn hash_assets() -> Vec<CryptoAsset> {
     vec![
-        policy_leveled_row(
+        sponge_row(
             "SHA3-256",
             AssetMetadata {
                 primitive: "hash",
@@ -213,7 +316,7 @@ fn hash_assets() -> Vec<CryptoAsset> {
                 note: "FIPS 202; combiner hash.",
             },
         ),
-        policy_leveled_row(
+        sponge_row(
             "SHAKE-256",
             AssetMetadata {
                 primitive: "xof",
@@ -246,7 +349,7 @@ pub fn cbom() -> Value {
                 "executionEnvironment": "software-plain-ram",
                 "implementationPlatform": "generic",
                 "cryptoFunctions": a.meta.functions,
-                "nistQuantumSecurityLevel": a.nist_quantum_level,
+                "nistQuantumSecurityLevel": a.nist_quantum_level.get(),
             });
             let mut crypto = serde_json::Map::new();
             crypto.insert("assetType".to_string(), json!("algorithm"));
