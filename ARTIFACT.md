@@ -41,7 +41,7 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-105 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+106 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
 format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
 sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
