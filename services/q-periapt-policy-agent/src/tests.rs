@@ -405,10 +405,58 @@ fn framed_begin(
     Ok(framed)
 }
 
+/// The nonce and request digest a response must carry, recomputed from the
+/// exact framed request the way a conformant external client would.
+///
+/// The digest is over the signed request body, which is the envelope's first
+/// length-prefixed field, so recovering it needs no key. There is no IPC
+/// client in this workspace -- the witness and authority protocols have one,
+/// and both of those verify this same binding -- so without this the server's
+/// only tie between a response and the request *body* was emitted and checked
+/// by nothing: a constant, a wrongly-domained digest, or a digest over the
+/// wrong bytes would ship either silently or unverifiably.
+fn expected_response_binding(framed_request: &[u8]) -> TestResult<([u8; 32], [u8; 32])> {
+    let envelope = read_frame(&mut Cursor::new(framed_request))
+        .map_err(|error| io::Error::other(format!("IPC request framing failed: {error:?}")))?;
+    let mut envelope_fields = Decoder::new(&envelope);
+    let body = envelope_fields
+        .lp16(MAX_FRAME_BYTES)
+        .map_err(|error| io::Error::other(format!("IPC request body failed: {error:?}")))?;
+    let mut decoder = Decoder::new(body);
+    require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-REQUEST/v2", 2)
+        .map_err(|error| io::Error::other(format!("IPC request domain failed: {error:?}")))?;
+    let nonce: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC request nonce failed: {error:?}")))?;
+    // The domain is spelled out rather than imported, so a change to the
+    // constant has to be made here too and cannot pass unnoticed.
+    let digest = crate::codec::hash_fields(b"Q-PERIAPT-POLICY-AGENT-IPC-DIGEST/v2", &[body])
+        .map_err(|error| io::Error::other(format!("IPC request digest failed: {error:?}")))?;
+    Ok((nonce, digest))
+}
+
+/// Read a response's nonce and request-digest binding and assert both against
+/// the request that produced it.
+fn assert_response_binding(decoder: &mut Decoder<'_>, framed_request: &[u8]) -> TestResult {
+    let (expected_nonce, expected_digest) = expected_response_binding(framed_request)?;
+    let nonce: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
+    assert_eq!(nonce, expected_nonce);
+    let digest: [u8; 32] = decoder
+        .array()
+        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    assert_eq!(
+        digest, expected_digest,
+        "the response must bind the exact request body it answered"
+    );
+    Ok(())
+}
+
 fn decode_responder_acceptance_response(
     framed: &[u8],
     verification_key: &[u8],
-    expected_nonce: [u8; 32],
+    framed_request: &[u8],
 ) -> TestResult<([u8; 32], [u8; 32])> {
     let envelope = read_frame(&mut Cursor::new(framed))
         .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
@@ -417,13 +465,7 @@ fn decode_responder_acceptance_response(
     let mut decoder = Decoder::new(body);
     require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
         .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
-    let nonce: [u8; 32] = decoder
-        .array()
-        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
-    assert_eq!(nonce, expected_nonce);
-    let _: [u8; 32] = decoder
-        .array()
-        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    assert_response_binding(&mut decoder, framed_request)?;
     let status = decoder
         .byte()
         .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
@@ -459,7 +501,7 @@ struct DecodedBeginEncapsulation {
 fn decode_begin_encapsulation_response(
     framed: &[u8],
     verification_key: &[u8],
-    expected_nonce: [u8; 32],
+    framed_request: &[u8],
 ) -> TestResult<DecodedBeginEncapsulation> {
     let envelope = read_frame(&mut Cursor::new(framed))
         .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
@@ -468,13 +510,7 @@ fn decode_begin_encapsulation_response(
     let mut decoder = Decoder::new(body);
     require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
         .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
-    let nonce: [u8; 32] = decoder
-        .array()
-        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
-    assert_eq!(nonce, expected_nonce);
-    let _: [u8; 32] = decoder
-        .array()
-        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    assert_response_binding(&mut decoder, framed_request)?;
     let status = decoder
         .byte()
         .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
@@ -2483,7 +2519,7 @@ mod fixture_hooks {
         } = decode_begin_encapsulation_response(
             &transport.output,
             &server_verification_key,
-            nonce,
+            transport.input.get_ref(),
         )?;
 
         // The decoded fields are the real ones, not merely the right sizes:

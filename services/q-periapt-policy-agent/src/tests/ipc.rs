@@ -160,19 +160,20 @@ fn the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown() -> TestRe
     // accepted socket inherits non-blocking mode on the BSDs but not on Linux,
     // so this covers a difference the unit tests cannot see.
     let nonce = [26u8; 32];
-    let mut client = std::os::unix::net::UnixStream::connect(&socket_path)?;
-    client.write_all(&framed_accept_initiator_request(
+    let request = framed_accept_initiator_request(
         &client_signing_key,
         nonce,
         decapsulated.handle,
         encapsulated.initiator_finished,
-    )?)?;
+    )?;
+    let mut client = std::os::unix::net::UnixStream::connect(&socket_path)?;
+    client.write_all(&request)?;
     // The server serves one request per connection and then drops the stream,
     // so the read ends when it closes.
     let mut response = Vec::new();
     client.read_to_end(&mut response)?;
     let (key_handle, responder_finished) =
-        decode_responder_acceptance_response(&response, &server_verification_key, nonce)?;
+        decode_responder_acceptance_response(&response, &server_verification_key, &request)?;
     assert!(!key_handle.iter().all(|byte| *byte == 0));
     assert!(!responder_finished.iter().all(|byte| *byte == 0));
 
@@ -201,12 +202,12 @@ fn framed_reconcile(signing_key: &[u8], nonce: [u8; 32]) -> TestResult<Vec<u8>> 
     Ok(framed)
 }
 
-/// The status byte of one framed, signed response to the request under
-/// `expected_nonce`.
+/// The status byte of one framed, signed response to `framed_request`, whose
+/// nonce and request-digest binding are both asserted on the way past.
 fn response_status(
     framed: &[u8],
     verification_key: &[u8],
-    expected_nonce: [u8; 32],
+    framed_request: &[u8],
 ) -> TestResult<u8> {
     let envelope = read_frame(&mut Cursor::new(framed))
         .map_err(|error| io::Error::other(format!("IPC response framing failed: {error:?}")))?;
@@ -215,13 +216,7 @@ fn response_status(
     let mut decoder = Decoder::new(body);
     require_domain(&mut decoder, b"Q-PERIAPT-POLICY-AGENT-IPC-RESPONSE/v2", 2)
         .map_err(|error| io::Error::other(format!("IPC response domain failed: {error:?}")))?;
-    let nonce: [u8; 32] = decoder
-        .array()
-        .map_err(|error| io::Error::other(format!("IPC response nonce failed: {error:?}")))?;
-    assert_eq!(nonce, expected_nonce);
-    let _: [u8; 32] = decoder
-        .array()
-        .map_err(|error| io::Error::other(format!("IPC response digest failed: {error:?}")))?;
+    assert_response_binding(&mut decoder, framed_request)?;
     let status = decoder
         .byte()
         .map_err(|error| io::Error::other(format!("IPC response status failed: {error:?}")))?;
@@ -293,7 +288,11 @@ fn the_response_write_budget_comes_from_the_request_deadline_not_the_read_deadli
     );
     assert!(!transport.output.is_empty());
     assert_eq!(
-        response_status(&transport.output, &server_verification_key, nonce)?,
+        response_status(
+            &transport.output,
+            &server_verification_key,
+            transport.input.get_ref(),
+        )?,
         0
     );
     Ok(())
@@ -369,7 +368,11 @@ fn a_request_whose_deadline_cannot_cover_the_guarded_operation_is_refused_before
     // And answered, with the refusal, on what was left of the request's own
     // deadline -- never on a fresh budget.
     assert_eq!(
-        response_status(&transport.output, &server_verification_key, nonce)?,
+        response_status(
+            &transport.output,
+            &server_verification_key,
+            transport.input.get_ref(),
+        )?,
         24
     );
     let granted = transport
@@ -539,7 +542,7 @@ fn ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce() -> TestResu
     let (key_handle, responder_finished) = decode_responder_acceptance_response(
         &retried.output,
         &server_verification_key,
-        retry_nonce,
+        retried.input.get_ref(),
     )?;
     assert_eq!(key_handle, *cached.key_handle.as_bytes());
     assert_eq!(responder_finished, *cached.responder_finished.as_bytes());
@@ -618,7 +621,7 @@ fn lost_begin_response_is_recovered_by_an_exact_retry_under_a_fresh_nonce() -> T
     } = decode_begin_encapsulation_response(
         &retried.output,
         &server_verification_key,
-        retry_nonce,
+        retried.input.get_ref(),
     )?;
     assert_eq!(server.agent_for_test().pending_session_count(), 1);
     assert_eq!(server.agent_for_test().durable_session_count_for_test()?, 1);
@@ -656,7 +659,11 @@ fn lost_begin_response_is_recovered_by_an_exact_retry_under_a_fresh_nonce() -> T
     };
     server.handle_io_for_test(&mut consumed)?;
     assert_eq!(
-        response_status(&consumed.output, &server_verification_key, consumed_nonce)?,
+        response_status(
+            &consumed.output,
+            &server_verification_key,
+            consumed.input.get_ref(),
+        )?,
         7
     );
     assert_eq!(server.agent_for_test().pending_session_count(), 0);
@@ -1090,6 +1097,91 @@ fn framed_no_port_call_command(
     write_frame(&mut framed, &envelope)
         .map_err(|error| io::Error::other(format!("IPC framing failed: {error:?}")))?;
     Ok(framed)
+}
+
+#[test]
+fn a_poisoned_agent_ends_the_serving_loop_instead_of_answering_status_19() -> TestResult {
+    // A poisoned agent is one whose durable store diverged from what it just
+    // committed, and the whole `IpcError::AgentFatal` variant -- its
+    // construction, its Display arm, its effect on the loop -- was reachable
+    // by nothing in the suite. Without the mapping the daemon answers status
+    // 19 forever: `serve` treats a per-request refusal as a per-connection
+    // matter, so it never returns, `serve_and_release` never runs, the
+    // service manager is never told the daemon is finished, and the exit-1
+    // signal a stop is supposed to carry is lost.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 183)?;
+    let pending = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    pair.initiator
+        .remove_durable_reservation_for_test(pending.handle)?;
+    assert_eq!(
+        pair.initiator.cancel(pending.handle),
+        Err(AgentError::InternalPoisoned)
+    );
+
+    let (client_signing_key, client_verification_key) = MlDsa65::generate([101u8; 32]);
+    let (server_signing_key, server_verification_key) = MlDsa65::generate([102u8; 32]);
+    let mut server = crate::ipc::UnixIpcServer::new_for_test(
+        pair.initiator,
+        client_verification_key,
+        ZeroizingBytes::from_bytes(server_signing_key),
+        server_verification_key,
+    )?;
+
+    // A request needing no port call at all, so the only thing that can refuse
+    // it is the poison.
+    let mut transport = CaptureTransport {
+        input: Cursor::new(framed_no_port_call_command(
+            &client_signing_key,
+            [103u8; 32],
+            1,
+            None,
+        )?),
+        output: Vec::new(),
+    };
+    assert_eq!(
+        server.handle_io_for_test(&mut transport),
+        Err(crate::ipc::IpcError::AgentFatal)
+    );
+    assert!(
+        transport.output.is_empty(),
+        "a fatal stop must write no response, not a status byte"
+    );
+
+    // And the loop ends on it rather than serving on. The connection is made
+    // by a second thread because the loop blocks until one arrives.
+    let socket_path = directory.join("poisoned.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+    let shutdown = AtomicBool::new(false);
+    thread::scope(|scope| -> TestResult {
+        let serving = scope.spawn(|| server.serve_for_test(listener, &shutdown));
+        let mut client = std::os::unix::net::UnixStream::connect(&socket_path)?;
+        client.write_all(&framed_no_port_call_command(
+            &client_signing_key,
+            [104u8; 32],
+            1,
+            None,
+        )?)?;
+        let mut response = Vec::new();
+        // The loop drops the stream on its way out, so this ends at EOF.
+        client.read_to_end(&mut response)?;
+        assert!(response.is_empty(), "the fatal stop answered the client");
+        assert_eq!(
+            serving
+                .join()
+                .map_err(|_| io::Error::other("serving thread panicked"))?,
+            Err(crate::ipc::IpcError::AgentFatal),
+            "the serving loop must return, so the stop path runs"
+        );
+        assert!(
+            !shutdown.load(Ordering::Acquire),
+            "the loop returned on the poison, not on a shutdown request"
+        );
+        Ok(())
+    })?;
+    Ok(())
 }
 
 #[test]
