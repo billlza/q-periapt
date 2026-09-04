@@ -387,7 +387,7 @@ jobs:
             "$GITHUB_WORKSPACE/candidate/ABI2_SOURCE_SECURITY_GATE.json"
           test "$(/usr/bin/find candidate -maxdepth 1 -type f | /usr/bin/wc -l)" -eq 6
       - name: Generate GitHub build provenance attestations
-        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.0.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.0.0
         with:
           subject-path: |
             candidate/q-periapt-android-0.1.5.aar
