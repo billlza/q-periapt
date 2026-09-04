@@ -25,8 +25,10 @@ path = "src/main.rs"
 # (the ML-KEM rows) -- with a declared 0 for the traditional partner and the two
 # FIPS 202 rows, which no layer levels and none may. A removed or renamed
 # backend is therefore a build failure here rather than a released CBOM claiming
-# an algorithm the suite does not ship (an *added* backend is caught by
-# `artifact/test_cbom_backend_inventory.py`, not by this crate). These are
+# an algorithm the suite does not ship. A parameter set *added* to one of the
+# backends crate's declaration macros is caught by `tests/cbom_inventory.rs`,
+# which reads the registries those macros generate; a backend added as a
+# hand-written trait impl is in no registry and is caught by nothing. These are
 # ordinary edges carrying the same exact `=` requirement as
 # every other internal dependency in the workspace, so the published crate
 # resolves them from crates.io and must be uploaded after all four.

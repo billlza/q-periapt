@@ -18,10 +18,12 @@ MAX_BOM_BYTES = 16 * 1024 * 1024
 # off-by-default `slh-dsa` feature and are in no shipped package. What ties the
 # CBOM to the implementation rather than to another copy of itself is that the
 # CLI derives each row from the backend crates it links, checked by its own
-# `the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report`; and that
-# `test_cbom_backend_inventory.py` holds this list against the backend
-# declarations in the backends crate's source, so a backend added there fails
-# until a row accounts for it.
+# `the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report` against
+# the registries the backends crate's declaration macros generate. This list is
+# held to that chain transitively: `verify()` compares it to the CBOM the CLI
+# actually emitted into a release package, so a parameter set added to one of
+# those macros without a CBOM row fails the Rust guard, and a stale list here
+# fails at packaging.
 EXPECTED_CRYPTO_ASSETS = frozenset(
     {
         "ML-KEM-512",

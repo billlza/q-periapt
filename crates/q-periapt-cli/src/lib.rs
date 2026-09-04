@@ -171,11 +171,13 @@ fn sponge_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
 /// Every identifier is the one the linked backend reports for itself, so a
 /// backend that is removed or renamed is a build failure here rather than a
 /// released CBOM claiming an algorithm the suite does not ship. The opposite
-/// drift is not caught here and cannot be: a backend *added* to
-/// `q-periapt-backends` still compiles, and is simply missing from this list.
-/// Nothing in this crate enumerates that crate's declarations, so the guard for
-/// an addition is `artifact/test_cbom_backend_inventory.py`, which re-reads them
-/// from the backends crate's source and fails on one no row accounts for.
+/// drift is not caught here: a backend *added* to `q-periapt-backends` still
+/// compiles, and is simply missing from this list. The guard for that is
+/// `tests/cbom_inventory.rs`, which compares this list against the registries
+/// the backends crate's `mlkem_backends!`, `mldsa_backends!` and
+/// `slhdsa_backends!` invocations generate — so a parameter set added to one of
+/// them fails until a row accounts for it. A backend added to that crate as a
+/// hand-written trait impl is in no registry, and nothing catches it.
 fn key_and_signature_assets() -> Vec<CryptoAsset> {
     vec![
         policy_leveled_row(
@@ -299,8 +301,10 @@ fn slh_dsa_assets() -> Vec<CryptoAsset> {
 /// a stale claim. The SHAKE-256 row has no anchor here. No backend reports it
 /// as its algorithm: it is the XOF `MlKem768XWingSeed` expands its 32-byte
 /// X-Wing seed with, through a private helper this crate cannot name. That row
-/// is therefore written from the standard rather than derived, and the
-/// inventory guard is what holds it to the backend set.
+/// is therefore written from the standard rather than derived, and no guard
+/// binds it to a backend — `tests/cbom_inventory.rs` names it in the same
+/// hand-written list, so removing the X-Wing seed format's use of SHAKE-256
+/// would leave this row standing.
 const _: fn() -> Sha3_256Xof = <Sha3_256Xof as Xof256>::new;
 
 /// Hash and XOF assets, present in every build.
