@@ -841,6 +841,9 @@ struct MemoryAuthorityState {
     /// in order; an empty queue is no step.
     advance_before_snapshot: VecDeque<u64>,
     snapshot_delay: Duration,
+    /// Sleep this long inside the next lease call, the way a round trip whose
+    /// response never arrives spends the budget it was admitted under.
+    lease_call_delay: Duration,
     /// Snapshots to let pass before this fires: let the current lease expire,
     /// have a fresh instance acquire the next generation, and let that lease
     /// expire too. The snapshot then reports no active lease *and* an
@@ -956,6 +959,7 @@ impl MemoryAuthority {
                 lose_next_acknowledgement: false,
                 advance_before_snapshot: VecDeque::new(),
                 snapshot_delay: Duration::ZERO,
+                lease_call_delay: Duration::ZERO,
                 successor_before_snapshot: None,
                 rollback_before_snapshot: false,
                 refuse_snapshots: false,
@@ -1266,6 +1270,14 @@ impl MemoryAuthority {
         self.lock().snapshot_delay = delay;
     }
 
+    /// Make the next lease call take real time, the way a dispatch whose
+    /// response never comes back spends the whole round trip it was admitted
+    /// under. This is what an operation deadline actually loses to a slow
+    /// authority; `round_trip_bound` only says how much it may lose.
+    fn delay_next_lease_call(&self, delay: Duration) {
+        self.lock().lease_call_delay = delay;
+    }
+
     /// Whether the delay above is still armed. It is paid only by a snapshot
     /// that is actually computed, so this doubles as "no snapshot has been
     /// computed since the delay was armed".
@@ -1334,6 +1346,10 @@ impl MemoryAuthority {
         }
         state.lease_calls += 1;
         state.round_trip_bound_once = state.round_trip_bound_once_after_next_lease_call.take();
+        let delay = core::mem::take(&mut state.lease_call_delay);
+        if !delay.is_zero() {
+            thread::sleep(delay);
+        }
         let clock = FixedClock(state.now_millis);
         Ok(match state.authority.apply(&clock, intent) {
             Ok(receipt) => {
