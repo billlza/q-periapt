@@ -1696,10 +1696,12 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
 
     /// [`Self::release_instance_lease`] under the caller's `deadline`.
     ///
-    /// One authority round trip -- the release dispatch -- and the durable
-    /// journal commit `lease_exchange` admits with it
-    /// (`DURABLE_COMMIT_RESERVE`) are the least it needs, and that pair is
-    /// admitted first, before anything is erased: a refusal,
+    /// Two authority round trips -- the release dispatch and the snapshot
+    /// proof `release_lease_state` reserves behind it, so a dispatch whose
+    /// answer is lost is always provable -- and the durable journal commit
+    /// `lease_exchange` admits with the dispatch (`DURABLE_COMMIT_RESERVE`)
+    /// are the least it needs, and that plan is admitted first, before
+    /// anything is erased: a refusal,
     /// [`AgentError::OperationDeadlineExceeded`], changes nothing, the lease
     /// still serves, and the call may be repeated with a longer deadline.
     /// Every round trip after that is admitted the same way; a refusal once
@@ -1732,9 +1734,10 @@ impl<W: WitnessPort, A: InstanceAuthorityPort> PolicyAgent<W, A> {
     /// measured from after the erase.
     ///
     /// The difference from [`Self::release_instance_lease_until`] is the
-    /// accounting, not the order: the pre-erase admission of one authority
-    /// round trip and the release dispatch's own journal commit still comes
-    /// first, so a budget too short to release erases nothing. What follows
+    /// accounting, not the order: the pre-erase admission of the release
+    /// dispatch, the snapshot proof reserved behind it and the dispatch's own
+    /// journal commit still comes first, so a budget too short to release
+    /// erases nothing. What follows
     /// it -- one durable `cancel_session` per pending session, up to
     /// `HARD_MAX_SESSIONS` of them, two fsyncs each -- is charged to the
     /// caller's stop timeout rather than to `budget`, and the release then
@@ -2033,12 +2036,15 @@ fn release_under_lock<W: WitnessPort, A: InstanceAuthorityPort>(
     }
     // Admitted before the erase, so a deadline too short to release the lease
     // leaves every secret where it is and the lease serving. What the release
-    // really needs is its round trip and the journal commit `lease_exchange`
-    // admits with it, so the gate covers both.
+    // really needs is the plan `release_lease_state` reserves for its
+    // dispatch: the round trip, the journal commit `lease_exchange` admits
+    // with it, and the snapshot proof held back behind them. Gating on less
+    // would erase every secret and then refuse the release the erase was for.
     inner.deadline.admit(
         inner
             .authority
             .round_trip_bound()
+            .saturating_mul(2)
             .saturating_add(DURABLE_COMMIT_RESERVE),
     )?;
     // Erase first, and report a failure only once the release has been
