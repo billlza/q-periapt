@@ -763,10 +763,17 @@ service/state/proof gates are in
   `SLH_DSA_BACKEND_ALGORITHMS` from the same `mlkem_backends!` /
   `mldsa_backends!` / `slhdsa_backends!` invocations that define the backends, so
   a parameter set *added* to one of them fails this guard until a row accounts
-  for it. That guard ships with the published crate, which names the same four
-  dependencies, so a crates.io consumer can run it too. What it cannot see is a
-  backend added to `q-periapt-backends` as a hand-written trait impl rather than
-  through a declaration macro — `MlKem768XWingSeed`, `X25519` and `Sha3_256Xof`
+  for it. Those three registries are the whole of what the macros can declare,
+  not just what the backends crate's root module declared: `macro_rules!` expands
+  where it is invoked, so each macro has exactly one rule — which always expands
+  its registry — and anchors that registry to a crate-wide-unique trait impl
+  (`impl crate::MlKemBackendRegistry for ()` and its two siblings), making a
+  second invocation in any other module of that crate `error[E0119]` rather than
+  a second registry const nothing reads. That guard ships with the published
+  crate, which names the same four dependencies, so a crates.io consumer can run
+  it too. What it cannot see is a backend added to `q-periapt-backends` as a
+  hand-written trait impl, or through a declaration macro of its own, rather than
+  through one of those three — `MlKem768XWingSeed`, `X25519` and `Sha3_256Xof`
   are exactly such impls — and nothing else in the workspace sees one either.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives

@@ -148,6 +148,41 @@ fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
     *shake256_zeroizing::<N>(data).as_bytes()
 }
 
+/// Anchors each backend family's registry to a single macro invocation,
+/// crate-wide.
+///
+/// `macro_rules!` expands where it is invoked, so a `*_BACKEND_ALGORITHMS` const
+/// is only ever the registry of *its own* module. A second invocation of a
+/// declaration macro in a different module would expand a second const there —
+/// a fully working backend in a registry every consumer, including
+/// `q-periapt-cli`'s CBOM, is unaware of. Trait coherence is the one crate-wide
+/// namespace a declarative macro can write into, so each declaration macro
+/// defines its registry as the associated const of `impl ... for ()` and
+/// publishes `*_BACKEND_ALGORITHMS` by reading that back. A second invocation,
+/// in any module of this crate, is then `error[E0119]: conflicting
+/// implementations` at the anchor rather than a silent second registry.
+///
+/// Each family gets its own anchor trait, so the three macros do not collide
+/// with each other; none of them is `#[macro_export]`ed, so every invocation
+/// that can exist is inside this crate and hits the same anchor.
+pub(crate) trait MlKemBackendRegistry {
+    /// The FIPS 203 identifiers of every ML-KEM backend this crate declares.
+    const ALGORITHMS: &'static [&'static str];
+}
+
+/// The ML-DSA half of the registry anchor — see [`MlKemBackendRegistry`].
+pub(crate) trait MlDsaBackendRegistry {
+    /// The FIPS 204 algorithms of every ML-DSA backend this crate declares.
+    const ALGORITHMS: &'static [q_periapt_sig::SigAlg];
+}
+
+/// The SLH-DSA half of the registry anchor — see [`MlKemBackendRegistry`].
+#[cfg(feature = "slh-dsa")]
+pub(crate) trait SlhDsaBackendRegistry {
+    /// The FIPS 205 algorithms of every SLH-DSA backend this crate declares.
+    const ALGORITHMS: &'static [q_periapt_sig::SigAlg];
+}
+
 /// Declares every ML-KEM (FIPS 203) backend over an `mlkem-native` parameter
 /// type, and the registry of the algorithms they report.
 ///
@@ -159,146 +194,13 @@ fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
 ///
 /// One invocation declares them all, so a parameter set added to it lands in
 /// [`ML_KEM_BACKEND_ALGORITHMS`] from the same `$alg` literal its
-/// `Kem::algorithm` returns. The per-backend expansion is the private `@one`
-/// rule rather than a macro of its own, so there is no second entry point that
-/// declares a backend without adding it to the registry.
+/// `Kem::algorithm` returns. The macro has exactly one rule — the per-backend
+/// expansion is inlined into that rule's repetition rather than reachable as a
+/// second rule or a macro of its own — so no invocation can declare a backend
+/// without also expanding the registry, and the registry it expands is anchored
+/// by [`MlKemBackendRegistry`] so that a second invocation anywhere in this
+/// crate fails to compile instead of registering elsewhere.
 macro_rules! mlkem_backends {
-    (
-        @one
-        $name:ident, $native:ident, $alg:literal,
-        $pk_len:ident = $pk:literal,
-        $sk_len:ident = $sk:literal,
-        $ct_len:ident = $ct:literal,
-        $seed_len:ident = $seed:literal,
-        $rand_len:ident = $rand:literal,
-        $struct_doc:literal
-    ) => {
-        /// Encapsulation-key (public key) length in bytes.
-        pub const $pk_len: usize = $pk;
-        /// Decapsulation-key (secret key) length in bytes.
-        pub const $sk_len: usize = $sk;
-        /// Ciphertext length in bytes.
-        pub const $ct_len: usize = $ct;
-        /// Key-generation seed length in bytes (FIPS 203 `d || z`).
-        pub const $seed_len: usize = $seed;
-        /// Encapsulation randomness length in bytes.
-        pub const $rand_len: usize = $rand;
-
-        const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];
-        const _: [(); $sk] = [(); $native::DECAPSULATION_KEY_LEN];
-        const _: [(); $ct] = [(); $native::CIPHERTEXT_LEN];
-
-        #[doc = $struct_doc]
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct $name;
-
-        impl $name {
-            /// Deterministically generate a key pair from a 64-byte seed.
-            /// Returns `(decapsulation_key, encapsulation_key)`.
-            ///
-            /// The decapsulation key is returned **by value** as a plain array,
-            /// so wiping every copy the return path materializes is the
-            /// caller's responsibility. Long-term keying paths should prefer
-            /// [`Self::generate_zeroizing`], which keeps the secret inside one
-            /// zeroizing heap owner end to end.
-            ///
-            /// # Errors
-            ///
-            /// Returns [`Error::Backend`] if the pinned primitive cannot
-            /// complete deterministic key generation.
-            pub fn generate(
-                seed: [u8; $seed_len],
-            ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
-                let seed = ZeroizingBytes::from_bytes(seed);
-                let (decapsulation_key, encapsulation_key) =
-                    Self::generate_zeroizing(seed.as_bytes())?;
-                Ok((*decapsulation_key.as_bytes(), encapsulation_key))
-            }
-
-            /// Deterministically generate a key pair from a borrowed 64-byte
-            /// seed, returning `(decapsulation_key, encapsulation_key)` with
-            /// the secret held in one stable zeroizing heap owner.
-            ///
-            /// The seed is borrowed (no by-value copy crosses this boundary)
-            /// and the expanded decapsulation key is written by the primitive
-            /// directly into the boxed [`ZeroizingBytes`] — mirroring
-            /// [`MlKem768XWingSeed::prepare`], moving the owner afterwards
-            /// moves only the box pointer, never the secret bytes, so no
-            /// unwiped stack copy of the key is left behind.
-            ///
-            /// # Errors
-            ///
-            /// Returns [`Error::Backend`] if the pinned primitive cannot
-            /// complete deterministic key generation.
-            pub fn generate_zeroizing(
-                seed: &[u8; $seed_len],
-            ) -> Result<(Box<ZeroizingBytes<$sk_len>>, [u8; $pk_len]), Error> {
-                let mut encapsulation_key = [0u8; $pk_len];
-                let mut decapsulation_key = Box::new(ZeroizingBytes::<$sk_len>::zeroed());
-                $native::keypair_derand(
-                    seed,
-                    &mut encapsulation_key,
-                    decapsulation_key.as_mut_bytes(),
-                )
-                .map_err(map_mlkem_error)?;
-                Ok((decapsulation_key, encapsulation_key))
-            }
-        }
-
-        impl Kem for $name {
-            const C2PRI: bool = true; // ML-KEM's primitive has FO ciphertext self-binding.
-                                      // This backend accepts arbitrary FIPS-expanded decapsulation keys. The expanded key
-                                      // format exposes rejection-seed material that can be adversarially imported/cached
-                                      // outside the seed-derived X-Wing key schedule. Use ContextBound for this raw-key
-                                      // backend; use MlKem768XWingSeed for byte-exact X-Wing compatibility.
-            const COMPAT_XWING_SAFE: bool = false;
-
-            fn algorithm(&self) -> &'static str {
-                $alg
-            }
-
-            fn encapsulate(
-                &self,
-                pk: &[u8],
-                randomness: &[u8],
-                ct: &mut [u8],
-                ss: &mut [u8],
-            ) -> Result<(), Error> {
-                if ct.len() != $ct_len || ss.len() != SHARED_SECRET_LEN {
-                    return Err(Error::InvalidLength);
-                }
-                let public_key = to_arr::<$pk_len>(pk)?;
-                let randomness = to_zeroizing::<$rand_len>(randomness)?;
-                let mut ciphertext = [0u8; $ct_len];
-                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
-                $native::encapsulate_derand(
-                    &public_key,
-                    randomness.as_bytes(),
-                    &mut ciphertext,
-                    shared_secret.as_mut_bytes(),
-                )
-                .map_err(map_mlkem_error)?;
-                write_exact(ct, &ciphertext)?;
-                write_exact(ss, shared_secret.as_bytes())
-            }
-
-            fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-                if ss.len() != SHARED_SECRET_LEN {
-                    return Err(Error::InvalidLength);
-                }
-                let decapsulation_key = to_zeroizing::<$sk_len>(sk)?;
-                let ciphertext = to_arr::<$ct_len>(ct)?;
-                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
-                $native::decapsulate(
-                    decapsulation_key.as_bytes(),
-                    &ciphertext,
-                    shared_secret.as_mut_bytes(),
-                )
-                .map_err(map_mlkem_error)?;
-                write_exact(ss, shared_secret.as_bytes())
-            }
-        }
-    };
     ($(
         {
             $name:ident, $native:ident, $alg:literal,
@@ -311,31 +213,159 @@ macro_rules! mlkem_backends {
         }
     ),+ $(,)?) => {
         $(
-            mlkem_backends!(
-                @one
-                $name, $native, $alg,
-                $pk_len = $pk,
-                $sk_len = $sk,
-                $ct_len = $ct,
-                $seed_len = $seed,
-                $rand_len = $rand,
-                $struct_doc
-            );
+            /// Encapsulation-key (public key) length in bytes.
+            pub const $pk_len: usize = $pk;
+            /// Decapsulation-key (secret key) length in bytes.
+            pub const $sk_len: usize = $sk;
+            /// Ciphertext length in bytes.
+            pub const $ct_len: usize = $ct;
+            /// Key-generation seed length in bytes (FIPS 203 `d || z`).
+            pub const $seed_len: usize = $seed;
+            /// Encapsulation randomness length in bytes.
+            pub const $rand_len: usize = $rand;
+
+            const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];
+            const _: [(); $sk] = [(); $native::DECAPSULATION_KEY_LEN];
+            const _: [(); $ct] = [(); $native::CIPHERTEXT_LEN];
+
+            #[doc = $struct_doc]
+            #[derive(Clone, Copy, Debug, Default)]
+            pub struct $name;
+
+            impl $name {
+                /// Deterministically generate a key pair from a 64-byte seed.
+                /// Returns `(decapsulation_key, encapsulation_key)`.
+                ///
+                /// The decapsulation key is returned **by value** as a plain array,
+                /// so wiping every copy the return path materializes is the
+                /// caller's responsibility. Long-term keying paths should prefer
+                /// [`Self::generate_zeroizing`], which keeps the secret inside one
+                /// zeroizing heap owner end to end.
+                ///
+                /// # Errors
+                ///
+                /// Returns [`Error::Backend`] if the pinned primitive cannot
+                /// complete deterministic key generation.
+                pub fn generate(
+                    seed: [u8; $seed_len],
+                ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
+                    let seed = ZeroizingBytes::from_bytes(seed);
+                    let (decapsulation_key, encapsulation_key) =
+                        Self::generate_zeroizing(seed.as_bytes())?;
+                    Ok((*decapsulation_key.as_bytes(), encapsulation_key))
+                }
+
+                /// Deterministically generate a key pair from a borrowed 64-byte
+                /// seed, returning `(decapsulation_key, encapsulation_key)` with
+                /// the secret held in one stable zeroizing heap owner.
+                ///
+                /// The seed is borrowed (no by-value copy crosses this boundary)
+                /// and the expanded decapsulation key is written by the primitive
+                /// directly into the boxed [`ZeroizingBytes`] — mirroring
+                /// [`MlKem768XWingSeed::prepare`], moving the owner afterwards
+                /// moves only the box pointer, never the secret bytes, so no
+                /// unwiped stack copy of the key is left behind.
+                ///
+                /// # Errors
+                ///
+                /// Returns [`Error::Backend`] if the pinned primitive cannot
+                /// complete deterministic key generation.
+                pub fn generate_zeroizing(
+                    seed: &[u8; $seed_len],
+                ) -> Result<(Box<ZeroizingBytes<$sk_len>>, [u8; $pk_len]), Error> {
+                    let mut encapsulation_key = [0u8; $pk_len];
+                    let mut decapsulation_key = Box::new(ZeroizingBytes::<$sk_len>::zeroed());
+                    $native::keypair_derand(
+                        seed,
+                        &mut encapsulation_key,
+                        decapsulation_key.as_mut_bytes(),
+                    )
+                    .map_err(map_mlkem_error)?;
+                    Ok((decapsulation_key, encapsulation_key))
+                }
+            }
+
+            impl Kem for $name {
+                const C2PRI: bool = true; // ML-KEM's primitive has FO ciphertext self-binding.
+                                          // This backend accepts arbitrary FIPS-expanded decapsulation keys. The expanded key
+                                          // format exposes rejection-seed material that can be adversarially imported/cached
+                                          // outside the seed-derived X-Wing key schedule. Use ContextBound for this raw-key
+                                          // backend; use MlKem768XWingSeed for byte-exact X-Wing compatibility.
+                const COMPAT_XWING_SAFE: bool = false;
+
+                fn algorithm(&self) -> &'static str {
+                    $alg
+                }
+
+                fn encapsulate(
+                    &self,
+                    pk: &[u8],
+                    randomness: &[u8],
+                    ct: &mut [u8],
+                    ss: &mut [u8],
+                ) -> Result<(), Error> {
+                    if ct.len() != $ct_len || ss.len() != SHARED_SECRET_LEN {
+                        return Err(Error::InvalidLength);
+                    }
+                    let public_key = to_arr::<$pk_len>(pk)?;
+                    let randomness = to_zeroizing::<$rand_len>(randomness)?;
+                    let mut ciphertext = [0u8; $ct_len];
+                    let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                    $native::encapsulate_derand(
+                        &public_key,
+                        randomness.as_bytes(),
+                        &mut ciphertext,
+                        shared_secret.as_mut_bytes(),
+                    )
+                    .map_err(map_mlkem_error)?;
+                    write_exact(ct, &ciphertext)?;
+                    write_exact(ss, shared_secret.as_bytes())
+                }
+
+                fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+                    if ss.len() != SHARED_SECRET_LEN {
+                        return Err(Error::InvalidLength);
+                    }
+                    let decapsulation_key = to_zeroizing::<$sk_len>(sk)?;
+                    let ciphertext = to_arr::<$ct_len>(ct)?;
+                    let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                    $native::decapsulate(
+                        decapsulation_key.as_bytes(),
+                        &ciphertext,
+                        shared_secret.as_mut_bytes(),
+                    )
+                    .map_err(map_mlkem_error)?;
+                    write_exact(ss, shared_secret.as_bytes())
+                }
+            }
         )+
+
+        // The crate's one ML-KEM registry, defined as a crate-wide-unique trait
+        // impl so that a second `mlkem_backends!` invocation -- in this module
+        // or any other -- is `error[E0119]: conflicting implementations` rather
+        // than a second registry const in a module nothing reads.
+        impl crate::MlKemBackendRegistry for () {
+            const ALGORITHMS: &'static [&'static str] = &[$($alg),+];
+        }
 
         /// The FIPS 203 identifier of every ML-KEM backend declared through
         /// `mlkem_backends!`, in declaration order.
         ///
         /// Generated by the same invocation that defines those backends, from
         /// the same literal each one's [`Kem::algorithm`] returns, so a
-        /// parameter set added there is in this slice by construction.
+        /// parameter set added there is in this slice by construction. The macro
+        /// has one rule, which always expands this const, and the const reads it
+        /// back from the crate-wide-unique anchor impl above — so this is the
+        /// crate's only ML-KEM registry, whichever module the invocation is
+        /// written in.
         ///
         /// It is **not** an inventory of the crate: [`MlKem768XWingSeed`],
         /// [`X25519`] and [`Sha3_256Xof`] are hand-written impls and are
         /// absent, and a further backend written as a hand-written `impl Kem`
         /// would be absent too. It is also a list of identifiers, not of types:
         /// two backends reporting the same identifier appear once.
-        pub const ML_KEM_BACKEND_ALGORITHMS: &[&str] = &[$($alg),+];
+        pub const ML_KEM_BACKEND_ALGORITHMS: &[&str] =
+            <() as crate::MlKemBackendRegistry>::ALGORITHMS;
     };
 }
 

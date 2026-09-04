@@ -11,6 +11,19 @@
 //! parameter set added to one of them reaches this file without anyone
 //! remembering to list it.
 //!
+//! Those three consts are all three macros can declare, not merely what the
+//! crate root's invocation of each declared. `macro_rules!` expands where it is
+//! invoked, so a second invocation in a *different* module of
+//! `q-periapt-backends` would otherwise expand a second registry const in that
+//! module — a fully working backend in a registry this file never reads. Each
+//! macro therefore has exactly one rule, which always expands its registry, and
+//! defines that registry as a crate-wide-unique trait impl
+//! (`impl crate::MlKemBackendRegistry for ()` and its two siblings) that the
+//! public const reads back. A second invocation, in any module of that crate, is
+//! `error[E0119]: conflicting implementations` at the anchor; a partial
+//! invocation that would declare a backend without the registry has no rule to
+//! match.
+//!
 //! Caught, and named in the failure:
 //!
 //! * a parameter set **added** through one of those three declaration macros
@@ -31,8 +44,9 @@
 //! **Not caught, by anything in this workspace:**
 //!
 //! * a backend added as a hand-written `impl Kem` / `Signer` / `Verifier` /
-//!   `Xof256` that does not go through a declaration macro. It is in no
-//!   registry, and no guard here or elsewhere sees it — `MlKem768XWingSeed`,
+//!   `Xof256`, or through a *fourth* declaration macro of its own, rather than
+//!   through one of those three. It is in no registry, and no guard here or
+//!   elsewhere sees it — `MlKem768XWingSeed`,
 //!   `X25519` and `Sha3_256Xof` are exactly such impls, which is why the
 //!   registries are per-macro-family and are not the crate's backend inventory.
 //!   A `pub struct` and a `pub use` in the crate root are its only trace, and

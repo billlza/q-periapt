@@ -27,8 +27,11 @@ path = "src/main.rs"
 # backend is therefore a build failure here rather than a released CBOM claiming
 # an algorithm the suite does not ship. A parameter set *added* to one of the
 # backends crate's declaration macros is caught by `tests/cbom_inventory.rs`,
-# which reads the registries those macros generate; a backend added as a
-# hand-written trait impl is in no registry and is caught by nothing. These are
+# which reads the registries those macros generate -- and those registries are
+# crate-wide-unique, so a second invocation in another module of that crate is a
+# compile error rather than a registry the guard never reads. A backend added as
+# a hand-written trait impl, or through a declaration macro of its own, is in no
+# registry and is caught by nothing. These are
 # ordinary edges carrying the same exact `=` requirement as
 # every other internal dependency in the workspace, so the published crate
 # resolves them from crates.io and must be uploaded after all four.

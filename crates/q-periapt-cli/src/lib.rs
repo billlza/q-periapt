@@ -176,8 +176,14 @@ fn sponge_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
 /// `tests/cbom_inventory.rs`, which compares this list against the registries
 /// the backends crate's `mlkem_backends!`, `mldsa_backends!` and
 /// `slhdsa_backends!` invocations generate — so a parameter set added to one of
-/// them fails until a row accounts for it. A backend added to that crate as a
-/// hand-written trait impl is in no registry, and nothing catches it.
+/// them fails until a row accounts for it. Those registries are the whole of
+/// what the three macros can declare, not just what the backends crate's root
+/// module declared: each macro has one rule, which always expands its registry,
+/// and anchors that registry to a crate-wide-unique trait impl, so a second
+/// invocation in another module of that crate is a compile error there rather
+/// than a second registry this list is never compared against. A backend added
+/// to that crate as a hand-written trait impl, or through a declaration macro of
+/// its own, is in no registry, and nothing catches it.
 fn key_and_signature_assets() -> Vec<CryptoAsset> {
     vec![
         policy_leveled_row(

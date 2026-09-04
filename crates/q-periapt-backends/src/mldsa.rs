@@ -81,162 +81,13 @@ fn validate_small_secret_coefficients(
 ///
 /// One invocation declares them all, so a parameter set added to it lands in
 /// [`ML_DSA_BACKEND_ALGORITHMS`] from the same `$alg` expression its
-/// `Signer::algorithm` returns. The per-backend expansion is the private `@one`
-/// rule rather than a macro of its own, so there is no second entry point that
-/// declares a backend without adding it to the registry.
+/// `Signer::algorithm` returns. The macro has exactly one rule — the per-backend
+/// expansion is inlined into that rule's repetition rather than reachable as a
+/// second rule or a macro of its own — so no invocation can declare a backend
+/// without also expanding the registry, and the registry it expands is anchored
+/// by [`crate::MlDsaBackendRegistry`] so that a second invocation anywhere in
+/// this crate fails to compile instead of registering elsewhere.
 macro_rules! mldsa_backends {
-    (
-        @one
-        $name:ident, $m:ident, $alg:expr,
-        $sk_len:ident = $sk:literal,
-        $vk_len:ident = $vk:literal,
-        $sig_len:ident = $sig:literal,
-        $seed_len:ident = $seed:literal,
-        $rand_len:ident = $rand:literal,
-        $eta:literal,
-        $packed_small_len:literal,
-        $struct_doc:literal
-    ) => {
-        /// Expanded signing-key length in bytes (FIPS 204).
-        pub const $sk_len: usize = $sk;
-        /// Verification-key length in bytes.
-        pub const $vk_len: usize = $vk;
-        /// Signature length in bytes.
-        pub const $sig_len: usize = $sig;
-        /// Key-generation seed length in bytes.
-        pub const $seed_len: usize = $seed;
-        /// Signing-randomness length in bytes.
-        pub const $rand_len: usize = $rand;
-
-        #[doc = $struct_doc]
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct $name;
-
-        impl $name {
-            /// Deterministically generate a key pair from a 32-byte seed.
-            /// Returns `(expanded_signing_key, verification_key)`.
-            #[must_use]
-            pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $vk_len]) {
-                let seed = ZeroizingBytes::from_bytes(seed);
-                let (verification_key, signing_key) = $m::KG::keygen_from_seed(seed.as_bytes());
-                (signing_key.into_bytes(), verification_key.into_bytes())
-            }
-
-            /// External `ML-DSA.Sign` with explicit context and caller randomness.
-            /// An all-zero randomness value selects deterministic signing; other
-            /// values provide the FIPS 204 hedged variant.
-            pub fn sign_ctx(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                validate_context(context)?;
-                if out_sig.len() != $sig_len {
-                    return Err(Error::InvalidLength);
-                }
-                let sk = to_zeroizing::<$sk_len>(sk)?;
-                let randomness = to_zeroizing::<$rand_len>(randomness)?;
-                validate_small_secret_coefficients(sk.as_bytes(), $eta, $packed_small_len)?;
-                let signing_key =
-                    $m::PrivateKey::try_from_bytes(*sk.as_bytes()).map_err(|_| Error::Backend)?;
-                let signature = signing_key
-                    .try_sign_with_seed(randomness.as_bytes(), msg, context)
-                    .map_err(|_| Error::Backend)?;
-                write_exact(out_sig, &signature)?;
-                Ok($sig_len)
-            }
-
-            /// External `ML-DSA.Verify` with an explicit context.
-            pub fn verify_ctx(
-                &self,
-                pk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                sig: &[u8],
-            ) -> Result<(), Error> {
-                validate_context(context)?;
-                let verification_key = $m::PublicKey::try_from_bytes(to_arr::<$vk_len>(pk)?)
-                    .map_err(|_| Error::Backend)?;
-                let signature = to_arr::<$sig_len>(sig)?;
-                verification_key
-                    .verify(msg, &signature, context)
-                    .then_some(())
-                    .ok_or(Error::Backend)
-            }
-
-            /// `HashML-DSA.Sign` using SHAKE128 pre-hashing and explicit context.
-            pub fn sign_pre_hashed_shake128(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                validate_context(context)?;
-                if out_sig.len() != $sig_len {
-                    return Err(Error::InvalidLength);
-                }
-                let sk = to_zeroizing::<$sk_len>(sk)?;
-                let randomness = to_zeroizing::<$rand_len>(randomness)?;
-                validate_small_secret_coefficients(sk.as_bytes(), $eta, $packed_small_len)?;
-                let signing_key =
-                    $m::PrivateKey::try_from_bytes(*sk.as_bytes()).map_err(|_| Error::Backend)?;
-                let signature = signing_key
-                    .try_hash_sign_with_seed(randomness.as_bytes(), msg, context, &Ph::SHAKE128)
-                    .map_err(|_| Error::Backend)?;
-                write_exact(out_sig, &signature)?;
-                Ok($sig_len)
-            }
-
-            /// `HashML-DSA.Verify` using SHAKE128 pre-hashing and explicit context.
-            pub fn verify_pre_hashed_shake128(
-                &self,
-                pk: &[u8],
-                msg: &[u8],
-                context: &[u8],
-                sig: &[u8],
-            ) -> Result<(), Error> {
-                validate_context(context)?;
-                let verification_key = $m::PublicKey::try_from_bytes(to_arr::<$vk_len>(pk)?)
-                    .map_err(|_| Error::Backend)?;
-                let signature = to_arr::<$sig_len>(sig)?;
-                verification_key
-                    .hash_verify(msg, &signature, context, &Ph::SHAKE128)
-                    .then_some(())
-                    .ok_or(Error::Backend)
-            }
-        }
-
-        impl Signer for $name {
-            fn algorithm(&self) -> SigAlg {
-                $alg
-            }
-
-            fn sign(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                self.sign_ctx(sk, msg, b"", randomness, out_sig)
-            }
-        }
-
-        impl Verifier for $name {
-            fn algorithm(&self) -> SigAlg {
-                $alg
-            }
-
-            fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-                self.verify_ctx(pk, msg, b"", sig)
-            }
-        }
-    };
     ($(
         {
             $name:ident, $m:ident, $alg:expr,
@@ -251,30 +102,168 @@ macro_rules! mldsa_backends {
         }
     ),+ $(,)?) => {
         $(
-            mldsa_backends!(
-                @one
-                $name, $m, $alg,
-                $sk_len = $sk,
-                $vk_len = $vk,
-                $sig_len = $sig,
-                $seed_len = $seed,
-                $rand_len = $rand,
-                $eta,
-                $packed_small_len,
-                $struct_doc
-            );
+            /// Expanded signing-key length in bytes (FIPS 204).
+            pub const $sk_len: usize = $sk;
+            /// Verification-key length in bytes.
+            pub const $vk_len: usize = $vk;
+            /// Signature length in bytes.
+            pub const $sig_len: usize = $sig;
+            /// Key-generation seed length in bytes.
+            pub const $seed_len: usize = $seed;
+            /// Signing-randomness length in bytes.
+            pub const $rand_len: usize = $rand;
+
+            #[doc = $struct_doc]
+            #[derive(Clone, Copy, Debug, Default)]
+            pub struct $name;
+
+            impl $name {
+                /// Deterministically generate a key pair from a 32-byte seed.
+                /// Returns `(expanded_signing_key, verification_key)`.
+                #[must_use]
+                pub fn generate(seed: [u8; $seed_len]) -> ([u8; $sk_len], [u8; $vk_len]) {
+                    let seed = ZeroizingBytes::from_bytes(seed);
+                    let (verification_key, signing_key) = $m::KG::keygen_from_seed(seed.as_bytes());
+                    (signing_key.into_bytes(), verification_key.into_bytes())
+                }
+
+                /// External `ML-DSA.Sign` with explicit context and caller randomness.
+                /// An all-zero randomness value selects deterministic signing; other
+                /// values provide the FIPS 204 hedged variant.
+                pub fn sign_ctx(
+                    &self,
+                    sk: &[u8],
+                    msg: &[u8],
+                    context: &[u8],
+                    randomness: &[u8],
+                    out_sig: &mut [u8],
+                ) -> Result<usize, Error> {
+                    validate_context(context)?;
+                    if out_sig.len() != $sig_len {
+                        return Err(Error::InvalidLength);
+                    }
+                    let sk = to_zeroizing::<$sk_len>(sk)?;
+                    let randomness = to_zeroizing::<$rand_len>(randomness)?;
+                    validate_small_secret_coefficients(sk.as_bytes(), $eta, $packed_small_len)?;
+                    let signing_key =
+                        $m::PrivateKey::try_from_bytes(*sk.as_bytes()).map_err(|_| Error::Backend)?;
+                    let signature = signing_key
+                        .try_sign_with_seed(randomness.as_bytes(), msg, context)
+                        .map_err(|_| Error::Backend)?;
+                    write_exact(out_sig, &signature)?;
+                    Ok($sig_len)
+                }
+
+                /// External `ML-DSA.Verify` with an explicit context.
+                pub fn verify_ctx(
+                    &self,
+                    pk: &[u8],
+                    msg: &[u8],
+                    context: &[u8],
+                    sig: &[u8],
+                ) -> Result<(), Error> {
+                    validate_context(context)?;
+                    let verification_key = $m::PublicKey::try_from_bytes(to_arr::<$vk_len>(pk)?)
+                        .map_err(|_| Error::Backend)?;
+                    let signature = to_arr::<$sig_len>(sig)?;
+                    verification_key
+                        .verify(msg, &signature, context)
+                        .then_some(())
+                        .ok_or(Error::Backend)
+                }
+
+                /// `HashML-DSA.Sign` using SHAKE128 pre-hashing and explicit context.
+                pub fn sign_pre_hashed_shake128(
+                    &self,
+                    sk: &[u8],
+                    msg: &[u8],
+                    context: &[u8],
+                    randomness: &[u8],
+                    out_sig: &mut [u8],
+                ) -> Result<usize, Error> {
+                    validate_context(context)?;
+                    if out_sig.len() != $sig_len {
+                        return Err(Error::InvalidLength);
+                    }
+                    let sk = to_zeroizing::<$sk_len>(sk)?;
+                    let randomness = to_zeroizing::<$rand_len>(randomness)?;
+                    validate_small_secret_coefficients(sk.as_bytes(), $eta, $packed_small_len)?;
+                    let signing_key =
+                        $m::PrivateKey::try_from_bytes(*sk.as_bytes()).map_err(|_| Error::Backend)?;
+                    let signature = signing_key
+                        .try_hash_sign_with_seed(randomness.as_bytes(), msg, context, &Ph::SHAKE128)
+                        .map_err(|_| Error::Backend)?;
+                    write_exact(out_sig, &signature)?;
+                    Ok($sig_len)
+                }
+
+                /// `HashML-DSA.Verify` using SHAKE128 pre-hashing and explicit context.
+                pub fn verify_pre_hashed_shake128(
+                    &self,
+                    pk: &[u8],
+                    msg: &[u8],
+                    context: &[u8],
+                    sig: &[u8],
+                ) -> Result<(), Error> {
+                    validate_context(context)?;
+                    let verification_key = $m::PublicKey::try_from_bytes(to_arr::<$vk_len>(pk)?)
+                        .map_err(|_| Error::Backend)?;
+                    let signature = to_arr::<$sig_len>(sig)?;
+                    verification_key
+                        .hash_verify(msg, &signature, context, &Ph::SHAKE128)
+                        .then_some(())
+                        .ok_or(Error::Backend)
+                }
+            }
+
+            impl Signer for $name {
+                fn algorithm(&self) -> SigAlg {
+                    $alg
+                }
+
+                fn sign(
+                    &self,
+                    sk: &[u8],
+                    msg: &[u8],
+                    randomness: &[u8],
+                    out_sig: &mut [u8],
+                ) -> Result<usize, Error> {
+                    self.sign_ctx(sk, msg, b"", randomness, out_sig)
+                }
+            }
+
+            impl Verifier for $name {
+                fn algorithm(&self) -> SigAlg {
+                    $alg
+                }
+
+                fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+                    self.verify_ctx(pk, msg, b"", sig)
+                }
+            }
         )+
+
+        // The crate's one ML-DSA registry, anchored crate-wide -- see
+        // `crate::MlKemBackendRegistry` for why the const is read back out of a
+        // trait impl instead of being written directly.
+        impl crate::MlDsaBackendRegistry for () {
+            const ALGORITHMS: &'static [SigAlg] = &[$($alg),+];
+        }
 
         /// The FIPS 204 algorithm of every ML-DSA backend declared through
         /// `mldsa_backends!`, in declaration order.
         ///
         /// Generated by the same invocation that defines those backends, from
         /// the same expression each one's `Signer::algorithm` returns, so a
-        /// parameter set added there is in this slice by construction. It
-        /// covers the ML-DSA family only: a signature backend written as a
-        /// hand-written `impl Signer`, and the SLH-DSA family behind the
-        /// `slh-dsa` feature, are not here.
-        pub const ML_DSA_BACKEND_ALGORITHMS: &[SigAlg] = &[$($alg),+];
+        /// parameter set added there is in this slice by construction. The macro
+        /// has one rule, which always expands this const, and the const reads it
+        /// back from the crate-wide-unique anchor impl above — so this is the
+        /// crate's only ML-DSA registry, whichever module the invocation is
+        /// written in. It covers the ML-DSA family only: a signature backend
+        /// written as a hand-written `impl Signer`, and the SLH-DSA family
+        /// behind the `slh-dsa` feature, are not here.
+        pub const ML_DSA_BACKEND_ALGORITHMS: &[SigAlg] =
+            <() as crate::MlDsaBackendRegistry>::ALGORITHMS;
     };
 }
 
