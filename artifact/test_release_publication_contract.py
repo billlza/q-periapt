@@ -13,6 +13,7 @@ import apple_stable_publication as apple_producer
 import crates_io_publication_contract as crates_contract
 import platform_publication_contract as platform_contract
 import release_publication_contract as contract
+import source_results_assembler as assembler
 from test_apple_publication_contract import (
     alpha2_receipt,
     stable_pending_receipt,
@@ -179,7 +180,29 @@ def source_baseline_fixture(
     baseline = copy.deepcopy(manifest)
     _drop_active_cohort_leaves(baseline)
     baseline["swift_xcframework"] = frozen_v0_1_3_selector_fixture(manifest)
+    _reduce_to_initial_proof_inputs(baseline)
     return baseline
+
+
+def _reduce_to_initial_proof_inputs(manifest: dict[str, object]) -> None:
+    """Reduce ``proof_to_byte_inputs`` to the initial baseline's key set.
+
+    Dropping the cohort leaves is not enough to make the fixture
+    state-independent. ``artifact/results.json`` carries the initial
+    baseline's key set before a release installs its successor and the
+    full installed set afterwards, so a fixture built from the live file
+    silently changed shape at the R commit, and any test asserting on
+    that shape passed or failed according to which release state the
+    working tree happened to be in. The reduction is the same one
+    ``_build_reopen_candidate`` performs, so the fixture is always the
+    initial baseline whichever state is installed.
+    """
+
+    inputs = manifest.get("proof_to_byte_inputs")
+    if not isinstance(inputs, dict):
+        return
+    for key in assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS:
+        inputs.pop(key, None)
 
 
 # The live manifest is read exactly once, at import, and immediately

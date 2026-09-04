@@ -1656,7 +1656,7 @@ class ReopenSourceTests(unittest.TestCase):
         # The result is an exact valid initial baseline (no exception).
         assembler._validate_baseline_document_shape(candidate, require_initial=True)
 
-    def test_reopen_requires_a_fully_installed_237_key_input(self) -> None:
+    def test_reopen_requires_a_fully_installed_249_key_input(self) -> None:
         # A valid pending fixture carries only the 190-key baseline.
         installed = pending_manifest_fixture(frozen_baseline_manifest())
         with self.assertRaisesRegex(
