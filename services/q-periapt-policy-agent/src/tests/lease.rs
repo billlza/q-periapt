@@ -1075,6 +1075,24 @@ fn a_release_whose_response_is_lost_and_query_refused_closed_is_proven_gone_by_s
 }
 
 #[test]
+fn a_release_whose_response_is_lost_and_query_answers_a_foreign_intent_is_proven_gone_by_snapshot(
+) -> TestResult {
+    // The query is answered -- with a receipt filed under this operation id
+    // and bound to some other intent, which a store restored from a backup
+    // hands back through a healthy wire. It says nothing about this release,
+    // so the outcome is unknown and the proof is owed exactly as after a
+    // query that went unanswered. Calling this a dispatch that never executed
+    // would take the proof away and report an applied release as a lease
+    // still held.
+    a_lost_release_is_proven_gone_by_snapshot(
+        182,
+        MemoryAuthority::answer_next_query_with_a_foreign_intent,
+        None,
+        1,
+    )
+}
+
+#[test]
 fn a_release_the_authority_rate_limits_outright_is_reported_unproven() -> TestResult {
     // The reference authority takes the nonce-table decision in `handle`,
     // ahead of the command switch, so while that table is at capacity every

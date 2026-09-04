@@ -844,6 +844,14 @@ struct MemoryAuthorityState {
     /// Sleep this long inside the next lease call, the way a round trip whose
     /// response never arrives spends the budget it was admitted under.
     lease_call_delay: Duration,
+    /// Once, at the next `query` that finds a receipt: answer with a receipt
+    /// filed under the queried operation id whose stored intent is a
+    /// *different* one. The client transport checks the operation id, the
+    /// deployment revision and that the command is a recognized one
+    /// (`query_result_matches`), and all three still hold, so this is exactly
+    /// what a tampered store -- or one restored from a backup of another
+    /// deployment's operations -- hands back through a healthy wire.
+    foreign_intent_on_next_query: bool,
     /// Snapshots to let pass before this fires: let the current lease expire,
     /// have a fresh instance acquire the next generation, and let that lease
     /// expire too. The snapshot then reports no active lease *and* an
@@ -899,6 +907,44 @@ impl LeaseCallFilter {
             Self::Release => command == AuthorityCommandV2::Release,
         }
     }
+}
+
+/// The same receipt with its stored intent swapped for another the wire
+/// admits: the operation id, the deployment revision and the disposition are
+/// untouched, so it passes every check the client transport makes, and only
+/// `record_lease_receipt`'s exact `receipt.intent() != intent` rejects it.
+fn foreign_intent_receipt(receipt: AuthorityReceiptV2) -> AuthorityReceiptV2 {
+    let intent = receipt.intent();
+    let mutation = match intent.mutation() {
+        AuthorityMutationV2::ReleaseLease { fence } => {
+            Some(AuthorityMutationV2::RenewLease { fence })
+        }
+        AuthorityMutationV2::RenewLease { fence } => {
+            Some(AuthorityMutationV2::ReleaseLease { fence })
+        }
+        AuthorityMutationV2::AcquireLease {
+            expected_lease_generation,
+            instance_id,
+        } => Some(AuthorityMutationV2::AcquireLease {
+            expected_lease_generation: expected_lease_generation.wrapping_add(1),
+            instance_id,
+        }),
+        _ => None,
+    }
+    .expect("the foreign-intent hook covers lease mutations only");
+    let foreign = AuthorityIntentV2::new(
+        intent.operation_id(),
+        intent.expected_authority_version(),
+        intent.expected_config(),
+        mutation,
+    )
+    .expect("the foreign intent differs only in its mutation");
+    AuthorityReceiptV2::restore(
+        foreign,
+        receipt.disposition(),
+        receipt.resulting_authority_version(),
+    )
+    .expect("the foreign receipt keeps the resulting version it was filed with")
 }
 
 fn map_memory_authority_failure(error: AuthorityErrorV2) -> AuthorityKnownFailureV2 {
@@ -960,6 +1006,7 @@ impl MemoryAuthority {
                 advance_before_snapshot: VecDeque::new(),
                 snapshot_delay: Duration::ZERO,
                 lease_call_delay: Duration::ZERO,
+                foreign_intent_on_next_query: false,
                 successor_before_snapshot: None,
                 rollback_before_snapshot: false,
                 refuse_snapshots: false,
@@ -1278,6 +1325,11 @@ impl MemoryAuthority {
         self.lock().lease_call_delay = delay;
     }
 
+    /// Arm the receipt described on `foreign_intent_on_next_query`.
+    fn answer_next_query_with_a_foreign_intent(&self) {
+        self.lock().foreign_intent_on_next_query = true;
+    }
+
     /// Whether the delay above is still armed. It is paid only by a snapshot
     /// that is actually computed, so this doubles as "no snapshot has been
     /// computed since the delay was armed".
@@ -1469,8 +1521,13 @@ impl InstanceAuthorityPort for MemoryAuthority {
             ));
         }
         if let Some(receipt) = state.authority.receipt(operation_id) {
+            let answered = if core::mem::take(&mut state.foreign_intent_on_next_query) {
+                foreign_intent_receipt(receipt)
+            } else {
+                receipt
+            };
             return Ok(AuthorityOutcomeV2::Known(AuthorityQueryResultV2::Found(
-                Box::new(receipt),
+                Box::new(answered),
             )));
         }
         let clock = FixedClock(state.now_millis);
