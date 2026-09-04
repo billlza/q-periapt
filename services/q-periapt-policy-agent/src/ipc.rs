@@ -113,7 +113,24 @@ const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
 // budget afresh afterwards. The two numbers the shipped templates declare for
 // that arithmetic, and the assertion that they cover it, sit beside their one
 // consumer, `the_deployment_templates_agree_with_this_code`.
+/// How long a request nonce is remembered, and so how long a replay of it is
+/// refused. Eviction is by age alone: a slot frees when its nonce leaves this
+/// window and never because a newer one wants it.
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
+/// How many nonces the window holds. Unlike every other bound in this service,
+/// exhausting this one is **not** a typed rejection: a fresh nonce arriving at
+/// a full table is refused with the same `AuthenticationFailed` as a replay,
+/// before any response is built, so the connection closes with nothing
+/// written and the client cannot tell the refusal from a lost response.
+///
+/// That is fail-closed and the replay guarantee is intact -- nothing is
+/// evicted early to make room, which is the one thing that would weaken it --
+/// but it means the documented recovery for a lost response, an exact retry
+/// under a fresh nonce, does not work here: the retry is refused identically
+/// until the window slides. Every request consumes a slot, refusals included
+/// (the insert precedes execution), so a client retrying hard against an
+/// unreachable authority can reach the bound on its own, and the steady state
+/// it then settles into is this many requests per window.
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
 const MAX_POLICY_BYTES: usize = q_periapt_ffi_abi2::Q_PERIAPT_MAX_SIGNED_POLICY_BYTES;
@@ -351,6 +368,12 @@ impl RecentNonces {
         }
     }
 
+    /// Record `nonce` as seen, refusing a replay and refusing a fresh nonce
+    /// the window has no room for.
+    ///
+    /// The two refusals are deliberately the same error and deliberately not
+    /// answered on the wire; see [`MAX_RECENT_NONCES`] for what that costs and
+    /// why making room by eviction is not the fix.
     fn insert(&mut self, nonce: [u8; 32]) -> Result<(), IpcError> {
         let now = Instant::now();
         while matches!(self.ordered.front(), Some((_, seen)) if now.duration_since(*seen) >= NONCE_WINDOW)
@@ -376,10 +399,17 @@ impl RecentNonces {
 /// it does not cover is listed on the constant. The two client-paced phases are
 /// additionally capped at `io_timeout` each, from which every framed read and
 /// write derives its remaining budget, so a client trickling one byte per
-/// interval cannot occupy the slot. Execution admits every wait against that
-/// deadline -- first the acquisition of the agent's one linearizer, then each
-/// authority and witness round trip -- and refuses a lease-guarded operation
-/// whose least plan does not fit before it dispatches anything. A response that cannot be written by the deadline is not
+/// interval cannot occupy **that connection** past the cap. Both budgets are
+/// per connection -- `deadlines_from` recomputes them from each accept -- so
+/// they bound one connection and not the serving slot: a peer that connects
+/// and never writes costs the slot a full `io_timeout` in the read that
+/// precedes authentication, and it can do that again on the next connection.
+/// The accepted limit that follows, and why it is where the admission
+/// boundary already is, are on `serve`. Execution admits every wait against
+/// that deadline -- first the acquisition of the agent's one linearizer, then
+/// each authority and witness round trip -- and refuses a lease-guarded
+/// operation whose least plan does not fit before it dispatches anything. A
+/// response that cannot be written by the deadline is not
 /// written: the connection closes with nothing sent, which the client sees as
 /// a lost response and recovers by exact retry. No unbounded worker or thread
 /// creation is possible.
@@ -526,6 +556,28 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// interrupts the wait itself (`wait_for_connection` reports that `EINTR`
     /// as an idle pass). Returning is the whole response: the caller releases
     /// the lease and lets every store close through its destructor.
+    ///
+    /// # Accepted limit: the slot is starvable by anyone who may connect
+    ///
+    /// Connections are served strictly one at a time, and the first thing each
+    /// one costs is a read that runs before any authentication -- up to
+    /// `io_timeout` of it, from a budget that starts afresh at every accept.
+    /// A peer that opens connections and never writes therefore holds the slot
+    /// for that long per connection, refilling the listen backlog as it
+    /// drains, and delays the key-holding client for as long as it keeps
+    /// doing so. Nothing here screens peer credentials, rate-limits accepts,
+    /// or shortens the first-byte wait.
+    ///
+    /// This is accepted rather than closed. The capability required is
+    /// membership of the transport group, which the deployment defines as
+    /// exactly the right to connect and nothing more: every protected
+    /// operation still needs the pinned ML-DSA-65 client key, and no key,
+    /// secret, state or decision is reachable this way. What is lost is
+    /// availability, for as long as the peer holds the descriptors and no
+    /// longer. Admission to the socket is the boundary the 0710 run directory
+    /// and the socket mode enforce, and this is a property of the
+    /// deliberately single-slot design, disclosed in README.md exactly as it
+    /// already is for the reference witness server.
     fn serve(&mut self, listener: UnixListener, shutdown: &AtomicBool) -> Result<(), IpcError> {
         // Wait in `poll` rather than in `accept`, for two reasons. A daemon
         // nobody is talking to still has to run its session TTL sweep, and only
@@ -2313,6 +2365,36 @@ mod tests {
         let mut encoder = Encoder::new(MAX_FRAME_BYTES);
         encode_response_payload(&mut encoder, payload)?;
         Ok(encoder.finish())
+    }
+
+    #[test]
+    fn a_full_nonce_window_refuses_a_fresh_nonce_and_never_evicts_to_make_room() {
+        // The one bound whose exhaustion this service does not answer with a
+        // typed status, pinned so the README's carve-out and the constant's
+        // doc stay true. Filling it takes only the authorized client's own
+        // traffic: refused requests hold a slot exactly as served ones do.
+        let mut nonces = RecentNonces::new();
+        for index in 0..MAX_RECENT_NONCES {
+            let mut nonce = [0u8; 32];
+            nonce[..8].copy_from_slice(&(index as u64).to_le_bytes());
+            assert_eq!(nonces.insert(nonce), Ok(()));
+        }
+        // A nonce never seen before, refused with the replay error and nothing
+        // to tell the two apart by.
+        assert_eq!(
+            nonces.insert([0xab; 32]),
+            Err(IpcError::AuthenticationFailed)
+        );
+        // And the refusal did not make room: the table still holds exactly the
+        // nonces it was given, so no earlier one became replayable.
+        assert_eq!(nonces.values.len(), MAX_RECENT_NONCES);
+        let mut first = [0u8; 32];
+        first[..8].copy_from_slice(&0u64.to_le_bytes());
+        assert_eq!(
+            nonces.insert(first),
+            Err(IpcError::AuthenticationFailed),
+            "the oldest nonce must still be refused as a replay"
+        );
     }
 
     #[test]

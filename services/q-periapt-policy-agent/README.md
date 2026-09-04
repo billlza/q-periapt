@@ -132,6 +132,19 @@ additionally capped at 5 seconds and clamped to that deadline. Cancel, Destroy
 and the public-key read make no round trip, so the linearizer is the only thing
 they wait for, and they are refused on the same deadline.
 
+Both of those budgets are per connection, recomputed from each accept, so they
+bound one connection and not the serving slot. The daemon serves one connection
+at a time, and the read that costs the first five seconds runs before the
+request is authenticated, so any member of the transport group can hold the
+slot by connecting and not writing, and go on holding it by reconnecting. That
+is an accepted limit of the single-slot design, the same one disclosed above
+for the reference witness server: transport-group membership is defined as the
+right to connect and nothing more, every protected operation still requires the
+pinned client signing key, and what such a peer costs is availability while it
+holds the descriptors -- no key, secret, state or decision is reachable this
+way. Deployments that do not want a local account to be able to do this should
+not put it in the transport group.
+
 Three kinds of work are not measured against the deadline, and an operator
 sizing a timeout has to allow for them. The first is durable commits, which are
 reserved rather than measured. A round trip a durable commit must precede -- the
@@ -392,12 +405,25 @@ state:
 | Durable lease-intent journal (authority receipts awaiting acknowledgement) | 64 |
 | Canonical migration history / generation | 4096 |
 | Witness operation receipts | 4096 |
-| IPC replay nonces | 4096 within a 10-minute window |
+| IPC replay nonces | 4096 within a 10-minute window; exhaustion is refused untyped, see below |
 
-Capacity exhaustion is a typed rejection. Pruning, authority rotation, online
-configuration replacement, and multi-process horizontal scaling are not
-implemented by this reference service and require a separately reviewed
-protocol rather than silent eviction or fallback.
+Capacity exhaustion is a typed rejection, with one exception: the IPC replay
+nonce window. A fresh nonce that arrives while all 4096 slots are held is
+refused with the same error as a replay, before any response is built, so the
+connection closes with nothing written and the client cannot distinguish the
+refusal from a lost response. The recovery a lost response is documented to
+have -- an exact retry under a fresh nonce -- is refused identically until the
+window slides, and every request holds a slot whether it succeeded or was
+refused, so a client retrying hard against an unreachable authority can reach
+the bound on its own and then be served at most 4096 requests per 10 minutes.
+This is fail-closed and the replay guarantee is whole: no nonce is ever
+evicted early to make room, which is the only change that would trade this
+diagnostic gap for a real weakening.
+
+Pruning, authority rotation, online configuration replacement, and
+multi-process horizontal scaling are not implemented by this reference service
+and require a separately reviewed protocol rather than silent eviction or
+fallback.
 
 This service remains a research/reference boundary. It does not modify the
 frozen ABI 2 exports or layouts, and it does not turn local persistence, a mock
