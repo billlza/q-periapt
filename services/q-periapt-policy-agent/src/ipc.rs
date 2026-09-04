@@ -91,17 +91,27 @@ const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
 /// in `the_deployment_templates_agree_with_this_code` budgets the erase
 /// separately (`LEASE_ERASE_BOUND`) instead of folding it in here.
 const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(36);
-/// How long the lease release at stop may take. Against an authority that
-/// accepts the connection and never answers it is up to six bounded round
-/// trips -- the two drains, each stopping at its first unanswered call, the
-/// release, two reconciling queries and the snapshot proof -- each admitted
-/// only while it can end strictly within what is left of this budget. So
-/// the budget must exceed five full bounds, and the durable journal commit
-/// the release dispatch is admitted with, for the release and its queries
-/// to be reached behind two unanswered drains, and a round trip that no
-/// longer fits is refused rather than started: the stop is bounded by this
-/// budget whatever the authority does.
-const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
+/// How long the lease release at stop may take. Every round trip the stop
+/// makes is admitted only while it can end strictly within what is left of
+/// this budget, and one that no longer fits is refused rather than started, so
+/// the stop is bounded by this budget whatever the authority does.
+///
+/// Two things the number itself must carry, and the guard in
+/// `the_request_deadline_covers_the_minimum_guarded_plan` asserts both. First, the
+/// release dispatch is admitted with its durable journal commit
+/// (`DURABLE_COMMIT_RESERVE`) *and* with the snapshot proof reserved behind
+/// it, so the budget has to exceed two bounds plus that commit or a stop
+/// could not release at all; that reserve is what makes the proof admissible
+/// for every dispatch that happened, whatever the round trips before it cost
+/// (`release_lease_state`). Second, against an authority that accepts the
+/// connection and never answers, the release must still be reached behind the
+/// two drains, each stopping at its first unanswered call, and followed by its
+/// two reconciling queries and that proof -- six bounded round trips and the
+/// one commit. Anything else the stop may do, resolving a re-acquire whose
+/// outcome was never learned above all, is best-effort: it is admitted with
+/// the dispatch's whole reserve held back, so it gives up its own round trip
+/// rather than the release's.
+const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(32);
 /// Wall time the stop's erase may take, on top of `LEASE_RELEASE_BUDGET`.
 ///
 // A stop has to fit inside the timeout the service managers give it:
@@ -1538,7 +1548,7 @@ mod tests {
     /// hard maximum is a little under 10 seconds; 20 leaves roughly twice that
     /// for a slower store. The arithmetic the shipped templates must satisfy is
     /// `MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_ERASE_BOUND +
-    /// LEASE_RELEASE_BUDGET` = 87 seconds, which
+    /// LEASE_RELEASE_BUDGET` = 89 seconds, which
     /// `the_deployment_templates_agree_with_this_code` holds them to.
     const LEASE_ERASE_BOUND: Duration = Duration::from_secs(20);
     /// The stop timeout both deployment templates declare: systemd
@@ -1952,7 +1962,7 @@ mod tests {
         // maintenance interval when the daemon is idle; the erase that follows
         // costs one durable commit per pending session (LEASE_ERASE_BOUND), and
         // the release after it runs under LEASE_RELEASE_BUDGET. That is
-        // 1 + 36 + 20 + 30 = 87 seconds of budgeted terms, past launchd's
+        // 1 + 36 + 20 + 32 = 89 seconds of budgeted terms, past launchd's
         // 20-second default and past the 60 the plist used to give. systemd's
         // 90 is DefaultTimeoutStopSec= in the host's system.conf, which a host
         // may have lowered, so the unit writes the value out rather than
@@ -2369,12 +2379,27 @@ mod tests {
             "the request deadline must cover Advance and Reset: the lease work, the durable \
              intent and the CAS, with the reconciling query's slack left over"
         );
-        // Admission is strict, so five round trips need strictly more than
-        // five timeouts, and the release dispatch among them is admitted with
-        // its journal commit.
+        // The release dispatch is admitted with its journal commit and with
+        // the snapshot proof reserved behind it, so a dispatch that happened
+        // always has room left for the proof that stands in for its lost
+        // answer. This is the reserved sequence `release_lease_state`
+        // actually admits, and the budget must clear it outright or a stop
+        // against a healthy authority could not release at all.
         assert!(
-            LEASE_RELEASE_BUDGET > 5 * AUTHORITY_IO_TIMEOUT + DURABLE_COMMIT_RESERVE,
-            "the release budget must admit five bounded authority round trips and the release \
+            LEASE_RELEASE_BUDGET > 2 * AUTHORITY_IO_TIMEOUT + DURABLE_COMMIT_RESERVE,
+            "the release budget must admit the release dispatch, its journal commit and the \
+             snapshot proof reserved behind it"
+        );
+        // Admission is strict, so the six round trips of the worst stop --
+        // the two drains, each stopping at its first unanswered call, the
+        // release, its two reconciling queries and the snapshot proof -- need
+        // strictly more than six timeouts, plus that same commit. Five was
+        // one round trip short of the sequence, and the one that fell off the
+        // end was the proof.
+        assert!(
+            LEASE_RELEASE_BUDGET > 6 * AUTHORITY_IO_TIMEOUT + DURABLE_COMMIT_RESERVE,
+            "the release budget must admit six bounded authority round trips -- the two drains, \
+             the release, its two reconciling queries and the snapshot proof -- and the release \
              dispatch's journal commit"
         );
     }

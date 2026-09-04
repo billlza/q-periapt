@@ -454,11 +454,20 @@ fn drain_acknowledgements<A: InstanceAuthorityPort>(
 }
 
 /// Learn what the authority did with a dispatched mutation whose response was
-/// lost, by exact query. Each query is admitted against `deadline` first; a
+/// lost, by exact query. Each query is admitted against `deadline` with
+/// `reserve` -- what the caller still needs once this returns -- left over; a
 /// refusal keeps the id unresolved -- the same fail-closed bookkeeping as an
 /// exhausted loop, so the mutation is asked about again before the next
 /// guarded operation and never silently abandoned -- and returns
 /// [`AgentError::OperationDeadlineExceeded`].
+///
+/// Holding `reserve` back on every admission here is what makes an
+/// outcome-unknown exit usable rather than merely honest: whether a query is
+/// admitted and answers nothing, or is refused for want of room, more than
+/// `reserve` is left when this returns. The release's snapshot proof is the
+/// caller that needs it -- it is the only evidence between a release the
+/// authority applied and a report that the lease is still held, so it must
+/// not be the first thing the clock drops.
 ///
 /// This function is only ever entered after the mutation has been dispatched,
 /// so every one of its failure exits is
@@ -470,9 +479,11 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
     lease: &mut InstanceLeaseState,
     intent: AuthorityIntentV2,
     deadline: OperationDeadline,
+    reserve: Duration,
 ) -> Result<LeaseExchange, LeaseExchangeFailure> {
+    let bound = authority.round_trip_bound().saturating_add(reserve);
     for _ in 0..LEASE_VERSION_RESYNC_ATTEMPTS {
-        if deadline.admit(authority.round_trip_bound()).is_err() {
+        if deadline.admit(bound).is_err() {
             keep_unresolved(lease, intent.operation_id());
             return Err(LeaseExchangeFailure::outcome_unknown(
                 AgentError::OperationDeadlineExceeded,
@@ -531,6 +542,14 @@ fn reconcile_lease_operation<A: InstanceAuthorityPort>(
 /// journals nothing and is admitted on its round trip alone, with the refused
 /// row already settled.
 ///
+/// `reserve` is what the caller still needs after this returns, and it is
+/// held back by *every* admission here and in the reconciliation this may
+/// enter. That is what ties the two together: a dispatch that was admitted at
+/// all leaves the caller its reserved round trip whatever the exchange then
+/// costs, so the caller never has to hope one was left over. The release
+/// passes its snapshot proof's bound (`release_lease_state`); callers with
+/// nothing left to do pass `Duration::ZERO`.
+///
 /// Every failure is returned as a [`LeaseExchangeFailure`], which carries what
 /// it proves about the dispatch alongside the error. Callers that must decide
 /// whether the authority executed the mutation -- the release above all, which
@@ -544,8 +563,10 @@ fn lease_exchange<A: InstanceAuthorityPort>(
     call: LeaseCall,
     intent: AuthorityIntentV2,
     deadline: OperationDeadline,
+    reserve: Duration,
 ) -> Result<LeaseExchange, LeaseExchangeFailure> {
-    deadline.admit(DURABLE_COMMIT_RESERVE.saturating_add(authority.round_trip_bound()))?;
+    let bound = authority.round_trip_bound().saturating_add(reserve);
+    deadline.admit(DURABLE_COMMIT_RESERVE.saturating_add(bound))?;
     journal_lease_intent(repository, lease, intent.operation_id())?;
     let outcome = match call {
         LeaseCall::Acquire => authority.acquire(intent),
@@ -557,7 +578,7 @@ fn lease_exchange<A: InstanceAuthorityPort>(
         Ok(AuthorityOutcomeV2::KnownFailure(AuthorityKnownFailureV2::AuthorityVersionMismatch)) => {
             // Refused on its precondition, never executed: settled.
             settle(lease, intent.operation_id());
-            deadline.admit(authority.round_trip_bound())?;
+            deadline.admit(bound)?;
             let snapshot = authority_snapshot(authority)?;
             lease.authority_version = snapshot.authority_version();
             Ok(LeaseExchange::Retry)
@@ -575,7 +596,7 @@ fn lease_exchange<A: InstanceAuthorityPort>(
             ))
         }
         Ok(AuthorityOutcomeV2::Unknown(_)) => {
-            reconcile_lease_operation(authority, lease, intent, deadline)
+            reconcile_lease_operation(authority, lease, intent, deadline, reserve)
         }
         // `AuthorityTransportErrorV2` is defined as the failures that prove no
         // request byte was accepted by the socket, so nothing was dispatched.
@@ -890,6 +911,7 @@ pub(super) fn acquire_instance_lease<A: InstanceAuthorityPort>(
             LeaseCall::Acquire,
             intent,
             deadline,
+            Duration::ZERO,
         ) {
             Ok(exchange) => exchange,
             // Dispatched, and its outcome still unknown after reconciliation.
@@ -1134,6 +1156,7 @@ pub(super) fn ensure_instance_lease<W: WitnessPort, A: InstanceAuthorityPort>(
             LeaseCall::Renew,
             intent,
             deadline,
+            Duration::ZERO,
         )? {
             LeaseExchange::Receipt(receipt) => {
                 drain_acknowledgements(&inner.authority, &mut inner.lease, deadline, reserve);
@@ -1273,6 +1296,7 @@ fn recover_expired_lease<W: WitnessPort, A: InstanceAuthorityPort>(
             LeaseCall::Acquire,
             intent,
             deadline,
+            Duration::ZERO,
         ) {
             Ok(LeaseExchange::Receipt(receipt)) => {
                 inner.lease.pending_acquire = None;
@@ -1789,17 +1813,25 @@ pub(super) fn fence_out<W: WitnessPort, A: InstanceAuthorityPort>(
 /// authority actually holds for this instance, and that is the one to release.
 ///
 /// Every round trip is admitted against `deadline` first, the drains and the
-/// resolution with the release dispatch -- one authority round trip and the
-/// durable journal commit it is admitted with -- kept in reserve. That
-/// dispatch and the snapshot that stands in for a release whose
-/// outcome was lost are this call's own: a refusal of either leaves the phase
-/// `Releasing` with the fence kept, exactly as an unreachable authority does,
-/// and is reported as [`AgentError::OperationDeadlineExceeded`] -- never `Ok`
-/// without a receipt or a proof. The drains and the resolution before them are
-/// best-effort, and their refusals are not reported: a drain that does not fit
-/// leaves its rows owed, and a resolution that does not fit drops the pending
-/// record and pins the expected fence exactly as an authority that can answer
-/// neither does.
+/// resolution with the release dispatch kept in reserve -- one authority round
+/// trip, the durable journal commit it is admitted with, and the snapshot
+/// proof reserved behind it. That reserve is carried on through the dispatch
+/// and through every reconciling query (`lease_exchange`,
+/// `reconcile_lease_operation`), which is what makes the proof reachable by
+/// construction: any dispatch admitted at all leaves more than one bound, so
+/// an outcome-unknown exit is always answered by the snapshot rather than
+/// reported as a lease still held. Without that, a query refused for want of
+/// room would be followed by a proof refused for exactly the same want -- and
+/// an applied release reported as a lease stranded until its TTL.
+///
+/// The dispatch and that proof are this call's own: a refusal of either leaves
+/// the phase `Releasing` with the fence kept, exactly as an unreachable
+/// authority does, and is reported as
+/// [`AgentError::OperationDeadlineExceeded`] -- never `Ok` without a receipt
+/// or a proof. The drains and the resolution before them are best-effort, and
+/// their refusals are not reported: a drain that does not fit leaves its rows
+/// owed, and a resolution that does not fit drops the pending record and pins
+/// the expected fence exactly as an authority that can answer neither does.
 ///
 /// Returns `Ok(())` at once when the lease is already retired.
 pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
@@ -1813,12 +1845,17 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
     }
     lease.phase = LeasePhase::Releasing;
     lease.covered_until = None;
+    // The snapshot proof's own round trip. It journals nothing, so it is one
+    // bare bound -- and it is held back through the release dispatch and
+    // every reconciling query, so that reaching the proof never depends on
+    // what those cost.
     let reserve = authority.round_trip_bound();
-    // What the drains and the resolution must leave the release: its own
-    // journal commit as well as its round trip, because `lease_exchange`
-    // admits the two together. The snapshot that stands in for a lost release
-    // journals nothing and keeps the bare bound.
-    let dispatch_reserve = reserve.saturating_add(DURABLE_COMMIT_RESERVE);
+    // What the drains and the resolution must leave the release: its journal
+    // commit and its round trip, which `lease_exchange` admits together, plus
+    // the proof reserved behind them.
+    let dispatch_reserve = reserve
+        .saturating_add(DURABLE_COMMIT_RESERVE)
+        .saturating_add(reserve);
     drain_acknowledgements(authority, lease, deadline, dispatch_reserve);
     drain_unresolved(authority, lease, deadline, dispatch_reserve);
     match resolve_pending_acquire_state(authority, lease, deadline, dispatch_reserve) {
@@ -1859,6 +1896,7 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
             LeaseCall::Release,
             intent,
             deadline,
+            reserve,
         ) {
             Ok(LeaseExchange::Receipt(receipt)) => {
                 drain_acknowledgements(authority, lease, deadline, reserve);
@@ -1895,8 +1933,12 @@ pub(super) fn release_lease_state<A: InstanceAuthorityPort>(
                 // The journal id is genuinely unresolved, so an exhausted loop
                 // here is unknown rather than proven.
                 outcome_unknown = true;
-                // The proof is one more round trip; refused, the outcome
-                // stays unknown and the fence is kept for a later call.
+                // The proof is one more round trip, and it is the one held in
+                // reserve through the dispatch and its queries, so this
+                // admission passes for every dispatch that happened. It is
+                // still checked: the reserve is a model of the bounds, and a
+                // port that outran them must refuse the proof rather than
+                // start it late.
                 deadline.admit(reserve)?;
                 match lease_gone_by_snapshot(authority, lease) {
                     Ok(None) => {

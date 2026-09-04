@@ -359,7 +359,7 @@ loop within one maintenance interval, or once the request in flight has been
 answered or refused; the daemon erases every in-process secret -- one durable
 commit per pending session, charged to the stop timeout and not to any
 deadline, because nothing may be skipped -- then releases the lease under a
-30-second budget of its own, and exits 0 only once the authority has
+32-second budget of its own, and exits 0 only once the authority has
 confirmed that release or a snapshot has shown that no lease of this instance
 remains, so the next start acquires at once. If the release could not be
 settled -- the transport refused it, the journal was full, its outcome stayed

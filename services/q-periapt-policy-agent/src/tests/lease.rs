@@ -998,11 +998,18 @@ fn a_release_whose_response_and_queries_are_lost_is_proven_gone_by_snapshot() ->
 /// what it did was never learned -- and none of them may be reported as a
 /// lease still held: `release_instance_lease_until` promises that `Err` never
 /// means this call released the lease, and the stop path turns an `Err` into
-/// exit 1 and an operator-facing line saying the lease is stranded until its
-/// TTL. So each one is settled by the same snapshot proof.
+/// exit 1 and an operator-facing line saying the release was not confirmed.
+/// So each one is settled by the same snapshot proof.
+///
+/// `budget` is the release budget to run under, `None` for the default one.
+/// `reconciling_queries` is how many exact queries the route is supposed to
+/// spend before it gives up and proves the release by snapshot; asserting it
+/// is what distinguishes a query that was refused from one that was answered.
 fn a_lost_release_is_proven_gone_by_snapshot(
     session_byte: u8,
     arm: fn(&MemoryAuthority),
+    budget: Option<Duration>,
+    reconciling_queries: u64,
 ) -> TestResult {
     let directory = TestDirectory::new()?;
     let pair = agent_pair(&directory, session_byte)?;
@@ -1014,7 +1021,18 @@ fn a_lost_release_is_proven_gone_by_snapshot(
     arm(&pair.initiator_authority);
 
     let snapshots_before = pair.initiator_authority.snapshot_call_count();
-    pair.initiator.release_instance_lease()?;
+    let queries_before = pair.initiator_authority.query_call_count();
+    match budget {
+        None => pair.initiator.release_instance_lease()?,
+        Some(budget) => assert_eq!(
+            pair.initiator.release_instance_lease_within(budget)?,
+            LeaseReleaseOutcome::Released
+        ),
+    }
+    assert_eq!(
+        pair.initiator_authority.query_call_count(),
+        queries_before + reconciling_queries
+    );
     // Exactly one snapshot, taken by the release itself: this is the assertion
     // that fails when the release decides on the error variant instead, which
     // takes no snapshot and reports the applied release as a lease still held.
@@ -1037,26 +1055,62 @@ fn a_lost_release_is_proven_gone_by_snapshot(
 #[test]
 fn a_release_whose_response_is_lost_and_query_refused_closed_is_proven_gone_by_snapshot(
 ) -> TestResult {
-    // What the reference authority answers every request with while its
-    // bounded nonce table is full. The reconciling query returns
+    // A server-side condition that clears on its own -- a failed allocation
+    // while the query response was being built -- so the query is closed-
+    // failed and the snapshot right after it is answered. The query returns
     // `InstanceLeaseUnavailable`, whose variant alone would say the lease is
-    // still this instance's to release -- and the lease is already gone.
-    a_lost_release_is_proven_gone_by_snapshot(179, |authority| {
-        authority.refuse_next_query_with(AuthorityKnownFailureV2::RateLimited);
-    })
+    // still this instance's to release, and the lease is already gone.
+    //
+    // A condition that refuses the snapshot too is a different route, and it
+    // is not closed by a proof: see
+    // `a_release_the_authority_rate_limits_outright_is_reported_unproven`.
+    a_lost_release_is_proven_gone_by_snapshot(
+        179,
+        |authority| {
+            authority.refuse_next_query_with(AuthorityKnownFailureV2::AllocationFailed);
+        },
+        None,
+        1,
+    )
 }
+
+/// The constant `round_trip_bound` the budget route runs against. Production
+/// reports one number from every read (`AuthorityTransportV2::round_trip_bound`
+/// returns the transport's own deadline), so the test does too.
+const LOST_RELEASE_ROUND_TRIP: Duration = Duration::from_millis(1_200);
+/// What the release dispatch really spends. `round_trip_bound` says only how
+/// much a call *may* cost; this is what a dispatch whose answer never comes
+/// back actually takes out of the budget.
+const LOST_RELEASE_DISPATCH_COST: Duration = Duration::from_millis(2_200);
+/// The release budget: above the commit plus two bounds `lease_exchange`
+/// admits with the proof reserved (3.4s), and below what would still leave
+/// the reconciling query its own admission after the dispatch above (5.8s).
+const LOST_RELEASE_BUDGET: Duration = Duration::from_millis(4_200);
 
 #[test]
 fn a_release_whose_response_is_lost_and_query_misses_the_budget_is_proven_gone_by_snapshot(
 ) -> TestResult {
-    // The reconciling query is the first round trip admitted after the lost
-    // dispatch, and a bound larger than the whole release budget makes it the
-    // one that cannot fit. `OperationDeadlineExceeded` is documented as
-    // changing nothing, which is exactly what it must not be taken for here.
-    // Every later read reports the usual bound, so the snapshot proof fits.
-    a_lost_release_is_proven_gone_by_snapshot(180, |authority| {
-        authority.report_bound_once_after_next_lease_call(Duration::from_secs(120));
-    })
+    // The production shape: one constant bound from every read, and a
+    // dispatch that really spends a round trip. What is left then admits the
+    // proof (one bound) but not a reconciling query (a bound with the proof
+    // reserved behind it), so the release gives up learning its outcome and
+    // proves it instead -- and the zero queries asserted below are what says
+    // the query was refused rather than answered.
+    //
+    // Reserving the proof through the dispatch and the query is exactly what
+    // makes this reachable. Unreserved, the query and the proof are admitted
+    // on identical terms, so no budget can refuse one and admit the other:
+    // every deadline that stopped the reconciliation would also take away the
+    // proof, and an applied release would be reported as a lease still held.
+    a_lost_release_is_proven_gone_by_snapshot(
+        180,
+        |authority| {
+            authority.set_round_trip_bound(LOST_RELEASE_ROUND_TRIP);
+            authority.delay_next_lease_call(LOST_RELEASE_DISPATCH_COST);
+        },
+        Some(LOST_RELEASE_BUDGET),
+        0,
+    )
 }
 
 #[test]
@@ -1660,17 +1714,18 @@ fn a_release_whose_budget_excludes_the_resolution_releases_the_expected_fence() 
     let queries = pair.initiator_authority.query_call_count();
 
     // The arithmetic, not a timing guess: the release keeps its own dispatch
-    // in reserve -- one round-trip bound (30 s) and the journal commit it is
-    // admitted with (1 s) -- so the resolution is admitted only with 61 s
-    // left, while the release itself needs 31. A 45-second budget therefore
-    // refuses the one and admits the other, with about fourteen seconds of
-    // slack on each comparison, and both fake ports answer in process without
-    // blocking. Never narrow this margin to make the test quicker: nothing
-    // here waits for it.
+    // in reserve -- one round-trip bound (30 s), the journal commit it is
+    // admitted with (1 s), and the snapshot proof reserved behind them
+    // (another 30 s) -- so the resolution is admitted only with more than 91 s
+    // left, while the release itself needs more than 61. A 75-second budget
+    // therefore refuses the one and admits the other, with about fourteen
+    // seconds of slack on each comparison, and both fake ports answer in
+    // process without blocking. Never narrow this margin to make the test
+    // quicker: nothing here waits for it.
     pair.initiator_authority
         .set_round_trip_bound(Duration::from_secs(30));
     let deadline = Instant::now()
-        .checked_add(Duration::from_secs(45))
+        .checked_add(Duration::from_secs(75))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.release_instance_lease_until(deadline)?,
