@@ -1074,6 +1074,42 @@ fn a_release_whose_response_is_lost_and_query_refused_closed_is_proven_gone_by_s
     )
 }
 
+#[test]
+fn a_release_the_authority_rate_limits_outright_is_reported_unproven() -> TestResult {
+    // The reference authority takes the nonce-table decision in `handle`,
+    // ahead of the command switch, so while that table is at capacity every
+    // request in the window is answered `RateLimited` -- the reconciling
+    // query and the snapshot that would prove the release gone alike, since
+    // entries leave only by TTL. This route is therefore not closed by a
+    // proof: there is no proof to be had.
+    //
+    // What the release must not do is round that off to "the lease is still
+    // held". It reports `InstanceLeaseIndeterminate`, which the stop path
+    // renders as a release it could not confirm; the lease is in fact already
+    // gone, which is exactly why that wording is the honest one.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 181)?;
+    pair.initiator_authority.make_next_unknown();
+    pair.initiator_authority
+        .refuse_next_query_with(AuthorityKnownFailureV2::RateLimited);
+    pair.initiator_authority.refuse_snapshots(true);
+    let snapshots = pair.initiator_authority.snapshot_call_count();
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseIndeterminate)
+    );
+    // The proof was attempted, not skipped: it is the answer that was missing.
+    assert_eq!(
+        pair.initiator_authority.snapshot_call_count(),
+        snapshots + 1
+    );
+    // Once the window passes, the authority answers and says what the release
+    // did: it applied, and nothing of this instance's remains.
+    pair.initiator_authority.refuse_snapshots(false);
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    Ok(())
+}
+
 /// The constant `round_trip_bound` the budget route runs against. Production
 /// reports one number from every read (`AuthorityTransportV2::round_trip_bound`
 /// returns the transport's own deadline), so the test does too.
