@@ -426,3 +426,343 @@ fn restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone(
     );
     Ok(())
 }
+
+#[test]
+fn begin_replay_with_different_public_input_under_the_same_capability_is_refused_without_erasing(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 143)?;
+    let first = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // The same signed capability with other peer keys is not the request
+    // that consumed it: refused, and the original session is untouched.
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization.clone(),
+            pair.initiator_public_keys.clone(),
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // The exact request is still answered with the original outputs.
+    let retried = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(retried, first);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 1);
+
+    // And the original handle completes the handshake.
+    let encapsulated = initiator_encapsulation(first)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let acceptance = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    pair.initiator
+        .accept_responder_finished(encapsulated.handle, acceptance.responder_finished)?;
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.confirmed_key_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn begin_decapsulation_exact_retry_returns_the_same_handle_and_damaged_ciphertext_is_refused(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 144)?;
+    let encapsulated = initiator_encapsulation(pair.initiator.begin_encapsulation(
+        BeginEncapsulation::new(pair.initiator_authorization, pair.responder_public_keys),
+    )?)?;
+    let first = pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization.clone(),
+        encapsulated.ciphertexts.clone(),
+    ))?;
+    let retried = pair.responder.begin_decapsulation(BeginDecapsulation::new(
+        pair.responder_authorization.clone(),
+        encapsulated.ciphertexts.clone(),
+    ))?;
+    assert_eq!(retried, first);
+    assert_eq!(pair.responder.pending_session_count(), 1);
+    assert_eq!(pair.responder.durable_session_count_for_test()?, 1);
+
+    // Other ciphertexts under the same capability are a different request:
+    // refused before any KEM, with the original session untouched.
+    let mut damaged_pq = *encapsulated.ciphertexts.pq();
+    if let Some(first_byte) = damaged_pq.first_mut() {
+        *first_byte ^= 1;
+    }
+    let damaged =
+        EncapsulationCiphertexts::from_slices(&damaged_pq, encapsulated.ciphertexts.traditional())?;
+    assert_eq!(
+        pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization.clone(),
+            damaged,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.responder.pending_session_count(), 1);
+
+    // Acceptance consumes the capability for good.
+    let decapsulated = responder_decapsulation(first)?;
+    pair.responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(
+        pair.responder.begin_decapsulation(BeginDecapsulation::new(
+            pair.responder_authorization,
+            encapsulated.ciphertexts,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.responder.pending_session_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn begin_retry_after_expiry_hits_the_tombstone_and_the_retry_window_is_bounded_by_the_session(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair_with_session_ttl(&directory, 145, Duration::from_millis(50))?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // Expiry evicts the session and its retry record together; the exact
+    // request then finds only the tombstone, and the refused fresh path
+    // leaves no reservation behind.
+    thread::sleep(Duration::from_millis(100));
+    pair.initiator.expire_idle_sessions();
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+
+    // Cancel ends the window the same way.
+    let second =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization.clone(),
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    pair.initiator.cancel(second.handle)?;
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization,
+            pair.responder_public_keys,
+        )),
+        Err(AgentError::AuthorizationRejected)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+    Ok(())
+}
+
+#[test]
+fn begin_exact_retry_needs_no_free_session_slot() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair_with_limits(
+        &directory,
+        146,
+        AgentLimits::new(1, 16, Duration::from_secs(60))?,
+    )?;
+    let first = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization.clone(),
+        pair.responder_public_keys.clone(),
+    ))?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+
+    // The one slot is taken, so a second session is refused ...
+    assert_eq!(
+        pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.second_initiator_authorization,
+            pair.responder_public_keys.clone(),
+        )),
+        Err(AgentError::CapacityExceeded)
+    );
+    // ... but the retry adds none, and the session it recovers is the one
+    // holding that slot.
+    let retried = pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys,
+    ))?;
+    assert_eq!(retried, first);
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn an_acceptance_aborted_after_the_witness_read_has_consumed_its_handle() -> TestResult {
+    // What a status-24 abort costs an acceptance, which the
+    // `OperationDeadlineExceeded` doc and the README now state: the witness
+    // read is the last point at which a refusal leaves the session in place.
+    // Past it the session has left the map, its confirmation is consumed and
+    // its durable reservation is released, so the retry is not a retry at all
+    // -- the handle is gone and the flight has to be re-run from Begin.
+    //
+    // Arithmetic: the prologue before the read -- the renew, the coverage
+    // snapshot and the purge -- has to fit the two-second deadline, which is
+    // several times what it costs even under a contended suite, and the read
+    // then takes four seconds, so the gate after it is reached two seconds
+    // past the deadline however the prologue was scheduled. The lease's own
+    // ten-second TTL still covers that read, so this is the deadline's
+    // refusal and not a coverage lapse.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 174)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+
+    pair.witness.delay_next_read_head(Duration::from_secs(4));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_secs(2))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.accept_responder_finished_until(
+            encapsulated.handle,
+            accepted.responder_finished,
+            deadline,
+        ),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert!(
+        !pair.witness.read_head_delay_armed(),
+        "the read never ran; the refusal came before the gate under test"
+    );
+
+    // Nothing was retained, and nothing of this session is left: no key, no
+    // in-memory session, and no durable reservation to orphan.
+    assert_eq!(pair.initiator.acceptance_counts_for_test()?, (0, 0));
+    assert_eq!(pair.initiator.pending_session_count(), 0);
+    assert_eq!(pair.initiator.durable_session_count_for_test()?, 0);
+
+    // So the retry, however long its deadline, answers `UnknownHandle`: this
+    // flight can only be re-run from Begin.
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished),
+        Err(AgentError::UnknownHandle)
+    );
+    Ok(())
+}
+
+#[test]
+fn an_accept_retry_returns_no_handle_once_the_coverage_it_reproved_has_elapsed() -> TestResult {
+    // The completed-acceptance retry returns a retained handle -- a lease-guarded
+    // disclosure -- and must gate it as the fresh path does. `ensure_instance_lease`
+    // proves coverage just above with no I/O since, so the budgeted local rule
+    // against that proof is the exact gate; without it the cached handle was
+    // answered even after the coverage the proof recorded had already elapsed by
+    // return. The clock step leaves the post-renew snapshot reporting
+    // TTL - (TTL - B - 200) = B + 200 ms of life, so `coverage_deadline` records
+    // anchor + 200 ms, and that same snapshot then sleeps 600 ms, so the proven
+    // coverage is some 400 ms in the past by the time the cached handle would be
+    // returned.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 176)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    pair.initiator
+        .accept_responder_finished(encapsulated.handle, accepted.responder_finished)?;
+    assert_eq!(pair.initiator.confirmed_key_count(), 1);
+
+    // The retry's renew and coverage snapshot see the step and the delay.
+    pair.initiator_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS
+            - crate::service::lease::LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS
+            - 200,
+    );
+    pair.initiator_authority
+        .delay_next_snapshot(Duration::from_millis(600));
+    assert_eq!(
+        pair.initiator
+            .accept_responder_finished(encapsulated.handle, accepted.responder_finished),
+        Err(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // A lapse is not a fence: the retained key and its completed acceptance both
+    // survive, and the handle was simply not returned.
+    assert_eq!(pair.initiator.confirmed_key_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_responder_accept_retry_returns_no_result_once_its_coverage_has_elapsed() -> TestResult {
+    // The mirror of the test above on the responder's own disclosure point.
+    // `accept_initiator_finished` caches a `ResponderAcceptanceResult` that
+    // carries the Responder Finished for a key this agent retains, so its exact
+    // retry is a lease-guarded disclosure and takes the same gate; the two sites
+    // are identical and only the initiator's was covered. The arithmetic is the
+    // one above: the step leaves the post-renew snapshot reporting B + 200 ms of
+    // life, so the recorded coverage is anchor + 200 ms, and that same snapshot
+    // then sleeps 600 ms, putting the proof some 400 ms in the past by the time
+    // the cached result would be returned.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 178)?;
+    let encapsulated =
+        initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+            pair.initiator_authorization,
+            pair.responder_public_keys.clone(),
+        ))?)?;
+    let decapsulated = responder_decapsulation(pair.responder.begin_decapsulation(
+        BeginDecapsulation::new(pair.responder_authorization, encapsulated.ciphertexts),
+    )?)?;
+    let accepted = pair
+        .responder
+        .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?;
+    assert_eq!(pair.responder.confirmed_key_count(), 1);
+    // The exact retry is answered from the cache while the coverage holds.
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished)?,
+        accepted
+    );
+
+    // The retry's renew and coverage snapshot see the step and the delay.
+    pair.responder_authority.advance_clock_before_next_snapshot(
+        MEMORY_AUTHORITY_LEASE_TTL_MILLIS
+            - crate::service::lease::LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS
+            - 200,
+    );
+    pair.responder_authority
+        .delay_next_snapshot(Duration::from_millis(600));
+    assert_eq!(
+        pair.responder
+            .accept_initiator_finished(decapsulated.handle, encapsulated.initiator_finished),
+        Err(AgentError::InstanceLeaseCoverageElapsed)
+    );
+    // A lapse is not a fence: the retained key and its completed acceptance both
+    // survive, and the result was simply not returned.
+    assert_eq!(pair.responder.confirmed_key_count(), 1);
+    Ok(())
+}

@@ -2,6 +2,7 @@
 
 use core::fmt;
 use std::path::Path;
+use std::time::Duration;
 
 use q_periapt_backends::{MlDsa65, ML_DSA_65_VK_LEN};
 use q_periapt_migration::{
@@ -34,6 +35,35 @@ const MAX_USED_CAPABILITIES: u64 = 4096;
 /// row here, so the journal always fills first and refuses before the queue
 /// could overflow.
 pub(crate) const MAX_JOURNALED_LEASE_INTENTS: u64 = 64;
+/// Wall time a deadline reserves for one `durable_write` commit --
+/// `Durability::Immediate` plus two-phase commit, two fsyncs -- where that
+/// commit stands between an admission and the port call it authorizes.
+///
+/// There are exactly two such places, and both write an intent that the call
+/// after them is the whole point of: the lease-intent journal before every
+/// lease mutation (`service::lease::lease_exchange`), and the prepared
+/// transition before a witness compare-and-swap
+/// (`PolicyAgent::apply_advance_until`). A port bound counted from the
+/// dispatch alone does not cover them: the commit runs first, so the call it
+/// precedes can end after the caller's deadline. Admitting the reserve
+/// together with the bound is what closes that.
+///
+/// One second. A durable session cancellation -- the same shape, a handful of
+/// small keys in one transaction -- measured about 9 ms on APFS/SSD with the
+/// pinned redb, so this is roughly a hundred times the measured cost: the
+/// headroom a contended store's fsync tail needs, while staying well inside
+/// the five-second port bounds every reserve is built from.
+///
+/// It is a modelled bound and not an enforced one. Nothing here can bound an
+/// fsync, redb exposes no write timeout, and a commit cannot be cancelled, so
+/// a store slower than this dispatches anyway and the operation ends late --
+/// exactly as an authority clock that gains more than
+/// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` within one round trip is out of
+/// model. Durable work with no port call behind it is charged to no deadline
+/// at all rather than to this: the stop's erase is up to 1024 such commits,
+/// none of them skippable, and the service manager's stop timeout is what
+/// carries it.
+pub(crate) const DURABLE_COMMIT_RESERVE: Duration = Duration::from_secs(1);
 
 const META_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("agent_meta_v1");
 const HISTORY_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("agent_state_history_v1");
@@ -177,6 +207,39 @@ struct PreparedTransition {
     envelope: Vec<u8>,
 }
 
+/// One certificate this repository has authenticated and reserved nothing
+/// for.
+///
+/// Holding one costs nothing and commits to nothing: the state machine
+/// absorbs its token only at `commit`, so dropping this leaves the repository
+/// exactly as it was. `StateRepository::persist_transition` is what turns it
+/// into the durable intent a witness CAS may then be dispatched for.
+pub struct AuthenticatedTransition {
+    kind: JournalKind,
+    envelope: Vec<u8>,
+    token: PendingMigrationCommitV1,
+    /// The trust roots this transition was authenticated under.
+    /// `persist_transition` refuses any transition prepared under a different
+    /// repository's roots, so a token authenticated against one repository can
+    /// never be reserved into another that shares a genesis but pins different
+    /// roots -- which would journal an envelope that repository's own replay
+    /// then rejects, bricking it on the next open.
+    roots: MigrationTrustRoots,
+}
+
+impl fmt::Debug for AuthenticatedTransition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AuthenticatedTransition([redacted])")
+    }
+}
+
+impl AuthenticatedTransition {
+    /// The state a witness CAS for this transition would move the lineage to.
+    pub(crate) fn next_state(&self) -> q_periapt_migration::MigrationStateV1 {
+        self.token.next_state()
+    }
+}
+
 /// Transactional local state. All methods require exclusive access from the service linearizer.
 pub struct StateRepository {
     database: Database,
@@ -191,6 +254,17 @@ pub struct StateRepository {
     /// that on demand.
     #[cfg(all(test, unix))]
     delay_after_next_durable_write: std::sync::Mutex<Option<std::time::Duration>>,
+    /// Test-only: sleep this long after every session cancellation commits,
+    /// standing in for a store whose fsyncs are slow. The stop erases one
+    /// session per durable commit and no deadline bounds that, which a test
+    /// can only exercise if the erase can be made to outlast a budget.
+    #[cfg(all(test, unix))]
+    delay_after_each_session_cancel: std::sync::Mutex<Option<std::time::Duration>>,
+    /// Test-only: fail the next lease-journal write the way a corrupt store
+    /// would, before anything is committed, so a test can see what a lease
+    /// operation does when its intent cannot be journaled for storage reasons.
+    #[cfg(all(test, unix))]
+    fail_next_lease_journal_write: std::sync::Mutex<bool>,
 }
 
 impl fmt::Debug for StateRepository {
@@ -273,6 +347,10 @@ impl StateRepository {
                         restart_rejections: 0,
                         #[cfg(all(test, unix))]
                         delay_after_next_durable_write: std::sync::Mutex::new(None),
+                        #[cfg(all(test, unix))]
+                        delay_after_each_session_cancel: std::sync::Mutex::new(None),
+                        #[cfg(all(test, unix))]
+                        fail_next_lease_journal_write: std::sync::Mutex::new(false),
                     },
                     head,
                 ))
@@ -325,6 +403,10 @@ impl StateRepository {
             restart_rejections,
             #[cfg(all(test, unix))]
             delay_after_next_durable_write: std::sync::Mutex::new(None),
+            #[cfg(all(test, unix))]
+            delay_after_each_session_cancel: std::sync::Mutex::new(None),
+            #[cfg(all(test, unix))]
+            fail_next_lease_journal_write: std::sync::Mutex::new(false),
         })
     }
 
@@ -338,6 +420,50 @@ impl StateRepository {
             .expect("repository test hook poisoned") = Some(delay);
     }
 
+    /// Test-only: whether the delay above is still armed. It is taken only by
+    /// a durable session write that actually committed, so this doubles as
+    /// "no durable session reserve or release has run since it was armed".
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_write_delay_armed_for_test(&self) -> bool {
+        self.delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned")
+            .is_some()
+    }
+
+    /// Test-only: make every session cancellation take this long after it
+    /// commits, the way a store with slow fsyncs would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_after_each_session_cancel_for_test(&self, delay: std::time::Duration) {
+        *self
+            .delay_after_each_session_cancel
+            .lock()
+            .expect("repository test hook poisoned") = Some(delay);
+    }
+
+    /// Test-only: fail the next lease-journal write as a corrupt store would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn fail_next_lease_journal_write_for_test(&self) {
+        *self
+            .fail_next_lease_journal_write
+            .lock()
+            .expect("repository test hook poisoned") = true;
+    }
+
+    #[cfg(all(test, unix))]
+    fn refuse_lease_journal_write_if_armed_for_test(&self) -> Result<(), RepositoryError> {
+        let armed = std::mem::take(
+            &mut *self
+                .fail_next_lease_journal_write
+                .lock()
+                .expect("repository test hook poisoned"),
+        );
+        if armed {
+            return Err(RepositoryError::CorruptStore);
+        }
+        Ok(())
+    }
+
     #[cfg(all(test, unix))]
     fn sleep_after_durable_write_for_test(&self) {
         let pending = self
@@ -345,6 +471,17 @@ impl StateRepository {
             .lock()
             .expect("repository test hook poisoned")
             .take();
+        if let Some(delay) = pending {
+            std::thread::sleep(delay);
+        }
+    }
+
+    #[cfg(all(test, unix))]
+    fn sleep_after_session_cancel_for_test(&self) {
+        let pending = *self
+            .delay_after_each_session_cancel
+            .lock()
+            .expect("repository test hook poisoned");
         if let Some(delay) = pending {
             std::thread::sleep(delay);
         }
@@ -397,10 +534,30 @@ impl StateRepository {
     }
 
     /// Authenticate and durably reserve one normal state certificate before witness CAS.
+    ///
+    /// The two halves are also available separately, and the service uses
+    /// them that way on purpose: authentication has no durable and no
+    /// external effect, so paying for it before the admission that guards the
+    /// commit keeps the un-admitted stretch to the commit alone, and keeps an
+    /// executor that cannot be built from stranding an intent already on
+    /// disk. A caller with no deadline to honour can use this pair.
     pub fn prepare_advance(
         &mut self,
         canonical_certificate: &[u8],
     ) -> Result<WitnessIntent, RepositoryError> {
+        let prepared = self.authenticate_advance(canonical_certificate)?;
+        self.persist_transition(prepared)
+    }
+
+    /// Authenticate one normal state certificate, durably reserving nothing.
+    ///
+    /// Takes `&self`: the state machine absorbs the token only at `commit`,
+    /// so the result can be held across the `&mut` borrow `persist_transition`
+    /// needs.
+    pub fn authenticate_advance(
+        &self,
+        canonical_certificate: &[u8],
+    ) -> Result<AuthenticatedTransition, RepositoryError> {
         if self.pending.is_some() {
             return Err(RepositoryError::TransitionPending);
         }
@@ -416,14 +573,31 @@ impl StateRepository {
                 &self.roots.authority_verification_key,
             )
             .map_err(|_| RepositoryError::InvalidCertificate)?;
-        self.persist_prepared(JournalKind::Advance, canonical_certificate, token)
+        Ok(AuthenticatedTransition {
+            kind: JournalKind::Advance,
+            envelope: canonical_certificate.to_vec(),
+            token,
+            roots: self.roots.clone(),
+        })
     }
 
-    /// Authenticate and durably reserve one separately authorized reset before witness CAS.
+    /// Authenticate and durably reserve one separately authorized reset before
+    /// witness CAS. See [`Self::prepare_advance`] for why the service uses the
+    /// two halves separately.
     pub fn prepare_reset(
         &mut self,
         canonical_certificate: &[u8],
     ) -> Result<WitnessIntent, RepositoryError> {
+        let prepared = self.authenticate_reset(canonical_certificate)?;
+        self.persist_transition(prepared)
+    }
+
+    /// Authenticate one separately authorized reset, durably reserving
+    /// nothing; see [`Self::authenticate_advance`].
+    pub fn authenticate_reset(
+        &self,
+        canonical_certificate: &[u8],
+    ) -> Result<AuthenticatedTransition, RepositoryError> {
         if self.pending.is_some() {
             return Err(RepositoryError::TransitionPending);
         }
@@ -440,7 +614,40 @@ impl StateRepository {
         if token.next_state().authority_key_id() != self.roots.authority_key_id {
             return Err(RepositoryError::UnprovisionedAuthority);
         }
-        self.persist_prepared(JournalKind::Reset, canonical_certificate, token)
+        Ok(AuthenticatedTransition {
+            kind: JournalKind::Reset,
+            envelope: canonical_certificate.to_vec(),
+            token,
+            roots: self.roots.clone(),
+        })
+    }
+
+    /// Durably reserve one already authenticated transition before witness
+    /// CAS.
+    ///
+    /// This is the one durable commit a transition cannot take back, so its
+    /// caller must have admitted the commit and the CAS that follows it
+    /// together: a refusal after this point would strand a pending transition
+    /// that only Reconcile clears.
+    pub fn persist_transition(
+        &mut self,
+        prepared: AuthenticatedTransition,
+    ) -> Result<WitnessIntent, RepositoryError> {
+        // Only a transition authenticated under this repository's own roots may
+        // be reserved here. Authentication and reservation are exposed as two
+        // halves, so without this a transition authenticated against another
+        // repository -- one sharing this genesis but pinning a different
+        // recovery or authority root -- could be reserved and committed here;
+        // its envelope would then fail this repository's own replay on the next
+        // open (`replay_history`, `reconstruct_pending`) and brick it. The
+        // binding is checked rather than re-authenticated because the roots
+        // differ precisely when re-authenticating the envelope here would have
+        // rejected it, and re-authenticating would repeat the ML-DSA work the
+        // split exists to hoist ahead of the CAS admission.
+        if prepared.roots != self.roots {
+            return Err(RepositoryError::InvalidCertificate);
+        }
+        self.persist_prepared(prepared.kind, &prepared.envelope, prepared.token)
     }
 
     /// Finish the local transaction only for the exact authenticated applied receipt.
@@ -665,7 +872,10 @@ impl StateRepository {
         }
         transaction
             .commit()
-            .map_err(|_| RepositoryError::CorruptStore)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_session_cancel_for_test();
+        Ok(())
     }
 
     /// Durably journal one lease intent before it is dispatched, and in the
@@ -687,6 +897,8 @@ impl StateRepository {
         intent: OperationIdV2,
         forget: &[OperationIdV2],
     ) -> Result<(), RepositoryError> {
+        #[cfg(all(test, unix))]
+        self.refuse_lease_journal_write_if_armed_for_test()?;
         let transaction = durable_write(&self.database)?;
         {
             let mut journal = transaction

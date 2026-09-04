@@ -40,7 +40,7 @@ class ProofToByteInputsTests(unittest.TestCase):
 
     def test_live_map_is_exact_unique_and_self_covering(self) -> None:
         mapping = inputs.PROOF_TO_BYTE_INPUT_PATHS
-        self.assertEqual(247, len(mapping))
+        self.assertEqual(249, len(mapping))
         self.assertEqual(len(mapping), len(set(mapping.values())))
         self.assertEqual(
             "artifact/test_proof_to_byte_inputs.py",
@@ -112,6 +112,21 @@ class ProofToByteInputsTests(unittest.TestCase):
                 if relative.startswith("formal/")
             },
         )
+
+    def test_release_notes_state_the_installed_map_size(self) -> None:
+        # The notes describe the dispatch this map's size decides, and nothing
+        # else reads that prose, so a count bump that skipped them went
+        # unnoticed until it was read. The exact phrase is asserted against the
+        # live map, and it must be the only "-key map" in the file, so a second
+        # (possibly stale) claim cannot hide behind the first.
+        notes = " ".join(
+            (ROOT / "artifact" / "stable-release-notes.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        expected = f"exact {len(inputs.PROOF_TO_BYTE_INPUT_PATHS)}-key map"
+        self.assertIn(expected, notes)
+        self.assertEqual(1, notes.count("-key map"))
 
     def test_capture_and_verify_use_the_exact_stable_bytes(self) -> None:
         first = self.write("proof/first.bin", b"first\x00bytes")

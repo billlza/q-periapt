@@ -19,7 +19,7 @@ weaker socket.
 | --- | --- | --- |
 | Owner-only service/config/state paths (`0700`/`0600`, `O_NOFOLLOW`, descriptor-pinned) | daemon | all platforms |
 | IPC socket existence, owner, group and mode (`0660`, daemon owner, client group) | service manager | `q-periapt-policy-agent.socket`, `com.qperiapt.policy-agent.plist` |
-| Socket parent directory `0710` — the enforced admission boundary — under ancestors only root can write | tmpfiles.d on Linux; a root `RunAtLoad` job on macOS | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs); `com.qperiapt.policy-agent-rundir.plist` running `qperiapt-agent-rundir.sh` (macOS; the directory lives under root-owned `/opt/qperiapt/run`, which persists, so the job verifies every ancestor and the directory itself, and is also what loads the agent — see the macOS layout below) |
+| Socket parent directory `0710` — the enforced admission boundary — under ancestors only root can write | tmpfiles.d on Linux; a root `RunAtLoad` job on macOS | `q-periapt-agent.tmpfiles.conf` (Linux; `/run` is a tmpfs); `com.qperiapt.policy-agent-rundir.plist` running `qperiapt-agent-rundir.sh` (macOS; the directory lives under root-owned `/opt/qperiapt/run`, which persists, so the job verifies every ancestor and the directory itself, with `stat` for type, owner and mode and `ls -lde` for ACL entries, and is also what loads the agent — see the macOS layout below) |
 | Refusal to serve without a matching activated listener; no self-bind fallback | daemon | all platforms |
 | macOS extended-ACL rejection on protected paths | daemon | macOS |
 | Pinned-key mutual authentication (IPC, witness, authority) + replay windows | daemon | all platforms |
@@ -71,12 +71,17 @@ weaker socket.
   runs as root), so under it nothing but root can rename or replace anything
   on the socket's path; and `/opt` persists across boots, so the job verifies
   rather than recreates. `com.qperiapt.policy-agent-rundir.plist` runs
-  `qperiapt-agent-rundir.sh` as root at boot: it verifies with `stat`, on each
-  path itself and never a target, that every ancestor from `/` down is a real
-  directory owned by root that group and other cannot write; creates the
-  directory the first time or adopts it every time after; and verifies that it
-  is a real directory owned by the daemon account with the transport group at
-  exactly `0710`. Only then does it run `launchctl bootstrap system` on the
+  `qperiapt-agent-rundir.sh` as root at boot: it verifies with `stat` and
+  `ls -lde`, on each path itself and never a target, that every ancestor from
+  `/` down is a real directory owned by root that group and other cannot write
+  and that carries no ACL entry — `stat` cannot report one, `chmod 0710` does
+  not remove one, and an entry granting `add_file` or `delete_child` on an
+  ancestor is a write bit by another name; creates the directory the first
+  time or adopts it every time after; removes any ACL from it (`chmod -N`: the
+  directory is the job's to bring to the shipped state, as its owner and mode
+  are); and verifies that it is a real directory owned by the daemon account
+  with the transport group at exactly `0710` with no ACL entry. Only then does
+  it run `launchctl bootstrap system` on the
   agent plist. A directory at a default mode would leave the daemon starting
   normally with no boundary at all, so nothing short of that verification
   reaches the bootstrap: a symlink or file anywhere on the path is refused
@@ -89,9 +94,11 @@ weaker socket.
   names in the script and the numeric uid/gid in the agent plist were
   templated from the same account and group; that a failed run is noticed — it
   is written to `/private/var/log/qperiapt-agent-rundir.log` and the unified
-  log, and not retried until the next boot or a `launchctl kickstart`; or
-  anything against a hostile root, who owns every ancestor the job checks and
-  can substitute whatever it likes at any time.
+  log, and not retried until the next boot or a `launchctl kickstart`; that
+  the daemon account, which owns the directory, does not widen it by `chmod`
+  or `chmod +a` after the boot-time verification — the job verifies once per
+  boot; or anything against a hostile root, who owns every ancestor the job
+  checks and can substitute whatever it likes at any time.
 - These are reviewed deployment templates, not measured attestations: no gate
   in this repository verifies that a production host actually loaded them, the
   macOS run-directory job included. The crate's tests check only that the
@@ -127,14 +134,26 @@ weaker socket.
    `root:daemon 0775` without the sticky bit, so a gid-1 process could rename
    or replace the directory under launchd; the socket therefore lives at
    `/opt/qperiapt/run/qperiapt-agent`, in the root-owned tree that holds the
-   binary. Create `/opt/qperiapt/run` as `root:wheel 0755` with the rest of
-   that tree. `com.qperiapt.policy-agent-rundir.plist` runs
+   binary. Create `/opt/qperiapt` and everything under it as `root:wheel 0755`,
+   `/opt/qperiapt` first and explicitly: `install -d` applies its `-m` to the
+   named leaves only, so a component created on the way is left at the
+   operator's umask, and a `0750` or `0700` `/opt/qperiapt` is root-owned and
+   unwritable — accepted by the ancestor check on those grounds alone — yet
+   traversable by nobody the socket is for.
+   `com.qperiapt.policy-agent-rundir.plist` runs
    `qperiapt-agent-rundir.sh` as root on every boot: it verifies with `stat`
-   that every ancestor of that directory from `/` down is a real directory
-   owned by root that group and other cannot write, creates or adopts the
-   directory as `0710` owned by the daemon account with the transport group,
-   verifies that too, and only then bootstraps the agent job — the layout is
-   in the macOS section below. Set `RUN_DIR_GROUP` at the top of the script to
+   and `ls -lde` that every ancestor of that directory from `/` down is a real
+   directory owned by root that group and other cannot write and that carries
+   no ACL entry (`stat` cannot report one, `chmod 0710` does not remove one,
+   and an entry granting `add_file` or `delete_child` on an ancestor is a
+   write bit by another name), that every ancestor below `/` is also
+   traversable by other, creates or adopts the directory, removes any
+   ACL from it (`chmod -N`), brings it to `0710` owned by the daemon account
+   with the transport group, verifies that too — mode and no ACL entry — and
+   only then bootstraps the agent job; a socket node inherits inheritable ACL
+   entries from its directory when launchd binds it, so an ACL-free parent is
+   what keeps `SockPathMode` the socket's whole permission. The layout is in
+   the macOS section below. Set `RUN_DIR_GROUP` at the top of the script to
    the transport group you created; the directory, mode, daemon account and
    agent plist path already match the agent plist, and the crate's tests hold
    them to it and hold the directory out of `/var/run`. A directory at a
@@ -173,24 +192,49 @@ weaker socket.
    unreachable after that many unclean stops -- fails closed until the
    authority answers; it is not a store fault and needs no re-provisioning.
 7. Stop and restart only through the service manager. A stop delivers
-   `SIGTERM`; the daemon observes it within one second, erases its in-process
-   secrets, releases the instance lease, and exits 0, so the start that follows
-   acquires immediately. Leave `Restart=no` and `KeepAlive=false` as shipped:
+   `SIGTERM`; the daemon observes it within one second when idle, or once
+   the request in flight has been answered or refused, erases its in-process
+   secrets, and releases the instance lease. It exits 0 only once the
+   authority has confirmed that release or a snapshot has shown that no lease
+   of this instance remains, so the start that follows acquires immediately;
+   if the release could not be settled -- the authority unreachable, the
+   outcome unknown with no snapshot to prove it, the lease-intent journal
+   full, the release budget too short to dispatch, or the agent already
+   poisoned when the stop arrived -- it exits 1 with a one-line reason and the
+   lease lapses at its TTL, which the next start waits out. A release that
+   did settle but whose durable cleanup afterwards failed also exits 1, and
+   there the lease is gone and the next start acquires at once. Leave
+   `Restart=no`, `KeepAlive=false` and `TimeoutStopSec=90` as shipped:
    the socket unit and the launchd `Sockets` entry start the daemon on the next
    client connection, and that is also how a crash is recovered -- the new
    process waits for the crashed one's lease to lapse (at most the authority's
    lease TTL, 10 seconds to 5 minutes, plus a five-second margin) and then
    serves, without operator action, subject on Linux to systemd's start rate
-   limit. systemd's default `TimeoutStopSec` of 90 seconds is ample, and the
-   launchd plist sets `ExitTimeOut` to 60 because launchd's own default of 20
-   is not: the stop is observed within one maintenance interval and the
-   release is a handful of bounded authority round trips of at most 5 seconds
-   each -- up to four against an authority that accepts the connection and
-   never answers, about 20 seconds worst case. A `SIGKILL` past either limit
+   limit. The unit sets `TimeoutStopSec=90` and the launchd plist sets
+   `ExitTimeOut` to 90 because neither manager's default can be relied on:
+   launchd's is 20 seconds, and systemd's 90 is `DefaultTimeoutStopSec=` in
+   the host's `system.conf`, which a distribution or a hardening baseline may
+   have lowered below the worst case below. That worst case is a sum of
+   budgeted terms and not a measured wall clock: a stop that lands during a
+   request is observed once that request has been answered or refused, and
+   every request admits its waits against one end-to-end deadline of 36
+   seconds -- a bound on the waits the agent enters, with the durable commits
+   in between covered by a one-second reserve rather than measured; the erase
+   that follows costs one durable two-phase commit per pending session, up to
+   1024 of them, which nothing may skip and no deadline bounds, budgeted at 20
+   seconds; and only then does the release run, under a 30-second budget of its
+   own, up to six bounded authority round trips of at most 5 seconds each
+   against an authority that accepts the connection and never answers, each
+   admitted only while it can still end within the budget: 87 seconds. A store
+   whose commits run slower than that reserve, or an erase of 1024 sessions on
+   such a store, can exceed it. A `SIGKILL` past either limit
    costs only a `redb` recovery at the next open, and the lease lapses at its
    TTL as after a crash. The daemon writes only a one-line reason to stderr
-   when it exits with an error, a refused start or a fatal serving failure;
-   the exit status is the only record of a stop.
+   when it exits with an error -- a refused start, a fatal serving failure, or
+   a stop that did not complete cleanly; the exit status is the only record of
+   a stop, and a non-zero status after `SIGTERM` means the stop did not
+   complete cleanly, with the one-line reason on stderr saying whether the
+   lease was released.
 
 ## macOS layout
 
@@ -205,6 +249,7 @@ plist where launchd scans, and that job is the only thing that loads the agent.
 | `com.qperiapt.policy-agent-rundir.plist` | `/Library/LaunchDaemons/com.qperiapt.policy-agent-rundir.plist` | `root:wheel`, `0644` |
 | `qperiapt-agent-rundir.sh` | `/opt/qperiapt/libexec/qperiapt-agent-rundir.sh` | `root:wheel`, `0644` — it runs through `/bin/sh` and needs no execute bit |
 | `com.qperiapt.policy-agent.plist` | `/opt/qperiapt/launchd/com.qperiapt.policy-agent.plist` | `root:wheel`, `0644` |
+| — | `/opt/qperiapt` | `root:wheel`, `0755` — create it explicitly and first; `install -d` leaves an intermediate at the operator's umask |
 | — | `/opt/qperiapt/run` | `root:wheel`, `0755` — the socket directory's parent; the job verifies it and refuses to create it |
 
 `/opt/qperiapt` and everything under it must be root-owned and writable by
@@ -227,17 +272,24 @@ and verifies it rather than recreating it — and it:
    `/opt/qperiapt` and `/opt/qperiapt/run`, in that order — with `stat` on the
    path itself: each must be a real directory (a symlink is refused before
    anything below it is looked at), owned by root, with no group or other
-   write bit; a missing one is a refusal too, because the job creates nothing
-   whose parent it has not verified;
+   write bit, and no ACL entry (`ls -lde` on the path itself; a listing longer
+   than one line is refused, because the mode field's `+` is hidden by `@`
+   when the path also has an extended attribute); every ancestor below `/`
+   must additionally carry the other-execute bit, because one that group and
+   other cannot write but nobody can traverse is unreachable for the transport
+   group and for the daemon account alike; a missing one is a refusal
+   too, because the job creates nothing whose parent it has not verified;
 3. refuses a symlink or a non-directory at `/opt/qperiapt/run/qperiapt-agent`
    without touching it; creates the directory if absent (`mkdir` without `-p`,
    under `umask 077`, so it is never wider than `0700` before the chmod) or
    adopts an existing real directory, which it never removes;
-4. `chown`s and `chmod`s it, then verifies with `stat` — on the path itself,
+4. `chown`s it, removes any ACL (`chmod -N`, logging what it removed),
+   `chmod`s it, then verifies with `stat` and `ls -lde` — on the path itself,
    not a target — that it is a directory, owned by the daemon account and the
-   transport group, with mode exactly `0710`; a setgid or sticky bit fails
-   this like any other difference, and a directory this run created and could
-   not verify is removed again;
+   transport group, with mode exactly `0710` and no ACL entry; a setgid or
+   sticky bit, or an entry that survived the strip, fails this like any other
+   difference, and a directory this run created and could not verify is
+   removed again;
 5. refuses if the agent is already bootstrapped, which means something other
    than this job loaded it, possibly before the directory was verified;
 6. runs `launchctl bootstrap system` on the agent plist.

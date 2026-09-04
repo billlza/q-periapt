@@ -62,9 +62,9 @@ pub use repository::{MigrationTrustRoots, RepositoryError, StateRepository};
 pub use service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
-    InitiatorDecapsulationResult, InitiatorEncapsulationResult, PendingSessionHandle, PolicyAgent,
-    ResponderAcceptanceResult, ResponderDecapsulationResult, ResponderEncapsulationResult,
-    SessionAuthorization, SignedPolicyBundle,
+    InitiatorDecapsulationResult, InitiatorEncapsulationResult, LeaseReleaseOutcome,
+    PendingSessionHandle, PolicyAgent, ResponderAcceptanceResult, ResponderDecapsulationResult,
+    ResponderEncapsulationResult, SessionAuthorization, SignedPolicyBundle,
 };
 pub use types::{
     FenceToken, OperationId, SessionId, StateAdvance, StateHead, StateRevision, StateValueError,

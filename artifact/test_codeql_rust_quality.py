@@ -148,6 +148,22 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ):
                 codeql_rust_quality._parse_extracted_paths(rows)
 
+    def test_artifact_guide_states_the_enforced_tracked_source_count(self) -> None:
+        # ARTIFACT.md describes this gate in the present tense, so its count is
+        # a claim about the constant below it, not a historical note. The
+        # sentence wraps across two lines, so the guide is compared with its
+        # whitespace normalized, and the expected count comes from the module
+        # rather than a second literal: a bump now fails here until the guide
+        # is updated with it.
+        root = pathlib.Path(__file__).resolve().parent.parent
+        guide = " ".join((root / "ARTIFACT.md").read_text(encoding="utf-8").split())
+        expected = codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT
+        self.assertIn(
+            f"requires the exact path set of all {expected} tracked `.rs` files "
+            "to be successfully extracted",
+            guide,
+        )
+
     def test_fixed_bindings_bind_exact_paths_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()

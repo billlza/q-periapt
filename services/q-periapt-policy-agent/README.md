@@ -20,8 +20,9 @@ MSRV 1.85, and licensed `MIT OR Apache-2.0`. After an unclean shutdown all
 three stores -- repository, witness, and authority -- let `redb` finish its
 crash recovery on open. A normal stop is not one of those: `serve-agent` and
 `serve-witness` install `SIGTERM` and `SIGINT` handlers whose only action is
-to set a flag, the serving loop reads it within one maintenance interval and
-returns, and the store then closes cleanly through its destructor. Recovery
+to set a flag, the serving loop reads it within one maintenance interval -- or
+once the request in flight has been answered or refused -- and returns, and
+the store then closes cleanly through its destructor. Recovery
 still runs after a crash, a `SIGKILL`, or a stop that outran the service
 manager's stop timeout, and after any restart of the authority store, whose
 hosting process decides when its own flag is set. Because every commit is two-phase,
@@ -89,7 +90,10 @@ replay tombstones for the entire current state. Cancel, Finished rejection, key
 acceptance, and restart do not erase them. No tombstone is silently evicted;
 capacity exhaustion fails closed. A committed state transition clears the table
 only after changing the signed state digest and global generation, so old offers
-then fail the current-state checks before reservation.
+then fail the current-state checks before reservation. The tombstone is what
+makes a Begin exactly-once across the whole current state; the in-process Begin
+retry index only lets the process that holds the pending secret repeat its own
+answer, and it is bounded by, and evicted with, the pending sessions.
 
 The migration authority and reset/recovery authority must have different,
 nonzero key IDs and different ML-DSA-65 verification keys. Endpoint roles also
@@ -114,6 +118,67 @@ encrypted; deployment must provide a network boundary when state metadata is
 confidential. The reference server processes one connection at a time with a
 five-second I/O timeout. This is an explicit resource bound, but an unauthenticated
 slow client can occupy that one slot until the timeout.
+
+Every IPC request is bounded by one end-to-end deadline of 36 seconds, measured
+from the accept of its connection. The deadline is an admission rule and not a
+timer that cancels work: each wait is entered only if that wait's own bound ends
+before the deadline, and is refused with status 24 otherwise, so an admitted
+wait always finishes in time and a refusal costs nothing. What is admitted is
+the acquisition of the agent's one linearizer, every authority and witness round
+trip, and the retention gate a secret passes before it becomes reachable; a
+lease-guarded operation whose least plan no longer fits is refused before it
+dispatches anything. The client-paced read and the response write are each
+additionally capped at 5 seconds and clamped to that deadline. Cancel, Destroy
+and the public-key read make no round trip, so the linearizer is the only thing
+they wait for, and they are refused on the same deadline.
+
+Three kinds of work are not measured against the deadline, and an operator
+sizing a timeout has to allow for them. The first is durable commits, which are
+reserved rather than measured. A round trip a durable commit must precede -- the
+lease-intent journal write before every lease mutation, and the transition
+intent an Advance or a Reset writes before its witness compare-and-swap -- is
+admitted together with that commit at a fixed one-second reserve
+(`DURABLE_COMMIT_RESERVE`), so the commit cannot push the call it precedes past
+the deadline. That is a modelled bound, not an enforced one: nothing here can
+bound an `fsync`, `redb` exposes no write timeout, and a commit cannot be
+cancelled, so a store slower than the reserve dispatches anyway and the request
+ends late -- outside the model, exactly as an authority clock that gains more
+than a second within one round trip is. A transition reserves the second one
+because the intent cannot be taken back once written: an Advance whose remaining
+budget cannot cover both that commit and the swap is refused before the intent
+is written, never after, and that reserve comes out of the transition path's own
+headroom, so the 36 seconds is unchanged.
+
+The second is erasing expired sessions, which is charged to no deadline at all,
+because every secret must go and nothing about that erase may be skipped or
+refused. It costs one durable two-phase commit per expired session. The serving
+loop's TTL sweep runs between connections, ahead of the accept that starts a
+deadline, so it can delay a queued client without being counted against anyone's
+36 seconds; it takes the linearizer only if it is already free and is skipped
+whenever the agent is busy. Advance, Reset, both Begins and an acceptance run
+the same purge on entry, inside the request and charged to nothing. The third
+is local computation -- the KEM, the signature verifications, hashing and
+framing -- unadmitted in the same way, bounded by the machine and not by this
+code. So the 36 seconds bounds the waits the agent chooses to enter, and the
+wall clock a client sees is that plus whatever those unmeasured phases cost; the
+stop timeouts below budget the erase separately, at 20 seconds, rather than
+fold it into the deadline.
+
+IPC status 24 means the request was refused or aborted on its
+deadline with nothing retained, its reservation released and no transition
+left pending; it is not a fence, and the request may be retried
+under a fresh nonce with a fresh offer where the offer was consumed. A request
+that could not reach the agent's linearizer inside its deadline is refused the
+same way and consumed nothing at all, its offer included: that retry needs no
+fresh offer. An acceptance aborted after its witness read has
+consumed its handle as well: that retry is refused with `UnknownHandle`, and
+the session has to be re-established from Begin. A status 24 raised on the
+coverage snapshot that follows a lapse re-acquire comes after the erasure of
+every in-process secret, so the deadline is what a longer one recovers, not the
+keys. A committed operation whose response could not be written by the deadline
+gets no response at all, which the client sees as a lost response and, for a
+Begin or an acceptance, recovers by the exact retry described below; a
+transition it reconciles.
 
 The executable IPC face is Unix-only. It does not create its listening socket:
 the service manager does, and the daemon adopts the descriptor it is handed,
@@ -141,9 +206,10 @@ manager rather than claimed by the binary: [`deploy/`](deploy/README.md)
 holds the hardened systemd unit (dedicated locked account, read-only OS
 view, seccomp `@system-service` filter, empty capability set, no core
 dumps) and the launchd daemon template (dedicated uid, owner-only umask,
-no core dumps) with the boot-time job that verifies the socket's `0710`
-parent directory and the root-owned ancestry above it on macOS and loads the
-agent only after that, together with the exact table of which boundary each
+no core dumps) with the boot-time job that verifies the socket's `0710`,
+ACL-free parent directory and the root-owned, ACL-free ancestry above it on
+macOS and loads the agent only after that, together with the exact table of
+which boundary each
 layer enforces and the explicit non-claims. A deployment that starts the
 binary outside those templates gets only the daemon's own
 filesystem-capability and cryptographic boundaries.
@@ -152,14 +218,29 @@ IPC is a hard V2 cut: request, response, and request-digest domains all end in
 `/v2`, schema 2 has distinct `AcceptInitiatorFinished` and
 `AcceptResponderFinished` commands and role-shaped begin/accept responses, and
 there is no V1 decoder or fallback. A consumed IPC nonce is never reusable. If a
-successful acceptance response is lost while being written, the client may send
-the exact same handle and Finished under a newly signed nonce; while the same
-process and retained key remain live, the bounded completed-acceptance cache
-returns the same key handle and, for the responder, the same R. Different
-Finished bytes fail as a conflicting replay. Destroy, committed transition, or
-process restart clears that cache. Neither `AcceptedSessionKeyV1` nor R is
-persisted or recovered after a crash; the durable capability-session tombstone
-remains, so recovery requires a new authenticated session rather than reuse.
+successful Begin response is lost while being written, the client may resend the
+exact same signed offers and the same peer public keys (encapsulation) or
+ciphertexts (decapsulation) under a newly signed nonce; while the pending
+session that Begin created remains live in the same process, the agent returns
+the same handle, ciphertexts and initiator Finished. Different public input or a
+different Begin command under the same capability fails with
+`AuthorizationRejected` and erases nothing. Cancel, expiry, acceptance, Finished
+rejection, a lease lapse recovered by re-acquire, restart, a committed
+transition and fencing end that window. After the first six the durable
+capability tombstone answers with `AuthorizationRejected`. After a committed
+transition the tombstone table is already cleared, and the old offers fail the
+current-state checks instead -- the same `AuthorizationRejected`. After fencing
+the instance is retired and every operation, this retry included, is refused
+with `InstanceFenced` at the lease phase guard, before the retry index or the
+tombstone is consulted. If a successful acceptance response is lost while being
+written, the client may send the exact same handle and Finished under a newly
+signed nonce; while the same process and retained key remain live, the bounded
+completed-acceptance cache returns the same key handle and, for the responder,
+the same R. Different Finished bytes fail as a conflicting replay. Destroy,
+committed transition, or process restart clears that cache. Neither
+`AcceptedSessionKeyV1` nor R is persisted or recovered after a crash; the
+durable capability-session tombstone remains, so recovery requires a new
+authenticated session rather than reuse.
 
 The executable accepts exactly one of these command shapes:
 
@@ -215,7 +296,13 @@ configuration revision as fixed-length big-endian binary files). Secret-key
 files are read directly into zeroizing buffers. `serve-agent` acquires the
 exclusive instance lease at startup: it waits for a crashed predecessor's
 lease to lapse and fails closed only while a holder that is still renewing
-has it.
+has it. A start that acquires the lease and then fails -- the witness
+unreachable, the executor or the policy material rejected -- releases the
+lease before returning, so the retry does not wait out a TTL. A guarded
+operation renews the lease before it starts, and a secret it produced is
+retained only after a fresh authority snapshot, taken after its durable write,
+shows the lease still held by this instance with more than one second of
+authority time left; snapshots are reads, and are not journaled.
 
 Every lease mutation the agent sends -- the acquire at start, the renew before
 each guarded operation, the re-acquire after a lapse, and the release -- is
@@ -227,25 +314,51 @@ it for good. On every start the agent settles the journal before it acquires:
 a receipt the authority still holds is acknowledged and its row forgotten; a
 row for an operation the authority never saw is forgotten; a row the authority
 cannot answer for is kept and asked about again before each guarded operation.
+A re-acquire after a lapse whose reply is lost is remembered, in memory, with
+the fence it would have produced; the next guarded operation asks the
+authority for that exact operation -- or sees that fence in its snapshot --
+before it renews, so the agent's own re-acquired lease is never mistaken for a
+successor and the instance is never fenced without one. A stop resolves it the
+same way, and when the authority can answer neither it releases that expected
+fence.
 Settled rows are forgotten by the next journal write, so the steady-state cost
 is one durable transaction per lease operation, and a clean release leaves the
-journal empty. The journal holds at most 64 rows, matching the in-memory
-acknowledgement queue; reaching that takes the authority refusing 64
-consecutive acknowledgements, 64 consecutive lease operations that failed or
-stayed indeterminate at dispatch against an authority that could not then be
-queried, or as many starts against an authority that cannot answer. A full
-journal refuses the next lease operation with
-`InstanceLeaseUnavailable` before anything is dispatched, and a start that
-cannot settle any of 64 rows fails closed the same way, until the authority
-answers again. A store provisioned before the journal existed opens without
-the table; the first journal write creates it.
+journal empty unless a row could not be settled -- notably a re-acquire the
+release adopted from a snapshot because the authority was still refusing
+queries, whose row and receipt wait for the next start. The journal holds at
+most 64 rows, matching the in-memory acknowledgement queue; reaching that takes
+the authority refusing 64 consecutive acknowledgements, 64 consecutive lease
+operations that failed or stayed indeterminate at dispatch against an authority
+that could not then be queried, or as many starts whose acquire was journaled
+and dispatched but left unsettled -- half as many when such a start's own
+release goes unanswered too and journals a second row. A start against an
+authority that cannot answer at all adds nothing: it is refused at the
+pre-acquire snapshot, before any dispatch and before any journal write. A full
+journal refuses the next lease operation with `InstanceLeaseUnavailable` before
+anything is dispatched, and a start that cannot settle any of 64 rows fails
+closed the same way, until the authority answers again. A store provisioned
+before the journal existed opens without the table; the first journal write
+creates it.
 
 Stopping and restarting need no operator action. A normal stop -- `SIGTERM`
 from the service manager, or `SIGINT` by hand -- is observed by the serving
-loop within one maintenance interval; the daemon erases every in-process
-secret, releases the lease, and exits 0, so the next start acquires at once. A
-crash never releases the lease, and the authority lets it lapse only at its TTL
-(10 seconds to 5 minutes, as configured on the authority). A start inside that
+loop within one maintenance interval, or once the request in flight has been
+answered or refused; the daemon erases every in-process secret -- one durable
+commit per pending session, charged to the stop timeout and not to any
+deadline, because nothing may be skipped -- then releases the lease under a
+30-second budget of its own, and exits 0 only once the authority has
+confirmed that release or a snapshot has shown that no lease of this instance
+remains, so the next start acquires at once. If the release could not be
+settled -- the transport refused it, the journal was full, its outcome stayed
+unknown with no snapshot to prove it, the release budget could not cover the
+dispatch, or the agent was already poisoned when the stop arrived -- the
+daemon exits 1 with a one-line reason and the lease lapses at its TTL, which
+the next start waits out. A release that did settle but whose durable cleanup
+afterwards failed -- a session cancellation, or the journal forget -- exits 1
+too, with its own reason: there the lease is released and the next start
+acquires at once. A crash never releases the lease, and the authority lets it
+lapse only at its TTL (10 seconds to 5 minutes, as configured on the
+authority). A start inside that
 window waits for the lapse: it retries the same fail-closed acquire after the
 shorter of the lease's remaining life, as a fresh authority snapshot reports
 it, and one second -- never sooner than 10 ms after the last attempt, and
@@ -259,9 +372,10 @@ arrives during the wait ends the process by the default disposition, holding
 no lease; one that lands in the few seconds between the acquire and the
 handler install ends the process without a release, and the next start waits
 that lease out. The daemon writes only a one-line reason to stderr when it
-exits with an error -- a refused start or a fatal serving failure -- and
-nothing on a stop; the exit status and the authority's own state are the only
-record of a stop, a wait, or a refused start.
+exits with an error -- a refused start, a fatal serving failure, or a stop
+whose release did not settle -- and nothing on a clean stop; the exit status
+and the authority's own state are the only record of a stop, a wait, or a
+refused start.
 
 Reference resource bounds are fail-closed and do not silently evict security
 state:
@@ -270,7 +384,7 @@ state:
 | --- | ---: |
 | Any IPC or witness frame | 16 KiB |
 | IPC capability-offer field | 8 KiB, also constrained by the total frame |
-| Runtime pending sessions | 256 by default; hard maximum 1024 |
+| Runtime pending sessions | 256 by default; hard maximum 1024; each carries its Begin retry record (public outputs only) |
 | Runtime confirmed keys / completed-acceptance entries | 256 each by default; hard maximum 1024; one cache entry is retained only with its key |
 | Runtime session TTL | 5 minutes by default; hard maximum 24 hours |
 | Durable session reservations | 1024 |

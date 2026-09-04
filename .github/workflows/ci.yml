@@ -59,8 +59,8 @@ jobs:
           source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
             ci-source-gate \
             "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
-          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=247 declared_delta=57"
-          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=247"
+          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249 declared_delta=59"
+          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249"
           if [ "$source_gate" = "$initial_gate" ]; then
             printf '%s\n' "$source_gate"
           elif [ "$source_gate" = "$installed_gate" ]; then
@@ -718,6 +718,15 @@ jobs:
         run: |
           unset RUSTFLAGS CARGO_INCREMENTAL
           sh artifact/swift-xcframework.sh
+      # This is CI's only macOS runner, and the policy agent's launchd
+      # activation, run-directory ACL and filesystem-ACL cases are all
+      # #[cfg(target_os = "macos")]: `check`'s cargo test --workspace runs on
+      # ubuntu, so those cases were compiled and executed nowhere. Same pinned
+      # 1.96.1 toolchain as the rest of this job, and placed last so the header
+      # freshness, swift test and XCFramework gates this job exists for still
+      # report before it.
+      - name: Policy-agent tests, including the macOS-only cases
+        run: cargo +1.96.1 test --locked -p q-periapt-policy-agent
 
   bindings-kotlin:
     runs-on: ubuntu-latest

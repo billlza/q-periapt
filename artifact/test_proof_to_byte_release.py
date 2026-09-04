@@ -28,6 +28,7 @@ from collections.abc import Iterator
 from unittest import mock
 
 import apple_publication_contract
+import codeql_rust_quality
 import proof_to_byte_finalizer
 import proof_to_byte_inputs
 import release_publication_contract
@@ -117,8 +118,8 @@ EXPECTED_PROOF_TO_BYTE_STEP = (
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
     "            ci-source-gate \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=247 declared_delta=57\"\n"
-    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=247\"\n"
+    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249 declared_delta=59\"\n"
+    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249\"\n"
     "          if [ \"$source_gate\" = \"$initial_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
     "          elif [ \"$source_gate\" = \"$installed_gate\" ]; then\n"
@@ -1359,7 +1360,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("## Rust CodeQL analysis boundary", guide)
         self.assertIn("not native Rust 1.96.1 CodeQL analysis", normalized)
         self.assertIn("under both Rust 1.94.0 and Rust 1.96.1 with", normalized)
-        self.assertIn("93 tracked `.rs` files", normalized)
+        # Taken from the gate's own constant, never a second literal: this
+        # audit read 93 while the gate enforced 105, so the stale sentence it
+        # was meant to catch passed it.
+        self.assertIn(
+            f"{codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT} "
+            "tracked `.rs` files",
+            normalized,
+        )
         self.assertIn(
             "reported as telemetry rather than required to be zero", normalized
         )

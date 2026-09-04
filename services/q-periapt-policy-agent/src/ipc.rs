@@ -43,7 +43,8 @@ use crate::repository::{MigrationTrustRoots, StateRepository};
 use crate::service::{
     AgentConfig, AgentError, AgentLimits, BeginDecapsulation, BeginDecapsulationResult,
     BeginEncapsulation, BeginEncapsulationResult, ConfirmedKeyHandle, EndpointIdentity,
-    PendingSessionHandle, PolicyAgent, SessionAuthorization, SignedPolicyBundle,
+    LeaseReleaseOutcome, PendingSessionHandle, PolicyAgent, SessionAuthorization,
+    SignedPolicyBundle,
 };
 use crate::signals::install_termination_handlers;
 use crate::witness::{AuthenticatedTcpWitness, ReferenceWitnessServer};
@@ -55,6 +56,63 @@ const IPC_SCHEMA_VERSION: u16 = 2;
 const IPC_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const WITNESS_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const AUTHORITY_IO_TIMEOUT: Duration = Duration::from_secs(5);
+/// The one end-to-end deadline every connection gets, from accept to the last
+/// response byte: the client-paced read (`IPC_IO_TIMEOUT`), the least plan of
+/// the largest guarded command -- Begin and Accept need three authority round
+/// trips, one witness read and the renew's own durable journal commit,
+/// Reconcile two authority round trips, two witness calls and that same
+/// commit, twenty-one seconds either way at the transport bounds above and
+/// `DURABLE_COMMIT_RESERVE` -- the client-paced write (`IPC_IO_TIMEOUT`), and
+/// five seconds of slack for one extra authority round trip -- a reconciling
+/// query that finds the receipt. A renew retry is two: the resync snapshot
+/// after an `AuthorityVersionMismatch` and the re-dispatched renew, and
+/// against ports at their bounds its second extra round trip is refused with
+/// status 24. The agent admits each round trip against it and refuses, with
+/// status 24, a guarded operation whose least plan no longer fits. A
+/// transition's plan is one authority round trip smaller than Begin and
+/// Accept's, and the second `DURABLE_COMMIT_RESERVE` it carries -- the intent
+/// it cannot take back once written -- is charged out of that difference, so
+/// the same deadline covers it. Waiting
+/// for the agent's one linearizer is inside this deadline, not on top of it:
+/// a request that spends it on a busy agent is refused with status 24 at the
+/// lock, or at the least-plan reserve that follows, rather than queued on top
+/// of it.
+///
+/// What it bounds is admission, not wall clock, and three things sit outside
+/// it. The durable commits `DURABLE_COMMIT_RESERVE` stands in for are modelled
+/// at one second rather than measured, so a store slower than that reserve
+/// ends the request late. `expire_idle_sessions` runs in the serving loop
+/// ahead of the `accept` that starts this clock, and the same purge runs on
+/// entry to Advance, Reset, both Begins and an acceptance: durable erases no
+/// deadline admits, because no secret may be left behind in order to fit one.
+/// And local computation -- the KEM, the signature verifications, hashing,
+/// framing -- is admitted nowhere. So a client's wall clock is this deadline
+/// plus whatever those phases cost, which is why the stop-timeout arithmetic
+/// in `the_deployment_templates_agree_with_this_code` budgets the erase
+/// separately (`LEASE_ERASE_BOUND`) instead of folding it in here.
+const IPC_REQUEST_DEADLINE: Duration = Duration::from_secs(36);
+/// How long the lease release at stop may take. Against an authority that
+/// accepts the connection and never answers it is up to six bounded round
+/// trips -- the two drains, each stopping at its first unanswered call, the
+/// release, two reconciling queries and the snapshot proof -- each admitted
+/// only while it can end strictly within what is left of this budget. So
+/// the budget must exceed five full bounds, and the durable journal commit
+/// the release dispatch is admitted with, for the release and its queries
+/// to be reached behind two unanswered drains, and a round trip that no
+/// longer fits is refused rather than started: the stop is bounded by this
+/// budget whatever the authority does.
+const LEASE_RELEASE_BUDGET: Duration = Duration::from_secs(30);
+/// Wall time the stop's erase may take, on top of `LEASE_RELEASE_BUDGET`.
+///
+// A stop has to fit inside the timeout the service managers give it:
+// observing the stop (one maintenance interval when idle, or the request in
+// flight finishing under `IPC_REQUEST_DEADLINE`), then the erase of every
+// pending session, then the release under `LEASE_RELEASE_BUDGET`. The erase
+// is deliberately bounded by nothing this code holds -- every secret must go
+// -- which is why `release_instance_lease_within` gives the release its
+// budget afresh afterwards. The two numbers the shipped templates declare for
+// that arithmetic, and the assertion that they cover it, sit beside their one
+// consumer, `the_deployment_templates_agree_with_this_code`.
 const NONCE_WINDOW: Duration = Duration::from_secs(10 * 60);
 const MAX_RECENT_NONCES: usize = 4096;
 const MAX_SIGNED_OFFER_BYTES: usize = 8 * 1024;
@@ -92,6 +150,22 @@ pub enum IpcError {
     Unavailable,
     /// The agent entered a fail-closed poisoned state.
     AgentFatal,
+    /// The serving loop stopped cleanly but the instance lease is still held:
+    /// the transport refused the release, its outcome stayed unknown with no
+    /// snapshot to prove it, the lease-intent journal was full, the release
+    /// budget could not cover the dispatch, or the agent was already poisoned
+    /// when the stop arrived, which `ensure_live` refuses before dispatching
+    /// anything. The lease lapses at the authority's TTL, which the next start
+    /// waits out.
+    LeaseReleaseFailed,
+    /// The serving loop stopped cleanly and the instance lease **was**
+    /// released -- the authority confirmed it, or a snapshot proved it gone,
+    /// so the next start acquires at once -- but the bookkeeping around the
+    /// release failed: a durable session cancellation during the erase, or
+    /// the journal forget after it. Every in-process secret is still gone;
+    /// the agent is poisoned and the store may have diverged, so the exit is
+    /// non-zero.
+    LeaseReleasedStateNotRecorded,
 }
 
 impl fmt::Display for IpcError {
@@ -108,6 +182,13 @@ impl fmt::Display for IpcError {
             Self::AuthenticationFailed => "IPC request authentication failed",
             Self::Unavailable => "IPC transport unavailable",
             Self::AgentFatal => "policy agent entered a fail-closed state",
+            Self::LeaseReleaseFailed => {
+                "instance lease was not released at stop; it lapses at the authority TTL"
+            }
+            Self::LeaseReleasedStateNotRecorded => {
+                "instance lease was released at stop, but local state could not be recorded; \
+                 the next start acquires at once"
+            }
         })
     }
 }
@@ -289,14 +370,18 @@ impl RecentNonces {
 
 /// Sequential, deadline-bounded authenticated Unix server.
 ///
-/// Sequential handling deliberately caps active clients at one. Both
-/// client-paced phases are bounded by their own absolute `io_timeout` deadline,
-/// from which every framed read and write derives its remaining budget, so a
-/// client trickling one byte per interval cannot occupy the slot. The request
-/// and the response are budgeted separately because execution between them is
-/// bounded by the witness and authority timeouts rather than by the client, and
-/// those outlast one IPC timeout; a shared deadline would be spent before a
-/// committed operation could report itself. No unbounded worker or thread
+/// Sequential handling deliberately caps active clients at one. One
+/// end-to-end deadline per connection (`IPC_REQUEST_DEADLINE`) spans the read,
+/// the execution and the write, and admits each of the waits inside them; what
+/// it does not cover is listed on the constant. The two client-paced phases are
+/// additionally capped at `io_timeout` each, from which every framed read and
+/// write derives its remaining budget, so a client trickling one byte per
+/// interval cannot occupy the slot. Execution admits every wait against that
+/// deadline -- first the acquisition of the agent's one linearizer, then each
+/// authority and witness round trip -- and refuses a lease-guarded operation
+/// whose least plan does not fit before it dispatches anything. A response that cannot be written by the deadline is not
+/// written: the connection closes with nothing sent, which the client sees as
+/// a lost response and recovers by exact retry. No unbounded worker or thread
 /// creation is possible.
 pub(crate) struct UnixIpcServer<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> {
     agent: PolicyAgent<W, A>,
@@ -319,7 +404,7 @@ const IPC_DIRECTION_ISOLATION_PROBE: &[u8] = b"Q-PERIAPT-IPC-DIRECTION-PROBE/v1"
 /// How often the serving loop runs maintenance. This is the granularity of the
 /// session TTL, not a poll interval in the busy-wait sense: the wait is a real
 /// blocking `poll`, so a connection is still accepted the moment it arrives.
-const MAINTENANCE_INTERVAL: Duration = Duration::from_secs(1);
+pub(crate) const MAINTENANCE_INTERVAL: Duration = Duration::from_secs(1);
 
 /// The same interval as the `poll` timeout. `maintenance_interval_agrees_with_
 /// the_poll_timeout` pins the two together.
@@ -380,31 +465,55 @@ fn validate_ipc_direction_isolation(
     Ok(())
 }
 
+/// Validate the pinned IPC request/response key material, without needing an
+/// agent. `read_ipc_server_material` runs this before the lease is acquired, and
+/// the server is then built from the validated material without re-validating
+/// (`from_validated_material`), so no check -- and no entropy the probe draws --
+/// runs after the acquire where a failure would strand the lease. Keeping the
+/// check here lets the production entry validate every key ahead of the
+/// irreversible acquire.
+fn validate_ipc_server_material(
+    client_verification_key: &[u8; ML_DSA_65_VK_LEN],
+    server_signing_key: &ZeroizingBytes<ML_DSA_65_SK_LEN>,
+    server_verification_key: &[u8; ML_DSA_65_VK_LEN],
+    io_timeout: Duration,
+) -> Result<(), IpcError> {
+    if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
+        return Err(IpcError::InvalidConfiguration);
+    }
+    validate_ipc_direction_isolation(
+        client_verification_key,
+        server_signing_key.as_bytes(),
+        server_verification_key,
+    )
+}
+
 impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, A> {
-    /// Configure pinned request/response keys. The listener is supplied
-    /// separately by the service manager; this server never creates one.
-    fn new(
+    /// Build the server from key material already validated by
+    /// `read_ipc_server_material`, taking ownership of the agent.
+    ///
+    /// Infallible on purpose. The validation is `validate_ipc_server_material`,
+    /// and it draws entropy -- the direction-isolation probe signs -- so a
+    /// constructor that re-ran it after the lease is acquired would
+    /// re-introduce a fallible step that, on failure, drops the agent with no
+    /// release and strands the lease until its TTL. That is why no such
+    /// constructor exists: `read_ipc_server_material` is the one production
+    /// caller of the validation and runs before the acquire, `new_for_test` is
+    /// the only re-validating constructor left and is test-only, and the
+    /// production path builds through this so nothing between the acquire and
+    /// the serving loop can fail.
+    fn from_validated_material(
         agent: PolicyAgent<W, A>,
-        client_verification_key: [u8; ML_DSA_65_VK_LEN],
-        server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
-        server_verification_key: [u8; ML_DSA_65_VK_LEN],
+        material: IpcServerMaterial,
         io_timeout: Duration,
-    ) -> Result<Self, IpcError> {
-        if client_verification_key.iter().all(|byte| *byte == 0) || io_timeout.is_zero() {
-            return Err(IpcError::InvalidConfiguration);
-        }
-        validate_ipc_direction_isolation(
-            &client_verification_key,
-            server_signing_key.as_bytes(),
-            &server_verification_key,
-        )?;
-        Ok(Self {
+    ) -> Self {
+        Self {
             agent,
-            client_verification_key,
-            server_signing_key,
+            client_verification_key: material.client_verification_key,
+            server_signing_key: material.server_signing_key,
             io_timeout,
             recent_nonces: RecentNonces::new(),
-        })
+        }
     }
 
     /// Serve one request per accepted connection with bounded sequential
@@ -485,16 +594,29 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     }
 
     fn handle(&mut self, stream: &mut UnixStream) -> Result<(), IpcError> {
-        let deadline = Instant::now()
-            .checked_add(self.io_timeout)
+        let (read_deadline, request_deadline) = self.deadlines_from(Instant::now())?;
+        self.handle_io(stream, read_deadline, request_deadline)
+    }
+
+    /// The two deadlines of a connection accepted at `accepted`: the request
+    /// deadline, `IPC_REQUEST_DEADLINE` from the accept, and the read
+    /// deadline, one `io_timeout` from the accept and never past the former.
+    fn deadlines_from(&self, accepted: Instant) -> Result<(Instant, Instant), IpcError> {
+        let request_deadline = accepted
+            .checked_add(IPC_REQUEST_DEADLINE)
             .ok_or(IpcError::Unavailable)?;
-        self.handle_io(stream, deadline)
+        let read_deadline = accepted
+            .checked_add(self.io_timeout)
+            .ok_or(IpcError::Unavailable)?
+            .min(request_deadline);
+        Ok((read_deadline, request_deadline))
     }
 
     fn handle_io<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
         read_deadline: Instant,
+        request_deadline: Instant,
     ) -> Result<(), IpcError> {
         let envelope = read_frame_until(stream, read_deadline).map_err(map_codec)?;
         let request_body = verify_envelope(&envelope, &self.client_verification_key)
@@ -503,7 +625,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         self.recent_nonces.insert(request.nonce)?;
         let request_digest =
             hash_fields(IPC_REQUEST_DIGEST_DOMAIN, &[request_body]).map_err(map_codec)?;
-        let result = self.execute(request.payload);
+        let result = self.execute(request.payload, request_deadline);
         if matches!(result, Err(AgentError::InternalPoisoned)) {
             return Err(IpcError::AgentFatal);
         }
@@ -519,19 +641,18 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         encode_response_payload(&mut encoder, payload)?;
         let response = sign_envelope(&encoder.finish(), self.server_signing_key.as_bytes())
             .map_err(map_authentication)?;
-        // The response gets its own budget rather than whatever is left of the
-        // request's. Reading is paced by the client, so it must be bounded to
-        // keep a slow one from holding this single-threaded loop. Execution is
-        // not: it is bounded by the witness and authority timeouts, and those
-        // together already exceed one IPC timeout, so a state advance would
-        // routinely exhaust a shared deadline before it produced a response.
-        // The client would then be told nothing about an operation that had
-        // already committed -- the one outcome this protocol most needs to
-        // avoid. Both phases stay separately bounded, so the connection as a
-        // whole is still bounded.
+        // The write gets what is left of the request deadline, capped at one
+        // I/O timeout because the client paces this phase too. A request
+        // deadline already reached fails `write_frame_until` on its budget
+        // before the first byte, so the connection closes with nothing
+        // written: a committed operation whose response missed the deadline
+        // is reported as a lost response -- which the client recovers by
+        // exact retry under a fresh nonce -- rather than answered on a budget
+        // the caller never granted.
         let write_deadline = Instant::now()
             .checked_add(self.io_timeout)
-            .ok_or(IpcError::Unavailable)?;
+            .ok_or(IpcError::Unavailable)?
+            .min(request_deadline);
         write_frame_until(stream, &response, write_deadline).map_err(|_| IpcError::Unavailable)
     }
 
@@ -540,22 +661,46 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     /// This is what `serve_agent` runs. The release is attempted on every
     /// exit, the orderly stop and a fatal listener error alike, and it is what
     /// lets the next process acquire at once instead of waiting out the lease
-    /// TTL; it also erases every in-process secret first. It is best effort:
-    /// if the authority cannot be reached the lease simply lapses at its TTL,
-    /// exactly as it would after a crash, and a poisoned agent refuses the
-    /// release outright (`release_instance_lease` checks liveness first), so
-    /// after a fatal agent error the lease lapses the same way. The serving
-    /// outcome -- not the release's -- is what this returns, so a stop still
-    /// exits 0 and a fatal serving error still propagates.
+    /// TTL; it also erases every in-process secret first. A serving failure
+    /// keeps precedence: it is what caused the exit and what this returns,
+    /// whatever the release did. An orderly stop returns the release's
+    /// outcome, and there are three:
+    ///
+    /// * `Ok` -- the authority confirmed the release or a snapshot proved the
+    ///   lease gone, and the erase and the journal forget both succeeded.
+    /// * [`IpcError::LeaseReleaseFailed`] -- the lease is still held: the
+    ///   transport refused the release, its outcome stayed unknown with no
+    ///   snapshot to prove it, the lease-intent journal was full, the release
+    ///   budget could not cover the dispatch, or the agent was already
+    ///   poisoned when the stop arrived, which refuses the release outright
+    ///   (`release_instance_lease_within` checks liveness first). The lease
+    ///   lapses at its TTL exactly as it would after a crash.
+    /// * [`IpcError::LeaseReleasedStateNotRecorded`] -- the lease is released
+    ///   and the next start acquires at once, but a durable session
+    ///   cancellation or the journal forget failed.
+    ///
+    /// Either failure exits 1 with that one-line reason rather than report an
+    /// unclean stop as clean. The release runs under `LEASE_RELEASE_BUDGET`,
+    /// measured from after the erase (`LEASE_ERASE_BOUND` is what the stop
+    /// timeout carries for that), so a stop is bounded whatever the authority
+    /// does.
     fn serve_and_release(
         &mut self,
         listener: UnixListener,
         shutdown: &AtomicBool,
     ) -> Result<(), IpcError> {
         let outcome = self.serve(listener, shutdown);
-        // Best effort by design; see above.
-        let _ = self.agent.release_instance_lease();
-        outcome
+        let released = self
+            .agent
+            .release_instance_lease_within(LEASE_RELEASE_BUDGET);
+        match (outcome, released) {
+            (Err(error), _) => Err(error),
+            (Ok(()), Ok(LeaseReleaseOutcome::Released)) => Ok(()),
+            (Ok(()), Ok(LeaseReleaseOutcome::ReleasedWithFailure(_))) => {
+                Err(IpcError::LeaseReleasedStateNotRecorded)
+            }
+            (Ok(()), Err(_)) => Err(IpcError::LeaseReleaseFailed),
+        }
     }
 
     /// Run the serving loop against a caller-supplied listener.
@@ -588,41 +733,54 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
         server_verification_key: [u8; ML_DSA_65_VK_LEN],
     ) -> Result<Self, IpcError> {
-        if client_verification_key.iter().all(|byte| *byte == 0) {
-            return Err(IpcError::InvalidConfiguration);
-        }
-        validate_ipc_direction_isolation(
+        validate_ipc_server_material(
             &client_verification_key,
-            server_signing_key.as_bytes(),
+            &server_signing_key,
             &server_verification_key,
+            IPC_IO_TIMEOUT,
         )?;
-        Ok(Self {
+        Ok(Self::from_validated_material(
             agent,
-            client_verification_key,
-            server_signing_key,
-            io_timeout: IPC_IO_TIMEOUT,
-            recent_nonces: RecentNonces::new(),
-        })
+            IpcServerMaterial {
+                client_verification_key,
+                server_signing_key,
+            },
+            IPC_IO_TIMEOUT,
+        ))
     }
 
+    /// Serve one request with both deadlines derived exactly as `handle`
+    /// derives them from the accept.
     #[cfg(test)]
     pub(crate) fn handle_io_for_test<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
     ) -> Result<(), IpcError> {
-        let deadline = Instant::now()
-            .checked_add(self.io_timeout)
-            .ok_or(IpcError::Unavailable)?;
-        self.handle_io(stream, deadline)
+        let (read_deadline, request_deadline) = self.deadlines_from(Instant::now())?;
+        self.handle_io(stream, read_deadline, request_deadline)
     }
 
+    /// Serve one request with `deadline` as both the read deadline and the
+    /// request deadline.
     #[cfg(test)]
     pub(crate) fn handle_io_with_deadline_for_test<T: DeadlineStream>(
         &mut self,
         stream: &mut T,
         deadline: Instant,
     ) -> Result<(), IpcError> {
-        self.handle_io(stream, deadline)
+        self.handle_io(stream, deadline, deadline)
+    }
+
+    /// Serve one request with the read deadline and the request deadline
+    /// given separately.
+    #[cfg(test)]
+    pub(crate) fn handle_io_with_deadlines_for_test<T: DeadlineStream>(
+        &mut self,
+        stream: &mut T,
+        read_deadline: Instant,
+        request_deadline: Instant,
+    ) -> Result<(), IpcError> {
+        self.handle_io(stream, read_deadline, request_deadline)
     }
 
     #[cfg(test)]
@@ -630,11 +788,22 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
         &self.agent
     }
 
-    fn execute(&self, payload: RequestPayload) -> Result<ResponsePayload, AgentError> {
+    /// Run one decoded request under the connection's `deadline`, the three
+    /// commands that make no port call included: for those three the
+    /// linearizer is the only thing they can wait on, and that is what the
+    /// deadline has to reach.
+    fn execute(
+        &self,
+        payload: RequestPayload,
+        deadline: Instant,
+    ) -> Result<ResponsePayload, AgentError> {
         match payload {
-            RequestPayload::PublicKeys => self.agent.public_keys().map(ResponsePayload::PublicKeys),
+            RequestPayload::PublicKeys => self
+                .agent
+                .public_keys_until(deadline)
+                .map(ResponsePayload::PublicKeys),
             RequestPayload::BeginEncapsulation(request) => {
-                let result = self.agent.begin_encapsulation(request)?;
+                let result = self.agent.begin_encapsulation_until(request, deadline)?;
                 Ok(match result {
                     BeginEncapsulationResult::Initiator(result) => {
                         ResponsePayload::InitiatorEncapsulation {
@@ -652,7 +821,7 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
                 })
             }
             RequestPayload::BeginDecapsulation(request) => {
-                let result = self.agent.begin_decapsulation(request)?;
+                let result = self.agent.begin_decapsulation_until(request, deadline)?;
                 Ok(match result {
                     BeginDecapsulationResult::Initiator(result) => {
                         ResponsePayload::InitiatorDecapsulation {
@@ -669,33 +838,33 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
             }
             RequestPayload::AcceptInitiatorFinished(handle, finished) => self
                 .agent
-                .accept_initiator_finished(handle, finished)
+                .accept_initiator_finished_until(handle, finished, deadline)
                 .map(|result| ResponsePayload::ResponderAccepted {
                     key_handle: result.key_handle,
                     responder_finished: result.responder_finished,
                 }),
             RequestPayload::AcceptResponderFinished(handle, finished) => self
                 .agent
-                .accept_responder_finished(handle, finished)
+                .accept_responder_finished_until(handle, finished, deadline)
                 .map(ResponsePayload::InitiatorAccepted),
             RequestPayload::Cancel(handle) => {
-                self.agent.cancel(handle)?;
+                self.agent.cancel_until(handle, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::DestroyKey(handle) => {
-                self.agent.destroy_key(handle)?;
+                self.agent.destroy_key_until(handle, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Advance(certificate) => {
-                self.agent.apply_advance(&certificate)?;
+                self.agent.apply_advance_until(&certificate, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Reset(certificate) => {
-                self.agent.apply_reset(&certificate)?;
+                self.agent.apply_reset_until(&certificate, deadline)?;
                 Ok(ResponsePayload::Empty)
             }
             RequestPayload::Reconcile => {
-                self.agent.reconcile_transition()?;
+                self.agent.reconcile_transition_until(deadline)?;
                 Ok(ResponsePayload::Empty)
             }
         }
@@ -804,6 +973,7 @@ fn agent_status(error: AgentError) -> u8 {
         AgentError::InstanceLeaseUnavailable => 21,
         AgentError::InstanceLeaseIndeterminate => 22,
         AgentError::InstanceLeaseCoverageElapsed => 23,
+        AgentError::OperationDeadlineExceeded => 24,
         AgentError::InternalPoisoned => 19,
     }
 }
@@ -860,6 +1030,44 @@ where
     Err(IpcError::InvalidConfiguration)
 }
 
+/// The pinned IPC request/response key material `serve_agent` reads and
+/// validates before it acquires the lease.
+///
+/// It holds only what the server keeps -- the client verification key and the
+/// server signing key. The server verification key is read and used to validate
+/// the pair (its direction-isolation probe) inside `read_ipc_server_material`,
+/// which is the one place that check, and the entropy its signature draws, runs;
+/// it is not retained, so building the server from this material draws no
+/// entropy and cannot fail.
+pub(crate) struct IpcServerMaterial {
+    client_verification_key: [u8; ML_DSA_65_VK_LEN],
+    server_signing_key: ZeroizingBytes<ML_DSA_65_SK_LEN>,
+}
+
+/// Read and validate the pinned IPC keys from the protected configuration.
+///
+/// Run before the lease is acquired, so a missing or malformed IPC key -- like
+/// every other configuration fault, and like the entropy the direction-isolation
+/// probe draws -- is refused before this process holds a lease that only its TTL
+/// would then release.
+pub(crate) fn read_ipc_server_material(
+    configuration: &OwnedPrivateDirectory,
+) -> Result<IpcServerMaterial, IpcError> {
+    let client_verification_key = read_array(configuration, "ipc-client-vk.bin")?;
+    let server_signing_key = read_secret(configuration, "ipc-server-sk.bin")?;
+    let server_verification_key = read_array(configuration, "ipc-server-vk.bin")?;
+    validate_ipc_server_material(
+        &client_verification_key,
+        &server_signing_key,
+        &server_verification_key,
+        IPC_IO_TIMEOUT,
+    )?;
+    Ok(IpcServerMaterial {
+        client_verification_key,
+        server_signing_key,
+    })
+}
+
 fn serve_agent(
     socket_path: &Path,
     repository_path: &Path,
@@ -897,6 +1105,40 @@ fn serve_agent(
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
     let config = load_agent_config(&configuration)?;
+    // Read and validate every remaining pinned key BEFORE the lease is acquired.
+    // The acquire is the last fallible step that reads the configuration; the
+    // earlier order acquired first and read these IPC keys afterwards, so a
+    // missing or malformed one exited without releasing the lease it already
+    // held, and the next start had to wait that lease out at its TTL. Reading
+    // them here refuses that fault before any lease exists.
+    let ipc_material = read_ipc_server_material(&configuration)?;
+    acquire_and_serve(
+        listener,
+        ipc_material,
+        repository,
+        witness,
+        authority,
+        config,
+    )
+}
+
+/// Acquire the instance lease, then serve on it and release it.
+///
+/// Split out so the ordering is carried by the signature rather than by
+/// statement order: the acquire happens here, and there is nothing to call this
+/// with until `read_ipc_server_material` has returned validated
+/// [`IpcServerMaterial`]. A refactor cannot hoist the acquire above that read
+/// without first taking the material out of the parameter list, which is the
+/// stranded-lease bug this ordering exists to prevent -- an exit with the lease
+/// still held, which the next start can only wait out at the authority's TTL.
+fn acquire_and_serve(
+    listener: UnixListener,
+    ipc_material: IpcServerMaterial,
+    repository: StateRepository,
+    witness: AuthenticatedTcpWitness,
+    authority: AuthenticatedTcpAuthorityV2,
+    config: AgentConfig,
+) -> Result<(), IpcError> {
     // A predecessor that was killed rather than stopped never released its
     // lease, and the authority lets that lease lapse only at the TTL it
     // granted. Wait that out rather than failing: with `Restart=no` a failure
@@ -913,24 +1155,35 @@ fn serve_agent(
         STARTUP_LEASE_WAIT,
     )
     .map_err(|_| IpcError::InvalidConfiguration)?;
-    let mut server = UnixIpcServer::new(
-        agent,
-        read_array(&configuration, "ipc-client-vk.bin")?,
-        read_secret(&configuration, "ipc-server-sk.bin")?,
-        read_array(&configuration, "ipc-server-vk.bin")?,
-        IPC_IO_TIMEOUT,
-    )?;
-    // Only now is there something to release, so only now are the handlers
-    // installed. A stop that arrives earlier -- during the lease wait above in
-    // particular, which can last minutes -- keeps the default disposition and
-    // ends the process at once, holding no lease. Latching it instead would
-    // have the daemon sit out the whole wait and only then exit, which is
-    // longer than the service manager's stop timeout. One that lands between
-    // the acquire above and this install ends the process holding the lease
-    // with no release, and the next start waits that lease out. From here on
-    // the orderly stop and a fatal listener error alike attempt the release;
-    // a poisoned agent refuses it, and the lease lapses at its TTL instead.
-    let shutdown = install_termination_handlers().map_err(|_| IpcError::Unavailable)?;
+    // The lease is held from here. Install the termination handlers only now: a
+    // stop that arrives earlier -- during the lease wait above in particular,
+    // which can last minutes -- keeps the default disposition and ends the
+    // process at once, holding no lease. Latching it instead would have the
+    // daemon sit out the whole wait and only then exit, which is longer than the
+    // service manager's stop timeout. If installing them fails, hand the lease
+    // back rather than exit still holding it and make the next start wait it out;
+    // this is the only fallible step left between the acquire and the release,
+    // because the IPC material arrived here already validated and the server is
+    // built from it below without re-validating -- so nothing after this draws
+    // entropy or can otherwise fail and drop the agent with the lease unreleased.
+    let shutdown = match install_termination_handlers() {
+        Ok(shutdown) => shutdown,
+        Err(_) => {
+            let _ = agent.release_instance_lease();
+            return Err(IpcError::Unavailable);
+        }
+    };
+    // From here on the orderly stop and a fatal listener error alike attempt the
+    // release; one the authority does not confirm -- a poisoned agent refuses it
+    // outright -- leaves the lease to lapse at its TTL instead, and an orderly
+    // stop reports that by exiting 1, as it does a release that settled but whose
+    // durable bookkeeping failed. A stop that lands during a request is observed
+    // once that request is answered or refused, which `IPC_REQUEST_DEADLINE` bounds
+    // by admission rather than by wall clock (see the constant); the
+    // erase that follows costs one durable commit per pending session
+    // (`LEASE_ERASE_BOUND`) and the release then runs under `LEASE_RELEASE_BUDGET`.
+    // The service managers' stop timeouts cover all three.
+    let mut server = UnixIpcServer::from_validated_material(agent, ipc_material, IPC_IO_TIMEOUT);
     server.serve_and_release(listener, shutdown)
 }
 
@@ -1165,8 +1418,12 @@ fn map_authentication(error: AuthenticationError) -> IpcError {
 mod tests {
     use std::io::Cursor;
 
+    use q_periapt_backends::MlDsa65;
+
     use super::*;
     use crate::codec::read_frame;
+    use crate::repository::DURABLE_COMMIT_RESERVE;
+    use crate::witness::WitnessPort;
 
     fn deploy_file(name: &str) -> String {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1214,6 +1471,44 @@ mod tests {
             .filter_map(|line| line.strip_prefix("<string>")?.strip_suffix("</string>"))
             .collect()
     }
+
+    /// The release erases every in-process secret before it dispatches anything,
+    /// and each pending session costs one durable `cancel_session`: a
+    /// `Durability::Immediate` two-phase commit, two fsyncs. Nothing may be
+    /// skipped -- every secret must go -- so the erase is bounded by the store's
+    /// commit latency and not by any deadline this code holds, which is why
+    /// `release_instance_lease_within` gives the release its budget afresh
+    /// afterwards rather than charging the erase to it.
+    ///
+    /// This is the term the service managers' stop timeouts have to carry for it.
+    /// At most `HARD_MAX_SESSIONS` (1024) sessions are pending, and a durable
+    /// cancellation measured about 9 ms on APFS/SSD with the pinned redb, so the
+    /// hard maximum is a little under 10 seconds; 20 leaves roughly twice that
+    /// for a slower store. The arithmetic the shipped templates must satisfy is
+    /// `MAINTENANCE_INTERVAL + IPC_REQUEST_DEADLINE + LEASE_ERASE_BOUND +
+    /// LEASE_RELEASE_BUDGET` = 87 seconds, which
+    /// `the_deployment_templates_agree_with_this_code` holds them to.
+    const LEASE_ERASE_BOUND: Duration = Duration::from_secs(20);
+    /// The stop timeout both deployment templates declare: systemd
+    /// `TimeoutStopSec=` and launchd `ExitTimeOut`. Neither manager's default can
+    /// be relied on -- launchd's is 20 seconds, and systemd's 90 is
+    /// `DefaultTimeoutStopSec=` in the host's `system.conf`, which a distribution
+    /// or a hardening baseline may have lowered -- so both templates write it out
+    /// and `the_deployment_templates_agree_with_this_code` holds them to this
+    /// value.
+    const SERVICE_MANAGER_STOP_TIMEOUT: Duration = Duration::from_secs(90);
+    // A stop is observed within one maintenance interval when the daemon is idle,
+    // or once the request in flight has been answered or refused; the erase that
+    // follows is charged to no deadline at all; and the release then runs under
+    // its own budget. A stop timeout that does not exceed the sum has the daemon
+    // killed mid-release, leaving the lease to lapse at its TTL.
+    const _: () = assert!(
+        SERVICE_MANAGER_STOP_TIMEOUT.as_secs()
+            > MAINTENANCE_INTERVAL.as_secs()
+                + IPC_REQUEST_DEADLINE.as_secs()
+                + LEASE_ERASE_BOUND.as_secs()
+                + LEASE_RELEASE_BUDGET.as_secs()
+    );
 
     /// The shipped templates encode contracts this code enforces, and nothing
     /// else checked them. Two defects reached this branch that way: endpoints
@@ -1368,11 +1663,21 @@ mod tests {
             );
         }
         let ancestors_verified = script
-            .find("verify_ancestor \"$ancestor\"")
+            .find("verify_ancestor_traversable \"$ancestor\"")
             .expect("the script must verify every ancestor of RUN_DIR");
+        // %Mp%Lp is four digits: the setuid/setgid/sticky digit, then owner,
+        // group and other. Group and other may be 0, 1, 4 or 5 -- anything
+        // without the write bit -- and every ancestor below / must also carry
+        // other-execute, so its digit is 1 or 5: a root-owned directory
+        // nobody can write but nobody can traverse either is unreachable for
+        // the transport group and for the daemon account alike.
         assert!(
             script.contains("Directory:root:[0-7][0-7][0145][0145])"),
             "the ancestor check must accept only a root-owned directory without group or other write"
+        );
+        assert!(
+            script.contains("Directory:root:[0-7][0-7][0145][15])"),
+            "every ancestor below / must also be traversable by other"
         );
         let inspected = script
             .find("if [ -L \"$RUN_DIR\" ]")
@@ -1424,6 +1729,103 @@ mod tests {
             "the script must bootstrap the agent only after the directory verified"
         );
 
+        // stat has no ACL format on macOS and chmod 0710 removes no ACL
+        // entry, so type, owner, group and mode alone accept a directory whose
+        // ACL grants what its mode denies -- and a socket bound inside such a
+        // directory inherits its inheritable entries, which would defeat the
+        // plist's SockPathMode the same way. The script has to read ls -e's
+        // entry lines, on every ancestor and on the directory itself, and to
+        // strip the directory's ACL between the chown and the verification.
+        assert!(
+            script.contains("ls -lde -- \"$1\""),
+            "stat has no ACL format on macOS; the check must read ls -e entries"
+        );
+        // Reading the entries is only half of it: the check has to refuse on
+        // them. `the_run_directory_job_refuses_the_acl_stat_cannot_see` runs
+        // the shipped text against real ACLs, but it is macOS-only and CI runs
+        // this crate's tests on Linux alone, so a `verify_no_acl` that never
+        // exits non-zero would pass every gate a contributor sees. These pin
+        // the exit path textually, on the function's own body rather than on
+        // the whole script, so a `fail` somewhere else cannot satisfy them.
+        let acl_check = script
+            .find("verify_no_acl() {")
+            .expect("the script must define verify_no_acl");
+        let acl_body = script
+            .get(acl_check..)
+            .and_then(|rest| rest.find("\n}\n").and_then(|end| rest.get(..end)))
+            .expect("verify_no_acl must close");
+        assert!(
+            acl_body.contains("case \"$listing\" in") && acl_body.contains("*\"$NL\"*)"),
+            "an entry line after the listing is the discriminator: {acl_body}"
+        );
+        let arm = acl_body
+            .find("*\"$NL\"*)")
+            .expect("verify_no_acl must match the entry-line shape");
+        let arm_body = acl_body
+            .get(arm..)
+            .and_then(|rest| rest.find(";;").and_then(|end| rest.get(..end)))
+            .expect("the entry-line arm must close");
+        assert!(
+            arm_body.contains("fail \"$1 carries an ACL"),
+            "verify_no_acl must refuse on an ACL entry line: a socket bound in an \
+             ACL-bearing directory inherits entries that defeat SockPathMode"
+        );
+        assert!(
+            acl_body.contains("fail \"could not list $1\""),
+            "a listing that cannot be read is a refusal too, not a pass"
+        );
+        assert_eq!(
+            acl_body.matches("fail ").count(),
+            2,
+            "verify_no_acl refuses on exactly two conditions, the unreadable \
+             listing and the ACL entry: {acl_body}"
+        );
+        assert!(
+            !acl_body.contains("return") && !acl_body.contains("exit "),
+            "verify_no_acl must leave only through fail: an early success would \
+             turn the ACL arm into a no-op: {acl_body}"
+        );
+        let ancestor_check = script
+            .find("verify_ancestor() {")
+            .expect("the script must define verify_ancestor");
+        let ancestor_check_end = script
+            .get(ancestor_check..)
+            .and_then(|body| body.find("\n}\n"))
+            .map(|end| ancestor_check + end)
+            .expect("verify_ancestor must close");
+        let ancestor_acl = script
+            .find("verify_no_acl \"$1\"")
+            .expect("the script must check every ancestor for an ACL");
+        assert!(
+            ancestor_check < ancestor_acl && ancestor_acl < ancestor_check_end,
+            "every ancestor must be refused on an ACL: verify_no_acl belongs inside verify_ancestor"
+        );
+        let owned = script
+            .find("chown -h \"$RUN_DIR_OWNER:$RUN_DIR_GROUP\"")
+            .expect("the script must chown the run directory");
+        let stripped = script
+            .find("chmod -h -N \"$RUN_DIR\"")
+            .expect("the script must remove any ACL from the run directory");
+        assert!(
+            owned < stripped && stripped < verified,
+            "the run directory's ACL must be removed after the chown and before the verification"
+        );
+        let mode_verified = script
+            .find("stat -f '%HT:%Su:%Sg:%Mp%Lp' \"$RUN_DIR\"")
+            .expect("the script must verify the run directory's type, owner, group and mode");
+        let acl_verified = script
+            .find("verify_no_acl \"$RUN_DIR\"")
+            .expect("the script must verify the run directory carries no ACL");
+        assert!(
+            mode_verified < acl_verified && acl_verified < verified,
+            "the run directory must be verified ACL-free after the stat and before it counts as verified"
+        );
+        let deploy_readme = deploy_file("README.md");
+        assert!(
+            deploy_readme.contains("ls -lde") && deploy_readme.contains("chmod -N"),
+            "the deploy README must document the ACL check and the strip the script performs"
+        );
+
         // The job that runs the script must run the shipped script through
         // /bin/sh (it is installed 0644, with no execute bit), at boot, once,
         // as root, and the script's install instructions must name the path
@@ -1456,6 +1858,22 @@ mod tests {
             script.contains(script_path),
             "the script must document the path the plist runs it from ({script_path})"
         );
+        // BSD `install -d` applies -m to the named leaves only; an
+        // intermediate is created at the operator's umask. So the install
+        // instructions have to name /opt/qperiapt on a line of its own, at
+        // the shipped mode, before the line that creates anything under it --
+        // or an operator at umask 027 is left with a 0750 /opt/qperiapt that
+        // the ancestor check refuses as untraversable.
+        let tree_parent = rundir
+            .find("install -d -o root -g wheel -m 0755 /opt/qperiapt\n")
+            .expect("the install instructions must create /opt/qperiapt explicitly, at 0755");
+        let tree_children = rundir
+            .find("/opt/qperiapt/libexec")
+            .expect("the install instructions must create /opt/qperiapt/libexec");
+        assert!(
+            tree_parent < tree_children,
+            "/opt/qperiapt must be created before anything under it, or it keeps the umask's mode"
+        );
         assert_eq!(
             plist_value(&rundir, "RunAtLoad"),
             "<true/>",
@@ -1475,21 +1893,338 @@ mod tests {
             "the script's re-run instructions must name the job's own label"
         );
 
-        // launchd's default ExitTimeOut is 20 seconds. A stop is observed
-        // within one maintenance interval, and the lease release that follows
-        // is up to four bounded authority round trips -- drain, release, and
-        // two reconciling queries -- so against an authority that accepts the
-        // connection and never answers the default is exactly where the
-        // daemon would be killed mid-release.
+        // Neither manager's default stop timeout can be relied on, so both
+        // templates pin their own. A stop that lands during a request is
+        // observed once that request is answered or refused -- bounded by
+        // IPC_REQUEST_DEADLINE through admission, not measured -- or within one
+        // maintenance interval when the daemon is idle; the erase that follows
+        // costs one durable commit per pending session (LEASE_ERASE_BOUND), and
+        // the release after it runs under LEASE_RELEASE_BUDGET. That is
+        // 1 + 36 + 20 + 30 = 87 seconds of budgeted terms, past launchd's
+        // 20-second default and past the 60 the plist used to give. systemd's
+        // 90 is DefaultTimeoutStopSec= in the host's system.conf, which a host
+        // may have lowered, so the unit writes the value out rather than
+        // inheriting it.
+        let pinned = SERVICE_MANAGER_STOP_TIMEOUT.as_secs();
         assert_eq!(
             plist_value(&plist, "ExitTimeOut"),
-            "<integer>60</integer>",
-            "the agent plist must give the lease release longer than launchd's 20-second default"
+            format!("<integer>{pinned}</integer>"),
+            "the agent plist must give a stop that lands during a request room to finish"
+        );
+        let stop_timeout = service
+            .lines()
+            .find_map(|line| line.strip_prefix("TimeoutStopSec="))
+            .expect(
+                "the unit must pin its own TimeoutStopSec rather than inherit the host's \
+                 DefaultTimeoutStopSec",
+            );
+        let seconds: u64 = stop_timeout
+            .parse()
+            .expect("the unit's stop timeout must be a bare integer of seconds");
+        assert_eq!(
+            seconds, pinned,
+            "the unit's stop timeout must be the same {pinned} seconds the plist gives"
         );
         assert!(
-            Duration::from_secs(60) > MAINTENANCE_INTERVAL + 4 * AUTHORITY_IO_TIMEOUT,
-            "ExitTimeOut must cover observing the stop plus four authority round trips"
+            Duration::from_secs(seconds)
+                > MAINTENANCE_INTERVAL
+                    + IPC_REQUEST_DEADLINE
+                    + LEASE_ERASE_BOUND
+                    + LEASE_RELEASE_BUDGET,
+            "the stop timeout must cover observing the stop after a request, the erase of \
+             every pending session, and the release budget"
         );
+    }
+
+    /// The shipped ACL check, run as shipped: the `verify_no_acl` text is cut
+    /// out of the script and executed under `/bin/sh` against real ACLs on
+    /// real directories. Every setup step is asserted, never skipped -- a
+    /// filesystem that cannot hold an ACL is not a reason to pass.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn the_run_directory_job_refuses_the_acl_stat_cannot_see() {
+        use std::path::Path;
+        use std::process::Command;
+
+        let script = deploy_file("qperiapt-agent-rundir.sh");
+        let start = script
+            .find("NL=$(printf")
+            .expect("the script must define its newline constant");
+        let check = script
+            .get(start..)
+            .and_then(|rest| {
+                let end = rest.find("\n}\n")?;
+                rest.get(..end + 3)
+            })
+            .expect("the newline constant must be followed by a closed function");
+        assert!(
+            check.contains("verify_no_acl() {"),
+            "the first function after the newline constant must be verify_no_acl: {check}"
+        );
+        let harness = format!(
+            "set -eu\nPATH=/usr/bin:/bin:/usr/sbin:/sbin\nexport PATH\nAGENT_LABEL=test\n\
+             fail() {{ printf '%s\\n' \"$1\" >&2; exit 1; }}\n{check}\nverify_no_acl \"$1\"\n"
+        );
+        let root = tempfile::Builder::new()
+            .prefix("qperiapt-rundir-acl-")
+            .tempdir()
+            .expect("a temporary directory for the ACL cases");
+        let harness_path = root.path().join("harness.sh");
+        std::fs::write(&harness_path, harness).expect("the harness must be writable");
+
+        let run = |program: &str, arguments: &[&str]| -> String {
+            let output = Command::new(program)
+                .args(arguments)
+                .current_dir(root.path())
+                .output()
+                .unwrap_or_else(|error| unreachable!("{program} must run: {error}"));
+            assert!(
+                output.status.success(),
+                "{program} {arguments:?} failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8_lossy(&output.stdout).into_owned()
+        };
+        let verify = |path: &Path| -> (bool, String) {
+            let output = Command::new("/bin/sh")
+                .arg(&harness_path)
+                .arg(path)
+                .output()
+                .expect("/bin/sh must run the harness");
+            (
+                output.status.success(),
+                String::from_utf8_lossy(&output.stderr).into_owned(),
+            )
+        };
+
+        // A plain 0710 directory is accepted.
+        let plain = root.path().join("plain");
+        run("/bin/mkdir", &["plain"]);
+        run("/bin/chmod", &["0710", "plain"]);
+        assert!(verify(&plain).0, "a plain 0710 directory must pass");
+
+        // The counterexample: an ACL granting everyone write and search that
+        // the stat format the script relies on for owner and mode cannot see.
+        let acl = root.path().join("acl");
+        run("/bin/mkdir", &["acl"]);
+        run(
+            "/bin/chmod",
+            &[
+                "+a",
+                "everyone allow list,add_file,search,add_subdirectory,delete_child",
+                "acl",
+            ],
+        );
+        run("/bin/chmod", &["0710", "acl"]);
+        let stat = run("/usr/bin/stat", &["-f", "%HT:%Su:%Sg:%Mp%Lp", "acl"]);
+        assert!(
+            stat.trim_end().ends_with(":0710"),
+            "the stat format reports the mode as if nothing were wrong: {stat}"
+        );
+        let (accepted, stderr) = verify(&acl);
+        assert!(
+            !accepted,
+            "an ACL that grants what 0710 denies must be refused"
+        );
+        assert!(
+            stderr.contains("carries an ACL") && stderr.contains(" 0: "),
+            "the refusal must name the ACL and print its entries: {stderr}"
+        );
+
+        // A deny-only entry grants nothing -- Apple's own protective ACE is
+        // exactly this -- and is refused like any other entry, because the
+        // check reads entry lines and cannot tell one kind from the other.
+        // The refusal must say so rather than tell the operator that
+        // something granted access past 0710.
+        let deny = root.path().join("deny");
+        run("/bin/mkdir", &["deny"]);
+        run("/bin/chmod", &["+a", "group:everyone deny delete", "deny"]);
+        run("/bin/chmod", &["0710", "deny"]);
+        let (accepted, stderr) = verify(&deny);
+        assert!(!accepted, "a deny-only entry must be refused too: {stderr}");
+        assert!(
+            stderr.contains("carries an ACL") && stderr.contains(" 0: "),
+            "the refusal must name the ACL and print its entries: {stderr}"
+        );
+        assert!(
+            stderr.contains("allow or deny"),
+            "the refusal must say an entry of either kind is refused: {stderr}"
+        );
+        assert!(
+            !stderr.contains("which grants what its mode denies"),
+            "a deny entry grants nothing; the refusal must not claim it does: {stderr}"
+        );
+
+        // With an extended attribute beside the ACL the mode field ends in
+        // '@', not '+', which is why the check counts ls -e's lines instead.
+        run("/usr/bin/xattr", &["-w", "com.qperiapt.test", "x", "acl"]);
+        let listing = run("/bin/ls", &["-ld", "acl"]);
+        let mode_field = listing.split_whitespace().next().unwrap_or_default();
+        assert!(
+            mode_field.ends_with('@'),
+            "an extended attribute hides the ACL marker in the mode field: {listing}"
+        );
+        let (accepted, stderr) = verify(&acl);
+        assert!(
+            !accepted && stderr.contains("carries an ACL"),
+            "the ACL must still be refused behind the extended attribute: {stderr}"
+        );
+
+        // An inheritable entry on a parent lands on a child that plain mkdir
+        // creates, exactly as the script's own mkdir would; the parent is
+        // refused as an ancestor and the child until its entry is removed.
+        let parent = root.path().join("parent");
+        let child = parent.join("child");
+        run("/bin/mkdir", &["parent"]);
+        run(
+            "/bin/chmod",
+            &[
+                "+a",
+                "everyone allow search,file_inherit,directory_inherit",
+                "parent",
+            ],
+        );
+        run("/bin/mkdir", &["parent/child"]);
+        run("/bin/chmod", &["0710", "parent/child"]);
+        let (accepted, stderr) = verify(&child);
+        assert!(
+            !accepted && stderr.contains("inherited"),
+            "a child must be refused on the entry it inherited: {stderr}"
+        );
+        assert!(
+            !verify(&parent).0,
+            "the parent carrying the inheritable entry must be refused"
+        );
+        run("/bin/chmod", &["-h", "-N", "parent/child"]);
+        assert!(
+            verify(&child).0,
+            "the child must pass once its inherited entry is removed"
+        );
+        assert!(
+            !verify(&parent).0,
+            "removing the child's entry leaves the parent refused"
+        );
+
+        // The strip the script applies to the run directory removes the
+        // counterexample's ACL; the extended attribute stays and does not
+        // matter.
+        run("/bin/chmod", &["-h", "-N", "acl"]);
+        let (accepted, stderr) = verify(&acl);
+        assert!(
+            accepted,
+            "chmod -N must leave a directory the check accepts: {stderr}"
+        );
+    }
+
+    #[test]
+    fn the_request_deadline_covers_the_minimum_guarded_plan() {
+        // The request deadline has to admit the least plan of every guarded
+        // command after a full read phase and before a full write phase, or
+        // a healthy request against slow-but-answering ports would be refused
+        // with status 24 as a matter of course.
+        // Every least plan carries the renew's own lease-intent journal
+        // commit: `lease_exchange` admits that commit together with the
+        // dispatch it precedes, so the deadline has to cover both.
+        assert!(
+            IPC_REQUEST_DEADLINE
+                >= IPC_IO_TIMEOUT
+                    + 3 * AUTHORITY_IO_TIMEOUT
+                    + WITNESS_IO_TIMEOUT
+                    + DURABLE_COMMIT_RESERVE
+                    + IPC_IO_TIMEOUT,
+            "the request deadline must cover Begin and Accept: 3 authority + 1 witness round \
+             trips and the renew's journal commit"
+        );
+        assert!(
+            IPC_REQUEST_DEADLINE
+                >= IPC_IO_TIMEOUT
+                    + 2 * AUTHORITY_IO_TIMEOUT
+                    + 2 * WITNESS_IO_TIMEOUT
+                    + DURABLE_COMMIT_RESERVE
+                    + IPC_IO_TIMEOUT,
+            "the request deadline must cover Reconcile: 2 authority + 2 witness round trips and \
+             the renew's journal commit"
+        );
+        // The slack over the largest least plan is exactly one authority round
+        // trip: 36 - (5 read + 3*5 authority + 5 witness + 1 journal commit +
+        // 5 write) = 5. That covers one reconciling query, not a renew retry,
+        // which costs two -- the resync snapshot in `lease_exchange` plus the
+        // re-dispatched renew.
+        assert_eq!(
+            IPC_REQUEST_DEADLINE
+                - (IPC_IO_TIMEOUT
+                    + 3 * AUTHORITY_IO_TIMEOUT
+                    + WITNESS_IO_TIMEOUT
+                    + DURABLE_COMMIT_RESERVE
+                    + IPC_IO_TIMEOUT),
+            AUTHORITY_IO_TIMEOUT,
+            "the request deadline's slack is one authority round trip, not a renew retry's two"
+        );
+        // A transition's least plan is one authority round trip smaller than
+        // Begin and Accept's, and it spends part of that difference on the
+        // second commit it cannot abandon: the intent it writes between its
+        // last admission and the witness CAS. Its envelope, with the
+        // reconciling query's slack intact, is 5 + 10 + 5 + 2 + 5 + 5 = 32.
+        assert!(
+            IPC_REQUEST_DEADLINE
+                >= IPC_IO_TIMEOUT
+                    + 2 * AUTHORITY_IO_TIMEOUT
+                    + WITNESS_IO_TIMEOUT
+                    + 2 * DURABLE_COMMIT_RESERVE
+                    + AUTHORITY_IO_TIMEOUT
+                    + IPC_IO_TIMEOUT,
+            "the request deadline must cover Advance and Reset: the lease work, the durable \
+             intent and the CAS, with the reconciling query's slack left over"
+        );
+        // Admission is strict, so five round trips need strictly more than
+        // five timeouts, and the release dispatch among them is admitted with
+        // its journal commit.
+        assert!(
+            LEASE_RELEASE_BUDGET > 5 * AUTHORITY_IO_TIMEOUT + DURABLE_COMMIT_RESERVE,
+            "the release budget must admit five bounded authority round trips and the release \
+             dispatch's journal commit"
+        );
+    }
+
+    #[test]
+    fn the_port_round_trip_bounds_are_the_transport_deadlines(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // The agent admits a port call only while at least `round_trip_bound`
+        // of its deadline remains, so each bound must be the very deadline
+        // the transport gives one exchange: the timeout `serve_agent` builds
+        // that client with.
+        let address = SocketAddr::from(([127, 0, 0, 1], 1));
+        let (witness_client_sk, _) = MlDsa65::generate([0x71u8; 32]);
+        let (_, witness_server_vk) = MlDsa65::generate([0x72u8; 32]);
+        let witness = AuthenticatedTcpWitness::new(
+            address,
+            ZeroizingBytes::from_bytes(witness_client_sk),
+            witness_server_vk,
+            WITNESS_IO_TIMEOUT,
+        )?;
+        assert_eq!(witness.round_trip_bound(), WITNESS_IO_TIMEOUT);
+
+        let (authority_client_sk, _) = MlDsa65::generate([0x73u8; 32]);
+        let (_, authority_server_vk) = MlDsa65::generate([0x74u8; 32]);
+        let identity = AuthorityWireIdentityV2::new(
+            AuthorityClientIdV2::from_bytes([0x11; 32])?,
+            AuthorityServerIdV2::from_bytes([0x12; 32])?,
+            AuthorityEpochV2::from_bytes([0x13; 32])?,
+            StateHeadV2::new(
+                StateRevisionV2::new(1, [0x21; 32], 1, [0x22; 32])?,
+                StateFenceV2::from_bytes([0x23; 32])?,
+            ),
+            DeploymentConfigRevisionV2::new(1, [0x31; 32])?,
+        )?;
+        let authority = AuthenticatedTcpAuthorityV2::new(
+            address,
+            identity,
+            ZeroizingBytes::from_bytes(authority_client_sk),
+            authority_server_vk,
+            AUTHORITY_IO_TIMEOUT,
+        )?;
+        assert_eq!(authority.round_trip_bound(), AUTHORITY_IO_TIMEOUT);
+        Ok(())
     }
 
     #[test]
@@ -1737,6 +2472,7 @@ mod tests {
         assert_eq!(agent_status(AgentError::FinishedRejected), 15);
         assert_eq!(agent_status(AgentError::LocalResourceFailure), 16);
         assert_eq!(agent_status(AgentError::LocalCryptoFailure), 17);
+        assert_eq!(agent_status(AgentError::OperationDeadlineExceeded), 24);
     }
 
     #[test]

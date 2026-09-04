@@ -30,6 +30,21 @@ class ProofToByteInputsError(ValueError):
     """The declared proof-input map or one selected source file is invalid."""
 
 
+# Every site that asserts this map's size rather than deriving it, to be moved
+# in the same commit that adds or removes a key (on an open line the new key
+# also joins INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, so the installed
+# 190-key baseline is untouched):
+#   * artifact/source_results_assembler.py -- the readiness check, the gate
+#     markers, the reopen transform, and the docstrings that name the total;
+#   * .github/workflows/ci.yml -- both expected marker strings -- and their
+#     audited copy in artifact/test_proof_to_byte_release.py;
+#   * artifact/test_proof_to_byte_inputs.py and
+#     artifact/test_source_results_assembler.py -- the unit tests;
+#   * ARTIFACT.md and artifact/stable-release-notes.md -- the prose that names
+#     the installed map, both pinned by unit tests.
+# A tracked Rust source is also counted by
+# artifact/codeql_rust_quality.py's EXPECTED_TRACKED_RUST_SOURCE_COUNT, which
+# ARTIFACT.md states and artifact/test_codeql_rust_quality.py pins.
 PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "contextbound_vectors_sha256": "bindings/contextbound-vectors.txt",
     "shared_vectors_sha256": "bindings/shared-test-vectors.json",
@@ -160,6 +175,8 @@ PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "migration_agent_tests_session_sha256": "services/q-periapt-policy-agent/src/tests/session.rs",
     "migration_agent_tests_transition_sha256": "services/q-periapt-policy-agent/src/tests/transition.rs",
     "migration_agent_tests_witness_protocol_sha256": "services/q-periapt-policy-agent/src/tests/witness_protocol.rs",
+    "migration_agent_service_lease_sha256": "services/q-periapt-policy-agent/src/service/lease.rs",
+    "migration_agent_tests_lease_journal_sha256": "services/q-periapt-policy-agent/src/tests/lease_journal.rs",
     "hqc_candidate_readme_sha256": "research/hqc-fips207-candidate/README.md",
     "hqc_candidate_manifest_sha256": "research/hqc-fips207-candidate/Cargo.toml",
     "hqc_candidate_lock_sha256": "research/hqc-fips207-candidate/Cargo.lock",

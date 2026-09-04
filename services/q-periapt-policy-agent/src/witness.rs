@@ -312,6 +312,13 @@ pub trait WitnessPort: Send + Sync {
 
     /// Query the same unpredictable operation identifier after an unknown result.
     fn query(&self, operation_id: OperationId) -> Result<WitnessOutcome, WitnessError>;
+
+    /// Upper bound on how long one call on this port blocks.
+    ///
+    /// The agent admits a call only if at least this much of its operation
+    /// deadline remains, so an admitted call always ends before the deadline.
+    /// There is deliberately no default: a guessed bound would fail open.
+    fn round_trip_bound(&self) -> Duration;
 }
 
 struct Request {
@@ -606,6 +613,13 @@ impl WitnessPort for AuthenticatedTcpWitness {
             Err(WitnessError::Unavailable) => Ok(WitnessOutcome::Unknown),
             Err(error) => Err(error),
         }
+    }
+
+    fn round_trip_bound(&self) -> Duration {
+        // `exchange` derives one absolute deadline of exactly this much for
+        // the connect and the whole framed exchange, so the bound is truthful
+        // by construction.
+        self.timeout
     }
 }
 

@@ -18,8 +18,10 @@
   process could rename a verified directory away and put its own, or a
   symlink, under launchd's bind. The socket therefore lives under the
   root-owned /opt/qperiapt/run instead. That job verifies every ancestor of
-  the parent from / down, creates or adopts and verifies the parent itself,
-  and only then runs launchctl bootstrap system on this file. Loaded from
+  the parent from / down -- a root-owned directory nobody else can write,
+  carrying no ACL -- creates or adopts the parent itself, strips any ACL from
+  it and verifies it at 0710 with no ACL, and only then runs launchctl
+  bootstrap system on this file. Loaded from
   /Library/LaunchDaemons instead, this plist runs unordered against that job
   and can bind its socket before the boundary has been verified.
 
@@ -88,7 +90,11 @@
       daemon account with the transport group, so only that group can traverse to
       the socket at all -- and every ancestor of that directory is a root-owned
       directory nobody else can write, so no other account can rename it out
-      from under the path launchd binds.
+      from under the path launchd binds. The run-directory job verifies that
+      ancestry and the parent itself ACL-free as well as at those modes: a
+      socket node inherits inheritable ACL entries from its directory when
+      launchd binds it, so the parent being ACL-free at bootstrap is what keeps
+      SockPathMode the socket's whole permission.
     -->
     <key>Sockets</key>
     <dict>
@@ -138,17 +144,28 @@
     <false/>
     <!--
       How long launchd waits after SIGTERM before it sends SIGKILL. launchd's
-      default is 20 seconds. The daemon observes the stop within one
-      maintenance interval (one second), erases its in-process secrets, and
-      releases the instance lease, and that release is a handful of bounded
-      authority round trips of at most 5 seconds each -- up to four against
-      an authority that accepts the connection and never answers, so about 20
-      seconds worst case, right at the default. A SIGKILL there costs only a
+      default is 20 seconds. A stop that lands while a request is in flight
+      is observed once that request has been answered or refused -- every
+      request admits its waits against one end-to-end deadline of 36 seconds,
+      with the durable commits in between covered by a one-second reserve
+      rather than measured -- or within one maintenance interval (one second)
+      when the daemon is idle. The daemon then erases its in-process secrets
+      -- one durable two-phase commit per pending session, up to 1024 of them,
+      which nothing may skip and no deadline bounds, budgeted separately at 20
+      seconds -- and only then releases the instance lease, under a 30-second
+      budget of its own: up to six bounded authority round trips of at most 5
+      seconds each against an authority that accepts the connection and never
+      answers, each admitted only while it can still end within that budget.
+      That is 87 seconds, a sum of budgeted terms and not a measured wall
+      clock, and past the default; a store whose commits run slower than their
+      reserve can exceed it. A SIGKILL there costs only a
       redb recovery at the next open, and the lease lapses at its TTL exactly
-      as after a crash; 60 gives the release room to finish instead.
+      as after a crash; 90 -- the same value the systemd unit pins with
+      TimeoutStopSec= -- gives the erase and the release room to finish
+      instead.
     -->
     <key>ExitTimeOut</key>
-    <integer>60</integer>
+    <integer>90</integer>
     <key>ProcessType</key>
     <string>Background</string>
 </dict>
