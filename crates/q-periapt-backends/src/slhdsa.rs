@@ -59,104 +59,117 @@ impl CryptoRng for CallerAddrnd<'_> {}
 ///
 /// One invocation declares them all, so a parameter set added to it lands in
 /// [`SLH_DSA_BACKEND_ALGORITHMS`] from the same `$alg` expression its
-/// `Signer::algorithm` returns. The per-backend expansion is the private `@one`
-/// rule rather than a macro of its own, so there is no second entry point that
-/// declares a backend without adding it to the registry.
+/// `Signer::algorithm` returns. The macro has exactly one rule — the per-backend
+/// expansion is inlined into that rule's repetition rather than reachable as a
+/// second rule or a macro of its own — so no invocation can declare a backend
+/// without also expanding the registry, and the registry it expands is anchored
+/// by [`crate::SlhDsaBackendRegistry`] so that a second invocation anywhere in
+/// this crate fails to compile instead of registering elsewhere.
 macro_rules! slhdsa_backends {
-    (@one $name:ident, $m:ident, $alg:expr, $doc:expr) => {
-        #[doc = $doc]
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct $name;
-
-        impl $name {
-            /// Signing-key length, bytes.
-            pub const SK_LEN: usize = fips205::$m::SK_LEN;
-            /// Verifying-key length, bytes.
-            pub const VK_LEN: usize = fips205::$m::PK_LEN;
-            /// Signature length, bytes.
-            pub const SIG_LEN: usize = fips205::$m::SIG_LEN;
-            /// Hedged-signing additional-randomness (`addrnd`) length, bytes
-            /// (FIPS 205 `n`).
-            pub const SIGN_RAND_LEN: usize = fips205::$m::N;
-
-            /// Generate a key pair from the OS CSPRNG (NON-deterministic; unlike
-            /// the seed-based ML-KEM/ML-DSA generators). Returns `(signing_key,
-            /// verifying_key)`.
-            pub fn generate(
-            ) -> Result<([u8; fips205::$m::SK_LEN], [u8; fips205::$m::PK_LEN]), Error> {
-                let (vk, sk) = fips205::$m::try_keygen().map_err(|_| Error::Backend)?;
-                Ok((sk.into_bytes(), vk.into_bytes()))
-            }
-        }
-
-        impl Signer for $name {
-            fn algorithm(&self) -> SigAlg {
-                $alg
-            }
-
-            fn sign(
-                &self,
-                sk: &[u8],
-                msg: &[u8],
-                randomness: &[u8],
-                out_sig: &mut [u8],
-            ) -> Result<usize, Error> {
-                let sk = crate::to_zeroizing::<{ fips205::$m::SK_LEN }>(sk)?;
-                let key = fips205::$m::PrivateKey::try_from_bytes(sk.as_bytes())
-                    .map_err(|_| Error::Backend)?;
-                // ctx = empty. All-zero randomness selects deterministic
-                // (non-hedged, KAT-reproducible) signing; anything else must be
-                // an exact n-byte addrnd and selects hedged signing with that
-                // value — a hedged request is never silently dropped.
-                let sig = if randomness.iter().any(|&byte| byte != 0) {
-                    if randomness.len() != Self::SIGN_RAND_LEN {
-                        return Err(Error::InvalidLength);
-                    }
-                    let mut addrnd = CallerAddrnd {
-                        addrnd: randomness,
-                        spent: false,
-                    };
-                    key.try_sign_with_rng(&mut addrnd, msg, b"", true)
-                } else {
-                    key.try_sign(msg, b"", false)
-                }
-                .map_err(|_| Error::Backend)?;
-                crate::write_exact(out_sig, &sig)?;
-                Ok(out_sig.len())
-            }
-        }
-
-        impl Verifier for $name {
-            fn algorithm(&self) -> SigAlg {
-                $alg
-            }
-
-            fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
-                let pk_arr = crate::to_arr::<{ fips205::$m::PK_LEN }>(pk)?;
-                let sig_arr = crate::to_arr::<{ fips205::$m::SIG_LEN }>(sig)?;
-                let key =
-                    fips205::$m::PublicKey::try_from_bytes(&pk_arr).map_err(|_| Error::Backend)?;
-                if key.verify(msg, &sig_arr, b"") {
-                    Ok(())
-                } else {
-                    Err(Error::Backend)
-                }
-            }
-        }
-    };
     ($( { $name:ident, $m:ident, $alg:expr, $doc:expr } ),+ $(,)?) => {
-        $( slhdsa_backends!(@one $name, $m, $alg, $doc); )+
+        $(
+            #[doc = $doc]
+            #[derive(Clone, Copy, Debug, Default)]
+            pub struct $name;
+
+            impl $name {
+                /// Signing-key length, bytes.
+                pub const SK_LEN: usize = fips205::$m::SK_LEN;
+                /// Verifying-key length, bytes.
+                pub const VK_LEN: usize = fips205::$m::PK_LEN;
+                /// Signature length, bytes.
+                pub const SIG_LEN: usize = fips205::$m::SIG_LEN;
+                /// Hedged-signing additional-randomness (`addrnd`) length, bytes
+                /// (FIPS 205 `n`).
+                pub const SIGN_RAND_LEN: usize = fips205::$m::N;
+
+                /// Generate a key pair from the OS CSPRNG (NON-deterministic; unlike
+                /// the seed-based ML-KEM/ML-DSA generators). Returns `(signing_key,
+                /// verifying_key)`.
+                pub fn generate(
+                ) -> Result<([u8; fips205::$m::SK_LEN], [u8; fips205::$m::PK_LEN]), Error> {
+                    let (vk, sk) = fips205::$m::try_keygen().map_err(|_| Error::Backend)?;
+                    Ok((sk.into_bytes(), vk.into_bytes()))
+                }
+            }
+
+            impl Signer for $name {
+                fn algorithm(&self) -> SigAlg {
+                    $alg
+                }
+
+                fn sign(
+                    &self,
+                    sk: &[u8],
+                    msg: &[u8],
+                    randomness: &[u8],
+                    out_sig: &mut [u8],
+                ) -> Result<usize, Error> {
+                    let sk = crate::to_zeroizing::<{ fips205::$m::SK_LEN }>(sk)?;
+                    let key = fips205::$m::PrivateKey::try_from_bytes(sk.as_bytes())
+                        .map_err(|_| Error::Backend)?;
+                    // ctx = empty. All-zero randomness selects deterministic
+                    // (non-hedged, KAT-reproducible) signing; anything else must be
+                    // an exact n-byte addrnd and selects hedged signing with that
+                    // value — a hedged request is never silently dropped.
+                    let sig = if randomness.iter().any(|&byte| byte != 0) {
+                        if randomness.len() != Self::SIGN_RAND_LEN {
+                            return Err(Error::InvalidLength);
+                        }
+                        let mut addrnd = CallerAddrnd {
+                            addrnd: randomness,
+                            spent: false,
+                        };
+                        key.try_sign_with_rng(&mut addrnd, msg, b"", true)
+                    } else {
+                        key.try_sign(msg, b"", false)
+                    }
+                    .map_err(|_| Error::Backend)?;
+                    crate::write_exact(out_sig, &sig)?;
+                    Ok(out_sig.len())
+                }
+            }
+
+            impl Verifier for $name {
+                fn algorithm(&self) -> SigAlg {
+                    $alg
+                }
+
+                fn verify(&self, pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+                    let pk_arr = crate::to_arr::<{ fips205::$m::PK_LEN }>(pk)?;
+                    let sig_arr = crate::to_arr::<{ fips205::$m::SIG_LEN }>(sig)?;
+                    let key =
+                        fips205::$m::PublicKey::try_from_bytes(&pk_arr).map_err(|_| Error::Backend)?;
+                    if key.verify(msg, &sig_arr, b"") {
+                        Ok(())
+                    } else {
+                        Err(Error::Backend)
+                    }
+                }
+            }
+        )+
+
+        // The crate's one SLH-DSA registry, anchored crate-wide -- see
+        // `crate::MlKemBackendRegistry` for why the const is read back out of a
+        // trait impl instead of being written directly.
+        impl crate::SlhDsaBackendRegistry for () {
+            const ALGORITHMS: &'static [SigAlg] = &[$($alg),+];
+        }
 
         /// The FIPS 205 algorithm of every SLH-DSA backend declared through
         /// `slhdsa_backends!`, in declaration order.
         ///
         /// Generated by the same invocation that defines those backends, from
         /// the same expression each one's `Signer::algorithm` returns, so a
-        /// parameter set added there is in this slice by construction. It
-        /// covers the SLH-DSA family only, and only in a build with the
-        /// `slh-dsa` feature: a signature backend written as a hand-written
-        /// `impl Signer` is not here.
-        pub const SLH_DSA_BACKEND_ALGORITHMS: &[SigAlg] = &[$($alg),+];
+        /// parameter set added there is in this slice by construction. The macro
+        /// has one rule, which always expands this const, and the const reads it
+        /// back from the crate-wide-unique anchor impl above — so this is the
+        /// crate's only SLH-DSA registry, whichever module the invocation is
+        /// written in. It covers the SLH-DSA family only, and only in a build
+        /// with the `slh-dsa` feature: a signature backend written as a
+        /// hand-written `impl Signer` is not here.
+        pub const SLH_DSA_BACKEND_ALGORITHMS: &[SigAlg] =
+            <() as crate::SlhDsaBackendRegistry>::ALGORITHMS;
     };
 }
 
