@@ -752,17 +752,22 @@ service/state/proof gates are in
   SHAKE-256; the SLH-DSA parameter sets appear only under the same
   off-by-default `slh-dsa` feature that compiles them, on crates.io as well as
   here; and a removed or renamed backend is a build failure rather than a stale
-  claim in a released CBOM. What derivation cannot police is the row *set* —
-  nothing enumerates the backends — so `crates/q-periapt-cli/tests/cbom_inventory.rs`
-  re-enumerates them independently and asserts that the CBOM claims exactly those
-  algorithms, that the SLH-DSA rows follow the gate in both directions, that the
+  claim in a released CBOM. The row *set* is checked by
+  `crates/q-periapt-cli/tests/cbom_inventory.rs`, which asserts that the CBOM
+  claims exactly the algorithms the backends report, that no asset is emitted
+  twice, that the SLH-DSA rows follow the gate in both directions, that the
   signature layer and the policy layer state the same levels, and that the policy
-  layer levels every ML-KEM row and none of the three that publish 0. That guard
-  ships with the published crate, which names the same four dependencies, so a
-  crates.io consumer can run it too. It cannot see a backend *added* to
-  `q-periapt-backends`, which would simply be missing from the inventory: the
-  workspace-only `artifact/test_cbom_backend_inventory.py` re-reads that crate's
-  backend declarations from its source and fails on one no row accounts for.
+  layer levels every ML-KEM row and none of the three that publish 0. Its
+  algorithm lists are not retyped: `q-periapt-backends` generates
+  `ML_KEM_BACKEND_ALGORITHMS`, `ML_DSA_BACKEND_ALGORITHMS` and
+  `SLH_DSA_BACKEND_ALGORITHMS` from the same `mlkem_backends!` /
+  `mldsa_backends!` / `slhdsa_backends!` invocations that define the backends, so
+  a parameter set *added* to one of them fails this guard until a row accounts
+  for it. That guard ships with the published crate, which names the same four
+  dependencies, so a crates.io consumer can run it too. What it cannot see is a
+  backend added to `q-periapt-backends` as a hand-written trait impl rather than
+  through a declaration macro — `MlKem768XWingSeed`, `X25519` and `Sha3_256Xof`
+  are exactly such impls — and nothing else in the workspace sees one either.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives
   (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and recommending a PQ/T
