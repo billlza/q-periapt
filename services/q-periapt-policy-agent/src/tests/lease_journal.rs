@@ -185,7 +185,7 @@ fn a_lost_renew_whose_query_is_refused_closed_is_unavailable_not_indeterminate_a
 fn a_lost_renew_answered_for_a_foreign_intent_is_asked_again_before_the_next_operation(
 ) -> TestResult {
     let directory = TestDirectory::new()?;
-    let pair = agent_pair(&directory, 151)?;
+    let pair = agent_pair(&directory, 186)?;
     let authority = &pair.initiator_authority;
     authority.advance_clock(1_000);
     authority.make_next_unknown();
@@ -226,7 +226,7 @@ fn a_lost_renew_answered_for_a_foreign_intent_is_asked_again_before_the_next_ope
 #[test]
 fn an_acquire_the_transport_never_sent_pays_for_no_compensating_release() -> TestResult {
     let directory = TestDirectory::new()?;
-    let store = release_and_drop(agent_pair(&directory, 152)?)?;
+    let store = release_and_drop(agent_pair(&directory, 187)?)?;
     let calls_before = store.authority.lease_call_count();
     // `AuthorityTransportErrorV2` is defined as the failures that prove no
     // request byte was accepted, so this acquire cannot have granted a lease
@@ -255,7 +255,7 @@ fn an_acquire_the_transport_never_sent_pays_for_no_compensating_release() -> Tes
 fn a_reacquire_the_transport_never_sent_leaves_no_record_for_the_release_to_resolve() -> TestResult
 {
     let directory = TestDirectory::new()?;
-    let pair = agent_pair(&directory, 153)?;
+    let pair = agent_pair(&directory, 188)?;
     let authority = &pair.initiator_authority;
     authority.expire_active_lease();
     authority.fail_next_lease_call_before_send(LeaseCallFilter::Acquire);
@@ -959,17 +959,18 @@ fn a_dispatch_that_cannot_cover_its_journal_commit_leaves_no_row() -> TestResult
     let journal = pair.initiator.journaled_lease_intents_for_test()?;
     let lease_calls = pair.initiator_authority.lease_call_count();
 
-    // The pre-erase gate needs the release's round trip and its journal
-    // commit -- two seconds -- and passes with half a second to spare. The
-    // erase then sleeps 900 ms, so the release dispatch is admitted with
-    // about 1.6 seconds left: enough for its bare one-second bound, which is
-    // what used to let it through, and not for the commit it must pay first.
+    // The pre-erase gate needs the release's reserved plan -- its round trip,
+    // the snapshot proof held back behind it and the journal commit, three
+    // seconds -- and passes with half a second to spare. The erase then
+    // sleeps 900 ms, so the release dispatch is admitted with about 2.6
+    // seconds left: enough for its two bare one-second bounds, which is what
+    // used to let it through, and not for the commit it must pay first.
     pair.initiator_authority
         .set_round_trip_bound(Duration::from_secs(1));
     pair.initiator
         .delay_each_session_cancel_for_test(Duration::from_millis(900))?;
     let deadline = Instant::now()
-        .checked_add(Duration::from_millis(2_500))
+        .checked_add(Duration::from_millis(3_500))
         .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
     assert_eq!(
         pair.initiator.release_instance_lease_until(deadline),
@@ -994,6 +995,47 @@ fn a_dispatch_that_cannot_cover_its_journal_commit_leaves_no_row() -> TestResult
 
     // A retry under a budget of its own releases.
     pair.initiator.release_instance_lease()?;
+    assert!(pair.initiator_authority.active_lease()?.is_none());
+    Ok(())
+}
+
+#[test]
+fn a_release_that_cannot_reserve_its_proof_erases_nothing() -> TestResult {
+    // The release's least plan is its dispatch, that dispatch's journal
+    // commit and the snapshot proof `release_lease_state` reserves behind
+    // them, and the whole plan is admitted before the erase. A deadline with
+    // room for the dispatch and its commit but not for the proof is refused
+    // here, with every secret still held and the lease still serving; letting
+    // it through would erase the session table and then refuse the very
+    // release the erase was for.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 189)?;
+    initiator_encapsulation(pair.initiator.begin_encapsulation(BeginEncapsulation::new(
+        pair.initiator_authorization,
+        pair.responder_public_keys.clone(),
+    ))?)?;
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    let lease_calls = pair.initiator_authority.lease_call_count();
+
+    // Two seconds cover the round trip and the commit; three cover the proof
+    // as well. Two and a half is between them, and nothing here waits, so the
+    // refusal is arithmetic rather than timing.
+    pair.initiator_authority
+        .set_round_trip_bound(Duration::from_secs(1));
+    let deadline = Instant::now()
+        .checked_add(Duration::from_millis(2_500))
+        .ok_or_else(|| io::Error::other("test deadline overflowed"))?;
+    assert_eq!(
+        pair.initiator.release_instance_lease_until(deadline),
+        Err(AgentError::OperationDeadlineExceeded)
+    );
+    assert_eq!(pair.initiator.pending_session_count(), 1);
+    assert_eq!(pair.initiator_authority.lease_call_count(), lease_calls);
+    assert!(pair.initiator_authority.active_lease()?.is_some());
+
+    // A retry under a budget of its own releases, secrets and all.
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator.pending_session_count(), 0);
     assert!(pair.initiator_authority.active_lease()?.is_none());
     Ok(())
 }
