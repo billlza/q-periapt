@@ -177,13 +177,21 @@ pub enum IpcError {
     Unavailable,
     /// The agent entered a fail-closed poisoned state.
     AgentFatal,
-    /// The serving loop stopped cleanly but the instance lease is still held:
-    /// the transport refused the release, its outcome stayed unknown with no
-    /// snapshot to prove it, the lease-intent journal was full, the release
-    /// budget could not cover the dispatch, or the agent was already poisoned
-    /// when the stop arrived, which `ensure_live` refuses before dispatching
-    /// anything. The lease lapses at the authority's TTL, which the next start
-    /// waits out.
+    /// The serving loop stopped cleanly and the release was **not
+    /// confirmed**: the transport refused it, the lease-intent journal was
+    /// full, the release budget could not cover the dispatch, the agent was
+    /// already poisoned when the stop arrived -- which `ensure_live` refuses
+    /// before dispatching anything -- or the release was dispatched and
+    /// neither its own answer nor a snapshot could say what it did.
+    ///
+    /// Most of those leave the lease held. That last one does not say so: the
+    /// authority may have applied the release, and the reference authority
+    /// answers a query and the snapshot alike with `RateLimited` while its
+    /// nonce table is full, so both go unanswered in the same window. Calling
+    /// this "still held" would be a claim the agent cannot make, which is why
+    /// it says only that the release was not confirmed. The next start treats
+    /// it as held either way: it waits out the authority's TTL, which is what
+    /// a lease still held requires and all an already-released one costs.
     LeaseReleaseFailed,
     /// The serving loop stopped cleanly and the instance lease **was**
     /// released -- the authority confirmed it, or a snapshot proved it gone,
@@ -210,7 +218,8 @@ impl fmt::Display for IpcError {
             Self::Unavailable => "IPC transport unavailable",
             Self::AgentFatal => "policy agent entered a fail-closed state",
             Self::LeaseReleaseFailed => {
-                "instance lease was not released at stop; it lapses at the authority TTL"
+                "instance lease release was not confirmed at stop; the next start waits out \
+                 the authority TTL"
             }
             Self::LeaseReleasedStateNotRecorded => {
                 "instance lease was released at stop, but local state could not be recorded; \
@@ -730,13 +739,14 @@ impl<W: crate::witness::WitnessPort, A: InstanceAuthorityPort> UnixIpcServer<W, 
     ///
     /// * `Ok` -- the authority confirmed the release or a snapshot proved the
     ///   lease gone, and the erase and the journal forget both succeeded.
-    /// * [`IpcError::LeaseReleaseFailed`] -- the lease is still held: the
-    ///   transport refused the release, its outcome stayed unknown with no
-    ///   snapshot to prove it, the lease-intent journal was full, the release
-    ///   budget could not cover the dispatch, or the agent was already
-    ///   poisoned when the stop arrived, which refuses the release outright
-    ///   (`release_instance_lease_within` checks liveness first). The lease
-    ///   lapses at its TTL exactly as it would after a crash.
+    /// * [`IpcError::LeaseReleaseFailed`] -- the release was not confirmed:
+    ///   the transport refused it, the lease-intent journal was full, the
+    ///   release budget could not cover the dispatch, the agent was already
+    ///   poisoned when the stop arrived -- which refuses the release outright
+    ///   (`release_instance_lease_within` checks liveness first) -- or it was
+    ///   dispatched and neither its answer nor a snapshot could say what it
+    ///   did. The next start waits out the TTL exactly as it would after a
+    ///   crash, whether or not the lease is in fact still held.
     /// * [`IpcError::LeaseReleasedStateNotRecorded`] -- the lease is released
     ///   and the next start acquires at once, but a durable session
     ///   cancellation or the journal forget failed.

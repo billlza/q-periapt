@@ -362,11 +362,15 @@ deadline, because nothing may be skipped -- then releases the lease under a
 32-second budget of its own, and exits 0 only once the authority has
 confirmed that release or a snapshot has shown that no lease of this instance
 remains, so the next start acquires at once. If the release could not be
-settled -- the transport refused it, the journal was full, its outcome stayed
-unknown with no snapshot to prove it, the release budget could not cover the
-dispatch, or the agent was already poisoned when the stop arrived -- the
-daemon exits 1 with a one-line reason and the lease lapses at its TTL, which
-the next start waits out. A release that did settle but whose durable cleanup
+confirmed -- the transport refused it, the journal was full, the release
+budget could not cover the dispatch, the agent was already poisoned when the
+stop arrived, or the release was dispatched and neither its own answer nor a
+snapshot could say what it did -- the daemon exits 1 with a one-line reason
+and the next start waits out the authority TTL. Most of those leave the lease
+held; the unproven one may sit on a release the authority applied, which is
+why the reason says the release was not confirmed rather than that the lease
+is still held, and why the wait is all such a stop costs. A release that did
+settle but whose durable cleanup
 afterwards failed -- a session cancellation, or the journal forget -- exits 1
 too, with its own reason: there the lease is released and the next start
 acquires at once. A crash never releases the lease, and the authority lets it
