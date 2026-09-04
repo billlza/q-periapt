@@ -1142,6 +1142,10 @@ name = "q-periapt-cli"
 version = "0.1.5"
 dependencies = [
  "clap",
+ "q-periapt-backends",
+ "q-periapt-core",
+ "q-periapt-policy",
+ "q-periapt-sig",
  "serde_json",
 ]
 

@@ -13,14 +13,20 @@ from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular
 
 
 MAX_BOM_BYTES = 16 * 1024 * 1024
+# Release packages are built with default features, so this is the default
+# backend set: the SLH-DSA parameter sets live behind q-periapt-backends'
+# off-by-default `slh-dsa` feature and are in no shipped package. The list that
+# ties the CBOM to the implementation rather than to another copy of itself is
+# the CLI's own `the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report`.
 EXPECTED_CRYPTO_ASSETS = frozenset(
     {
+        "ML-KEM-512",
         "ML-KEM-768",
         "ML-KEM-1024",
         "X25519",
+        "ML-DSA-44",
         "ML-DSA-65",
         "ML-DSA-87",
-        "SLH-DSA-SHA2-256s",
         "SHA3-256",
         "SHAKE-256",
     }

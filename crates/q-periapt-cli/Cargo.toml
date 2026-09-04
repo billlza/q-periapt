@@ -20,3 +20,19 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
+
+[dev-dependencies]
+# Test-only, and deliberately versionless so the published crate keeps the
+# dependency-free shape docs/ARCHITECTURE.md §12 records: the CBOM inventory is
+# checked against the crates that actually define the algorithms without the
+# shipped binary growing an edge to them.
+q-periapt-core = { path = "../q-periapt-core" }
+q-periapt-sig = { path = "../q-periapt-sig" }
+q-periapt-policy = { path = "../q-periapt-policy" }
+q-periapt-backends = { path = "../q-periapt-backends" }
+
+[features]
+default = []
+# Mirrors the backends' own off-by-default gate, so a CBOM claims the SLH-DSA
+# parameter sets exactly when the build that emits it ships them.
+slh-dsa = ["q-periapt-backends/slh-dsa"]
