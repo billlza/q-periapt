@@ -209,16 +209,25 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 # installed 249-key successors are intentionally not constrained by this value.
 # The 0.1.4 opening repinned this authority for the first time: 0.1.3 is the
 # first line that published for real, so its committed verified manifest —
-# with the 59 declared-missing proof-input keys deleted — is the new frozen
+# with the 59 declared-missing proof-input keys deleted — became the frozen
 # baseline floor carrying the five historical publication receipts and the
-# activated apple_v0_1_3 selector. Superseded predecessors remain valid only in
-# their own line history: the alpha.2-era baseline
-# c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50 (0.1.0-0.1.3)
-# and the 0.1.4-line-open baseline
-# 552d63de033080314e2f502d0994c5fe4353e706a3f24c6bce13ea005316786a, both
-# succeeded by this current-to-current reopen baseline emitted by reopen-source.
+# activated apple_v0_1_3 selector. This repin reopens the line after its R
+# successor was already installed: the agent, CLI and packaging changes that
+# followed moved thirteen of the installed 249 proof-input digests, no
+# installed manifest may carry a stale one, and hand-editing the manifest is
+# forbidden. The reopen recomputed the retained 190 from this tree and dropped
+# the fixed 59-key delta; the five-leaf publication floor and the source
+# identity are unchanged. Superseded predecessors remain valid only in their
+# own line history: the alpha.2-era baseline
+# c156244c7a2d6819277f3ae0ecda79f6b3b5032d37f781777c6fb2e52f0a3a50 (0.1.0-0.1.3),
+# the 0.1.4-line-open baseline
+# 552d63de033080314e2f502d0994c5fe4353e706a3f24c6bce13ea005316786a and the
+# first 0.1.5-line-open baseline
+# 61101393105ca4a8b32ce5c70a5d7e53b6a3c4884cf0ef064887bda9c7033c88, each
+# succeeded by the next current-to-current reopen baseline emitted by
+# reopen-source.
 INITIAL_RESULTS_SHA256 = (
-    "61101393105ca4a8b32ce5c70a5d7e53b6a3c4884cf0ef064887bda9c7033c88"
+    "bf290cad46b729006c0b472714ec4a7d2a61b7914093628c5ef9db43f3c0947c"
 )
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(
