@@ -87,7 +87,15 @@ CRATE_PUBLICATION_TOPOLOGY = (
             "q-periapt-policy",
         ),
     ),
-    ("q-periapt-cli", ()),
+    (
+        "q-periapt-cli",
+        (
+            "q-periapt-core",
+            "q-periapt-sig",
+            "q-periapt-policy",
+            "q-periapt-backends",
+        ),
+    ),
 )
 PUBLISHABLE_CRATES = tuple(name for name, _dependencies in CRATE_PUBLICATION_TOPOLOGY)
 CRATE_DEPENDENCIES = MappingProxyType(dict(CRATE_PUBLICATION_TOPOLOGY))

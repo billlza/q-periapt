@@ -548,8 +548,10 @@ README files stay out of the package), pinned upstream license/provenance, and t
 surface, then audits Cargo's normalized backend graph with the sys crate patched in.
 The coordinated registry order is `q-periapt-mlkem-native-sys`, `q-periapt-core`,
 `q-periapt-kem`, `q-periapt-sig`, `q-periapt-backends`, `q-periapt-policy`, then the
-`q-periapt-ffi` / `q-periapt-wasm` / `q-periapt-rustls` leaves; dependency-free
-`q-periapt-cli` may be published independently but remains in the same ten-crate version set.
+`q-periapt-ffi` / `q-periapt-wasm` / `q-periapt-rustls` leaves, and `q-periapt-cli` last:
+it derives its CBOM from `q-periapt-core`, `q-periapt-sig`, `q-periapt-policy` and
+`q-periapt-backends`, so it must be uploaded after all four and cannot go independently.
+All ten stay in the same version set.
 No `0.1.5` crate has been uploaded to crates.io — the no-upload package contract defines the intended
 surface and never invokes `cargo publish`. It does not prove crates.io upload-API acceptance,
 crate-name ownership, publishing credentials or authorization, server-side policy acceptance, or a

@@ -498,8 +498,9 @@ are the gap between research-grade and audited/production.
    [`docs/EMBEDDING_READINESS.md`](EMBEDDING_READINESS.md).
 
    The coordinated Rust registry order is `q-periapt-mlkem-native-sys`, core,
-   KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves. The
-   dependency-free CLI may upload independently but remains in the same ten-crate version set.
+   KEM/signature traits, backends, policy, then the FFI/WASM/rustls leaves, and the CLI
+   last: it derives its CBOM from core, signature traits, policy and backends, so it
+   must upload after all four. All ten stay in the same version set.
 
    Package `0.1.5` is the stable-version source/crate line and has a
    frozen machine-readable C **ABI 2** contract: nine exact dynamic public exports

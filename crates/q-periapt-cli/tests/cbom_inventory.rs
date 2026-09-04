@@ -1,17 +1,16 @@
 //! The CBOM against the backends that actually define the algorithms.
 //!
-//! These guards live here, outside `src/`, because they are the one part of
-//! this crate that links `q-periapt-backends`, `q-periapt-core`,
-//! `q-periapt-sig` and `q-periapt-policy`. Those four are versionless path
-//! dev-dependencies -- deliberately, so the published crate keeps the
-//! dependency-free shape `docs/ARCHITECTURE.md` §12 records -- and Cargo drops
-//! a versionless dev-dependency when it normalises the manifest for
-//! publication. A guard written in `src/lib.rs` would therefore ship to
-//! crates.io with four imports of crates the published manifest no longer
-//! names, and `cargo test` on the published crate would not build at all.
-//! `exclude = ["tests/**"]` keeps this file out of the package, so the
-//! published crate ships neither the guard nor a dangling import, and the
-//! lib's own tests still build from crates.io.
+//! `src/lib.rs` derives every row's identifier and level from the four suite
+//! crates it depends on, so a removed or renamed backend is a build failure
+//! there rather than a stale claim in a released CBOM. What derivation cannot
+//! police is the row *set*: nothing in the workspace enumerates the backends,
+//! so the inventory names them and so does this file, and these guards are the
+//! independent re-enumeration that fails when the two drift apart.
+//!
+//! They ship with the published crate. The four crates they import are ordinary
+//! dependencies that the published manifest names, so `cargo test` on the
+//! crates.io crate builds and runs them against the same backends the release
+//! described.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
 use std::collections::BTreeSet;
@@ -117,6 +116,11 @@ fn the_slh_dsa_rows_follow_the_backends_off_by_default_gate() {
     }
 }
 
+/// The signature rows take their level from `SigAlg::nist_level` and the rest
+/// from `q_periapt_policy::nist_level`, so this is the cross-check that the
+/// signature layer's own strength claim and the table the downgrade floor is
+/// enforced against still agree — and that no row reaches the CBOM with a level
+/// the policy layer would not recognise.
 #[test]
 fn every_cbom_row_reports_the_level_the_policy_layer_enforces() {
     for component in cbom()["components"].as_array().unwrap() {

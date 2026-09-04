@@ -5,7 +5,8 @@
 //!
 //! Auditability & migration tooling for the PQ/T hybrid suite:
 //! - [`cbom`] — a CycloneDX 1.6 **Crypto** Bill of Materials of the suite's
-//!   cryptographic assets (algorithms, parameter sets, quantum-security levels).
+//!   cryptographic assets (algorithms, parameter sets, quantum-security levels),
+//!   derived from the crates that define them rather than retyped from them.
 //! - [`sbom`] — a CycloneDX 1.6 SBOM derived from a `Cargo.lock`.
 //! - [`scan`] — a migration scanner that flags legacy / quantum-vulnerable
 //!   primitives (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and
@@ -13,190 +14,254 @@
 //!
 //! Output is plain `serde_json` so it diffs cleanly and needs no derive.
 
+use q_periapt_backends::{
+    MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, Sha3_256Xof, X25519,
+};
+use q_periapt_core::{Kem, Xof256};
+use q_periapt_sig::{SigAlg, Signer};
 use serde_json::{json, Value};
 use std::path::Path;
 
-/// A cryptographic asset of the suite, used to build the CBOM.
-struct CryptoAsset {
-    name: &'static str,
+/// The CycloneDX facts about an algorithm that no suite crate represents.
+///
+/// `primitive`, `functions`, `family`, `oid` and `note` are editorial: they
+/// describe an algorithm to an auditor and exist nowhere in the implementation,
+/// so they are written here. Everything the implementation *does* carry — the
+/// identifier and the security level — is read from it rather than retyped, and
+/// each of these blocks travels attached to the derivation it annotates, so a
+/// row can neither lose its metadata nor outlive the backend it describes.
+struct AssetMetadata {
     primitive: &'static str, // CycloneDX algorithmProperties.primitive
     functions: &'static [&'static str],
-    /// NIST PQ security level 1/3/5, or 0 for a (quantum-vulnerable) classical alg.
-    nist_quantum_level: u8,
     family: &'static str, // lattice / elliptic-curve / hash / code
     oid: Option<&'static str>,
     note: &'static str,
 }
 
+/// One CBOM row: a derived identity joined to its metadata.
+struct CryptoAsset {
+    name: &'static str,
+    /// NIST PQ security level 1/2/3/5, or 0 for a (quantum-vulnerable) classical alg.
+    nist_quantum_level: u8,
+    meta: AssetMetadata,
+}
+
+const KEM_FUNCTIONS: &[&str] = &["keygen", "encapsulate", "decapsulate"];
+const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "key-agree"];
+const SIGNATURE_FUNCTIONS: &[&str] = &["keygen", "sign", "verify"];
+const DIGEST_FUNCTIONS: &[&str] = &["digest"];
+
+/// A row whose level comes from the policy layer's strength table.
+///
+/// `q_periapt_policy::nist_level` is the table the downgrade floor is enforced
+/// against, so the number an auditor reads here is the number the runtime
+/// refuses to go below. It answers `None` for an identifier that is not a
+/// leveled post-quantum algorithm — the traditional hybrid partner and the
+/// hashes — which this CBOM spells `0`.
+fn policy_leveled_row(name: &'static str, meta: AssetMetadata) -> CryptoAsset {
+    CryptoAsset {
+        name,
+        nist_quantum_level: q_periapt_policy::nist_level(name).unwrap_or(0),
+        meta,
+    }
+}
+
+/// A signature row named and leveled by the algorithm the backend reports.
+fn signature_row(alg: SigAlg, meta: AssetMetadata) -> CryptoAsset {
+    CryptoAsset {
+        name: alg.id(),
+        nist_quantum_level: alg.nist_level(),
+        meta,
+    }
+}
+
 /// Key-establishment and ML-DSA assets, present in every build.
 ///
-/// This list is a statement about the algorithms `q-periapt-backends` ships,
-/// and the CLI deliberately has no dependency edge to it
-/// (`docs/ARCHITECTURE.md` §12). What keeps the two in step is
-/// `the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report`, which
-/// links the real backends as a dev-dependency and reads their own reported
-/// identifiers, so adding or removing one fails here rather than silently
-/// desynchronising a released CBOM.
-const KEY_AND_SIGNATURE_ASSETS: &[CryptoAsset] = &[
-    CryptoAsset {
-        name: "ML-KEM-512",
-        primitive: "kem",
-        functions: &["keygen", "encapsulate", "decapsulate"],
-        nist_quantum_level: 1,
-        family: "lattice",
-        oid: Some("2.16.840.1.101.3.4.4.1"),
-        note: "FIPS 203; smallest parameter set, for agility at a level-1 floor.",
-    },
-    CryptoAsset {
-        name: "ML-KEM-768",
-        primitive: "kem",
-        functions: &["keygen", "encapsulate", "decapsulate"],
-        nist_quantum_level: 3,
-        family: "lattice",
-        oid: Some("2.16.840.1.101.3.4.4.2"),
-        note: "FIPS 203; default PQ KEM component (C2PRI).",
-    },
-    CryptoAsset {
-        name: "ML-KEM-1024",
-        primitive: "kem",
-        functions: &["keygen", "encapsulate", "decapsulate"],
-        nist_quantum_level: 5,
-        family: "lattice",
-        oid: Some("2.16.840.1.101.3.4.4.3"),
-        note: "FIPS 203; enhanced (L5) PQ KEM component.",
-    },
-    CryptoAsset {
-        name: "X25519",
-        primitive: "key-agree",
-        functions: &["keygen", "key-agree"],
-        nist_quantum_level: 0,
-        family: "elliptic-curve",
-        oid: Some("1.3.101.110"),
-        note: "RFC 7748; classical (quantum-vulnerable) — used ONLY as a hybrid partner.",
-    },
-    CryptoAsset {
-        name: "ML-DSA-44",
-        primitive: "signature",
-        functions: &["keygen", "sign", "verify"],
-        nist_quantum_level: 2,
-        family: "lattice",
-        oid: Some("2.16.840.1.101.3.4.3.17"),
-        note: "FIPS 204; smallest parameter set, for agility at a level-2 floor.",
-    },
-    CryptoAsset {
-        name: "ML-DSA-65",
-        primitive: "signature",
-        functions: &["keygen", "sign", "verify"],
-        nist_quantum_level: 3,
-        family: "lattice",
-        oid: Some("2.16.840.1.101.3.4.3.18"),
-        note: "FIPS 204; general-purpose signatures.",
-    },
-    CryptoAsset {
-        name: "ML-DSA-87",
-        primitive: "signature",
-        functions: &["keygen", "sign", "verify"],
-        nist_quantum_level: 5,
-        family: "lattice",
-        oid: Some("2.16.840.1.101.3.4.3.19"),
-        note: "FIPS 204; enhanced (L5) signatures.",
-    },
-];
+/// Every identifier is the one the linked backend reports for itself, so a
+/// removed or renamed backend is a build failure here rather than a released
+/// CBOM claiming an algorithm the suite does not ship — or omitting one it does.
+fn key_and_signature_assets() -> Vec<CryptoAsset> {
+    vec![
+        policy_leveled_row(
+            MlKem512.algorithm(),
+            AssetMetadata {
+                primitive: "kem",
+                functions: KEM_FUNCTIONS,
+                family: "lattice",
+                oid: Some("2.16.840.1.101.3.4.4.1"),
+                note: "FIPS 203; smallest parameter set, for agility at a level-1 floor.",
+            },
+        ),
+        policy_leveled_row(
+            MlKem768.algorithm(),
+            AssetMetadata {
+                primitive: "kem",
+                functions: KEM_FUNCTIONS,
+                family: "lattice",
+                oid: Some("2.16.840.1.101.3.4.4.2"),
+                note: "FIPS 203; default PQ KEM component (C2PRI).",
+            },
+        ),
+        policy_leveled_row(
+            MlKem1024.algorithm(),
+            AssetMetadata {
+                primitive: "kem",
+                functions: KEM_FUNCTIONS,
+                family: "lattice",
+                oid: Some("2.16.840.1.101.3.4.4.3"),
+                note: "FIPS 203; enhanced (L5) PQ KEM component.",
+            },
+        ),
+        policy_leveled_row(
+            X25519.algorithm(),
+            AssetMetadata {
+                primitive: "key-agree",
+                functions: KEY_AGREEMENT_FUNCTIONS,
+                family: "elliptic-curve",
+                oid: Some("1.3.101.110"),
+                note: "RFC 7748; classical (quantum-vulnerable) — used ONLY as a hybrid partner.",
+            },
+        ),
+        signature_row(
+            MlDsa44.algorithm(),
+            AssetMetadata {
+                primitive: "signature",
+                functions: SIGNATURE_FUNCTIONS,
+                family: "lattice",
+                oid: Some("2.16.840.1.101.3.4.3.17"),
+                note: "FIPS 204; smallest parameter set, for agility at a level-2 floor.",
+            },
+        ),
+        signature_row(
+            MlDsa65.algorithm(),
+            AssetMetadata {
+                primitive: "signature",
+                functions: SIGNATURE_FUNCTIONS,
+                family: "lattice",
+                oid: Some("2.16.840.1.101.3.4.3.18"),
+                note: "FIPS 204; general-purpose signatures.",
+            },
+        ),
+        signature_row(
+            MlDsa87.algorithm(),
+            AssetMetadata {
+                primitive: "signature",
+                functions: SIGNATURE_FUNCTIONS,
+                family: "lattice",
+                oid: Some("2.16.840.1.101.3.4.3.19"),
+                note: "FIPS 204; enhanced (L5) signatures.",
+            },
+        ),
+    ]
+}
 
 /// SLH-DSA assets, present only when the `slh-dsa` backends are compiled.
 ///
 /// `q-periapt-backends` gates all three parameter sets behind its
-/// off-by-default `slh-dsa` feature, which this crate's feature of the same
-/// name forwards to. A CBOM emitted by the default build must therefore not
-/// claim them, and one emitted with the feature on must claim all three.
+/// off-by-default `slh-dsa` feature, which this crate's feature of the same name
+/// forwards to. Naming the three backend types is what makes the gate binding:
+/// the rows exist exactly when the parameter sets are compiled, so a default
+/// build cannot claim them and a `--features slh-dsa` build cannot omit them.
 #[cfg(feature = "slh-dsa")]
-const SLH_DSA_ASSETS: &[CryptoAsset] = &[
-    CryptoAsset {
-        name: "SLH-DSA-SHA2-128s",
-        primitive: "signature",
-        functions: &["keygen", "sign", "verify"],
-        nist_quantum_level: 1,
-        family: "hash",
-        oid: None,
-        note: "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.",
-    },
-    CryptoAsset {
-        name: "SLH-DSA-SHA2-192s",
-        primitive: "signature",
-        functions: &["keygen", "sign", "verify"],
-        nist_quantum_level: 3,
-        family: "hash",
-        oid: None,
-        note: "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.",
-    },
-    CryptoAsset {
-        name: "SLH-DSA-SHA2-256s",
-        primitive: "signature",
-        functions: &["keygen", "sign", "verify"],
-        nist_quantum_level: 5,
-        family: "hash",
-        oid: None,
-        note: "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.",
-    },
-];
+fn slh_dsa_assets() -> Vec<CryptoAsset> {
+    use q_periapt_backends::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s};
+
+    const CONSERVATIVE: &str =
+        "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.";
+    [
+        SlhDsaSha2_128s.algorithm(),
+        SlhDsaSha2_192s.algorithm(),
+        SlhDsaSha2_256s.algorithm(),
+    ]
+    .into_iter()
+    .map(|alg| {
+        signature_row(
+            alg,
+            AssetMetadata {
+                primitive: "signature",
+                functions: SIGNATURE_FUNCTIONS,
+                family: "hash",
+                oid: None,
+                note: CONSERVATIVE,
+            },
+        )
+    })
+    .collect()
+}
 
 #[cfg(not(feature = "slh-dsa"))]
-const SLH_DSA_ASSETS: &[CryptoAsset] = &[];
+fn slh_dsa_assets() -> Vec<CryptoAsset> {
+    Vec::new()
+}
+
+/// The combiner XOF carries no algorithm identifier — `Xof256` reports none —
+/// so the two hash rows below are the only names this file still writes out.
+/// Naming the backend that provides both keeps its removal a build failure
+/// rather than a stale claim.
+const _: fn() -> Sha3_256Xof = <Sha3_256Xof as Xof256>::new;
 
 /// Hash and XOF assets, present in every build.
-const HASH_ASSETS: &[CryptoAsset] = &[
-    CryptoAsset {
-        name: "SHA3-256",
-        primitive: "hash",
-        functions: &["digest"],
-        nist_quantum_level: 0,
-        family: "hash",
-        oid: Some("2.16.840.1.101.3.4.2.8"),
-        note: "FIPS 202; combiner hash.",
-    },
-    CryptoAsset {
-        name: "SHAKE-256",
-        primitive: "xof",
-        functions: &["digest"],
-        nist_quantum_level: 0,
-        family: "hash",
-        oid: Some("2.16.840.1.101.3.4.2.12"),
-        note: "FIPS 202; XOF for key derivation / expansion.",
-    },
-];
+fn hash_assets() -> Vec<CryptoAsset> {
+    vec![
+        policy_leveled_row(
+            "SHA3-256",
+            AssetMetadata {
+                primitive: "hash",
+                functions: DIGEST_FUNCTIONS,
+                family: "hash",
+                oid: Some("2.16.840.1.101.3.4.2.8"),
+                note: "FIPS 202; combiner hash.",
+            },
+        ),
+        policy_leveled_row(
+            "SHAKE-256",
+            AssetMetadata {
+                primitive: "xof",
+                functions: DIGEST_FUNCTIONS,
+                family: "hash",
+                oid: Some("2.16.840.1.101.3.4.2.12"),
+                note: "FIPS 202; XOF for key derivation / expansion.",
+            },
+        ),
+    ]
+}
 
 /// Every cryptographic asset this build ships, in inventory order.
-fn assets() -> impl Iterator<Item = &'static CryptoAsset> {
-    KEY_AND_SIGNATURE_ASSETS
-        .iter()
-        .chain(SLH_DSA_ASSETS)
-        .chain(HASH_ASSETS)
+fn assets() -> Vec<CryptoAsset> {
+    let mut inventory = key_and_signature_assets();
+    inventory.extend(slh_dsa_assets());
+    inventory.extend(hash_assets());
+    inventory
 }
 
 /// Build a CycloneDX 1.6 CBOM of the suite's cryptographic assets.
 #[must_use]
 pub fn cbom() -> Value {
     let components: Vec<Value> = assets()
+        .into_iter()
         .map(|a| {
             let algo = json!({
-                "primitive": a.primitive,
+                "primitive": a.meta.primitive,
                 "parameterSetIdentifier": a.name,
                 "executionEnvironment": "software-plain-ram",
                 "implementationPlatform": "generic",
-                "cryptoFunctions": a.functions,
+                "cryptoFunctions": a.meta.functions,
                 "nistQuantumSecurityLevel": a.nist_quantum_level,
             });
             let mut crypto = serde_json::Map::new();
             crypto.insert("assetType".to_string(), json!("algorithm"));
             crypto.insert("algorithmProperties".to_string(), algo);
-            if let Some(oid) = a.oid {
+            if let Some(oid) = a.meta.oid {
                 crypto.insert("oid".to_string(), json!(oid));
             }
             json!({
                 "type": "cryptographic-asset",
                 "bom-ref": format!("crypto/{}", a.name.to_lowercase()),
                 "name": a.name,
-                "description": format!("{} ({} family). {}", a.name, a.family, a.note),
+                "description": format!(
+                    "{} ({} family). {}",
+                    a.name, a.meta.family, a.meta.note
+                ),
                 "cryptoProperties": Value::Object(crypto),
             })
         })

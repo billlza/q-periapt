@@ -470,8 +470,9 @@ release artifact.
 
 - Rust crate pre-publication package surface: retain the coordinated dependency order for every
   subsequent version — `q-periapt-mlkem-native-sys`, core, KEM/signature traits,
-  backends, policy, then the FFI/WASM/rustls leaves; the dependency-free CLI remains
-  version-coordinated. A dirty diagnostic run is not release proof, and registry
+  backends, policy, then the FFI/WASM/rustls leaves, and the CLI last: it depends on
+  core, signature traits, policy and backends, so it must upload after all four and
+  remains version-coordinated. A dirty diagnostic run is not release proof, and registry
   packages still need independently verifiable signed or transparency-backed
   provenance before production promotion.
 - C ABI product surface: rebuild the `.so.2` Linux x86_64-portable/aarch64-native

@@ -738,16 +738,22 @@ service/state/proof gates are in
 
 - **`cbom`** — a CycloneDX 1.6 *Crypto* Bill of Materials of the suite's
   cryptographic assets (algorithms, parameter sets, quantum-security levels, OIDs).
-  The rows follow the backends: the default build lists ML-KEM-512/768/1024,
-  X25519, ML-DSA-44/65/87, SHA3-256 and SHAKE-256, and the SLH-DSA parameter
-  sets appear only under the same off-by-default `slh-dsa` feature that
-  compiles them. The shipped binary keeps the dependency-free shape recorded in
-  §12; what holds the inventory to the implementation is a test-only edge to
-  `q-periapt-backends`, which reads each backend's own algorithm identifier.
-  That guard is a workspace target (`crates/q-periapt-cli/tests/cbom_inventory.rs`)
-  kept out of the published package: Cargo strips the versionless
-  dev-dependencies it needs, so a published copy of it would not build. The
-  crates.io crate ships the inventory and its own lib tests, not the guard.
+  The rows are *derived* from the backends, not transcribed from them: the CLI
+  takes ordinary dependencies on `q-periapt-core`, `q-periapt-sig`,
+  `q-periapt-policy` and `q-periapt-backends` (§12), reads each row's identifier
+  from the backend's own `Kem::algorithm` / `Signer::algorithm`, and its NIST
+  level from `SigAlg::nist_level` or `q_periapt_policy::nist_level`. So the
+  default build lists ML-KEM-512/768/1024, X25519, ML-DSA-44/65/87, SHA3-256 and
+  SHAKE-256; the SLH-DSA parameter sets appear only under the same
+  off-by-default `slh-dsa` feature that compiles them, on crates.io as well as
+  here; and a removed or renamed backend is a build failure rather than a stale
+  claim in a released CBOM. What derivation cannot police is the row *set* —
+  nothing enumerates the backends — so `crates/q-periapt-cli/tests/cbom_inventory.rs`
+  re-enumerates them independently and asserts that the CBOM claims exactly those
+  algorithms, that the SLH-DSA rows follow the gate in both directions, and that
+  every level agrees with the table the policy layer enforces. That guard ships
+  with the published crate, which names the same four dependencies, so a
+  crates.io consumer can run it too.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives
   (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and recommending a PQ/T
@@ -810,7 +816,7 @@ q-periapt-mlkem-native-sys → pinned vendored mlkem-native v1.2.0 target-select
 q-periapt-backends  → core + sig + mlkem-native-sys / fips204 / sha3 / x25519-dalek / [fips205]
 q-periapt-ffi       → backends + kem + core            (C ABI)
 q-periapt-wasm      → backends + kem + core            (wasm-bindgen)
-q-periapt-cli       → serde_json (+ suite metadata)    (CBOM/SBOM/scan)
+q-periapt-cli       → core + sig + policy + backends + clap/serde_json (CBOM/SBOM/scan)
 bindings/swift      → q-periapt-ffi staticlib (C ABI)
 bindings/kotlin     → q-periapt-ffi C ABI via Panama FFM
 research/hqc-fips207-candidate → hqc-kem RC only (publish=false; no product edge)

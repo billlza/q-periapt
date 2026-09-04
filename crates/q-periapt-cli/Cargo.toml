@@ -9,13 +9,6 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
-# `tests/cbom_inventory.rs` is the one target that links the backend crates,
-# and they are versionless path dev-dependencies that Cargo drops when it
-# normalises this manifest for publication. Shipping the file would publish a
-# test target whose imports the published manifest no longer names, so
-# `cargo test` on the crates.io crate would fail to build; excluding it keeps
-# the published crate's own lib tests compiling.
-exclude = ["tests/**"]
 
 [lints]
 workspace = true
@@ -25,28 +18,28 @@ name = "qperiapt"
 path = "src/main.rs"
 
 [dependencies]
+# The CBOM does not retype the suite's inventory, it derives it from the crates
+# that define it: every row's identifier comes from the backend's own
+# `Kem::algorithm` / `Signer::algorithm`, its NIST level from
+# `SigAlg::nist_level` (signatures) or `q_periapt_policy::nist_level` (key
+# establishment and hashes). A removed or renamed backend is therefore a build
+# failure here rather than a released CBOM claiming an algorithm the suite does
+# not ship. These are ordinary edges carrying the same exact `=` requirement as
+# every other internal dependency in the workspace, so the published crate
+# resolves them from crates.io and must be uploaded after all four.
+q-periapt-core = { version = "=0.1.5", path = "../q-periapt-core" }
+q-periapt-sig = { version = "=0.1.5", path = "../q-periapt-sig" }
+q-periapt-policy = { version = "=0.1.5", path = "../q-periapt-policy" }
+q-periapt-backends = { version = "=0.1.5", path = "../q-periapt-backends" }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 
-[dev-dependencies]
-# Used only by tests/cbom_inventory.rs, and deliberately versionless so the
-# published crate keeps the dependency-free shape docs/ARCHITECTURE.md §12
-# records: the CBOM inventory is checked against the crates that actually
-# define the algorithms without the shipped binary growing an edge to them.
-# Cargo strips versionless dev-dependencies on publication, which is why the
-# one target that uses them is excluded from the package above.
-q-periapt-core = { path = "../q-periapt-core" }
-q-periapt-sig = { path = "../q-periapt-sig" }
-q-periapt-policy = { path = "../q-periapt-policy" }
-q-periapt-backends = { path = "../q-periapt-backends" }
-
 [features]
 default = []
-# The CBOM's three SLH-DSA rows. In this workspace it also turns on the
-# backends' own off-by-default gate, so the guard compiles the very parameter
-# sets the rows claim. The published crate has no backends edge to forward to
-# -- the dev-dependency is stripped and this normalises to a plain feature --
-# so there it is the operator's own declaration that the build being described
-# ships SLH-DSA, which is the only thing this crate can know from outside the
-# workspace.
+# The CBOM's three SLH-DSA rows. It forwards to `q-periapt-backends`' own
+# off-by-default gate -- on crates.io exactly as in this workspace, because the
+# edge is a normal dependency of the published crate -- so the feature cannot be
+# set without compiling the very parameter sets the rows claim. The CBOM's
+# SLH-DSA claim is therefore backed by what the build links rather than
+# asserted by whoever passed the flag.
 slh-dsa = ["q-periapt-backends/slh-dsa"]
