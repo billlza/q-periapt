@@ -1075,6 +1075,32 @@ fn a_release_whose_response_is_lost_and_query_refused_closed_is_proven_gone_by_s
 }
 
 #[test]
+fn a_release_the_authority_closed_failed_keeps_its_fence_and_takes_no_proof() -> TestResult {
+    // An authenticated closed failure at dispatch is what the wire defines as
+    // proof that the authority reached no ambiguous store result: it declined
+    // to execute. There is nothing for a snapshot to prove, and the lease is
+    // still this instance's to release. Treating this as an unknown outcome
+    // would spend a proof round trip out of the release budget and could
+    // retire the lease on a snapshot it had no business taking.
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 183)?;
+    let snapshots = pair.initiator_authority.snapshot_call_count();
+    pair.initiator_authority
+        .refuse_next_lease_call_with(AuthorityKnownFailureV2::RateLimited);
+    assert_eq!(
+        pair.initiator.release_instance_lease(),
+        Err(AgentError::InstanceLeaseUnavailable)
+    );
+    assert_eq!(pair.initiator_authority.snapshot_call_count(), snapshots);
+    assert!(pair.initiator_authority.active_lease()?.is_some());
+    // The condition clears, and the fence this call kept is the one that
+    // releases the lease.
+    pair.initiator.release_instance_lease()?;
+    assert_eq!(pair.initiator_authority.active_lease()?, None);
+    Ok(())
+}
+
+#[test]
 fn a_release_whose_response_is_lost_and_query_answers_a_foreign_intent_is_proven_gone_by_snapshot(
 ) -> TestResult {
     // The query is answered -- with a receipt filed under this operation id

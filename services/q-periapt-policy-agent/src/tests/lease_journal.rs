@@ -224,6 +224,60 @@ fn a_lost_renew_answered_for_a_foreign_intent_is_asked_again_before_the_next_ope
 }
 
 #[test]
+fn an_acquire_the_transport_never_sent_pays_for_no_compensating_release() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let store = release_and_drop(agent_pair(&directory, 152)?)?;
+    let calls_before = store.authority.lease_call_count();
+    // `AuthorityTransportErrorV2` is defined as the failures that prove no
+    // request byte was accepted, so this acquire cannot have granted a lease
+    // and there is no fence to hand back.
+    store
+        .authority
+        .fail_next_lease_call_before_send(LeaseCallFilter::Acquire);
+
+    let outcome = PolicyAgent::new(
+        store.repository,
+        store.witness.clone(),
+        store.authority.clone(),
+        store.config.clone(),
+    );
+    assert_eq!(outcome.err(), Some(AgentError::InstanceLeaseUnavailable));
+    // Nothing reached the authority. The compensating release is owed only
+    // to a dispatch whose outcome is unknown, and reading that off the
+    // unresolved list instead of the evidence spends one here -- a round trip
+    // against an authority that has just proved it received nothing.
+    assert_eq!(store.authority.lease_call_count(), calls_before);
+    assert_eq!(store.authority.active_lease()?, None);
+    Ok(())
+}
+
+#[test]
+fn a_reacquire_the_transport_never_sent_leaves_no_record_for_the_release_to_resolve() -> TestResult
+{
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 153)?;
+    let authority = &pair.initiator_authority;
+    authority.expire_active_lease();
+    authority.fail_next_lease_call_before_send(LeaseCallFilter::Acquire);
+    // The renew is rejected as expired and the re-acquire that follows never
+    // leaves the socket, so it provably did not execute: there is no lease it
+    // might hold and nothing pending for a later call to resolve.
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::InstanceLeaseUnavailable)
+    );
+
+    let snapshots = authority.snapshot_call_count();
+    pair.initiator.release_instance_lease()?;
+    // A record kept here would have cost the release the snapshot that
+    // resolves a re-acquire whose receipt the authority does not hold, before
+    // it could dispatch anything.
+    assert_eq!(authority.snapshot_call_count(), snapshots);
+    assert_eq!(authority.active_lease()?, None);
+    Ok(())
+}
+
+#[test]
 fn a_lease_call_lost_before_it_reached_the_authority_is_retried_once_the_query_proves_it_absent(
 ) -> TestResult {
     let directory = TestDirectory::new()?;
