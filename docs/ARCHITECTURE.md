@@ -742,7 +742,12 @@ service/state/proof gates are in
   takes ordinary dependencies on `q-periapt-core`, `q-periapt-sig`,
   `q-periapt-policy` and `q-periapt-backends` (§12), reads each row's identifier
   from the backend's own `Kem::algorithm` / `Signer::algorithm`, and its NIST
-  level from `SigAlg::nist_level` or `q_periapt_policy::nist_level`. So the
+  level from `SigAlg::nist_level` (the signature rows) or
+  `q_periapt_policy::nist_level` (the ML-KEM rows). The traditional partner and
+  the two FIPS 202 rows publish a declared 0 — a level no layer states because
+  none ranks them — and that declaration is a distinct case in the code, not a
+  lookup falling back: a key-establishment identifier the policy layer does not
+  level stops the emission rather than reaching an auditor as 0. So the
   default build lists ML-KEM-512/768/1024, X25519, ML-DSA-44/65/87, SHA3-256 and
   SHAKE-256; the SLH-DSA parameter sets appear only under the same
   off-by-default `slh-dsa` feature that compiles them, on crates.io as well as
@@ -750,10 +755,14 @@ service/state/proof gates are in
   claim in a released CBOM. What derivation cannot police is the row *set* —
   nothing enumerates the backends — so `crates/q-periapt-cli/tests/cbom_inventory.rs`
   re-enumerates them independently and asserts that the CBOM claims exactly those
-  algorithms, that the SLH-DSA rows follow the gate in both directions, and that
-  every level agrees with the table the policy layer enforces. That guard ships
-  with the published crate, which names the same four dependencies, so a
-  crates.io consumer can run it too.
+  algorithms, that the SLH-DSA rows follow the gate in both directions, that the
+  signature layer and the policy layer state the same levels, and that the policy
+  layer levels every ML-KEM row and none of the three that publish 0. That guard
+  ships with the published crate, which names the same four dependencies, so a
+  crates.io consumer can run it too. It cannot see a backend *added* to
+  `q-periapt-backends`, which would simply be missing from the inventory: the
+  workspace-only `artifact/test_cbom_backend_inventory.py` re-reads that crate's
+  backend declarations from its source and fails on one no row accounts for.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives
   (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and recommending a PQ/T

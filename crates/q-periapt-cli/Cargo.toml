@@ -20,11 +20,14 @@ path = "src/main.rs"
 [dependencies]
 # The CBOM does not retype the suite's inventory, it derives it from the crates
 # that define it: every row's identifier comes from the backend's own
-# `Kem::algorithm` / `Signer::algorithm`, its NIST level from
-# `SigAlg::nist_level` (signatures) or `q_periapt_policy::nist_level` (key
-# establishment and hashes). A removed or renamed backend is therefore a build
-# failure here rather than a released CBOM claiming an algorithm the suite does
-# not ship. These are ordinary edges carrying the same exact `=` requirement as
+# `Kem::algorithm` / `Signer::algorithm`, and its NIST level from
+# `SigAlg::nist_level` (the signature rows) or `q_periapt_policy::nist_level`
+# (the ML-KEM rows) -- with a declared 0 for the traditional partner and the two
+# FIPS 202 rows, which no layer levels and none may. A removed or renamed
+# backend is therefore a build failure here rather than a released CBOM claiming
+# an algorithm the suite does not ship (an *added* backend is caught by
+# `artifact/test_cbom_backend_inventory.py`, not by this crate). These are
+# ordinary edges carrying the same exact `=` requirement as
 # every other internal dependency in the workspace, so the published crate
 # resolves them from crates.io and must be uploaded after all four.
 q-periapt-core = { version = "=0.1.5", path = "../q-periapt-core" }
