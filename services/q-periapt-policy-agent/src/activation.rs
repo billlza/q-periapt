@@ -246,6 +246,13 @@ mod tests {
             std::path::PathBuf::from(format!("/tmp/qp-act-{}-{name}.sock", std::process::id()));
         let _ = std::fs::remove_file(&path);
         let listener = UnixListener::bind(&path).expect("bind scratch listener");
+        // Present the descriptor state a service manager presents, not the one
+        // `std` produces: every socket `std` creates is already close-on-exec,
+        // which made the adoption's own `fcntl_setfd` deletable with the
+        // assertion below still passing. A handed-over descriptor cannot carry
+        // the flag -- it has to survive the exec into this daemon.
+        rustix::io::fcntl_setfd(listener.as_fd(), rustix::io::FdFlags::empty())
+            .expect("clear close-on-exec on the scratch listener");
         (listener, path)
     }
 
@@ -294,11 +301,26 @@ mod tests {
         let path = std::env::temp_dir().join(format!("qp-launchd-{}.sock", std::process::id()));
         let _ = std::fs::remove_file(&path);
         let descriptor = crate::activation_handoff::test_support::launchd_shaped_listener(&path);
+        // This fixture is built with a raw `socket(2)` and no SOCK_CLOEXEC, so
+        // it already presents what launchd presents; asserting the flag here is
+        // what makes the adoption's `fcntl_setfd` load-bearing on this platform.
+        assert!(
+            !rustix::io::fcntl_getfd(descriptor.as_fd())
+                .expect("read descriptor flags")
+                .contains(rustix::io::FdFlags::CLOEXEC),
+            "the fixture must present a descriptor a service manager could hand over"
+        );
         let outcome = adopted_listener(descriptor, &path);
         let _ = std::fs::remove_file(&path);
         assert!(
             outcome.is_ok(),
             "a launchd-bound listener must be adopted, got {outcome:?}"
+        );
+        let adopted = outcome.expect("adopted above");
+        let flags = rustix::io::fcntl_getfd(adopted.as_fd()).expect("read descriptor flags");
+        assert!(
+            flags.contains(rustix::io::FdFlags::CLOEXEC),
+            "the adopted listener must be close-on-exec"
         );
     }
 

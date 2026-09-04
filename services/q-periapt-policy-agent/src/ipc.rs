@@ -2168,6 +2168,147 @@ mod tests {
         );
     }
 
+    /// The shipped ancestor walk, run as shipped. Everything else in the
+    /// deployment contract test pins this script by substring, which cannot
+    /// tell whether `stat` follows symlinks: `stat -f` reports a link as
+    /// "Symbolic Link" and refuses it, `stat -Lf` reports the directory it
+    /// points at and accepts it, and both spellings pass every textual
+    /// assertion. That distinction is the whole ancestor argument -- an
+    /// operator's convenience symlink such as /opt/qperiapt/run ->
+    /// /private/var/run would otherwise put the run directory under a
+    /// root:daemon 0775 parent -- so it is checked by running the function.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn the_run_directory_jobs_ancestor_walk_refuses_a_symlink_and_a_writable_parent() {
+        use std::path::Path;
+        use std::process::Command;
+
+        let script = deploy_file("qperiapt-agent-rundir.sh");
+        // The ACL check comes with the newline constant it needs; the two
+        // ancestor functions are cut out whole, so the text under test is the
+        // text that ships.
+        let cut = |header: &str| -> String {
+            let start = script
+                .find(header)
+                .unwrap_or_else(|| unreachable!("the run-directory job must define {header}"));
+            script
+                .get(start..)
+                .and_then(|rest| {
+                    let end = rest.find("\n}\n")?;
+                    rest.get(..end + 3).map(str::to_owned)
+                })
+                .unwrap_or_else(|| unreachable!("{header} must be a closed function"))
+        };
+        let acl = cut("NL=$(printf");
+        assert!(
+            acl.contains("verify_no_acl() {"),
+            "the newline constant must be followed by verify_no_acl: {acl}"
+        );
+        let ancestor = cut("verify_ancestor() {");
+        let traversable = cut("verify_ancestor_traversable() {");
+        let harness = format!(
+            "set -eu\nPATH=/usr/bin:/bin:/usr/sbin:/sbin\nexport PATH\n\
+             AGENT_LABEL=test\nRUN_DIR=/opt/qperiapt/run\nRUN_DIR_OWNER=_qperiapt\n\
+             fail() {{ printf '%s\\n' \"$1\" >&2; exit 1; }}\n\
+             {acl}\n{ancestor}\n{traversable}\n\"$1\" \"$2\"\n"
+        );
+        let root = tempfile::Builder::new()
+            .prefix("qperiapt-rundir-ancestor-")
+            .tempdir()
+            .expect("a temporary directory for the ancestor cases");
+        let harness_path = root.path().join("harness.sh");
+        std::fs::write(&harness_path, harness).expect("the harness must be writable");
+        let verify = |function: &str, path: &Path| -> (bool, String) {
+            let output = Command::new("/bin/sh")
+                .arg(&harness_path)
+                .arg(function)
+                .arg(path)
+                .output()
+                .expect("/bin/sh must run the harness");
+            (
+                output.status.success(),
+                String::from_utf8_lossy(&output.stderr).into_owned(),
+            )
+        };
+
+        // A real root-owned 0755 directory is what an ancestor must be, and
+        // other can traverse it.
+        let usr = Path::new("/usr");
+        assert!(
+            verify("verify_ancestor", usr).0,
+            "a root-owned 0755 directory must pass"
+        );
+        assert!(
+            verify("verify_ancestor_traversable", usr).0,
+            "0755 is traversable by other"
+        );
+
+        // The counterexample the absent -L would accept: a symlink to that
+        // same accepted directory. This is the assertion that fails if the
+        // walk's stat is changed to follow links.
+        let link = root.path().join("link-to-usr");
+        std::os::unix::fs::symlink(usr, &link).expect("the symlink fixture must be creatable");
+        let (accepted, stderr) = verify("verify_ancestor", &link);
+        assert!(
+            !accepted,
+            "a symlink must be refused before what it points at is looked at"
+        );
+        assert!(
+            stderr.contains("Symbolic Link"),
+            "the refusal must name what it read: {stderr}"
+        );
+
+        // Group- and other-writable ancestors are what the walk exists to
+        // refuse: /private/var/run is root:daemon 0775 and /private/tmp is
+        // 1777, and either would let a non-root subject replace the verified
+        // directory launchd binds into.
+        for writable in [Path::new("/private/var/run"), Path::new("/private/tmp")] {
+            let (accepted, stderr) = verify("verify_ancestor", writable);
+            assert!(
+                !accepted,
+                "{} must be refused as an ancestor",
+                writable.display()
+            );
+            assert!(
+                stderr.contains("not a root-owned directory that group and other cannot write"),
+                "the refusal must say why: {stderr}"
+            );
+        }
+
+        // Root-owned and unwritable is not enough on the way down: a 0750
+        // ancestor passes the first check and is refused by the second,
+        // because neither the transport group nor the daemon account could
+        // reach the run directory through it. /private/var/root is that shape
+        // on macOS; the arm is run only against a path that really has it,
+        // rather than asserted against whatever a host happens to ship.
+        let unreachable_root = Path::new("/private/var/root");
+        let shape = Command::new("/usr/bin/stat")
+            .args(["-f", "%HT:%Su:%Mp%Lp"])
+            .arg(unreachable_root)
+            .output()
+            .expect("stat must run");
+        if String::from_utf8_lossy(&shape.stdout).trim_end() == "Directory:root:0750" {
+            assert!(
+                verify("verify_ancestor", unreachable_root).0,
+                "0750 root-owned is not group- or other-writable"
+            );
+            let (accepted, stderr) = verify("verify_ancestor_traversable", unreachable_root);
+            assert!(!accepted, "0750 is not traversable by other");
+            assert!(
+                stderr.contains("must be able to reach"),
+                "the refusal must name who cannot reach the run directory: {stderr}"
+            );
+        }
+
+        // A missing ancestor is a refusal, not a directory to create.
+        let (accepted, stderr) = verify("verify_ancestor", &root.path().join("absent"));
+        assert!(!accepted, "a missing ancestor must be refused");
+        assert!(
+            stderr.contains("could not stat"),
+            "the refusal must say the stat failed: {stderr}"
+        );
+    }
+
     #[test]
     fn the_request_deadline_covers_the_minimum_guarded_plan() {
         // The request deadline has to admit the least plan of every guarded
