@@ -944,7 +944,7 @@ run_package_verification() {
 		set -- "$@" "$ALLOW_DIRTY_ARG"
 	fi
 	case "$crate" in
-		q-periapt-mlkem-native-sys | q-periapt-core | q-periapt-cli) ;;
+		q-periapt-mlkem-native-sys | q-periapt-core) ;;
 		q-periapt-kem | q-periapt-sig)
 			set -- "$@" \
 				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"'
@@ -976,6 +976,20 @@ run_package_verification() {
 			set -- "$@" \
 				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
 				--config 'patch.crates-io.q-periapt-kem.path="crates/q-periapt-kem"' \
+				--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
+				--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
+				--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"'
+			;;
+		# The CLI derives its CBOM from these four, so verification resolves
+		# them at `=0.1.5` from a registry that does not have this version
+		# yet. Exactly these five: q-periapt-kem is reached only through
+		# q-periapt-backends' dev-dependencies, which are not resolved here,
+		# so patching it would emit an unused-patch warning and the
+		# zero-warning rule would fail the run.
+		q-periapt-cli)
+			set -- "$@" \
+				--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
+				--config 'patch.crates-io.q-periapt-sig.path="crates/q-periapt-sig"' \
 				--config 'patch.crates-io.q-periapt-backends.path="crates/q-periapt-backends"' \
 				--config 'patch.crates-io.q-periapt-policy.path="crates/q-periapt-policy"' \
 				--config 'patch.crates-io.q-periapt-mlkem-native-sys.path="crates/q-periapt-mlkem-native-sys"'

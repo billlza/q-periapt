@@ -17,6 +17,25 @@ qperiapt sbom [--lock Cargo.lock] [--out sbom.json]
 qperiapt scan <path> [--json]
 ```
 
+## Features
+
+| Feature | Default | Effect |
+|---|---|---|
+| `slh-dsa` | off | Forwards to `q-periapt-backends/slh-dsa`, adding the `SLH-DSA-SHA2-128s/192s/256s` rows to `qperiapt cbom` |
+
+`qperiapt cbom` does not carry a hand-written inventory: it derives every row
+from the suite crates it links (`q-periapt-core`, `q-periapt-sig`,
+`q-periapt-policy`, `q-periapt-backends`), taking each identifier from the
+backend's own algorithm name and each NIST level from the table the policy layer
+enforces. The default build therefore lists exactly the nine assets the default
+backend set ships — ML-KEM-512/768/1024, X25519, ML-DSA-44/65/87, SHA3-256 and
+SHAKE-256 — and the three SLH-DSA rows appear only when `--features slh-dsa`
+actually compiles those parameter sets (which also pulls in `fips205`).
+
+Because the tool links the real backends, building it needs a working C
+toolchain: `q-periapt-backends` depends on `q-periapt-mlkem-native-sys`, whose
+build script compiles the vendored mlkem-native C/assembly tree with `cc`.
+
 ## What the scanner flags
 
 | Severity | Examples | Recommendation |

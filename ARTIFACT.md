@@ -609,7 +609,8 @@ inventory, license, and normalized-graph checks cannot be skipped. This no-uploa
 not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or
 authorization, server-side policy acceptance, or a registry receipt. The coordinated registry
 order is sys, core, KEM/signature traits, backends, policy, then
-the FFI/WASM/rustls leaves; the dependency-free CLI is part of the same version set.
+the FFI/WASM/rustls leaves, and the CLI last: it depends on core, signature traits,
+policy and backends, so it must upload after all four and is part of the same version set.
 `artifact/results.json` may declare that source-bound package receipt current only through its
 strict schema, exact source identity, advisory snapshot, manifest-last handoff fingerprint,
 retained transcript fingerprint, and the exact ten sibling `.crate` archives validated by that
