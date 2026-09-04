@@ -9,6 +9,13 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
+# `tests/cbom_inventory.rs` is the one target that links the backend crates,
+# and they are versionless path dev-dependencies that Cargo drops when it
+# normalises this manifest for publication. Shipping the file would publish a
+# test target whose imports the published manifest no longer names, so
+# `cargo test` on the crates.io crate would fail to build; excluding it keeps
+# the published crate's own lib tests compiling.
+exclude = ["tests/**"]
 
 [lints]
 workspace = true
@@ -22,10 +29,12 @@ clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 
 [dev-dependencies]
-# Test-only, and deliberately versionless so the published crate keeps the
-# dependency-free shape docs/ARCHITECTURE.md §12 records: the CBOM inventory is
-# checked against the crates that actually define the algorithms without the
-# shipped binary growing an edge to them.
+# Used only by tests/cbom_inventory.rs, and deliberately versionless so the
+# published crate keeps the dependency-free shape docs/ARCHITECTURE.md §12
+# records: the CBOM inventory is checked against the crates that actually
+# define the algorithms without the shipped binary growing an edge to them.
+# Cargo strips versionless dev-dependencies on publication, which is why the
+# one target that uses them is excluded from the package above.
 q-periapt-core = { path = "../q-periapt-core" }
 q-periapt-sig = { path = "../q-periapt-sig" }
 q-periapt-policy = { path = "../q-periapt-policy" }
@@ -33,6 +42,11 @@ q-periapt-backends = { path = "../q-periapt-backends" }
 
 [features]
 default = []
-# Mirrors the backends' own off-by-default gate, so a CBOM claims the SLH-DSA
-# parameter sets exactly when the build that emits it ships them.
+# The CBOM's three SLH-DSA rows. In this workspace it also turns on the
+# backends' own off-by-default gate, so the guard compiles the very parameter
+# sets the rows claim. The published crate has no backends edge to forward to
+# -- the dev-dependency is stripped and this normalises to a plain feature --
+# so there it is the operator's own declaration that the build being described
+# ships SLH-DSA, which is the only thing this crate can know from outside the
+# workspace.
 slh-dsa = ["q-periapt-backends/slh-dsa"]

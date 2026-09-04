@@ -744,6 +744,10 @@ service/state/proof gates are in
   compiles them. The shipped binary keeps the dependency-free shape recorded in
   §12; what holds the inventory to the implementation is a test-only edge to
   `q-periapt-backends`, which reads each backend's own algorithm identifier.
+  That guard is a workspace target (`crates/q-periapt-cli/tests/cbom_inventory.rs`)
+  kept out of the published package: Cargo strips the versionless
+  dev-dependencies it needs, so a published copy of it would not build. The
+  crates.io crate ships the inventory and its own lib tests, not the guard.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives
   (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and recommending a PQ/T
