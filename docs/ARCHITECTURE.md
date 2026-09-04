@@ -738,6 +738,12 @@ service/state/proof gates are in
 
 - **`cbom`** — a CycloneDX 1.6 *Crypto* Bill of Materials of the suite's
   cryptographic assets (algorithms, parameter sets, quantum-security levels, OIDs).
+  The rows follow the backends: the default build lists ML-KEM-512/768/1024,
+  X25519, ML-DSA-44/65/87, SHA3-256 and SHAKE-256, and the SLH-DSA parameter
+  sets appear only under the same off-by-default `slh-dsa` feature that
+  compiles them. The shipped binary keeps the dependency-free shape recorded in
+  §12; what holds the inventory to the implementation is a test-only edge to
+  `q-periapt-backends`, which reads each backend's own algorithm identifier.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives
   (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and recommending a PQ/T

@@ -799,13 +799,21 @@ sbom = load_json("share/q-periapt/bom/sbom.cdx.json")
 cbom_components = validate_cyclonedx(cbom, "share/q-periapt/bom/cbom.cdx.json")
 sbom_components = validate_cyclonedx(sbom, "share/q-periapt/bom/sbom.cdx.json")
 
+# The package is built with default features, so this is the default backend
+# set: the SLH-DSA parameter sets live behind q-periapt-backends' off-by-default
+# `slh-dsa` feature and are not in this package. What ties this list to the
+# implementation rather than to itself is the CLI's own
+# `the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report`, which
+# reads the identifiers from the backends; this assertion then pins that the
+# packaged file is the CBOM that build emits.
 expected_crypto = {
+    "ML-KEM-512",
     "ML-KEM-768",
     "ML-KEM-1024",
     "X25519",
+    "ML-DSA-44",
     "ML-DSA-65",
     "ML-DSA-87",
-    "SLH-DSA-SHA2-256s",
     "SHA3-256",
     "SHAKE-256",
 }

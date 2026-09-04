@@ -28,7 +28,25 @@ struct CryptoAsset {
     note: &'static str,
 }
 
-const ASSETS: &[CryptoAsset] = &[
+/// Key-establishment and ML-DSA assets, present in every build.
+///
+/// This list is a statement about the algorithms `q-periapt-backends` ships,
+/// and the CLI deliberately has no dependency edge to it
+/// (`docs/ARCHITECTURE.md` §12). What keeps the two in step is
+/// `the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report`, which
+/// links the real backends as a dev-dependency and reads their own reported
+/// identifiers, so adding or removing one fails here rather than silently
+/// desynchronising a released CBOM.
+const KEY_AND_SIGNATURE_ASSETS: &[CryptoAsset] = &[
+    CryptoAsset {
+        name: "ML-KEM-512",
+        primitive: "kem",
+        functions: &["keygen", "encapsulate", "decapsulate"],
+        nist_quantum_level: 1,
+        family: "lattice",
+        oid: Some("2.16.840.1.101.3.4.4.1"),
+        note: "FIPS 203; smallest parameter set, for agility at a level-1 floor.",
+    },
     CryptoAsset {
         name: "ML-KEM-768",
         primitive: "kem",
@@ -57,6 +75,15 @@ const ASSETS: &[CryptoAsset] = &[
         note: "RFC 7748; classical (quantum-vulnerable) — used ONLY as a hybrid partner.",
     },
     CryptoAsset {
+        name: "ML-DSA-44",
+        primitive: "signature",
+        functions: &["keygen", "sign", "verify"],
+        nist_quantum_level: 2,
+        family: "lattice",
+        oid: Some("2.16.840.1.101.3.4.3.17"),
+        note: "FIPS 204; smallest parameter set, for agility at a level-2 floor.",
+    },
+    CryptoAsset {
         name: "ML-DSA-65",
         primitive: "signature",
         functions: &["keygen", "sign", "verify"],
@@ -74,6 +101,34 @@ const ASSETS: &[CryptoAsset] = &[
         oid: Some("2.16.840.1.101.3.4.3.19"),
         note: "FIPS 204; enhanced (L5) signatures.",
     },
+];
+
+/// SLH-DSA assets, present only when the `slh-dsa` backends are compiled.
+///
+/// `q-periapt-backends` gates all three parameter sets behind its
+/// off-by-default `slh-dsa` feature, which this crate's feature of the same
+/// name forwards to. A CBOM emitted by the default build must therefore not
+/// claim them, and one emitted with the feature on must claim all three.
+#[cfg(feature = "slh-dsa")]
+const SLH_DSA_ASSETS: &[CryptoAsset] = &[
+    CryptoAsset {
+        name: "SLH-DSA-SHA2-128s",
+        primitive: "signature",
+        functions: &["keygen", "sign", "verify"],
+        nist_quantum_level: 1,
+        family: "hash",
+        oid: None,
+        note: "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.",
+    },
+    CryptoAsset {
+        name: "SLH-DSA-SHA2-192s",
+        primitive: "signature",
+        functions: &["keygen", "sign", "verify"],
+        nist_quantum_level: 3,
+        family: "hash",
+        oid: None,
+        note: "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.",
+    },
     CryptoAsset {
         name: "SLH-DSA-SHA2-256s",
         primitive: "signature",
@@ -83,6 +138,13 @@ const ASSETS: &[CryptoAsset] = &[
         oid: None,
         note: "FIPS 205; conservative hash-based signatures for roots / firmware / long-term.",
     },
+];
+
+#[cfg(not(feature = "slh-dsa"))]
+const SLH_DSA_ASSETS: &[CryptoAsset] = &[];
+
+/// Hash and XOF assets, present in every build.
+const HASH_ASSETS: &[CryptoAsset] = &[
     CryptoAsset {
         name: "SHA3-256",
         primitive: "hash",
@@ -103,11 +165,18 @@ const ASSETS: &[CryptoAsset] = &[
     },
 ];
 
+/// Every cryptographic asset this build ships, in inventory order.
+fn assets() -> impl Iterator<Item = &'static CryptoAsset> {
+    KEY_AND_SIGNATURE_ASSETS
+        .iter()
+        .chain(SLH_DSA_ASSETS)
+        .chain(HASH_ASSETS)
+}
+
 /// Build a CycloneDX 1.6 CBOM of the suite's cryptographic assets.
 #[must_use]
 pub fn cbom() -> Value {
-    let components: Vec<Value> = ASSETS
-        .iter()
+    let components: Vec<Value> = assets()
         .map(|a| {
             let algo = json!({
                 "primitive": a.primitive,
@@ -499,6 +568,121 @@ pub fn scan_report_to_json(report: &ScanReport) -> Value {
 mod tests {
     #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
     use super::*;
+
+    /// Every asset name the CBOM this build emits claims.
+    fn cbom_names() -> std::collections::BTreeSet<String> {
+        cbom()["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|component| component["name"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    /// Every algorithm identifier the backends this build compiles report for
+    /// themselves.
+    ///
+    /// Read from `q-periapt-backends` rather than retyped, so a renamed or
+    /// removed backend fails here (or fails to compile) instead of leaving a
+    /// released CBOM claiming an algorithm the suite does not ship, or
+    /// omitting one it does. The `slh-dsa` feature is the backends' own, so
+    /// this set moves with the gate exactly as the CBOM must.
+    fn shipped_algorithm_ids() -> std::collections::BTreeSet<String> {
+        use q_periapt_backends::{
+            MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, MlKem768XWingSeed,
+            Sha3_256Xof, X25519,
+        };
+        use q_periapt_core::{Kem, Xof256};
+        use q_periapt_sig::Signer;
+
+        let mut ids = std::collections::BTreeSet::new();
+        for kem in [
+            MlKem512.algorithm(),
+            MlKem768.algorithm(),
+            MlKem1024.algorithm(),
+            X25519.algorithm(),
+        ] {
+            ids.insert(kem.to_string());
+        }
+        // The X-Wing seed backend is the same FIPS 203 parameter set behind a
+        // different key format ("ML-KEM-768(seed-dk)"), so it is the ML-KEM-768
+        // row rather than a further asset. Naming it keeps its removal visible.
+        assert!(MlKem768XWingSeed
+            .algorithm()
+            .starts_with(MlKem768.algorithm()));
+        for signer in [
+            MlDsa44.algorithm(),
+            MlDsa65.algorithm(),
+            MlDsa87.algorithm(),
+        ] {
+            ids.insert(signer.id().to_string());
+        }
+        #[cfg(feature = "slh-dsa")]
+        {
+            use q_periapt_backends::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s};
+            for signer in [
+                SlhDsaSha2_128s.algorithm(),
+                SlhDsaSha2_192s.algorithm(),
+                SlhDsaSha2_256s.algorithm(),
+            ] {
+                ids.insert(signer.id().to_string());
+            }
+        }
+        // `Xof256` carries no algorithm identifier, so the combiner hash and
+        // the XOF are named here; linking the backend that provides both still
+        // makes its removal a compile failure.
+        let _ = Sha3_256Xof::new();
+        ids.insert("SHA3-256".to_string());
+        ids.insert("SHAKE-256".to_string());
+        ids
+    }
+
+    #[test]
+    fn the_cbom_lists_exactly_the_algorithms_the_shipped_backends_report() {
+        assert_eq!(cbom_names(), shipped_algorithm_ids());
+    }
+
+    #[test]
+    fn the_slh_dsa_rows_follow_the_backends_off_by_default_gate() {
+        let slh: Vec<String> = cbom_names()
+            .into_iter()
+            .filter(|name| name.starts_with("SLH-DSA"))
+            .collect();
+        if cfg!(feature = "slh-dsa") {
+            assert_eq!(
+                slh,
+                [
+                    "SLH-DSA-SHA2-128s",
+                    "SLH-DSA-SHA2-192s",
+                    "SLH-DSA-SHA2-256s"
+                ]
+            );
+        } else {
+            // The default build compiles no SLH-DSA backend, so a CBOM that
+            // claimed one would tell an auditor the released package contains
+            // an algorithm it does not.
+            assert!(
+                slh.is_empty(),
+                "default build must claim no SLH-DSA: {slh:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_cbom_row_reports_the_level_the_policy_layer_enforces() {
+        for component in cbom()["components"].as_array().unwrap() {
+            let name = component["name"].as_str().unwrap();
+            let level = component["cryptoProperties"]["algorithmProperties"]
+                ["nistQuantumSecurityLevel"]
+                .as_u64()
+                .unwrap();
+            // Level 0 is this CBOM's spelling of "not a leveled post-quantum
+            // algorithm", which is exactly what the policy layer answers
+            // `None` for -- the traditional hybrid partner and the hashes.
+            let expected = u64::from(q_periapt_policy::nist_level(name).unwrap_or(0));
+            assert_eq!(level, expected, "{name} claims the wrong NIST level");
+        }
+    }
 
     #[test]
     fn cbom_is_valid_cyclonedx_and_excludes_research_hqc() {
