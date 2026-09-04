@@ -285,9 +285,11 @@ enum LeaseDispatchEvidence {
     /// what it did: the response was lost and the reconciling query was then
     /// refused by the deadline, answered with a closed failure, or ran out of
     /// attempts -- or the authority answered with a receipt for a different
-    /// intent, which says nothing about this one. The operation id is left
-    /// unresolved in every one of those cases, and the mutation may have
-    /// applied.
+    /// intent, which says nothing about this one. All four exits call
+    /// `keep_unresolved`, so the operation id is left unresolved in every one
+    /// of them and `drain_unresolved` asks about it again before the next
+    /// guarded operation rather than leaving its journal row to the next
+    /// start. The mutation may have applied.
     OutcomeUnknown,
 }
 
@@ -370,7 +372,13 @@ fn record_lease_receipt(
     if receipt.intent() != intent {
         // The authority answered, so the mutation was dispatched, and the
         // receipt it answered with is about some other intent: what this one
-        // did is exactly as unknown as after a lost response.
+        // did is exactly as unknown as after a lost response. Keep the id, as
+        // every other outcome-unknown exit does: the journal row it already
+        // has is otherwise discharged only by the next process start, and 64
+        // such answers exhaust the journal and refuse every lease operation
+        // until then. `drain_unresolved` asks again before the next guarded
+        // operation instead.
+        keep_unresolved(lease, intent.operation_id());
         return Err(LeaseExchangeFailure::outcome_unknown(
             AgentError::InstanceLeaseUnavailable,
         ));

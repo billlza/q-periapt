@@ -182,6 +182,48 @@ fn a_lost_renew_whose_query_is_refused_closed_is_unavailable_not_indeterminate_a
 }
 
 #[test]
+fn a_lost_renew_answered_for_a_foreign_intent_is_asked_again_before_the_next_operation(
+) -> TestResult {
+    let directory = TestDirectory::new()?;
+    let pair = agent_pair(&directory, 151)?;
+    let authority = &pair.initiator_authority;
+    authority.advance_clock(1_000);
+    authority.make_next_unknown();
+    // The shape a store restored from a backup hands back: a receipt filed
+    // under this very operation id, bound to some other intent. The wire
+    // admits it -- the id, the deployment revision and the command are all
+    // valid -- so the only thing that rejects it is `record_lease_receipt`'s
+    // exact comparison, and what it proves about this renew is nothing.
+    authority.answer_next_query_with_a_foreign_intent();
+    let queries_before = authority.query_call_count();
+    let calls_before = authority.lease_call_count();
+
+    // The renew applied; the answer said nothing about it, so it is unknown
+    // rather than refused, and it ends the reconciliation at once.
+    assert_eq!(
+        pair.initiator.reconcile_transition().err(),
+        Some(AgentError::InstanceLeaseUnavailable)
+    );
+    assert_eq!(authority.query_call_count(), queries_before + 1);
+    assert_eq!(authority.lease_call_count(), calls_before + 1);
+    assert_eq!(authority.receipt_count()?, 1);
+    let lost = only_row(&journal_of(&pair.initiator)?)?;
+    pair.initiator.public_keys()?;
+
+    // The id was kept unresolved, so this process asks again rather than
+    // leaving the row and the acknowledgement it owes to the next start:
+    // sixty-four such answers would otherwise fill the bounded journal and
+    // refuse every lease operation until a restart discharged them.
+    drive_one_lease_renew(&pair.initiator)?;
+    assert_eq!(authority.receipt_count()?, 0);
+    let journaled = journal_of(&pair.initiator)?;
+    assert_eq!(journaled.len(), 1);
+    assert!(!journaled.contains(&lost));
+    assert_eq!(authority.query_call_count(), queries_before + 2);
+    Ok(())
+}
+
+#[test]
 fn a_lease_call_lost_before_it_reached_the_authority_is_retried_once_the_query_proves_it_absent(
 ) -> TestResult {
     let directory = TestDirectory::new()?;
