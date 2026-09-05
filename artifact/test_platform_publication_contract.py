@@ -140,11 +140,9 @@ class PlatformPublicationContractTests(unittest.TestCase):
             contract.validate_release_publication_transition(frozen, demoted)
 
     def test_dispatch_keys_are_exact_versioned_leaf_names(self) -> None:
-        # platform_v0_1_4 is addressable as published history: that line's
-        # releases are live and immutable, but its verified cohort is recorded
-        # at its annotated tag rather than in these results, so it carries no
-        # frozen byte image here -- only the rule that no transition may
-        # introduce, remove, or rewrite it.
+        # platform_v0_1_4 remains a recognizable historical identity, but no
+        # occurrence is admissible until this source line installs exact frozen
+        # receipt bytes for it.
         self.assertEqual(
             contract.PLATFORM_PUBLICATION_KEYS,
             frozenset(
@@ -169,6 +167,51 @@ class PlatformPublicationContractTests(unittest.TestCase):
                     contract.validate_release_publications(
                         {"release_publications": {key: {}}}
                     )
+
+    def test_v0_1_4_is_rejected_until_its_frozen_image_is_installed(
+        self,
+    ) -> None:
+        valid_current = {
+            "release_publications": {
+                contract.PLATFORM_V0_1_5_PUBLICATION_KEY: pending_receipt()
+            }
+        }
+        contract.validate_release_publications(valid_current)
+
+        for label, unavailable_leaf in (
+            ("arbitrary", {"arbitrary": True}),
+            ("null", None),
+            ("wrong-family", pending_receipt()),
+        ):
+            with self.subTest(label=label), self.assertRaisesRegex(
+                contract.PlatformPublicationContractError,
+                "platform 0.1.4.*frozen receipt image is unavailable",
+            ):
+                contract.validate_release_publications(
+                    {
+                        "release_publications": {
+                            contract.PLATFORM_V0_1_4_PUBLICATION_KEY: (
+                                unavailable_leaf
+                            )
+                        }
+                    }
+                )
+
+        preserved = {
+            "release_publications": {
+                contract.PLATFORM_V0_1_4_PUBLICATION_KEY: {
+                    "arbitrary": True
+                }
+            }
+        }
+        with self.assertRaisesRegex(
+            contract.PlatformPublicationContractError,
+            "platform 0.1.4.*frozen receipt image is unavailable",
+        ):
+            contract.validate_release_publication_transition(
+                preserved,
+                copy.deepcopy(preserved),
+            )
 
     def test_leaf_errors_are_reported_through_one_aggregator_boundary(self) -> None:
         stable = pending_receipt()

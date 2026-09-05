@@ -2227,6 +2227,79 @@ class GitHubReleaseObservationTests(unittest.TestCase):
         self.assertEqual("2026-08-14T03:00:00Z", verification.verified_at)
         self.assertRegex(verification.verification_record_sha256, r"^[0-9a-f]{64}$")
 
+    def test_unordered_attestation_policy_accepts_only_exact_asset_multiset(
+        self,
+    ) -> None:
+        unordered_policy = self.policy(require_order=False)
+
+        def parser(value: dict[str, object]) -> observation.ReleaseVerification:
+            return observation.parse_release_verification(
+                _json(value),
+                policy=unordered_policy,
+                release_id=self.RELEASE_ID,
+                published_at="2026-08-14T02:00:00Z",
+            )
+
+        permuted = copy.deepcopy(self.verification())
+        subjects = permuted["verificationResult"]["statement"]["subject"]
+        subjects[1:] = reversed(subjects[1:])
+        verified = parser(permuted)
+        self.assertEqual(
+            observation.expected_subjects(unordered_policy),
+            verified.projection(include_verified_at=True)["subjects"],
+        )
+
+        def duplicate(value: dict[str, Any]) -> None:
+            items = value["verificationResult"]["statement"]["subject"]
+            items[2] = copy.deepcopy(items[1])
+
+        def missing(value: dict[str, Any]) -> None:
+            value["verificationResult"]["statement"]["subject"].pop()
+
+        def extra(value: dict[str, Any]) -> None:
+            items = value["verificationResult"]["statement"]["subject"]
+            items.append(copy.deepcopy(items[-1]))
+
+        def changed_digest(value: dict[str, Any]) -> None:
+            value["verificationResult"]["statement"]["subject"][1][
+                "digest"
+            ]["sha256"] = "f" * 64
+
+        def moved_tag(value: dict[str, Any]) -> None:
+            items = value["verificationResult"]["statement"]["subject"]
+            items[0], items[1] = items[1], items[0]
+
+        for name, mutate in (
+            ("duplicate", duplicate),
+            ("missing", missing),
+            ("extra", extra),
+            ("changed-digest", changed_digest),
+            ("moved-tag", moved_tag),
+        ):
+            with self.subTest(name=name):
+                value = copy.deepcopy(self.verification())
+                mutate(value)
+                with self.assertRaises(observation.GitHubReleaseObservationError):
+                    parser(value)
+
+        ordered_value = copy.deepcopy(self.verification())
+        ordered_subjects = ordered_value["verificationResult"]["statement"][
+            "subject"
+        ]
+        ordered_subjects[1:] = reversed(ordered_subjects[1:])
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_release_verification(
+                _json(ordered_value),
+                policy=self.policy(require_order=True),
+                release_id=self.RELEASE_ID,
+                published_at="2026-08-14T02:00:00Z",
+            )
+
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.expected_subjects(
+                dataclasses.replace(unordered_policy, require_asset_order=1)
+            )
+
     def test_repository_exact_keys_types_identity_and_duplicate_json(self) -> None:
         policy = observation.RepositoryPolicy(
             repository=self.REPOSITORY, repository_url=self.REPOSITORY_URL

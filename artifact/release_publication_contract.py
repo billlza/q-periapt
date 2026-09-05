@@ -184,6 +184,11 @@ def _validate_leaf_dispatch(manifest: dict[str, object]) -> dict[str, object]:
         )
     except apple_contract.ApplePublicationContractError as exc:
         raise ReleasePublicationContractError(str(exc)) from exc
+    if crates_contract.CRATES_IO_V0_1_4_PUBLICATION_KEY in publications:
+        _fail(
+            "crates.io 0.1.4 publication cannot be admitted because its exact "
+            "frozen receipt image is unavailable in this source line"
+        )
     if crates_contract.CRATES_IO_PUBLICATION_KEY in publications:
         try:
             crates_contract.validate_crates_io_publication_receipt(

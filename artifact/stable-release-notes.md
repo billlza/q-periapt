@@ -1,6 +1,62 @@
 # Q-Periapt 0.1.5 — ABI 2 stable release
 
-This release succeeds `0.1.4`, the current published stable set: the
+Publication checkpoint (2026-09-05): the Apple release
+[`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5)
+(ID 383170350, published 09:48:00 UTC, four assets) and platform release
+[`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5)
+(ID 383171691, published 09:53:52 UTC, seven assets) are public, immutable, and
+non-prerelease. Both tags resolve to `fabe003ddc3507b88af7a67a7138344e4b9634fd`.
+All ten crates.io version-0.1.5 API endpoints returned 404 at this checkpoint.
+The results at `cdeb9dc6549158e795ecc982aba714307ac83f38` still select the pending
+Apple/platform cohort; remote verification and registry publication remain open.
+The version is **0.1.5**, and this checkpoint makes no 0.1.6 release claim.
+The pre-tag and publication instructions below describe the completed transitions
+as well as the remaining closeout. Do not repeat tag creation or GitHub publication;
+reconcile existing transactions before continuing from their observed state.
+
+### Verification after publication
+
+A verifier correction does not change the version or bytes of an immutable
+distribution. The 0.1.5 closeout uses a separate clean verifier commit `V`, based
+on pending commit `P = cdeb9dc6549158e795ecc982aba714307ac83f38`. Keep a clean
+independent clone at `P` for the registry coordinator and the unchanged results
+finalizer. The corrected verifier's `artifact/results.json` must be byte-identical
+to `P`; the runtime wrappers and consumer fixture are materialized from the signed
+candidate's source `S`, not from `V`.
+
+`artifact/apple_verifier_recovery.py` validates explicit S/R/P/V identities, the
+original results-only S-to-R-to-P history, and every commit in the linear P-to-V
+history. Only the named post-publication verifier modules, their tests, and release
+documentation may change. A runtime, dependency, workflow, or results change,
+including a change later reverted, is rejected. The recovery path must be selected
+explicitly; failure of the normal provenance check never selects it automatically.
+This preserves the repository-trusted verifier boundary and does not claim to
+withstand malicious edits by the repository owner or a hostile same-account host.
+
+Set the seven existing `QPERIAPT_SWIFT_BINARY_*` asset pins as documented below,
+then select the reviewed verifier commit explicitly:
+
+```sh
+: "${REVIEWED_VERIFIER_COMMIT:?supply the reviewed clean verifier commit}"
+export QPERIAPT_APPLE_VERIFIER_PENDING_COMMIT=cdeb9dc6549158e795ecc982aba714307ac83f38
+export QPERIAPT_APPLE_VERIFIER_COMMIT="$REVIEWED_VERIFIER_COMMIT"
+/bin/sh artifact/swift-xcframework-remote-consumer.sh
+```
+
+The script validates recovery provenance before downloading and records the real
+`V` as `verifier_commit` in its receipt. From the same clean verifier checkout,
+promote with `apple_stable_publication.py promote` and append
+`--verifier-recovery "$QPERIAPT_APPLE_VERIFIER_PENDING_COMMIT" "$REVIEWED_VERIFIER_COMMIT"`.
+Return the exact verified domain receipts to the clean `P` checkout for finalization;
+the results successor remains results-only and is not installed on `V`.
+
+Remote-consumer log limits apply to stdout/stderr, using the existing bounded
+process runner. They do not use a process-wide file-size limit: a valid static
+library, downloaded ZIP, or Swift build output can exceed its diagnostic log cap.
+Timeout, output overflow, nonzero process status, invalid signature, warning/error
+diagnostics, and failed test assertions still fail verification.
+
+This release succeeds `0.1.4`, the latest complete GitHub-and-crates.io stable set: the
 `v0.1.4` and `abi2-platforms-v0.1.4` GitHub releases are live and immutable and
 the ten `0.1.4` crates are published on crates.io, although that line's verified
 receipts are recorded at the annotated tag `v0.1.4-verified-cohort` rather than in
@@ -116,11 +172,11 @@ therefore carries ten stable-named tags today: `v0.1.0` and
 `abi2-platforms-v0.1.0` and `v0.1.1` and `abi2-platforms-v0.1.1` and `v0.1.2`
 and `abi2-platforms-v0.1.2` (historical, unpublished) and `v0.1.3` and
 `abi2-platforms-v0.1.3` and `v0.1.4` and `abi2-platforms-v0.1.4` (historical,
-published). `v0.1.5` and `abi2-platforms-v0.1.5` are the two refs THIS release
-creates: they do not exist yet, and the step below proves both absent — locally
-and through the double-sampled read-only GitHub API — before either is pushed.
-The tag ruleset must cover all twelve stable-named refs, the ten that exist now
-and the two this release adds. The separate `v0.1.4-verified-cohort` evidence
+published). `v0.1.5` and `abi2-platforms-v0.1.5` are the two refs this release
+created. Before their creation, the step below required both to be absent locally
+and through the double-sampled read-only GitHub API. They now exist and must be
+preserved. The tag ruleset must cover all twelve stable-named refs. The separate
+`v0.1.4-verified-cohort` evidence
 tag is not one of those twelve and is not covered by the tag-protection
 authority below.
 

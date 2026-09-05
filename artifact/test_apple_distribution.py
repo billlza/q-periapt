@@ -2564,6 +2564,7 @@ fi
             "artifact/swift-xcframework-consumer-check.sh",
             "artifact/python-env.sh",
             "artifact/python_bootstrap.py",
+            "artifact/python-run.sh",
             "artifact/results.json",
             "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
         ):
@@ -2593,7 +2594,18 @@ fi
             self.remote.index("umask 077"),
             self.remote.index('RUNS_ROOT="$ROOT/target/'),
         )
-        self.assertIn('/bin/chmod 600 "$LOG"', self.remote)
+        self.assertIn("capture-remote-gate-log", self.remote)
+        self.assertGreaterEqual(
+            self.remote.count(
+                '/bin/sh "$VERIFIER_SNAPSHOT/artifact/python-run.sh"'
+            ),
+            3,
+        )
+        self.assertIn(
+            'capture_private_gate_log "$REMOTE_CONSUMER_LOG_NAME"',
+            self.remote,
+        )
+        self.assertNotIn("ulimit -f", self.remote)
         self.assertIn("emit-remote-consumer", self.remote)
         self.assertNotIn("RUNTIME_REPOSITORY_ROOT", self.remote)
         self.assertIn(
@@ -2819,6 +2831,19 @@ fi
             run = root / "transaction.fixture"
             for directory in (artifacts, verifier, assets, lock, run):
                 directory.mkdir(mode=0o700)
+            verifier_artifact = verifier / "artifact"
+            verifier_artifact.mkdir(mode=0o700)
+            runner = verifier_artifact / "python-run.sh"
+            runner.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' 'PUBLICATION_RECEIPT_COMMITTED_ERROR "
+                f"visibility={visibility} "
+                "leaf=apple-remote-consumer-receipt.json "
+                f"sha256={digest}'\n"
+                "exit 125\n",
+                encoding="utf-8",
+            )
+            runner.chmod(0o600)
             receipt = run / "apple-remote-consumer-receipt.json"
             if visibility == "committed":
                 receipt.write_bytes(b"committed receipt\n")
@@ -2831,17 +2856,10 @@ fi
                 + "\nARTIFACT_SNAPSHOT=$1\nVERIFIER_SNAPSHOT=$2\n"
                 + "RELEASE_ASSETS=$3\nLOCK_DIR=$4\nLOCK_RELEASED=0\n"
                 + "RECEIPT_COMMITTED=0\nRUN_DIRECTORY_NAME=transaction.fixture\n"
+                + "RECOVERY_PENDING_COMMIT=\nRECOVERY_VERIFIER_COMMIT=\n"
                 + "START_RESULTS_SHA256="
                 + digest
                 + "\n"
-                + "snapshot_python() {\n"
-                + "printf '%s\\n' 'PUBLICATION_RECEIPT_COMMITTED_ERROR "
-                + "visibility="
-                + visibility
-                + " "
-                + "leaf=apple-remote-consumer-receipt.json sha256="
-                + digest
-                + "'\nreturn 125\n}\n"
                 + "trap cleanup_remote_state EXIT\n"
                 + receipt_block
             )
@@ -2918,11 +2936,35 @@ fi
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
                 run = pathlib.Path(raw) / "transaction.fixture"
                 run.mkdir(mode=0o700)
+                verifier = pathlib.Path(raw) / "verifier"
+                verifier_artifact = verifier / "artifact"
+                verifier_artifact.mkdir(parents=True)
+                runner = verifier_artifact / "python-run.sh"
+                runner.write_text(
+                    "#!/bin/sh\n"
+                    "shift\n"
+                    "[ \"$1\" = capture-remote-gate-log ] || exit 2\n"
+                    "shift\n"
+                    "log_name=$2; shift 4\n"
+                    "[ \"$1\" = -- ] || exit 2\n"
+                    "shift\n"
+                    "set +e\n"
+                    "\"$@\" >\"$OUT/$log_name\" 2>&1\n"
+                    "child_status=$?\n"
+                    "set -e\n"
+                    "chmod 600 \"$OUT/$log_name\"\n"
+                    "digest=$(shasum -a 256 \"$OUT/$log_name\" | awk '{print $1}')\n"
+                    "printf 'REMOTE_CONSUMER_GATE_LOG_CAPTURED returncode=%s sha256=%s\\n' \"$child_status\" \"$digest\"\n",
+                    encoding="utf-8",
+                )
+                runner.chmod(0o600)
                 program = (
                     functions
                     + "\nOUT=$1\n"
+                    + "export OUT\n"
                     + "RUN_DIRECTORY_NAME=transaction.fixture\n"
-                    + "MAX_PRIVATE_GATE_LOG_BLOCKS=2048\n"
+                    + "VERIFIER_SNAPSHOT=$2\n"
+                    + "MAX_GATE_TIMEOUT_SECONDS=900\n"
                     + "MAX_PRIVATE_GATE_LOG_BYTES=1048576\n"
                     + "run_private_gate child.log child_gate /bin/sh -c "
                     + "'printf \"PRIVATE_SENTINEL /Users/private-checkout\\n\"; "
@@ -2930,7 +2972,14 @@ fi
                     + "printf 'TERMINAL_SAFE\\n'\n"
                 )
                 completed = subprocess.run(
-                    ["/bin/sh", "-c", program, "private-gate-test", str(run)],
+                    [
+                        "/bin/sh",
+                        "-c",
+                        program,
+                        "private-gate-test",
+                        str(run),
+                        str(verifier),
+                    ],
                     check=False,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,

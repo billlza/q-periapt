@@ -17,10 +17,9 @@ PLATFORM_R2_PUBLICATION_KEY = (
 PLATFORM_V0_1_3_PUBLICATION_KEY = "platform_v0_1_3"
 # The 0.1.4 line published for real, but its verified cohort is recorded at the
 # annotated tag `abi2-platforms-v0.1.4` / `v0.1.4-verified-cohort` rather than
-# in this branch's trusted results, so -- unlike platform_v0_1_3 -- there are
-# no frozen receipt bytes here to pin it to.  The key is named literally so it
-# stays addressable as published history that no transition may introduce,
-# remove, or rewrite.
+# in this branch's trusted results.  Keep the literal key recognizable, but
+# reject every occurrence until a deliberate migration installs exact trusted
+# receipt bytes that this dispatcher can validate by deep equality.
 PLATFORM_V0_1_4_PUBLICATION_KEY = "platform_v0_1_4"
 PLATFORM_V0_1_5_PUBLICATION_KEY = (
     stable_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
@@ -694,6 +693,12 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
     if unknown:
         raise PlatformPublicationContractError(
             f"release_publications has unknown entries: {unknown!r}"
+        )
+
+    if PLATFORM_V0_1_4_PUBLICATION_KEY in publications:
+        raise PlatformPublicationContractError(
+            "platform 0.1.4 publication cannot be admitted because its exact "
+            "frozen receipt image is unavailable in this source line"
         )
 
     if PLATFORM_R2_PUBLICATION_KEY in publications:

@@ -3,6 +3,14 @@
 This note is the current integration contract for downstream projects such as SkyBridge. It is
 deliberately stricter than a README quickstart and narrower than a product release promise.
 
+Publication checkpoint (2026-09-05): the `v0.1.5` Apple and
+`abi2-platforms-v0.1.5` Android/Linux distributions are public and immutable.
+The ten 0.1.5 crates.io packages and verified cohort activation remain pending.
+See the [release checkpoint](../artifact/stable-release-notes.md) for exact
+release identities. Package publication does not close the physical-device or
+controlled-performance requirements below; those requirements do not require
+recreating the existing 0.1.5 GitHub releases.
+
 It covers the implemented KEM/policy/binding faces only. It does not establish
 identity-directory, prekey, ratchet, multi-device, recovery, or key-transparency
 readiness. The future Q-Periapt Continuity plan is separate

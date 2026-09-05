@@ -106,6 +106,16 @@ VERIFIER_COMMIT=$(remote_git rev-parse --verify "HEAD^{commit}") || {
 	exit 2
 }
 require_lower_hex "$VERIFIER_COMMIT" 40 "verifier commit"
+RECOVERY_PENDING_COMMIT=${QPERIAPT_APPLE_VERIFIER_PENDING_COMMIT:-}
+RECOVERY_VERIFIER_COMMIT=${QPERIAPT_APPLE_VERIFIER_COMMIT:-}
+if [ -n "$RECOVERY_PENDING_COMMIT$RECOVERY_VERIFIER_COMMIT" ]; then
+	require_lower_hex "$RECOVERY_PENDING_COMMIT" 40 "recovery pending commit"
+	require_lower_hex "$RECOVERY_VERIFIER_COMMIT" 40 "recovery verifier commit"
+	if [ "$RECOVERY_VERIFIER_COMMIT" != "$VERIFIER_COMMIT" ]; then
+		printf 'error: recovery verifier pin differs from the current commit\n' >&2
+		exit 2
+	fi
+fi
 if ! remote_git cat-file -e "$ARTIFACT_SOURCE_COMMIT^{commit}"; then
 	printf 'error: artifact source commit is unavailable: %s\n' "$ARTIFACT_SOURCE_COMMIT" >&2
 	exit 2
@@ -118,6 +128,7 @@ bindings/signed-policy-vectors.json
 crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json'
 VERIFIER_INPUTS='artifact/swift-xcframework-remote-consumer.sh
 artifact/apple_stable_publication.py
+artifact/apple_verifier_recovery.py
 artifact/apple_distribution.py
 artifact/apple_proof_contract.py
 artifact/apple_publication_contract.py
@@ -138,6 +149,7 @@ artifact/rust_publish_contract.py
 artifact/swift-xcframework-consumer-check.sh
 artifact/python-env.sh
 artifact/python_bootstrap.py
+artifact/python-run.sh
 artifact/results.json'
 
 RUNS_ROOT="$ROOT/target/qperiapt-swift-remote-consumer-runs"
@@ -155,9 +167,8 @@ MAX_SOURCE_BLOB_BYTES=4194304
 MAX_TEXT_ASSET_BYTES=262144
 MAX_ZIP_ASSET_BYTES=536870912
 MAX_PRIVATE_GATE_LOG_BYTES=1048576
-MAX_PRIVATE_GATE_LOG_BLOCKS=2048
 MAX_SWIFT_TEST_LOG_BYTES=16777216
-MAX_SWIFT_TEST_LOG_BLOCKS=32768
+MAX_GATE_TIMEOUT_SECONDS=900
 
 cleanup_remote_state() {
 	primary_status=$?
@@ -229,10 +240,11 @@ private_path_identity() {
 			;;
 	esac
 }
-run_private_gate() {
+capture_private_gate_log() {
 	gate_log_leaf=$1
 	gate_reason=$2
-	shift 2
+	gate_maximum_bytes=$3
+	shift 3
 	gate_log="$OUT/$gate_log_leaf"
 	case "$gate_log_leaf" in
 		*[!0-9A-Za-z._-]*|'')
@@ -246,21 +258,51 @@ run_private_gate() {
 		exit 2
 	fi
 	set +e
-	(
-		umask 077
-		ulimit -f "$MAX_PRIVATE_GATE_LOG_BLOCKS" || exit 125
-		set -C
-		exec 3>"$gate_log"
-		"$@" >&3 2>&1
-	) 2>/dev/null
-	gate_status=$?
+	gate_marker=$(/bin/sh "$VERIFIER_SNAPSHOT/artifact/python-run.sh" \
+		"$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
+		capture-remote-gate-log "$RUN_DIRECTORY_NAME" "$gate_log_leaf" \
+		"$MAX_GATE_TIMEOUT_SECONDS" "$gate_maximum_bytes" -- "$@")
+	gate_helper_status=$?
 	set -e
+	if [ "$gate_helper_status" -ne 0 ]; then
+		printf 'error: remote-consumer private gate capture failed reason=%s\n' \
+			"$gate_reason" >&2
+		exit 2
+	fi
+	case "$gate_marker" in
+		"REMOTE_CONSUMER_GATE_LOG_CAPTURED returncode="*" sha256="*) ;;
+		*)
+			printf 'error: remote-consumer private gate capture marker differs reason=%s\n' \
+				"$gate_reason" >&2
+			exit 2
+			;;
+	esac
+	gate_values=${gate_marker#REMOTE_CONSUMER_GATE_LOG_CAPTURED returncode=}
+	gate_status=${gate_values%% *}
+	gate_sha256=${gate_values##* sha256=}
+	if [ "$gate_values" != "$gate_status sha256=$gate_sha256" ]; then
+		printf 'error: remote-consumer private gate capture marker is ambiguous reason=%s\n' \
+			"$gate_reason" >&2
+		exit 2
+	fi
+	case "$gate_status" in
+		*[!0-9]*|'')
+			printf 'error: remote-consumer private gate process status is malformed reason=%s\n' \
+				"$gate_reason" >&2
+			exit 2
+			;;
+	esac
+	if [ "$gate_status" -gt 255 ]; then
+		printf 'error: remote-consumer private gate process status is out of range reason=%s\n' \
+			"$gate_reason" >&2
+		exit 2
+	fi
+	require_lower_hex "$gate_sha256" 64 "remote-consumer private gate log SHA-256"
 	if [ ! -f "$gate_log" ] || [ -L "$gate_log" ]; then
 		printf 'error: remote-consumer private gate log metadata differs reason=%s\n' \
 			"$gate_reason" >&2
 		exit 2
 	fi
-	/bin/chmod 600 "$gate_log"
 	gate_identity=$(private_path_identity "$gate_log" file) || {
 		printf 'error: cannot inspect remote-consumer private gate log reason=%s\n' \
 			"$gate_reason" >&2
@@ -279,15 +321,27 @@ run_private_gate() {
 			exit 2
 			;;
 	esac
-	if [ "$gate_size" -gt "$MAX_PRIVATE_GATE_LOG_BYTES" ]; then
+	if [ "$gate_size" -gt "$gate_maximum_bytes" ]; then
 		printf 'error: remote-consumer private gate log exceeded its bound reason=%s\n' \
 			"$gate_reason" >&2
 		exit 2
 	fi
-	gate_sha256=$(
+	gate_actual_sha256=$(
 		/usr/bin/shasum -a 256 "$gate_log" | /usr/bin/awk '{print $1}'
 	)
-	require_lower_hex "$gate_sha256" 64 "remote-consumer private gate log SHA-256"
+	require_lower_hex "$gate_actual_sha256" 64 "remote-consumer private gate log resample SHA-256"
+	if [ "$gate_actual_sha256" != "$gate_sha256" ]; then
+		printf 'error: remote-consumer private gate log changed after capture reason=%s\n' \
+			"$gate_reason" >&2
+		exit 2
+	fi
+}
+run_private_gate() {
+	gate_log_leaf=$1
+	gate_reason=$2
+	shift 2
+	capture_private_gate_log "$gate_log_leaf" "$gate_reason" \
+		"$MAX_PRIVATE_GATE_LOG_BYTES" "$@"
 	if [ "$gate_status" -ne 0 ]; then
 		printf 'error: remote-consumer private gate failed reason=%s private_log=target/qperiapt-swift-remote-consumer-runs/%s/%s log_sha256=%s\n' \
 			"$gate_reason" "$RUN_DIRECTORY_NAME" "$gate_log_leaf" \
@@ -420,21 +474,20 @@ START_RESULTS_SHA256=$(
 		/usr/bin/awk '{print $1}'
 )
 require_lower_hex "$START_RESULTS_SHA256" 64 "startup results SHA-256"
+if [ -n "$RECOVERY_PENDING_COMMIT" ]; then
+	/bin/sh "$VERIFIER_SNAPSHOT/artifact/python-run.sh" \
+		"$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
+		verify-verifier-recovery "$RUN_DIRECTORY_NAME" "$START_RESULTS_SHA256" \
+		"$RECOVERY_PENDING_COMMIT" "$RECOVERY_VERIFIER_COMMIT"
+fi
 if ! /usr/bin/cmp "$ROOT/artifact/swift-xcframework-remote-consumer.sh" \
 	"$VERIFIER_SNAPSHOT/artifact/swift-xcframework-remote-consumer.sh"; then
 	printf 'error: running remote consumer does not match the verifier commit\n' >&2
 	exit 1
 fi
-snapshot_python() (
-	ROOT="$VERIFIER_SNAPSHOT"
-	cd "$VERIFIER_SNAPSHOT"
-	. "$VERIFIER_SNAPSHOT/artifact/python-env.sh"
-	python3 "$@"
-)
-
 validate_effective_url() {
 	effective_url=$1
-	snapshot_python - "$effective_url" <<'PY'
+	/bin/sh "$VERIFIER_SNAPSHOT/artifact/python-run.sh" - "$effective_url" <<'PY'
 import sys
 import urllib.parse
 
@@ -488,8 +541,13 @@ download_asset "$MANIFEST_URL" "$RELEASE_ASSETS/MANIFEST.json" \
 download_asset "$SHA256SUMS_URL" "$RELEASE_ASSETS/SHA256SUMS" \
 	"$MAX_TEXT_ASSET_BYTES" "SHA256SUMS"
 
-verify_release_assets() {
-	snapshot_python "$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
+verify_release_assets_private() {
+	phase=$1
+	run_private_gate "release-assets-$phase.log" \
+		"release_assets_$phase" \
+		/bin/sh \
+		"$VERIFIER_SNAPSHOT/artifact/python-run.sh" \
+		"$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
 		verify-release-assets \
 		"$VERIFIER_SNAPSHOT/artifact/results.json" \
 		"$RELEASE_ASSETS" \
@@ -499,11 +557,6 @@ verify_release_assets() {
 		"$EXPECTED_MANIFEST_SHA256" \
 		"$EXPECTED_SHA256SUMS_SHA256" \
 		"$CHECKSUM"
-}
-verify_release_assets_private() {
-	phase=$1
-	run_private_gate "release-assets-$phase.log" \
-		"release_assets_$phase" verify_release_assets
 }
 
 # This gate precedes every URL consumer or extractor.
@@ -599,45 +652,12 @@ if ! /usr/bin/grep -Fq "url: \"$URL\"" "$CONSUMER/Package.swift" || \
 	exit 1
 fi
 
-set +e
-(
-	umask 077
-	ulimit -f "$MAX_SWIFT_TEST_LOG_BLOCKS" || exit 125
-	set -C
-	exec 3>"$LOG"
-	/usr/bin/swift test --package-path "$CONSUMER" >&3 2>&1
-) 2>/dev/null
-consumer_rc=$?
-set -e
-if [ ! -f "$LOG" ] || [ -L "$LOG" ]; then
-	printf 'error: remote Swift URL binary consumer private log metadata differs\n' >&2
-	exit 2
-fi
-/bin/chmod 600 "$LOG"
-PRIVATE_LOG_IDENTITY=$(private_path_identity "$LOG" file) || {
-	printf 'error: cannot inspect remote Swift URL binary consumer private log\n' >&2
-	exit 2
-}
-if [ "$PRIVATE_LOG_IDENTITY" != "$(/usr/bin/id -u):600:1" ]; then
-	printf 'error: remote Swift URL binary consumer private log identity differs\n' >&2
-	exit 2
-fi
-PRIVATE_LOG_SIZE=$(/usr/bin/wc -c <"$LOG" | /usr/bin/tr -d '[:space:]')
-case "$PRIVATE_LOG_SIZE" in
-	*[!0-9]*|'')
-		printf 'error: remote Swift URL binary consumer private log size is malformed\n' >&2
-		exit 2
-		;;
-esac
-if [ "$PRIVATE_LOG_SIZE" -gt "$MAX_SWIFT_TEST_LOG_BYTES" ]; then
-	printf 'error: remote Swift URL binary consumer private log exceeded its bound\n' >&2
-	exit 2
-fi
+capture_private_gate_log "$REMOTE_CONSUMER_LOG_NAME" \
+	"swift_url_binary_consumer" "$MAX_SWIFT_TEST_LOG_BYTES" \
+	/usr/bin/swift test --package-path "$CONSUMER"
+consumer_rc=$gate_status
 PRIVATE_LOG_RELATIVE="target/qperiapt-swift-remote-consumer-runs/$RUN_DIRECTORY_NAME/swift-url-binary-consumer.log"
-PRIVATE_LOG_SHA256=$(
-	/usr/bin/shasum -a 256 "$LOG" | /usr/bin/awk '{print $1}'
-)
-require_lower_hex "$PRIVATE_LOG_SHA256" 64 "remote-consumer private log SHA-256"
+PRIVATE_LOG_SHA256=$gate_sha256
 if [ "$consumer_rc" -ne 0 ]; then
 	printf 'error: remote Swift URL binary consumer failed reason=process_exit private_log=%s log_sha256=%s\n' \
 		"$PRIVATE_LOG_RELATIVE" "$PRIVATE_LOG_SHA256" >&2
@@ -670,11 +690,14 @@ run_private_gate "codesign-pre-receipt.log" "codesign_pre_receipt" \
 	/usr/bin/codesign --verify --strict --verbose=4 \
 	"$REMOTE_EXTRACT/CQPeriapt.xcframework"
 REMOTE_RECEIPT_RELATIVE="target/qperiapt-swift-remote-consumer-runs/$RUN_DIRECTORY_NAME/apple-remote-consumer-receipt.json"
+set -- emit-remote-consumer "$RUN_DIRECTORY_NAME" "$START_RESULTS_SHA256"
+if [ -n "$RECOVERY_PENDING_COMMIT" ]; then
+	set -- "$@" --verifier-recovery "$RECOVERY_PENDING_COMMIT" "$RECOVERY_VERIFIER_COMMIT"
+fi
 set +e
-REMOTE_RECEIPT_MARKER=$(snapshot_python \
+REMOTE_RECEIPT_MARKER=$(/bin/sh "$VERIFIER_SNAPSHOT/artifact/python-run.sh" \
 	"$VERIFIER_SNAPSHOT/artifact/apple_stable_publication.py" \
-	emit-remote-consumer "$RUN_DIRECTORY_NAME" \
-	"$START_RESULTS_SHA256")
+	"$@")
 receipt_status=$?
 set -e
 if [ "$receipt_status" -ne 0 ]; then

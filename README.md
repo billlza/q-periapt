@@ -3,7 +3,7 @@
 [![CI](https://github.com/billlza/q-periapt/actions/workflows/ci.yml/badge.svg)](https://github.com/billlza/q-periapt/actions/workflows/ci.yml)
 
 > [!WARNING]
-> **Status: stable-version ABI 2 source line / receipt-gated GitHub publication /
+> **Status: 0.1.5 GitHub distributions published / verification closeout pending /
 > 0.1.5 crates.io publication pending / doctoral-thesis project (v0.1.5, ABI 2).**
 > This line succeeds the fully published `0.1.4` release (GitHub `v0.1.4` and
 > `abi2-platforms-v0.1.4` immutable releases published 2026-08-30, plus the ten
@@ -16,8 +16,9 @@
 > crates.io records are immutable and unaffected.
 > The formal stable GitHub transactions use the Apple XCFramework tag `v0.1.5`
 > and the `abi2-platforms-v0.1.5` platform tag (Android AAR and GNU/Linux
-> x86_64/aarch64 SDK archives); each is a non-prerelease public immutable release
-> only after the current verified receipt records that outcome — see
+> x86_64/aarch64 SDK archives). Both became public, immutable, non-prerelease
+> releases on 2026-09-05. The repository receipts still require remote-consumer,
+> platform redownload, and crates.io verification before cohort activation — see
 > [Stable release targets](#stable-release-targets-and-published-history-abi-2). The coordinated
 > “stable” label does not claim Rust API 1.0 compatibility: SemVer `0.1.5` remains
 > a Rust `0.x` line, while C ABI 2 and the ten exact internal `=0.1.5` dependency
@@ -436,8 +437,10 @@ under the no-bypass tag ruleset but were never published; their correction shipp
 `artifact/results.json`. The `v0.1.3` and `abi2-platforms-v0.1.3` releases then
 published for real — the first fully published stable line, including the ten
 `0.1.3` crates on crates.io — and `v0.1.4` and `abi2-platforms-v0.1.4` published in
-turn on 2026-08-30, together with the ten `0.1.4` crates, so 0.1.4 is now the current
-published stable set. `0.1.5` is 0.1.4's successor, not a correction
+turn on 2026-08-30, together with the ten `0.1.4` crates. As observed on 2026-09-05,
+0.1.4 remains the latest complete GitHub-and-crates.io cohort; the two 0.1.5 GitHub
+distributions are published and the ten 0.1.5 registry packages remain absent.
+`0.1.5` is 0.1.4's successor, not a correction
 (see the 0.1.0 through 0.1.4 history in
 [`artifact/stable-release-notes.md`](artifact/stable-release-notes.md)).
 
@@ -453,8 +456,8 @@ about whether 0.1.4 shipped.
 
 | Tag | Scope | Toolchain | Status |
 |---|---|---|---|
-| [`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5) | Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Stable target; current only with a verified receipt |
-| [`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5) | Apple Developer ID-signed static XCFramework ZIP | Rust 1.96.1 | Stable target; current only with a verified receipt |
+| [`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5) | Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable on 2026-09-05; verified cohort activation pending |
+| [`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5) | Apple Developer ID-signed static XCFramework ZIP | Rust 1.96.1 | Published immutable on 2026-09-05; remote-consumer verification and cohort activation pending |
 | [`abi2-platforms-v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.4) | Published 2026-08-30: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable predecessor; its verified receipt is recorded at the annotated `v0.1.4-verified-cohort` tag, not on `main` |
 | [`v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/v0.1.4) | Published 2026-08-30: Apple Developer ID-signed static XCFramework ZIP; the ten `0.1.4` crates are also published on crates.io | Rust 1.96.1 | Published immutable stable predecessor; its verified receipt is recorded at the annotated `v0.1.4-verified-cohort` tag, not on `main`, so `main`'s trusted results record no 0.1.4 publication |
 | [`abi2-platforms-v0.1.3`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.3) | Published 2026-08-25 at results successor `69e64078`: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable release, superseded by `abi2-platforms-v0.1.4`; its frozen verified receipt nevertheless remains the platform selection recorded in `main`'s trusted results |
