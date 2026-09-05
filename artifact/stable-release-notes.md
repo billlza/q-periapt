@@ -1181,6 +1181,17 @@ sh artifact/python-run.sh artifact/crates_io_publication.py publish \
   --execute-real-upload --acknowledge-irreversible-publish
 ```
 
+If this host requires its existing local HTTP proxy for registry uploads, append
+`--http-connect-proxy http://127.0.0.1:7890` with the actual loopback listener port
+to the publish command. This explicit per-process route uses HTTP CONNECT to
+`crates.io:443`, then verifies the crates.io TLS certificate before sending the
+credential or archive. It does not change system proxy settings, accept a remote
+proxy or proxy credentials, follow redirects, or retry a failed upload. Omitting
+the option retains direct upload. Read-only registry reconciliation is unchanged.
+After an unknown upload, preserve the journal and use the current unresolved
+intent with `--retry-unknown-intent`; its fresh API and sparse-index absence checks
+under the fixed publication lock still apply when the route changes.
+
 Do not use the same registry credential from another UID or host while this fixed
 transaction is unresolved; the local lock intentionally claims only same-host,
 same-account cross-worktree exclusion. No such upload has been run or is implied

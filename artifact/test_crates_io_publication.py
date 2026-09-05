@@ -3241,6 +3241,69 @@ signal.pause()
             self.assertIn("explicit upload retry", stderr.getvalue())
             read_source.assert_not_called()
 
+    def test_http_connect_proxy_requires_exact_loopback_url_before_publication_io(self) -> None:
+        valid = (
+            "http://127.0.0.1:1", "http://127.255.255.255:65535", "http://[::1]:7890",
+        )
+        for value in valid:
+            with self.subTest(valid=value):
+                self.assertEqual(value, publication._validated_http_connect_proxy(value))
+        invalid = (
+            "http://localhost:7890", "http://192.168.0.1:7890", "https://127.0.0.1:7890",
+            "http://user:password@127.0.0.1:7890", "http://127.0.0.1:7890/",
+            "http://127.0.0.1:7890?", "http://127.0.0.1:7890#",
+            "http://127.0.0.1:7890\n", "http://127.0.0.1:\t7890", " http://127.0.0.1:7890",
+            "http://127.00.0.1:7890", "http://127.256.0.1:7890", "http://127.0.0.1:0",
+            "http://127.0.0.1:01", "http://127.0.0.1:65536", "http://[::ffff:127.0.0.1]:7890",
+        )
+        cases = [("publish", value) for value in invalid]
+        cases.extend((mode, valid[0]) for mode in ("verify", "dry-run"))
+        for mode, value in cases:
+            with (
+                self.subTest(mode=mode, value=value),
+                mock.patch.object(publication, "_source_from_json") as read_source,
+                mock.patch.object(publication, "_validated_publication_state_root") as read_state,
+                mock.patch.object(publication, "_credential") as credential,
+                mock.patch.object(publication, "production_upload_runner") as uploader,
+                contextlib.redirect_stderr(io.StringIO()) as stderr,
+            ):
+                status = publication._main([
+                    mode, "/not-read.json", os.fspath(self.handoff_manifest_path),
+                    self.handoff_manifest_sha256, "--http-connect-proxy", value,
+                ])
+            self.assertEqual(1, status)
+            self.assertIn("HTTP CONNECT proxy", stderr.getvalue())
+            read_source.assert_not_called()
+            read_state.assert_not_called()
+            credential.assert_not_called()
+            uploader.assert_not_called()
+
+    def test_production_uploader_passes_explicit_proxy_without_ambient_trust(self) -> None:
+        package = self.evidence().crates[0]
+        state_root = self.production_state_root
+        uploader_path = state_root / publication.CRATES_IO_PUBLICATION_UPLOADER_NAME
+        uploader_path.write_text("#!/bin/sh\nexit 1\n", encoding="ascii")
+        os.chmod(uploader_path, 0o700)
+        proxy = "http://127.0.0.1:7890"
+        credential = "cio_fixture_token_123456789"
+        with mock.patch.object(publication, "capture_stdout", return_value=BoundedResult(
+            returncode=0, stdout=_json(upload_diagnostic_document())
+        )) as capture:
+            runner = publication.production_upload_runner(
+                uploader_path, state_root=state_root, http_connect_proxy=proxy
+            )
+            result = runner(package, credential=credential)
+        self.assertEqual(0, result.returncode)
+        capture.assert_called_once()
+        self.assertEqual([
+            os.fspath(uploader_path), "--crate-stdin", "--name", package.name,
+            "--version", package.version, "--size", str(package.size), "--sha256", package.sha256,
+            "--http-connect-proxy", proxy,
+        ], capture.call_args.args[0])
+        self.assertEqual({"CARGO_REGISTRY_TOKEN": credential, "LANG": "C", "LC_ALL": "C"},
+                         capture.call_args.kwargs["environment"])
+        self.assertNotIn(credential, capture.call_args.args[0])
+
     def test_tooling_recovery_cli_uses_explicit_lineage_and_exact_handoff_checker(self) -> None:
         source_path = self.root / "source-identity.json"
         source_path.write_bytes(_json(self.source.document()))
@@ -3413,51 +3476,36 @@ signal.pause()
         os.chmod(uploader_path, 0o700)
         lock_factory = mock.Mock()
         uploader = mock.Mock()
-        with (
-            mock.patch.object(
-                publication,
-                "production_lock_factory",
-                return_value=lock_factory,
-            ) as make_lock,
-            mock.patch.object(
-                publication,
-                "production_upload_runner",
-                return_value=uploader,
-            ) as make_uploader,
-            mock.patch.object(
-                publication,
-                "run_publication_transaction",
-                side_effect=publication.CratesIoPublicationError(
-                    "stopped before any upload"
+        for proxy in (None, "http://127.0.0.1:7890", "http://[::1]:7890"):
+            with (
+                self.subTest(proxy=proxy),
+                mock.patch.object(
+                    publication, "production_lock_factory", return_value=lock_factory,
+                ) as make_lock,
+                mock.patch.object(
+                    publication, "production_upload_runner", return_value=uploader,
+                ) as make_uploader,
+                mock.patch.object(
+                    publication, "run_publication_transaction",
+                    side_effect=publication.CratesIoPublicationError("stopped before any upload"),
                 ),
-            ),
-            mock.patch.object(
-                publication,
-                "_results_selected_handoff",
-                return_value=self.cli_selected_handoff(),
-            ),
-            contextlib.redirect_stderr(io.StringIO()),
-        ):
-            status = publication._main(
-                [
-                    "publish",
-                    os.fspath(source_path),
-                    os.fspath(self.handoff_manifest_path),
-                    self.handoff_manifest_sha256,
-                    "--state-root",
-                    os.fspath(state_root),
-                    "--uploader-command",
-                    os.fspath(uploader_path),
-                    "--execute-real-upload",
+                mock.patch.object(
+                    publication, "_results_selected_handoff", return_value=self.cli_selected_handoff(),
+                ),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                status = publication._main([
+                    "publish", os.fspath(source_path), os.fspath(self.handoff_manifest_path),
+                    self.handoff_manifest_sha256, "--state-root", os.fspath(state_root),
+                    "--uploader-command", os.fspath(uploader_path), "--execute-real-upload",
                     "--acknowledge-irreversible-publish",
-                ]
+                    *([] if proxy is None else ["--http-connect-proxy", proxy]),
+                ])
+            self.assertEqual(1, status)
+            make_lock.assert_called_once_with(state_root)
+            make_uploader.assert_called_once_with(
+                uploader_path, state_root=state_root, http_connect_proxy=proxy,
             )
-        self.assertEqual(1, status)
-        make_lock.assert_called_once_with(state_root)
-        make_uploader.assert_called_once_with(
-            uploader_path,
-            state_root=state_root,
-        )
 
     def test_verify_cli_marker_contains_controlled_receipt_path_and_digest(self) -> None:
         source_path = self.root / "source-identity.json"

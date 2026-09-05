@@ -16,6 +16,7 @@ import dataclasses
 import datetime as dt
 import hashlib
 import http.client
+import ipaddress
 import json
 import lzma
 import math
@@ -279,10 +280,33 @@ def _load_fixed_contracts() -> dict[str, CrateContract]:
 COHORT_CONTRACTS = MappingProxyType(_load_fixed_contracts())
 
 
+def _parse_http_connect_proxy(value: str) -> tuple[str, int]:
+    """Validate the explicit process route independently of the coordinator."""
+
+    match = (
+        re.fullmatch(r"http://(127(?:\.[0-9]{1,3}){3}|\[::1\]):([1-9][0-9]{0,4})", value)
+        if type(value) is str else None
+    )
+    _require(match is not None, "endpoint")
+    host = match.group(1).strip("[]")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise UploaderError("endpoint") from exc
+    port = int(match.group(2))
+    _require(address.is_loopback and str(address) == host and port <= 65535, "endpoint")
+    return host, port
+
+
 def _parse_protocol(
     arguments: Sequence[str],
     contracts: Mapping[str, CrateContract],
-) -> tuple[str, CrateContract]:
+) -> tuple[str, CrateContract, tuple[str, int] | None]:
+    proxy = None
+    if len(arguments) == 11:
+        _require(arguments[9] == "--http-connect-proxy", "protocol")
+        proxy = _parse_http_connect_proxy(arguments[10])
+        arguments = arguments[:9]
     _require(
         len(arguments) == 9
         and arguments[0] == "--crate-stdin"
@@ -319,7 +343,7 @@ def _parse_protocol(
         and sha256 == contract.sha256,
         "protocol",
     )
-    return name, contract
+    return name, contract, proxy
 
 
 def _credential(environment: Mapping[str, str]) -> str:
@@ -578,11 +602,13 @@ def _upload_once(
     allow_loopback_test: bool,
     timeout_seconds: float,
     progress: _UploadProgress,
+    http_connect_proxy: tuple[str, int] | None = None,
 ) -> None:
     scheme, host, port, path = _endpoint(
         upload_url,
         allow_loopback_test=allow_loopback_test,
     )
+    _require(http_connect_proxy is None or upload_url == PRODUCTION_UPLOAD_URL, "endpoint")
     _require(
         type(timeout_seconds) in {int, float}
         and 0.0 < timeout_seconds <= UPLOAD_TOTAL_TIMEOUT_SECONDS,
@@ -605,11 +631,16 @@ def _upload_once(
             context = ssl.create_default_context()
             context.minimum_version = ssl.TLSVersion.TLSv1_2
             connection = http.client.HTTPSConnection(
-                host,
-                port,
+                host if http_connect_proxy is None else http_connect_proxy[0],
+                port if http_connect_proxy is None else http_connect_proxy[1],
                 timeout=_remaining(deadline),
                 context=context,
             )
+            if http_connect_proxy is not None:
+                # HTTPSConnection completes CONNECT first, then verifies TLS
+                # with the tunnel host as SNI and certificate hostname. No
+                # authorization or package bytes enter the plaintext handshake.
+                connection.set_tunnel(host, port)
         else:
             connection = http.client.HTTPConnection(
                 host,
@@ -734,7 +765,7 @@ def run(
         "endpoint",
     )
     selected_contracts = COHORT_CONTRACTS if contracts is None else contracts
-    _name, contract = _parse_protocol(arguments, selected_contracts)
+    _name, contract, http_connect_proxy = _parse_protocol(arguments, selected_contracts)
     _validate_stdin(
         stdin,
         contract,
@@ -749,6 +780,7 @@ def run(
         allow_loopback_test=allow_loopback_test,
         timeout_seconds=timeout_seconds,
         progress=selected_progress,
+        http_connect_proxy=http_connect_proxy,
     )
     selected_progress.stage = "complete"
 

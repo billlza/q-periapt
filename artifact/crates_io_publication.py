@@ -17,6 +17,7 @@ import dataclasses
 import datetime as dt
 import errno
 import hashlib
+import ipaddress
 import os
 import pathlib
 import re
@@ -958,10 +959,36 @@ def production_lock_factory(
     return acquire
 
 
+def _validated_http_connect_proxy(value: str) -> str:
+    """Accept only an explicit canonical loopback HTTP proxy without userinfo.
+
+    The independently installed uploader repeats this boundary check; it cannot
+    import repository code. An exact grammar also rejects URL parser stripping of
+    control characters and empty query/fragment markers.
+    """
+
+    match = (
+        re.fullmatch(r"http://(127(?:\.[0-9]{1,3}){3}|\[::1\]):([1-9][0-9]{0,4})", value)
+        if type(value) is str else None
+    )
+    _require(match is not None, "HTTP CONNECT proxy must be a canonical loopback HTTP host and port")
+    host = match.group(1).strip("[]")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise CratesIoPublicationError("HTTP CONNECT proxy address is malformed") from exc
+    _require(
+        address.is_loopback and str(address) == host and int(match.group(2)) <= 65535,
+        "HTTP CONNECT proxy address or port differs from the loopback contract",
+    )
+    return value
+
+
 def production_upload_runner(
     uploader_command: pathlib.Path,
     *,
     state_root: pathlib.Path,
+    http_connect_proxy: str | None = None,
 ) -> UploadRunner:
     """Adapt the fixed state-root-owned exact-byte uploader to the bounded runner API.
 
@@ -974,6 +1001,10 @@ def production_upload_runner(
     capability to the trusted owner of that private publication root.
     """
 
+    proxy_arguments = (
+        [] if http_connect_proxy is None
+        else ["--http-connect-proxy", _validated_http_connect_proxy(http_connect_proxy)]
+    )
     normalized_state_root = _validated_publication_state_root(state_root)
     command = _canonical_input_file(
         uploader_command, label="crates.io exact-byte uploader"
@@ -1068,6 +1099,7 @@ def production_upload_runner(
                     str(package.size),
                     "--sha256",
                     package.sha256,
+                    *proxy_arguments,
                 ],
                 timeout_seconds=UPLOAD_TIMEOUT_SECONDS,
                 maximum_bytes=MAX_UPLOADER_OUTPUT_BYTES,
@@ -4589,11 +4621,19 @@ def _main(arguments: Sequence[str]) -> int:
     )
     parser.add_argument("--execute-real-upload", action="store_true")
     parser.add_argument(
+        "--http-connect-proxy",
+        metavar="HTTP_LOOPBACK_URL",
+        help="explicit loopback HTTP CONNECT route for the fixed crates.io TLS upload; publish only",
+    )
+    parser.add_argument(
         "--acknowledge-irreversible-publish",
         action="store_true",
     )
     namespace = parser.parse_args(arguments)
     try:
+        if namespace.http_connect_proxy is not None:
+            _require(namespace.mode == "publish", "HTTP CONNECT proxy requires publish mode")
+            _validated_http_connect_proxy(namespace.http_connect_proxy)
         if namespace.retry_unknown_intent is not None:
             _require(
                 namespace.mode == "publish"
@@ -4703,6 +4743,7 @@ def _main(arguments: Sequence[str]) -> int:
             uploader = production_upload_runner(
                 uploader_authority,
                 state_root=state_root,
+                http_connect_proxy=namespace.http_connect_proxy,
             )
             journal_root = state_root / "journal"
             credential_provider = lambda: os.environ.get(
