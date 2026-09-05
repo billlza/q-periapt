@@ -8,7 +8,10 @@ Publication checkpoint (2026-09-05): the Apple release
 non-prerelease. Both tags resolve to `fabe003ddc3507b88af7a67a7138344e4b9634fd`.
 All ten crates.io version-0.1.5 API endpoints returned 404 at this checkpoint.
 The results at `cdeb9dc6549158e795ecc982aba714307ac83f38` still select the pending
-Apple/platform cohort; remote verification and registry publication remain open.
+Apple/platform cohort. Apple remote-consumer and platform asset verification have
+completed with separate domain receipts. Registry upload and the final verified
+cohort commit `Q` remain pending; no `Q` or `v0.1.5-verified-cohort` tag has been
+created at this checkpoint.
 The version is **0.1.5**, and this checkpoint makes no 0.1.6 release claim.
 The pre-tag and publication instructions below describe the completed transitions
 as well as the remaining closeout. Do not repeat tag creation or GitHub publication;
@@ -17,8 +20,9 @@ reconcile existing transactions before continuing from their observed state.
 ### Verification after publication
 
 A verifier correction does not change the version or bytes of an immutable
-distribution. The 0.1.5 closeout uses a separate clean verifier commit `V`, based
-on pending commit `P = cdeb9dc6549158e795ecc982aba714307ac83f38`. Keep a clean
+distribution. The 0.1.5 closeout uses the separate clean verifier commit
+`V = 63293bb1165ccff704cf9cfffdcda3ec3f959f7b`, based on pending commit
+`P = cdeb9dc6549158e795ecc982aba714307ac83f38`. Keep a clean
 independent clone at `P` for the registry coordinator and the unchanged results
 finalizer. The corrected verifier's `artifact/results.json` must be byte-identical
 to `P`; the runtime wrappers and consumer fixture are materialized from the signed
@@ -48,13 +52,35 @@ The script validates recovery provenance before downloading and records the real
 promote with `apple_stable_publication.py promote` and append
 `--verifier-recovery "$QPERIAPT_APPLE_VERIFIER_PENDING_COMMIT" "$REVIEWED_VERIFIER_COMMIT"`.
 Return the exact verified domain receipts to the clean `P` checkout for finalization;
-the results successor remains results-only and is not installed on `V`.
+the final results successor `Q` remains the direct results-only child of `P` and
+is not installed on `V`.
 
 Remote-consumer log limits apply to stdout/stderr, using the existing bounded
 process runner. They do not use a process-wide file-size limit: a valid static
 library, downloaded ZIP, or Swift build output can exceed its diagnostic log cap.
 Timeout, output overflow, nonzero process status, invalid signature, warning/error
 diagnostics, and failed test assertions still fail verification.
+
+### Reopen the development line
+
+The verifier corrections change thirteen registered proof-input files relative to
+the installed results at `P`. Their normal development integration therefore uses
+the existing `source_results_assembler.py reopen-source` transition: from a clean
+descendant of `V` that still retains the exact pending results, generate a separate
+190-key initial baseline, then install it in one commit `D` together with the
+matching `INITIAL_RESULTS_SHA256` and the authority stated in `ARTIFACT.md`.
+The generator recomputes the retained inputs and removes only the validated pending
+leaves; do not hand-edit the installed 249-key proof map. This reopens development
+and does not activate the 0.1.5 cohort or claim current package evidence for `D`.
+
+Registry publication and finalization continue independently in the clean `P`
+checkout. Once all three complete domain receipts have produced and verified `Q`,
+its durable publication record may be preserved at the annotated
+`v0.1.5-verified-cohort` tag. Do not install `Q` on the development branch before
+reopening it: the current reopen contract refuses to drop a verified publication leaf. Keep the
+original `V` reachable when integrating the development branch, because the Apple
+receipt names that exact verifier commit. Existing `v0.1.5` and
+`abi2-platforms-v0.1.5` distribution tags continue to identify `R`.
 
 This release succeeds `0.1.4`, the latest complete GitHub-and-crates.io stable set: the
 `v0.1.4` and `abi2-platforms-v0.1.4` GitHub releases are live and immutable and
@@ -311,7 +337,7 @@ weakening package ownership checks:
 These source notes cannot by themselves assert a performance improvement. The final
 release earns that claim only if `R` selects the mandatory raw-schema-v5 /
 proof-schema-v8 / budget-schema-v10 proof for `S`, and the coordinated verified
-receipt `V` preserves and revalidates that exact selection. The proof requires both
+cohort commit `Q` preserves and revalidates that exact selection. The proof requires both
 the preserved ContextBound/CompatXWing profile non-regression estimand with strict
 ContextBound fixed suite/version/application-context inputs and CompatXWing canonical
 `[]`/`0`/`[]` inputs, and a
@@ -369,7 +395,7 @@ Scanning analyses and alerts; a permission error is a hard failure, never an emp
 result. Record those run and attempt IDs. A newer failed, cancelled, or in-progress
 exact run blocks an older success. Re-run the tag-ruleset
 authority immediately before this block. Neither `S`, a feature or pull-request
-SHA, nor the later `P` or `V` results commits may be tagged.
+SHA, nor the later `P` or `Q` results commits may receive either distribution tag.
 From the first pre-tag security sample through the final remote tag-state sample,
 the authorized release operator must freeze workflow rerun/dispatch actions and
 exclude concurrent tag or branch operators; otherwise the authority must be sampled
@@ -1202,7 +1228,7 @@ test "$(shasum -a 256 "$crates_verified_receipt" | awk '{print $1}')" = \
   "$crates_verified_receipt_sha256"
 ```
 
-Finalize against the still-pinned pending results. Install V as the direct
+Finalize against the still-pinned pending results. Install `Q` as the direct
 results-only child of P and run `verify-installed` before the receipt-level
 read-only `verify`; those commands prove different boundaries and neither replaces
 the other:

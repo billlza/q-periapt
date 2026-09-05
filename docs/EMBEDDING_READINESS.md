@@ -5,6 +5,7 @@ deliberately stricter than a README quickstart and narrower than a product relea
 
 Publication checkpoint (2026-09-05): the `v0.1.5` Apple and
 `abi2-platforms-v0.1.5` Android/Linux distributions are public and immutable.
+Apple remote-consumer and platform asset verification have produced domain receipts.
 The ten 0.1.5 crates.io packages and verified cohort activation remain pending.
 See the [release checkpoint](../artifact/stable-release-notes.md) for exact
 release identities. Package publication does not close the physical-device or

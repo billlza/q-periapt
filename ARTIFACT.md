@@ -347,7 +347,7 @@ refuses on any non-pending leaf outside the floor, a line's own publication rece
 that floor; absent that, the durable record of that line's publication is its immutable
 public release and registry material plus its annotated verified-cohort tag, not `main`'s
 results. Do not physically edit, extract, or delete the assembler between R and verified
-publication V; doing so would create a new source change after the evidence freeze. Retain
+publication Q; doing so would create a new source change after the evidence freeze. Retain
 `verify-installed` and the exact CI dispatch until their durable 249-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
