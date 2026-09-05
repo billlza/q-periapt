@@ -63,6 +63,7 @@ done
 PRODUCT_VERSION="0.1.5"
 RELEASE_TAG="v$PRODUCT_VERSION"
 RELEASE_BASE="https://github.com/billlza/q-periapt/releases/download/$RELEASE_TAG"
+REMOTE_CONSUMER_LOG_NAME="swift-url-binary-consumer.log"
 ZIP_URL="$RELEASE_BASE/CQPeriapt.xcframework.zip"
 APPLE_DISTRIBUTION_URL="$RELEASE_BASE/APPLE_DISTRIBUTION.json"
 MANIFEST_URL="$RELEASE_BASE/MANIFEST.json"
@@ -199,6 +200,11 @@ cleanup_remote_state() {
 	fi
 	if [ "$cleanup_failed" -ne 0 ] && [ "$primary_status" -eq 0 ]; then
 		exit 125
+	fi
+	# Normal success removes this trap; macOS /bin/sh can report zero here after fatal set -u expansion.
+	if [ "$primary_status" -eq 0 ]; then
+		printf 'error: remote-consumer terminated before terminal success\n' >&2
+		exit 1
 	fi
 	exit "$primary_status"
 }
@@ -400,7 +406,7 @@ REMOTE_ZIP="$RELEASE_ASSETS/CQPeriapt.xcframework.zip"
 REMOTE_EXTRACT="$SNAPSHOT_TARGET/extracted"
 CONSUMER="$SNAPSHOT_TARGET/consumer"
 APPLE_CONSUMER_EVIDENCE="$SNAPSHOT_TARGET/apple-consumer-evidence"
-LOG="$OUT/swift-url-binary-consumer.log"
+LOG="$OUT/$REMOTE_CONSUMER_LOG_NAME"
 /bin/mkdir -m 700 "$ARTIFACT_SNAPSHOT" "$VERIFIER_SNAPSHOT" "$RELEASE_ASSETS"
 
 materialize_source_input() {
@@ -656,7 +662,7 @@ capture_private_gate_log "$REMOTE_CONSUMER_LOG_NAME" \
 	"swift_url_binary_consumer" "$MAX_SWIFT_TEST_LOG_BYTES" \
 	/usr/bin/swift test --package-path "$CONSUMER"
 consumer_rc=$gate_status
-PRIVATE_LOG_RELATIVE="target/qperiapt-swift-remote-consumer-runs/$RUN_DIRECTORY_NAME/swift-url-binary-consumer.log"
+PRIVATE_LOG_RELATIVE="target/qperiapt-swift-remote-consumer-runs/$RUN_DIRECTORY_NAME/$REMOTE_CONSUMER_LOG_NAME"
 PRIVATE_LOG_SHA256=$gate_sha256
 if [ "$consumer_rc" -ne 0 ]; then
 	printf 'error: remote Swift URL binary consumer failed reason=process_exit private_log=%s log_sha256=%s\n' \
