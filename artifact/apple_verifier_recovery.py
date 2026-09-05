@@ -44,6 +44,7 @@ APPLE_VERIFIER_RECOVERY_RUNTIME_PATHS = frozenset(
         "artifact/apple_stable_publication.py",
         "artifact/apple_verifier_recovery.py",
         "artifact/github_release_observation.py",
+        "artifact/git_provenance.py",
         "artifact/platform_publication_contract.py",
         "artifact/release_publication_contract.py",
         "artifact/swift-xcframework-remote-consumer.sh",
@@ -55,6 +56,7 @@ APPLE_VERIFIER_RECOVERY_TEST_PATHS = frozenset(
         "artifact/test_apple_stable_publication.py",
         "artifact/test_apple_verifier_recovery.py",
         "artifact/test_github_release_observation.py",
+        "artifact/test_git_provenance.py",
         "artifact/test_platform_publication_contract.py",
         "artifact/test_release_publication_contract.py",
     }
