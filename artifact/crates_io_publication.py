@@ -17,6 +17,7 @@ import dataclasses
 import datetime as dt
 import errno
 import hashlib
+import ipaddress
 import os
 import pathlib
 import re
@@ -36,7 +37,22 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, ContextManager, Literal, Never, TextIO
 
 import rust_package_handoff
-from bounded_process import BoundedResult, capture_stdout
+from bounded_process import (
+    BOUNDED_PROCESS_ERROR_KINDS,
+    BoundedProcessError,
+    BoundedResult,
+    capture_stdout,
+)
+from crates_io_upload_diagnostic import (
+    UploadDiagnostic,
+    UploadDiagnosticError,
+    parse_upload_diagnostic,
+    validate_upload_diagnostic_document,
+)
+from crates_io_tooling_recovery import (
+    CratesIoToolingRecoveryError,
+    validate_crates_io_tooling_recovery_lineage,
+)
 from crates_io_publication_contract import (
     ABI_VERSION,
     CRATE_DEPENDENCIES,
@@ -230,10 +246,15 @@ RUST_PACKAGE_HANDOFF_STAGING_KIND = "qperiapt.rust_package_handoff_staging"
 RUST_PACKAGE_HANDOFF_BOUNDARY = rust_package_handoff.RUST_PACKAGE_HANDOFF_BOUNDARY
 
 UPLOAD_JOURNAL_SCHEMA_VERSION = 1
+UPLOAD_JOURNAL_SCHEMA_V2 = 2
 UPLOAD_JOURNAL_KIND = "qperiapt.crates_io_upload_attempt"
 UPLOAD_JOURNAL_INTENT = "upload_intent"
 UPLOAD_JOURNAL_UNKNOWN = "upload_outcome_unknown"
 UPLOAD_JOURNAL_PUBLISHED = "upload_outcome_published_verified"
+_UPLOAD_ADAPTER_ERRORS = frozenset(
+    {"diagnostic-invalid", "uploader-exception", "uploader-contract"}
+    | {f"process-{kind}" for kind in BOUNDED_PROCESS_ERROR_KINDS}
+)
 
 RunMode = Literal["dry-run", "verify", "publish"]
 HttpFetcher = Callable[..., "HttpResponse"]
@@ -405,6 +426,32 @@ class WrittenReceipt:
     sha256: str
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DiagnosedUploadResult(BoundedResult):
+    diagnostic: UploadDiagnostic
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class UploadExecutionDiagnostic:
+    returncode: int | None
+    transport: UploadDiagnostic | None
+    adapter_error: str | None
+
+    def document(self) -> dict[str, object]:
+        return {
+            "returncode": self.returncode,
+            "transport": self.transport.to_document() if self.transport is not None else None,
+            "adapter_error": self.adapter_error,
+        }
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class UploadRetryAuthorization:
+    intent_sha256: str
+    absence_receipt_sha256: str
+    absence_observed_at: str
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class UploadIntent:
     attempt_id: str
@@ -412,6 +459,7 @@ class UploadIntent:
     digest: str
     path: pathlib.Path
     recorded_at: str
+    retry: UploadRetryAuthorization | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -421,6 +469,7 @@ class UploadOutcome:
     intent_sha256: str
     state: str
     recorded_at: str
+    diagnostic: UploadExecutionDiagnostic | None = None
 
 
 def _fail(message: str) -> Never:
@@ -910,10 +959,36 @@ def production_lock_factory(
     return acquire
 
 
+def _validated_http_connect_proxy(value: str) -> str:
+    """Accept only an explicit canonical loopback HTTP proxy without userinfo.
+
+    The independently installed uploader repeats this boundary check; it cannot
+    import repository code. An exact grammar also rejects URL parser stripping of
+    control characters and empty query/fragment markers.
+    """
+
+    match = (
+        re.fullmatch(r"http://(127(?:\.[0-9]{1,3}){3}|\[::1\]):([1-9][0-9]{0,4})", value)
+        if type(value) is str else None
+    )
+    _require(match is not None, "HTTP CONNECT proxy must be a canonical loopback HTTP host and port")
+    host = match.group(1).strip("[]")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise CratesIoPublicationError("HTTP CONNECT proxy address is malformed") from exc
+    _require(
+        address.is_loopback and str(address) == host and int(match.group(2)) <= 65535,
+        "HTTP CONNECT proxy address or port differs from the loopback contract",
+    )
+    return value
+
+
 def production_upload_runner(
     uploader_command: pathlib.Path,
     *,
     state_root: pathlib.Path,
+    http_connect_proxy: str | None = None,
 ) -> UploadRunner:
     """Adapt the fixed state-root-owned exact-byte uploader to the bounded runner API.
 
@@ -926,6 +1001,10 @@ def production_upload_runner(
     capability to the trusted owner of that private publication root.
     """
 
+    proxy_arguments = (
+        [] if http_connect_proxy is None
+        else ["--http-connect-proxy", _validated_http_connect_proxy(http_connect_proxy)]
+    )
     normalized_state_root = _validated_publication_state_root(state_root)
     command = _canonical_input_file(
         uploader_command, label="crates.io exact-byte uploader"
@@ -1020,6 +1099,7 @@ def production_upload_runner(
                     str(package.size),
                     "--sha256",
                     package.sha256,
+                    *proxy_arguments,
                 ],
                 timeout_seconds=UPLOAD_TIMEOUT_SECONDS,
                 maximum_bytes=MAX_UPLOADER_OUTPUT_BYTES,
@@ -1076,10 +1156,10 @@ def production_upload_runner(
             and stat.S_IMODE(final_state.st_mode) == PRIVATE_DIRECTORY_MODE,
             "crates.io publication state root changed during uploader invocation",
         )
-        secret = credential.encode("utf-8")
-        if secret in result.stdout:
-            return BoundedResult(returncode=1)
-        return BoundedResult(returncode=result.returncode)
+        diagnostic = parse_upload_diagnostic(
+            result.stdout, credential=credential, returncode=result.returncode
+        )
+        return DiagnosedUploadResult(returncode=result.returncode, diagnostic=diagnostic)
 
     return upload
 
@@ -2841,6 +2921,8 @@ def _journal_record(
     attempt_id: str,
     recorded_at: str,
     intent_sha256: str | None = None,
+    retry: UploadRetryAuthorization | None = None,
+    diagnostic: UploadExecutionDiagnostic | None = None,
 ) -> dict[str, object]:
     _require(
         state
@@ -2870,14 +2952,34 @@ def _journal_record(
         "state": state,
     }
     if state == UPLOAD_JOURNAL_INTENT:
+        _require(diagnostic is None, "upload intent cannot contain a result diagnostic")
         _require(intent_sha256 is None, "upload intent cannot reference itself")
+        if retry is not None:
+            _require(
+                isinstance(retry, UploadRetryAuthorization),
+                "upload retry authorization type differs",
+            )
+            retry_value = dataclasses.asdict(retry)
+            _validated_retry_authorization(retry_value, recorded_at=recorded_at)
+            value["schema_version"] = UPLOAD_JOURNAL_SCHEMA_V2
+            value["retry"] = retry_value
     else:
+        _require(retry is None, "upload outcome cannot authorize a retry")
         _require(
             isinstance(intent_sha256, str)
             and _SHA256_RE.fullmatch(intent_sha256) is not None,
             "upload outcome intent digest is malformed",
         )
         value["intent_sha256"] = intent_sha256
+        if diagnostic is not None:
+            _require(
+                isinstance(diagnostic, UploadExecutionDiagnostic),
+                "upload execution diagnostic type differs",
+            )
+            diagnostic_value = diagnostic.document()
+            _validated_execution_diagnostic(diagnostic_value)
+            value["schema_version"] = UPLOAD_JOURNAL_SCHEMA_V2
+            value["diagnostic"] = diagnostic_value
     return value
 
 
@@ -2905,6 +3007,7 @@ def write_upload_intent(
     *,
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
     clock: Clock = lambda: dt.datetime.now(dt.UTC),
+    retry: UploadRetryAuthorization | None = None,
 ) -> UploadIntent:
     """Durably record one exact upload intent before invoking the uploader."""
 
@@ -2917,6 +3020,7 @@ def write_upload_intent(
         state=UPLOAD_JOURNAL_INTENT,
         attempt_id=attempt_id,
         recorded_at=recorded_at,
+        retry=retry,
     )
     path, digest = _write_upload_journal_record(
         value,
@@ -2928,6 +3032,7 @@ def write_upload_intent(
         digest=digest,
         path=path,
         recorded_at=recorded_at,
+        retry=retry,
     )
 
 
@@ -2941,6 +3046,7 @@ def write_upload_outcome(
     ],
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
     clock: Clock = lambda: dt.datetime.now(dt.UTC),
+    diagnostic: UploadExecutionDiagnostic | None = None,
 ) -> tuple[pathlib.Path, str]:
     """Append one outcome cross-linked to an immutable upload intent."""
 
@@ -2956,6 +3062,7 @@ def write_upload_outcome(
         attempt_id=intent.attempt_id,
         intent_sha256=intent.digest,
         recorded_at=_canonical_timestamp(clock),
+        diagnostic=diagnostic,
     )
     return _write_upload_journal_record(value, journal_root=journal_root)
 
@@ -3281,6 +3388,69 @@ def _recover_incomplete_upload_journal_transactions(
                 ) from exc
 
 
+def _validated_execution_diagnostic(value: object) -> UploadExecutionDiagnostic:
+    _require(
+        isinstance(value, dict)
+        and set(value) == {"returncode", "transport", "adapter_error"},
+        "upload execution diagnostic keys differ",
+    )
+    returncode = value["returncode"]
+    _require(
+        returncode is None or type(returncode) is int,
+        "upload execution diagnostic returncode is malformed",
+    )
+    if value["transport"] is not None:
+        _require(
+            type(returncode) is int and value["adapter_error"] is None,
+            "upload transport diagnostic cannot contain an adapter error",
+        )
+        try:
+            transport = validate_upload_diagnostic_document(
+                value["transport"], returncode=returncode
+            )
+        except UploadDiagnosticError as exc:
+            raise CratesIoPublicationError("upload transport diagnostic is invalid") from exc
+        return UploadExecutionDiagnostic(returncode, transport, None)
+    _require(
+        isinstance(value["adapter_error"], str)
+        and value["adapter_error"] in _UPLOAD_ADAPTER_ERRORS,
+        "upload adapter diagnostic is invalid",
+    )
+    return UploadExecutionDiagnostic(returncode, None, value["adapter_error"])
+
+
+def _validated_retry_authorization(
+    value: object,
+    *,
+    recorded_at: str,
+) -> UploadRetryAuthorization:
+    _require(
+        isinstance(value, dict)
+        and set(value)
+        == {"intent_sha256", "absence_receipt_sha256", "absence_observed_at"},
+        "upload retry authorization keys differ",
+    )
+    for field in ("intent_sha256", "absence_receipt_sha256"):
+        _require(
+            isinstance(value[field], str)
+            and _SHA256_RE.fullmatch(value[field]) is not None,
+            f"upload retry {field} is malformed",
+        )
+    try:
+        observed = parse_utc_timestamp(
+            value["absence_observed_at"], "upload retry absence_observed_at"
+        )
+        recorded = parse_utc_timestamp(recorded_at, "upload retry recorded_at")
+    except CratesIoPublicationContractError as exc:
+        raise CratesIoPublicationError(str(exc)) from exc
+    _require(observed <= recorded, "upload retry absence observation is in the future")
+    return UploadRetryAuthorization(
+        intent_sha256=value["intent_sha256"],
+        absence_receipt_sha256=value["absence_receipt_sha256"],
+        absence_observed_at=value["absence_observed_at"],
+    )
+
+
 def _validated_journal_value(
     value: object,
     *,
@@ -3294,6 +3464,7 @@ def _validated_journal_value(
         "upload journal record must be a JSON object with string keys",
     )
     state = value.get("state")
+    schema = value.get("schema_version")
     expected_keys = {
         "attempt_id",
         "crate",
@@ -3306,13 +3477,18 @@ def _validated_journal_value(
     }
     if state != UPLOAD_JOURNAL_INTENT:
         expected_keys.add("intent_sha256")
+    if schema == UPLOAD_JOURNAL_SCHEMA_V2:
+        expected_keys.add("retry" if state == UPLOAD_JOURNAL_INTENT else "diagnostic")
     _require(
         set(value) == expected_keys,
         "upload journal record keys differ",
     )
     _require(
-        value["schema_version"] == UPLOAD_JOURNAL_SCHEMA_VERSION
-        and type(value["schema_version"]) is int,
+        type(schema) is int
+        and (
+            schema == UPLOAD_JOURNAL_SCHEMA_VERSION
+            or schema == UPLOAD_JOURNAL_SCHEMA_V2
+        ),
         "upload journal schema differs",
     )
     _require(value["kind"] == UPLOAD_JOURNAL_KIND, "upload journal kind differs")
@@ -3366,12 +3542,18 @@ def _validated_journal_value(
         f"upload journal local archive differs for {crate_name}",
     )
     if state == UPLOAD_JOURNAL_INTENT:
+        retry = (
+            _validated_retry_authorization(value["retry"], recorded_at=recorded_at)
+            if schema == UPLOAD_JOURNAL_SCHEMA_V2
+            else None
+        )
         return UploadIntent(
             attempt_id=attempt_id,
             crate_name=crate_name,
             digest=digest,
             path=path,
             recorded_at=recorded_at,
+            retry=retry,
         )
     intent_sha256 = value["intent_sha256"]
     _require(
@@ -3385,6 +3567,11 @@ def _validated_journal_value(
         intent_sha256=intent_sha256,
         state=state,
         recorded_at=recorded_at,
+        diagnostic=(
+            _validated_execution_diagnostic(value["diagnostic"])
+            if schema == UPLOAD_JOURNAL_SCHEMA_V2
+            else None
+        ),
     )
 
 
@@ -3392,6 +3579,7 @@ def load_unresolved_upload_intents(
     evidence: LocalPublicationEvidence,
     *,
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
+    retry_authorization: UploadRetryAuthorization | None = None,
 ) -> tuple[UploadIntent, ...]:
     """Return intents lacking an exact published outcome; reject ambiguity."""
 
@@ -3439,6 +3627,10 @@ def load_unresolved_upload_intents(
                 "upload journal contains a duplicate outcome state",
             )
             states[record.state] = record
+    _require(
+        len({intent.attempt_id for intent in intents.values()}) == len(intents),
+        "upload journal contains a duplicate attempt id",
+    )
     for intent_sha256, outcome_states in outcomes.items():
         _require(
             intent_sha256 in intents,
@@ -3461,11 +3653,78 @@ def load_unresolved_upload_intents(
             ),
             "upload journal outcome identity differs from its intent",
         )
+    children: dict[str, str] = {}
+    roots: dict[str, str] = {}
+    for digest, intent in intents.items():
+        if intent.retry is None:
+            _require(
+                intent.crate_name not in roots,
+                "upload journal has multiple unlinked intents for one crate",
+            )
+            roots[intent.crate_name] = digest
+            continue
+        parent_digest = intent.retry.intent_sha256
+        _require(parent_digest in intents, "upload retry references an unknown intent")
+        _require(parent_digest != digest, "upload retry cannot reference itself")
+        _require(parent_digest not in children, "upload retry chain has a fork")
+        parent = intents[parent_digest]
+        parent_outcomes = outcomes.get(parent_digest, {})
+        _require(
+            parent.crate_name == intent.crate_name,
+            "upload retry parent refers to a different crate",
+        )
+        _require(
+            UPLOAD_JOURNAL_PUBLISHED not in parent_outcomes,
+            "upload retry parent must be unresolved",
+        )
+        parent_unknown = parent_outcomes.get(UPLOAD_JOURNAL_UNKNOWN)
+        parent_recorded_at = (
+            parent_unknown.recorded_at if parent_unknown is not None else parent.recorded_at
+        )
+        _require(
+            parse_utc_timestamp(
+                intent.retry.absence_observed_at, "upload retry absence observation"
+            )
+            >= parse_utc_timestamp(
+                parent_recorded_at, "upload retry parent uncertainty"
+            ),
+            "upload retry absence observation predates the unknown outcome",
+        )
+        children[parent_digest] = digest
+    visited: set[str] = set()
+    for root_digest in roots.values():
+        current: str | None = root_digest
+        while current is not None:
+            _require(current not in visited, "upload retry chain contains a cycle")
+            visited.add(current)
+            current = children.get(current)
+    _require(len(visited) == len(intents), "upload retry chain is disconnected or cyclic")
     unresolved = tuple(
         intent
         for digest, intent in intents.items()
-        if UPLOAD_JOURNAL_PUBLISHED not in outcomes.get(digest, {})
+        if digest not in children
+        and UPLOAD_JOURNAL_PUBLISHED not in outcomes.get(digest, {})
     )
+    if retry_authorization is not None:
+        _require(
+            any(intent.digest == retry_authorization.intent_sha256 for intent in unresolved),
+            "explicit upload retry must select the current unresolved intent",
+        )
+        previous_unknown = outcomes.get(retry_authorization.intent_sha256, {}).get(
+            UPLOAD_JOURNAL_UNKNOWN
+        )
+        previous_recorded_at = (
+            previous_unknown.recorded_at
+            if previous_unknown is not None
+            else intents[retry_authorization.intent_sha256].recorded_at
+        )
+        _require(
+            parse_utc_timestamp(
+                retry_authorization.absence_observed_at, "upload retry absence observation"
+            )
+            >= parse_utc_timestamp(previous_recorded_at, "upload uncertainty"),
+            "upload retry absence observation predates the unknown outcome",
+        )
     unresolved_names = [intent.crate_name for intent in unresolved]
     _require(
         len(unresolved_names) == len(set(unresolved_names)),
@@ -3590,6 +3849,7 @@ def run_publication_transaction(
         _verify_stable_source_transition
     ),
     previous_receipt: Mapping[str, object] | None = None,
+    retry_unknown_intent_sha256: str | None = None,
     mode: RunMode = "dry-run",
     api_fetcher: HttpFetcher = _https_get,
     sparse_fetcher: HttpFetcher = _https_get,
@@ -3615,6 +3875,16 @@ def run_publication_transaction(
     """
 
     _require(mode in {"dry-run", "verify", "publish"}, "publication mode is invalid")
+    if retry_unknown_intent_sha256 is not None:
+        _require(
+            mode == "publish" and previous_receipt is not None,
+            "explicit upload retry requires publish mode and a previous receipt",
+        )
+        _require(
+            isinstance(retry_unknown_intent_sha256, str)
+            and _SHA256_RE.fullmatch(retry_unknown_intent_sha256) is not None,
+            "explicit upload retry intent digest is malformed",
+        )
     evidence = load_local_publication_evidence(
         source,
         handoff_manifest_path,
@@ -3725,16 +3995,35 @@ def run_publication_transaction(
             remote, receipt = collect()
             path, digest = writer(receipt)
             written_receipts.append(WrittenReceipt(path=path, sha256=digest))
+            retry_authorization = (
+                UploadRetryAuthorization(
+                    intent_sha256=retry_unknown_intent_sha256,
+                    absence_receipt_sha256=digest,
+                    absence_observed_at=receipt["observation"]["observed_at"],
+                )
+                if retry_unknown_intent_sha256 is not None
+                else None
+            )
+            selected_retry: UploadIntent | None = None
             package_indices = {
                 package.name: index
                 for index, package in enumerate(evidence.crates)
             }
             for intent in load_unresolved_upload_intents(
-                evidence, journal_root=journal_root
+                evidence,
+                journal_root=journal_root,
+                retry_authorization=retry_authorization,
             ):
                 index = package_indices[intent.crate_name]
                 package = evidence.crates[index]
                 if remote[index] is None:
+                    if intent.digest == retry_unknown_intent_sha256:
+                        _require(
+                            all(item is not None for item in remote[:index]),
+                            "explicit upload retry must be the first absent crate",
+                        )
+                        selected_retry = intent
+                        continue
                     raise CratesIoUploadOutcomeUnknownError(
                         package.name,
                         verified_receipt=receipt,
@@ -3760,35 +4049,59 @@ def run_publication_transaction(
                     package,
                     journal_root=journal_root,
                     clock=clock,
+                    retry=(
+                        retry_authorization
+                        if selected_retry is not None
+                        and selected_retry.crate_name == package.name
+                        else None
+                    ),
                 )
                 upload_attempts.append(package.name)
+                diagnostic: UploadExecutionDiagnostic | None = None
                 try:
                     result = uploader(package, credential=token)
-                    _require(
-                        isinstance(result, BoundedResult)
-                        and type(result.returncode) is int,
-                        "exact-byte uploader result type differs",
-                    )
+                    if not isinstance(result, BoundedResult) or type(result.returncode) is not int:
+                        diagnostic = UploadExecutionDiagnostic(None, None, "uploader-contract")
+                    elif isinstance(result, DiagnosedUploadResult):
+                        diagnostic = UploadExecutionDiagnostic(result.returncode, result.diagnostic, None)
+                except UploadDiagnosticError:
+                    diagnostic = UploadExecutionDiagnostic(None, None, "diagnostic-invalid")
+                except BoundedProcessError as exc:
+                    diagnostic = UploadExecutionDiagnostic(None, None, f"process-{exc.kind}")
                 except Exception:
-                    result = BoundedResult(returncode=1)
-                observed = _poll_after_upload_attempt(
-                    package,
-                    api_fetcher=api_fetcher,
-                    sparse_fetcher=sparse_fetcher,
-                    clock=clock,
-                    sleeper=sleeper,
-                    poll_attempts=poll_attempts,
-                    poll_interval_seconds=poll_interval_seconds,
-                )
-                if observed is None:
-                    write_upload_outcome(
-                        evidence,
+                    diagnostic = UploadExecutionDiagnostic(None, None, "uploader-exception")
+                try:
+                    if diagnostic is not None:
+                        # Preserve the client result before remote polling can fail.
+                        # Even HTTP success remains unknown until both observers agree.
+                        write_upload_outcome(
+                            evidence, package, intent,
+                            state=UPLOAD_JOURNAL_UNKNOWN,
+                            journal_root=journal_root, clock=clock,
+                            diagnostic=diagnostic,
+                        )
+                finally:
+                    # A diagnostic persistence failure cannot skip reconciliation;
+                    # it is still propagated after this mandatory read-only poll.
+                    observed = _poll_after_upload_attempt(
                         package,
-                        intent,
-                        state=UPLOAD_JOURNAL_UNKNOWN,
-                        journal_root=journal_root,
+                        api_fetcher=api_fetcher,
+                        sparse_fetcher=sparse_fetcher,
                         clock=clock,
+                        sleeper=sleeper,
+                        poll_attempts=poll_attempts,
+                        poll_interval_seconds=poll_interval_seconds,
                     )
+                if observed is None:
+                    if diagnostic is None:
+                        write_upload_outcome(
+                            evidence,
+                            package,
+                            intent,
+                            state=UPLOAD_JOURNAL_UNKNOWN,
+                            journal_root=journal_root,
+                            clock=clock,
+                        )
                     raise CratesIoUploadOutcomeUnknownError(
                         package.name,
                         verified_receipt=receipt,
@@ -3801,6 +4114,7 @@ def run_publication_transaction(
                     state=UPLOAD_JOURNAL_PUBLISHED,
                     journal_root=journal_root,
                     clock=clock,
+                    diagnostic=diagnostic,
                 )
                 remote = remote[:index] + (observed,) + remote[index + 1 :]
                 receipt = assemble_publication_receipt(
@@ -4276,6 +4590,19 @@ def _main(arguments: Sequence[str]) -> int:
     parser.add_argument("handoff_sha256")
     parser.add_argument("--previous-receipt", type=pathlib.Path)
     parser.add_argument(
+        "--tooling-recovery", nargs=4,
+        metavar=("PENDING_COMMIT", "BASE_VERIFIER_COMMIT", "TOOLING_COMMIT", "PENDING_RESULTS_SHA256"),
+        help="explicit frozen-product lineage for a reviewed registry tooling correction",
+    )
+    parser.add_argument(
+        "--retry-unknown-intent",
+        metavar="SHA256",
+        help=(
+            "authorize one exact retry of the current recorded unknown intent; "
+            "requires --previous-receipt and fresh API+sparse absence under the lock"
+        ),
+    )
+    parser.add_argument(
         "--state-root",
         type=pathlib.Path,
         help=(
@@ -4294,11 +4621,29 @@ def _main(arguments: Sequence[str]) -> int:
     )
     parser.add_argument("--execute-real-upload", action="store_true")
     parser.add_argument(
+        "--http-connect-proxy",
+        metavar="HTTP_LOOPBACK_URL",
+        help="explicit loopback HTTP CONNECT route for the fixed crates.io TLS upload; publish only",
+    )
+    parser.add_argument(
         "--acknowledge-irreversible-publish",
         action="store_true",
     )
     namespace = parser.parse_args(arguments)
     try:
+        if namespace.http_connect_proxy is not None:
+            _require(namespace.mode == "publish", "HTTP CONNECT proxy requires publish mode")
+            _validated_http_connect_proxy(namespace.http_connect_proxy)
+        if namespace.retry_unknown_intent is not None:
+            _require(
+                namespace.mode == "publish"
+                and namespace.previous_receipt is not None,
+                "explicit upload retry requires publish mode and a previous receipt",
+            )
+            _require(
+                _SHA256_RE.fullmatch(namespace.retry_unknown_intent) is not None,
+                "explicit upload retry intent digest is malformed",
+            )
         state_root_authority: pathlib.Path | None = None
         uploader_authority: pathlib.Path | None = None
         if namespace.mode == "publish":
@@ -4342,6 +4687,34 @@ def _main(arguments: Sequence[str]) -> int:
         )
         handoff_manifest = selected_handoff.path
         handoff_sha256 = selected_handoff.sha256
+        transition_verifier = _verify_stable_source_transition
+        if namespace.tooling_recovery is not None:
+            pending, base_verifier, tooling, pending_results = namespace.tooling_recovery
+
+            def verify_tooling_recovery(
+                candidate_source: SourceIdentity,
+                candidate_handoff: pathlib.Path,
+                candidate_digest: str,
+            ) -> None:
+                try:
+                    validate_crates_io_tooling_recovery_lineage(
+                        REPOSITORY_ROOT,
+                        source_commit=candidate_source.source_parent_commit,
+                        tag_commit=candidate_source.tag_commit,
+                        tag_tree=candidate_source.tag_tree,
+                        canonical_source_tree_sha256=candidate_source.canonical_source_tree_sha256,
+                        pending_commit=pending,
+                        expected_pending_results_sha256=pending_results,
+                        base_verifier_commit=base_verifier,
+                        expected_tooling_commit=tooling,
+                    )
+                except CratesIoToolingRecoveryError as exc:
+                    raise CratesIoPublicationError(str(exc)) from exc
+                _verify_results_selected_handoff(
+                    candidate_source, candidate_handoff, candidate_digest
+                )
+
+            transition_verifier = verify_tooling_recovery
         previous = (
             None
             if namespace.previous_receipt is None
@@ -4370,6 +4743,7 @@ def _main(arguments: Sequence[str]) -> int:
             uploader = production_upload_runner(
                 uploader_authority,
                 state_root=state_root,
+                http_connect_proxy=namespace.http_connect_proxy,
             )
             journal_root = state_root / "journal"
             credential_provider = lambda: os.environ.get(
@@ -4381,6 +4755,8 @@ def _main(arguments: Sequence[str]) -> int:
             handoff_manifest,
             handoff_sha256,
             previous_receipt=previous,
+            retry_unknown_intent_sha256=namespace.retry_unknown_intent,
+            source_transition_verifier=transition_verifier,
             mode=namespace.mode,
             receipt_root=CRATES_IO_PUBLICATION_RECEIPT_ROOT,
             journal_root=journal_root,

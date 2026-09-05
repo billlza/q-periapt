@@ -2564,6 +2564,7 @@ fi
             "artifact/swift-xcframework-consumer-check.sh",
             "artifact/python-env.sh",
             "artifact/python_bootstrap.py",
+            "artifact/python-run.sh",
             "artifact/results.json",
             "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
         ):
@@ -2593,7 +2594,30 @@ fi
             self.remote.index("umask 077"),
             self.remote.index('RUNS_ROOT="$ROOT/target/'),
         )
-        self.assertIn('/bin/chmod 600 "$LOG"', self.remote)
+        self.assertIn("capture-remote-gate-log", self.remote)
+        self.assertGreaterEqual(
+            self.remote.count(
+                '/bin/sh "$VERIFIER_SNAPSHOT/artifact/python-run.sh"'
+            ),
+            3,
+        )
+        self.assertIn(
+            'capture_private_gate_log "$REMOTE_CONSUMER_LOG_NAME"',
+            self.remote,
+        )
+        self.assertEqual(
+            1,
+            self.remote.count(
+                'REMOTE_CONSUMER_LOG_NAME="swift-url-binary-consumer.log"'
+            ),
+        )
+        self.assertIn('LOG="$OUT/$REMOTE_CONSUMER_LOG_NAME"', self.remote)
+        self.assertIn(
+            'PRIVATE_LOG_RELATIVE="target/qperiapt-swift-remote-consumer-runs/'
+            '$RUN_DIRECTORY_NAME/$REMOTE_CONSUMER_LOG_NAME"',
+            self.remote,
+        )
+        self.assertNotIn("ulimit -f", self.remote)
         self.assertIn("emit-remote-consumer", self.remote)
         self.assertNotIn("RUNTIME_REPOSITORY_ROOT", self.remote)
         self.assertIn(
@@ -2722,6 +2746,169 @@ fi
             self.assertTrue(assets.is_dir())
             self.assertTrue(lock.is_dir())
 
+    def test_remote_cleanup_fails_closed_for_real_unbound_expansion(self) -> None:
+        start = self.remote.index("cleanup_remote_state() {")
+        end = self.remote.index("\n}\nvalidate_private_directory()", start) + 3
+        cleanup_function = self.remote[start:end]
+        undefined_name = "INTENTIONALLY_UNBOUND_REMOTE_CONSUMER_STATE"
+        baseline = subprocess.run(
+            [
+                "/bin/sh",
+                "-c",
+                "set -eu\n"
+                f"unset {undefined_name}\n"
+                "trap 'status=$?; trap - EXIT; exit \"$status\"' EXIT\n"
+                f'printf "%s\\n" "${undefined_name}"\n',
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.assertEqual("", baseline.stdout)
+        self.assertIn(undefined_name, baseline.stderr)
+
+        for label, receipt_committed, obstruct_lock in (
+            ("before-receipt", False, False),
+            ("after-receipt", True, False),
+            ("cleanup-failure", False, True),
+        ):
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
+                root = pathlib.Path(raw)
+                artifacts = root / "artifact-source-inputs"
+                verifier = root / "verifier-inputs"
+                assets = root / "release-assets"
+                lock = root / "lock"
+                for directory in (artifacts, verifier, assets, lock):
+                    directory.mkdir(mode=0o700)
+                if obstruct_lock:
+                    (lock / "owner").write_text("preserve\n", encoding="utf-8")
+                program = (
+                    "set -eu\n"
+                    + cleanup_function
+                    + "\nARTIFACT_SNAPSHOT=$1\n"
+                    + "VERIFIER_SNAPSHOT=$2\n"
+                    + "RELEASE_ASSETS=$3\n"
+                    + "LOCK_DIR=$4\nLOCK_RELEASED=0\n"
+                    + f"RECEIPT_COMMITTED={int(receipt_committed)}\n"
+                    + "REMOTE_RECEIPT_RELATIVE=target/qperiapt-swift-remote-"
+                    + "consumer-runs/transaction.fixture/"
+                    + "apple-remote-consumer-receipt.json\n"
+                    + "REMOTE_RECEIPT_SHA256="
+                    + ("a" * 64)
+                    + f"\nunset {undefined_name}\n"
+                    + "trap cleanup_remote_state EXIT\n"
+                    + f'printf "%s\\n" "${undefined_name}"\n'
+                )
+                completed = subprocess.run(
+                    [
+                        "/bin/sh",
+                        "-c",
+                        program,
+                        "unbound-cleanup-test",
+                        str(artifacts),
+                        str(verifier),
+                        str(assets),
+                        str(lock),
+                    ],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+
+                expected_status = baseline.returncode
+                if expected_status == 0:
+                    expected_status = 125 if obstruct_lock else 1
+                self.assertEqual(expected_status, completed.returncode)
+                self.assertEqual("", completed.stdout)
+                self.assertIn(undefined_name, completed.stderr)
+                if baseline.returncode == 0 and not obstruct_lock:
+                    self.assertIn(
+                        "remote-consumer terminated before terminal success",
+                        completed.stderr,
+                    )
+                if receipt_committed:
+                    self.assertTrue(artifacts.is_dir())
+                    self.assertTrue(verifier.is_dir())
+                    self.assertTrue(lock.is_dir())
+                else:
+                    self.assertFalse(artifacts.exists())
+                    self.assertFalse(verifier.exists())
+                    self.assertEqual(obstruct_lock, lock.exists())
+                if obstruct_lock:
+                    self.assertIn(
+                        "remote-consumer lock cleanup failed",
+                        completed.stderr,
+                    )
+
+    def test_remote_cleanup_preserves_failure_and_cleanup_125_semantics(
+        self,
+    ) -> None:
+        start = self.remote.index("cleanup_remote_state() {")
+        end = self.remote.index("\n}\nvalidate_private_directory()", start) + 3
+        cleanup_function = self.remote[start:end]
+        for label, final_command, obstruct_lock, expected_status in (
+            ("primary-failure", "/bin/sh -c 'exit 37'", True, 37),
+            ("cleanup-failure", ":", True, 125),
+        ):
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
+                root = pathlib.Path(raw)
+                artifacts = root / "artifact-source-inputs"
+                verifier = root / "verifier-inputs"
+                assets = root / "release-assets"
+                lock = root / "lock"
+                for directory in (artifacts, verifier, assets, lock):
+                    directory.mkdir(mode=0o700)
+                if obstruct_lock:
+                    (lock / "owner").write_text("preserve\n", encoding="utf-8")
+                program = (
+                    "set -eu\n"
+                    + cleanup_function
+                    + "\nARTIFACT_SNAPSHOT=$1\n"
+                    + "VERIFIER_SNAPSHOT=$2\n"
+                    + "RELEASE_ASSETS=$3\n"
+                    + "LOCK_DIR=$4\nLOCK_RELEASED=0\n"
+                    + "RECEIPT_COMMITTED=0\n"
+                    + "REMOTE_RECEIPT_RELATIVE=\nREMOTE_RECEIPT_SHA256=\n"
+                    + "trap cleanup_remote_state EXIT\n"
+                    + final_command
+                    + "\n"
+                )
+                completed = subprocess.run(
+                    [
+                        "/bin/sh",
+                        "-c",
+                        program,
+                        "cleanup-status-test",
+                        str(artifacts),
+                        str(verifier),
+                        str(assets),
+                        str(lock),
+                    ],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+
+                self.assertEqual(expected_status, completed.returncode)
+                self.assertEqual("", completed.stdout)
+                self.assertFalse(artifacts.exists())
+                self.assertFalse(verifier.exists())
+                self.assertEqual(obstruct_lock, lock.exists())
+                if obstruct_lock:
+                    self.assertIn(
+                        "remote-consumer lock cleanup failed",
+                        completed.stderr,
+                    )
+                    self.assertNotIn(
+                        "remote-consumer terminated before terminal success",
+                        completed.stderr,
+                    )
+                else:
+                    self.assertEqual("", completed.stderr)
+
     def test_remote_private_directories_are_0700_under_ambient_022(self) -> None:
         validate_start = self.remote.index("validate_private_directory() {")
         validate_end = self.remote.index("\nrun_private_gate() {", validate_start)
@@ -2752,6 +2939,7 @@ fi
                 'LOCK_DIR="$ROOT/target/.qperiapt-swift-remote-consumer.lock"\n'
                 "OUT=\nARTIFACT_SNAPSHOT=\nVERIFIER_SNAPSHOT=\n"
                 "RELEASE_ASSETS=\nLOCK_RELEASED=0\nRECEIPT_COMMITTED=0\n"
+                'REMOTE_CONSUMER_LOG_NAME="swift-url-binary-consumer.log"\n'
                 "cleanup_remote_state() { exit 99; }\n"
                 + validation_functions
                 + "\n"
@@ -2819,6 +3007,19 @@ fi
             run = root / "transaction.fixture"
             for directory in (artifacts, verifier, assets, lock, run):
                 directory.mkdir(mode=0o700)
+            verifier_artifact = verifier / "artifact"
+            verifier_artifact.mkdir(mode=0o700)
+            runner = verifier_artifact / "python-run.sh"
+            runner.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' 'PUBLICATION_RECEIPT_COMMITTED_ERROR "
+                f"visibility={visibility} "
+                "leaf=apple-remote-consumer-receipt.json "
+                f"sha256={digest}'\n"
+                "exit 125\n",
+                encoding="utf-8",
+            )
+            runner.chmod(0o600)
             receipt = run / "apple-remote-consumer-receipt.json"
             if visibility == "committed":
                 receipt.write_bytes(b"committed receipt\n")
@@ -2831,17 +3032,10 @@ fi
                 + "\nARTIFACT_SNAPSHOT=$1\nVERIFIER_SNAPSHOT=$2\n"
                 + "RELEASE_ASSETS=$3\nLOCK_DIR=$4\nLOCK_RELEASED=0\n"
                 + "RECEIPT_COMMITTED=0\nRUN_DIRECTORY_NAME=transaction.fixture\n"
+                + "RECOVERY_PENDING_COMMIT=\nRECOVERY_VERIFIER_COMMIT=\n"
                 + "START_RESULTS_SHA256="
                 + digest
                 + "\n"
-                + "snapshot_python() {\n"
-                + "printf '%s\\n' 'PUBLICATION_RECEIPT_COMMITTED_ERROR "
-                + "visibility="
-                + visibility
-                + " "
-                + "leaf=apple-remote-consumer-receipt.json sha256="
-                + digest
-                + "'\nreturn 125\n}\n"
                 + "trap cleanup_remote_state EXIT\n"
                 + receipt_block
             )
@@ -2918,11 +3112,35 @@ fi
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
                 run = pathlib.Path(raw) / "transaction.fixture"
                 run.mkdir(mode=0o700)
+                verifier = pathlib.Path(raw) / "verifier"
+                verifier_artifact = verifier / "artifact"
+                verifier_artifact.mkdir(parents=True)
+                runner = verifier_artifact / "python-run.sh"
+                runner.write_text(
+                    "#!/bin/sh\n"
+                    "shift\n"
+                    "[ \"$1\" = capture-remote-gate-log ] || exit 2\n"
+                    "shift\n"
+                    "log_name=$2; shift 4\n"
+                    "[ \"$1\" = -- ] || exit 2\n"
+                    "shift\n"
+                    "set +e\n"
+                    "\"$@\" >\"$OUT/$log_name\" 2>&1\n"
+                    "child_status=$?\n"
+                    "set -e\n"
+                    "chmod 600 \"$OUT/$log_name\"\n"
+                    "digest=$(shasum -a 256 \"$OUT/$log_name\" | awk '{print $1}')\n"
+                    "printf 'REMOTE_CONSUMER_GATE_LOG_CAPTURED returncode=%s sha256=%s\\n' \"$child_status\" \"$digest\"\n",
+                    encoding="utf-8",
+                )
+                runner.chmod(0o600)
                 program = (
                     functions
                     + "\nOUT=$1\n"
+                    + "export OUT\n"
                     + "RUN_DIRECTORY_NAME=transaction.fixture\n"
-                    + "MAX_PRIVATE_GATE_LOG_BLOCKS=2048\n"
+                    + "VERIFIER_SNAPSHOT=$2\n"
+                    + "MAX_GATE_TIMEOUT_SECONDS=900\n"
                     + "MAX_PRIVATE_GATE_LOG_BYTES=1048576\n"
                     + "run_private_gate child.log child_gate /bin/sh -c "
                     + "'printf \"PRIVATE_SENTINEL /Users/private-checkout\\n\"; "
@@ -2930,7 +3148,14 @@ fi
                     + "printf 'TERMINAL_SAFE\\n'\n"
                 )
                 completed = subprocess.run(
-                    ["/bin/sh", "-c", program, "private-gate-test", str(run)],
+                    [
+                        "/bin/sh",
+                        "-c",
+                        program,
+                        "private-gate-test",
+                        str(run),
+                        str(verifier),
+                    ],
                     check=False,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,

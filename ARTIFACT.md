@@ -250,8 +250,9 @@ tag/commit is not a signed provenance statement, and neither upstream mlkem-nati
 nor this integration has completed an independent audit.
 
 ABI 2 / `0.1.5` is the stable-version source line, succeeding the fully published
-`0.1.4` release (`0.1.5` registry publication remains
-receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
+`0.1.4` release. All ten `0.1.5` crates are published and independently verified;
+their complete three-domain record is at `v0.1.5-verified-cohort`.
+Its coordinated stable GitHub publication targets are the Apple XCFramework
 `v0.1.5` and the
 `abi2-platforms-v0.1.5` platform distribution (Android AAR plus API 35 /
 16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
@@ -263,8 +264,8 @@ publication receipts live under `release_publications` in `artifact/results.json
 one of those receipts exactly. Scope, verification commands, and explicit
 non-goals are in `artifact/stable-release-notes.md`. The `v0.1.4` and
 `abi2-platforms-v0.1.4` releases published on 2026-08-30, and all ten 0.1.4 crates are
-published on crates.io; those public records are immutable and are the current published
-stable set, superseding 0.1.3. Their verified receipt cohort is recorded only at the
+published on crates.io; those public records are immutable historical evidence,
+superseded by 0.1.5. Their verified receipt cohort is recorded only at the
 annotated tag `v0.1.4-verified-cohort`, not on `main`: reopening the source line returns
 `artifact/results.json` to its 190-key initial baseline, which drops the pending 0.1.4
 publication leaves, and the receipt finalizer's release proof requires a results-only
@@ -347,7 +348,7 @@ refuses on any non-pending leaf outside the floor, a line's own publication rece
 that floor; absent that, the durable record of that line's publication is its immutable
 public release and registry material plus its annotated verified-cohort tag, not `main`'s
 results. Do not physically edit, extract, or delete the assembler between R and verified
-publication V; doing so would create a new source change after the evidence freeze. Retain
+publication Q; doing so would create a new source change after the evidence freeze. Retain
 `verify-installed` and the exact CI dispatch until their durable 249-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
@@ -355,7 +356,7 @@ delete the installed-successor and main-CI gates.
 The main CI source gate deliberately recognizes exactly two manifest states. For
 the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
-`bf290cad46b729006c0b472714ec4a7d2a61b7914093628c5ef9db43f3c0947c`,
+`e855315ef2eec1aea0ff8b128933ac9673b9bb46c0e2e10e005c6f2480409c0a`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
 and fixed 59-key delta, requires a clean expected commit/tree identity, and samples
 the complete 249-key input authority twice before emitting

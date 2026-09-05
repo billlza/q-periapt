@@ -3,15 +3,15 @@
 Authoritative architecture document for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 
-> **Status: stable-version ABI 2 source line / receipt-gated GitHub publication /
-> Rust registry publication pending, not production.** The Rust package
-> surface is a coordinated set of crates. It does not prove crates.io upload-API
+> **Status: 0.1.5 ABI 2 packages and ten-crate registry cohort published and verified;
+> production promotion remains open.** The Rust package
+> surface is a coordinated set of crates. Its pre-publication package-ready contract does not prove crates.io upload-API
 > acceptance, crate-name ownership, publishing credentials or authorization,
 > server-side policy acceptance, or a registry receipt. Immutable historical
 > prerelease receipts cover exact previously evidenced Apple XCFramework
 > and Android/Linux/Windows platform SDK artifacts; those receipts do not cover the
-> current target-selected source, and fresh stable publication evidence is required. Registry
-> publication and production promotion remain incomplete. Q-Periapt composes existing
+> current target-selected source. The complete 0.1.5 evidence is preserved at
+> `v0.1.5-verified-cohort`; production promotion remains incomplete. Q-Periapt composes existing
 > standardized/ecosystem primitives (ML-KEM, X25519, ML-DSA, SLH-DSA) through
 > third-party backends. The known-leaky, unmaintained PQClean-HQC adapter has been
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
@@ -570,8 +570,11 @@ local temporaries only after success. The contract also freezes the 40-byte poli
 decision and 36-byte trusted policy state.
 This is the **`0.1.5` stable-version ABI 2
 source/crate contract**, the successor of the published `0.1.4` release line; the
-`0.1.5` crate set is pre-publication package-ready and has not been published, and
-no-upload package checks do not establish registry publication of the `0.1.5` crates.
+`0.1.5` registry cohort has all ten crates published and independently verified,
+with the complete record at `v0.1.5-verified-cohort`. The Apple
+and Android/Linux GitHub distributions are already public and immutable, with
+separate asset-verification receipts. No-upload package checks alone do not
+establish registry publication of the `0.1.5` crates.
 No current C archive, XCFramework, AAR, or device binary is implied by this source
 contract. A distinct Apple distribution adapter Developer ID-signs only the outer
 static XCFramework, enforces an exact static-only ZIP inventory, and binds the final ZIP, SwiftPM

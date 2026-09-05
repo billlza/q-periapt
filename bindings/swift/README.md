@@ -90,9 +90,12 @@ QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')"
 sh artifact/swift-xcframework-release.sh
 ```
 
-The confirmation token must match the version in this source tree, so from this tree
-`artifact/swift-xcframework-release.sh` authorizes a `v0.1.5` build; it has not been run
-for `0.1.5`, and no Apple `0.1.5` release, tag, or asset exists.
+The confirmation token must match the version in the selected source tree. The
+`0.1.5` lane has completed: `v0.1.5` was published as an immutable stable release
+on 2026-09-05, and its remote-consumer verification has a separate domain receipt.
+The command above documents the producer step; do not rebuild or replace that
+release. Exact source, tag, asset, and verifier identities are in
+[`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
 
 It builds in a detached worktree pinned to one source commit, Developer ID-signs only the outer
 static XCFramework, verifies that signing did not alter the three `.a` slices, exercises an exact
@@ -127,22 +130,19 @@ The Developer ID signature covers SDK origin and integrity. This exact static-on
 no notarizable executable or bundle and is explicitly `notarized=false` and `stapled=false`.
 Consuming iOS apps still require their own signing and provisioning, while consuming macOS apps
 require their own distribution signing and notarization. Published stable assets are immutable:
-a post-publication URL-consumer failure
-invalidates that release and requires a new version; it must never be repaired by replacing the
-asset under the same tag.
+a confirmed defect in the published payload requires a new version; it must never be repaired
+by replacing the asset under the same tag. A transport or verifier failure blocks acceptance
+until its cause is resolved and the unchanged public bytes pass independent verification.
 
-The published stable Apple release is `v0.1.4` (Rust 1.96.1), which is
-non-prerelease and immutable; this tree's `0.1.5` source line has produced no Apple
-release, tag, or asset, so a binary target still resolves against `v0.1.4`.
-Public/current status is asserted only through the verified receipt, and the `0.1.4`
-verified cohort is recorded at the annotated tag `v0.1.4-verified-cohort` rather than
-on `main`: the `0.1.5` reopening returned `artifact/results.json` to its initial
-baseline, so `main`'s trusted results record no `0.1.4` publication and still carry
-`apple_v0_1_3` as the active Apple selector. The published release is immutable and
-unaffected by that. The published `v0.1.3` stable
-predecessor and the earlier `v0.1.0-alpha.2-r1`
-patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0 build remain immutable
-published evidence; the `v0.1.0`, `v0.1.1`, and `v0.1.2` tags exist but were never published
-and carry no Apple asset. The non-Apple stable assets (Android AAR and Linux C SDKs)
-were published in the separate `abi2-platforms-v0.1.4` transaction; unsigned Windows output
-remains an unsupported CI diagnostic outside that release.
+The current published stable Apple release is `v0.1.5` (Rust 1.96.1),
+non-prerelease and immutable. Its remote consumer passed, and the complete Apple,
+Android/Linux and ten-crate registry cohort is recorded at
+[`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort).
+Use the exact signed asset and checksum from that record. A development baseline's
+historical selector does not authorize substituting an older dependency.
+
+The `v0.1.3` and `v0.1.4` releases remain immutable history and are superseded for
+new downstream builds. Earlier prerelease artifacts also remain historical; the
+`v0.1.0`, `v0.1.1`, and `v0.1.2` tags were never published. The non-Apple stable
+assets are published in `abi2-platforms-v0.1.5`. Unsigned Windows output remains
+an unsupported CI diagnostic outside that release.

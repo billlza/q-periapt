@@ -2503,6 +2503,10 @@ def _validate_policy(policy: ReleasePolicy) -> None:
         "GitHub release prerelease policy is not boolean",
     )
     _require(
+        type(policy.require_asset_order) is bool,
+        "GitHub release asset-order policy is not boolean",
+    )
+    _require(
         policy.repository_url == f"https://github.com/{policy.repository}",
         "GitHub release repository URL differs",
     )
@@ -3415,6 +3419,34 @@ def expected_subjects(policy: ReleasePolicy) -> list[dict[str, object]]:
     ]
 
 
+def _validate_release_subjects(
+    value: object,
+    *,
+    policy: ReleasePolicy,
+    label: str,
+) -> list[dict[str, object]]:
+    """Validate the exact tag subject and release asset subject multiset."""
+
+    expected = expected_subjects(policy)
+    if not isinstance(value, list):
+        _fail(f"{label} subjects differ")
+    _require(
+        len(value) == len(expected),
+        f"{label} subjects differ",
+    )
+    _require(value[0] == expected[0], f"{label} tag subject differs")
+    if policy.require_asset_order:
+        _require(value == expected, f"{label} subjects differ")
+    else:
+        observed_assets = sorted(canonical_json(subject) for subject in value[1:])
+        expected_assets = sorted(canonical_json(subject) for subject in expected[1:])
+        _require(
+            observed_assets == expected_assets,
+            f"{label} asset subjects differ",
+        )
+    return expected
+
+
 def parse_release_verification(
     data: bytes,
     *,
@@ -3524,8 +3556,11 @@ def parse_release_verification(
         statement["predicateType"] == RELEASE_PREDICATE_TYPE,
         f"{label} predicate type differs",
     )
-    subjects = expected_subjects(policy)
-    _require(statement["subject"] == subjects, f"{label} subjects differ")
+    subjects = _validate_release_subjects(
+        statement["subject"],
+        policy=policy,
+        label=label,
+    )
     predicate = _object(statement["predicate"], f"{label} predicate")
     _exact_keys(
         predicate,

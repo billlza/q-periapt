@@ -8,18 +8,20 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.5` is the stable-version Rust crate source line, opened as the successor of the
-> published `0.1.4` release, and is pre-publication package-ready; no `0.1.5` artifact has been
-> built or published, and registry publication of the `0.1.5` crates remains separately receipt-gated. Its package contract alone does not prove
+> ABI 2 / `0.1.5` is the stable-version Rust crate source line, succeeding the
+> published `0.1.4` release. Its GitHub distributions are public and immutable,
+> and all ten `0.1.5` crates are published and independently verified. The complete
+> three-domain record is preserved at `v0.1.5-verified-cohort`. Its pre-publication package-ready contract alone does not prove
 > crates.io upload-API acceptance, crate-name ownership, publishing credentials or
 > authorization, server-side policy acceptance, or a registry receipt. The two immutable
-> GitHub stable targets of the published predecessor line are the Apple XCFramework `v0.1.4` (Rust 1.96.1;
+> GitHub stable targets are the Apple XCFramework `v0.1.5` (Rust 1.96.1;
 > the predecessor `v0.1.3` is published and immutable but superseded, the earlier `v0.1.0-alpha.2`
 > on 1.96.0 is superseded, and the `v0.1.0`, `v0.1.1`, and
 > `v0.1.2` tags were never published) and the
-> `abi2-platforms-v0.1.4` platform distribution (Android AAR + API 35 / 16 KiB-page
-> emulator runtime evidence and Linux x86_64+aarch64 SDKs); both went live on 2026-08-30,
-> alongside all ten `0.1.4` crates on crates.io. The unsigned Windows
+> `abi2-platforms-v0.1.5` platform distribution (Android AAR + API 35 / 16 KiB-page
+> emulator runtime evidence and Linux x86_64+aarch64 SDKs); both went live on 2026-09-05
+> and have separate asset-verification receipts. The older `0.1.4` GitHub releases
+> and all ten `0.1.4` crates remain immutable published history. The unsigned Windows
 > package remains an unsupported CI diagnostic outside the formal stable asset set.
 > Tag-scoped receipts live in `artifact/results.json`; only a verified receipt may
 > promote either target to public/current with `prerelease=false`. The `0.1.4` verified cohort is
@@ -167,10 +169,11 @@ integration has a completed independent audit.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
 ABI 2 is the stable-version source/Rust-crate line; package readiness is not registry
 publication. The published stable binary
-targets are the Apple `v0.1.4` XCFramework and the
-`abi2-platforms-v0.1.4` Android/Linux packages; publication/currentness is
-asserted only by their verified receipts, which for `0.1.4` are recorded at the
-annotated tag `v0.1.4-verified-cohort` and not in main's results. Fresh same-source
+targets are the Apple `v0.1.5` XCFramework and the
+`abi2-platforms-v0.1.5` Android/Linux packages, published immutable on 2026-09-05;
+their asset-verification and ten-crate registry receipts are complete in
+`v0.1.5-verified-cohort`. The older `0.1.4` cohort is recorded
+at the annotated tag `v0.1.4-verified-cohort` and not in main's results. Fresh same-source
 device/performance evidence, independent cryptographic/C-FFI/ABI review,
 signed or transparency-backed source provenance and registry publication remain
 requirements for production promotion. Windows remains excluded until a signed
@@ -482,13 +485,14 @@ producer/verifier and certificate/timestamp-authority gate exist.
   parity remain unproved.
 - CI: the repo's gates are *configured*; report which have actually executed (note the no-remote
   history honestly, now that it is public on GitHub).
-- Distribution: two stable lines have published as immutable GitHub releases with
+- Distribution: three stable lines have published as immutable GitHub releases with
   `prerelease=false` — `v0.1.3`/`abi2-platforms-v0.1.3` (2026-08-25) and
-  `v0.1.4`/`abi2-platforms-v0.1.4` (2026-08-30) — alongside the earlier immutable
+  `v0.1.4`/`abi2-platforms-v0.1.4` (2026-08-30), and
+  `v0.1.5`/`abi2-platforms-v0.1.5` (2026-09-05) — alongside the earlier immutable
   GitHub *research prereleases* (Apple XCFramework r1; Android/Linux/Windows platform
   packages r2, Windows unsigned experimental). The ten `0.1.3` crates and the ten
-  `0.1.4` crates are published on crates.io. Nothing is published for the current
-  `0.1.5` source line. No Maven/deb/rpm/MSIX registry publication, Authenticode,
+  `0.1.4` crates are published on crates.io. All ten `0.1.5` crates are published
+  and independently verified; `v0.1.5-verified-cohort` records their complete cohort. No Maven/deb/rpm/MSIX registry publication, Authenticode,
   physical-Android coverage, or store distribution is claimed for any line; do not let
   the artifact paragraph imply otherwise, and do not let the published 0.1.3/0.1.4
   crate sets stand in as evidence for `0.1.5`.

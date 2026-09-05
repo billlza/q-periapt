@@ -554,6 +554,64 @@ class ReleasePublicationContractTests(unittest.TestCase):
         contract.validate_release_publication_transition(source, pending)
         contract.validate_release_publication_transition(pending, verified)
 
+    def test_unavailable_v0_1_4_leaves_fail_closed_at_the_front_door(
+        self,
+    ) -> None:
+        unavailable_keys = (
+            platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+            crates_contract.CRATES_IO_V0_1_4_PUBLICATION_KEY,
+        )
+        for state_factory in (
+            self.source_manifest,
+            self.pending_manifest,
+            self.verified_manifest,
+        ):
+            manifest = state_factory()
+            for key in unavailable_keys:
+                self.assertNotIn(key, manifest["release_publications"])
+            contract.validate_release_publications(manifest)
+
+        cases = (
+            (
+                platform_contract.PLATFORM_V0_1_4_PUBLICATION_KEY,
+                "platform 0.1.4.*frozen receipt image is unavailable",
+                crates_receipt(10),
+            ),
+            (
+                crates_contract.CRATES_IO_V0_1_4_PUBLICATION_KEY,
+                "crates.io 0.1.4.*frozen receipt image is unavailable",
+                platform_pending_receipt(),
+            ),
+        )
+        for key, message, wrong_family_leaf in cases:
+            for label, unavailable_leaf in (
+                ("arbitrary", {"arbitrary": True}),
+                ("null", None),
+                ("wrong-family", wrong_family_leaf),
+            ):
+                with self.subTest(key=key, leaf=label):
+                    invalid = self.source_manifest()
+                    invalid["release_publications"][key] = copy.deepcopy(
+                        unavailable_leaf
+                    )
+                    with self.assertRaisesRegex(
+                        contract.ReleasePublicationContractError,
+                        message,
+                    ):
+                        contract.validate_release_publications(invalid)
+
+            preserved = self.source_manifest()
+            preserved["release_publications"][key] = {"arbitrary": True}
+            with self.subTest(key=key, leaf="baseline-preserved"):
+                with self.assertRaisesRegex(
+                    contract.ReleasePublicationContractError,
+                    message,
+                ):
+                    contract.validate_release_publication_transition(
+                        preserved,
+                        copy.deepcopy(preserved),
+                    )
+
     def test_platform_rebinding_propagates_exact_r_to_security_gate(self) -> None:
         apple_source = stable_pending_receipt()["source"]
         platform = _rebind_platform(platform_pending_receipt(), apple_source)

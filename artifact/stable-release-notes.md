@@ -1,6 +1,169 @@
 # Q-Periapt 0.1.5 — ABI 2 stable release
 
-This release succeeds `0.1.4`, the current published stable set: the
+Publication completion (2026-09-06): the Apple release
+[`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5)
+(ID 383170350, published 09:48:00 UTC, four assets) and platform release
+[`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5)
+(ID 383171691, published 09:53:52 UTC, seven assets) are public, immutable, and
+non-prerelease. Both tags resolve to `fabe003ddc3507b88af7a67a7138344e4b9634fd`.
+All ten version-0.1.5 crates are published and independently verified against the
+official API and sparse index. The annotated `v0.1.5-verified-cohort` tag points to
+`Q = cc21bc1cadac5148aadfd98f1c6b0e4acbbb0c06`, the direct results-only child of
+`P = cdeb9dc6549158e795ecc982aba714307ac83f38`. Q selects all three verified domain
+receipts and passed both `verify-installed` and receipt-level `verify`.
+Its results SHA-256 is
+`90f5faed852311a59f388eaf79072c4887aa9cb3e68a78ac4a2e0ea0acf6844f`.
+The remotely retrieved results bytes match that exact digest.
+The completed publication version is **0.1.5**.
+The observed `q-periapt-backends` recovery attempt failed with diagnostic
+`stage=archive`, `category=connection`, and
+`sent_body_bytes_lower_bound=4267940` after 35.237 seconds; no HTTP response was
+received. The byte counter is a lower bound on body bytes sent, not server receipt
+or archive acceptance. This observation
+does not establish a credential rejection or an archive-size rejection. The
+attempt was reconciled under the fixed publication lock. The explicit loopback
+HTTP CONNECT recovery uploaded the same backends bytes with HTTP 200 in 6.235
+seconds, then completed the remaining five crates. Both old UNKNOWN records remain
+in the journal; its formal parser now reports no unresolved intents. No frozen
+product bytes changed.
+The pre-tag and publication instructions below describe the completed transitions
+and their completed closeout. Do not repeat tag creation or GitHub publication;
+reconcile existing transactions before continuing from their observed state.
+
+### Verification after publication
+
+A verifier correction does not change the version or bytes of an immutable
+distribution. The 0.1.5 closeout uses the separate clean verifier commit
+`V = 63293bb1165ccff704cf9cfffdcda3ec3f959f7b`, based on pending commit
+`P = cdeb9dc6549158e795ecc982aba714307ac83f38`. Keep a clean
+independent clone at `P` for the unchanged results
+finalizer. The corrected verifier's `artifact/results.json` must be byte-identical
+to `P`; the runtime wrappers and consumer fixture are materialized from the signed
+candidate's source `S`, not from `V`.
+
+`artifact/apple_verifier_recovery.py` validates explicit S/R/P/V identities, the
+original results-only S-to-R-to-P history, and every commit in the linear P-to-V
+history. Only the named post-publication verifier modules, their tests, and release
+documentation may change. A runtime, dependency, workflow, or results change,
+including a change later reverted, is rejected. The recovery path must be selected
+explicitly; failure of the normal provenance check never selects it automatically.
+This preserves the repository-trusted verifier boundary and does not claim to
+withstand malicious edits by the repository owner or a hostile same-account host.
+
+Set the seven existing `QPERIAPT_SWIFT_BINARY_*` asset pins as documented below,
+then select the reviewed verifier commit explicitly:
+
+```sh
+: "${REVIEWED_VERIFIER_COMMIT:?supply the reviewed clean verifier commit}"
+export QPERIAPT_APPLE_VERIFIER_PENDING_COMMIT=cdeb9dc6549158e795ecc982aba714307ac83f38
+export QPERIAPT_APPLE_VERIFIER_COMMIT="$REVIEWED_VERIFIER_COMMIT"
+/bin/sh artifact/swift-xcframework-remote-consumer.sh
+```
+
+The script validates recovery provenance before downloading and records the real
+`V` as `verifier_commit` in its receipt. From the same clean verifier checkout,
+promote with `apple_stable_publication.py promote` and append
+`--verifier-recovery "$QPERIAPT_APPLE_VERIFIER_PENDING_COMMIT" "$REVIEWED_VERIFIER_COMMIT"`.
+Return the exact verified domain receipts to the clean `P` checkout for finalization;
+the final results successor `Q` remains the direct results-only child of `P` and
+is not installed on `V`.
+
+Remote-consumer log limits apply to stdout/stderr, using the existing bounded
+process runner. They do not use a process-wide file-size limit: a valid static
+library, downloaded ZIP, or Swift build output can exceed its diagnostic log cap.
+Timeout, output overflow, nonzero process status, invalid signature, warning/error
+diagnostics, and failed test assertions still fail verification.
+
+### Registry tooling recovery
+
+The registry coordinator and exact-byte uploader correction is pinned separately at
+`W = cbc7b0c74b90cdbcc28b277bc65df575f75b0a1f`. The clean `W` checkout retains the
+exact pending results from `P`. Its explicit `--tooling-recovery P V W P_RESULTS_SHA256`
+path validates the frozen S/R/P lineage, the reviewed P-to-V verifier changes, and
+each commit in the bounded V-to-W tooling history. The original R-selected handoff
+and canonical source verifier still run; W does not replace the product source S,
+change any packaged archive or registry metadata, or become the parent of Q.
+
+Run recovery commands in the clean checkout at the full W commit. Both CLI input
+paths must be canonical absolute paths under that checkout's existing fixed input
+roots; a relative source or handoff path is rejected. Retain the exact original
+handoff directory and source-identity input, and the latest committed partial
+receipt. Do not regenerate package bytes or create a second publication state root.
+
+```sh
+registry_pending_commit=cdeb9dc6549158e795ecc982aba714307ac83f38
+registry_base_verifier_commit=63293bb1165ccff704cf9cfffdcda3ec3f959f7b
+registry_tooling_commit=cbc7b0c74b90cdbcc28b277bc65df575f75b0a1f
+registry_pending_results_sha256=37afddc518d45159899fd2caa04d4b30a8945921718dae2235a327968342dc77
+test "$(git rev-parse --verify HEAD)" = "$registry_tooling_commit"
+recovery_checkout=$(pwd -P)
+crates_source_identity=$recovery_checkout/target/qperiapt-crates-io-publication-inputs/source-identity.json
+selected_rust_handoff_manifest=$(jq -er '.rust_publish.handoff_manifest_path' artifact/results.json)
+rust_handoff_manifest=$recovery_checkout/$selected_rust_handoff_manifest
+rust_handoff_sha256=e80f0aa31f8ba1407b05bddf7021bf834c3afefa002aa1c4155ff50b834425eb
+: "${CRATES_PREVIOUS_RECEIPT:?supply the canonical absolute latest partial receipt path}"
+crates_previous_receipt=$CRATES_PREVIOUS_RECEIPT
+case "$crates_previous_receipt" in /*) ;; *) exit 1 ;; esac
+
+sh artifact/python-run.sh artifact/crates_io_publication.py dry-run \
+  "$crates_source_identity" "$rust_handoff_manifest" "$rust_handoff_sha256" \
+  --previous-receipt "$crates_previous_receipt" \
+  --tooling-recovery "$registry_pending_commit" "$registry_base_verifier_commit" \
+    "$registry_tooling_commit" "$registry_pending_results_sha256"
+
+sh artifact/python-run.sh artifact/crates_io_publication.py verify \
+  "$crates_source_identity" "$rust_handoff_manifest" "$rust_handoff_sha256" \
+  --previous-receipt "$crates_previous_receipt" \
+  --tooling-recovery "$registry_pending_commit" "$registry_base_verifier_commit" \
+    "$registry_tooling_commit" "$registry_pending_results_sha256"
+```
+
+These commands do not upload. `dry-run` validates the local contract; `verify`
+collects fresh official API and sparse-index observations. Retain its exact newly
+emitted receipt before an authorized publish resume. A bounded client diagnostic
+describes one attempt only: process success or HTTP 2xx never establishes
+`published_verified` without the independent registry observations.
+
+An installed uploader is not overwritten by rerunning the first-install example
+below. Materialize the W template to a separate candidate with the existing builder,
+then compare the old and new fixed version, endpoint, user agent, Cargo version,
+handoff, archive identities, and complete metadata contract. Under the same existing
+publication lock, preserve the old executable unchanged before installing the reviewed
+candidate at the fixed uploader path. Retain an installation receipt without credentials;
+the existing state root and journal remain the authority for every resume.
+
+An interrupted or unknown attempt remains recorded. A publish resume first
+reconciles it under that same lock. If its exact crate is still absent from both
+official API and sparse index, an explicitly authorized retry may additionally pass
+`--retry-unknown-intent` with the exact current intent digest and the latest
+`--previous-receipt`. This records a linked child intent and preserves the original;
+it is never an automatic retry. Include the same four `--tooling-recovery` values
+on the publish command together with both existing irreversible-publish flags.
+
+### Reopen the development line
+
+Verifier and documentation changes invalidate registered proof-input digests from
+`P`. Their normal development integration therefore uses
+the existing `source_results_assembler.py reopen-source` transition: from a clean
+descendant of `W` that still retains the exact pending results, first commit the
+release documentation as `E`, then generate a separate 190-key initial baseline
+and install it in one commit `D2` together with the
+matching `INITIAL_RESULTS_SHA256` and the authority stated in `ARTIFACT.md`.
+The generator recomputes the retained inputs and removes only the validated pending
+leaves; do not hand-edit the installed 249-key proof map. This reopens development
+and does not activate the 0.1.5 cohort or claim current package evidence for `D2`.
+
+Registry publication completed at `W`, followed by finalization from the clean `P`
+checkout. All three complete domain receipts are preserved in verified `Q` at the
+annotated `v0.1.5-verified-cohort` tag. Do not install `Q` on the development branch before
+reopening it: the current reopen contract refuses to drop a verified publication leaf. Keep the
+original `V` and `W` reachable when integrating the development branch, because
+the receipts and registry recovery name those exact commits. Retain the earlier
+development branch `D` and its CI evidence; do not transplant W onto its already
+reopened results. Existing `v0.1.5` and
+`abi2-platforms-v0.1.5` distribution tags continue to identify `R`.
+
+This release succeeds `0.1.4`, the preceding complete GitHub-and-crates.io stable set: the
 `v0.1.4` and `abi2-platforms-v0.1.4` GitHub releases are live and immutable and
 the ten `0.1.4` crates are published on crates.io, although that line's verified
 receipts are recorded at the annotated tag `v0.1.4-verified-cohort` rather than in
@@ -101,7 +264,7 @@ results-only commit, under the no-bypass tag ruleset; they are therefore permane
 That line published for real, end to end: the Apple release `v0.1.4` and the
 platform release `abi2-platforms-v0.1.4` are both live, non-prerelease, and
 immutable, and all ten exact `0.1.4` crates were published on crates.io and
-reconciled as `published_verified`. `0.1.4` is therefore the current published
+reconciled as `published_verified`. `0.1.4` was therefore the preceding published
 stable set, superseding `0.1.3`. Its verified cohort — the `apple_v0_1_4`,
 `platform_v0_1_4`, and `crates_io_v0_1_4` receipts — is recorded at the annotated
 tag `v0.1.4-verified-cohort`, not on `main`: reopening the source line for the next
@@ -116,11 +279,11 @@ therefore carries ten stable-named tags today: `v0.1.0` and
 `abi2-platforms-v0.1.0` and `v0.1.1` and `abi2-platforms-v0.1.1` and `v0.1.2`
 and `abi2-platforms-v0.1.2` (historical, unpublished) and `v0.1.3` and
 `abi2-platforms-v0.1.3` and `v0.1.4` and `abi2-platforms-v0.1.4` (historical,
-published). `v0.1.5` and `abi2-platforms-v0.1.5` are the two refs THIS release
-creates: they do not exist yet, and the step below proves both absent — locally
-and through the double-sampled read-only GitHub API — before either is pushed.
-The tag ruleset must cover all twelve stable-named refs, the ten that exist now
-and the two this release adds. The separate `v0.1.4-verified-cohort` evidence
+published). `v0.1.5` and `abi2-platforms-v0.1.5` are the two refs this release
+created. Before their creation, the step below required both to be absent locally
+and through the double-sampled read-only GitHub API. They now exist and must be
+preserved. The tag ruleset must cover all twelve stable-named refs. The separate
+`v0.1.4-verified-cohort` evidence
 tag is not one of those twelve and is not covered by the tag-protection
 authority below.
 
@@ -255,7 +418,7 @@ weakening package ownership checks:
 These source notes cannot by themselves assert a performance improvement. The final
 release earns that claim only if `R` selects the mandatory raw-schema-v5 /
 proof-schema-v8 / budget-schema-v10 proof for `S`, and the coordinated verified
-receipt `V` preserves and revalidates that exact selection. The proof requires both
+cohort commit `Q` preserves and revalidates that exact selection. The proof requires both
 the preserved ContextBound/CompatXWing profile non-regression estimand with strict
 ContextBound fixed suite/version/application-context inputs and CompatXWing canonical
 `[]`/`0`/`[]` inputs, and a
@@ -313,7 +476,7 @@ Scanning analyses and alerts; a permission error is a hard failure, never an emp
 result. Record those run and attempt IDs. A newer failed, cancelled, or in-progress
 exact run blocks an older success. Re-run the tag-ruleset
 authority immediately before this block. Neither `S`, a feature or pull-request
-SHA, nor the later `P` or `V` results commits may be tagged.
+SHA, nor the later `P` or `Q` results commits may receive either distribution tag.
 From the first pre-tag security sample through the final remote tag-state sample,
 the authorized release operator must freeze workflow rerun/dispatch actions and
 exclude concurrent tag or branch operators; otherwise the authority must be sampled
@@ -1095,6 +1258,8 @@ publication_state_parent=$publication_account_home/.q-periapt/publication-state
 publication_state_root=$publication_state_parent/crates.io-v0.1.5
 (umask 077 && mkdir -p "$publication_state_root")
 
+# First installation only: require that the fixed executable does not exist.
+# For an existing executable, follow Registry tooling recovery above.
 # Materialize the release-pinned exact-byte uploader from the reviewed template
 # and the rust package handoff, then install it as this fixed 0700 child. The
 # generator derives each crate's registry metadata from the packaged .crate
@@ -1104,6 +1269,7 @@ publication_state_root=$publication_state_parent/crates.io-v0.1.5
 # and differs only in its per-release data. Regenerating for a new version is a
 # single reviewed command instead of a manual reconstruction.
 uploader_command=$publication_state_root/qperiapt-crates-io-uploader
+test ! -e "$uploader_command" && test ! -L "$uploader_command"
 # The Cargo version that packaged the crates, taken from the validated
 # rust_publish results section (embedded in the uploader only for provenance).
 cargo_version_that_packaged_the_crates=$(python3 -I -S -c \
@@ -1125,13 +1291,25 @@ sh artifact/python-run.sh artifact/crates_io_publication.py publish \
   --execute-real-upload --acknowledge-irreversible-publish
 ```
 
+If this host requires its existing local HTTP proxy for registry uploads, append
+`--http-connect-proxy http://127.0.0.1:7890` with the actual loopback listener port
+to the publish command. This explicit per-process route uses HTTP CONNECT to
+`crates.io:443`, then verifies the crates.io TLS certificate before sending the
+credential or archive. It does not change system proxy settings, accept a remote
+proxy or proxy credentials, follow redirects, or retry a failed upload. Omitting
+the option retains direct upload. Read-only registry reconciliation is unchanged.
+After an unknown upload, preserve the journal and use the current unresolved
+intent with `--retry-unknown-intent`; its fresh API and sparse-index absence checks
+under the fixed publication lock still apply when the route changes.
+
 Do not use the same registry credential from another UID or host while this fixed
 transaction is unresolved; the local lock intentionally claims only same-host,
-same-account cross-worktree exclusion. No such upload has been run or is implied
-here. After an abrupt local crash, restart under that same authority: it deletes only
+same-account cross-worktree exclusion. After an abrupt local crash, restart under
+that same authority: it deletes only
 descriptor-proven empty or exact private precommit journal residue. A durable final
-intent is never deleted or retried; it must first reconcile through the official API
-and sparse index. Mixed, renamed, multiply linked, special-file, permission-mismatched,
+intent is never deleted; it must first reconcile through the official API and
+sparse index. An explicit W recovery retry follows the digest-bound procedure above.
+Mixed, renamed, multiply linked, special-file, permission-mismatched,
 or changing residue fails before credentials or an uploader are reached. Set
 `crates_verified_receipt` and
 `crates_verified_receipt_sha256` only from a fresh
@@ -1146,7 +1324,7 @@ test "$(shasum -a 256 "$crates_verified_receipt" | awk '{print $1}')" = \
   "$crates_verified_receipt_sha256"
 ```
 
-Finalize against the still-pinned pending results. Install V as the direct
+Finalize against the still-pinned pending results. Install `Q` as the direct
 results-only child of P and run `verify-installed` before the receipt-level
 read-only `verify`; those commands prove different boundaries and neither replaces
 the other:
@@ -1235,8 +1413,9 @@ transition checks, and therefore are not publication authority.
 
 ## Explicit boundaries
 
-No crates.io publication has been executed or claimed by these notes; stable cohort
-activation remains blocked until the exact ten-crate `published_verified` receipt exists.
+The completed ten-crate `published_verified` receipt and verified results successor
+Q activate the 0.1.5 stable cohort. Development proof baselines do not replace that
+frozen publication record.
 This stable ABI package release does not by itself claim Maven Central publication,
 deb/rpm/MSIX publication, Windows Authenticode, current Android physical-device
 coverage, current performance evidence, independent cryptographic certification,

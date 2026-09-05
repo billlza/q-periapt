@@ -53,7 +53,7 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ lean and signed-policy faces execute on Node/WASM | `wasm-pack test --node` for default and `--features signed-policy`; CI also builds `wasm32` |
 | **Kotlin** (`kotlin/`) | ✅ current-source JDK 22 host verification | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
-| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.4` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
+| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.5` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
 Kotlin uses a JDK ≥22 (stable FFM); the same warning-failing command is a CI gate:
 
@@ -75,12 +75,12 @@ or physical device runs instrumentation against the AAR.
 
 ## Stable binary publication transactions
 
-This tree is the open `0.1.5` source line; no `0.1.5` release, tag, or asset exists
-yet, so the stable prebuilt targets remain the published `0.1.4` set: the Apple
-XCFramework in
-`v0.1.4` and the
-Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.4`, both published on
-2026-08-30 and immutable. The
+The `0.1.5` stable prebuilt targets are the Apple XCFramework in `v0.1.5` and the
+Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.5`, both published on
+2026-09-05 and immutable. Remote asset verification and the ten-crate registry
+receipt are complete; `v0.1.5-verified-cohort` preserves the verified cohort.
+The previous `v0.1.4` and `abi2-platforms-v0.1.4` releases were published on
+2026-08-30 and remain immutable. The
 predecessor `v0.1.3` and `abi2-platforms-v0.1.3` releases are published and
 immutable; the earlier
 `v0.1.0`, `v0.1.1`, `v0.1.2`, `abi2-platforms-v0.1.0`, `abi2-platforms-v0.1.1`, and
@@ -95,8 +95,10 @@ Apple selector. That states where the evidence lives, not whether `0.1.4` shippe
 published GitHub and crates.io records are immutable and unaffected.
 The unsigned Windows SDK remains an
 unsupported CI diagnostic outside the stable asset set.
-Verify tags and assets with `gh release verify` / `gh release verify-asset` and check
-`SHA256SUMS` plus the `APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json`
-manifests; scope and explicit non-goals (no unverified registry claims, no
+Use the release runbook's receipt collectors to verify tags, release attestations,
+and exact assets against `SHA256SUMS` and the
+`APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json` manifests. Ambient
+`gh release verify` / `gh release verify-asset` commands are diagnostics and do not
+replace those collectors. Scope and explicit non-goals (no unverified registry claims, no
 Windows support, no physical-device claim) are in
 [`../artifact/stable-release-notes.md`](../artifact/stable-release-notes.md).

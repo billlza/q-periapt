@@ -3,49 +3,28 @@
 [![CI](https://github.com/billlza/q-periapt/actions/workflows/ci.yml/badge.svg)](https://github.com/billlza/q-periapt/actions/workflows/ci.yml)
 
 > [!WARNING]
-> **Status: stable-version ABI 2 source line / receipt-gated GitHub publication /
-> 0.1.5 crates.io publication pending / doctoral-thesis project (v0.1.5, ABI 2).**
-> This line succeeds the fully published `0.1.4` release (GitHub `v0.1.4` and
-> `abi2-platforms-v0.1.4` immutable releases published 2026-08-30, plus the ten
-> `0.1.4` crates on crates.io). That release's verified cohort is recorded at the
-> annotated `v0.1.4-verified-cohort` tag rather than on `main`: reopening the source
-> line returns [`artifact/results.json`](artifact/results.json) to its initial
-> baseline, so `main`'s trusted results record no 0.1.4 publication at all and still
-> carry `apple_v0_1_3` as the active Apple selector. That is a statement about where
-> the evidence lives, not about whether 0.1.4 shipped — the published GitHub and
-> crates.io records are immutable and unaffected.
-> The formal stable GitHub transactions use the Apple XCFramework tag `v0.1.5`
-> and the `abi2-platforms-v0.1.5` platform tag (Android AAR and GNU/Linux
-> x86_64/aarch64 SDK archives); each is a non-prerelease public immutable release
-> only after the current verified receipt records that outcome — see
-> [Stable release targets](#stable-release-targets-and-published-history-abi-2). The coordinated
-> “stable” label does not claim Rust API 1.0 compatibility: SemVer `0.1.5` remains
-> a Rust `0.x` line, while C ABI 2 and the ten exact internal `=0.1.5` dependency
-> edges are frozen for this release. The coordinated
-> `0.1.5` Rust crate set is only pre-publication package-ready: its contract performs no upload
-> and does not prove crates.io upload-API acceptance, crate-name ownership, publishing
-> credentials or authorization, server-side policy acceptance, or a registry receipt.
-> No `0.1.5` registry receipt (crates.io, Maven Central, deb/rpm/MSIX) and no Windows
-> Authenticode signing is claimed. The unsigned Windows package remains a separate,
-> unsupported CI diagnostic and is not a stable candidate or release asset. The authoritative
-> tags, artifact hashes, distribution-signature/notarization-applicability status, and currentness live in
-> [`artifact/results.json`](artifact/results.json). NOT audited,
-> NOT FIPS-validated, and NOT production-ready — do not deploy it.** Pinned third-party
-> implementations are wired for ML-KEM through the target-selected
-> `q-periapt-mlkem-native-sys` boundary over `mlkem-native` v1.2.0,
-> ML-DSA via `fips204` 0.4.6, SHA3/SHAKE via `sha3` 0.10.9,
-> X25519 via x25519-dalek, and optional SLH-DSA via fips205. The former
-> `pqcrypto-hqc`/PQClean adapter has been removed from the publishable dependency and
-> runtime-suite graph. A separate `publish = false`
-> [`research/hqc-fips207-candidate`](research/hqc-fips207-candidate/) shadow lane evaluates
-> RustCrypto `hqc-kem 0.1.0-rc.0` against the HQC v5 / prospective FIPS-207 draft
-> candidate. The crate describes itself as tracking an IPD, but as of 2026-07-12 the
-> official FIPS 207 IPD is not publicly retrievable and NIST still says it is coming soon;
-> it is not ABI 2, not a production backend, and has no suite code. The X-Wing
-> construction-conformance KAT passes byte-for-byte against the official draft
-> vectors, and the combiner
-> binding theorem is machine-checked in EasyCrypt — but the suite has had no
-> third-party audit. See [Status & disclaimer](#status--disclaimer).
+> **Status: 0.1.5 published on GitHub and crates.io; complete ABI 2 cohort verified.**
+> The current publication is the Apple `v0.1.5` XCFramework, the Android/Linux
+> `abi2-platforms-v0.1.5` distributions, and all ten Rust crates at `0.1.5`.
+> The complete record is the annotated
+> [`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort)
+> tag. Its results-only commit `cc21bc1cadac5148aadfd98f1c6b0e4acbbb0c06`
+> passed independent registry, installed-results and three-domain receipt verification.
+> Development uses a separate initial proof baseline; its historical selectors do
+> not replace that published record. Releases 0.1.3 and 0.1.4 are superseded and
+> should not be selected for new downstream builds.
+> Rust remains a `0.x` API; C ABI 2 and exact internal `=0.1.5` dependency edges
+> are fixed for the published cohort. Package publication is not an independent
+> cryptographic audit, FIPS validation, or production-readiness claim. Current
+> physical-device, controlled-performance and full integration assurance remain
+> separate requirements. Maven Central/deb/rpm/MSIX publication and Windows
+> Authenticode are not established by this release; unsigned Windows output is
+> an unsupported diagnostic outside the stable asset set.
+> The published backend remains `mlkem-native` v1.2.0 through the target-selected
+> sys crate, `fips204` 0.4.6, `sha3` 0.10.9, X25519 and optional SLH-DSA.
+> HQC is a separate unpublished research lane, not a released suite. No third-party
+> audit or primitive-speed advantage is claimed. See [Security Policy](SECURITY.md)
+> and [Embedding Readiness](docs/EMBEDDING_READINESS.md) before integration.
 
 **Q-Periapt** — *Q for Quantum; a periapt is an amulet worn to ward off danger* —
 is a portable, `no_std` post-quantum / traditional (PQ/T) hybrid cryptographic
@@ -436,8 +415,12 @@ under the no-bypass tag ruleset but were never published; their correction shipp
 `artifact/results.json`. The `v0.1.3` and `abi2-platforms-v0.1.3` releases then
 published for real — the first fully published stable line, including the ten
 `0.1.3` crates on crates.io — and `v0.1.4` and `abi2-platforms-v0.1.4` published in
-turn on 2026-08-30, together with the ten `0.1.4` crates, so 0.1.4 is now the current
-published stable set. `0.1.5` is 0.1.4's successor, not a correction
+turn on 2026-08-30, together with the ten `0.1.4` crates. As verified on 2026-09-06,
+0.1.5 is the latest complete GitHub-and-crates.io cohort. Both distributions and
+all ten registry packages are covered by the complete
+[`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort)
+record.
+`0.1.5` is 0.1.4's successor, not a correction
 (see the 0.1.0 through 0.1.4 history in
 [`artifact/stable-release-notes.md`](artifact/stable-release-notes.md)).
 
@@ -453,8 +436,8 @@ about whether 0.1.4 shipped.
 
 | Tag | Scope | Toolchain | Status |
 |---|---|---|---|
-| [`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5) | Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Stable target; current only with a verified receipt |
-| [`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5) | Apple Developer ID-signed static XCFramework ZIP | Rust 1.96.1 | Stable target; current only with a verified receipt |
+| [`abi2-platforms-v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5) | Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable on 2026-09-05; cohort verified on 2026-09-06 |
+| [`v0.1.5`](https://github.com/billlza/q-periapt/releases/tag/v0.1.5) | Apple Developer ID-signed static XCFramework ZIP | Rust 1.96.1 | Published immutable on 2026-09-05; remote consumer and complete cohort verified |
 | [`abi2-platforms-v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.4) | Published 2026-08-30: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable predecessor; its verified receipt is recorded at the annotated `v0.1.4-verified-cohort` tag, not on `main` |
 | [`v0.1.4`](https://github.com/billlza/q-periapt/releases/tag/v0.1.4) | Published 2026-08-30: Apple Developer ID-signed static XCFramework ZIP; the ten `0.1.4` crates are also published on crates.io | Rust 1.96.1 | Published immutable stable predecessor; its verified receipt is recorded at the annotated `v0.1.4-verified-cohort` tag, not on `main`, so `main`'s trusted results record no 0.1.4 publication |
 | [`abi2-platforms-v0.1.3`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.3) | Published 2026-08-25 at results successor `69e64078`: Android AAR (arm64-v8a/armeabi-v7a/x86/x86_64, 16 KiB pages, API 35 emulator runtime evidence), GNU/Linux x86_64+aarch64 SDK tars | Rust 1.96.1 | Published immutable stable release, superseded by `abi2-platforms-v0.1.4`; its frozen verified receipt nevertheless remains the platform selection recorded in `main`'s trusted results |
@@ -552,11 +535,11 @@ The coordinated registry order is `q-periapt-mlkem-native-sys`, `q-periapt-core`
 it derives its CBOM from `q-periapt-core`, `q-periapt-sig`, `q-periapt-policy` and
 `q-periapt-backends`, so it must be uploaded after all four and cannot go independently.
 All ten stay in the same version set.
-No `0.1.5` crate has been uploaded to crates.io — the no-upload package contract defines the intended
-surface and never invokes `cargo publish`. It does not prove crates.io upload-API acceptance,
-crate-name ownership, publishing credentials or authorization, server-side policy acceptance, or a
-registry receipt; `0.1.5` registry publication remains a separate, unclaimed workstream, and the
-published `0.1.3` and `0.1.4` crate sets are not evidence for it.
+All ten `0.1.5` crates are published and independently verified through the official
+API and sparse index. Their complete receipt is recorded at `v0.1.5-verified-cohort`.
+The separate pre-publication package-ready contract checks package construction without
+invoking `cargo publish`. It does not prove upload-API acceptance, crate-name ownership,
+publishing credentials or authorization, server-side policy acceptance, or a registry receipt.
 `artifact/local-release-index.sh`
 can then aggregate the existing C archive, Swift XCFramework zip, Android AAR, and optional
 sanitized runtime proof summaries into one local hash-bound index; release mode requires a clean
