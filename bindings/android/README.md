@@ -37,6 +37,32 @@ ABI slices, `JNI_OnLoad`/`RegisterNatives` export shape, Java facade compilation
 dex conversion, and an isolated consumer compile. Runtime proof is tracked by the
 separate device/emulator smoke below, not by this package-only gate.
 
+The development producer declares `package="dev.qperiapt.android"` in the AAR
+manifest so AGP can derive the library's resource namespace. Its `proguard.txt`
+retains every native method registered by `JNI_OnLoad`, including methods unused
+by a particular consumer, and the exact
+`QPeriaptAndroid$QPeriaptException(String, int, String)` constructor invoked by JNI.
+The independent archive audit requires this package, callback class and exact
+consumer-rule contract; the producer also checks the compiled constructor with
+`javap`. Unused non-native Java methods and unrelated classes remain eligible for
+shrinking. A names-only keep rule is insufficient because `RegisterNatives`
+registers the whole method table even when the app calls only `runtimeVersion()`.
+These packaging corrections apply to future source candidates. The published
+0.1.5 AAR, its checksums, receipts and tags remain immutable.
+
+The isolated `javac` consumer and hand-assembled D8 runtime APK do not run AGP's
+AAR transforms or R8. A future consumer gate must build a minified Release app
+from the exact AAR through AGP, without supplying extra Q-Periapt keep rules in
+the app, then execute the existing `QPeriaptSmokeActivity` workload from
+`artifact/android-device-smoke.sh` and the same `signed-policy-vectors.json`.
+That workload already asserts native policy errors as `QPeriaptException`, policy
+rollback/signature rejection, KEM round trips, context binding and secret wiping.
+AGP/R8 acceptance is a separate required consumer result; archive or `javap`
+success does not establish it. A separate minimal-entry variant that calls only
+`runtimeVersion()` must also initialize JNI successfully and retain every native
+name/descriptor plus the exception callback in its shrunk DEX. The complete
+workload alone cannot detect removal of unused native methods.
+
 The canonical Android release proof runs the exact package-gate AAR on a script-owned,
 cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB pages,
 build-tools 36.0.0, and release mode:

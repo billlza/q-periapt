@@ -310,7 +310,8 @@ test -s "$JAVA_SOURCES" || {
 }
 javac --release 11 -Xlint:all -Werror -cp "$ANDROID_JAR" -d "$CLASSES" @"$JAVA_SOURCES"
 javap -classpath "$CLASSES" -s -p dev.qperiapt.android.QPeriaptAndroid >"$WORK/QPeriaptAndroid.javap"
-python3 - "$WORK/QPeriaptAndroid.javap" "$ROOT/bindings/android/jni/qperiapt_jni.c" "$ROOT/bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java" <<'PY'
+javap -classpath "$CLASSES" -s -p "dev.qperiapt.android.QPeriaptAndroid\$QPeriaptException" >"$WORK/QPeriaptException.javap"
+python3 - "$WORK/QPeriaptAndroid.javap" "$ROOT/bindings/android/jni/qperiapt_jni.c" "$ROOT/bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java" "$WORK/QPeriaptException.javap" <<'PY'
 import pathlib
 import re
 import sys
@@ -318,6 +319,7 @@ import sys
 javap = pathlib.Path(sys.argv[1]).read_text()
 csrc = pathlib.Path(sys.argv[2]).read_text()
 java_src = pathlib.Path(sys.argv[3]).read_text()
+exception_javap = pathlib.Path(sys.argv[4]).read_text()
 loader_names = re.findall(r'System\.loadLibrary\("([^"]+)"\)', java_src)
 if loader_names != ["q_periapt_ffi_abi2", "qperiapt_jni_abi2"]:
     raise SystemExit(f"error: Android ABI2 loader names mismatch: {loader_names}")
@@ -341,6 +343,21 @@ for name, descriptor in expected.items():
         raise SystemExit(f"error: javap descriptor mismatch for {name}: expected {descriptor}")
     if f'{{"{name}", "{descriptor}",' not in csrc:
         raise SystemExit(f"error: JNI RegisterNatives table missing {name} {descriptor}")
+exception_class = "dev.qperiapt.android.QPeriaptAndroid$QPeriaptException"
+exception_descriptor = "(Ljava/lang/String;ILjava/lang/String;)V"
+constructor = (
+    "public " + exception_class + "(java.lang.String, int, java.lang.String);"
+)
+if not re.search(
+    re.escape(constructor) + r"\s+descriptor:\s+" + re.escape(exception_descriptor),
+    exception_javap,
+):
+    raise SystemExit("error: JNI exception callback constructor descriptor mismatch")
+if (
+    '"' + exception_class.replace(".", "/") + '"' not in csrc
+    or '"<init>", "' + exception_descriptor + '"' not in csrc
+):
+    raise SystemExit("error: JNI exception callback lookup differs from the Java contract")
 print("ANDROID_JNI_SIGNATURES_PASS")
 PY
 python3 - "$CLASSES" "$CLASSES_JAR" <<'PY'
@@ -366,15 +383,19 @@ test -f "$DEX_OUT/classes.dex" || {
 printf 'PASS: Java facade compile + dex conversion\n'
 
 cat >"$STAGE/AndroidManifest.xml" <<'EOF'
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.qperiapt.android">
     <uses-sdk android:minSdkVersion="23" />
 </manifest>
 EOF
 cp "$CLASSES_JAR" "$STAGE/classes.jar"
 touch "$STAGE/R.txt"
 cat >"$STAGE/proguard.txt" <<'EOF'
--keepclasseswithmembernames class dev.qperiapt.android.QPeriaptAndroid {
+-keep class dev.qperiapt.android.QPeriaptAndroid {
     native <methods>;
+}
+-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException {
+    public <init>(java.lang.String, int, java.lang.String);
 }
 EOF
 mkdir -p "$STAGE/META-INF"

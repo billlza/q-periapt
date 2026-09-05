@@ -18,6 +18,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ElementTree
 import zipfile
 from dataclasses import dataclass
 from typing import Any, Iterable
@@ -75,6 +76,18 @@ MIN_LOAD_ALIGNMENT = 0x4000
 MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_ENTRY_BYTES = 128 * 1024 * 1024
 MAX_CLASSES_JAR_BYTES = 16 * 1024 * 1024
+MAX_CONSUMER_METADATA_BYTES = 64 * 1024
+ANDROID_PACKAGE = "dev.qperiapt.android"
+# This release producer has one exact consumer-rule contract. Do not parse or
+# accept a substring: commented rules and shrinking/obfuscation modifiers can
+# appear to name the callback while leaving JNI's string lookup unprotected.
+ANDROID_CONSUMER_RULES = b"""-keep class dev.qperiapt.android.QPeriaptAndroid {
+    native <methods>;
+}
+-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException {
+    public <init>(java.lang.String, int, java.lang.String);
+}
+"""
 MANIFEST_SCHEMA_VERSION = 4
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
@@ -878,8 +891,11 @@ def audit_classes_jar(data: bytes) -> dict[str, bytes]:
     except zipfile.BadZipFile as exc:
         raise AndroidVerificationError(f"classes.jar is not a valid ZIP archive: {exc}") from exc
     require(entries, "classes.jar is empty")
-    primary_class = "dev/qperiapt/android/QPeriaptAndroid.class"
-    require(primary_class in entries, f"classes.jar lacks {primary_class}")
+    for required_class in (
+        "dev/qperiapt/android/QPeriaptAndroid.class",
+        "dev/qperiapt/android/QPeriaptAndroid$QPeriaptException.class",
+    ):
+        require(required_class in entries, f"classes.jar lacks {required_class}")
     for name in entries:
         require(
             name.startswith("dev/qperiapt/android/") and name.endswith(".class"),
@@ -891,6 +907,31 @@ def audit_classes_jar(data: bytes) -> dict[str, bytes]:
         )
         require(entries[name].startswith(b"\xca\xfe\xba\xbe"), f"classes.jar entry is not a JVM class file: {name}")
     return entries
+
+
+def audit_android_consumer_metadata(entries: dict[str, bytes]) -> None:
+    manifest = entries["AndroidManifest.xml"]
+    require(
+        len(manifest) <= MAX_CONSUMER_METADATA_BYTES,
+        "Android AAR AndroidManifest.xml exceeds the consumer metadata limit",
+    )
+    try:
+        text = manifest.decode("utf-8")
+        require(
+            "<!DOCTYPE" not in text and "<!ENTITY" not in text,
+            "Android AAR AndroidManifest.xml must not contain DTD/entity declarations",
+        )
+        root = ElementTree.fromstring(text)
+    except (UnicodeDecodeError, ElementTree.ParseError) as exc:
+        raise AndroidVerificationError("Android AAR AndroidManifest.xml is not valid UTF-8 XML") from exc
+    require(
+        root.tag == "manifest" and root.get("package") == ANDROID_PACKAGE,
+        f"Android AAR AndroidManifest.xml must declare package={ANDROID_PACKAGE}",
+    )
+    require(
+        entries["proguard.txt"] == ANDROID_CONSUMER_RULES,
+        "Android AAR proguard.txt differs from the exact JNI native-method/exception-callback keep contract",
+    )
 
 
 def audit_third_party_license_entries(entries: dict[str, bytes]) -> dict[str, Any]:
@@ -953,6 +994,7 @@ def audit_aar_bytes(data: bytes, *, label: str) -> tuple[dict[str, bytes], dict[
     except zipfile.BadZipFile as exc:
         raise AndroidVerificationError(f"Android AAR is not a valid ZIP archive: {label}: {exc}") from exc
     audit_third_party_license_entries(entries)
+    audit_android_consumer_metadata(entries)
     classes = audit_classes_jar(entries["classes.jar"])
     return entries, classes
 
