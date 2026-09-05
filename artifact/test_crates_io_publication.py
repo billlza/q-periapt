@@ -22,7 +22,7 @@ import tempfile
 import time
 import traceback
 import unittest
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from unittest import mock
 
 from bounded_process import BoundedResult
@@ -37,6 +37,18 @@ def _json(value: object) -> bytes:
     return json.dumps(value, separators=(",", ":"), sort_keys=True).encode(
         "ascii"
     ) + b"\n"
+
+
+def upload_diagnostic_document(*, status: int = 200) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "stage": "complete" if status < 300 else "response_body",
+        "category": "ok" if status < 300 else "response",
+        "http_status": status,
+        "sent_body_bytes_lower_bound": 16,
+        "elapsed_ms": 100,
+        "retry_after_seconds": 60 if status == 429 else None,
+    }
 
 
 class FixedClock:
@@ -1538,6 +1550,277 @@ finalize_rust_package_handoff_for_cli(
                 different_handoff, journal_root=self.journal_root
             )
 
+    def prepare_uncertain_upload(
+        self, *, published_count: int = 4, record_unknown: bool = True
+    ) -> tuple[publication.LocalPublicationEvidence, RegistryFixture, publication.UploadIntent, dict[str, object]]:
+        evidence = self.evidence()
+        registry = RegistryFixture(evidence.crates, published_count=published_count)
+        intent = publication.write_upload_intent(
+            evidence, evidence.crates[published_count],
+            journal_root=self.journal_root, clock=FixedClock(),
+        )
+        if record_unknown:
+            publication.write_upload_outcome(
+                evidence, evidence.crates[published_count], intent,
+                state=publication.UPLOAD_JOURNAL_UNKNOWN,
+                journal_root=self.journal_root, clock=FixedClock(),
+            )
+        verified = self.run_publication(
+            mode="verify", api_fetcher=registry.api, sparse_fetcher=registry.sparse,
+            clock=FixedClock(), write_verify_receipt=False,
+        )
+        self.assertIsNotNone(verified.receipt)
+        return evidence, registry, intent, verified.receipt
+
+    def resume_uncertain_upload(
+        self, registry: RegistryFixture, intent: publication.UploadIntent,
+        previous: dict[str, object], **overrides: object,
+    ) -> publication.PublicationRun:
+        _values, writer = self.memory_writer()
+        arguments: dict[str, object] = {
+            "mode": "publish", "previous_receipt": previous,
+            "retry_unknown_intent_sha256": intent.digest,
+            "api_fetcher": registry.api, "sparse_fetcher": registry.sparse,
+            "clock": FixedClock(), "sleeper": lambda _seconds: None,
+            "receipt_writer": writer, "journal_root": self.journal_root,
+            "execute_real_upload": True,
+            "irreversible_acknowledgement": publication.REAL_UPLOAD_ACKNOWLEDGEMENT,
+            "credential_provider": lambda: "cio_fixture_token_123456789",
+            "lock_factory": contextlib.nullcontext, "upload_runner": registry.upload,
+            "poll_attempts": 1, "poll_interval_seconds": 0,
+        }
+        arguments.update(overrides)
+        return self.run_publication(**arguments)
+
+    def test_explicit_retry_appends_one_chain_and_preserves_original_journal(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        original = {path: path.read_bytes() for path in self.journal_root.glob("*/*.json")}
+        lock_active = False
+
+        @contextlib.contextmanager
+        def lock() -> Iterator[None]:
+            nonlocal lock_active
+            lock_active = True
+            try:
+                yield
+            finally:
+                lock_active = False
+
+        def fetch_api(url: str, **kwargs: int) -> publication.HttpResponse:
+            self.assertTrue(lock_active, "retry must collect under the publication lock")
+            return registry.api(url, **kwargs)
+
+        result = self.resume_uncertain_upload(
+            registry, intent, previous, lock_factory=lock, api_fetcher=fetch_api
+        )
+        self.assertEqual(list(contract.PUBLISHABLE_CRATES[4:]), registry.upload_calls)
+        self.assertEqual(contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED, result.receipt["status"])
+        self.assertEqual((), publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root))
+        for path, payload in original.items():
+            self.assertEqual(payload, path.read_bytes())
+        retries = [json.loads(path.read_bytes()) for path in self.journal_root.glob("*/*.json") if json.loads(path.read_bytes())["schema_version"] == 2]
+        self.assertEqual(1, len(retries))
+        self.assertEqual(intent.digest, retries[0]["retry"]["intent_sha256"])
+        self.assertEqual(result.written_receipts[0].sha256, retries[0]["retry"]["absence_receipt_sha256"])
+
+    def test_explicit_retry_can_recover_durable_intent_without_outcome(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload(record_unknown=False)
+        before = intent.path.read_bytes()
+        result = self.resume_uncertain_upload(registry, intent, previous)
+        self.assertEqual(contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED, result.receipt["status"])
+        self.assertEqual(before, intent.path.read_bytes())
+        self.assertEqual((), publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root))
+
+    def test_sigkill_after_durable_retry_intent_allows_only_explicit_tail_recovery(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        old_bytes = intent.path.read_bytes()
+        authorization = publication.UploadRetryAuthorization(intent.digest, "a" * 64, "2026-08-15T02:00:00Z")
+        retry_record = publication._journal_record(
+            evidence, evidence.crates[4], state=publication.UPLOAD_JOURNAL_INTENT,
+            attempt_id="c" * 32, recorded_at="2026-08-15T02:00:00Z", retry=authorization,
+        )
+        ready = self.root / "retry-intent.ready"
+        cache_prefix = self.root / "retry-python-cache"
+        cache_prefix.mkdir(mode=0o700)
+        source = """
+import json
+import pathlib
+import signal
+import sys
+sys.path.insert(0, str(pathlib.Path('artifact').resolve()))
+from crates_io_publication import _write_upload_journal_record
+_write_upload_journal_record(json.loads(sys.argv[3]), journal_root=pathlib.Path(sys.argv[1]))
+pathlib.Path(sys.argv[2]).write_bytes(b'ready')
+signal.pause()
+"""
+        process = subprocess.Popen(
+            [sys.executable, "-I", "-S", "-B", "-X", f"pycache_prefix={cache_prefix}",
+             os.fspath(publication.REPOSITORY_ROOT / "artifact/python_bootstrap.py"),
+             "-c", source, os.fspath(self.journal_root), os.fspath(ready), json.dumps(retry_record)],
+            cwd=publication.REPOSITORY_ROOT, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env={"PATH": "/usr/bin:/bin:/opt/homebrew/bin", "LANG": "C", "LC_ALL": "C"},
+            start_new_session=True,
+        )
+        try:
+            deadline = time.monotonic() + 10
+            while not ready.exists():
+                if process.poll() is not None:
+                    stdout, stderr = process.communicate(timeout=1)
+                    self.fail(f"retry writer exited before committed intent: {process.returncode}, {stdout!r}, {stderr!r}")
+                if time.monotonic() >= deadline:
+                    self.fail("retry writer did not reach committed intent")
+                time.sleep(0.01)
+            os.killpg(process.pid, signal.SIGKILL)
+            stdout, stderr = process.communicate(timeout=10)
+            self.assertEqual(-signal.SIGKILL, process.returncode)
+            self.assertEqual((b"", b""), (stdout, stderr))
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.communicate(timeout=10)
+        tails = publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+        self.assertEqual(1, len(tails))
+        self.assertEqual(intent.digest, tails[0].retry.intent_sha256)
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "current unresolved intent"):
+            self.resume_uncertain_upload(registry, intent, previous)
+        with self.assertRaises(publication.CratesIoUploadOutcomeUnknownError):
+            self.resume_uncertain_upload(registry, tails[0], previous, retry_unknown_intent_sha256=None)
+        self.assertEqual([], registry.upload_calls)
+        result = self.resume_uncertain_upload(registry, tails[0], previous)
+        self.assertEqual(contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED, result.receipt["status"])
+        self.assertEqual(old_bytes, intent.path.read_bytes())
+
+    def test_explicit_retry_is_consumed_once_even_when_retry_remains_unknown(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        uploader = mock.Mock(return_value=BoundedResult(returncode=1))
+        with self.assertRaises(publication.CratesIoUploadOutcomeUnknownError):
+            self.resume_uncertain_upload(registry, intent, previous, upload_runner=uploader)
+        self.assertEqual(1, uploader.call_count)
+        unresolved = publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+        self.assertEqual(1, len(unresolved))
+        self.assertNotEqual(intent.digest, unresolved[0].digest)
+        self.assertEqual(intent.digest, unresolved[0].retry.intent_sha256)
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "current unresolved intent"):
+            self.resume_uncertain_upload(registry, intent, previous, upload_runner=uploader)
+        self.assertEqual(1, uploader.call_count)
+        with self.assertRaises(publication.CratesIoUploadOutcomeUnknownError):
+            self.resume_uncertain_upload(registry, unresolved[0], previous, retry_unknown_intent_sha256=None, upload_runner=uploader)
+        self.assertEqual(1, uploader.call_count)
+        result = self.resume_uncertain_upload(registry, unresolved[0], previous)
+        self.assertEqual(contract.PUBLICATION_STATUS_PUBLISHED_VERIFIED, result.receipt["status"])
+
+    def test_explicit_retry_reconciles_already_published_without_resending(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload(published_count=9)
+        registry.published.add(intent.crate_name)
+        credential = mock.Mock(side_effect=AssertionError("published retry must not read credentials"))
+        result = self.resume_uncertain_upload(registry, intent, previous, credential_provider=credential)
+        self.assertEqual((), result.upload_attempts)
+        self.assertEqual([], registry.upload_calls)
+        credential.assert_not_called()
+        self.assertEqual((), publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root))
+
+    def test_explicit_retry_refuses_unknown_pin_and_remote_failures_before_credentials(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        credential = mock.Mock(side_effect=AssertionError("invalid retry must not read credentials"))
+        uploader = mock.Mock(side_effect=AssertionError("invalid retry must not upload"))
+        initial_records = set(self.journal_root.glob("*/*.json"))
+        cases = (
+            {"retry_unknown_intent_sha256": "f" * 64},
+            {"api_fetcher": mock.Mock(side_effect=publication.CratesIoRemoteObservationUnknownError("network"))},
+            {"sparse_fetcher": lambda url, **_kwargs: publication.HttpResponse(404, url, b"")},
+        )
+        for overrides in cases:
+            with self.subTest(overrides=tuple(overrides)), self.assertRaises(publication.CratesIoPublicationError):
+                self.resume_uncertain_upload(registry, intent, previous, credential_provider=credential, upload_runner=uploader, **overrides)
+        registry.published.add(intent.crate_name)
+        registry.api_overrides[intent.crate_name] = {"checksum": "0" * 64}
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "checksum differs"):
+            self.resume_uncertain_upload(registry, intent, previous, credential_provider=credential, upload_runner=uploader)
+        credential.assert_not_called()
+        uploader.assert_not_called()
+        self.assertEqual(initial_records, set(self.journal_root.glob("*/*.json")))
+
+    def test_retry_journal_rejects_fork(self) -> None:
+        evidence, _registry, intent, _previous = self.prepare_uncertain_upload()
+        authorization = publication.UploadRetryAuthorization(intent.digest, "a" * 64, "2026-08-15T02:00:00Z")
+        child = publication.write_upload_intent(evidence, evidence.crates[4], journal_root=self.journal_root, clock=FixedClock(), retry=authorization)
+        self.assertEqual((child,), publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root))
+        wrong = publication.write_upload_intent(evidence, evidence.crates[4], journal_root=self.journal_root, clock=FixedClock(), retry=authorization)
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "fork"):
+            publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+        self.assertTrue(wrong.path.exists())
+
+    def test_retry_journal_rejects_wrong_crate_parent(self) -> None:
+        evidence, _registry, intent, _previous = self.prepare_uncertain_upload()
+        authorization = publication.UploadRetryAuthorization(intent.digest, "a" * 64, "2026-08-15T02:00:00Z")
+        publication.write_upload_intent(evidence, evidence.crates[5], journal_root=self.journal_root, clock=FixedClock(), retry=authorization)
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "different crate"):
+            publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+
+    def test_retry_authorization_refuses_earlier_absence_and_malformed_schema(self) -> None:
+        evidence, _registry, intent, _previous = self.prepare_uncertain_upload()
+        authorization = publication.UploadRetryAuthorization(intent.digest, "a" * 64, "2026-08-15T01:59:59Z")
+        publication.write_upload_intent(evidence, evidence.crates[4], journal_root=self.journal_root, clock=FixedClock(), retry=authorization)
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "predates"):
+            publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+        record = json.loads(intent.path.read_bytes())
+        record["schema_version"] = 2
+        record["retry"] = {"intent_sha256": intent.digest, "absence_receipt_sha256": "x", "absence_observed_at": "2026-08-15T02:00:00Z"}
+        with self.assertRaisesRegex(publication.CratesIoPublicationError, "malformed"):
+            publication._validated_journal_value(record, digest="b" * 64, path=intent.path, evidence=evidence)
+
+    def test_upload_diagnostic_is_persisted_without_claiming_registry_success(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        document = upload_diagnostic_document(status=429)
+        transport = publication.validate_upload_diagnostic_document(document, returncode=1)
+        uploader = mock.Mock(return_value=publication.DiagnosedUploadResult(returncode=1, diagnostic=transport))
+        with self.assertRaises(publication.CratesIoUploadOutcomeUnknownError):
+            self.resume_uncertain_upload(registry, intent, previous, upload_runner=uploader)
+        self.assertEqual(1, uploader.call_count)
+        unresolved = publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+        records = [json.loads(path.read_bytes()) for path in self.journal_root.glob("*/*.json")]
+        diagnosed = [record for record in records if "diagnostic" in record]
+        self.assertEqual(1, len(diagnosed))
+        self.assertEqual(publication.UPLOAD_JOURNAL_UNKNOWN, diagnosed[0]["state"])
+        self.assertEqual(document, diagnosed[0]["diagnostic"]["transport"])
+        self.assertEqual(unresolved[0].digest, diagnosed[0]["intent_sha256"])
+
+    def test_diagnostic_failure_still_polls_and_retains_safe_adapter_category(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        secret = "cio_sensitive_text_never_persisted"
+        uploader = mock.Mock(side_effect=publication.UploadDiagnosticError(secret))
+        with mock.patch.object(publication, "_poll_after_upload_attempt", wraps=publication._poll_after_upload_attempt) as poll:
+            with self.assertRaises(publication.CratesIoUploadOutcomeUnknownError):
+                self.resume_uncertain_upload(registry, intent, previous, upload_runner=uploader)
+        poll.assert_called_once()
+        uploader.assert_called_once()
+        records = [path.read_bytes() for path in self.journal_root.glob("*/*.json")]
+        self.assertTrue(any(b'"diagnostic-invalid"' in payload for payload in records))
+        self.assertTrue(all(secret.encode() not in payload for payload in records))
+        self.assertEqual(1, len(publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)))
+
+    def test_diagnostic_persistence_error_does_not_skip_remote_reconciliation(self) -> None:
+        evidence, registry, intent, previous = self.prepare_uncertain_upload()
+        transport = publication.validate_upload_diagnostic_document(upload_diagnostic_document(), returncode=0)
+
+        def upload(package: publication.LocalCrate, *, credential: str) -> publication.DiagnosedUploadResult:
+            registry.upload(package, credential=credential)
+            return publication.DiagnosedUploadResult(returncode=0, diagnostic=transport)
+
+        with (
+            mock.patch.object(publication, "write_upload_outcome", side_effect=publication.PublicationReceiptIOError("diagnostic persistence failed")),
+            mock.patch.object(publication, "_poll_after_upload_attempt", wraps=publication._poll_after_upload_attempt) as poll,
+            self.assertRaisesRegex(publication.PublicationReceiptIOError, "diagnostic persistence failed"),
+        ):
+            self.resume_uncertain_upload(registry, intent, previous, upload_runner=upload)
+        poll.assert_called_once()
+        self.assertEqual([evidence.crates[4].name], registry.upload_calls)
+        self.assertTrue(intent.path.exists())
+        unresolved = publication.load_unresolved_upload_intents(evidence, journal_root=self.journal_root)
+        self.assertEqual(1, len(unresolved))
+        self.assertEqual(intent.digest, unresolved[0].retry.intent_sha256)
+
     def test_upload_journal_rejects_outcome_before_future_dated_intent(
         self,
     ) -> None:
@@ -2849,6 +3132,7 @@ signal.pause()
                     "    raise SystemExit(12)",
                     "if hashlib.sha256(payload).hexdigest() != field('--sha256'):",
                     "    raise SystemExit(13)",
+                    f"print({_json(upload_diagnostic_document()).decode('ascii').strip()!r})",
                     "raise SystemExit(0)",
                 )
             )
@@ -2862,6 +3146,8 @@ signal.pause()
         result = uploader(package, credential="cio_fixture_token_123456789")
         self.assertEqual(0, result.returncode)
         self.assertEqual(b"", result.stdout)
+        self.assertIsInstance(result, publication.DiagnosedUploadResult)
+        self.assertEqual(upload_diagnostic_document(), result.diagnostic.to_document())
 
         outside = self.root / "outside-uploader"
         outside.write_bytes(uploader_path.read_bytes())
@@ -2933,6 +3219,62 @@ signal.pause()
             )
         self.assertEqual(1, status)
         self.assertIn("explicit --state-root", stderr.getvalue())
+
+    def test_retry_cli_rejects_invalid_mode_receipt_and_digest_before_io(self) -> None:
+        cases = (
+            ("verify", [], "a" * 64),
+            ("dry-run", ["--previous-receipt", "/not-read.json"], "a" * 64),
+            ("publish", [], "a" * 64),
+            ("publish", ["--previous-receipt", "/not-read.json"], "malformed"),
+        )
+        for mode, extra, digest in cases:
+            with (
+                self.subTest(mode=mode, digest=digest),
+                mock.patch.object(publication, "_source_from_json") as read_source,
+                contextlib.redirect_stderr(io.StringIO()) as stderr,
+            ):
+                status = publication._main([
+                    mode, "/not-read.json", os.fspath(self.handoff_manifest_path),
+                    self.handoff_manifest_sha256, "--retry-unknown-intent", digest, *extra,
+                ])
+            self.assertEqual(1, status)
+            self.assertIn("explicit upload retry", stderr.getvalue())
+            read_source.assert_not_called()
+
+    def test_tooling_recovery_cli_uses_explicit_lineage_and_exact_handoff_checker(self) -> None:
+        source_path = self.root / "source-identity.json"
+        source_path.write_bytes(_json(self.source.document()))
+        os.chmod(source_path, 0o600)
+        lineage = ("1" * 40, "2" * 40, "3" * 40, "4" * 64)
+
+        def run(source: publication.SourceIdentity, handoff: pathlib.Path, digest: str, **kwargs: object) -> publication.PublicationRun:
+            self.assertNotIn("source_tree_resolver", kwargs)
+            verifier = kwargs["source_transition_verifier"]
+            self.assertTrue(callable(verifier))
+            verifier(source, handoff, digest)
+            return publication.PublicationRun("dry-run", None, (), (), contract.PUBLISHABLE_CRATES)
+
+        with (
+            mock.patch.object(publication, "_results_selected_handoff", return_value=self.cli_selected_handoff()),
+            mock.patch.object(publication, "validate_crates_io_tooling_recovery_lineage") as check_lineage,
+            mock.patch.object(publication, "_verify_results_selected_handoff") as check_handoff,
+            mock.patch.object(publication, "run_publication_transaction", side_effect=run),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            status = publication._main([
+                "dry-run", os.fspath(source_path), os.fspath(self.handoff_manifest_path),
+                self.handoff_manifest_sha256, "--tooling-recovery", *lineage,
+            ])
+        self.assertEqual(0, status)
+        check_handoff.assert_called_once_with(self.source, self.handoff_manifest_path, self.handoff_manifest_sha256)
+        check_lineage.assert_called_once_with(
+            publication.REPOSITORY_ROOT,
+            source_commit=self.source.source_parent_commit,
+            tag_commit=self.source.tag_commit, tag_tree=self.source.tag_tree,
+            canonical_source_tree_sha256=self.source.canonical_source_tree_sha256,
+            pending_commit=lineage[0], base_verifier_commit=lineage[1],
+            expected_tooling_commit=lineage[2], expected_pending_results_sha256=lineage[3],
+        )
 
     def test_publish_cli_rejects_alternate_authority_confirmations_before_io(
         self,

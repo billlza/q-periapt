@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import base64
 import dataclasses
+import datetime as dt
 import hashlib
 import http.client
 import json
 import lzma
+import math
 import os
 import re
 import signal
@@ -29,7 +31,7 @@ import time
 import urllib.parse
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import BinaryIO, Never, TextIO
+from typing import BinaryIO, Literal, Never, TextIO
 
 
 PRODUCT_VERSION = "@PRODUCT_VERSION@"
@@ -46,6 +48,24 @@ MAX_RESPONSE_BYTES = 1024 * 1024
 UPLOAD_TOTAL_TIMEOUT_SECONDS = 240.0
 STREAM_CHUNK_BYTES = 1024 * 1024
 RESPONSE_CHUNK_BYTES = 64 * 1024
+MAX_RETRY_AFTER_SECONDS = 86400
+
+UploadStage = Literal[
+    "preflight", "connect", "headers", "metadata", "archive",
+    "response_headers", "response_body", "cleanup", "complete",
+]
+FailureCategory = Literal[
+    "protocol", "environment", "credential", "input", "endpoint", "timeout",
+    "dns", "tls", "connection", "http_protocol", "transport", "redirect",
+    "response", "internal",
+]
+_FAILURE_CATEGORIES = frozenset(
+    {
+        "protocol", "environment", "credential", "input", "endpoint", "timeout",
+        "dns", "tls", "connection", "http_protocol", "transport", "redirect",
+        "response", "internal",
+    }
+)
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _TOKEN_RE = re.compile(r"^[\x21-\x7e]{16,512}$")
@@ -126,7 +146,9 @@ _FIXED_CONTRACT_B85 = (
 class UploaderError(RuntimeError):
     """A classified failure safe to report without external data."""
 
-    def __init__(self, category: str) -> None:
+    def __init__(self, category: FailureCategory) -> None:
+        if type(category) is not str or category not in _FAILURE_CATEGORIES:
+            raise RuntimeError("uploader failure category is invalid")
         self.category = category
         super().__init__(category)
 
@@ -145,11 +167,21 @@ class _AlarmState:
     handler_installed: bool = False
 
 
-def _fail(category: str) -> Never:
+@dataclasses.dataclass(slots=True)
+class _UploadProgress:
+    """Local observations only; a completed send is not registry acceptance."""
+
+    stage: UploadStage = "preflight"
+    http_status: int | None = None
+    sent_body_bytes_lower_bound: int = 0
+    retry_after_seconds: int | None = None
+
+
+def _fail(category: FailureCategory) -> Never:
     raise UploaderError(category)
 
 
-def _require(condition: bool, category: str) -> None:
+def _require(condition: bool, category: FailureCategory) -> None:
     if not condition:
         _fail(category)
 
@@ -462,10 +494,42 @@ def _send(
     network_socket: socket.socket,
     data: bytes,
     deadline: float,
+    progress: _UploadProgress,
 ) -> None:
     _set_socket_timeout(network_socket, deadline)
     connection.send(data)
+    # sendall may partially send before raising. Count only completed calls;
+    # zero is never evidence that the request did not cross the send boundary.
+    progress.sent_body_bytes_lower_bound += len(data)
     _remaining(deadline)
+
+
+def _retry_after_seconds(
+    value: str | None,
+    *,
+    now: dt.datetime | None = None,
+) -> int | None:
+    """Normalize a bounded Retry-After hint without retaining header text."""
+
+    if value is None or len(value) > 128:
+        return None
+    normalized = value.strip(" \t")
+    if re.fullmatch(r"[0-9]{1,5}", normalized) is not None:
+        seconds = int(normalized)
+    else:
+        if len(normalized) != 29:
+            return None
+        try:
+            instant = dt.datetime.strptime(
+                normalized, "%a, %d %b %Y %H:%M:%S GMT"
+            ).replace(tzinfo=dt.UTC)
+        except ValueError:
+            return None
+        if instant.strftime("%a, %d %b %Y %H:%M:%S GMT") != normalized:
+            return None
+        observed_at = dt.datetime.now(dt.UTC) if now is None else now
+        seconds = max(0, math.ceil((instant - observed_at).total_seconds()))
+    return seconds if seconds <= MAX_RETRY_AFTER_SECONDS else None
 
 
 def _read_response(
@@ -513,6 +577,7 @@ def _upload_once(
     upload_url: str,
     allow_loopback_test: bool,
     timeout_seconds: float,
+    progress: _UploadProgress,
 ) -> None:
     scheme, host, port, path = _endpoint(
         upload_url,
@@ -534,6 +599,7 @@ def _upload_once(
     network_socket: socket.socket | None = None
     response: http.client.HTTPResponse | None = None
     try:
+        progress.stage = "connect"
         _arm_hard_deadline(alarm_state, float(timeout_seconds))
         if scheme == "https":
             context = ssl.create_default_context()
@@ -558,6 +624,7 @@ def _upload_once(
         content_length = (
             4 + len(contract.metadata_json) + 4 + contract.size
         )
+        progress.stage = "headers"
         connection.putrequest("PUT", path, skip_accept_encoding=True)
         connection.putheader("Accept", "application/json")
         connection.putheader("Authorization", token)
@@ -573,10 +640,12 @@ def _upload_once(
             + contract.metadata_json
             + struct.pack("<I", contract.size)
         )
-        _send(connection, network_socket, prefix, deadline)
+        progress.stage = "metadata"
+        _send(connection, network_socket, prefix, deadline, progress)
 
         digest = hashlib.sha256()
         remaining = contract.size
+        progress.stage = "archive"
         while remaining:
             chunk = _read_stream_chunk(
                 stream,
@@ -584,18 +653,24 @@ def _upload_once(
             )
             _require(0 < len(chunk) <= remaining, "input")
             digest.update(chunk)
-            _send(connection, network_socket, chunk, deadline)
+            _send(connection, network_socket, chunk, deadline, progress)
             remaining -= len(chunk)
         _require(_read_stream_chunk(stream, 1) == b"", "input")
         _require(digest.hexdigest() == contract.sha256, "input")
 
+        progress.stage = "response_headers"
         _set_socket_timeout(network_socket, deadline)
         response = connection.response_class(network_socket, method="PUT")
         response.begin()
-        _remaining(deadline)
         status = response.status
+        _require(type(status) is int and 100 <= status <= 599, "response")
+        progress.http_status = status
+        progress.retry_after_seconds = _retry_after_seconds(
+            response.getheader("Retry-After")
+        )
+        _remaining(deadline)
+        progress.stage = "response_body"
         response_body = _read_response(response, network_socket, deadline)
-        _require(type(status) is int, "response")
         if 300 <= status <= 399:
             _fail("redirect")
         _require(200 <= status <= 299, "response")
@@ -604,15 +679,21 @@ def _upload_once(
         raise
     except TimeoutError as exc:
         raise UploaderError("timeout") from exc
-    except (
-        OSError,
-        ssl.SSLError,
-        http.client.HTTPException,
-    ) as exc:
+    except socket.gaierror as exc:
+        raise UploaderError("dns") from exc
+    except ssl.SSLError as exc:
+        raise UploaderError("tls") from exc
+    except ConnectionError as exc:
+        raise UploaderError("connection") from exc
+    except http.client.HTTPException as exc:
+        raise UploaderError("http_protocol") from exc
+    except OSError as exc:
         raise UploaderError("transport") from exc
     finally:
         deadline_cleanup_error = _disarm_hard_deadline(alarm_state)
         active_exception = sys.exc_info()[0] is not None
+        if not active_exception:
+            progress.stage = "cleanup"
         cleanup_error: BaseException | None = deadline_cleanup_error
         if response is not None:
             try:
@@ -640,7 +721,9 @@ def run(
     allow_loopback_test: bool = False,
     contracts: Mapping[str, CrateContract] | None = None,
     timeout_seconds: float = UPLOAD_TOTAL_TIMEOUT_SECONDS,
+    progress: _UploadProgress | None = None,
 ) -> None:
+    selected_progress = _UploadProgress() if progress is None else progress
     _require(
         allow_loopback_test
         or (
@@ -665,7 +748,9 @@ def run(
         upload_url=upload_url,
         allow_loopback_test=allow_loopback_test,
         timeout_seconds=timeout_seconds,
+        progress=selected_progress,
     )
+    selected_progress.stage = "complete"
 
 
 def main(
@@ -674,6 +759,7 @@ def main(
     stdin: BinaryIO | None = None,
     environment: Mapping[str, str] | None = None,
     stderr: TextIO | None = None,
+    stdout: TextIO | None = None,
     upload_url: str = PRODUCTION_UPLOAD_URL,
     allow_loopback_test: bool = False,
     contracts: Mapping[str, CrateContract] | None = None,
@@ -683,6 +769,10 @@ def main(
     selected_stdin = sys.stdin.buffer if stdin is None else stdin
     selected_environment = os.environ if environment is None else environment
     selected_stderr = sys.stderr if stderr is None else stderr
+    selected_stdout = sys.stdout if stdout is None else stdout
+    progress = _UploadProgress()
+    started_ns = time.monotonic_ns()
+    category: FailureCategory | Literal["ok"] = "ok"
     try:
         run(
             selected_arguments,
@@ -692,11 +782,33 @@ def main(
             allow_loopback_test=allow_loopback_test,
             contracts=contracts,
             timeout_seconds=timeout_seconds,
+            progress=progress,
         )
     except UploaderError as exc:
+        category = exc.category
+    except Exception:
+        # External exception text can contain credentials, request headers or
+        # response bytes. Keep the nonzero outcome and report only a fixed class.
+        category = "internal"
+    diagnostic = {
+        "schema_version": 1,
+        "stage": progress.stage,
+        "category": category,
+        "http_status": progress.http_status,
+        "sent_body_bytes_lower_bound": progress.sent_body_bytes_lower_bound,
+        "elapsed_ms": max(0, (time.monotonic_ns() - started_ns) // 1_000_000),
+        "retry_after_seconds": progress.retry_after_seconds,
+    }
+    try:
+        selected_stdout.write(json.dumps(diagnostic, separators=(",", ":")) + "\n")
+        selected_stdout.flush()
+    except (OSError, ValueError):
+        selected_stderr.write("error: q-periapt uploader diagnostic output failed\n")
+        return 1
+    if category != "ok":
         selected_stderr.write(
             "error: q-periapt crates.io uploader failed safely: "
-            + exc.category
+            + category
             + "\n"
         )
         return 1
