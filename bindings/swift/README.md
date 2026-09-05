@@ -130,9 +130,9 @@ The Developer ID signature covers SDK origin and integrity. This exact static-on
 no notarizable executable or bundle and is explicitly `notarized=false` and `stapled=false`.
 Consuming iOS apps still require their own signing and provisioning, while consuming macOS apps
 require their own distribution signing and notarization. Published stable assets are immutable:
-a post-publication URL-consumer failure
-invalidates that release and requires a new version; it must never be repaired by replacing the
-asset under the same tag.
+a confirmed defect in the published payload requires a new version; it must never be repaired
+by replacing the asset under the same tag. A transport or verifier failure blocks acceptance
+until its cause is resolved and the unchanged public bytes pass independent verification.
 
 The current published stable Apple release is `v0.1.5` (Rust 1.96.1),
 non-prerelease and immutable. Its remote consumer passed, and the complete Apple,

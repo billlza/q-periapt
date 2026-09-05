@@ -250,8 +250,9 @@ tag/commit is not a signed provenance statement, and neither upstream mlkem-nati
 nor this integration has completed an independent audit.
 
 ABI 2 / `0.1.5` is the stable-version source line, succeeding the fully published
-`0.1.4` release (`0.1.5` registry publication remains
-receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
+`0.1.4` release. All ten `0.1.5` crates are published and independently verified;
+their complete three-domain record is at `v0.1.5-verified-cohort`.
+Its coordinated stable GitHub publication targets are the Apple XCFramework
 `v0.1.5` and the
 `abi2-platforms-v0.1.5` platform distribution (Android AAR plus API 35 /
 16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
@@ -263,8 +264,8 @@ publication receipts live under `release_publications` in `artifact/results.json
 one of those receipts exactly. Scope, verification commands, and explicit
 non-goals are in `artifact/stable-release-notes.md`. The `v0.1.4` and
 `abi2-platforms-v0.1.4` releases published on 2026-08-30, and all ten 0.1.4 crates are
-published on crates.io; those public records are immutable and are the current published
-stable set, superseding 0.1.3. Their verified receipt cohort is recorded only at the
+published on crates.io; those public records are immutable historical evidence,
+superseded by 0.1.5. Their verified receipt cohort is recorded only at the
 annotated tag `v0.1.4-verified-cohort`, not on `main`: reopening the source line returns
 `artifact/results.json` to its 190-key initial baseline, which drops the pending 0.1.4
 publication leaves, and the receipt finalizer's release proof requires a results-only

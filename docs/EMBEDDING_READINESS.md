@@ -432,7 +432,7 @@ or competitor-performance result. Exact results require a fresh current-source p
 `artifact/results.json`.
 `cargo audit --deny warnings` passes without an ignore for the Rust graph; it does
 not inspect vendored C. ABI 2 is the stable-version source/Rust-crate line; registry
-publication remains separately receipt-gated. The local package contract does
+publication remains separately receipt-gated. The local pre-publication package-ready contract does
 not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials
 or authorization, server-side policy acceptance, or a registry receipt. Its
 stable binary targets are the Apple `v0.1.5` XCFramework and the
@@ -441,7 +441,7 @@ verified receipts may assert public, immutable and current status
 (see `artifact/stable-release-notes.md` for scope, verification, and explicit
 non-goals). Fresh same-source device/performance evidence, independent cryptographic,
 C/FFI and ABI review, clean signed or transparency-backed source provenance,
-registry publication (crates.io/Maven/deb/rpm/MSIX), and a future signed Windows lane
+publication through each supported distribution channel, and a future signed Windows lane
 remain hard requirements for production promotion.
 
 ## Apple Device Matrix

@@ -5,7 +5,7 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 
 > **Status: 0.1.5 ABI 2 packages and ten-crate registry cohort published and verified;
 > production promotion remains open.** The Rust package
-> surface is a coordinated set of crates. It does not prove crates.io upload-API
+> surface is a coordinated set of crates. Its pre-publication package-ready contract does not prove crates.io upload-API
 > acceptance, crate-name ownership, publishing credentials or authorization,
 > server-side policy acceptance, or a registry receipt. Immutable historical
 > prerelease receipts cover exact previously evidenced Apple XCFramework

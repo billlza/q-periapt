@@ -11,7 +11,7 @@
 > ABI 2 / `0.1.5` is the stable-version Rust crate source line, succeeding the
 > published `0.1.4` release. Its GitHub distributions are public and immutable,
 > and all ten `0.1.5` crates are published and independently verified. The complete
-> three-domain record is preserved at `v0.1.5-verified-cohort`. Its package contract alone does not prove
+> three-domain record is preserved at `v0.1.5-verified-cohort`. Its pre-publication package-ready contract alone does not prove
 > crates.io upload-API acceptance, crate-name ownership, publishing credentials or
 > authorization, server-side policy acceptance, or a registry receipt. The two immutable
 > GitHub stable targets are the Apple XCFramework `v0.1.5` (Rust 1.96.1;

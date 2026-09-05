@@ -537,8 +537,9 @@ it derives its CBOM from `q-periapt-core`, `q-periapt-sig`, `q-periapt-policy` a
 All ten stay in the same version set.
 All ten `0.1.5` crates are published and independently verified through the official
 API and sparse index. Their complete receipt is recorded at `v0.1.5-verified-cohort`.
-The separate no-upload package contract still checks package construction without
-invoking `cargo publish`; it is not a substitute for the registry receipt.
+The separate pre-publication package-ready contract checks package construction without
+invoking `cargo publish`. It does not prove upload-API acceptance, crate-name ownership,
+publishing credentials or authorization, server-side policy acceptance, or a registry receipt.
 `artifact/local-release-index.sh`
 can then aggregate the existing C archive, Swift XCFramework zip, Android AAR, and optional
 sanitized runtime proof summaries into one local hash-bound index; release mode requires a clean
