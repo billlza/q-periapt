@@ -21,9 +21,10 @@ The Android binding keeps the Rust C ABI as the only cryptographic implementatio
   arrays into the existing `q_periapt_*` C ABI.
 - `artifact/android-aar.sh` cross-builds the Rust Android `.so` slices, builds the
   JNI shim, assembles the built payload with canonical AAR archive structure,
-  independently audits that structure, and compiles an isolated consumer against
-  the AAR's `classes.jar`. Canonical archive structure does not claim cross-host
-  bit reproducibility of the compiled payload.
+  independently audits that structure, compiles an isolated consumer against
+  the AAR's `classes.jar`, and checks a minimal R8 consumer's DEX. Canonical
+  archive structure does not claim cross-host bit reproducibility of the compiled
+  payload.
 
 Run from the repository root:
 
@@ -34,8 +35,9 @@ sh artifact/android-aar.sh
 Local in-progress diagnostics can set `QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1`; that is
 not release provenance. This gate is package-only: it proves AAR shape, Android ELF
 ABI slices, `JNI_OnLoad`/`RegisterNatives` export shape, Java facade compilation,
-dex conversion, and an isolated consumer compile. Runtime proof is tracked by the
-separate device/emulator smoke below, not by this package-only gate.
+dex conversion, an isolated consumer compile, and minimal R8 native/callback
+retention. Runtime proof is tracked by the separate device/emulator smoke below,
+not by this package-only gate.
 
 The development producer declares `package="dev.qperiapt.android"` in the AAR
 manifest so AGP can derive the library's resource namespace. Its `proguard.txt`
@@ -47,19 +49,29 @@ consumer-rule contract; the producer also checks the compiled constructor with
 `javap`. Unused non-native Java methods and unrelated classes remain eligible for
 shrinking. A names-only keep rule is insufficient because `RegisterNatives`
 registers the whole method table even when the app calls only `runtimeVersion()`.
-These packaging corrections apply to future source candidates. The published
-0.1.5 AAR, its checksums, receipts and tags remain immutable.
+The published **0.1.5 AAR lacks these manifest and keep-rule corrections**. Ordinary
+AGP and minified consumers need an explicit consumer-side correction: identify any
+manifest-corrected AAR as a derived artifact, retain the original release checksum,
+and apply both exact JNI keep rules emitted by
+[`android-aar.sh`](../../artifact/android-aar.sh). Do not relabel the derived bytes
+as the published release. The official AAR, its checksums, receipts and tags remain
+immutable. These Android archive-consumer defects do not alter the previously
+verified Rust, C or Apple artifact bytes or expand what their receipts prove.
 
-The isolated `javac` consumer and hand-assembled D8 runtime APK do not run AGP's
-AAR transforms or R8. A future consumer gate must build a minified Release app
-from the exact AAR through AGP, without supplying extra Q-Periapt keep rules in
-the app, then execute the existing `QPeriaptSmokeActivity` workload from
+The package gate now runs SDK R8 using `classes.jar` and `proguard.txt` read from
+the actual AAR. Its only application root calls `runtimeVersion()`; the full-API
+compile-only consumer is excluded from R8 inputs. The existing SDK `dexdump`
+checks all nine native names/descriptors and the public exception constructor.
+This does not execute JNI or AGP's AAR transforms. A future consumer gate must
+build a minified Release app from the exact AAR through AGP, without supplying
+extra Q-Periapt keep rules in the app, then execute the existing
+`QPeriaptSmokeActivity` workload from
 `artifact/android-device-smoke.sh` and the same `signed-policy-vectors.json`.
 That workload already asserts native policy errors as `QPeriaptException`, policy
 rollback/signature rejection, KEM round trips, context binding and secret wiping.
-AGP/R8 acceptance is a separate required consumer result; archive or `javap`
-success does not establish it. A separate minimal-entry variant that calls only
-`runtimeVersion()` must also initialize JNI successfully and retain every native
+AGP/ART acceptance is a separate required consumer result; archive, `javap` or
+standalone R8 success does not establish it. A separate minimal-entry variant
+that calls only `runtimeVersion()` must also initialize JNI successfully and retain every native
 name/descriptor plus the exception callback in its shrunk DEX. The complete
 workload alone cannot detect removal of unused native methods.
 

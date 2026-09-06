@@ -43,6 +43,7 @@ need cargo
 need cbindgen
 need file
 need git
+need java
 need javac
 need javap
 need python3
@@ -182,8 +183,14 @@ fi
 
 ANDROID_BUILD_TOOLS=${QPERIAPT_ANDROID_BUILD_TOOLS:-"$ANDROID_SDK/build-tools/36.0.0"}
 D8="$ANDROID_BUILD_TOOLS/d8"
+R8_JAR="$ANDROID_BUILD_TOOLS/lib/d8.jar"
+DEXDUMP="$ANDROID_BUILD_TOOLS/dexdump"
 if [ ! -x "$D8" ]; then
 	printf 'error: Android build-tools d8 not found: %s\n' "$D8" >&2
+	exit 2
+fi
+if [ ! -f "$R8_JAR" ] || [ ! -x "$DEXDUMP" ]; then
+	printf 'error: Android build-tools R8/dexdump inputs are missing: %s\n' "$ANDROID_BUILD_TOOLS" >&2
 	exit 2
 fi
 
@@ -316,6 +323,8 @@ import pathlib
 import re
 import sys
 
+from android_elf import JNI_EXCEPTION_CLASS, JNI_EXCEPTION_DESCRIPTOR, JNI_NATIVE_METHOD_DESCRIPTORS
+
 javap = pathlib.Path(sys.argv[1]).read_text()
 csrc = pathlib.Path(sys.argv[2]).read_text()
 java_src = pathlib.Path(sys.argv[3]).read_text()
@@ -323,17 +332,10 @@ exception_javap = pathlib.Path(sys.argv[4]).read_text()
 loader_names = re.findall(r'System\.loadLibrary\("([^"]+)"\)', java_src)
 if loader_names != ["q_periapt_ffi_abi2", "qperiapt_jni_abi2"]:
     raise SystemExit(f"error: Android ABI2 loader names mismatch: {loader_names}")
-expected = {
-    "runtimeAbiVersionNative": "()I",
-    "runtimeVersionNative": "()Ljava/lang/String;",
-    "fixedSuiteIdNative": "()Ljava/lang/String;",
-    "fixedSuiteIdLenNative": "()J",
-    "statusNameNative": "(I)Ljava/lang/String;",
-    "decisionFromSignedPolicyNative": "([B[B[B[B)[B",
-    "generateKeypairNative": "([B[B[B[B[B)V",
-    "encapsulateNative": "([B[B[B[B[B[B[B)V",
-    "decapsulateNative": "([B[B[B[B[B[B[B[B[B)V",
-}
+expected = JNI_NATIVE_METHOD_DESCRIPTORS
+registrations = re.findall(r'\{"(\w+Native)",\s*"([^"]+)",\s*\(void \*\)', csrc)
+if len(registrations) != len(expected) or dict(registrations) != expected:
+    raise SystemExit("error: JNI RegisterNatives table differs from the exact descriptor contract")
 for name, descriptor in expected.items():
     javap_pattern = re.compile(
         r"native\s+[\w.$\[\]/]+[\s\[\]]+\b" + re.escape(name) + r"\([^)]*\);\s+descriptor:\s+" + re.escape(descriptor),
@@ -343,8 +345,8 @@ for name, descriptor in expected.items():
         raise SystemExit(f"error: javap descriptor mismatch for {name}: expected {descriptor}")
     if f'{{"{name}", "{descriptor}",' not in csrc:
         raise SystemExit(f"error: JNI RegisterNatives table missing {name} {descriptor}")
-exception_class = "dev.qperiapt.android.QPeriaptAndroid$QPeriaptException"
-exception_descriptor = "(Ljava/lang/String;ILjava/lang/String;)V"
+exception_class = JNI_EXCEPTION_CLASS
+exception_descriptor = JNI_EXCEPTION_DESCRIPTOR
 constructor = (
     "public " + exception_class + "(java.lang.String, int, java.lang.String);"
 )
@@ -561,6 +563,18 @@ PYTHONPATH=artifact python3 artifact/android_elf.py verify-aar \
 printf 'PASS: canonical AAR archive-structure, exact-file/CRC/nested-JAR audit, and extracted ELF re-verification\n'
 
 printf '\n=== Isolated Java consumer compile ===\n'
+python3 - "$AAR_PATH" "$CONSUMER/aar" <<'PY'
+import pathlib
+import sys
+
+from android_elf import audit_aar
+
+entries, _classes = audit_aar(pathlib.Path(sys.argv[1]))
+destination = pathlib.Path(sys.argv[2])
+destination.mkdir()
+for name in ("classes.jar", "proguard.txt"):
+    (destination / name).write_bytes(entries[name])
+PY
 cat >"$CONSUMER/Consumer.java" <<'EOF'
 import dev.qperiapt.android.QPeriaptAndroid;
 
@@ -603,8 +617,39 @@ final class Consumer {
     }
 }
 EOF
-javac --release 11 -Xlint:all -Werror -cp "$ANDROID_JAR:$CLASSES_JAR" -d "$CONSUMER/classes" "$CONSUMER/Consumer.java"
+javac --release 11 -Xlint:all -Werror -cp "$ANDROID_JAR:$CONSUMER/aar/classes.jar" -d "$CONSUMER/classes" "$CONSUMER/Consumer.java"
 printf 'PASS: isolated Java consumer compile\n'
+
+printf '\n=== Minimal R8 consumer native-registration contract ===\n'
+cat >"$CONSUMER/MinimalConsumer.java" <<'EOF'
+import dev.qperiapt.android.QPeriaptAndroid;
+public final class MinimalConsumer {
+    public static void main(String[] args) {
+        System.out.println(QPeriaptAndroid.runtimeVersion());
+    }
+}
+EOF
+cat >"$CONSUMER/minimal.pro" <<'EOF'
+-keep class MinimalConsumer { public static void main(java.lang.String[]); }
+-printusage
+EOF
+javac --release 11 -Xlint:all -Werror -cp "$ANDROID_JAR:$CONSUMER/aar/classes.jar" \
+	-d "$CONSUMER/classes" "$CONSUMER/MinimalConsumer.java"
+mkdir "$CONSUMER/r8"
+# The full-API Consumer.class is deliberately excluded: making every facade
+# method reachable would hide removal of unused RegisterNatives entries.
+java -cp "$R8_JAR" com.android.tools.r8.R8 --release --min-api 23 \
+	--map-diagnostics warning error \
+	--lib "$ANDROID_JAR" \
+	--pg-conf "$CONSUMER/minimal.pro" \
+	--pg-conf "$CONSUMER/aar/proguard.txt" \
+	--pg-map-output "$CONSUMER/r8-mapping.txt" \
+	--output "$CONSUMER/r8" \
+	"$CONSUMER/classes/MinimalConsumer.class" "$CONSUMER/aar/classes.jar" \
+	>"$CONSUMER/r8-usage.txt"
+python3 artifact/android_elf.py verify-minimal-consumer \
+	--dex "$CONSUMER/r8/classes.dex" --dexdump "$DEXDUMP"
+printf 'PASS: minimal R8 consumer retains all JNI registrations and the exception callback; AGP/ART remain separate\n'
 
 assert_source_snapshot
 printf '\n=== Emit manifest and checksums ===\n'
