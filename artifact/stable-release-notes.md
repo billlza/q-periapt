@@ -30,6 +30,16 @@ The pre-tag and publication instructions below describe the completed transition
 and their completed closeout. Do not repeat tag creation or GitHub publication;
 reconcile existing transactions before continuing from their observed state.
 
+### Platform maintenance candidate
+
+The original 0.1.5 publication above remains frozen. Android AAR manifest and
+consumer keep-rule corrections are being prepared as the independent
+`abi2-platforms-v0.1.5-r2` distribution. This source candidate is not a public
+replacement. Its complete new platform and AGP consumer evidence, independent
+receipt and `abi2-platforms-v0.1.5-r2-verified` record are required before consumers
+can select it. The original ten crates, Apple assets, r1 platform assets and Q
+are not replaced or re-finalized. See [the maintenance runbook](platform-maintenance-release-notes.md).
+
 ### Verification after publication
 
 A verifier correction does not change the version or bytes of an immutable

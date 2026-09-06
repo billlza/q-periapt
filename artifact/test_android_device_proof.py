@@ -1445,7 +1445,9 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         phase = producer.index("=== Install and run Android runtime smoke ===")
         start = producer.index('if ! : >"$PACKAGE_OBSERVATION_LOG"; then', phase)
         end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
-        postinstall = producer[start:end]
+        # The test exercises the legacy branch through activity launch. Close
+        # its explicit profile dispatch at this deliberately earlier test boundary.
+        postinstall = producer[start:end] + "\nfi\n"
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -1459,6 +1461,7 @@ umask 077
 DIST={shlex.quote(str(distribution))}
 CALLS={shlex.quote(str(calls))}
 FAIL_OPERATION={shlex.quote(failing_operation or "")}
+ANDROID_CONSUMER_PROFILE=legacy_full
 PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
 observe_preinstall_package_absence() {{
     printf 'preinstall\\n' >>"$CALLS"
@@ -3354,14 +3357,21 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        match = re.search(r"source_paths = \{\n(?P<body>.*?)\n\}", producer, re.DOTALL)
+        self.assertIn("from android_device_proof import SOURCE_INPUTS", producer)
+        match = re.search(r"^source_paths = .*", producer, re.MULTILINE)
         self.assertIsNotNone(match)
-        entries = dict(
-            re.findall(
-                r'^    "([^"]+)": root / "([^"]+)",$', match.group("body"), re.MULTILINE
-            )
+        namespace = {
+            "root": self.root,
+            "SOURCE_INPUTS": android_device_proof.SOURCE_INPUTS,
+        }
+        exec(compile(match.group(0), "<producer source inventory>", "exec"), namespace)
+        self.assertEqual(
+            namespace["source_paths"],
+            {
+                name: self.root / path
+                for name, path in android_device_proof.SOURCE_INPUTS.items()
+            },
         )
-        self.assertEqual(entries, android_device_proof.SOURCE_INPUTS)
 
     def test_android_control_dependency_direction_and_source_binding_are_explicit(
         self,

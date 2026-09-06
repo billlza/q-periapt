@@ -188,6 +188,71 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(result.returncode, 7)
         self.assertEqual(result.stdout, b"diagnostic\n")
 
+    def test_output_sink_retains_real_diagnostics_on_nonzero_and_timeout(self) -> None:
+        for source, timeout, expected_status in (
+            ("print('retained', flush=True); raise SystemExit(7)", 5, 7),
+            ("import time; print('retained', flush=True); time.sleep(5)", 1, None),
+        ):
+            with self.subTest(expected_status=expected_status):
+                chunks: list[bytes] = []
+                if expected_status is None:
+                    with self.assertRaises(
+                        bounded_process.BoundedProcessError
+                    ) as raised:
+                        bounded_process.capture_stdout(
+                            self.python(source),
+                            timeout_seconds=timeout,
+                            maximum_bytes=1024,
+                            output_sink=chunks.append,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    self.assertEqual(raised.exception.kind, "timeout")
+                else:
+                    result = bounded_process.capture_stdout(
+                        self.python(source),
+                        timeout_seconds=timeout,
+                        maximum_bytes=1024,
+                        output_sink=chunks.append,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    self.assertEqual(result.returncode, expected_status)
+                    self.assertEqual(result.stdout, b"retained\n")
+                self.assertEqual(b"".join(chunks), b"retained\n")
+
+    def test_output_sink_cannot_bypass_limit_and_io_failure_is_preserved(self) -> None:
+        chunks: list[bytes] = []
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_stdout(
+                self.python("print('x' * 100)"),
+                timeout_seconds=5,
+                maximum_bytes=32,
+                output_sink=chunks.append,
+                stderr=subprocess.DEVNULL,
+            )
+        self.assertEqual(raised.exception.kind, "output_limit")
+        self.assertLessEqual(sum(map(len, chunks)), 32)
+        failure = OSError("diagnostic storage failed")
+        observed_pids: list[int] = []
+
+        def reject(chunk: bytes) -> None:
+            observed_pids.append(int(chunk.strip()))
+            raise failure
+
+        with self.assertRaises(bounded_process.BoundedProcessError) as observed:
+            bounded_process.capture_stdout(
+                self.python(
+                    "import os,time; print(os.getpid(), flush=True); time.sleep(5)"
+                ),
+                timeout_seconds=5,
+                maximum_bytes=1024,
+                output_sink=reject,
+                stderr=subprocess.DEVNULL,
+            )
+        self.assertEqual(observed.exception.kind, "io")
+        self.assertIs(observed.exception.__cause__, failure)
+        self.assertEqual(len(observed_pids), 1)
+        self.assert_process_group_gone(observed_pids[0])
+
     def test_capture_output_bounds_and_separates_both_streams(self) -> None:
         result = bounded_process.capture_output(
             self.python(

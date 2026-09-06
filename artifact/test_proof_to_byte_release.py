@@ -5473,6 +5473,20 @@ with _temporary_release_test_directories(parents):
         self.assertIn("-ExpectedGitTree $gitTree", candidate_verify)
         preflight = extract_workflow_job(candidate, "preflight")
         self.assertIn(
+            "    tags:\n      - abi2-platforms-v0.1.5\n      - abi2-platforms-v0.1.5-r2\n",
+            candidate,
+        )
+        self.assertIn(
+            "PLATFORM_RELEASE_PROFILE: ${{ github.ref == 'refs/tags/abi2-platforms-v0.1.5-r2' && 'maintenance-r2' || 'stable' }}",
+            candidate,
+        )
+        self.assertEqual(
+            candidate.count("platform_candidate_attestation.py"),
+            candidate.count(
+                'platform_candidate_attestation.py --profile "$PLATFORM_RELEASE_PROFILE"'
+            ),
+        )
+        self.assertIn(
             "source_parent=$(/usr/bin/jq -er "
             "'.provenance.snapshot_commit' artifact/results.json)",
             preflight,
@@ -5482,7 +5496,7 @@ with _temporary_release_test_directories(parents):
             preflight,
         )
         self.assertIn(
-            "platform_candidate_attestation.py \\\n            stable-source-currentness \"$source_parent\"",
+            'platform_candidate_attestation.py --profile "$PLATFORM_RELEASE_PROFILE" \\\n            stable-source-currentness "$source_parent"',
             preflight,
         )
         self.assertIn(
@@ -5517,7 +5531,7 @@ with _temporary_release_test_directories(parents):
         )
         for token in (
             'test -n "$GH_TOKEN" && test -z "${GITHUB_TOKEN:-}"',
-            "platform_candidate_attestation.py \\\n            security-gate-live",
+            'platform_candidate_attestation.py --profile "$PLATFORM_RELEASE_PROFILE" \\\n            security-gate-live',
             "ABI2_SOURCE_SECURITY_GATE.json",
         ):
             self.assertIn(token, source_security_gate)

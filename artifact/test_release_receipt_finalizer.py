@@ -344,6 +344,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             finalizer.load_current_results(self._current_sha256())
 
         self._git("checkout", "--", "artifact/results.json")
+        self.results.chmod(0o644)
         (self.root / "tracked.txt").write_text("new source\n", encoding="utf-8")
         self._git("add", "tracked.txt")
         with self.assertRaisesRegex(

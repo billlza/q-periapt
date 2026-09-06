@@ -187,6 +187,7 @@ class AndroidOperation(str, enum.Enum):
     UNINSTALL_APP = "uninstall-app"
     DEVICE_TIME = "device-time"
     START_APP = "start-app"
+    RUN_INSTRUMENTATION = "run-instrumentation"
     READ_RESULT_TEXT = "read-result-text"
     READ_RESULT_JSON = "read-result-json"
     CAPTURE_LOGCAT = "capture-logcat"
@@ -787,6 +788,24 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
                 "--es",
                 "qperiapt_run_id",
                 cap.run_id,
+            ),
+            stderr_to_stdout=True,
+        ),
+        AndroidOperation.RUN_INSTRUMENTATION: OperationSpec(
+            "write",
+            110,
+            110,
+            OutputSpec(proof, "adb-instrumentation.txt", 16777216),
+            lambda cap: _device(
+                cap,
+                "shell",
+                "am",
+                "instrument",
+                "-w",
+                "-e",
+                "qperiapt_run_id",
+                cap.run_id,
+                f"{PACKAGE}/.QPeriaptResultInstrumentation",
             ),
             stderr_to_stdout=True,
         ),

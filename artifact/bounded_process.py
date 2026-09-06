@@ -864,14 +864,23 @@ def capture_stdout(
     stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
+    output_sink: Callable[[bytes], None] | None = None,
 ) -> BoundedResult:
     """Capture stdout without allowing the producer to exceed the byte limit."""
 
     chunks: list[bytes] = []
+
+    def retain_chunk(chunk: bytes) -> None:
+        # The stream enforces its byte/deadline bounds before this callback.
+        # A caller can retain partial diagnostics without a second process manager.
+        if output_sink is not None:
+            output_sink(chunk)
+        chunks.append(chunk)
+
     stream_arguments = {
         "timeout_seconds": timeout_seconds,
         "maximum_bytes": maximum_bytes,
-        "write_chunk": chunks.append,
+        "write_chunk": retain_chunk,
         "stderr": stderr,
         "environment": environment,
     }

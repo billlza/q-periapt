@@ -62,7 +62,7 @@ The package gate now runs SDK R8 using `classes.jar` and `proguard.txt` read fro
 the actual AAR. Its only application root calls `runtimeVersion()`; the full-API
 compile-only consumer is excluded from R8 inputs. The existing SDK `dexdump`
 checks all nine native names/descriptors and the public exception constructor.
-This does not execute JNI or AGP's AAR transforms. A future consumer gate must
+This does not execute JNI or AGP's AAR transforms. The r2 consumer gate must
 build a minified Release app from the exact AAR through AGP, without supplying
 extra Q-Periapt keep rules in the app, then execute the existing
 `QPeriaptSmokeActivity` workload from
@@ -73,7 +73,12 @@ AGP/ART acceptance is a separate required consumer result; archive, `javap` or
 standalone R8 success does not establish it. A separate minimal-entry variant
 that calls only `runtimeVersion()` must also initialize JNI successfully and retain every native
 name/descriptor plus the exception callback in its shrunk DEX. The complete
-workload alone cannot detect removal of unused native methods.
+workload alone cannot detect removal of unused native methods. The r2 source and
+gate are candidates until the independent `abi2-platforms-v0.1.5-r2-verified` tag
+and maintenance receipt confirm the exact public assets. Once verified, select
+`abi2-platforms-v0.1.5-r2` for Android and Linux while retaining library SemVer
+`0.1.5`; the corrected AAR needs neither manifest conversion nor application-side
+Q-Periapt keep rules.
 
 The canonical Android release proof runs the exact package-gate AAR on a script-owned,
 cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB pages,
@@ -299,28 +304,127 @@ CI job `bindings-android-runtime-16k` consumes the exact AAR artifact produced b
 and pull request. This is an independent package-face gate. It is neither the canonical arm64-v8a
 release proof nor physical-device production evidence.
 
+## Exact-AAR minified AGP Release consumers
+
+The optional `agp_full_release` and `agp_minimal_release` profiles use the pinned
+AGP 9.4.0 / Gradle 9.7.1 application template with `minifyEnabled=true` and
+`debuggable=false`. The default `legacy_full` profile retains its original
+three-test runtime proof and bundle contract. These new profiles produce a separate
+`qperiapt.android_agp_consumer_proof` schema-1 proof and never stand in for that
+legacy evidence or claim Maven/publication status.
+
+Select a clean source checkout and its exact prebuilt AAR/manifest, then run each
+profile in sequence through the existing owned, bounded AVD/ADB lane:
+
+```sh
+# Set JAVA_HOME to the approved JDK's canonical home and the four exact-AAR selectors first:
+# QPERIAPT_ANDROID_EXISTING_AAR, QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST,
+# QPERIAPT_ANDROID_EXPECTED_AAR_SHA256, QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256.
+QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_full_release \
+QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+sh artifact/android-device-smoke.sh
+
+QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_minimal_release \
+QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+sh artifact/android-device-smoke.sh
+```
+
+These internal release collector CLIs require `--root` to identify the checkout
+that executes the collector. To select another source checkout, run that checkout's
+own script. CLI SDK paths are assertions against the existing registered Android
+SDK profiles (`macos-account`, `linux-account`, `linux-system`, `linux-opt`);
+the commands use the registered paths. Read-only SDK verification does not require
+ADB to be installed or a device to be available. The Python read-only verification
+APIs retain explicit `root` and `sdk` inputs for independently selected source and
+evidence directories.
+Formal CLI proof paths must use the existing immutable run layout under that
+checkout's `target/qperiapt-android-device-smoke-runs`; the run ID and fixed proof
+filename are admitted before any proof is read. An external path, traversal or
+different filename is rejected before it is resolved or opened.
+
+The internal collector uses the current account's `.gradle` cache, determined
+from the account database. If `GRADLE_USER_HOME` is set, it must name that exact
+directory; another cache root is rejected before collection. Global Gradle init
+scripts remain forbidden. This is a release collector configuration constraint,
+not a restriction on applications that use Gradle. `JAVA_HOME` must already name
+the canonical home reported by the selected Gradle JVM. A mismatch preserves the
+raw Gradle version output and stops before `assemble`; JDK path aliases are not
+resolved by the collector.
+
+The full profile compiles the same checked-in three workload groups as the legacy
+producer, including the original signed-policy vectors and cryptographic/wipe
+assertions. The minimal profile's only facade call is `runtimeVersion()`; full
+workload sources and fixtures are absent from its build inputs. Neither application
+adds Q keep rules. Both use the AAR's consumer rules, and actual JavaCompile inputs,
+merged R8 rule sources, shrunk DEX native declarations, callback constructor, and
+Instrumentation entrypoints are checked before runtime acceptance. The SDK default
+optimized rules are pinned separately so an additional app keep rule cannot be
+hidden in a substituted default file.
+
+The nondebuggable APK contains its own narrow framework Instrumentation. It starts
+the Activity by a fixed string and returns the run-bound result bytes through a
+Bundle; it has no Q references and introduces no test APK that could preserve
+otherwise unused JNI members. Results commit complete JSON first, then atomically
+rename the closed text marker. A completed malformed result fails immediately.
+Actual ART execution, exact installed APK ownership, and cleanup must all pass;
+Java compilation, a standalone R8 dump, or an APK build alone is insufficient.
+
+Each run retains `agp-build/receipt.json`, the unsigned/signed APKs, the
+Instrumentation response, and existing device/control evidence. Public diagnostic
+files use the explicit `known-path-roots-v1` normalization policy: only recorded
+local path roots are replaced, while rule bodies and every warning/error line are
+preserved. Original diagnostic bytes remain private under `agp-build-raw/`; their
+digests are labeled `raw_private_sha256`, distinct from the hashed
+`normalized_public` closure. An unrecognized private path is rejected.
+`gradle-version.txt` records the real Gradle Launcher/Daemon JVM selection.
+`build-jvm.json` is written once by the actual JavaCompile task and records its
+JVM properties, selected compiler home and disabled compiler forking. The verifier
+matches the task JVM and compiler selection to Gradle's reported JVM and requires
+successful JavaCompile/R8 execution. Runtime vendor/version and VM vendor/version
+remain distinct fields. This is actual build JVM evidence, not a separate
+`java -version` probe. The original r1 proof and archive schemas are unchanged.
+`profile_evidence_files` supplies the fixed export map and `verify_exported_profile`
+rechecks that same closure after safe extraction, with `proof.json` at its root.
+The validator also independently replays apksigner, 16 KiB zipalign, and SDK DEX/manifest
+inspection against each selected signed APK. Supply `sdk` to the Python validation APIs
+as an explicit SDK root containing `build-tools/36.0.0`, or select a registered
+root with the CLI's `--sdk` assertion;
+all four tools must belong to that directory and match their recorded hashes.
+No verifier starts Gradle or a device; SDK and Git replay is read-only.
+
 ## Stable AAR publication transaction
 
-The stable transaction published a prebuilt AAR in `abi2-platforms-v0.1.4`, a
-non-prerelease GitHub release that is now published and immutable. This tree is the open
-`0.1.5` source line and has produced no `0.1.5` platform release, tag, or prebuilt
-AAR, so a consumer wanting a published binary still takes the
-`abi2-platforms-v0.1.4` asset. That release carries
-one AAR containing `arm64-v8a`,
-`armeabi-v7a`, `x86`, and `x86_64` JNI libraries built with stable NDK r29 and
-Rust 1.96.1. Every ELF has 16 KiB load alignment, the exact nine-symbol ABI 2
-export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
-verified release also binds a runtime-evidence bundle that executed the exact public AAR on
-the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
-16 KiB pages. Public/current status requires the stable verified receipt; the `0.1.4`
-platform receipt is recorded at the annotated tag `v0.1.4-verified-cohort` rather than
-on `main`, whose `artifact/results.json` the `0.1.5` reopening returned to its initial
-baseline, so `main`'s trusted results record no `0.1.4` publication; the published
-release itself is immutable and unaffected. The historical published receipt remains schema v3
-for alpha.2, while current source-tree runs require schema v6
-and do not retroactively change an immutable release. Verify the AAR and its manifest with `gh release verify-asset`
-against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
-[`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
+The original `abi2-platforms-v0.1.5` release is public and immutable. Its
+verified three-domain record is preserved at `v0.1.5-verified-cohort`; this
+open development tree does not replace that frozen record. The published AAR
+has the manifest and consumer keep-rule defects described above.
+
+The alpha.2 historical published receipt remains schema v3, while current
+canonical source-tree runs require proof schema v6. Neither is migrated in place.
+The r2 ZIP envelope uses bundle schema 3 at a different layer and contains the
+unchanged canonical bundle schema 2 plus the two separately typed AGP proofs.
+
+The separate `abi2-platforms-v0.1.5-r2` maintenance distribution is a **source
+candidate, not a published or verified replacement**. It keeps product version
+`0.1.5` and ABI 2, rebuilds the four-ABI AAR and both Linux packages from one new
+source identity, and requires its own exact assets and public verification.
+It must include the canonical API-35 arm64-v8a / 16 KiB runtime evidence and
+both full and minimal AGP Release consumer evidence for the exact corrected AAR.
+The independent completed record, once produced, is named
+`abi2-platforms-v0.1.5-r2-verified`; it is not a new three-domain crate cohort.
+The original release, Q and all ten published crate bytes remain unchanged.
+
+Until the r2 distribution has a verified public receipt, a consumer correction
+is a derived artifact and must retain that distinction. Do not label an APK,
+a local rebuild, or the r2 source candidate as the corrected public AAR.
+See [`platform-maintenance-release-notes.md`](../../artifact/platform-maintenance-release-notes.md)
+for the explicit candidate and publication contract. Verify the selected public
+AAR and its manifest against that exact tag's `PLATFORM_DISTRIBUTION.json`,
+`SHA256SUMS` and immutable release attestation. An old r1 receipt cannot verify
+new r2 bytes.
+
 Maven Central publication and a current same-source physical-device production proof are explicitly
 not claimed, and published emulator evidence does not replace the clean-tree runtime proof
 required for a source tree that has advanced past the release tag.

@@ -128,6 +128,7 @@ bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPe
 bindings/signed-policy-vectors.json
 crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json'
 VERIFIER_INPUTS='artifact/swift-xcframework-remote-consumer.sh
+artifact/android_agp_consumer_contract.py
 artifact/apple_stable_publication.py
 artifact/apple_verifier_recovery.py
 artifact/apple_distribution.py
@@ -139,6 +140,7 @@ artifact/crates_io_publication_contract.py
 artifact/evidence_io.py
 artifact/git_provenance.py
 artifact/platform_distribution_contract.py
+artifact/platform_maintenance_contract.py
 artifact/platform_publication_contract.py
 artifact/platform_release_contract.py
 artifact/platform_stable_publication_contract.py

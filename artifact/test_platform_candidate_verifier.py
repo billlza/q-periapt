@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import json
 import os
 import pathlib
@@ -12,10 +13,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from collections.abc import Callable
 from typing import Any
 
 import github_release_observation as github_release
+import platform_candidate_attestation as attestation
 from platform_distribution_contract import (
     CI_WORKFLOW_NAME,
     CI_WORKFLOW_PATH,
@@ -541,11 +544,12 @@ esac
         self.assertNotIn('rm -rf "$ATTESTATION_DIR"', self.script)
         self.assertNotIn("<<'PY'", self.script)
         self.assertNotIn("PYTHONPATH=", self.script)
-        self.assertIn("platform_candidate_attestation.py snapshot", self.script)
-        self.assertIn("platform_candidate_attestation.py verify", self.script)
-        self.assertIn("platform_candidate_attestation.py preflight", self.script)
+        prefix = 'platform_candidate_attestation.py --profile "$PROFILE"'
+        self.assertIn(f"{prefix} snapshot", self.script)
+        self.assertIn(f"{prefix} verify", self.script)
+        self.assertIn(f"{prefix} preflight", self.script)
         self.assertIn(
-            "platform_candidate_attestation.py github-verify",
+            f"{prefix} github-verify",
             self.script,
         )
         self.assertIn("from git_provenance import GIT", self.verifier_module)
@@ -553,24 +557,24 @@ esac
         self.assertIn('"core.hooksPath=/dev/null"', self.verifier_module)
         self.assertNotIn("command -v", self.script)
         self.assertIn(
-            "platform_candidate_attestation.py validate-raw-root",
+            f"{prefix} validate-raw-root",
             self.script,
         )
         self.assertLess(
-            self.script.index("platform_candidate_attestation.py preflight"),
-            self.script.index("platform_candidate_attestation.py checkout-verify"),
+            self.script.index(f"{prefix} preflight"),
+            self.script.index(f"{prefix} checkout-verify"),
         )
         self.assertLess(
-            self.script.index("platform_candidate_attestation.py validate-raw-root"),
-            self.script.index("platform_candidate_attestation.py checkout-verify"),
+            self.script.index(f"{prefix} validate-raw-root"),
+            self.script.index(f"{prefix} checkout-verify"),
         )
         self.assertLess(
-            self.script.index("platform_candidate_attestation.py snapshot"),
-            self.script.index("platform_candidate_attestation.py github-verify"),
+            self.script.index(f"{prefix} snapshot"),
+            self.script.index(f"{prefix} github-verify"),
         )
         self.assertLess(
-            self.script.index("platform_candidate_attestation.py github-verify"),
-            self.script.index("platform_candidate_attestation.py verify"),
+            self.script.index(f"{prefix} github-verify"),
+            self.script.index(f"{prefix} verify"),
         )
 
     def test_tag_preflight_binds_main_current_semver_and_abi2(self) -> None:
@@ -871,16 +875,36 @@ esac
                 self.assertNotIn("fixture-private-token", combined)
                 self.assertNotIn("ambiguous-private-token", combined)
 
-    def test_platform_release_identity_selects_stable_r1_receipt(self) -> None:
+    def test_platform_release_identity_is_explicit_and_preserves_r1_default(
+        self,
+    ) -> None:
         release_tag = self.RELEASE_TAG
         self.assertIn(
-            'release_ref = f"refs/tags/{RELEASE_TAG}"',
+            'release_ref = f"refs/tags/{profile.release_tag}"',
             self.verifier_module,
         )
+        for arguments, expected in (
+            (["release-tag"], "abi2-platforms-v0.1.5"),
+            (["--profile", "stable", "release-tag"], "abi2-platforms-v0.1.5"),
+            (
+                ["--profile", "maintenance-r2", "release-tag"],
+                "abi2-platforms-v0.1.5-r2",
+            ),
+        ):
+            with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+                self.assertEqual(0, attestation.main(arguments))
+            self.assertEqual(expected + "\n", output.getvalue())
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as errors:
+            self.assertEqual(
+                1, attestation.main(["--profile", "unknown", "release-tag"])
+            )
+        self.assertIn("unknown platform release profile", errors.getvalue())
+        self.assertIn("PROFILE=stable", self.script)
         self.assertNotIn(f"RELEASE_TAG={release_tag}", self.script)
         self.assertIn(f"- {release_tag}", self.workflow)
-        self.assertIn(f"group: {release_tag}", self.workflow)
-        self.assertIn(f"EXPECTED_REF: refs/tags/{release_tag}", self.workflow)
+        self.assertIn("- abi2-platforms-v0.1.5-r2", self.workflow)
+        self.assertIn("group: ${{ github.ref_name }}", self.workflow)
+        self.assertIn('test "$GITHUB_REF" = "refs/tags/$release_tag"', self.workflow)
         self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r2", self.script)
         self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r2", self.workflow)
 

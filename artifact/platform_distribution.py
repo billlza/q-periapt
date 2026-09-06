@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from platform_distribution_contract import PlatformReleaseProfile
+
 import argparse
 import contextlib
 import datetime as dt
@@ -74,6 +76,7 @@ from platform_distribution_contract import (
     PLATFORM_RELEASE_CANDIDATE_KIND,
     PLATFORM_RELEASE_CANDIDATE_SCHEMA_VERSION,
     PlatformDistributionContractError,
+    release_candidate_profile,
     PUBLIC_ASSET_CONTENT_TYPES,
     PUBLIC_ASSET_NAMES,
     PRODUCT_VERSION,
@@ -245,21 +248,30 @@ def _json(path: pathlib.Path, label: str, *, canonical: bool = True) -> tuple[di
     return snapshot.value, snapshot.file
 
 
-def _source_identity(root: pathlib.Path, *, require_head: bool) -> SourceIdentity:
+def _source_identity(
+    root: pathlib.Path,
+    *,
+    require_head: bool,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> SourceIdentity:
     repository = _regular_directory(root, "repository root")
     try:
-        tag_type = run_git_text(repository, ["cat-file", "-t", f"refs/tags/{RELEASE_TAG}"])
+        tag_type = run_git_text(
+            repository, ["cat-file", "-t", f"refs/tags/{profile.release_tag}"]
+        )
         tag_commit = run_git_text(
-            repository, ["rev-parse", "--verify", f"refs/tags/{RELEASE_TAG}^{{commit}}"]
+            repository,
+            ["rev-parse", "--verify", f"refs/tags/{profile.release_tag}^{{commit}}"],
         )
         tag_tree = run_git_text(
-            repository, ["rev-parse", "--verify", f"refs/tags/{RELEASE_TAG}^{{tree}}"]
+            repository,
+            ["rev-parse", "--verify", f"refs/tags/{profile.release_tag}^{{tree}}"],
         )
         epoch_text = run_git_text(repository, ["show", "-s", "--format=%ct", tag_commit])
         inspection = inspect_worktree(repository) if require_head else None
     except GitProvenanceError as exc:
         fail(f"cannot establish platform release provenance: {exc}")
-    require(tag_type == "tag", f"release tag must be annotated: {RELEASE_TAG}")
+    require(tag_type == "tag", f"release tag must be annotated: {profile.release_tag}")
     require(COMMIT_RE.fullmatch(tag_commit) is not None, "release tag commit is malformed")
     require(COMMIT_RE.fullmatch(tag_tree) is not None, "release tag tree is malformed")
     require(epoch_text.isascii() and epoch_text.isdigit(), "release source epoch is malformed")
@@ -418,6 +430,7 @@ def _android_assets(
     scratch: pathlib.Path,
     tools: AndroidVerificationTools,
     require_fresh_proof: bool,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> list[dict[str, Any]]:
     aar_manifest, manifest_snapshot = _json(
         files[ANDROID_MANIFEST],
@@ -463,11 +476,37 @@ def _android_assets(
     )
 
     bundle = files[ANDROID_RUNTIME_BUNDLE]
+    expected_runtime_sha256 = snapshots[ANDROID_RUNTIME_BUNDLE].sha256
+    maintenance_bundle = None
+    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        from android_maintenance_bundle import (
+            AndroidMaintenanceBundleError,
+            android_sdk_for_tools,
+            verify_and_extract,
+        )
+
+        try:
+            maintenance_bundle = verify_and_extract(
+                root=repository,
+                bundle=bundle,
+                destination=scratch / "maintenance-runtime",
+                expected_bundle_sha256=expected_runtime_sha256,
+                expected_aar_sha256=snapshots[ANDROID_AAR].sha256,
+                expected_aar_manifest_sha256=manifest_snapshot.sha256,
+                expected_source_commit=source.commit,
+                expected_source_tree_sha256=source.canonical_source_tree_sha256,
+                expected_source_epoch=source.source_date_epoch,
+                sdk=android_sdk_for_tools(tools.apksigner, tools.zipalign),
+            )
+        except AndroidMaintenanceBundleError as exc:
+            fail(f"Android maintenance evidence verification failed: {exc}")
+        bundle = maintenance_bundle.runtime_bundle
+        expected_runtime_sha256 = maintenance_bundle.runtime_bundle_sha256
     try:
         verified_bundle_sha256 = verify_runtime_bundle(
             root=repository,
             bundle=bundle,
-            expected_bundle_sha256=snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
+            expected_bundle_sha256=expected_runtime_sha256,
             llvm_nm=tools.llvm_nm,
             llvm_readelf=tools.llvm_readelf,
             apksigner=tools.apksigner,
@@ -483,7 +522,7 @@ def _android_assets(
     except SystemExit as exc:
         fail(f"Android runtime evidence bundle verification failed: {exc}")
     require(
-        verified_bundle_sha256 == snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
+        verified_bundle_sha256 == expected_runtime_sha256,
         "Android runtime verifier observed different bundle bytes",
     )
     destination = scratch / "extract-android-runtime"
@@ -492,7 +531,7 @@ def _android_assets(
             bundle,
             destination,
             root_name=BUNDLE_ROOT_NAME,
-            expected_sha256=snapshots[ANDROID_RUNTIME_BUNDLE].sha256,
+            expected_sha256=expected_runtime_sha256,
             limits=ARCHIVE_LIMITS,
         )
     except DeterministicArchiveError as exc:
@@ -552,7 +591,7 @@ def _android_assets(
         "Android runtime bundle AAR manifest differs from the public manifest",
     )
     proof_snapshot = _snapshot(selected["proof"], "bundled Android runtime proof")
-    return [
+    records = [
         {
             "bytes": snapshots[ANDROID_AAR].size,
             "media_type": "application/vnd.android.aar",
@@ -591,6 +630,10 @@ def _android_assets(
             "target": "arm64-v8a",
         },
     ]
+    if maintenance_bundle is not None:
+        records[-1]["bundle_manifest_sha256"] = maintenance_bundle.manifest_sha256
+        records[-1]["agp_consumers"] = maintenance_bundle.consumers
+    return records
 
 
 def _build_manifest(
@@ -600,6 +643,7 @@ def _build_manifest(
     source: SourceIdentity,
     android_tools: AndroidVerificationTools,
     require_fresh_android_proof: bool,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> dict[str, Any]:
     files = _inventory_files(release_dir)
     require(
@@ -626,6 +670,7 @@ def _build_manifest(
             scratch=scratch,
             tools=android_tools,
             require_fresh_proof=require_fresh_android_proof,
+            profile=profile,
         )
         assets.append(
             _linux_asset(
@@ -654,13 +699,15 @@ def _build_manifest(
         "schema_version": SCHEMA_VERSION,
         "kind": KIND,
         "product_version": PRODUCT_VERSION,
-        "distribution_revision": DISTRIBUTION_REVISION,
-        "release_tag": RELEASE_TAG,
+        "distribution_revision": profile.revision,
+        "release_tag": profile.release_tag,
         "release_channel": "github-immutable-release",
         "generated_at": dt.datetime.fromtimestamp(
             source.source_date_epoch,
             tz=dt.timezone.utc,
-        ).isoformat().replace("+00:00", "Z"),
+        )
+        .isoformat()
+        .replace("+00:00", "Z"),
         "source": {
             "git_commit": source.commit,
             "git_tree": source.tree,
@@ -691,6 +738,7 @@ def assemble(
     android_tools: AndroidVerificationTools,
     runtime_bundle: pathlib.Path | None = None,
     preserve_failed_output: bool = False,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     inputs = _regular_directory(assets_dir, "platform input asset directory")
@@ -714,7 +762,7 @@ def assemble(
     output = pathlib.Path(output_dir)
     require(not output.exists() and not output.is_symlink(), f"platform output directory already exists: {output}")
     _regular_directory(output.parent, "platform output parent")
-    source = _source_identity(repository, require_head=True)
+    source = _source_identity(repository, require_head=True, profile=profile)
     output.mkdir(mode=0o755)
     os.chmod(output, 0o755)
     try:
@@ -729,6 +777,7 @@ def assemble(
             source=source,
             android_tools=android_tools,
             require_fresh_android_proof=True,
+            profile=profile,
         )
         manifest_path = output / RELEASE_MANIFEST
         manifest_path.write_bytes(canonical_json(manifest))
@@ -742,7 +791,9 @@ def assemble(
             encoding="ascii",
         )
         os.chmod(sums_path, 0o644)
-        verify_distribution(repository, output, android_tools=android_tools)
+        verify_distribution(
+            repository, output, android_tools=android_tools, profile=profile
+        )
     except Exception:
         if (
             not preserve_failed_output
@@ -780,6 +831,7 @@ def verify_distribution(
     release_dir: pathlib.Path,
     *,
     android_tools: AndroidVerificationTools,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     release = _regular_directory(release_dir, "platform release directory")
@@ -812,8 +864,8 @@ def verify_distribution(
         manifest.get("schema_version") == SCHEMA_VERSION
         and manifest.get("kind") == KIND
         and manifest.get("product_version") == PRODUCT_VERSION
-        and manifest.get("distribution_revision") == DISTRIBUTION_REVISION
-        and manifest.get("release_tag") == RELEASE_TAG,
+        and manifest.get("distribution_revision") == profile.revision
+        and manifest.get("release_tag") == profile.release_tag,
         "platform distribution identity differs",
     )
     require(
@@ -821,7 +873,7 @@ def verify_distribution(
         and manifest.get("immutability_required") is True,
         "platform distribution release channel differs",
     )
-    actual_source = _source_identity(repository, require_head=True)
+    actual_source = _source_identity(repository, require_head=True, profile=profile)
     source = manifest.get("source")
     require(isinstance(source, dict), "platform distribution source identity is missing")
     require(source.get("git_commit") == actual_source.commit, "platform distribution tag commit differs")
@@ -850,6 +902,7 @@ def verify_distribution(
         source=actual_source,
         android_tools=android_tools,
         require_fresh_android_proof=False,
+        profile=profile,
     )
     require(manifest == rebuilt, "platform distribution manifest differs from release asset bytes")
     sums = _parse_sums(files[RELEASE_SUMS])
@@ -1001,6 +1054,8 @@ def _snapshot_release_asset_files(
 def _candidate_runtime_projection(
     manifest: dict[str, Any],
     assets: dict[str, dict[str, object]],
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> dict[str, object]:
     values = manifest.get("assets")
     require(isinstance(values, list), "platform manifest assets are missing")
@@ -1024,9 +1079,9 @@ def _candidate_runtime_projection(
     runtime = records[ANDROID_RUNTIME_BUNDLE]
     device = runtime.get("device")
     require(isinstance(device, dict), "platform manifest Android device is missing")
-    return {
+    projection = {
         "bundle_manifest_sha256": runtime.get("bundle_manifest_sha256"),
-        "bundle_schema": BUNDLE_SCHEMA_VERSION,
+        "bundle_schema": profile.runtime_bundle_schema,
         "bundle_sha256": assets[ANDROID_RUNTIME_BUNDLE]["sha256"],
         "device_abi": device.get("abi"),
         "device_kind": device.get("kind"),
@@ -1038,27 +1093,33 @@ def _candidate_runtime_projection(
         "tested_aar_manifest_sha256": assets[ANDROID_MANIFEST]["sha256"],
         "tested_aar_sha256": runtime.get("tested_aar_sha256"),
     }
+    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        projection["agp_consumers"] = runtime["agp_consumers"]
+    return projection
 
 
 def _release_candidate_receipt(
     manifest: dict[str, Any],
     asset_records: list[dict[str, object]],
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> dict[str, object]:
     assets = {record["name"]: record for record in asset_records}
     receipt: dict[str, object] = {
         "android_runtime_evidence": _candidate_runtime_projection(
-            manifest,
-            assets,
+            manifest, assets, profile=profile
         ),
         "assets": asset_records,
         "checksums_sha256": assets[RELEASE_SUMS]["sha256"],
         "kind": PLATFORM_RELEASE_CANDIDATE_KIND,
         "platform_distribution_sha256": assets[RELEASE_MANIFEST]["sha256"],
-        "schema_version": PLATFORM_RELEASE_CANDIDATE_SCHEMA_VERSION,
+        "schema_version": profile.candidate_receipt_schema,
         "source": manifest["source"],
     }
+    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        receipt["identity"] = profile.identity()
     try:
-        validate_release_candidate_receipt(receipt)
+        validate_release_candidate_receipt(receipt, profile=profile)
     except PlatformDistributionContractError as exc:
         raise PlatformDistributionError(
             f"platform release candidate receipt is invalid: {exc}"
@@ -1082,6 +1143,7 @@ def assemble_candidate_transaction(
     transaction_name: str,
     *,
     android_tools: AndroidVerificationTools,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[pathlib.Path, str, pathlib.Path, dict[str, object]]:
     """Assemble seven public files and commit one manifest-last private receipt."""
 
@@ -1116,6 +1178,7 @@ def assemble_candidate_transaction(
                 android_tools=android_tools,
                 runtime_bundle=runtime_bundle,
                 preserve_failed_output=True,
+                profile=profile,
             )
             verify_private_directory_handle_identity(
                 transaction,
@@ -1145,6 +1208,7 @@ def assemble_candidate_transaction(
                     repository,
                     release.path,
                     android_tools=android_tools,
+                    profile=profile,
                 )
                 require(
                     final_manifest == manifest,
@@ -1166,14 +1230,18 @@ def assemble_candidate_transaction(
                     verified_assets == first_assets,
                     "platform release candidate assets changed during final deep verify",
                 )
-                receipt = _release_candidate_receipt(manifest, first_assets)
+                receipt = _release_candidate_receipt(
+                    manifest, first_assets, profile=profile
+                )
                 with prepare_private_json_noreplace_at(
                     transaction,
                     PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
                     receipt,
                     label="platform release candidate completion receipt",
                 ) as prepared:
-                    current_source = _source_identity(repository, require_head=True)
+                    current_source = _source_identity(
+                        repository, require_head=True, profile=profile
+                    )
                     require(
                         manifest["source"]
                         == {
@@ -1257,6 +1325,7 @@ def _load_release_candidate_bundle_from_handle(
     transaction: PrivateDirectoryHandle,
     *,
     candidate_path: pathlib.Path,
+    profile: PlatformReleaseProfile | None = PlatformReleaseProfile.STABLE,
 ) -> ReleaseCandidateBundle:
     """Load one candidate through a caller-owned pinned transaction handle."""
 
@@ -1293,7 +1362,12 @@ def _load_release_candidate_bundle_from_handle(
             first.file.data == canonical_json(first.value),
             "platform release candidate receipt is not canonical JSON",
         )
-        receipt = validate_release_candidate_receipt(first.value)
+        selected_profile = (
+            release_candidate_profile(first.value) if profile is None else profile
+        )
+        receipt = validate_release_candidate_receipt(
+            first.value, profile=selected_profile
+        )
         require(
             receipt["assets"] == assets_before,
             "platform release candidate receipt assets differ from release files",
@@ -1335,7 +1409,11 @@ def _load_release_candidate_bundle_from_handle(
     )
 
 
-def load_release_candidate_bundle(path: pathlib.Path) -> ReleaseCandidateBundle:
+def load_release_candidate_bundle(
+    path: pathlib.Path,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> ReleaseCandidateBundle:
     """Resample one fixed receipt and all seven sibling release files twice."""
 
     candidate_path = pathlib.Path(path)
@@ -1366,8 +1444,7 @@ def load_release_candidate_bundle(path: pathlib.Path) -> ReleaseCandidateBundle:
                 "platform release candidate transaction path differs",
             )
             return _load_release_candidate_bundle_from_handle(
-                transaction,
-                candidate_path=candidate_path,
+                transaction, candidate_path=candidate_path, profile=profile
             )
     except PlatformDistributionError:
         raise
@@ -1382,10 +1459,14 @@ def load_release_candidate_bundle(path: pathlib.Path) -> ReleaseCandidateBundle:
         ) from exc
 
 
-def load_release_candidate_receipt(path: pathlib.Path) -> dict[str, Any]:
+def load_release_candidate_receipt(
+    path: pathlib.Path,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> dict[str, Any]:
     """Return the receipt projection from the descriptor-resampled bundle."""
 
-    return load_release_candidate_bundle(path).receipt
+    return load_release_candidate_bundle(path, profile=profile).receipt
 
 
 @contextlib.contextmanager
@@ -1525,6 +1606,7 @@ def find_selected_release_candidate_bundle(
     staging_leaves: Mapping[str, str] | None = None,
     expected_receipt_sha256: str | None = None,
     allow_existing_staging: bool = False,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> ReleaseCandidateBundle:
     """Find a deterministic fixed-root cache selected by pending results.
 
@@ -1595,11 +1677,20 @@ def find_selected_release_candidate_bundle(
             ) as transaction:
                 if not _candidate_transaction_has_receipt(transaction):
                     continue
-                bundle = _load_release_candidate_bundle_from_handle(
-                    transaction,
-                    candidate_path=receipt_path,
-                )
+                # The bounded cache can retain both explicit release identities.
+                # Validate every retained receipt before selecting this profile;
+                # malformed or unknown history is never silently skipped.
+                try:
+                    bundle = _load_release_candidate_bundle_from_handle(
+                        transaction, candidate_path=receipt_path, profile=None
+                    )
+                except PlatformDistributionContractError as exc:
+                    raise PlatformDistributionError(
+                        "retained platform candidate violates its declared identity"
+                    ) from exc
             receipt = bundle.receipt
+            if release_candidate_profile(receipt) is not profile:
+                continue
             projection = {
                 "android_runtime_evidence": receipt["android_runtime_evidence"],
                 "assets": receipt["assets"],
@@ -1708,10 +1799,9 @@ def find_selected_release_candidate_bundle(
                 staged_bundle = _load_release_candidate_bundle_from_handle(
                     transaction,
                     candidate_path=(
-                        root
-                        / selected_name
-                        / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+                        root / selected_name / PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
                     ),
+                    profile=profile,
                 )
             require(
                 staged_bundle == selected_bundle,
@@ -1748,6 +1838,9 @@ def find_selected_release_candidate_bundle(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--profile", choices=[p.value for p in PlatformReleaseProfile], default="stable"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_android_tools(command: argparse.ArgumentParser) -> None:
@@ -1780,6 +1873,7 @@ def _relative_release_output(path: pathlib.Path) -> str:
 
 def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
+    profile = PlatformReleaseProfile(args.profile)
     android_tools = AndroidVerificationTools(
         llvm_nm=args.android_llvm_nm,
         llvm_readelf=args.android_llvm_readelf,
@@ -1788,12 +1882,15 @@ def main(argv: list[str]) -> int:
     )
     try:
         if args.command == "assemble":
-            receipt_path, digest, release_path, receipt = assemble_candidate_transaction(
-                args.root,
-                args.candidate_dir,
-                args.runtime_bundle,
-                args.transaction_name,
-                android_tools=android_tools,
+            receipt_path, digest, release_path, receipt = (
+                assemble_candidate_transaction(
+                    args.root,
+                    args.candidate_dir,
+                    args.runtime_bundle,
+                    args.transaction_name,
+                    android_tools=android_tools,
+                    profile=profile,
+                )
             )
             print(
                 "ABI2_PLATFORM_DISTRIBUTION_ASSEMBLE_PASS "
@@ -1807,6 +1904,7 @@ def main(argv: list[str]) -> int:
                 args.root,
                 args.release_dir,
                 android_tools=android_tools,
+                profile=profile,
             )
             print(
                 "ABI2_PLATFORM_DISTRIBUTION_VERIFY_PASS "

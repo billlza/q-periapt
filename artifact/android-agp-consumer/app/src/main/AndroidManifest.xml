@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="QPeriaptSmoke" android:theme="@android:style/Theme.NoDisplay">
+        <activity android:name=".QPeriaptSmokeActivity" android:exported="true" />
+    </application>
+    <instrumentation android:name=".QPeriaptResultInstrumentation"
+        android:targetPackage="dev.qperiapt.androidsmoke" android:functionalTest="true" />
+</manifest>

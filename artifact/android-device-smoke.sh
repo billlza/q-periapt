@@ -2,7 +2,7 @@
 # Build, install, and run the Android AAR/JNI smoke on an adb device/emulator.
 #
 # This is a runtime proof gate, not a package-only gate. It installs a temporary
-# debuggable APK that consumes the generated AAR, runs the Android Java facade on
+# APK that consumes the selected AAR, runs the Android Java facade on
 # ART, and accepts only a run-bound PASS marker copied back from the app-private
 # files directory.
 set -eu
@@ -42,6 +42,24 @@ need cargo
 need javac
 need keytool
 need python3
+
+ANDROID_CONSUMER_PROFILE=${QPERIAPT_ANDROID_CONSUMER_PROFILE:-legacy_full}
+case "$ANDROID_CONSUMER_PROFILE" in
+	legacy_full) ;;
+	agp_full_release | agp_minimal_release)
+		if [ "${QPERIAPT_ANDROID_RELEASE_MODE:-0}" != "1" ] || \
+			[ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" != "1" ] || \
+			[ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" != "emulator" ] || \
+			[ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "0" ]; then
+			printf 'error: AGP consumers require clean release mode and the owned emulator profile\n' >&2
+			exit 2
+		fi
+		;;
+	*)
+		printf 'error: unknown QPERIAPT_ANDROID_CONSUMER_PROFILE\n' >&2
+		exit 2
+		;;
+esac
 
 # Hold one host/account-scoped open-file-description lock for the whole lane.
 # The stable private file serializes every checkout that can reach the same
@@ -731,410 +749,9 @@ cat >"$WORK/AndroidManifest.xml" <<'EOF'
 </manifest>
 EOF
 
-cat >"$SRC/dev/qperiapt/androidsmoke/QPeriaptSmokeActivity.java" <<'EOF'
-package dev.qperiapt.androidsmoke;
-
-import android.app.Activity;
-import android.os.Bundle;
-import android.util.Log;
-import dev.qperiapt.android.QPeriaptAndroid;
-import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import org.json.JSONObject;
-
-public final class QPeriaptSmokeActivity extends Activity {
-    private static final String TAG = "QPeriaptSmoke";
-    private static final String RESULT_TXT = "qperiapt-android-device-result.txt";
-    private static final String RESULT_JSON = "qperiapt-android-device-result.json";
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        String runId = getIntent().getStringExtra("qperiapt_run_id");
-        if (runId == null || !runId.matches("[0-9a-f]{32}")) {
-            runId = "invalid-run-id";
-        }
-        List<String> passed = new ArrayList<String>();
-        try {
-            runtimeMetadataMatches(passed);
-            signedPolicyDecisionIsExactAndFailClosed(passed);
-            osRandomPolicyRoundtripAndWipes(passed);
-            writeResult(runId, true, passed, null);
-            Log.i(TAG, "QPERIAPT_ANDROID_DEVICE_PASS run-id=" + runId + " tests=" + passed.size());
-        } catch (Throwable t) {
-            try {
-                writeResult(runId, false, passed, t);
-            } catch (Throwable ignored) {
-                Log.e(TAG, "failed to write result", ignored);
-            }
-            Log.e(TAG, "QPERIAPT_ANDROID_DEVICE_FAIL run-id=" + runId, t);
-        } finally {
-            finish();
-        }
-    }
-
-    private void runtimeMetadataMatches(List<String> passed) {
-        expect(QPeriaptAndroid.runtimeAbiVersion() == QPeriaptAndroid.ABI_VERSION, "ABI mismatch");
-        expect("0.1.5".equals(QPeriaptAndroid.runtimeVersion()), "version mismatch");
-        assertBytes("ML-KEM-768+X25519".getBytes(StandardCharsets.UTF_8), QPeriaptAndroid.fixedSuiteId(), "suite id");
-        expect(QPeriaptAndroid.fixedSuiteIdLen() == "ML-KEM-768+X25519".length(), "suite len");
-        expect(QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES == 65536, "signed policy limit");
-        expect(QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES == 65536, "application context limit");
-        expect("ERR_POLICY".equals(QPeriaptAndroid.statusName(-3)), "status -3");
-        expect("UNKNOWN_STATUS".equals(QPeriaptAndroid.statusName(12345)), "unknown status");
-        passed.add("runtimeMetadataMatches");
-    }
-
-    private void signedPolicyDecisionIsExactAndFailClosed(List<String> passed) throws Exception {
-        String json = asset("signed-policy-vectors.json");
-        byte[] policyToml = stringField(json, "policy_toml").getBytes(StandardCharsets.UTF_8);
-        byte[] signature = hex(field(json, "signature"));
-        byte[] verificationKey = hex(field(json, "verification_key"));
-        byte expected = (byte) intField(json, "selected_profile_code");
-        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
-                policyToml,
-                signature,
-                verificationKey
-        );
-        expect(decision.profile() == expected, "signed policy selected profile mismatch");
-        expect(decision.suiteCode() == QPeriaptAndroid.SUITE_MLKEM768_X25519,
-                "signed policy selected suite mismatch");
-        expect(decision.policyVersion() == intField(json, "policy_version"),
-                "signed policy selected version mismatch");
-        assertBytes(hex(field(json, "policy_digest")), decision.policyDigest(),
-                "exact signed policy digest");
-        QPeriaptAndroid.PolicyDecision reapplied = QPeriaptAndroid.decisionFromSignedPolicy(
-                policyToml,
-                signature,
-                verificationKey,
-                decision.trustedState()
-        );
-        assertBytes(decision.policyDigest(), reapplied.policyDigest(), "reapplied policy digest");
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    policyToml, signature, verificationKey, new byte[] {0, 0, 0, 2});
-            throw new AssertionError("legacy ABI1 version-only state was accepted");
-        } catch (IllegalArgumentException expectedLegacyStateFailure) {
-            // ABI1 has no exact policy digest and therefore cannot be migrated automatically.
-        }
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    new byte[QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES], signature, verificationKey);
-            throw new AssertionError("maximum-size invalid policy unexpectedly verified");
-        } catch (QPeriaptAndroid.QPeriaptException expectedPolicyFailure) {
-            // The exact boundary reached native verification rather than the facade size guard.
-        }
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    new byte[QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES + 1], signature, verificationKey);
-            throw new AssertionError("oversized policy reached native verification");
-        } catch (IllegalArgumentException expectedSizeFailure) {
-            // The Java facade rejects before JNI copies the policy.
-        }
-        byte[] newerState = decision.trustedState();
-        newerState[0] = 0;
-        newerState[1] = 0;
-        newerState[2] = 0;
-        newerState[3] = (byte) intField(json, "last_trusted_version_reject");
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    policyToml,
-                    signature,
-                    verificationKey,
-                    newerState
-            );
-            throw new AssertionError("rollback policy was accepted");
-        } catch (QPeriaptAndroid.QPeriaptException err) {
-            expect(err.code() == -3, "rollback rc=" + err.code());
-        }
-        byte[] tampered = signature.clone();
-        int tamperByte = (int) intField(json, "tamper_signature_byte");
-        tampered[tamperByte] = (byte) (tampered[tamperByte] ^ 1);
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(policyToml, tampered, verificationKey);
-            throw new AssertionError("tampered policy signature was accepted");
-        } catch (QPeriaptAndroid.QPeriaptException err) {
-            expect(err.code() == -3, "tamper rc=" + err.code());
-        }
-        passed.add("signedPolicyDecisionIsExactAndFailClosed");
-    }
-
-    private void osRandomPolicyRoundtripAndWipes(List<String> passed) throws Exception {
-        String json = asset("signed-policy-vectors.json");
-        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
-                stringField(json, "policy_toml").getBytes(StandardCharsets.UTF_8),
-                hex(field(json, "signature")),
-                hex(field(json, "verification_key")));
-        byte[] applicationContext = "android-device-policy-context".getBytes(StandardCharsets.UTF_8);
-
-        QPeriaptAndroid.KeyPairResult keys = QPeriaptAndroid.generateKeypair(decision);
-        try (keys) {
-            byte[] skPq = keys.skPq();
-            byte[] skTrad = keys.skTrad();
-            byte[] encapsulatedSecret = null;
-            byte[] decapsulatedSecret = null;
-            byte[] wrongContextSecret = null;
-            try {
-                try (QPeriaptAndroid.EncapsulationResult maximumContext =
-                                QPeriaptAndroid.encapsulate(
-                                        decision,
-                                        keys.pkPq(),
-                                        keys.pkTrad(),
-                                        fill(QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES, 1))) {
-                    byte[] maximumSecret = maximumContext.takeSecret();
-                    QPeriaptAndroid.wipe(maximumSecret);
-                    assertWiped(maximumSecret, "maximum application-context secret");
-                }
-                try {
-                    QPeriaptAndroid.encapsulate(
-                            decision,
-                            keys.pkPq(),
-                            keys.pkTrad(),
-                            new byte[QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES + 1]);
-                    throw new AssertionError("oversized application context reached JNI");
-                } catch (IllegalArgumentException expectedSizeFailure) {
-                    // The Java facade rejects before JNI copies the context.
-                }
-                try (QPeriaptAndroid.EncapsulationResult encapsulation =
-                                QPeriaptAndroid.encapsulate(
-                                        decision, keys.pkPq(), keys.pkTrad(), applicationContext)) {
-                    encapsulatedSecret = encapsulation.takeSecret();
-                    try {
-                        encapsulation.secret();
-                        throw new AssertionError("transferred encapsulation secret remained readable");
-                    } catch (IllegalStateException expectedClosedResult) {
-                        // takeSecret transfers the sole binding-owned secret and closes the result.
-                    }
-                    decapsulatedSecret = QPeriaptAndroid.decapsulate(
-                            decision,
-                            skPq,
-                            encapsulation.ctPq(),
-                            keys.pkPq(),
-                            skTrad,
-                            encapsulation.ctTrad(),
-                            keys.pkTrad(),
-                            applicationContext);
-                    assertBytes(encapsulatedSecret, decapsulatedSecret,
-                            "OS-random policy-bound roundtrip");
-                    wrongContextSecret = QPeriaptAndroid.decapsulate(
-                            decision,
-                            skPq,
-                            encapsulation.ctPq(),
-                            keys.pkPq(),
-                            skTrad,
-                            encapsulation.ctTrad(),
-                            keys.pkTrad(),
-                            "wrong-context".getBytes(StandardCharsets.UTF_8));
-                    expect(!bytesEqual(decapsulatedSecret, wrongContextSecret),
-                            "application context was not committed");
-                }
-            } finally {
-                QPeriaptAndroid.wipe(skPq);
-                QPeriaptAndroid.wipe(skTrad);
-                if (encapsulatedSecret != null) {
-                    QPeriaptAndroid.wipe(encapsulatedSecret);
-                }
-                if (decapsulatedSecret != null) {
-                    QPeriaptAndroid.wipe(decapsulatedSecret);
-                }
-                if (wrongContextSecret != null) {
-                    QPeriaptAndroid.wipe(wrongContextSecret);
-                }
-            }
-            assertWiped(skPq, "ML-KEM secret key");
-            assertWiped(skTrad, "X25519 secret key");
-            if (encapsulatedSecret != null) {
-                assertWiped(encapsulatedSecret, "encapsulated secret");
-            }
-            if (decapsulatedSecret != null) {
-                assertWiped(decapsulatedSecret, "decapsulated secret");
-            }
-            if (wrongContextSecret != null) {
-                assertWiped(wrongContextSecret, "wrong-context secret");
-            }
-        }
-        try {
-            keys.skPq();
-            throw new AssertionError("closed key-pair secrets remained readable");
-        } catch (IllegalStateException expectedClosedKeys) {
-            // close wipes the binding-owned key buffers and seals their accessors.
-        }
-
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    new byte[0], new byte[0], new byte[0], new byte[1]);
-            throw new AssertionError("malformed lastTrustedState was accepted");
-        } catch (IllegalArgumentException expectedMalformedState) {
-            // Malformed state never reaches native verification.
-        }
-        passed.add("osRandomPolicyRoundtripAndWipes");
-    }
-
-    private void writeResult(String runId, boolean ok, List<String> passed, Throwable failure) throws Exception {
-        String marker = (ok ? "QPERIAPT_ANDROID_DEVICE_PASS" : "QPERIAPT_ANDROID_DEVICE_FAIL")
-                + " run-id=" + runId + " tests=" + passed.size() + "\n";
-        FileOutputStream txt = openFileOutput(RESULT_TXT, MODE_PRIVATE);
-        try {
-            txt.write(marker.getBytes(StandardCharsets.UTF_8));
-        } finally {
-            txt.close();
-        }
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"schema\": 1,\n");
-        json.append("  \"status\": \"").append(ok ? "pass" : "fail").append("\",\n");
-        json.append("  \"run_id\": \"").append(escape(runId)).append("\",\n");
-        json.append("  \"test_count\": ").append(passed.size()).append(",\n");
-        json.append("  \"passed_tests\": [");
-        for (int i = 0; i < passed.size(); i++) {
-            if (i > 0) {
-                json.append(", ");
-            }
-            json.append("\"").append(escape(passed.get(i))).append("\"");
-        }
-        json.append("]");
-        if (failure != null) {
-            json.append(",\n  \"failure\": \"").append(escape(failure.getClass().getName() + ": " + failure.getMessage())).append("\"");
-        }
-        json.append("\n}\n");
-        FileOutputStream out = openFileOutput(RESULT_JSON, MODE_PRIVATE);
-        try {
-            out.write(json.toString().getBytes(StandardCharsets.UTF_8));
-        } finally {
-            out.close();
-        }
-    }
-
-    private String asset(String name) throws Exception {
-        InputStream in = getAssets().open(name);
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[4096];
-            while (true) {
-                int n = in.read(buf);
-                if (n < 0) {
-                    break;
-                }
-                out.write(buf, 0, n);
-            }
-            return new String(out.toByteArray(), StandardCharsets.UTF_8);
-        } finally {
-            in.close();
-        }
-    }
-
-    private static byte[] hex(String text) {
-        if ((text.length() & 1) != 0) {
-            throw new IllegalArgumentException("odd hex length");
-        }
-        byte[] out = new byte[text.length() / 2];
-        for (int i = 0; i < out.length; i++) {
-            int hi = Character.digit(text.charAt(i * 2), 16);
-            int lo = Character.digit(text.charAt(i * 2 + 1), 16);
-            if (hi < 0 || lo < 0) {
-                throw new IllegalArgumentException("invalid hex");
-            }
-            out[i] = (byte) ((hi << 4) | lo);
-        }
-        return out;
-    }
-
-    private static String field(String json, String name) throws Exception {
-        return new JSONObject(json).getString(name);
-    }
-
-    private static long intField(String json, String name) throws Exception {
-        return new JSONObject(json).getLong(name);
-    }
-
-    private static String stringField(String json, String name) throws Exception {
-        return new JSONObject(json).getString(name);
-    }
-
-    private static byte[] fill(int len, int value) {
-        byte[] out = new byte[len];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = (byte) value;
-        }
-        return out;
-    }
-
-    private static void assertBytes(byte[] expected, byte[] got, String label) {
-        if (expected.length != got.length) {
-            throw new AssertionError(label + " length mismatch");
-        }
-        for (int i = 0; i < expected.length; i++) {
-            if (expected[i] != got[i]) {
-                throw new AssertionError(label + " mismatch at byte " + i);
-            }
-        }
-    }
-
-    private static void assertWiped(byte[] value, String label) {
-        for (int i = 0; i < value.length; i++) {
-            if (value[i] != 0) {
-                throw new AssertionError(label + " was not wiped at byte " + i);
-            }
-        }
-    }
-
-    private static boolean bytesEqual(byte[] left, byte[] right) {
-        if (left.length != right.length) {
-            return false;
-        }
-        int difference = 0;
-        for (int i = 0; i < left.length; i++) {
-            difference |= left[i] ^ right[i];
-        }
-        return difference == 0;
-    }
-
-    private static void expect(boolean condition, String label) {
-        if (!condition) {
-            throw new AssertionError(label);
-        }
-    }
-
-    private static String escape(String text) {
-        if (text == null) {
-            return "";
-        }
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            switch (ch) {
-                case '\\':
-                    out.append("\\\\");
-                    break;
-                case '"':
-                    out.append("\\\"");
-                    break;
-                case '\n':
-                    out.append("\\n");
-                    break;
-                case '\r':
-                    out.append("\\r");
-                    break;
-                case '\t':
-                    out.append("\\t");
-                    break;
-                default:
-                    if (ch < 0x20) {
-                        out.append(String.format("\\u%04x", (int) ch));
-                    } else {
-                        out.append(ch);
-                    }
-                    break;
-            }
-        }
-        return out.toString();
-    }
-}
-EOF
+# Shared checked-in workload: the AGP full consumer compiles these exact files too.
+cp bindings/android/smoke/common/dev/qperiapt/androidsmoke/*.java "$SRC/dev/qperiapt/androidsmoke/"
+cp bindings/android/smoke/full/dev/qperiapt/androidsmoke/*.java "$SRC/dev/qperiapt/androidsmoke/"
 
 APP_SOURCES="$WORK/app-sources.txt"
 APP_CLASSES_JAR="$WORK/app-classes.jar"
@@ -1143,7 +760,15 @@ UNSIGNED_APK="$WORK/unsigned.apk"
 ALIGNED_APK="$WORK/aligned.apk"
 SIGNED_APK="$DIST/qperiapt-android-smoke.apk"
 KEYSTORE="$WORK/qperiapt-android-smoke.p12"
-EXPECTED_MARKER="QPERIAPT_ANDROID_DEVICE_PASS run-id=$RUN_ID tests=3"
+EXPECTED_MARKER=$(PYTHONPATH=artifact python3 - "$RUN_ID" "$ANDROID_CONSUMER_PROFILE" <<'PY_MARKER'
+import sys
+from android_device_proof import RuntimeResultProfile, expected_marker
+print(expected_marker(sys.argv[1], RuntimeResultProfile(sys.argv[2])))
+PY_MARKER
+)
+AGP_BUILD="$DIST/agp-build"
+AGP_RAW_BUILD="$DIST/agp-build-raw"
+
 
 emulator_process_active() {
 	if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
@@ -2121,6 +1746,7 @@ PY
 )
 
 printf '\n=== Build temporary Android smoke APK ===\n'
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
 find "$SRC" -name '*.java' -print | LC_ALL=C sort >"$APP_SOURCES"
 test -s "$APP_SOURCES" || {
 	printf 'error: no Android smoke Java sources generated\n' >&2
@@ -2235,6 +1861,23 @@ legacy = sorted(
 if legacy:
     raise SystemExit("error: smoke APK contains legacy ABI1 native names: " + ", ".join(legacy))
 PY
+else
+	AGP_SOURCE_COMMIT=$(PYTHONPATH=artifact python3 - "$ROOT" <<'PY_COMMIT'
+import pathlib
+import sys
+from git_provenance import git_commit
+print(git_commit(pathlib.Path(sys.argv[1])))
+PY_COMMIT
+)
+	PYTHONPATH=artifact python3 artifact/android_agp_build.py \
+		--root "$ROOT" --work "$WORK/agp" --output "$AGP_BUILD" --raw-output "$AGP_RAW_BUILD" \
+		--profile "$ANDROID_CONSUMER_PROFILE" --sdk "$ANDROID_SDK" \
+		--aar "$AAR_PATH" --aar-manifest "$AAR_MANIFEST" \
+		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
+		--expected-source-commit "$AGP_SOURCE_COMMIT"
+	cp "$AGP_BUILD/consumer-unsigned.apk" "$UNSIGNED_APK"
+fi
 "$ZIPALIGN" -f -P 16 4 "$UNSIGNED_APK" "$ALIGNED_APK"
 keytool -genkeypair \
 	-storetype PKCS12 \
@@ -2846,6 +2489,7 @@ PY
 # This is a newly installed package: absence and exact APK ownership were
 # already established above. Its only component is this explicit activity, and
 # the result must match the fresh run ID. No pre-launch force-stop is needed.
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
 if android_command start-app >"$DIST/adb-start.log" 2>&1; then
 	:
 else
@@ -2885,6 +2529,16 @@ test -f "$RESULT_TXT" || {
 	exit 1
 }
 android_command read-result-json
+else
+	if ! android_command run-instrumentation; then
+		capture_app_logcat >"$DIST/logcat.txt"
+		printf 'error: AGP Release Instrumentation command failed; see %s\n' "$DIST/adb-instrumentation.txt" >&2
+		exit 1
+	fi
+	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
+		--input "$DIST/adb-instrumentation.txt" --run-id "$RUN_ID" \
+		--text-output "$RESULT_TXT" --json-output "$RESULT_JSON"
+fi
 capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
 	printf 'error: Android logcat contains a runtime failure marker; see %s\n' "$DIST/logcat.txt" >&2
@@ -2898,7 +2552,7 @@ else
 	exit "$app_cleanup_status"
 fi
 
-PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'
+PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" "$ANDROID_CONSUMER_PROFILE" <<'PY'
 import pathlib
 import sys
 
@@ -2909,11 +2563,8 @@ payload = load_json_object_snapshot(
     pathlib.Path(sys.argv[2]), label="Android device result"
 ).value
 run_id = sys.argv[3]
-expected_tests = [
-    "runtimeMetadataMatches",
-    "signedPolicyDecisionIsExactAndFailClosed",
-    "osRandomPolicyRoundtripAndWipes",
-]
+from android_device_proof import RuntimeResultProfile, result_tests
+expected_tests = result_tests(RuntimeResultProfile(sys.argv[4]))
 expected_marker = f"QPERIAPT_ANDROID_DEVICE_PASS run-id={run_id} tests={len(expected_tests)}\n"
 if txt != expected_marker:
     raise SystemExit(f"error: unexpected Android result marker: {txt!r}")
@@ -2943,7 +2594,7 @@ DEVICE_RELEASE=$(android_command device-release | tr -d '\r')
 DEVICE_FINGERPRINT=$(android_command device-fingerprint | tr -d '\r')
 ADB_VERSION=$(android_command adb-version | sed -n '1p' | tr -d '\r')
 emit_android_runtime_proof() {
-python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_STAGING" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" "$FINAL_DEVICE_ABI" "$FINAL_PAGE_SIZE" "$FINAL_DEVICE_SDK" "$DEVICE_MANUFACTURER" "$DEVICE_MODEL" "$DEVICE_RELEASE" "$DEVICE_FINGERPRINT" "$ADB_VERSION" "$EMULATOR_BACKEND" "${ANDROID_EMULATOR_PORT:-}" "$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY" "$DIST/emulator-listeners.txt" "$DIST/adb-emulator-registration.txt" "${ADB_SERVER_STATUS_REGISTERED:-}" "${ADB_LISTENER_REGISTERED:-}" "$EMULATOR_BACKEND_DEVICE" "$EMULATOR_BACKEND_INODE" "$EMULATOR_BACKEND_SHA256" <<'PY'
+python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_STAGING" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" "$FINAL_DEVICE_ABI" "$FINAL_PAGE_SIZE" "$FINAL_DEVICE_SDK" "$DEVICE_MANUFACTURER" "$DEVICE_MODEL" "$DEVICE_RELEASE" "$DEVICE_FINGERPRINT" "$ADB_VERSION" "$EMULATOR_BACKEND" "${ANDROID_EMULATOR_PORT:-}" "$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY" "$DIST/emulator-listeners.txt" "$DIST/adb-emulator-registration.txt" "${ADB_SERVER_STATUS_REGISTERED:-}" "${ADB_LISTENER_REGISTERED:-}" "$EMULATOR_BACKEND_DEVICE" "$EMULATOR_BACKEND_INODE" "$EMULATOR_BACKEND_SHA256" "$ANDROID_CONSUMER_PROFILE" "$AGP_BUILD/receipt.json" "$DIST/adb-instrumentation.txt" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -3116,28 +2767,8 @@ if current_source_tree_sha256 != source_tree_sha256:
         "error: canonical execution-input tree changed while Android runtime proof was running: "
         f"got {current_source_tree_sha256}, expected {source_tree_sha256}"
     )
-source_paths = {
-    "bounded_process": root / "artifact/bounded_process.py",
-    "android_emulator_control": root / "artifact/android_emulator_control.py",
-    "process_identity": root / "artifact/process_identity.py",
-    "android_runtime_state": root / "artifact/android_runtime_state.py",
-    "android_runtime_state_tests": root / "artifact/test_android_runtime_state.py",
-    "android_bounded_command": root / "artifact/android_bounded_command.py",
-    "android_bounded_command_tests": root / "artifact/test_android_bounded_command.py",
-    "android_device_smoke_script": root / "artifact/android-device-smoke.sh",
-    "android_device_proof": root / "artifact/android_device_proof.py",
-    "proof_to_byte": root / "artifact/proof-to-byte.sh",
-    "android_aar_script": root / "artifact/android-aar.sh",
-    "android_elf_verifier": root / "artifact/android_elf.py",
-    "release_binary_scan": root / "artifact/release_binary_scan.py",
-    "third_party_license_collector": root / "artifact/third_party_licenses.py",
-    "deterministic_archive": root / "artifact/deterministic_archive.py",
-    "platform_release_contract": root / "artifact/platform_release_contract.py",
-    "android_facade": root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
-    "android_jni_adapter": root / "bindings/android/jni/qperiapt_jni.c",
-    "c_abi_contract": root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
-    "signed_policy_vectors": root / "bindings/signed-policy-vectors.json",
-}
+from android_device_proof import SOURCE_INPUTS
+source_paths = {name: root / path for name, path in SOURCE_INPUTS.items()}
 
 def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
@@ -3251,6 +2882,26 @@ payload = {
     },
     "source_hashes": {name + "_sha256": sha256(path) for name, path in source_paths.items()},
 }
+consumer_profile = sys.argv[43]
+if consumer_profile != "legacy_full":
+    from android_agp_consumer_contract import PROOF_KIND, PROFILES
+    from android_agp_consumer import INSTRUMENTATION
+    if consumer_profile not in PROFILES:
+        raise SystemExit("error: unknown AGP proof profile")
+    build_receipt = pathlib.Path(sys.argv[44])
+    instrumentation_output = pathlib.Path(sys.argv[45])
+    def evidence_record(path):
+        data = path.read_bytes()
+        return {"path": rel(path), "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+    payload["schema"] = 1
+    payload["kind"] = PROOF_KIND
+    payload["consumer"] = {
+        "profile": consumer_profile,
+        "build_receipt": evidence_record(build_receipt),
+        "instrumentation_output": evidence_record(instrumentation_output),
+        "instrumentation": INSTRUMENTATION,
+    }
+
 encoded_proof = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
 flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW
 descriptor = os.open(proof, flags, 0o600)
@@ -3318,6 +2969,7 @@ set -- "$@" --expected-device-abi "$DEVICE_ABI" --expected-page-size "$PAGE_SIZE
 if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 	set -- "$@" --require-release-mode
 fi
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
 PYTHONPATH=artifact python3 artifact/android_device_proof.py verify \
 	--root "$ROOT" \
 	--proof "$PROOF_JSON" \
@@ -3334,11 +2986,22 @@ PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
 	--forbid-text "$SERIAL" \
 	--expected-device-kind "$DEVICE_KIND" \
 	"$@"
+else
+	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py verify \
+		--root "$ROOT" --proof "$PROOF_JSON" --profile "$ANDROID_CONSUMER_PROFILE" --sdk "$ANDROID_SDK" \
+		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
+		--expected-source-commit "$AGP_SOURCE_COMMIT"
+fi
 if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
 	printf 'error: refusing to confirm Android evidence before runtime cleanup\n' >&2
 	exit 1
 fi
 ANDROID_PROOF_EVIDENCE_CONFIRMED=1
 printf 'Proof    : %s\n' "$PROOF_JSON"
-printf 'Bundle   : %s\n' "$EVIDENCE_BUNDLE"
-printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s bundle=%s\n' "$PROOF_JSON" "$EVIDENCE_BUNDLE"
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
+	printf 'Bundle   : %s\n' "$EVIDENCE_BUNDLE"
+	printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s bundle=%s\n' "$PROOF_JSON" "$EVIDENCE_BUNDLE"
+else
+	printf '\nANDROID_AGP_RUNTIME_PASS profile=%s proof=%s\n' "$ANDROID_CONSUMER_PROFILE" "$PROOF_JSON"
+fi

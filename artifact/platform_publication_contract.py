@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import platform_stable_publication_contract as stable_contract
 import platform_release_contract as historical_r2_contract
+import platform_maintenance_contract as maintenance_contract
 
 
 PLATFORM_R2_PUBLICATION_KEY = (
@@ -30,6 +31,7 @@ PLATFORM_PUBLICATION_KEYS = frozenset(
         PLATFORM_V0_1_3_PUBLICATION_KEY,
         PLATFORM_V0_1_4_PUBLICATION_KEY,
         PLATFORM_V0_1_5_PUBLICATION_KEY,
+        maintenance_contract.PUBLICATION_KEY,
     }
 )
 
@@ -742,6 +744,14 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
         except stable_contract.PlatformV015PublicationContractError as exc:
             raise PlatformPublicationContractError(str(exc)) from exc
 
+    if maintenance_contract.PUBLICATION_KEY in publications:
+        try:
+            maintenance_contract.publication(
+                publications[maintenance_contract.PUBLICATION_KEY]
+            )
+        except maintenance_contract.PlatformMaintenanceContractError as exc:
+            raise PlatformPublicationContractError(str(exc)) from exc
+
 
 def _publication_entries(
     manifest: dict[str, object],
@@ -799,6 +809,14 @@ def validate_release_publication_transition(
     validate_release_publications(current)
     previous_publications = _publication_entries(previous)
     current_publications = _publication_entries(current)
+
+    try:
+        maintenance_contract.validate_transition(
+            previous_publications.get(maintenance_contract.PUBLICATION_KEY),
+            current_publications.get(maintenance_contract.PUBLICATION_KEY),
+        )
+    except maintenance_contract.PlatformMaintenanceContractError as exc:
+        raise PlatformPublicationContractError(str(exc)) from exc
 
     if (
         PLATFORM_R2_PUBLICATION_KEY not in previous_publications
