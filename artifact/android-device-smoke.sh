@@ -2843,14 +2843,9 @@ value = sys.argv[1]
 if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
     raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
 PY
-if android_command force-stop >"$DIST/adb-force-stop.log" 2>&1; then
-	:
-else
-	force_stop_status=$?
-	printf 'error: Android runtime force-stop failed (exit=%s); see %s\n' \
-		"$force_stop_status" "$DIST/adb-force-stop.log" >&2
-	exit 1
-fi
+# This is a newly installed package: absence and exact APK ownership were
+# already established above. Its only component is this explicit activity, and
+# the result must match the fresh run ID. No pre-launch force-stop is needed.
 if android_command start-app >"$DIST/adb-start.log" 2>&1; then
 	:
 else

@@ -18,6 +18,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ElementTree
 import zipfile
 from dataclasses import dataclass
 from typing import Any, Iterable
@@ -75,6 +76,32 @@ MIN_LOAD_ALIGNMENT = 0x4000
 MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_ENTRY_BYTES = 128 * 1024 * 1024
 MAX_CLASSES_JAR_BYTES = 16 * 1024 * 1024
+MAX_CONSUMER_METADATA_BYTES = 64 * 1024
+MAX_CONSUMER_DEX_BYTES = 16 * 1024 * 1024
+ANDROID_PACKAGE = "dev.qperiapt.android"
+JNI_NATIVE_METHOD_DESCRIPTORS = {
+    "runtimeAbiVersionNative": "()I",
+    "runtimeVersionNative": "()Ljava/lang/String;",
+    "fixedSuiteIdNative": "()Ljava/lang/String;",
+    "fixedSuiteIdLenNative": "()J",
+    "statusNameNative": "(I)Ljava/lang/String;",
+    "decisionFromSignedPolicyNative": "([B[B[B[B)[B",
+    "generateKeypairNative": "([B[B[B[B[B)V",
+    "encapsulateNative": "([B[B[B[B[B[B[B)V",
+    "decapsulateNative": "([B[B[B[B[B[B[B[B[B)V",
+}
+JNI_EXCEPTION_CLASS = "dev.qperiapt.android.QPeriaptAndroid$QPeriaptException"
+JNI_EXCEPTION_DESCRIPTOR = "(Ljava/lang/String;ILjava/lang/String;)V"
+# This release producer has one exact consumer-rule contract. Do not parse or
+# accept a substring: commented rules and shrinking/obfuscation modifiers can
+# appear to name the callback while leaving JNI's string lookup unprotected.
+ANDROID_CONSUMER_RULES = b"""-keep class dev.qperiapt.android.QPeriaptAndroid {
+    native <methods>;
+}
+-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException {
+    public <init>(java.lang.String, int, java.lang.String);
+}
+"""
 MANIFEST_SCHEMA_VERSION = 4
 EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
 EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
@@ -878,8 +905,11 @@ def audit_classes_jar(data: bytes) -> dict[str, bytes]:
     except zipfile.BadZipFile as exc:
         raise AndroidVerificationError(f"classes.jar is not a valid ZIP archive: {exc}") from exc
     require(entries, "classes.jar is empty")
-    primary_class = "dev/qperiapt/android/QPeriaptAndroid.class"
-    require(primary_class in entries, f"classes.jar lacks {primary_class}")
+    for required_class in (
+        "dev/qperiapt/android/QPeriaptAndroid.class",
+        "dev/qperiapt/android/QPeriaptAndroid$QPeriaptException.class",
+    ):
+        require(required_class in entries, f"classes.jar lacks {required_class}")
     for name in entries:
         require(
             name.startswith("dev/qperiapt/android/") and name.endswith(".class"),
@@ -891,6 +921,87 @@ def audit_classes_jar(data: bytes) -> dict[str, bytes]:
         )
         require(entries[name].startswith(b"\xca\xfe\xba\xbe"), f"classes.jar entry is not a JVM class file: {name}")
     return entries
+
+
+def audit_android_consumer_metadata(entries: dict[str, bytes]) -> None:
+    manifest = entries["AndroidManifest.xml"]
+    require(
+        len(manifest) <= MAX_CONSUMER_METADATA_BYTES,
+        "Android AAR AndroidManifest.xml exceeds the consumer metadata limit",
+    )
+    try:
+        text = manifest.decode("utf-8")
+        require(
+            "<!DOCTYPE" not in text and "<!ENTITY" not in text,
+            "Android AAR AndroidManifest.xml must not contain DTD/entity declarations",
+        )
+        root = ElementTree.fromstring(text)
+    except (UnicodeDecodeError, ElementTree.ParseError) as exc:
+        raise AndroidVerificationError("Android AAR AndroidManifest.xml is not valid UTF-8 XML") from exc
+    require(
+        root.tag == "manifest" and root.get("package") == ANDROID_PACKAGE,
+        f"Android AAR AndroidManifest.xml must declare package={ANDROID_PACKAGE}",
+    )
+    require(
+        entries["proguard.txt"] == ANDROID_CONSUMER_RULES,
+        "Android AAR proguard.txt differs from the exact JNI native-method/exception-callback keep contract",
+    )
+
+
+def verify_minimal_consumer_dump(output: str) -> None:
+    """Check SDK dexdump's class/method definitions, never disassembly strings."""
+
+    classes: dict[str, list[tuple[str, str, str]]] = {}
+    for block in re.split(r"(?m)^Class #\d+[ \t]+-[ \t]*$", output)[1:]:
+        descriptors = re.findall(r"Class descriptor[ \t]+: '([^']+)'", block)
+        require(len(descriptors) == 1, "minimal consumer has invalid dexdump class framing")
+        descriptor = descriptors[0]
+        require(descriptor not in classes, "minimal consumer has a duplicate class definition")
+        # SDK dexdump lists fields before methods. Excluding that prefix prevents
+        # a field or referenced string from standing in for a registered method.
+        require("  Direct methods    -\n" in block, "minimal consumer lacks method definitions")
+        method_block = block.split("  Direct methods    -\n", 1)[1]
+        classes[descriptor] = re.findall(
+            r"name[ \t]+: '([^']+)'\s+type[ \t]+: '([^']+)'\s+"
+            r"access[ \t]+: 0x[0-9a-f]+ \(([^)]+)\)",
+            method_block,
+        )
+    require(classes, "minimal consumer dexdump contains no class definitions")
+    facade = classes.get("Ldev/qperiapt/android/QPeriaptAndroid;", [])
+    native: dict[str, str] = {}
+    for name, descriptor, access in facade:
+        flags = set(access.split())
+        if "NATIVE" not in flags:
+            continue
+        require(name not in native, "minimal consumer contains duplicate native methods")
+        require({"STATIC", "NATIVE"} <= flags, "minimal consumer changed native method access")
+        native[name] = descriptor
+    require(
+        native == JNI_NATIVE_METHOD_DESCRIPTORS,
+        "minimal consumer native names/descriptors differ from the complete JNI registration contract",
+    )
+    callback = classes.get("L" + JNI_EXCEPTION_CLASS.replace(".", "/") + ";", [])
+    constructors = [(descriptor, set(access.split())) for name, descriptor, access in callback if name == "<init>"]
+    require(
+        any(descriptor == JNI_EXCEPTION_DESCRIPTOR and {"PUBLIC", "CONSTRUCTOR"} <= flags and "STATIC" not in flags
+            for descriptor, flags in constructors),
+        "minimal consumer lacks the exact public JNI exception callback constructor",
+    )
+
+
+def verify_minimal_consumer_dex(path: pathlib.Path, *, dexdump: pathlib.Path) -> None:
+    """Run the existing SDK tool over a bounded snapshot of the actual R8 DEX."""
+
+    snapshot = read_snapshot(path, maximum=MAX_CONSUMER_DEX_BYTES, label="minimal R8 consumer DEX")
+    require(snapshot.data.startswith(b"dex\n"), "minimal consumer is not a DEX file")
+    with tempfile.TemporaryDirectory(prefix="qperiapt-minimal-consumer-") as temporary:
+        selected = pathlib.Path(temporary) / "consumer.dex"
+        try:
+            selected.write_bytes(snapshot.data)
+        except OSError as exc:
+            raise AndroidVerificationError("cannot materialize minimal consumer DEX snapshot") from exc
+        output = run_tool(dexdump, [], selected)
+    verify_minimal_consumer_dump(output)
 
 
 def audit_third_party_license_entries(entries: dict[str, bytes]) -> dict[str, Any]:
@@ -953,6 +1064,7 @@ def audit_aar_bytes(data: bytes, *, label: str) -> tuple[dict[str, bytes], dict[
     except zipfile.BadZipFile as exc:
         raise AndroidVerificationError(f"Android AAR is not a valid ZIP archive: {label}: {exc}") from exc
     audit_third_party_license_entries(entries)
+    audit_android_consumer_metadata(entries)
     classes = audit_classes_jar(entries["classes.jar"])
     return entries, classes
 
@@ -1475,6 +1587,10 @@ def build_parser() -> argparse.ArgumentParser:
     toolchain = subparsers.add_parser("find-toolchain", help="print the unique usable Android NDK r29 toolchain")
     toolchain.add_argument("--ndk", required=True, type=pathlib.Path)
 
+    consumer = subparsers.add_parser("verify-minimal-consumer", help="check actual R8 DEX native and callback retention")
+    consumer.add_argument("--dex", required=True, type=pathlib.Path)
+    consumer.add_argument("--dexdump", required=True, type=pathlib.Path)
+
     tree = subparsers.add_parser("verify-tree", help="verify staged Android native libraries")
     tree.add_argument("--root", required=True, type=pathlib.Path)
     tree.add_argument("--llvm-nm", required=True, type=pathlib.Path)
@@ -1513,6 +1629,9 @@ def main(argv: Iterable[str] | None = None) -> int:
             print("ANDROID_EXPECTED_GIT_COMMIT_PASS")
         elif args.command == "find-toolchain":
             print(find_ndk_toolchain(args.ndk))
+        elif args.command == "verify-minimal-consumer":
+            verify_minimal_consumer_dex(args.dex, dexdump=args.dexdump)
+            print("ANDROID_MINIMAL_R8_CONSUMER_PASS")
         elif args.command == "verify-tree":
             verify_native_tree(args.root, llvm_nm=args.llvm_nm, llvm_readelf=args.llvm_readelf)
             print("ANDROID_ELF_TREE_VERIFY_PASS")

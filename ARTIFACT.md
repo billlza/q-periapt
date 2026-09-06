@@ -1070,6 +1070,11 @@ These produce the paper's primary network table and the binary constant-time dis
   pre-authentication guidance, the exact current-account token path, both authentication acknowledgements,
   and a command-specific terminal frame. Receipt of that exact terminal frame completes the command
   without waiting for socket EOF, and bytes after that delimiter are not interpreted as part of the frame.
+  The runtime lane admits only a fresh installation after stable package absence and
+  exact installed-APK ownership checks. Its sole activity is launched explicitly once
+  with the current run ID; result validation remains bound to that ID and APK. The fresh
+  package needs no extra pre-launch force-stop. An activity-start failure still fails
+  the gate, with bounded merged stdout/stderr retained in CI diagnostics.
   Every adb/lsof call is selected from a finite Android operation table and executed through the
   private run capability; the generic bounded-process module has no arbitrary command or output CLI.
   Capability creation consumes the selected SDK adb from one already-open descriptor while hashing

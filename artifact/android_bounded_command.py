@@ -186,7 +186,6 @@ class AndroidOperation(str, enum.Enum):
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
     DEVICE_TIME = "device-time"
-    FORCE_STOP = "force-stop"
     START_APP = "start-app"
     READ_RESULT_TEXT = "read-result-text"
     READ_RESULT_JSON = "read-result-json"
@@ -771,14 +770,6 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             OutputSpec(proof, "adb-device-time.txt", 4096),
             lambda cap: _device(cap, "shell", "date", "+%s.%3N"),
-        ),
-        AndroidOperation.FORCE_STOP: OperationSpec(
-            "capture",
-            15,
-            15,
-            None,
-            lambda cap: _device(cap, "shell", "am", "force-stop", PACKAGE),
-            stderr_to_stdout=True,
         ),
         AndroidOperation.START_APP: OperationSpec(
             "capture",
