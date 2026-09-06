@@ -304,6 +304,66 @@ CI job `bindings-android-runtime-16k` consumes the exact AAR artifact produced b
 and pull request. This is an independent package-face gate. It is neither the canonical arm64-v8a
 release proof nor physical-device production evidence.
 
+## Exact-AAR minified AGP Release consumers
+
+The optional `agp_full_release` and `agp_minimal_release` profiles use the pinned
+AGP 9.4.0 / Gradle 9.7.1 application template with `minifyEnabled=true` and
+`debuggable=false`. The default `legacy_full` profile retains its original
+three-test runtime proof and bundle contract. These new profiles produce a separate
+`qperiapt.android_agp_consumer_proof` schema-1 proof and never stand in for that
+legacy evidence or claim Maven/publication status.
+
+Select a clean source checkout and its exact prebuilt AAR/manifest, then run each
+profile in sequence through the existing owned, bounded AVD/ADB lane:
+
+```sh
+# Set JAVA_HOME to the approved local JDK and the four exact-AAR selectors first:
+# QPERIAPT_ANDROID_EXISTING_AAR, QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST,
+# QPERIAPT_ANDROID_EXPECTED_AAR_SHA256, QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256.
+QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_full_release \
+QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+sh artifact/android-device-smoke.sh
+
+QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_minimal_release \
+QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+sh artifact/android-device-smoke.sh
+```
+
+The full profile compiles the same checked-in three workload groups as the legacy
+producer, including the original signed-policy vectors and cryptographic/wipe
+assertions. The minimal profile's only facade call is `runtimeVersion()`; full
+workload sources and fixtures are absent from its build inputs. Neither application
+adds Q keep rules. Both use the AAR's consumer rules, and actual JavaCompile inputs,
+merged R8 rule sources, shrunk DEX native declarations, callback constructor, and
+Instrumentation entrypoints are checked before runtime acceptance. The SDK default
+optimized rules are pinned separately so an additional app keep rule cannot be
+hidden in a substituted default file.
+
+The nondebuggable APK contains its own narrow framework Instrumentation. It starts
+the Activity by a fixed string and returns the run-bound result bytes through a
+Bundle; it has no Q references and introduces no test APK that could preserve
+otherwise unused JNI members. Results commit complete JSON first, then atomically
+rename the closed text marker. A completed malformed result fails immediately.
+Actual ART execution, exact installed APK ownership, and cleanup must all pass;
+Java compilation, a standalone R8 dump, or an APK build alone is insufficient.
+
+Each run retains `agp-build/receipt.json`, the unsigned/signed APKs, the
+Instrumentation response, and existing device/control evidence. Public diagnostic
+files use the explicit `known-path-roots-v1` normalization policy: only recorded
+local path roots are replaced, while rule bodies and every warning/error line are
+preserved. Original diagnostic bytes remain private under `agp-build-raw/`; their
+digests are labeled `raw_private_sha256`, distinct from the hashed
+`normalized_public` closure. An unrecognized private path is rejected.
+`profile_evidence_files` supplies the fixed export map and `verify_exported_profile`
+rechecks that same closure after safe extraction, with `proof.json` at its root.
+The validator also independently replays apksigner, 16 KiB zipalign, and SDK DEX/manifest
+inspection against each selected signed APK. Supply `sdk` to the Python validation APIs
+(or `--sdk` to the CLI) as an explicit SDK root containing `build-tools/36.0.0`;
+all four tools must belong to that directory and match their recorded hashes.
+No verifier starts Gradle or a device; SDK and Git replay is read-only.
+
 ## Stable AAR publication transaction
 
 The original `abi2-platforms-v0.1.5` release is public and immutable. Its

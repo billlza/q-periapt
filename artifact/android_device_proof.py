@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import enum
 import hashlib
 import io
 import json
@@ -20,6 +21,7 @@ import zipfile
 from typing import Any
 
 import android_runtime_state as runtime_state
+from android_agp_consumer_contract import PROFILE_TESTS
 from android_elf import (
     AndroidVerificationError,
     audit_aar,
@@ -300,6 +302,24 @@ EXPECTED_TESTS = [
     "signedPolicyDecisionIsExactAndFailClosed",
     "osRandomPolicyRoundtripAndWipes",
 ]
+
+
+class RuntimeResultProfile(str, enum.Enum):
+    LEGACY_FULL = "legacy_full"
+    AGP_FULL_RELEASE = "agp_full_release"
+    AGP_MINIMAL_RELEASE = "agp_minimal_release"
+
+
+def result_tests(profile: RuntimeResultProfile) -> list[str]:
+    if profile is RuntimeResultProfile.LEGACY_FULL:
+        return list(EXPECTED_TESTS)
+    if profile in (
+        RuntimeResultProfile.AGP_FULL_RELEASE,
+        RuntimeResultProfile.AGP_MINIMAL_RELEASE,
+    ):
+        return list(PROFILE_TESTS[profile.value])
+    raise ValueError("unknown Android result profile")
+
 
 SOURCE_INPUTS = {
     "bounded_process": "artifact/bounded_process.py",
@@ -1325,6 +1345,10 @@ def verify_proof_schema(proof: dict[str, Any]) -> None:
         f"Android proof schema must be {PROOF_SCHEMA_VERSION}",
     )
     exact_object(proof, PROOF_FIELDS, "Android proof")
+    verify_runtime_record_shape(proof)
+
+
+def verify_runtime_record_shape(proof: dict[str, Any]) -> None:
     exact_object(proof.get("device"), PROOF_DEVICE_FIELDS, "Android proof device")
     exact_object(
         proof.get("paths"), expected_proof_path_keys(proof), "Android proof path"
@@ -2361,9 +2385,11 @@ def validate_selected_run_layout(
         )
 
 
-def expected_marker(run_id: str) -> str:
+def expected_marker(
+    run_id: str, profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL
+) -> str:
     require(bool(RUN_ID_RE.fullmatch(run_id)), f"invalid run id: {run_id}")
-    return f"{PASS_MARKER} run-id={run_id} tests={len(EXPECTED_TESTS)}"
+    return f"{PASS_MARKER} run-id={run_id} tests={len(result_tests(profile))}"
 
 
 def parse_generated_at(value: Any) -> dt.datetime:
@@ -2448,8 +2474,13 @@ def verify_source_hashes(root: pathlib.Path, proof: dict[str, Any]) -> None:
         )
 
 
-def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
-    marker = expected_marker(run_id)
+def verify_result_files(
+    paths: dict[str, pathlib.Path],
+    run_id: str,
+    profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
+    tests = result_tests(profile)
+    marker = expected_marker(run_id, profile)
     marker_text = read_text(paths["result_txt"])
     require(
         marker_text == marker + "\n",
@@ -2459,16 +2490,18 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
     result = load_json(paths["result_json"])
     exact_object(result, RESULT_FIELDS, "Android result")
     require(
-        result.get("schema") == RESULT_SCHEMA_VERSION, "Android result schema mismatch"
+        type(result.get("schema")) is int and result.get("schema") == RESULT_SCHEMA_VERSION,
+        "Android result schema mismatch",
     )
     require(result.get("status") == "pass", "Android result status is not pass")
     require(result.get("run_id") == run_id, "Android result run_id mismatch")
     require(
-        result.get("test_count") == len(EXPECTED_TESTS),
+        type(result.get("test_count")) is int
+        and result.get("test_count") == len(tests),
         "Android result test_count mismatch",
     )
     require(
-        result.get("passed_tests") == EXPECTED_TESTS,
+        result.get("passed_tests") == tests,
         "Android result passed_tests mismatch",
     )
 
@@ -2502,8 +2535,11 @@ def verify_result_files(paths: dict[str, pathlib.Path], run_id: str) -> None:
 
 
 def verify_artifact_hashes(
-    paths: dict[str, pathlib.Path], proof: dict[str, Any]
+    paths: dict[str, pathlib.Path],
+    proof: dict[str, Any],
+    profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
 ) -> None:
+    tests = result_tests(profile)
     artifacts = exact_object(
         proof.get("artifacts"), PROOF_ARTIFACT_FIELDS, "Android proof artifact"
     )
@@ -2533,11 +2569,12 @@ def verify_artifact_hashes(
     )
     require(result.get("status") == "pass", "proof result status is not pass")
     require(
-        result.get("test_count") == len(EXPECTED_TESTS),
+        type(result.get("test_count")) is int
+        and result.get("test_count") == len(tests),
         "proof result test_count mismatch",
     )
     require(
-        result.get("passed_tests") == EXPECTED_TESTS,
+        result.get("passed_tests") == tests,
         "proof result passed_tests mismatch",
     )
 
@@ -2770,6 +2807,35 @@ def verify_proof_contents(
     bundled: bool = False,
 ) -> None:
     verify_proof_schema(proof)
+    verify_runtime_contents(
+        root,
+        proof,
+        paths,
+        result_profile=RuntimeResultProfile.LEGACY_FULL,
+        expected_device_kind=expected_device_kind,
+        expected_device_abi=expected_device_abi,
+        expected_page_size=expected_page_size,
+        expected_device_sdk=expected_device_sdk,
+        require_release_mode=require_release_mode,
+        allow_dirty_proof=allow_dirty_proof,
+        bundled=bundled,
+    )
+
+
+def verify_runtime_contents(
+    root: pathlib.Path,
+    proof: dict[str, Any],
+    paths: dict[str, pathlib.Path],
+    *,
+    result_profile: RuntimeResultProfile,
+    expected_device_kind: str = "",
+    expected_device_abi: str = "",
+    expected_page_size: int | None = None,
+    expected_device_sdk: int | None = None,
+    require_release_mode: bool = False,
+    allow_dirty_proof: bool = False,
+    bundled: bool = False,
+) -> None:
     require(
         set(paths) == expected_proof_path_keys(proof),
         "selected Android evidence path fields differ",
@@ -2788,7 +2854,7 @@ def verify_proof_contents(
     )
     run_id = proof.get("run_id")
     require(isinstance(run_id, str), "proof run_id is missing")
-    expected_marker(run_id)
+    expected_marker(run_id, result_profile)
 
     parse_generated_at(proof.get("generated_at"))
     verify_git_provenance(root, proof, allow_dirty_proof)
@@ -2806,8 +2872,8 @@ def verify_proof_contents(
     verify_emulator_control_evidence(proof, paths, bundled=bundled)
     verify_source_hashes(root, proof)
     verify_abi_metadata(root, proof)
-    verify_result_files(paths, run_id)
-    verify_artifact_hashes(paths, proof)
+    verify_result_files(paths, run_id, result_profile)
+    verify_artifact_hashes(paths, proof, result_profile)
     verify_native_hashes(paths, proof)
 
 

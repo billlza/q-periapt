@@ -948,9 +948,8 @@ def audit_android_consumer_metadata(entries: dict[str, bytes]) -> None:
     )
 
 
-def verify_minimal_consumer_dump(output: str) -> None:
-    """Check SDK dexdump's class/method definitions, never disassembly strings."""
-
+def parse_consumer_dex_classes(output: str) -> dict[str, list[tuple[str, str, str]]]:
+    """Parse actual SDK class definitions, including concatenated multidex dumps."""
     classes: dict[str, list[tuple[str, str, str]]] = {}
     for block in re.split(r"(?m)^Class #\d+[ \t]+-[ \t]*$", output)[1:]:
         descriptors = re.findall(r"Class descriptor[ \t]+: '([^']+)'", block)
@@ -967,6 +966,12 @@ def verify_minimal_consumer_dump(output: str) -> None:
             method_block,
         )
     require(classes, "minimal consumer dexdump contains no class definitions")
+    return classes
+
+
+def verify_minimal_consumer_dump(output: str) -> None:
+    """Check SDK dexdump's class/method definitions, never disassembly strings."""
+    classes = parse_consumer_dex_classes(output)
     facade = classes.get("Ldev/qperiapt/android/QPeriaptAndroid;", [])
     native: dict[str, str] = {}
     for name, descriptor, access in facade:
