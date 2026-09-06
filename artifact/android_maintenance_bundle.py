@@ -127,7 +127,11 @@ def verify_and_extract(
     expected_source_epoch: int,
     sdk: pathlib.Path | None = None,
 ) -> VerifiedMaintenanceBundle:
-    """Verify the exported consumers from downloaded bytes without a live device."""
+    """Verify the envelope and consumers, returning v2 for its separate verifier.
+
+    The distribution caller must run the existing canonical runtime verifier on
+    the returned ZIP; a valid v3 envelope cannot replace that gate.
+    """
 
     try:
         audit = extract_zip(

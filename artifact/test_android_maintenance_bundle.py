@@ -12,6 +12,7 @@ import copy
 import hashlib
 import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -19,6 +20,7 @@ from unittest import mock
 import android_agp_consumer as agp
 import android_agp_test_fixture as fixture
 import android_maintenance_bundle as bundle
+import platform_distribution as distribution
 from deterministic_archive import create_zip
 
 
@@ -225,6 +227,75 @@ class AndroidMaintenanceBundleTests(unittest.TestCase):
         fixture.write(other, b"different tool\n")
         with self.assertRaises(bundle.AndroidMaintenanceBundleError):
             bundle.android_sdk_for_tools(tools / "apksigner", other)
+
+    def test_complete_envelope_does_not_bypass_the_separate_canonical_runtime_gate(
+        self,
+    ) -> None:
+        archive = self._archive("canonical-delegation")
+        files = {
+            distribution.ANDROID_AAR: self.pair.aar,
+            distribution.ANDROID_MANIFEST: self.pair.aar_manifest,
+            distribution.ANDROID_RUNTIME_BUNDLE: archive,
+        }
+        snapshots = {
+            name: distribution._snapshot(path, "fixture asset")
+            for name, path in files.items()
+        }
+        source = distribution.SourceIdentity(
+            commit=self.manifest["git_commit"],
+            tree=subprocess.check_output(
+                ["git", "-C", str(self.pair.root), "rev-parse", "HEAD^{tree}"],
+                text=True,
+            ).strip(),
+            canonical_source_tree_sha256=self.manifest["source_tree_sha256"],
+            source_date_epoch=self.manifest["source_date_epoch"],
+        )
+        tools = self.pair.sdk / "build-tools/36.0.0"
+        verification_tools = distribution.AndroidVerificationTools(
+            llvm_nm=self.work / "llvm-nm",
+            llvm_readelf=self.work / "llvm-readelf",
+            apksigner=tools / "apksigner",
+            zipalign=tools / "zipalign",
+        )
+        scratch = self.work / "platform-scratch"
+        scratch.mkdir(mode=0o700)
+
+        def reject_canonical(**arguments):
+            self.assertEqual(self.canonical, arguments["bundle"].read_bytes())
+            self.assertEqual(
+                hashlib.sha256(self.canonical).hexdigest(),
+                arguments["expected_bundle_sha256"],
+            )
+            self.assertIs(True, arguments["require_release_mode"])
+            raise SystemExit("selected canonical runtime proof rejected")
+
+        with (
+            mock.patch.object(
+                agp, "run_sdk_tool", side_effect=fixture.sdk_runner
+            ) as sdk,
+            mock.patch.object(
+                distribution, "verify_runtime_bundle", side_effect=reject_canonical
+            ) as canonical,
+        ):
+            with self.assertRaisesRegex(
+                distribution.PlatformDistributionError,
+                "canonical runtime proof rejected",
+            ):
+                distribution._android_assets(
+                    files,
+                    snapshots,
+                    repository=self.pair.root,
+                    source=source,
+                    abi=distribution._abi_identity(self.pair.root),
+                    scratch=scratch,
+                    tools=verification_tools,
+                    require_fresh_proof=False,
+                    profile=distribution.PlatformReleaseProfile.MAINTENANCE_R2,
+                )
+        canonical.assert_called_once()
+        self.assertEqual(
+            2, sum(call.args[0].name == "apksigner" for call in sdk.call_args_list)
+        )
 
 
 if __name__ == "__main__":
