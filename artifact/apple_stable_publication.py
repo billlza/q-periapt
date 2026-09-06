@@ -1203,6 +1203,89 @@ def _remote_runtime_from_verifier_snapshot(
     return runtime_root, safe_run_directory_name
 
 
+def _declared_remote_gate_log_name(requested: str) -> str:
+    """Select one declared operation; caller text never becomes a file name."""
+
+    _require(isinstance(requested, str), "remote consumer gate log name is not declared")
+    for declared in REMOTE_CONSUMER_GATE_LOG_NAMES:
+        if requested == declared:
+            return declared
+    _fail("remote consumer gate log name is not declared")
+
+
+def _remote_consumer_gate_command(
+    run_directory: pathlib.Path,
+    log_name: str,
+    arguments: Sequence[str],
+) -> tuple[str, ...]:
+    """Admit only the selected operation over its exact frozen-run layout.
+
+    The shell producer still supplies its argv for an explicit contract check.
+    Executables, options and scripts come from this module. Release source and
+    digest arguments remain data; verify-release-assets checks them against the
+    frozen results and actual downloaded bytes before any consumer can run.
+    """
+
+    _require(
+        isinstance(arguments, Sequence)
+        and not isinstance(arguments, (str, bytes))
+        and 1 <= len(arguments) <= 12
+        and all(isinstance(argument, str) and argument for argument in arguments),
+        "remote consumer gate command is malformed",
+    )
+    verifier = run_directory / "verifier-inputs"
+    target = verifier / "target"
+    assets = run_directory / "release-assets"
+    archive = assets / "CQPeriapt.xcframework.zip"
+    extracted = target / "extracted"
+    framework = extracted / "CQPeriapt.xcframework"
+    consumer = target / "consumer"
+    if log_name in {
+        "release-assets-pre-url.log",
+        "release-assets-post-extract.log",
+        "release-assets-post-consumer.log",
+    }:
+        _require(len(arguments) == 12, "release-assets gate argument count differs")
+        _require(
+            HEX_40.fullmatch(arguments[6]) is not None
+            and all(HEX_64.fullmatch(value) is not None for value in arguments[7:]),
+            "release-assets gate source or digest is malformed",
+        )
+        command = (
+            "/bin/sh",
+            os.fspath(verifier / "artifact/python-run.sh"),
+            os.fspath(verifier / "artifact/apple_stable_publication.py"),
+            "verify-release-assets",
+            os.fspath(verifier / "artifact/results.json"),
+            os.fspath(assets),
+            *arguments[6:],
+        )
+    elif log_name == "swiftpm-checksum.log":
+        command = (
+            "/bin/sh", "-c",
+            '\numask 077\nset -C\n/usr/bin/swift package compute-checksum "$2" >"$1"\n',
+            "swiftpm-checksum",
+            os.fspath(run_directory / "swiftpm-checksum.txt"),
+            os.fspath(archive),
+        )
+    elif log_name == "ditto-extract.log":
+        command = ("/usr/bin/ditto", "-x", "-k", os.fspath(archive), os.fspath(extracted))
+    elif log_name in {"codesign-post-extract.log", "codesign-pre-receipt.log"}:
+        command = ("/usr/bin/codesign", "--verify", "--strict", "--verbose=4", os.fspath(framework))
+    elif log_name == REMOTE_CONSUMER_LOG_NAME:
+        command = ("/usr/bin/swift", "test", "--package-path", os.fspath(consumer))
+    elif log_name == "consumer-check.log":
+        command = (
+            "/usr/bin/env", "QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME=0",
+            "/bin/sh", os.fspath(verifier / "artifact/swift-xcframework-consumer-check.sh"),
+            os.fspath(consumer), os.fspath(target / "apple-consumer-evidence"), os.fspath(framework),
+        )
+    else:
+        _fail("remote consumer gate operation is not declared")
+    _require(tuple(arguments) == command, "remote consumer gate command differs from its declared operation")
+    return command
+
+
 def capture_remote_consumer_gate_log(
     *,
     runtime_repository_root: pathlib.Path,
@@ -1234,10 +1317,7 @@ def capture_remote_consumer_gate_log(
         is not None,
         "remote consumer gate run directory name is malformed",
     )
-    _require(
-        isinstance(log_name, str) and log_name in REMOTE_CONSUMER_GATE_LOG_NAMES,
-        "remote consumer gate log name is not declared",
-    )
+    log_name = _declared_remote_gate_log_name(log_name)
     _require(
         type(timeout_seconds) is int
         and 1 <= timeout_seconds <= MAX_REMOTE_GATE_TIMEOUT_SECONDS,
@@ -1247,19 +1327,15 @@ def capture_remote_consumer_gate_log(
         type(maximum_bytes) is int and 1 <= maximum_bytes <= MAX_REMOTE_LOG_BYTES,
         "remote consumer gate log bound is out of range",
     )
-    _require(
-        isinstance(argv, Sequence)
-        and not isinstance(argv, (str, bytes))
-        and bool(argv)
-        and all(isinstance(argument, str) and argument for argument in argv),
-        "remote consumer gate command is malformed",
-    )
     runs_root = (
         runtime_root / "target" / "qperiapt-swift-remote-consumer-runs"
     )
     normalized_runs_root = normalize_safe_root(
         runs_root,
         label="remote consumer gate runs root",
+    )
+    command = _remote_consumer_gate_command(
+        normalized_runs_root / run_directory_name, log_name, argv,
     )
     try:
         with open_private_direct_child_handle(
@@ -1275,7 +1351,7 @@ def capture_remote_consumer_gate_log(
             )
             try:
                 result = capture_stdout(
-                    argv,
+                    command,
                     timeout_seconds=timeout_seconds,
                     maximum_bytes=maximum_bytes,
                     stderr=subprocess.STDOUT,
