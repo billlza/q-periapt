@@ -334,6 +334,7 @@ fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult
 
     crate::witness::test_support::desynchronize_operation_count(&database)
         .map_err(|_| io::Error::other("failed to stage the damaged store"))?;
+    let before = fs::read(&database)?;
 
     assert!(
         ReferenceWitnessServer::open(
@@ -346,7 +347,95 @@ fn witness_store_rejects_a_semantically_damaged_database_at_open() -> TestResult
         .is_err(),
         "a store whose operation count disagrees with its rows must be refused"
     );
+    assert_eq!(
+        fs::read(&database)?,
+        before,
+        "rejecting a semantically invalid witness store must preserve its bytes"
+    );
+    assert_eq!(fs::read_dir(directory.path())?.count(), 1);
     let _ = witness_vk;
+    Ok(())
+}
+
+#[test]
+fn witness_store_refuses_a_clean_foreign_database_without_touching_it() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let path = directory.join("foreign.redb");
+    let file = open_private_file(&path, true)
+        .map_err(|_| io::Error::other("failed to create the private foreign fixture"))?;
+    let database = redb::Database::builder().create_file(file)?;
+    let mut transaction = database.begin_write()?;
+    transaction.set_durability(redb::Durability::Immediate);
+    transaction.set_two_phase_commit(true);
+    {
+        let table: redb::TableDefinition<&str, &[u8]> =
+            redb::TableDefinition::new("foreign_records");
+        transaction
+            .open_table(table)?
+            .insert("retained", b"foreign application data".as_slice())?;
+    }
+    transaction.commit()?;
+    drop(database);
+    let before = fs::read(&path)?;
+    assert_eq!(
+        crate::witness::test_support::open_head(&path),
+        Err(WitnessError::Persistence)
+    );
+    assert_eq!(
+        fs::read(&path)?,
+        before,
+        "foreign-store refusal changed its bytes"
+    );
+    assert_eq!(fs::read_dir(directory.path())?.count(), 1);
+    Ok(())
+}
+
+#[test]
+fn witness_admission_preserves_valid_head_and_continuous_lock_ownership() -> TestResult {
+    let directory = TestDirectory::new()?;
+    let path = directory.join("witness.redb");
+    let (_, client_vk) = MlDsa65::generate([45u8; 32]);
+    let (witness_sk, witness_vk) = MlDsa65::generate([46u8; 32]);
+    let initial = StateHead::new(
+        StateRevision::new(1, 1, [6u8; 32])?,
+        FenceToken::generate()?,
+    );
+    drop(ReferenceWitnessServer::provision(
+        &path,
+        initial,
+        client_vk,
+        ZeroizingBytes::from_bytes(witness_sk),
+        witness_vk,
+        Duration::from_secs(2),
+    )?);
+    let before = fs::read(&path)?;
+    let file =
+        open_private_file(&path, false).map_err(|_| io::Error::other("lock source open failed"))?;
+    let locked = redb::backends::FileBackend::new(file)?;
+    assert_eq!(
+        crate::witness::test_support::open_head(&path),
+        Err(WitnessError::Persistence)
+    );
+    assert_eq!(
+        fs::read(&path)?,
+        before,
+        "lock rejection must not modify the original"
+    );
+    assert_eq!(fs::read_dir(directory.path())?.count(), 1);
+    drop(locked);
+    crate::witness::test_support::with_open_head(&path, |head| -> TestResult {
+        assert_eq!(head, initial);
+        let competitor = open_private_file(&path, false)
+            .map_err(|_| io::Error::other("competing source open failed"))?;
+        assert!(matches!(
+            redb::backends::FileBackend::new(competitor),
+            Err(redb::DatabaseError::DatabaseAlreadyOpen)
+        ));
+        assert_eq!(fs::read_dir(directory.path())?.count(), 1);
+        Ok(())
+    })??;
+    assert_eq!(crate::witness::test_support::open_head(&path)?, initial);
+    assert_eq!(fs::read_dir(directory.path())?.count(), 1);
     Ok(())
 }
 
