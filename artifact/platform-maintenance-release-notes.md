@@ -83,6 +83,15 @@ uses the explicit r2 envelope schema 3: it contains the unchanged complete schem
 canonical runtime ZIP and closed `agp_full_release` and `agp_minimal_release`
 evidence directories. The r1 bundle schema and interpreter remain unchanged.
 
+Under the held account lane, normal, failed and recovered owned emulator runs
+restore the fixed empty `data/misc/pstore` directory to `0700`, when present,
+after all owned SDK processes have exited and their private resources have been
+retired. The original strict AVD validation must then pass before checkpoint or
+receipt retirement; unexpected contents or metadata retain the pending receipt.
+An old residue whose receipt was already retired requires one explicit idle
+maintenance operation. Neither receipt fabrication nor writes from read-only
+verification are part of this recovery path.
+
 Both AGP consumers build and execute the exact corrected AAR without application
 keep-rule repairs. Their proof, build receipt, APK/DEX and complete public build,
 runtime and cleanup verification inputs are included. Public diagnostic files
@@ -97,6 +106,18 @@ and compiler selection to the real Gradle Launcher/Daemon JVM output, requires
 compiler forking to be disabled and requires successful JavaCompile/R8 execution.
 It does not retain an empty compatibility field or relabel Gradle output as
 `java -version`. No r1 schema or historical proof is migrated.
+The release build uses AGP's public `vcsInfo.include = false` setting. The
+collector retains the complete original `agp-unsigned.apk`, then removes only
+AGP 9.4.0's fixed `META-INF/com/android/build/gradle/app-metadata.properties`
+entry before the existing alignment and signing steps. This metadata is not an
+application resource and is not covered by the required API-23 v1 signature.
+The build receipt records this explicit signing-input policy and removed bytes;
+the exported closure contains both original and prepared APKs. Verification
+requires every other entry name and content to remain equal, including directory
+entries, and permits only the fixed v1 signature files to be added during signing.
+It does not claim that ZIP compression or layout bytes remain identical.
+Unexpected metadata, existing signatures, and changed payloads fail closed.
+The API-23 signature requirement and strict diagnostic checks remain in force.
 The consumer-owned verifier checks the exported closure again after download;
 a projection alone cannot establish this
 gate. The two runs must have distinct run IDs, the same source tree and the same

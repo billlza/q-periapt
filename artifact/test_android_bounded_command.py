@@ -182,6 +182,14 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ini.chmod(0o600)
         return directory
 
+    def create_sdk_pstore_fixture(self) -> pathlib.Path:
+        parent = state.avd_home_directory() / "QPeriapt_Release_16K_API_35_V1.avd"
+        for leaf in ("data", "misc", "pstore"):
+            parent = parent / leaf
+            parent.mkdir(mode=0o700, exist_ok=True)
+        parent.chmod(0o777)
+        return parent
+
     def remove_capability_files(self) -> None:
         self.state.unlink(missing_ok=True)
         for snapshot in self.work.glob(f"{state.ADB_SNAPSHOT_PREFIX}*"):
@@ -190,6 +198,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
     def create_active_emulator_runtime_receipt(
         self, **overrides: object
     ) -> state.OwnedRuntimeReceipt:
+        # Registration happens only after the fixed AVD has passed admission.
+        if not state.avd_home_directory().exists():
+            self.create_avd_fixture()
         self.create_capability(
             device_kind="emulator",
             expected_serial="emulator-5584",
@@ -5049,6 +5060,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         receipt = self.create_active_emulator_runtime_receipt(
             boot_identity="prior-boot"
         )
+        pstore = self.create_sdk_pstore_fixture()
         receipt.launcher_path.unlink()  # type: ignore[union-attr]
         receipt.backend_path.unlink()  # type: ignore[union-attr]
         with (
@@ -5066,6 +5078,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertFalse(self.state.exists())
         self.assertFalse(self.snapshot.exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
     def test_old_boot_missing_origin_checkout_retires_account_receipt_offline(
         self,
@@ -5075,6 +5088,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             boot_identity="prior-boot",
             repository_root=str(missing_checkout),
         )
+        pstore = self.create_sdk_pstore_fixture()
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(commands, "_same_receipt_process") as emulator_process,
@@ -5092,6 +5106,34 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertTrue(self.state.exists())
         self.assertTrue(self.snapshot.exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+
+    def test_old_boot_recovery_retains_receipt_when_pstore_contains_data(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt(
+            boot_identity="prior-boot"
+        )
+        pstore = self.create_sdk_pstore_fixture()
+        marker = pstore / ".retained-crash-data"
+        marker.write_bytes(b"preserve crash data")
+        marker.chmod(0o600)
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "_same_receipt_process") as process,
+            mock.patch.object(commands, "run") as bounded_run,
+            mock.patch.object(
+                state, "record_post_cleanup_adb_isolation_checkpoint"
+            ) as checkpoint,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "not empty"),
+        ):
+            commands.recover_owned_runtime()
+        process.assert_not_called()
+        bounded_run.assert_not_called()
+        checkpoint.assert_not_called()
+        self.assertEqual(state.load_owned_runtime_receipt(), receipt)
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+        self.assertEqual(marker.read_bytes(), b"preserve crash data")
+        self.assertFalse(self.state.exists())
+        self.assertFalse(self.snapshot.exists())
 
     def test_recovery_uses_receipt_repository_after_checkout_changes(self) -> None:
         state._write_owned_runtime_receipt(
@@ -5115,6 +5157,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_recovery_retires_only_dead_or_pid_reused_receipts(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt(pid=424242)
+        pstore = self.create_sdk_pstore_fixture()
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
@@ -5133,8 +5176,10 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(commands.recover_owned_runtime(), "stale-retired")
         finish.assert_called_once_with(self.layout, mock.ANY, receipt)
         self.assertFalse(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
         receipt = self.create_active_emulator_runtime_receipt(pid=424242)
+        pstore.chmod(0o777)
         reused = commands.ProcessIdentity(
             pid=424242,
             uid=os.geteuid(),
@@ -5155,9 +5200,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(commands.recover_owned_runtime(), "stale-retired")
         finish.assert_called_once_with(self.layout, mock.ANY, receipt)
         self.assertFalse(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
     def test_dead_current_boot_emulator_skips_removed_sdk_backend(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt(pid=424242)
+        pstore = self.create_sdk_pstore_fixture()
         receipt.launcher_path.unlink()  # type: ignore[union-attr]
         receipt.backend_path.unlink()  # type: ignore[union-attr]
         with (
@@ -5175,6 +5222,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertFalse(self.state.exists())
         self.assertFalse(self.snapshot.exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
     def test_missing_current_boot_origin_retires_only_when_both_processes_absent(
         self,
@@ -5184,6 +5232,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             pid=424242,
             repository_root=str(missing_checkout),
         )
+        pstore = self.create_sdk_pstore_fixture()
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(commands, "_same_receipt_process", return_value=None),
@@ -5197,11 +5246,13 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertTrue(self.state.exists())
         self.assertTrue(self.snapshot.exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
         receipt = self.create_active_emulator_runtime_receipt(
             pid=424242,
             repository_root=str(missing_checkout),
         )
+        pstore.chmod(0o777)
         observed = commands.ProcessIdentity(
             pid=receipt.pid,
             uid=receipt.uid,
@@ -5224,9 +5275,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.recover_owned_runtime()
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
 
     def test_recovery_preserves_receipt_when_live_identity_is_unreadable(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt(pid=424242)
+        pstore = self.create_sdk_pstore_fixture()
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
@@ -5252,9 +5305,47 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.recover_owned_runtime()
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+
+    def test_normal_retirement_restores_empty_sdk_pstore_before_completion(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
+        before = pstore.stat()
+        state.retire_recovery_capability(self.layout, receipt)
+        self.private_adb_directory.rmdir()
+
+        def checkpoint_after_restoration(exact: state.OwnedRuntimeReceipt) -> None:
+            self.assertEqual(exact, receipt)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+            self.assertTrue(state.owned_runtime_receipt_path().exists())
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "_same_receipt_process", return_value=None),
+            mock.patch.object(
+                commands, "_same_receipt_adb_server_process", return_value=None
+            ),
+            mock.patch.object(
+                state,
+                "record_post_cleanup_adb_isolation_checkpoint",
+                side_effect=checkpoint_after_restoration,
+            ) as checkpoint,
+        ):
+            commands.retire_stopped_owned_runtime(receipt.run_id)
+        checkpoint.assert_called_once_with(receipt)
+        after = pstore.stat()
+        self.assertEqual(stat.S_IMODE(after.st_mode), 0o700)
+        self.assertEqual((after.st_dev, after.st_ino), (before.st_dev, before.st_ino))
+        self.assertEqual(list(pstore.iterdir()), [])
+        state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+        self.assertFalse(state.owned_runtime_receipt_path().exists())
 
     def test_normal_retirement_requires_matching_run_and_stopped_process(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
         observed = commands.ProcessIdentity(
             pid=receipt.pid,
             uid=receipt.uid,
@@ -5277,6 +5368,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.retire_stopped_owned_runtime(receipt.run_id)
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(commands, "_same_receipt_process", return_value=None),
@@ -5287,6 +5379,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.retire_stopped_owned_runtime("f" * 32)
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(commands, "_same_receipt_process", return_value=None),
@@ -5297,6 +5390,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.retire_stopped_owned_runtime(receipt.run_id)
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
         state.retire_recovery_capability(self.layout, receipt)
         self.private_adb_directory.rmdir()
 
@@ -5318,17 +5412,20 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             commands.retire_stopped_owned_runtime(receipt.run_id)
         checkpoint.assert_called_once_with(receipt)
         self.assertFalse(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
     def test_failed_retirement_requires_primary_failure_and_omits_checkpoints(
         self,
     ) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
         with self.assertRaisesRegex(
             commands.AndroidCommandError,
             "nonzero primary exit status",
         ):
             commands.retire_failed_stopped_owned_runtime(receipt.run_id, 0)
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
         observed = commands.ProcessIdentity(
             pid=receipt.pid,
             uid=receipt.uid,
@@ -5350,6 +5447,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.retire_failed_stopped_owned_runtime(receipt.run_id, 1)
         self.assertTrue(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
 
         state.retire_recovery_capability(self.layout, receipt)
         self.private_adb_directory.rmdir()
@@ -5372,6 +5470,39 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.proof.joinpath("adb-isolation-runtime-post-cleanup.json").exists()
         )
         self.assertFalse(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+
+    def test_retirement_refuses_nonempty_pstore_and_retains_recovery_receipt(
+        self,
+    ) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
+        marker = pstore / ".retained-crash-data"
+        marker.write_bytes(b"preserve crash data")
+        marker.chmod(0o600)
+        state.retire_recovery_capability(self.layout, receipt)
+        self.private_adb_directory.rmdir()
+        for completed in (True, False):
+            with (
+                self.subTest(completed=completed),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(commands, "_same_receipt_process", return_value=None),
+                mock.patch.object(
+                    commands, "_same_receipt_adb_server_process", return_value=None
+                ),
+                mock.patch.object(
+                    state, "record_post_cleanup_adb_isolation_checkpoint"
+                ) as checkpoint,
+                self.assertRaisesRegex(state.AndroidRuntimeStateError, "not empty"),
+            ):
+                if completed:
+                    commands.retire_stopped_owned_runtime(receipt.run_id)
+                else:
+                    commands.retire_failed_stopped_owned_runtime(receipt.run_id, 1)
+            checkpoint.assert_not_called()
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+            self.assertEqual(marker.read_bytes(), b"preserve crash data")
+            self.assertEqual(state.load_owned_runtime_receipt(), receipt)
 
     def test_failed_retirement_cli_emits_only_the_failed_marker(self) -> None:
         output = io.StringIO()
@@ -6035,6 +6166,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_complete_recovery_uses_only_verified_protocol_shutdown(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
         capability = self.load_capability()
         observed = commands.ProcessIdentity(
             pid=receipt.pid,
@@ -6044,6 +6176,15 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             executable=receipt.backend_path,
         )
         order: list[str] = []
+        restore = state.restore_owned_avd_pstore_permissions
+
+        def restore_after_shutdown(exact: state.OwnedRuntimeReceipt) -> None:
+            self.assertEqual(order[-2:], ["exit", "resources"])
+            self.assertTrue(state.owned_runtime_receipt_path().exists())
+            restore(exact)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+            order.append("scratch")
+
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
@@ -6093,6 +6234,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     "resources"
                 ),
             ),
+            mock.patch.object(
+                state,
+                "restore_owned_avd_pstore_permissions",
+                side_effect=restore_after_shutdown,
+            ) as scratch,
             mock.patch.object(commands.os, "kill") as pid_signal,
         ):
             self.assertEqual(commands.recover_owned_runtime(), "recovered")
@@ -6105,8 +6251,10 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 "console-kill",
                 "exit",
                 "resources",
+                "scratch",
             ],
         )
+        scratch.assert_called_once_with(receipt)
         pid_signal.assert_not_called()
         self.assertFalse(state.owned_runtime_receipt_path().exists())
 

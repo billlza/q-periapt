@@ -103,14 +103,20 @@ class AgpExportTests(unittest.TestCase):
                         )
                         entries = consumer._apk_entries(selected_apk)
                         if mutation == "unsigned":
-                            del entries["META-INF/SIGNATURE.FIXTURE"]
+                            del entries["META-INF/QPERIAPT.RSA"]
                         else:
-                            entries["META-INF/ALIGNMENT.FIXTURE"] = b"4096"
+                            entries["alignment.fixture"] = b"4096"
                         payload = zip_bytes(entries)
                         selected_apk.write_bytes(payload)
-                        unsigned = changed / "build" / consumer.BUILD_FILE_NAMES["apk"]
-                        unsigned.write_bytes(payload)
-                        build["files"]["apk"] = fixture.record(unsigned)
+                        if mutation == "unaligned":
+                            for key in ("apk", "agp_apk"):
+                                unsigned = (
+                                    changed / "build" / consumer.BUILD_FILE_NAMES[key]
+                                )
+                                unsigned_entries = consumer._apk_entries(unsigned)
+                                unsigned_entries["alignment.fixture"] = b"4096"
+                                unsigned.write_bytes(zip_bytes(unsigned_entries))
+                                build["files"][key] = fixture.record(unsigned)
                         proof["artifacts"]["smoke_apk_sha256"] = hashlib.sha256(
                             payload
                         ).hexdigest()
@@ -156,6 +162,62 @@ class AgpExportTests(unittest.TestCase):
                     "closure is missing files or contains extras",
                 ):
                     self.verify(profile, changed)
+
+    def test_export_rechecks_original_prepared_and_signed_payloads_after_rehash(self):
+        for profile in self.pair.profiles:
+            for mutation, expected_failure in (
+                ("original-metadata", "differs from the pinned producer"),
+                ("prepared-payload", "beyond the fixed app metadata removal"),
+                ("signed-payload", "beyond signature entries"),
+                ("delta-receipt", "receipt differs from the complete APK delta"),
+                ("delta-float", "byte count must be an exact integer"),
+            ):
+                with self.subTest(profile=profile, mutation=mutation):
+                    changed = self.directory / (profile + "-" + mutation)
+                    shutil.copytree(self.exports[profile], changed)
+                    proof_path = changed / "proof.json"
+                    proof = json.loads(proof_path.read_bytes())
+                    build_path = changed / "build/receipt.json"
+                    build = json.loads(build_path.read_bytes())
+                    if mutation == "delta-float":
+                        build["signing_input"]["removed"][consumer.APP_METADATA_ENTRY][
+                            "bytes"
+                        ] = 56.0
+                    elif mutation == "delta-receipt":
+                        build["signing_input"]["removed"][consumer.APP_METADATA_ENTRY][
+                            "sha256"
+                        ] = ("a" * 64)
+                    elif mutation == "signed-payload":
+                        apk = (
+                            changed
+                            / "runtime"
+                            / runtime.bundle_file_paths(proof)["smoke_apk"]
+                        )
+                        entries = consumer._apk_entries(apk)
+                        entries["unexpected-resource.bin"] = b"unrecorded payload"
+                        apk.write_bytes(zip_bytes(entries))
+                        proof["artifacts"]["smoke_apk_sha256"] = fixture.digest(apk)
+                    else:
+                        key = "agp_apk" if mutation == "original-metadata" else "apk"
+                        apk = changed / "build" / consumer.BUILD_FILE_NAMES[key]
+                        entries = consumer._apk_entries(apk)
+                        if mutation == "original-metadata":
+                            entries[consumer.APP_METADATA_ENTRY] = (
+                                b"unexpected producer"
+                            )
+                        else:
+                            entries["unexpected-resource.bin"] = b"unrecorded payload"
+                        apk.write_bytes(zip_bytes(entries))
+                        build["files"][key] = fixture.record(apk)
+                    build_path.write_bytes(fixture.json_bytes(build))
+                    proof["consumer"]["build_receipt"] = fixture.record(
+                        build_path, proof["consumer"]["build_receipt"]["path"]
+                    )
+                    proof_path.write_bytes(fixture.json_bytes(proof))
+                    with self.assertRaisesRegex(
+                        consumer.AndroidAgpConsumerError, expected_failure
+                    ):
+                        self.verify(profile, changed)
 
 
 if __name__ == "__main__":

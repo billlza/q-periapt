@@ -57,9 +57,11 @@ BUILD_FIELDS = frozenset(
         "compiled_application_sources",
         "tools",
         "diagnostics",
+        "signing_input",
     }
 )
 BUILD_FILE_NAMES = {
+    "agp_apk": "agp-unsigned.apk",
     "apk": "consumer-unsigned.apk",
     "dexdump": "dexdump.txt",
     "manifest_dump": "manifest-dump.txt",
@@ -79,6 +81,13 @@ RECORD_FIELDS = frozenset({"path", "sha256", "bytes"})
 MAX_JSON = 16 * 1024 * 1024
 MAX_TEXT = 16 * 1024 * 1024
 MAX_APK = 256 * 1024 * 1024
+APP_METADATA_ENTRY = "META-INF/com/android/build/gradle/app-metadata.properties"
+APP_METADATA_CONTENT = b"appMetadataVersion=1.1\nandroidGradlePluginVersion=9.4.0\n"
+VCS_METADATA_ENTRY = "META-INF/version-control-info.textproto"
+SIGNING_INPUT_POLICY = "agp-9.4-v1-signing-input-v1"
+V1_SIGNATURE_ENTRIES = frozenset(
+    {"META-INF/QPERIAPT.SF", "META-INF/QPERIAPT.RSA", "META-INF/MANIFEST.MF"}
+)
 
 
 DEX_NAME = re.compile(r"classes(?:[2-9]|[1-9][0-9]+)?\.dex")
@@ -600,24 +609,67 @@ def verify_release_manifest_dump(text: str) -> None:
 
 def _apk_entries(path: pathlib.Path) -> dict[str, bytes]:
     """Reuse the runtime APK admission rules on the exact bounded input snapshot."""
+    return _apk_snapshot_entries(_bytes(path, MAX_APK))
+
+
+def _apk_snapshot_entries(data: bytes) -> dict[str, bytes]:
+    """Retain directory entries too, so payload comparisons cover every name."""
     import io
 
-    data = _bytes(path, MAX_APK)
+    require(len(data) <= MAX_APK, "AGP APK snapshot exceeds its size limit")
     try:
         with tempfile.TemporaryDirectory(prefix="qperiapt-agp-apk-audit-") as temporary:
             selected = pathlib.Path(temporary) / "consumer.apk"
             selected.write_bytes(data)
             runtime.scan_apk_contents(selected, forbidden_text=[])
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            return {
-                info.filename: archive.read(info)
-                for info in archive.infolist()
-                if not info.is_dir()
-            }
+            return {info.filename: archive.read(info) for info in archive.infolist()}
     except (SystemExit, OSError, zipfile.BadZipFile, RuntimeError) as error:
         if isinstance(error, AndroidAgpConsumerError):
             raise
         raise AndroidAgpConsumerError(f"invalid APK archive: {error}") from error
+
+
+def signing_input_entries(original: dict[str, bytes]) -> dict[str, bytes]:
+    """Select the fixed AGP payload before the existing alignment/signing steps."""
+    require(
+        VCS_METADATA_ENTRY not in original,
+        "AGP release must disable VCS metadata through vcsInfo.include",
+    )
+    require(
+        original.get(APP_METADATA_ENTRY) == APP_METADATA_CONTENT,
+        "AGP app metadata is missing or differs from the pinned producer",
+    )
+    require(
+        {
+            name
+            for name in original
+            if name.startswith("META-INF/") and not name.endswith("/")
+        }
+        == {APP_METADATA_ENTRY},
+        "AGP unsigned APK contains unexpected metadata or signature entries",
+    )
+    return {name: data for name, data in original.items() if name != APP_METADATA_ENTRY}
+
+
+def verify_signing_input(
+    original_apk: pathlib.Path, prepared_apk: pathlib.Path
+) -> dict[str, object]:
+    """Recheck the complete entry/content delta; ZIP layout is not an identity claim."""
+    expected = signing_input_entries(_apk_entries(original_apk))
+    require(
+        _apk_entries(prepared_apk) == expected,
+        "AGP signing input changed entries beyond the fixed app metadata removal",
+    )
+    return {
+        "policy": SIGNING_INPUT_POLICY,
+        "removed": {
+            APP_METADATA_ENTRY: {
+                "bytes": len(APP_METADATA_CONTENT),
+                "sha256": hashlib.sha256(APP_METADATA_CONTENT).hexdigest(),
+            }
+        },
+    }
 
 
 @dataclasses.dataclass(frozen=True)
@@ -823,7 +875,10 @@ def _verify_build(
             "AGP build evidence filename differs",
         )
         _check_record(
-            paths[key], files[key], key, MAX_APK if key == "apk" else MAX_TEXT
+            paths[key],
+            files[key],
+            key,
+            MAX_APK if key in {"apk", "agp_apk"} else MAX_TEXT,
         )
     dump = _bytes(paths["dexdump"]).decode("utf-8")
     verify_agp_dex_dump(dump)
@@ -900,8 +955,31 @@ def _verify_build(
     )
     for name, digest in receipt["tools"].items():
         _hash(digest, name)
+    signing_input = _object(
+        receipt["signing_input"], {"policy", "removed"}, "AGP signing input"
+    )
+    removed = _object(
+        signing_input["removed"], {APP_METADATA_ENTRY}, "AGP removed metadata"
+    )
+    metadata = _object(
+        removed[APP_METADATA_ENTRY], {"bytes", "sha256"}, "AGP removed metadata record"
+    )
+    require(
+        type(metadata["bytes"]) is int,
+        "AGP removed metadata byte count must be an exact integer",
+    )
+    _hash(metadata["sha256"], "removed AGP metadata")
+    require(
+        signing_input == verify_signing_input(paths["agp_apk"], paths["apk"]),
+        "AGP signing input receipt differs from the complete APK delta",
+    )
     unsigned = _apk_entries(paths["apk"])
     signed = _apk_entries(signed_apk)
+    require(
+        set(signed) - set(unsigned) <= V1_SIGNATURE_ENTRIES
+        and all(signed.get(name) == data for name, data in unsigned.items()),
+        "signed APK changed the prepared AGP payload beyond signature entries",
+    )
     dex = {
         name: hashlib.sha256(data).hexdigest()
         for name, data in unsigned.items()
@@ -910,15 +988,6 @@ def _verify_build(
     require(
         dex and receipt["dex_sha256"] == dex, "AGP DEX payload hash inventory mismatch"
     )
-    require(
-        {name for name in signed if DEX_NAME.fullmatch(name)} == set(dex),
-        "signed APK has different DEX entries",
-    )
-    for name in set(dex) | {"AndroidManifest.xml"}:
-        require(
-            signed.get(name) == unsigned[name],
-            "signed APK changed the audited AGP program/manifest",
-        )
     aar_entries, _ = android_elf.audit_aar(aar)
     require(
         _digest(paths["default_proguard"]) == DEFAULT_PROGUARD_SHA256,
@@ -958,7 +1027,11 @@ def _verify_build(
         if name.startswith("jni/")
     }
     require(
-        {name: data for name, data in signed.items() if name.startswith("lib/")}
+        {
+            name: data
+            for name, data in signed.items()
+            if name.startswith("lib/") and not name.endswith("/")
+        }
         == expected_native,
         "AGP APK native payload differs from the exact AAR",
     )
@@ -970,7 +1043,9 @@ def _verify_build(
         )
     else:
         require(
-            not any(name.startswith("assets/") for name in signed),
+            not any(
+                name.startswith("assets/") and not name.endswith("/") for name in signed
+            ),
             "full fixtures entered the minimal APK",
         )
 

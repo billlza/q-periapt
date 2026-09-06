@@ -2520,6 +2520,17 @@ def _finish_missing_origin_current_boot(
     finalize_owned_adb_stop(capability, receipt)
 
 
+def _retire_quiescent_owned_runtime(
+    receipt: runtime_state.OwnedRuntimeReceipt, *, completed: bool = False
+) -> None:
+    """Finish fixed AVD scratch only after the caller proved owned shutdown."""
+
+    runtime_state.restore_owned_avd_pstore_permissions(receipt)
+    if completed and receipt.device_kind == "emulator":
+        runtime_state.record_post_cleanup_adb_isolation_checkpoint(receipt)
+    runtime_state.retire_owned_runtime_receipt(receipt)
+
+
 def recover_owned_runtime() -> Literal["none", "stale-retired", "recovered"]:
     """Recover one prior SIGKILL orphan under the caller's stable lane lock."""
     runtime_state.validate_lane_lock_descriptor()
@@ -2543,29 +2554,29 @@ def recover_owned_runtime() -> Literal["none", "stale-retired", "recovered"]:
     )
     if receipt.boot_identity != current_host_boot.boot:
         _finish_previous_boot_resources(receipt)
-        runtime_state.retire_owned_runtime_receipt(receipt)
+        _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     if _current_boot_origin_is_missing(receipt):
         _finish_missing_origin_current_boot(receipt)
-        runtime_state.retire_owned_runtime_receipt(receipt)
+        _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     context = _validate_recovery_receipt(receipt, validate_active_emulator=False)
     layout = context.layout
     capability = context.capability
     if not receipt.emulator_started:
         _finish_recovery_resources(layout, capability, receipt)
-        runtime_state.retire_owned_runtime_receipt(receipt)
+        _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     observed = _same_receipt_process(receipt)
     if observed is None:
         _finish_recovery_resources(layout, capability, receipt)
-        runtime_state.retire_owned_runtime_receipt(receipt)
+        _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     active_context = _validate_recovery_receipt(receipt, validate_active_emulator=True)
     _request_verified_owned_emulator_stop(active_context, receipt)
     _wait_for_recovered_emulator_exit(receipt)
     _finish_recovery_resources(layout, capability, receipt)
-    runtime_state.retire_owned_runtime_receipt(receipt)
+    _retire_quiescent_owned_runtime(receipt)
     return "recovered"
 
 
@@ -2613,9 +2624,7 @@ def retire_stopped_owned_runtime(run_id: str) -> None:
     """Retire a successful normal-run receipt with complete cleanup evidence."""
 
     receipt = _stopped_owned_runtime_receipt(run_id)
-    if receipt.device_kind == "emulator":
-        runtime_state.record_post_cleanup_adb_isolation_checkpoint(receipt)
-    runtime_state.retire_owned_runtime_receipt(receipt)
+    _retire_quiescent_owned_runtime(receipt, completed=True)
 
 
 def retire_failed_stopped_owned_runtime(
@@ -2629,7 +2638,7 @@ def retire_failed_stopped_owned_runtime(
         "failed runtime retirement requires a nonzero primary exit status",
     )
     receipt = _stopped_owned_runtime_receipt(run_id)
-    runtime_state.retire_owned_runtime_receipt(receipt)
+    _retire_quiescent_owned_runtime(receipt)
 
 
 def owned_emulator_backend_identity(run_id: str) -> str:

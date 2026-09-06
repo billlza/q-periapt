@@ -179,6 +179,399 @@ class AndroidRuntimeStateTests(unittest.TestCase):
                 registration=self.emulator_registration(),
             )
 
+    def create_sdk_pstore_fixture(
+        self,
+    ) -> tuple[state.OwnedRuntimeReceipt, pathlib.Path]:
+        _home, directory, _ini = self.create_avd_fixture()
+        parent = directory
+        for leaf in ("data", "misc", "pstore"):
+            parent = parent / leaf
+            parent.mkdir(mode=0o700)
+        parent.chmod(0o777)
+        return self.active_emulator_receipt(), parent
+
+    def test_owned_pstore_restoration_preserves_inode_and_strict_admission(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        before = pstore.stat()
+        receipt_bytes = state.owned_runtime_receipt_path().read_bytes()
+        marker = pstore.parents[2] / "snapshots" / "state.bin"
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "0700"):
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        after = pstore.stat()
+        self.assertEqual(stat.S_IMODE(after.st_mode), 0o700)
+        self.assertEqual(
+            (after.st_dev, after.st_ino, after.st_uid, after.st_gid, after.st_mtime_ns),
+            (
+                before.st_dev,
+                before.st_ino,
+                before.st_uid,
+                before.st_gid,
+                before.st_mtime_ns,
+            ),
+        )
+        self.assertEqual(list(pstore.iterdir()), [])
+        self.assertEqual(marker.read_bytes(), b"state fixture")
+        self.assertEqual(state.owned_runtime_receipt_path().read_bytes(), receipt_bytes)
+        state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+    def test_owned_pstore_private_mode_is_idempotent_and_missing_is_not_created(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        pstore.chmod(0o700)
+        before = pstore.stat()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fchmod", wraps=os.fchmod) as chmod,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+            state.restore_owned_avd_pstore_permissions(receipt)
+            self.assertEqual(pstore.stat().st_ctime_ns, before.st_ctime_ns)
+            for missing in (pstore, pstore.parent, pstore.parent.parent):
+                with self.subTest(missing=missing.name):
+                    missing.rmdir()
+                    state.restore_owned_avd_pstore_permissions(receipt)
+                    self.assertFalse(os.path.lexists(missing))
+            chmod.assert_not_called()
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_requires_lane_and_current_receipt_before_mutation(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        failure = state.AndroidRuntimeStateError("lane is not held")
+        with (
+            mock.patch.object(
+                state, "validate_lane_lock_descriptor", side_effect=failure
+            ),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaises(state.AndroidRuntimeStateError) as raised,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        self.assertIs(raised.exception, failure)
+        chmod.assert_not_called()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state, "load_owned_runtime_receipt", return_value=None),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "receipt changed"),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        chmod.assert_not_called()
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+
+    def test_unregistered_runtime_does_not_inspect_or_create_avd_scratch(self) -> None:
+        prepared = self.receipt()
+        sealed = self.advance_to_sealed()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state, "_open_account_state") as account,
+            mock.patch.object(state, "validate_runtime_avd_selection") as validate,
+            mock.patch.object(state.os, "fchmod") as chmod,
+        ):
+            state.restore_owned_avd_pstore_permissions(prepared)
+            state.restore_owned_avd_pstore_permissions(sealed)
+        account.assert_not_called()
+        validate.assert_not_called()
+        chmod.assert_not_called()
+        self.assertFalse(os.path.lexists(state.avd_home_directory()))
+
+    def test_owned_pstore_rejects_nonempty_and_unknown_modes_without_changes(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        marker = pstore / ".retained-crash-data"
+        marker.write_bytes(b"preserve this data")
+        marker.chmod(0o600)
+        for mode in (0o777, 0o700):
+            pstore.chmod(mode)
+            with (
+                self.subTest(mode=mode),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(state.os, "fchmod") as chmod,
+                self.assertRaisesRegex(state.AndroidRuntimeStateError, "not empty"),
+            ):
+                state.restore_owned_avd_pstore_permissions(receipt)
+            chmod.assert_not_called()
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), mode)
+            self.assertEqual(marker.read_bytes(), b"preserve this data")
+        marker.unlink()
+        for mode in (0o500, 0o710, 0o1777):
+            pstore.chmod(mode)
+            with (
+                self.subTest(mode=mode),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(state.os, "fchmod") as chmod,
+                self.assertRaisesRegex(state.AndroidRuntimeStateError, "0700 or 0777"),
+            ):
+                state.restore_owned_avd_pstore_permissions(receipt)
+            chmod.assert_not_called()
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), mode)
+        pstore.chmod(0o700)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_rejects_links_special_files_and_unsafe_ancestors(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        pstore.rmdir()
+        outside = self.root / "outside-scratch"
+        outside.mkdir(mode=0o700)
+        for kind in ("symlink", "file", "fifo"):
+            if kind == "symlink":
+                pstore.symlink_to(outside, target_is_directory=True)
+            elif kind == "file":
+                pstore.write_bytes(b"not a directory")
+            else:
+                os.mkfifo(pstore, 0o600)
+            with (
+                self.subTest(kind=kind),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(state.os, "fchmod") as chmod,
+                self.assertRaisesRegex(state.AndroidRuntimeStateError, "directory"),
+            ):
+                state.restore_owned_avd_pstore_permissions(receipt)
+            chmod.assert_not_called()
+            pstore.unlink()
+        pstore.mkdir(mode=0o700)
+        pstore.chmod(0o777)
+        misc = pstore.parent
+        moved = misc.with_name("saved-misc")
+        misc.rename(moved)
+        misc.symlink_to(moved, target_is_directory=True)
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "ancestor"),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        chmod.assert_not_called()
+        self.assertEqual(stat.S_IMODE((moved / "pstore").stat().st_mode), 0o777)
+        self.assertEqual(stat.S_IMODE(outside.stat().st_mode), 0o700)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_rejects_wrong_owner_and_allow_acl(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        actual_stat = os.stat
+
+        def wrong_owner(
+            path: object, *args: object, **kwargs: object
+        ) -> os.stat_result:
+            result = actual_stat(path, *args, **kwargs)
+            if path == "pstore":
+                fields = list(result)
+                fields[4] = os.geteuid() + 1
+                return os.stat_result(fields)
+            return result
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "stat", side_effect=wrong_owner),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError, "current-user-owned"
+            ),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        chmod.assert_not_called()
+        actual_acl_check = state._reject_macos_allow_acl
+
+        def reject_leaf_acl(descriptor: int, label: str) -> None:
+            if label == "AVD pstore":
+                raise state.AndroidRuntimeStateError("fixture allow ACL")
+            actual_acl_check(descriptor, label)
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state, "_reject_macos_allow_acl", side_effect=reject_leaf_acl
+            ),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "allow ACL"),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        chmod.assert_not_called()
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+
+    def test_owned_pstore_open_swap_is_rejected_before_chmod(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        moved = pstore.with_name("saved-pstore")
+        actual_open = os.open
+
+        def swap_before_open(
+            path: object, flags: int, *args: object, **kwargs: object
+        ) -> int:
+            if path == "pstore":
+                self.assertTrue(flags & os.O_NOFOLLOW)
+                self.assertTrue(flags & os.O_DIRECTORY)
+                pstore.rename(moved)
+                pstore.mkdir(mode=0o700)
+            return actual_open(path, flags, *args, **kwargs)
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "open", side_effect=swap_before_open),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError, "changed while opening"
+            ),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        chmod.assert_not_called()
+        self.assertEqual(stat.S_IMODE(moved.stat().st_mode), 0o777)
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_post_chmod_swap_holds_receipt_without_rollback(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        moved = pstore.with_name("saved-pstore")
+        actual_chmod = os.fchmod
+
+        def swap_after_chmod(descriptor: int, mode: int) -> None:
+            actual_chmod(descriptor, mode)
+            pstore.rename(moved)
+            pstore.mkdir(mode=0o700)
+            pstore.chmod(0o777)
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state.os, "fchmod", side_effect=swap_after_chmod
+            ) as chmod,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "identity changed"),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        self.assertEqual(chmod.call_count, 1)
+        self.assertEqual(stat.S_IMODE(moved.stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_chmod_failure_preserves_mode_and_receipt(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        failure = PermissionError("fixture chmod denied")
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fchmod", side_effect=failure),
+            self.assertRaisesRegex(
+                state.AndroidRuntimeStateError, "chmod denied"
+            ) as raised,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        self.assertIs(raised.exception.__cause__, failure)
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_postcheck_and_close_failure_preserve_primary_and_release_fds(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        failure = state.AndroidRuntimeStateError("fixture strict postcheck failure")
+        actual_open = state._open_private_directory_at
+        actual_chmod = os.fchmod
+        actual_close = os.close
+        descriptors: list[int] = []
+        leaf_fd = -1
+
+        def track_open(*args: object, **kwargs: object) -> int:
+            descriptor = actual_open(*args, **kwargs)
+            if kwargs["label"] == "AVD scratch ancestor":
+                descriptors.append(descriptor)
+            return descriptor
+
+        def track_chmod(descriptor: int, mode: int) -> None:
+            nonlocal leaf_fd
+            leaf_fd = descriptor
+            descriptors.append(descriptor)
+            actual_chmod(descriptor, mode)
+
+        def close_then_fail(descriptor: int) -> None:
+            nonlocal leaf_fd
+            actual_close(descriptor)
+            if descriptor == leaf_fd:
+                leaf_fd = -1
+                raise OSError("fixture leaf close failure")
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(
+                state, "_open_private_directory_at", side_effect=track_open
+            ),
+            mock.patch.object(state.os, "fchmod", side_effect=track_chmod),
+            mock.patch.object(state.os, "close", side_effect=close_then_fail),
+            mock.patch.object(
+                state, "validate_runtime_avd_selection", side_effect=failure
+            ),
+            self.assertRaises(state.AndroidRuntimeStateError) as raised,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        self.assertIs(raised.exception, failure)
+        self.assertTrue(any("leaf close failure" in note for note in failure.__notes__))
+        self.assertEqual(len(descriptors), 5)
+        for descriptor in descriptors:
+            with self.assertRaises(OSError) as closed:
+                os.fstat(descriptor)
+            self.assertEqual(closed.exception.errno, errno.EBADF)
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
+    def test_owned_pstore_retains_first_close_failure_and_continues_all_closes(
+        self,
+    ) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        actual_close = state._close_owned_descriptor
+        for postcheck_fails in (False, True):
+            primary = state.AndroidRuntimeStateError("fixture strict postcheck")
+            first_close = state.AndroidRuntimeStateError("fixture first close failure")
+            later_close = KeyboardInterrupt("fixture later close interruption")
+            closed: list[int] = []
+
+            def close_with_failures(
+                descriptor: int,
+                *,
+                label: str,
+                primary: BaseException | None = None,
+            ) -> None:
+                actual_close(descriptor, label=label, primary=primary)
+                if label.startswith("AVD scratch") or label == "AVD pstore":
+                    closed.append(descriptor)
+                    if len(closed) == 1:
+                        raise first_close
+                    if len(closed) == 2:
+                        raise later_close
+
+            with (
+                self.subTest(postcheck_fails=postcheck_fails),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(
+                    state, "_close_owned_descriptor", side_effect=close_with_failures
+                ),
+                mock.patch.object(
+                    state,
+                    "validate_runtime_avd_selection",
+                    side_effect=primary if postcheck_fails else None,
+                    wraps=state.validate_runtime_avd_selection,
+                ),
+                self.assertRaises(state.AndroidRuntimeStateError) as raised,
+            ):
+                state.restore_owned_avd_pstore_permissions(receipt)
+            self.assertIs(raised.exception, primary if postcheck_fails else first_close)
+            notes = "\n".join(raised.exception.__notes__)
+            self.assertIn("later close interruption", notes)
+            if postcheck_fails:
+                self.assertIn("first close failure", notes)
+            self.assertEqual(len(closed), 6)
+            for descriptor in closed:
+                with self.assertRaises(OSError) as failure:
+                    os.fstat(descriptor)
+                self.assertEqual(failure.exception.errno, errno.EBADF)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+            self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+
     def write_prior_isolation_checkpoints(self) -> None:
         for checkpoint in tuple(state.AdbIsolationCheckpoint)[:-1]:
             payload = {

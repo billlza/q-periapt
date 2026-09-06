@@ -113,11 +113,11 @@ def sdk_runner(tool: pathlib.Path, arguments: list[str]) -> bytes:
         return f"Processing '{subject}'...\n".encode() + DEX_DUMP.encode()
     entries = consumer._apk_entries(subject)
     if tool.name == "apksigner":
-        if entries.get("META-INF/SIGNATURE.FIXTURE") != b"fixture-signature":
+        if entries.get("META-INF/QPERIAPT.RSA") != b"fixture-signature":
             raise contract.AndroidAgpConsumerError("fixture SDK rejected unsigned APK")
         return SIGNER
     if tool.name == "zipalign":
-        if entries.get("META-INF/ALIGNMENT.FIXTURE") != b"16384":
+        if entries.get("alignment.fixture") != b"16384":
             raise contract.AndroidAgpConsumerError("fixture SDK rejected unaligned APK")
         return ALIGNMENT
     if tool.name == "aapt2":
@@ -257,8 +257,7 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
         apk_entries = {
             "AndroidManifest.xml": b"fixture binary manifest",
             "classes.dex": b"dex\n039\x00" + flavor.encode(),
-            "META-INF/SIGNATURE.FIXTURE": b"fixture-signature",
-            "META-INF/ALIGNMENT.FIXTURE": b"16384",
+            "alignment.fixture": b"16384",
         }
         apk_entries.update(
             {
@@ -271,7 +270,10 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             apk_entries["assets/signed-policy-vectors.json"] = (
                 root / "bindings/signed-policy-vectors.json"
             ).read_bytes()
-        write(paths["smoke_apk"], zip_bytes(apk_entries))
+        write(
+            paths["smoke_apk"],
+            zip_bytes({**apk_entries, "META-INF/QPERIAPT.RSA": b"fixture-signature"}),
+        )
         write(paths["result_txt"], marker)
         write(paths["result_json"], result)
         write(paths["apksigner_verify"], SIGNER)
@@ -357,7 +359,13 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
         )
         merged += section("<unknown>", b"")
         data = {
-            "apk": paths["smoke_apk"].read_bytes(),
+            "agp_apk": zip_bytes(
+                {
+                    **apk_entries,
+                    consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+                }
+            ),
+            "apk": zip_bytes(apk_entries),
             "dexdump": b"Processing '${APK_INSPECTION}/classes.dex'...\n"
             + DEX_DUMP.encode(),
             "manifest_dump": MANIFEST_DUMP.encode(),
@@ -394,6 +402,9 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             "minify_enabled": True,
             "debuggable": False,
             "app_q_keep_rules": [],
+            "signing_input": consumer.verify_signing_input(
+                build_paths["agp_apk"], build_paths["apk"]
+            ),
             "files": {key: record(path) for key, path in build_paths.items()},
             "dex_sha256": {
                 "classes.dex": hashlib.sha256(apk_entries["classes.dex"]).hexdigest()
