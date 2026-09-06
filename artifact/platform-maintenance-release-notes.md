@@ -45,6 +45,19 @@ Collect a new canonical Android proof and both AGP profiles against that exact
 R2 candidate AAR. Public runtime proofs identify R2, not S2; source-stage runtime
 proofs or Linux builds cannot be promoted into the public distribution.
 
+Run each collector from its own declared source checkout. The formal CLI rejects
+another `--root` before accessing its evidence or tools. SDK/tool path arguments
+select only existing registered Android SDK roots and the installed NDK r29 under
+that same SDK; they do not authorize a separate executable. This read-only SDK
+selection does not inspect ADB or acquire device state. The AGP collector uses
+the account database's home directory plus `.gradle`; a different
+`GRADLE_USER_HOME` is explicitly unsupported by this internal collector.
+`JAVA_HOME` must be the canonical JVM home reported by Gradle. A mismatch retains
+the raw version output and rejects the build before `assemble`.
+The explicit AGP proof paths must identify an existing immutable run layout in
+that checkout. Their fixed filename and canonical run ID are admitted before any
+JSON read; an external path or traversal does not enter the evidence reader.
+
 Before creating the new tag, independently verify that it is absent and that the
 active no-bypass update/deletion rules preserve every old stable tag plus:
 
@@ -74,8 +87,14 @@ directory roots are replaced; rules, diagnostics, status and test results are
 preserved. The receipt distinguishes private raw digests from normalized public
 digests. Private original diagnostic logs remain in their owned run directory and
 are not advertised as ZIP contents. Unknown private paths are rejected. The
-consumer-owned verifier checks the
-exported closure again after download; a projection alone cannot establish this
+new unpublished AGP schema uses `build-jvm.json` from the actual JavaCompile task
+in place of the redundant independent Java probe. It binds task JVM properties
+and compiler selection to the real Gradle Launcher/Daemon JVM output, requires
+compiler forking to be disabled and requires successful JavaCompile/R8 execution.
+It does not retain an empty compatibility field or relabel Gradle output as
+`java -version`. No r1 schema or historical proof is migrated.
+The consumer-owned verifier checks the exported closure again after download;
+a projection alone cannot establish this
 gate. The two runs must have distinct run IDs, the same source tree and the same
 AAR and AAR-manifest digests. The minimal app must preserve all nine native
 registrations and the JNI exception callback while calling only runtimeVersion.

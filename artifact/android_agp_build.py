@@ -13,6 +13,7 @@ import subprocess
 import android_agp_consumer as consumer
 import android_device_proof as runtime
 import android_elf
+import android_runtime_state as runtime_state
 from android_agp_consumer_contract import (
     AGP_VERSION,
     BUILD_KIND,
@@ -51,14 +52,15 @@ def normalized(data: bytes, roots: dict[str, pathlib.Path]) -> bytes:
 def _run(
     argv: list[str],
     raw_path: pathlib.Path,
-    public_path: pathlib.Path,
+    public_path: pathlib.Path | None,
     roots: dict[str, pathlib.Path],
     *,
     timeout: int,
-) -> None:
+) -> bytes:
     environment = dict(os.environ)
     environment["ANDROID_HOME"] = str(roots["SDK"])
     environment["ANDROID_SDK_ROOT"] = str(roots["SDK"])
+    environment["GRADLE_USER_HOME"] = str(roots["GRADLE_HOME"])
     environment["JAVA_HOME"] = str(roots["JAVA_HOME"])
     # Preserve the bounded raw stream even on timeout, signal, or tool failure.
     with raw_path.open("xb") as output:
@@ -76,15 +78,43 @@ def _run(
             output_sink=retain,
         )
     # A failed tool result is retained too; it never receives a passing build receipt.
-    write_new(public_path, normalized(result.stdout, roots))
+    if public_path is not None:
+        write_new(public_path, normalized(result.stdout, roots))
     require(
         result.returncode == 0, f"{raw_path.name} failed with exit {result.returncode}"
     )
     consumer.verify_diagnostic_log(result.stdout.decode("utf-8"))
+    return result.stdout
+
+
+def collector_gradle_home() -> pathlib.Path:
+    """The internal release collector uses the account's existing Gradle cache."""
+
+    selected = runtime_state.ACCOUNT_HOME / ".gradle"
+    require(
+        os.environ.get("GRADLE_USER_HOME", str(selected)) == str(selected),
+        "AGP release collector requires the account .gradle cache",
+    )
+    return selected
+
+
+def selected_gradle_jvm(
+    version_output: bytes, java_home: pathlib.Path
+) -> consumer.GradleJvm:
+    selected = consumer.parse_gradle_jvm(
+        version_output.decode("utf-8"), normalized=False
+    )
+    require(
+        selected.java_home == str(java_home),
+        "JAVA_HOME must name the canonical JVM selected by Gradle",
+    )
+    return selected
 
 
 def build(args: argparse.Namespace) -> None:
-    root = args.root.resolve(strict=True)
+    root = runtime_state.collector_repository_root(args.root)
+    gradle_home = collector_gradle_home()
+    sdk = runtime_state.registered_sdk_root(args.sdk)
     consumer._profile(args.profile)
     require(
         not runtime.source_tree_dirty(root),
@@ -123,9 +153,6 @@ def build(args: argparse.Namespace) -> None:
         path.parent.resolve(strict=True).relative_to(root / "target")
     for name in ("GRADLE_OPTS", "JAVA_OPTS", "JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS"):
         require(not os.environ.get(name), f"{name} must be unset for the AGP consumer")
-    gradle_home = pathlib.Path(
-        os.environ.get("GRADLE_USER_HOME", str(pathlib.Path.home() / ".gradle"))
-    ).resolve()
     require(
         not any(
             (gradle_home / name).exists() for name in ("init.gradle", "init.gradle.kts")
@@ -140,7 +167,7 @@ def build(args: argparse.Namespace) -> None:
     require(
         bool(os.environ.get("JAVA_HOME")), "AGP consumer requires an explicit JAVA_HOME"
     )
-    java_home = pathlib.Path(os.environ["JAVA_HOME"]).resolve(strict=True)
+    java_home = pathlib.Path(os.environ["JAVA_HOME"])
     distributions = list(
         (gradle_home / f"wrapper/dists/gradle-{GRADLE_VERSION}-bin").glob(
             f"*/gradle-{GRADLE_VERSION}/bin/gradle"
@@ -150,7 +177,6 @@ def build(args: argparse.Namespace) -> None:
         len(distributions) == 1 and distributions[0].is_file(),
         "pinned Gradle distribution is not already cached",
     )
-    sdk = args.sdk.resolve(strict=True)
     tools = sdk / "build-tools/36.0.0"
     for name in ("dexdump", "aapt2"):
         require(
@@ -192,7 +218,7 @@ def build(args: argparse.Namespace) -> None:
         "SDK": sdk,
         "GRADLE_HOME": gradle_home,
         "JAVA_HOME": java_home,
-        "USER_HOME": pathlib.Path.home().resolve(),
+        "USER_HOME": runtime_state.ACCOUNT_HOME,
     }
     wrapper = project / "gradlew"
     base = [
@@ -207,22 +233,19 @@ def build(args: argparse.Namespace) -> None:
         "--warning-mode=fail",
         "--console=plain",
     ]
-    _run(
+    gradle_version = _run(
         base + ["--version"],
         args.raw_output / "gradle-version.txt",
-        args.output / "gradle-version.txt",
+        None,
         roots,
         timeout=120,
     )
-    _run(
-        [str(java_home / "bin/java"), "-version"],
-        args.raw_output / "java-version.txt",
-        args.output / "java-version.txt",
-        roots,
-        timeout=30,
-    )
+    selected_jvm = selected_gradle_jvm(gradle_version, java_home)
+    roots["JAVA_HOME"] = pathlib.Path(selected_jvm.java_home)
+    write_new(args.output / "gradle-version.txt", normalized(gradle_version, roots))
     flavor = "Full" if args.profile == "agp_full_release" else "Minimal"
     capture = args.work / "compilation-inputs.txt"
+    jvm_capture = args.work / "build-jvm.json"
     _run(
         base
         + [
@@ -230,6 +253,7 @@ def build(args: argparse.Namespace) -> None:
             f"-PqperiaptSmokeRoot={smoke}",
             f"-PqperiaptFixtureAssets={assets}",
             f"-PqperiaptInputCapture={capture}",
+            f"-PqperiaptJvmCapture={jvm_capture}",
             f":app:assemble{flavor}Release",
         ],
         args.raw_output / "gradle-build.log",
@@ -237,6 +261,12 @@ def build(args: argparse.Namespace) -> None:
         roots,
         timeout=900,
     )
+    raw_jvm = consumer._bytes(jvm_capture)
+    write_new(args.raw_output / "build-jvm.json", raw_jvm)
+    consumer.verify_build_jvm(
+        consumer._json(jvm_capture), selected_jvm, profile=args.profile
+    )
+    write_new(args.output / "build-jvm.json", normalized(raw_jvm, roots))
     compiled = []
     raw_inputs = consumer._bytes(capture)
     write_new(args.raw_output / "compilation-inputs.txt", raw_inputs)
@@ -412,6 +442,7 @@ def main() -> int:
         build(parser.parse_args())
     except (
         AndroidAgpConsumerError,
+        runtime_state.AndroidRuntimeStateError,
         BoundedProcessError,
         android_elf.AndroidVerificationError,
         OSError,

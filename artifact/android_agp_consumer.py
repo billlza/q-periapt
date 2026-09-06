@@ -16,6 +16,7 @@ from typing import Any
 
 import android_device_proof as runtime
 import android_elf
+import android_runtime_state as runtime_state
 from bounded_process import BoundedProcessError, capture_output
 from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
@@ -66,7 +67,7 @@ BUILD_FILE_NAMES = {
     "r8_configuration": "r8-configuration.txt",
     "gradle_log": "gradle-build.log",
     "gradle_version": "gradle-version.txt",
-    "java_version": "java-version.txt",
+    "build_jvm": "build-jvm.json",
     "compilation_inputs": "compilation-inputs.txt",
     "default_proguard": "default-proguard.txt",
     "manifest_proguard": "manifest-proguard.txt",
@@ -113,7 +114,7 @@ DEFAULT_PROGUARD_SHA256 = (
 NORMALIZED_FILES = frozenset(
     {
         "gradle-version.txt",
-        "java-version.txt",
+        "build-jvm.json",
         "gradle-build.log",
         "mapping.txt",
         "r8-configuration.txt",
@@ -124,6 +125,130 @@ NORMALIZED_FILES = frozenset(
     }
 )
 RAW_DIAGNOSTIC_FILES = NORMALIZED_FILES - {"manifest-proguard.txt"}
+BUILD_JVM_FIELDS = frozenset(
+    {
+        "schema",
+        "kind",
+        "task",
+        "java_home",
+        "java_version",
+        "java_runtime_version",
+        "java_vendor",
+        "compiler_java_home",
+        "compiler_fork",
+        "java_vm_vendor",
+        "java_vm_version",
+    }
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class GradleJvm:
+    version: str
+    vendor_description: str
+    java_home: str
+
+
+def parse_gradle_jvm(text: str, *, normalized: bool) -> GradleJvm:
+    """Read the selected JVM from the pinned wrapper's actual version output."""
+
+    lines = text.splitlines()
+    require(
+        [line for line in lines if line.startswith("Gradle ")]
+        == [f"Gradle {GRADLE_VERSION}"],
+        "actual Gradle version output mismatch",
+    )
+    launcher = [line for line in lines if line.startswith("Launcher JVM:")]
+    daemon = [line for line in lines if line.startswith("Daemon JVM:")]
+    require(
+        len(launcher) == len(daemon) == 1, "Gradle JVM identity is missing or ambiguous"
+    )
+    launch = re.fullmatch(
+        r"Launcher JVM:[ \t]+([0-9][0-9A-Za-z.+_-]{0,127}) \(([^()\r\n]{1,256})\)",
+        launcher[0],
+    )
+    home = re.fullmatch(
+        r"Daemon JVM:[ \t]+(.+) \(no Daemon JVM specified, using current Java home\)",
+        daemon[0],
+    )
+    require(
+        launch is not None and home is not None,
+        "Gradle must use its selected Launcher JVM for the build",
+    )
+    selected_home = home.group(1)
+    require(
+        (
+            selected_home == "${JAVA_HOME}"
+            if normalized
+            else (
+                selected_home.startswith("/")
+                and len(selected_home) <= 4096
+                and all(
+                    ord(character) >= 32 and ord(character) != 127
+                    for character in selected_home
+                )
+            )
+        ),
+        "Gradle JVM home is not an exact declared normalization root",
+    )
+    return GradleJvm(launch.group(1), launch.group(2), selected_home)
+
+
+def verify_build_jvm(value: object, selected: GradleJvm, *, profile: str) -> None:
+    """Bind the actual JavaCompile task JVM and compiler to the Gradle selection."""
+
+    _profile(profile)
+    record = _object(value, BUILD_JVM_FIELDS, "actual AGP build JVM")
+    flavor = "Full" if profile == "agp_full_release" else "Minimal"
+    require(
+        type(record["schema"]) is int
+        and record["schema"] == 1
+        and record["kind"] == "qperiapt.android_agp_build_jvm"
+        and record["task"] == f":app:compile{flavor}ReleaseJavaWithJavac",
+        "actual AGP build JVM schema or task differs",
+    )
+    require(
+        record["compiler_fork"] is False, "AGP compiler must use the selected build JVM"
+    )
+    for name in BUILD_JVM_FIELDS - {"schema", "kind", "task", "compiler_fork"}:
+        text = record[name]
+        require(
+            isinstance(text, str)
+            and 0 < len(text) <= 4096
+            and all(
+                ord(character) >= 32 and ord(character) != 127 for character in text
+            ),
+            "actual AGP build JVM identity is malformed",
+        )
+    version = record["java_version"]
+    require(
+        record["java_home"] == record["compiler_java_home"] == selected.java_home
+        and version == selected.version
+        and selected.vendor_description
+        == record["java_vm_vendor"] + " " + record["java_vm_version"],
+        "actual AGP build JVM differs from the selected Gradle Launcher/Daemon JVM",
+    )
+
+
+def collector_proof_path(requested: pathlib.Path) -> pathlib.Path:
+    """Admit the existing immutable run layout before a CLI reads any proof."""
+
+    try:
+        relative = requested.absolute().relative_to(runtime_state.RUNS_ROOT)
+    except ValueError as error:
+        raise AndroidAgpConsumerError(
+            "AGP collector proof must use the executing checkout's run directory"
+        ) from error
+    require(
+        len(relative.parts) == 3
+        and relative.parts[1:] == ("proof", runtime.ANDROID_PROOF_LEAF),
+        "AGP collector proof must use the fixed immutable run layout",
+    )
+    try:
+        layout = runtime_state.AndroidRunLayout.from_run_id(relative.parts[0])
+    except runtime_state.AndroidRuntimeStateError as error:
+        raise AndroidAgpConsumerError(str(error)) from error
+    return layout.proof / runtime.ANDROID_PROOF_LEAF
 
 
 def compiled_sources(profile: str) -> list[str]:
@@ -564,22 +689,29 @@ def inspect_apk_program(
 def _sdk_tools(
     sdk: pathlib.Path | None, proof: dict[str, Any], receipt: dict[str, Any]
 ) -> dict[str, pathlib.Path]:
-    selected = (
-        sdk
-        if sdk is not None
-        else pathlib.Path(
-            os.environ.get(
-                "QPERIAPT_ANDROID_SDK_ROOT",
+    try:
+        selected = (
+            sdk
+            if sdk is not None
+            else runtime_state.registered_sdk_root(
                 os.environ.get(
-                    "ANDROID_HOME",
+                    "QPERIAPT_ANDROID_SDK_ROOT",
                     os.environ.get(
-                        "ANDROID_SDK_ROOT",
-                        str(pathlib.Path.home() / "Library/Android/sdk"),
+                        "ANDROID_HOME",
+                        os.environ.get(
+                            "ANDROID_SDK_ROOT",
+                            str(
+                                runtime_state.ADB_PROFILE_PATHS[
+                                    "macos-account"
+                                ].parent.parent
+                            ),
+                        ),
                     ),
-                ),
+                )
             )
         )
-    )
+    except runtime_state.AndroidRuntimeStateError as error:
+        raise AndroidAgpConsumerError(str(error)) from error
     directory = (selected / "build-tools/36.0.0").resolve(strict=True)
     require(
         directory.name == "36.0.0" and directory.parent.name == "build-tools",
@@ -696,21 +828,28 @@ def _verify_build(
     dump = _bytes(paths["dexdump"]).decode("utf-8")
     verify_agp_dex_dump(dump)
     verify_release_manifest_dump(_bytes(paths["manifest_dump"]).decode("utf-8"))
-    require(
-        f"Gradle {GRADLE_VERSION}" in _bytes(paths["gradle_version"]).decode("utf-8"),
-        "actual Gradle version output mismatch",
+    verify_build_jvm(
+        _json(paths["build_jvm"]),
+        parse_gradle_jvm(
+            _bytes(paths["gradle_version"]).decode("utf-8"), normalized=True
+        ),
+        profile=profile,
     )
     gradle_log = _bytes(paths["gradle_log"]).decode("utf-8")
     flavor = "Full" if profile == "agp_full_release" else "Minimal"
     require(
         "BUILD SUCCESSFUL" in gradle_log
-        and f"minify{flavor}ReleaseWithR8" in gradle_log,
-        "AGP/R8 execution is not present in the successful build log",
+        and gradle_log.splitlines().count(
+            f"> Task :app:compile{flavor}ReleaseJavaWithJavac"
+        )
+        == 1
+        and gradle_log.splitlines().count(f"> Task :app:minify{flavor}ReleaseWithR8")
+        == 1,
+        "actual JavaCompile/R8 execution is not present in the successful build log",
     )
     for key in (
         "gradle_log",
         "gradle_version",
-        "java_version",
         "manifest_dump",
         "dexdump",
     ):
@@ -1149,18 +1288,29 @@ def main() -> int:
                 with path.open("xb") as output:
                     output.write(data)
         elif arguments.command == "verify":
+            root = runtime_state.collector_repository_root(arguments.root)
+            proof = collector_proof_path(arguments.proof)
+            sdk = (
+                runtime_state.registered_sdk_root(arguments.sdk)
+                if arguments.sdk is not None
+                else None
+            )
             value = validate_completed_profile(
-                arguments.root,
-                arguments.proof,
+                root,
+                proof,
                 expected_profile=arguments.profile,
                 expected_aar_sha256=arguments.expected_aar_sha256,
                 expected_aar_manifest_sha256=arguments.expected_aar_manifest_sha256,
                 expected_source_commit=arguments.expected_source_commit,
-                sdk=arguments.sdk,
+                sdk=sdk,
             )
             print(json.dumps(value, sort_keys=True))
             print("ANDROID_AGP_CONSUMER_VERIFY_PASS")
-    except (AndroidAgpConsumerError, OSError) as error:
+    except (
+        AndroidAgpConsumerError,
+        runtime_state.AndroidRuntimeStateError,
+        OSError,
+    ) as error:
         parser.exit(1, f"error: {error}\n")
     return 0
 

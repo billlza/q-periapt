@@ -317,7 +317,7 @@ Select a clean source checkout and its exact prebuilt AAR/manifest, then run eac
 profile in sequence through the existing owned, bounded AVD/ADB lane:
 
 ```sh
-# Set JAVA_HOME to the approved local JDK and the four exact-AAR selectors first:
+# Set JAVA_HOME to the approved JDK's canonical home and the four exact-AAR selectors first:
 # QPERIAPT_ANDROID_EXISTING_AAR, QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST,
 # QPERIAPT_ANDROID_EXPECTED_AAR_SHA256, QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256.
 QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_full_release \
@@ -330,6 +330,28 @@ QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
 sh artifact/android-device-smoke.sh
 ```
+
+These internal release collector CLIs require `--root` to identify the checkout
+that executes the collector. To select another source checkout, run that checkout's
+own script. CLI SDK paths are assertions against the existing registered Android
+SDK profiles (`macos-account`, `linux-account`, `linux-system`, `linux-opt`);
+the commands use the registered paths. Read-only SDK verification does not require
+ADB to be installed or a device to be available. The Python read-only verification
+APIs retain explicit `root` and `sdk` inputs for independently selected source and
+evidence directories.
+Formal CLI proof paths must use the existing immutable run layout under that
+checkout's `target/qperiapt-android-device-smoke-runs`; the run ID and fixed proof
+filename are admitted before any proof is read. An external path, traversal or
+different filename is rejected before it is resolved or opened.
+
+The internal collector uses the current account's `.gradle` cache, determined
+from the account database. If `GRADLE_USER_HOME` is set, it must name that exact
+directory; another cache root is rejected before collection. Global Gradle init
+scripts remain forbidden. This is a release collector configuration constraint,
+not a restriction on applications that use Gradle. `JAVA_HOME` must already name
+the canonical home reported by the selected Gradle JVM. A mismatch preserves the
+raw Gradle version output and stops before `assemble`; JDK path aliases are not
+resolved by the collector.
 
 The full profile compiles the same checked-in three workload groups as the legacy
 producer, including the original signed-policy vectors and cryptographic/wipe
@@ -356,11 +378,19 @@ local path roots are replaced, while rule bodies and every warning/error line ar
 preserved. Original diagnostic bytes remain private under `agp-build-raw/`; their
 digests are labeled `raw_private_sha256`, distinct from the hashed
 `normalized_public` closure. An unrecognized private path is rejected.
+`gradle-version.txt` records the real Gradle Launcher/Daemon JVM selection.
+`build-jvm.json` is written once by the actual JavaCompile task and records its
+JVM properties, selected compiler home and disabled compiler forking. The verifier
+matches the task JVM and compiler selection to Gradle's reported JVM and requires
+successful JavaCompile/R8 execution. Runtime vendor/version and VM vendor/version
+remain distinct fields. This is actual build JVM evidence, not a separate
+`java -version` probe. The original r1 proof and archive schemas are unchanged.
 `profile_evidence_files` supplies the fixed export map and `verify_exported_profile`
 rechecks that same closure after safe extraction, with `proof.json` at its root.
 The validator also independently replays apksigner, 16 KiB zipalign, and SDK DEX/manifest
 inspection against each selected signed APK. Supply `sdk` to the Python validation APIs
-(or `--sdk` to the CLI) as an explicit SDK root containing `build-tools/36.0.0`;
+as an explicit SDK root containing `build-tools/36.0.0`, or select a registered
+root with the CLI's `--sdk` assertion;
 all four tools must belong to that directory and match their recorded hashes.
 No verifier starts Gradle or a device; SDK and Git replay is read-only.
 

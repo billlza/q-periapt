@@ -604,6 +604,32 @@ def resolve_adb_profile(profile: object) -> pathlib.Path:
     return ADB_PROFILE_PATHS[canonical_adb_profile(profile)]
 
 
+def collector_repository_root(requested: pathlib.Path) -> pathlib.Path:
+    """Bind a release collector's declared source to its executing checkout."""
+
+    _require(
+        requested.absolute() == REPOSITORY_ROOT,
+        "Android release collector requires the executing repository root",
+    )
+    return REPOSITORY_ROOT
+
+
+def registered_sdk_root(requested: pathlib.Path | str) -> pathlib.Path:
+    """Select SDK configuration without probing adb or acquiring device state.
+
+    A supplied path is an assertion about an existing registered SDK profile.
+    Only the registered value may reach filesystem or executable operations.
+    """
+
+    for adb in ADB_PROFILE_PATHS.values():
+        root = adb.parent.parent
+        if str(requested) == str(root):
+            return root
+    raise AndroidRuntimeStateError(
+        "Android release SDK must use an existing registered SDK root"
+    )
+
+
 def _open_private_directory(path: pathlib.Path, label: str) -> int:
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
     try:

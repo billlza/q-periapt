@@ -1,9 +1,15 @@
+import groovy.json.JsonOutput
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
+
 plugins { id("com.android.application") }
 
 val exactAar = providers.gradleProperty("qperiaptAar").map(::file)
 val smokeRoot = providers.gradleProperty("qperiaptSmokeRoot").map(::file)
 val fixtureAssets = providers.gradleProperty("qperiaptFixtureAssets").map(::file)
 val inputCapture = providers.gradleProperty("qperiaptInputCapture").map(::file)
+val jvmCapture = providers.gradleProperty("qperiaptJvmCapture").map(::file)
 
 android {
     namespace = "dev.qperiapt.androidsmoke"
@@ -51,9 +57,29 @@ android {
 tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
     doFirst {
+        check(!options.isFork) { "AGP release collector requires compilation in the selected JVM" }
         // Capture the actual task input collection, before compilation/R8. No test
         // source set or extra keep rule participates in either release variant.
         inputCapture.get().writeText(source.files.map { it.canonicalPath }.sorted().joinToString("\n", postfix = "\n"))
+        // This is the JVM executing the actual compile task, not a separate Java probe.
+        val identity = linkedMapOf(
+            "schema" to 1,
+            "kind" to "qperiapt.android_agp_build_jvm",
+            "task" to path,
+            "java_home" to File(System.getProperty("java.home")).canonicalPath,
+            "java_version" to System.getProperty("java.version"),
+            "java_runtime_version" to System.getProperty("java.runtime.version"),
+            "java_vendor" to System.getProperty("java.vendor"),
+            "java_vm_vendor" to System.getProperty("java.vm.vendor"),
+            "java_vm_version" to System.getProperty("java.vm.version"),
+            "compiler_java_home" to javaCompiler.get().metadata.installationPath.asFile.canonicalPath,
+            "compiler_fork" to options.isFork,
+        )
+        Files.writeString(
+            jvmCapture.get().toPath(),
+            JsonOutput.toJson(identity) + "\n",
+            StandardOpenOption.CREATE_NEW,
+        )
     }
 }
 

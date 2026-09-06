@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import tempfile
 from dataclasses import dataclass
 from typing import Never
 
 import android_device_proof as runtime
 import android_agp_consumer as agp
+import android_elf
+import android_runtime_state as runtime_state
 from deterministic_archive import (
     ArchiveLimits,
     DeterministicArchiveError,
@@ -112,6 +115,43 @@ def android_sdk_for_tools(
         "maintenance verification requires one explicit Build Tools 36.0.0 directory",
     )
     return directory.parent.parent
+
+
+def registered_bundle_tools(
+    llvm_nm: pathlib.Path,
+    llvm_readelf: pathlib.Path,
+    apksigner: pathlib.Path,
+    zipalign: pathlib.Path,
+) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, pathlib.Path]:
+    """Admit CLI assertions against one registered SDK and its installed NDK r29."""
+
+    sdk = runtime_state.registered_sdk_root(apksigner.parent.parent.parent)
+    build_tools = sdk / "build-tools" / "36.0.0"
+    signer = build_tools / "apksigner"
+    alignment = build_tools / "zipalign"
+    _require(
+        apksigner == signer and zipalign == alignment,
+        "maintenance CLI tools must use one registered Build Tools 36.0.0 directory",
+    )
+    selected: list[tuple[pathlib.Path, pathlib.Path]] = []
+    for ndk in (sdk / "ndk").iterdir():
+        if re.fullmatch(r"29\.[0-9]+\.[0-9]+", ndk.name) is None:
+            continue
+        _require(
+            ndk.is_dir() and not ndk.is_symlink(),
+            "registered NDK r29 directory is unsafe",
+        )
+        toolchain = android_elf.find_ndk_toolchain(ndk)
+        nm = toolchain / "bin" / "llvm-nm"
+        readelf = toolchain / "bin" / "llvm-readelf"
+        if llvm_nm == nm and llvm_readelf == readelf:
+            selected.append((nm, readelf))
+    _require(
+        len(selected) == 1,
+        "maintenance CLI LLVM tools must select one installed registered NDK r29",
+    )
+    nm, readelf, _revision = runtime.verified_ndk_tools(*selected[0])
+    return nm, readelf, signer, alignment
 
 
 def verify_and_extract(
@@ -272,7 +312,12 @@ def verify_and_extract(
 def create_bundle(args: argparse.Namespace) -> str:
     """Package already completed runtime proofs, then independently verify the ZIP."""
 
-    root = args.root.resolve(strict=True)
+    root = runtime_state.collector_repository_root(args.root)
+    full_proof = agp.collector_proof_path(args.full_proof)
+    minimal_proof = agp.collector_proof_path(args.minimal_proof)
+    llvm_nm, llvm_readelf, apksigner, zipalign = registered_bundle_tools(
+        args.llvm_nm, args.llvm_readelf, args.apksigner, args.zipalign
+    )
     output = args.output.absolute()
     runtime.require_under(output, root / "target", "maintenance bundle output")
     _require(
@@ -286,7 +331,7 @@ def create_bundle(args: argparse.Namespace) -> str:
     canonical = read_regular_snapshot(
         args.runtime_bundle, maximum=MAX_FILE_BYTES, label="canonical runtime bundle"
     )
-    sdk = android_sdk_for_tools(args.apksigner, args.zipalign)
+    sdk = android_sdk_for_tools(apksigner, zipalign)
     try:
         with tempfile.TemporaryDirectory(
             prefix="android-maintenance-bundle-", dir=output.parent
@@ -296,10 +341,10 @@ def create_bundle(args: argparse.Namespace) -> str:
                 root=root,
                 bundle=args.runtime_bundle,
                 expected_bundle_sha256=canonical.sha256,
-                llvm_nm=args.llvm_nm,
-                llvm_readelf=args.llvm_readelf,
-                apksigner=args.apksigner,
-                zipalign=args.zipalign,
+                llvm_nm=llvm_nm,
+                llvm_readelf=llvm_readelf,
+                apksigner=apksigner,
+                zipalign=zipalign,
                 expected_device_kind="emulator",
                 expected_device_abi="arm64-v8a",
                 expected_page_size=16384,
@@ -331,7 +376,7 @@ def create_bundle(args: argparse.Namespace) -> str:
             }
             consumers = {}
             for profile, proof_path in zip(
-                PROFILES, (args.full_proof, args.minimal_proof), strict=True
+                PROFILES, (full_proof, minimal_proof), strict=True
             ):
                 projection = agp.validate_completed_profile(
                     root,
@@ -432,7 +477,13 @@ def main() -> int:
     args = parser.parse_args()
     try:
         digest = create_bundle(args)
-    except (OSError, AndroidMaintenanceBundleError) as exc:
+    except (
+        OSError,
+        AndroidMaintenanceBundleError,
+        runtime_state.AndroidRuntimeStateError,
+        android_elf.AndroidVerificationError,
+        agp.AndroidAgpConsumerError,
+    ) as exc:
         parser.exit(1, f"error: {exc}\n")
     print(f"ANDROID_MAINTENANCE_BUNDLE_CREATE_PASS sha256={digest} path={args.output}")
     return 0

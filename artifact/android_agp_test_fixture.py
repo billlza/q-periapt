@@ -64,6 +64,31 @@ def json_bytes(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
 
 
+def gradle_version(java_home: str = "${JAVA_HOME}") -> bytes:
+    return (
+        "Gradle 9.7.1\n"
+        "Launcher JVM:  21.0.11 (Homebrew 21.0.11)\n"
+        f"Daemon JVM:    {java_home} (no Daemon JVM specified, using current Java home)\n"
+    ).encode()
+
+
+def build_jvm(profile: str, java_home: str = "${JAVA_HOME}") -> dict[str, object]:
+    flavor = "Full" if profile == "agp_full_release" else "Minimal"
+    return {
+        "schema": 1,
+        "kind": "qperiapt.android_agp_build_jvm",
+        "task": f":app:compile{flavor}ReleaseJavaWithJavac",
+        "java_home": java_home,
+        "java_version": "21.0.11",
+        "java_runtime_version": "21.0.11+10",
+        "java_vendor": "Homebrew",
+        "java_vm_vendor": "Homebrew",
+        "java_vm_version": "21.0.11",
+        "compiler_java_home": java_home,
+        "compiler_fork": False,
+    }
+
+
 def sdk_runner(tool: pathlib.Path, arguments: list[str]) -> bytes:
     """The only mocked boundary. It inspects the real selected input bytes."""
     expected_prefixes = {
@@ -338,9 +363,12 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             "manifest_dump": MANIFEST_DUMP.encode(),
             "mapping": b"fixture mapping\n",
             "r8_configuration": merged,
-            "gradle_log": f"> Task :app:minify{flavor.title()}ReleaseWithR8\nBUILD SUCCESSFUL\n".encode(),
-            "gradle_version": b"Gradle 9.7.1\n",
-            "java_version": b"openjdk version 21\n",
+            "gradle_log": (
+                f"> Task :app:compile{flavor.title()}ReleaseJavaWithJavac\n"
+                f"> Task :app:minify{flavor.title()}ReleaseWithR8\nBUILD SUCCESSFUL\n"
+            ).encode(),
+            "gradle_version": gradle_version(),
+            "build_jvm": json_bytes(build_jvm(profile)),
             "compilation_inputs": (
                 "\n".join(consumer.compiled_sources(profile)) + "\n"
             ).encode(),
