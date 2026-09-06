@@ -607,7 +607,26 @@ fn cas_authenticated_inconsistent_receipts_remain_indeterminate() -> TestResult 
     Ok(())
 }
 
+#[test]
+fn witness_test_peer_expires_when_no_client_connects() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let started = Instant::now();
+    let result = accept_witness_test_connection(&listener);
+    let elapsed = started.elapsed();
+    let error = result.expect_err("an idle listener must expire without a connection");
+    assert!(
+        error
+            .downcast_ref::<io::Error>()
+            .is_some_and(|error| error.kind() == io::ErrorKind::WouldBlock),
+        "expected the accept deadline, got {error}"
+    );
+    assert!(elapsed >= Duration::from_secs(5));
+    assert!(elapsed < Duration::from_secs(10));
+    Ok(())
+}
+
 fn accept_witness_test_connection(listener: &TcpListener) -> TestResult<TcpStream> {
+    listener.set_nonblocking(true)?;
     let started = Instant::now();
     loop {
         match listener.accept() {
