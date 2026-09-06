@@ -969,7 +969,10 @@ class SigningEvidenceTests(unittest.TestCase):
             | apple_distribution.EXPECTED_SIGNATURE_DIRECTORIES
         ):
             relative = directory.removeprefix("CQPeriapt.xcframework/").rstrip("/")
-            (self.xcframework / relative).mkdir(parents=True, exist_ok=True)
+            path = self.xcframework / relative
+            path.mkdir(parents=True, exist_ok=True)
+            # Package modes are contract values, independent of the test process umask.
+            path.chmod(0o755)
         for name in (
             apple_distribution.EXPECTED_XCFRAMEWORK_FILES
             | apple_distribution.EXPECTED_SIGNATURE_FILES

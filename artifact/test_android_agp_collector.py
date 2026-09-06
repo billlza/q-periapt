@@ -255,6 +255,23 @@ class CollectorCliTests(unittest.TestCase):
 
 
 class RegisteredSdkTests(unittest.TestCase):
+    def installed_ndk(
+        self, sdk: pathlib.Path, revision: str
+    ) -> tuple[pathlib.Path, pathlib.Path]:
+        ndk = sdk / "ndk" / revision
+        toolchain = ndk / "toolchains/llvm/prebuilt/darwin-x86_64"
+        nm = toolchain / "bin/llvm-nm"
+        readelf = toolchain / "bin/llvm-readelf"
+        for path in (nm, readelf.with_name("llvm-readobj")):
+            fixture.write(path, b"fixture executable identity\n")
+            path.chmod(0o700)
+        readelf.symlink_to("llvm-readobj")
+        fixture.write(
+            ndk / "source.properties", f"Pkg.Revision = {revision}\n".encode()
+        )
+        fixture.write(toolchain / "sysroot/usr/include/jni.h", b"fixture JNI header\n")
+        return nm, readelf
+
     def test_all_registered_profiles_select_paths_without_adb_or_filesystem_probes(
         self,
     ):
@@ -293,24 +310,12 @@ class RegisteredSdkTests(unittest.TestCase):
                 for name, adb in profiles.items():
                     with self.subTest(profile=name):
                         sdk = adb.parent.parent
-                        ndk = sdk / "ndk/29.0.14206865"
-                        toolchain = ndk / "toolchains/llvm/prebuilt/darwin-x86_64"
-                        bin_root = toolchain / "bin"
-                        nm = bin_root / "llvm-nm"
-                        readelf = bin_root / "llvm-readelf"
+                        nm, readelf = self.installed_ndk(sdk, "29.0.14206865")
                         signer = sdk / "build-tools/36.0.0/apksigner"
                         alignment = signer.with_name("zipalign")
-                        for path in (nm, bin_root / "llvm-readobj", signer, alignment):
+                        for path in (signer, alignment):
                             fixture.write(path, b"fixture executable identity\n")
                             path.chmod(0o700)
-                        readelf.symlink_to("llvm-readobj")
-                        fixture.write(
-                            ndk / "source.properties", b"Pkg.Revision = 29.0.14206865\n"
-                        )
-                        fixture.write(
-                            toolchain / "sysroot/usr/include/jni.h",
-                            b"fixture JNI header\n",
-                        )
                         self.assertFalse(adb.exists())
                         self.assertEqual(
                             bundle.registered_bundle_tools(
@@ -326,6 +331,56 @@ class RegisteredSdkTests(unittest.TestCase):
                             bundle.registered_bundle_tools(
                                 nm, readelf, signer, directory / "zipalign"
                             )
+
+    def test_unselected_incomplete_ndk_does_not_change_valid_selected_tools(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            sdk = pathlib.Path(temporary).resolve()
+            nm, readelf = self.installed_ndk(sdk, "29.0.14206865")
+            (sdk / "ndk/29.1.1").mkdir(mode=0o700)
+            signer = sdk / "build-tools/36.0.0/apksigner"
+            alignment = signer.with_name("zipalign")
+            with mock.patch.object(
+                state,
+                "ADB_PROFILE_PATHS",
+                {"macos-account": sdk / "platform-tools/adb"},
+            ):
+                self.assertEqual(
+                    bundle.registered_bundle_tools(nm, readelf, signer, alignment),
+                    (nm, readelf, signer, alignment),
+                )
+
+    def test_selected_incomplete_ndk_and_mixed_pair_still_fail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            sdk = pathlib.Path(temporary).resolve()
+            nm, _readelf = self.installed_ndk(sdk, "29.0.14206865")
+            broken = sdk / "ndk/29.1.1"
+            broken.mkdir(mode=0o700)
+            bin_root = broken / "toolchains/llvm/prebuilt/darwin-x86_64/bin"
+            signer = sdk / "build-tools/36.0.0/apksigner"
+            alignment = signer.with_name("zipalign")
+            with mock.patch.object(
+                state,
+                "ADB_PROFILE_PATHS",
+                {"macos-account": sdk / "platform-tools/adb"},
+            ):
+                with self.assertRaises(bundle.android_elf.AndroidVerificationError):
+                    bundle.registered_bundle_tools(
+                        bin_root / "llvm-nm",
+                        bin_root / "llvm-readelf",
+                        signer,
+                        alignment,
+                    )
+                with mock.patch.object(
+                    bundle.android_elf,
+                    "find_ndk_toolchain",
+                    side_effect=AssertionError(
+                        "a mixed pair entered NDK metadata inspection"
+                    ),
+                ):
+                    with self.assertRaises(bundle.AndroidMaintenanceBundleError):
+                        bundle.registered_bundle_tools(
+                            nm, bin_root / "llvm-readelf", signer, alignment
+                        )
 
 
 class BuildJvmTests(unittest.TestCase):

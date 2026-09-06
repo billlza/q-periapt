@@ -38,9 +38,13 @@ selecting the requested profile. Unknown or damaged historical entries fail.
 Keep the two source identities and evidence sets separate. The source-results
 assembler consumes the local Rust no-upload handoff, AAR, canonical Android proof,
 schema-5 local index with its exact Android summary, and one C archive consumer
-from S2; its retained Swift selector needs no new Apple signing build. R2 is the
-direct results-only successor and has a different Git commit. The tag workflow
-then builds the public candidate AAR/manifest and both Linux archives at R2.
+from S2. That index requires every package face, including Swift, to identify S2.
+Run the ordinary credential-free `sh artifact/swift-xcframework.sh` producer at
+S2 with all five Apple targets and its isolated consumer before assembling the
+index; the old R/Q Swift outputs cannot supply this source-stage input. A new
+signed Apple release is not required for platform maintenance publication.
+R2 is the direct results-only successor and has a different Git commit. The tag
+workflow then builds the public candidate AAR/manifest and both Linux archives at R2.
 Collect a new canonical Android proof and both AGP profiles against that exact
 R2 candidate AAR. Public runtime proofs identify R2, not S2; source-stage runtime
 proofs or Linux builds cannot be promoted into the public distribution.

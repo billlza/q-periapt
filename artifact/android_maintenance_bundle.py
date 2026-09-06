@@ -137,6 +137,8 @@ def registered_bundle_tools(
     for ndk in (sdk / "ndk").iterdir():
         if re.fullmatch(r"29\.[0-9]+\.[0-9]+", ndk.name) is None:
             continue
+        if not llvm_nm.is_relative_to(ndk) or not llvm_readelf.is_relative_to(ndk):
+            continue
         _require(
             ndk.is_dir() and not ndk.is_symlink(),
             "registered NDK r29 directory is unsafe",
