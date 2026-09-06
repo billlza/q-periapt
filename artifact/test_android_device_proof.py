@@ -1435,7 +1435,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
 
 
 class AndroidDeviceProofProvenanceTests(unittest.TestCase):
-    def _run_postinstall_runtime_steps(
+    def _run_fresh_install_runtime_steps(
         self,
         failing_operation: str | None,
     ) -> tuple[subprocess.CompletedProcess[bytes], list[str], dict[str, bytes]]:
@@ -1443,7 +1443,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         phase = producer.index("=== Install and run Android runtime smoke ===")
-        start = producer.index("ANDROID_APP_INSTALL_CONFIRMED=1", phase)
+        start = producer.index('if ! : >"$PACKAGE_OBSERVATION_LOG"; then', phase)
         end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
         postinstall = producer[start:end]
 
@@ -1459,6 +1459,16 @@ umask 077
 DIST={shlex.quote(str(distribution))}
 CALLS={shlex.quote(str(calls))}
 FAIL_OPERATION={shlex.quote(failing_operation or "")}
+PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
+observe_preinstall_package_absence() {{
+    printf 'preinstall\\n' >>"$CALLS"
+    [ "$FAIL_OPERATION" != preinstall ]
+}}
+observe_owned_installed_package() {{
+    printf 'postinstall\\n' >>"$CALLS"
+    [ "$FAIL_OPERATION" != postinstall ]
+}}
+monotonic_deadline() {{ printf '100\\n'; }}
 PYTHON_BIN={shlex.quote(sys.executable)}
 python3() {{ "$PYTHON_BIN" "$@"; }}
 android_command() {{
@@ -1468,7 +1478,6 @@ android_command() {{
         printf 'bounded diagnostic for %s\\n' "$operation" >&2
         case "$operation" in
             device-time) return 17 ;;
-            force-stop) return 18 ;;
             start-app) return 19 ;;
         esac
     fi
@@ -1504,10 +1513,7 @@ android_command() {{
         end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
         postinstall = producer[start:end]
         self.assertNotIn("\nandroid_command device-time\n", postinstall)
-        self.assertNotIn(
-            '\nandroid_command force-stop >"$DIST/adb-force-stop.log"\n',
-            postinstall,
-        )
+        self.assertNotIn("android_command force-stop", postinstall)
         self.assertNotIn(
             '\nandroid_command start-app >"$DIST/adb-start.log"\n',
             postinstall,
@@ -1515,24 +1521,19 @@ android_command() {{
 
         expectations = {
             "device-time": (
-                ["device-time"],
+                ["preinstall", "install-apk", "postinstall", "device-time"],
                 "Android runtime device-time capture failed",
                 "adb-device-time.err",
             ),
-            "force-stop": (
-                ["device-time", "force-stop"],
-                "Android runtime force-stop failed",
-                "adb-force-stop.log",
-            ),
             "start-app": (
-                ["device-time", "force-stop", "start-app"],
+                ["preinstall", "install-apk", "postinstall", "device-time", "start-app"],
                 "Android runtime activity start failed",
                 "adb-start.log",
             ),
         }
         for operation, (calls, label, diagnostic_file) in expectations.items():
             with self.subTest(failing_operation=operation):
-                result, called_operations, files = self._run_postinstall_runtime_steps(
+                result, called_operations, files = self._run_fresh_install_runtime_steps(
                     operation
                 )
                 self.assertEqual(result.returncode, 1)
@@ -1540,7 +1541,6 @@ android_command() {{
                 self.assertIn(label.encode("ascii"), result.stderr)
                 expected_exit = {
                     "device-time": 17,
-                    "force-stop": 18,
                     "start-app": 19,
                 }[operation]
                 self.assertIn(f"(exit={expected_exit})".encode("ascii"), result.stderr)
@@ -1549,11 +1549,21 @@ android_command() {{
                     files[diagnostic_file],
                 )
 
-        result, called_operations, _files = self._run_postinstall_runtime_steps(None)
+        for gate, expected_calls in (
+            ("preinstall", ["preinstall"]),
+            ("postinstall", ["preinstall", "install-apk", "postinstall"]),
+        ):
+            with self.subTest(failing_gate=gate):
+                result, called_operations, _files = self._run_fresh_install_runtime_steps(gate)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(called_operations, expected_calls)
+                self.assertNotIn("start-app", called_operations)
+
+        result, called_operations, _files = self._run_fresh_install_runtime_steps(None)
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(
             called_operations,
-            ["device-time", "force-stop", "start-app"],
+            ["preinstall", "install-apk", "postinstall", "device-time", "start-app"],
         )
 
     def _run_preinstall_observation(

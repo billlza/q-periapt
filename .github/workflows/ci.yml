@@ -971,7 +971,6 @@ jobs:
           name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
-            target/qperiapt-android-device-smoke-runs/*/proof/adb-force-stop.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log
           if-no-files-found: error
       - name: Upload Android runtime proof

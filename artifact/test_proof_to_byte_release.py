@@ -1901,7 +1901,6 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "          name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics\n"
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
-            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-force-stop.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
             "          if-no-files-found: error\n",
         )

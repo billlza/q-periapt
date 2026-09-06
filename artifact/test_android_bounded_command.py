@@ -1461,7 +1461,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(capture_result.stdout, b"device\n")
             capture.assert_called_once()
             capture.reset_mock()
-            self.invoke(commands.AndroidOperation.FORCE_STOP)
+            self.invoke(commands.AndroidOperation.START_APP)
             capture.assert_called_once()
             self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
             self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
@@ -3283,27 +3283,31 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             )
         self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
 
-    def test_runtime_control_diagnostics_are_merged_under_the_capture_limit(
-        self,
-    ) -> None:
-        for operation in (
-            commands.AndroidOperation.FORCE_STOP,
-            commands.AndroidOperation.START_APP,
+    def test_runtime_start_diagnostics_are_merged_under_the_capture_limit(self) -> None:
+        operation = commands.AndroidOperation.START_APP
+        spec = commands.OPERATION_SPECS[operation]
+        self.assertEqual(spec.mode, "capture")
+        self.assertTrue(spec.stderr_to_stdout)
+        with mock.patch.object(
+            commands,
+            "capture_stdout",
+            return_value=BoundedResult(224, b"bounded adb failure\n"),
+        ) as capture:
+            result = self.invoke(operation)
+        self.assertEqual(result.returncode, 224)
+        self.assertEqual(result.stdout, b"bounded adb failure\n")
+        self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
+        self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
+
+    def test_removed_force_stop_operation_is_rejected_before_execution(self) -> None:
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            mock.patch.object(commands, "invoke_operation") as invoke,
+            self.assertRaises(SystemExit) as rejected,
         ):
-            spec = commands.OPERATION_SPECS[operation]
-            with self.subTest(operation=operation.value):
-                self.assertEqual(spec.mode, "capture")
-                self.assertTrue(spec.stderr_to_stdout)
-                with mock.patch.object(
-                    commands,
-                    "capture_stdout",
-                    return_value=BoundedResult(224, b"bounded adb failure\n"),
-                ) as capture:
-                    result = self.invoke(operation)
-                self.assertEqual(result.returncode, 224)
-                self.assertEqual(result.stdout, b"bounded adb failure\n")
-                self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
-                self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
+            commands.main(["invoke", "force-stop", "--run-id", self.layout.run_id])
+        self.assertEqual(rejected.exception.code, 2)
+        invoke.assert_not_called()
 
     def test_logcat_epoch_is_validated_before_it_enters_argv(self) -> None:
         epoch_path = self.proof / "adb-device-time.txt"
