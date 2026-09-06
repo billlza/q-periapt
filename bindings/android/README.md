@@ -371,6 +371,11 @@ verified three-domain record is preserved at `v0.1.5-verified-cohort`; this
 open development tree does not replace that frozen record. The published AAR
 has the manifest and consumer keep-rule defects described above.
 
+The alpha.2 historical published receipt remains schema v3, while current
+canonical source-tree runs require proof schema v6. Neither is migrated in place.
+The r2 ZIP envelope uses bundle schema 3 at a different layer and contains the
+unchanged canonical bundle schema 2 plus the two separately typed AGP proofs.
+
 The separate `abi2-platforms-v0.1.5-r2` maintenance distribution is a **source
 candidate, not a published or verified replacement**. It keeps product version
 `0.1.5` and ABI 2, rebuilds the four-ABI AAR and both Linux packages from one new
