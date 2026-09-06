@@ -17,7 +17,11 @@ use crate::codec::{
     accept_error_is_transient, encode_domain, hash_fields, read_frame_until, require_domain,
     write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
-use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
+use crate::filesystem::provision_private_file;
+#[cfg(unix)]
+use crate::filesystem::{
+    copy_to_anonymous_scratch, open_private_parent, refuse_unclean_foreign_redb,
+};
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
 
 const WITNESS_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-WITNESS-REQUEST/v1";
@@ -691,7 +695,7 @@ impl WitnessStore {
         )
     }
 
-    /// Open an existing store, letting redb finish crash recovery first.
+    /// Admit an existing store on a private copy while retaining the original inode lock.
     ///
     /// Every commit here is two-phase, and that is what makes recovery safe to
     /// allow: after an unclean shutdown redb only reconstructs its free-page
@@ -704,22 +708,59 @@ impl WitnessStore {
     /// that avoids the reconstruction, redb's quick-repair, saves the allocator
     /// state on every commit and measured about five times slower per durable
     /// commit on this workload, on a path every guarded operation takes.
+    /// Structural, schema and semantic rejection never opens the original in redb.
+    /// The scratch file is unlinked before copying, and its cache is released before
+    /// the same locked backend is moved into the admitted database. After admission,
+    /// opening the original may recover it and an I/O error can follow those writes;
+    /// byte preservation is not a promise for that operational failure or redb Drop.
+    #[cfg(unix)]
     fn open(path: &Path) -> Result<Self, WitnessError> {
-        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
-        refuse_unclean_foreign_redb(&file).map_err(|_| WitnessError::Persistence)?;
-        let mut database = Database::builder()
-            .create_file(file)
+        let (parent, name) = open_private_parent(path).map_err(|_| WitnessError::Persistence)?;
+        let file = parent
+            .open_state_file(name)
             .map_err(|_| WitnessError::Persistence)?;
-        if !database
+        let mut reader = file.try_clone().map_err(|_| WitnessError::Persistence)?;
+        // The clone shares the original open file description. No content is read
+        // until FileBackend has obtained its nonblocking exclusive flock.
+        let backend =
+            redb::backends::FileBackend::new(file).map_err(|_| WitnessError::Persistence)?;
+        refuse_unclean_foreign_redb(&reader).map_err(|_| WitnessError::Persistence)?;
+        {
+            let mut scratch = parent
+                .create_anonymous_scratch()
+                .map_err(|_| WitnessError::Persistence)?;
+            copy_to_anonymous_scratch(&mut reader, &mut scratch)
+                .map_err(|_| WitnessError::Persistence)?;
+            let database = Database::builder()
+                .create_file(scratch)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut validation = Self { database };
+            validation.validate_existing()?;
+        }
+        // Moving this backend does not run its unlocking destructor. Reopening the
+        // original path or constructing a second backend would break this lock span.
+        let database = Database::builder()
+            .create_with_backend(backend)
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(Self { database })
+    }
+
+    #[cfg(not(unix))]
+    fn open(_: &Path) -> Result<Self, WitnessError> {
+        Err(WitnessError::Persistence)
+    }
+
+    #[cfg(unix)]
+    fn validate_existing(&mut self) -> Result<(), WitnessError> {
+        if !self
+            .database
             .check_integrity()
             .map_err(|_| WitnessError::Persistence)?
         {
             return Err(WitnessError::Persistence);
         }
-        let store = Self { database };
-        store.head()?;
-        store.verify_semantics()?;
-        Ok(store)
+        self.head()?;
+        self.verify_semantics()
     }
 
     /// Validate at open the invariants the request paths already assume.
@@ -731,6 +772,7 @@ impl WitnessStore {
     /// late failure: capacity is enforced against `META_OPERATION_COUNT`, so a
     /// counter that under-reports the rows actually present would let the
     /// explicit operation limit be exceeded.
+    #[cfg(unix)]
     fn verify_semantics(&self) -> Result<(), WitnessError> {
         let transaction = self
             .database
@@ -1084,6 +1126,7 @@ impl ReferenceWitnessServer {
 pub(crate) mod test_support {
     use super::*;
     use crate::codec::write_frame;
+    use crate::filesystem::open_private_file;
 
     /// Record an applied receipt for an advance the head does not reflect,
     /// leaving a store that holds proof it moved past the head it reports.
@@ -1182,6 +1225,15 @@ pub(crate) mod test_support {
     /// Open the store exactly as the server does and return its head.
     pub(crate) fn open_head(path: &Path) -> Result<StateHead, WitnessError> {
         WitnessStore::open(path)?.head()
+    }
+
+    /// Inspect the existing production store while its accepted backend still owns the lock.
+    pub(crate) fn with_open_head<T>(
+        path: &Path,
+        inspect: impl FnOnce(StateHead) -> T,
+    ) -> Result<T, WitnessError> {
+        let store = WitnessStore::open(path)?;
+        Ok(inspect(store.head()?))
     }
 
     /// Open the store exactly as the server does, apply one compare-and-advance
