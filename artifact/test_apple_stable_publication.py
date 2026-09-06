@@ -681,10 +681,24 @@ class AppleStablePublicationTests(unittest.TestCase):
             ),
         )
 
+    def _capture_diagnostic_operation(
+        self, *, runtime_repository_root: pathlib.Path, run_directory_name: str,
+        log_name: str, timeout_seconds: int, maximum_bytes: int, argv: list[str],
+    ) -> tuple[int, str]:
+        # These I/O regressions execute real children. Operation admission has
+        # separate tests against the actual code-owned command inventory.
+        with mock.patch.object(
+            publication, "_remote_consumer_gate_command", return_value=tuple(argv),
+        ):
+            return publication.capture_remote_consumer_gate_log(
+                runtime_repository_root=runtime_repository_root, run_directory_name=run_directory_name,
+                log_name=log_name, timeout_seconds=timeout_seconds, maximum_bytes=maximum_bytes, argv=argv,
+            )
+
     def test_bounded_gate_log_does_not_limit_child_artifacts(self) -> None:
         run = self._new_remote_run()
         artifact = run / "large-child-artifact.bin"
-        process_status, digest = publication.capture_remote_consumer_gate_log(
+        process_status, digest = self._capture_diagnostic_operation(
             runtime_repository_root=self.root,
             run_directory_name=run.name,
             log_name="ditto-extract.log",
@@ -712,7 +726,7 @@ class AppleStablePublicationTests(unittest.TestCase):
 
     def test_bounded_gate_log_preserves_nonzero_child_diagnostics(self) -> None:
         run = self._new_remote_run()
-        process_status, digest = publication.capture_remote_consumer_gate_log(
+        process_status, digest = self._capture_diagnostic_operation(
             runtime_repository_root=self.root,
             run_directory_name=run.name,
             log_name="consumer-check.log",
@@ -742,7 +756,7 @@ class AppleStablePublicationTests(unittest.TestCase):
                 "already exists",
             ),
         ):
-            publication.capture_remote_consumer_gate_log(
+            self._capture_diagnostic_operation(
                 runtime_repository_root=self.root,
                 run_directory_name=run.name,
                 log_name=log.name,
@@ -770,7 +784,7 @@ class AppleStablePublicationTests(unittest.TestCase):
             ),
             self.assertRaises(publication.AppleStablePublicationError),
         ):
-            publication.capture_remote_consumer_gate_log(
+            self._capture_diagnostic_operation(
                 runtime_repository_root=self.root,
                 run_directory_name=run.name,
                 log_name=log.name,
@@ -783,7 +797,7 @@ class AppleStablePublicationTests(unittest.TestCase):
     def test_bounded_gate_log_fails_closed_on_output_overflow(self) -> None:
         run = self._new_remote_run()
         with self.assertRaises(publication.BoundedProcessError) as raised:
-            publication.capture_remote_consumer_gate_log(
+            self._capture_diagnostic_operation(
                 runtime_repository_root=self.root,
                 run_directory_name=run.name,
                 log_name="codesign-pre-receipt.log",
@@ -815,7 +829,7 @@ class AppleStablePublicationTests(unittest.TestCase):
     def test_bounded_gate_log_fails_closed_on_timeout(self) -> None:
         run = self._new_remote_run()
         with self.assertRaises(publication.BoundedProcessError) as raised:
-            publication.capture_remote_consumer_gate_log(
+            self._capture_diagnostic_operation(
                 runtime_repository_root=self.root,
                 run_directory_name=run.name,
                 log_name="swiftpm-checksum.log",
