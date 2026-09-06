@@ -2490,7 +2490,8 @@ def verify_result_files(
     result = load_json(paths["result_json"])
     exact_object(result, RESULT_FIELDS, "Android result")
     require(
-        type(result.get("schema")) is int and result.get("schema") == RESULT_SCHEMA_VERSION,
+        type(result.get("schema")) is int
+        and result.get("schema") == RESULT_SCHEMA_VERSION,
         "Android result schema mismatch",
     )
     require(result.get("status") == "pass", "Android result status is not pass")
