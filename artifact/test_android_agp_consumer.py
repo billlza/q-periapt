@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import pathlib
 import stat
 import subprocess
@@ -18,6 +19,7 @@ import android_bounded_command as bounded
 import android_device_proof as runtime
 import android_elf
 from test_android_minimal_consumer import class_dump, complete_dump
+from test_android_elf import zip_bytes
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RUN_ID = "a" * 32
@@ -417,6 +419,180 @@ class AgpR8AndInputTests(unittest.TestCase):
                     archive.writestr(entry, b"payload")
                 with self.assertRaises(contract.AndroidAgpConsumerError):
                     consumer._apk_entries(apk)
+
+
+class AgpSigningInputTests(unittest.TestCase):
+    def original_entries(self) -> dict[str, bytes]:
+        return {
+            "AndroidManifest.xml": b"binary manifest fixture",
+            "classes.dex": b"dex\n039\x00fixture",
+            "resources.arsc": b"resource table fixture",
+            consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+        }
+
+    def test_preparation_preserves_original_and_every_remaining_entry_content(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            for compression in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                original = directory / f"agp-{compression}.apk"
+                prepared = directory / f"prepared-{compression}.apk"
+                entries = {**self.original_entries(), "empty/": b""}
+                with zipfile.ZipFile(original, "w") as archive:
+                    archive.comment = b"original archive comment"
+                    for name, data in entries.items():
+                        entry = zipfile.ZipInfo(name)
+                        kind = stat.S_IFDIR if name.endswith("/") else stat.S_IFREG
+                        entry.external_attr = (kind | 0o700) << 16
+                        entry.compress_type = compression
+                        archive.writestr(entry, data)
+                original_bytes = original.read_bytes()
+                result = build.prepare_signing_input(original, prepared)
+                self.assertEqual(original.read_bytes(), original_bytes)
+                self.assertEqual(
+                    consumer._apk_entries(prepared),
+                    {
+                        name: data
+                        for name, data in entries.items()
+                        if name != consumer.APP_METADATA_ENTRY
+                    },
+                )
+                self.assertEqual(
+                    result,
+                    {
+                        "policy": consumer.SIGNING_INPUT_POLICY,
+                        "removed": {
+                            consumer.APP_METADATA_ENTRY: {
+                                "bytes": 56,
+                                "sha256": hashlib.sha256(
+                                    consumer.APP_METADATA_CONTENT
+                                ).hexdigest(),
+                            }
+                        },
+                    },
+                )
+                with zipfile.ZipFile(prepared) as archive:
+                    self.assertEqual(archive.comment, b"original archive comment")
+                self.assertEqual(
+                    consumer.verify_signing_input(original, prepared), result
+                )
+                prepared_bytes = prepared.read_bytes()
+                with self.assertRaises(FileExistsError):
+                    build.prepare_signing_input(original, prepared)
+                self.assertEqual(prepared.read_bytes(), prepared_bytes)
+
+    def test_preparation_rejects_wrong_missing_vcs_or_already_signed_metadata(self):
+        cases = (
+            {
+                key: value
+                for key, value in self.original_entries().items()
+                if key != consumer.APP_METADATA_ENTRY
+            },
+            {**self.original_entries(), consumer.APP_METADATA_ENTRY: b"unexpected"},
+            {**self.original_entries(), consumer.VCS_METADATA_ENTRY: b"vcs"},
+            {**self.original_entries(), "META-INF/unknown.properties": b"unknown"},
+            *(
+                {**self.original_entries(), name: b"signature"}
+                for name in consumer.V1_SIGNATURE_ENTRIES
+            ),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            for index, entries in enumerate(cases):
+                with self.subTest(index=index):
+                    original = directory / f"original-{index}.apk"
+                    prepared = directory / f"prepared-{index}.apk"
+                    original.write_bytes(zip_bytes(entries))
+                    before = original.read_bytes()
+                    with self.assertRaises(consumer.AndroidAgpConsumerError):
+                        build.prepare_signing_input(original, prepared)
+                    self.assertFalse(prepared.exists())
+                    self.assertEqual(original.read_bytes(), before)
+            original = directory / "metadata-directory.apk"
+            entries = self.original_entries()
+            del entries[consumer.APP_METADATA_ENTRY]
+            original.write_bytes(zip_bytes(entries))
+            with zipfile.ZipFile(original, "a") as archive:
+                entry = zipfile.ZipInfo(consumer.APP_METADATA_ENTRY + "/")
+                entry.external_attr = (stat.S_IFDIR | 0o700) << 16
+                archive.writestr(entry, b"")
+            prepared = directory / "metadata-directory-prepared.apk"
+            with self.assertRaisesRegex(
+                consumer.AndroidAgpConsumerError, "missing or differs from the pinned"
+            ):
+                build.prepare_signing_input(original, prepared)
+            self.assertFalse(prepared.exists())
+
+    def test_preparation_rejects_duplicate_unsafe_and_corrupt_zip_before_output(self):
+        entries = self.original_entries()
+        duplicate = zip_bytes({**entries, "classes.dax": entries["classes.dex"]})
+        duplicate = duplicate.replace(b"classes.dax", b"classes.dex")
+        payloads = (
+            duplicate,
+            zip_bytes({**entries, "../outside": b"unsafe"}),
+            zip_bytes(entries).replace(
+                b"resource table fixture", b"modified table fixture"
+            ),
+            b"not a ZIP archive",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            for index, payload in enumerate(payloads):
+                original = directory / f"original-{index}.apk"
+                prepared = directory / f"prepared-{index}.apk"
+                original.write_bytes(payload)
+                with (
+                    self.subTest(index=index),
+                    self.assertRaises(consumer.AndroidAgpConsumerError),
+                ):
+                    build.prepare_signing_input(original, prepared)
+                self.assertFalse(prepared.exists())
+            self.assertFalse((directory / "outside").exists())
+
+    def test_reverification_rejects_added_removed_changed_and_directory_entries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            original = directory / "original.apk"
+            original.write_bytes(zip_bytes(self.original_entries()))
+            expected = consumer.signing_input_entries(self.original_entries())
+            variants = (
+                {**expected, "extra.bin": b"extra"},
+                {
+                    name: value
+                    for name, value in expected.items()
+                    if name != "resources.arsc"
+                },
+                {**expected, "resources.arsc": b"different"},
+                {
+                    **expected,
+                    consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+                },
+            )
+            for index, entries in enumerate(variants):
+                prepared = directory / f"prepared-{index}.apk"
+                prepared.write_bytes(zip_bytes(entries))
+                with self.assertRaisesRegex(
+                    consumer.AndroidAgpConsumerError, "beyond the fixed"
+                ):
+                    consumer.verify_signing_input(original, prepared)
+            prepared = directory / "directory-extra.apk"
+            prepared.write_bytes(zip_bytes(expected))
+            with zipfile.ZipFile(prepared, "a") as archive:
+                entry = zipfile.ZipInfo("extra/")
+                entry.external_attr = (stat.S_IFDIR | 0o700) << 16
+                archive.writestr(entry, b"")
+            with self.assertRaisesRegex(
+                consumer.AndroidAgpConsumerError, "beyond the fixed"
+            ):
+                consumer.verify_signing_input(original, prepared)
+            original_with_directory = directory / "original-directory.apk"
+            original_with_directory.write_bytes(original.read_bytes())
+            with zipfile.ZipFile(original_with_directory, "a") as archive:
+                archive.writestr(entry, b"")
+            prepared.write_bytes(zip_bytes(expected))
+            with self.assertRaisesRegex(
+                consumer.AndroidAgpConsumerError, "beyond the fixed"
+            ):
+                consumer.verify_signing_input(original_with_directory, prepared)
 
 
 if __name__ == "__main__":

@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
+import io
 import json
 import os
 import pathlib
 import subprocess
+import zipfile
 
 import android_agp_consumer as consumer
 import android_device_proof as runtime
@@ -36,6 +39,22 @@ def record(path: pathlib.Path) -> dict[str, object]:
         "sha256": hashlib.sha256(data).hexdigest(),
         "bytes": len(data),
     }
+
+
+def prepare_signing_input(
+    original_apk: pathlib.Path, prepared_apk: pathlib.Path
+) -> dict[str, object]:
+    """Remove only AGP's fixed non-runtime metadata from an unsigned APK copy."""
+    original = consumer._bytes(original_apk, consumer.MAX_APK)
+    entries = consumer.signing_input_entries(consumer._apk_snapshot_entries(original))
+    with zipfile.ZipFile(io.BytesIO(original), "r", allowZip64=False) as archive:
+        with prepared_apk.open("xb") as output:
+            with zipfile.ZipFile(output, "w", allowZip64=False) as prepared:
+                prepared.comment = archive.comment
+                for info in archive.infolist():
+                    if info.filename != consumer.APP_METADATA_ENTRY:
+                        prepared.writestr(copy.copy(info), entries[info.filename])
+    return consumer.verify_signing_input(original_apk, prepared_apk)
 
 
 def normalized(data: bytes, roots: dict[str, pathlib.Path]) -> bytes:
@@ -304,9 +323,10 @@ def build(args: argparse.Namespace) -> None:
         project
         / f"app/build/outputs/apk/{flavor.lower()}/release/app-{flavor.lower()}-release-unsigned.apk"
     )
-    write_new(
-        args.output / "consumer-unsigned.apk", consumer._bytes(apk, consumer.MAX_APK)
-    )
+    original_apk = args.output / "agp-unsigned.apk"
+    write_new(original_apk, consumer._bytes(apk, consumer.MAX_APK))
+    prepared_apk = args.output / "consumer-unsigned.apk"
+    signing_input = prepare_signing_input(original_apk, prepared_apk)
     mapping = project / f"app/build/outputs/mapping/{variant}"
     for original, output in (
         ("mapping.txt", "mapping.txt"),
@@ -389,6 +409,7 @@ def build(args: argparse.Namespace) -> None:
         "minify_enabled": True,
         "debuggable": False,
         "app_q_keep_rules": [],
+        "signing_input": signing_input,
         "files": files,
         "dex_sha256": dex_hashes,
         "compiled_application_sources": compiled,
@@ -416,7 +437,7 @@ def build(args: argparse.Namespace) -> None:
         {key: args.output / name for key, name in consumer.BUILD_FILE_NAMES.items()},
         profile=args.profile,
         aar=args.aar,
-        signed_apk=apk,
+        signed_apk=prepared_apk,
     )
     write_new(
         args.output / "receipt.json",

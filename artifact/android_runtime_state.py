@@ -2315,6 +2315,171 @@ def validate_runtime_avd_selection(
     return selection
 
 
+def restore_owned_avd_pstore_permissions(receipt: OwnedRuntimeReceipt) -> None:
+    """Restore only empty SDK scratch after command-layer runtime shutdown.
+
+    The emulator explicitly chmods this directory to 0777. Keep admission
+    read-only and strict: this mutation belongs solely to owned retirement.
+    """
+
+    validate_lane_lock_descriptor()
+    if not receipt.emulator_started:
+        return
+    current = load_owned_runtime_receipt()
+    _require(
+        current is not None and current.snapshot_sha256 == receipt.snapshot_sha256,
+        "AVD scratch retirement receipt changed",
+    )
+    name = runtime_avd_name(receipt.adb_profile, receipt.device_abi)
+    _require(receipt.avd_name == name, "AVD scratch receipt selection differs")
+    home = avd_home_directory()
+    selected = home / f"{name}.avd"
+    descriptors: list[tuple[int, str]] = []
+    bindings: list[tuple[int, str, int, os.stat_result]] = []
+    primary: BaseException | None = None
+
+    def identity(metadata: os.stat_result) -> tuple[int, ...]:
+        # Directory reads can update atime. Every other sampled field remains
+        # bound; only our successful fchmod may advance the leaf's mode/ctime.
+        return (
+            metadata.st_dev,
+            metadata.st_ino,
+            metadata.st_uid,
+            metadata.st_gid,
+            metadata.st_mode,
+            metadata.st_nlink,
+            metadata.st_size,
+            metadata.st_mtime_ns,
+            metadata.st_ctime_ns,
+        )
+
+    def recheck_bindings() -> None:
+        for parent, leaf, descriptor, expected in bindings:
+            named = os.stat(leaf, dir_fd=parent, follow_symlinks=False)
+            _require(
+                identity(os.fstat(descriptor)) == identity(expected) == identity(named),
+                f"AVD scratch directory identity changed: {leaf}",
+            )
+
+    try:
+        parent = _open_account_state()
+        descriptors.append((parent, "AVD scratch account state"))
+        display = account_state_directory()
+        optional_missing = False
+        for leaf, optional in (
+            (AVD_HOME_LEAF, False),
+            (selected.name, False),
+            ("data", True),
+            ("misc", True),
+        ):
+            display = display / leaf
+            try:
+                observed = os.stat(leaf, dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                if not optional:
+                    raise
+                optional_missing = True
+                break
+            descriptor = _open_private_directory_at(
+                parent,
+                leaf,
+                display_path=display,
+                label="AVD scratch ancestor",
+            )
+            descriptors.append((descriptor, "AVD scratch ancestor"))
+            opened = os.fstat(descriptor)
+            _require(
+                identity(observed) == identity(opened),
+                "AVD scratch ancestor changed while opening",
+            )
+            bindings.append((parent, leaf, descriptor, opened))
+            parent = descriptor
+            if leaf == AVD_HOME_LEAF:
+                ini = home / f"{name}.ini"
+                _parse_selected_avd_ini(
+                    _read_selected_avd_ini(parent, leaf=ini.name, display_path=ini),
+                    expected_path=selected,
+                )
+        if not optional_missing:
+            try:
+                observed = os.stat("pstore", dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                observed = None
+            if observed is not None:
+                _require(
+                    stat.S_ISDIR(observed.st_mode)
+                    and observed.st_uid == os.geteuid()
+                    and stat.S_IMODE(observed.st_mode) in {0o700, 0o777},
+                    "AVD pstore must be a current-user-owned 0700 or 0777 directory",
+                )
+                descriptor = os.open(
+                    "pstore",
+                    os.O_RDONLY
+                    | os.O_DIRECTORY
+                    | os.O_NOFOLLOW
+                    | getattr(os, "O_CLOEXEC", 0),
+                    dir_fd=parent,
+                )
+                descriptors.append((descriptor, "AVD pstore"))
+                opened = os.fstat(descriptor)
+                _require(
+                    identity(observed) == identity(opened),
+                    "AVD pstore changed while opening",
+                )
+                _reject_macos_allow_acl(descriptor, "AVD pstore")
+                bindings.append((parent, "pstore", descriptor, opened))
+                with os.scandir(descriptor) as entries:
+                    _require(next(entries, None) is None, "AVD pstore is not empty")
+                recheck_bindings()
+                if stat.S_IMODE(opened.st_mode) == 0o777:
+                    os.fchmod(descriptor, 0o700)
+                    restored = os.fstat(descriptor)
+                    _require(
+                        restored.st_dev == opened.st_dev
+                        and restored.st_ino == opened.st_ino
+                        and restored.st_uid == opened.st_uid
+                        and restored.st_gid == opened.st_gid
+                        and restored.st_mode == (stat.S_IFDIR | 0o700)
+                        and restored.st_nlink == opened.st_nlink
+                        and restored.st_size == opened.st_size
+                        and restored.st_mtime_ns == opened.st_mtime_ns,
+                        "AVD pstore identity changed while restoring permissions",
+                    )
+                    bindings[-1] = (parent, "pstore", descriptor, restored)
+                with os.scandir(descriptor) as entries:
+                    _require(
+                        next(entries, None) is None,
+                        "AVD pstore changed after inspection",
+                    )
+        recheck_bindings()
+        validate_runtime_avd_selection(receipt.adb_profile, receipt.device_abi)
+        recheck_bindings()
+    except OSError as exc:
+        primary = AndroidRuntimeStateError(f"cannot restore owned AVD pstore: {exc}")
+        raise primary from exc
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        closing_failure: BaseException | None = None
+        for descriptor, label in reversed(descriptors):
+            try:
+                _close_owned_descriptor(
+                    descriptor,
+                    label=label,
+                    primary=primary if primary is not None else closing_failure,
+                )
+            except BaseException as exc:
+                if primary is not None:
+                    primary.add_note(f"closing {label} also failed: {exc}")
+                elif closing_failure is None:
+                    closing_failure = exc
+                else:
+                    closing_failure.add_note(f"closing {label} also failed: {exc}")
+        if primary is None and closing_failure is not None:
+            raise closing_failure
+
+
 def _canonical_emulator_abi(value: object) -> Literal["arm64-v8a", "x86_64"]:
     try:
         return canonical_emulator_abi(value)
