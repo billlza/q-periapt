@@ -9,6 +9,8 @@ typed, fail-closed boundaries.
 
 from __future__ import annotations
 
+from platform_distribution_contract import PlatformReleaseProfile
+
 import contextlib
 import datetime as dt
 import hashlib
@@ -1728,6 +1730,7 @@ def collect_candidate_attestations(
     attestation_directory: pathlib.Path,
     *,
     source_environment: Mapping[str, str] | None = None,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> None:
     """Collect six bounded candidate verification results with the pinned CLI."""
 
@@ -1782,7 +1785,7 @@ def collect_candidate_attestations(
                         "--signer-digest",
                         expected_commit,
                         "--source-ref",
-                        RELEASE_REF,
+                        profile.release_ref,
                         "--source-digest",
                         expected_commit,
                         "--deny-self-hosted-runners",
@@ -1850,6 +1853,7 @@ def verify_candidate_checkout(
     expected_source_parent: str | None = None,
     include_untracked: bool = True,
     source_environment: Mapping[str, str] | None = None,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> str:
     """Verify the exact annotated-tag checkout with fixed Git and no ambient config."""
 
@@ -1909,7 +1913,7 @@ def verify_candidate_checkout(
         )
         return text[:-1]
 
-    release_ref = f"refs/tags/{RELEASE_TAG}"
+    release_ref = f"refs/tags/{profile.release_tag}"
     _require(
         git_line(["cat-file", "-t", release_ref], label="platform release tag type")
         == "tag",
@@ -2019,6 +2023,7 @@ def _verification_record(
     asset: str,
     expected_commit: str,
     expected_subjects: list[dict[str, object]],
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> VerifiedRecord:
     raw = _snapshot_private_file_at(
         directory_fd,
@@ -2110,7 +2115,7 @@ def _verification_record(
         == {
             "workflow": {
                 "path": WORKFLOW_PATH,
-                "ref": RELEASE_REF,
+                "ref": profile.release_ref,
                 "repository": REPOSITORY_URL,
             }
         },
@@ -2147,7 +2152,7 @@ def _verification_record(
         == [
             {
                 "digest": {"gitCommit": expected_commit},
-                "uri": f"git+{REPOSITORY_URL}@{RELEASE_REF}",
+                "uri": f"git+{REPOSITORY_URL}@{profile.release_ref}",
             }
         ],
         "attestation source dependency differs",
@@ -2185,13 +2190,13 @@ def _verification_record(
     _exact_keys(certificate, certificate_keys, "attestation certificate")
     fixed_certificate = {
         "buildConfigDigest": expected_commit,
-        "buildConfigURI": WORKFLOW_URI,
+        "buildConfigURI": profile.workflow_uri,
         "buildSignerDigest": expected_commit,
-        "buildSignerURI": WORKFLOW_URI,
+        "buildSignerURI": profile.workflow_uri,
         "buildTrigger": "push",
         "certificateIssuer": "CN=sigstore-intermediate,O=sigstore.dev",
         "githubWorkflowName": "ABI2 stable platform release",
-        "githubWorkflowRef": RELEASE_REF,
+        "githubWorkflowRef": profile.release_ref,
         "githubWorkflowRepository": REPOSITORY,
         "githubWorkflowSHA": expected_commit,
         "githubWorkflowTrigger": "push",
@@ -2201,10 +2206,10 @@ def _verification_record(
         "sourceRepositoryIdentifier": github["repository_id"],
         "sourceRepositoryOwnerIdentifier": github["repository_owner_id"],
         "sourceRepositoryOwnerURI": REPOSITORY_OWNER_URL,
-        "sourceRepositoryRef": RELEASE_REF,
+        "sourceRepositoryRef": profile.release_ref,
         "sourceRepositoryURI": REPOSITORY_URL,
         "sourceRepositoryVisibilityAtSigning": "public",
-        "subjectAlternativeName": WORKFLOW_URI,
+        "subjectAlternativeName": profile.workflow_uri,
     }
     for key, expected in fixed_certificate.items():
         _require(certificate[key] == expected, f"attestation certificate {key} differs")
@@ -2231,7 +2236,7 @@ def _verification_record(
     _require(
         run_details
         == {
-            "builder": {"id": WORKFLOW_URI},
+            "builder": {"id": profile.workflow_uri},
             "metadata": {"invocationId": run_uri},
         },
         "attestation run details differ",
@@ -2335,6 +2340,7 @@ def _verify_candidate_attestation_inputs_at(
     *,
     candidate: pathlib.Path,
     expected_commit: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[list[dict[str, object]], dict[str, object], VerifiedRecord]:
     expected_entries = frozenset(
         {
@@ -2384,6 +2390,7 @@ def _verify_candidate_attestation_inputs_at(
             asset=asset,
             expected_commit=expected_commit,
             expected_subjects=expected_subjects,
+            profile=profile,
         )
         if shared is None:
             shared = record
@@ -2414,6 +2421,8 @@ def verify_candidate_attestations(
     projection_path: pathlib.Path,
     attestation_dir: pathlib.Path,
     preflight_snapshot_path: pathlib.Path,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[str, int]:
     """Re-snapshot candidate bytes, verify six records, and publish projection."""
 
@@ -2460,15 +2469,16 @@ def verify_candidate_attestations(
                         directory.path,
                         candidate=candidate,
                         expected_commit=expected_commit,
+                        profile=profile,
                     )
                 )
                 projection: dict[str, object] = {
-                    "certificate_san": WORKFLOW_URI,
+                    "certificate_san": profile.workflow_uri,
                     "predicate_type": PREDICATE_TYPE,
                     "security_gate": security_gate,
-                    "signer_workflow": WORKFLOW_URI,
+                    "signer_workflow": profile.workflow_uri,
                     "source_digest": expected_commit,
-                    "source_ref": RELEASE_REF,
+                    "source_ref": profile.release_ref,
                     "subjects": expected_subjects,
                     "verification_record_sha256": hashlib.sha256(
                         shared.record
@@ -2491,6 +2501,7 @@ def verify_candidate_attestations(
                             directory.path,
                             candidate=candidate,
                             expected_commit=expected_commit,
+                            profile=profile,
                         )
                     )
                     _require(
@@ -2533,8 +2544,15 @@ def _usage() -> str:
 
 
 def _main(arguments: Sequence[str]) -> int:
+    profile = PlatformReleaseProfile.STABLE
+    if len(arguments) >= 2 and arguments[0] == "--profile":
+        try:
+            profile = PlatformReleaseProfile(arguments[1])
+        except ValueError as exc:
+            raise CandidateAttestationError("unknown platform release profile") from exc
+        arguments = arguments[2:]
     if list(arguments) == ["release-tag"]:
-        print(RELEASE_TAG)
+        print(profile.release_tag)
         return 0
     if list(arguments) == ["subject-names"]:
         print("\n".join(PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS))
@@ -2599,19 +2617,23 @@ def _main(arguments: Sequence[str]) -> int:
             pathlib.Path(arguments[1]),
             arguments[2],
             pathlib.Path(arguments[3]),
+            profile=profile,
         )
         return 0
     if len(arguments) == 2 and arguments[0] == "checkout-verify":
-        verify_candidate_checkout(arguments[1])
+        verify_candidate_checkout(arguments[1], profile=profile)
         return 0
     if len(arguments) == 3 and arguments[0] == "checkout-verify-release":
         verify_candidate_checkout(
-            arguments[1],
-            expected_source_parent=arguments[2],
+            arguments[1], expected_source_parent=arguments[2], profile=profile
         )
         return 0
     if len(arguments) == 2 and arguments[0] == "checkout-verify-tracked":
-        print(verify_candidate_checkout(arguments[1], include_untracked=False))
+        print(
+            verify_candidate_checkout(
+                arguments[1], include_untracked=False, profile=profile
+            )
+        )
         return 0
     if len(arguments) == 2 and arguments[0] == "stable-source-currentness":
         validate_tag_source_currentness(arguments[1])
@@ -2638,6 +2660,7 @@ def _main(arguments: Sequence[str]) -> int:
             pathlib.Path(arguments[3]),
             pathlib.Path(arguments[4]),
             pathlib.Path(arguments[5]),
+            profile=profile,
         )
         print(
             "ABI2_PLATFORM_CANDIDATE_ATTESTATION_VERIFY_PASS "

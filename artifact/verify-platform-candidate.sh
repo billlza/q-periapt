@@ -6,8 +6,18 @@ ROOT=$(CDPATH='' cd -- "$(/usr/bin/dirname -- "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
+PROFILE=stable
+if [ "$#" -ge 2 ] && [ "$1" = "--profile" ]; then
+    PROFILE=$2
+    shift 2
+fi
+case "$PROFILE" in
+    stable|maintenance-r2) ;;
+    *) printf 'error: unknown platform release profile\n' >&2; exit 2 ;;
+esac
+
 if [ "$#" -ne 3 ]; then
-	printf 'usage: %s CANDIDATE_DIRECTORY EXPECTED_TAG_COMMIT PROJECTION_OUTPUT\n' "$0" >&2
+	printf 'usage: %s [--profile stable|maintenance-r2] CANDIDATE_DIRECTORY EXPECTED_TAG_COMMIT PROJECTION_OUTPUT\n' "$0" >&2
 	exit 2
 fi
 
@@ -44,7 +54,7 @@ case "$EXPECTED_COMMIT" in
 esac
 
 # Reject every caller-controlled filesystem path before invoking Git or GitHub.
-/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py preflight \
+/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py --profile "$PROFILE" preflight \
 	"$CANDIDATE_DIR" "$PROJECTION_OUTPUT" "$EXPECTED_COMMIT"
 
 TARGET_ROOT=$ROOT/target
@@ -63,8 +73,8 @@ for private_root in "$TARGET_ROOT" "$VERIFICATION_ROOT" "$PRIVATE_PARENT"; do
 		}
 	fi
 done
-/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py validate-raw-root
-/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py checkout-verify \
+/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py --profile "$PROFILE" validate-raw-root
+/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py --profile "$PROFILE" checkout-verify \
 	"$EXPECTED_COMMIT"
 
 ATTESTATION_DIR=$(
@@ -79,14 +89,14 @@ SNAPSHOT_OUTPUT=$ATTESTATION_DIR/candidate-snapshot.json
 
 # This validates the explicit O_EXCL projection target and records the sole
 # preflight byte snapshot before any network-backed verification starts.
-/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py snapshot \
+/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py --profile "$PROFILE" snapshot \
 	"$CANDIDATE_DIR" "$SNAPSHOT_OUTPUT" "$PROJECTION_OUTPUT" "$EXPECTED_COMMIT"
 
-/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py github-verify \
+/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py --profile "$PROFILE" github-verify \
 	"$CANDIDATE_DIR" "$EXPECTED_COMMIT" "$ATTESTATION_DIR"
 
 # Re-sample with the same parser, require an identical snapshot, then parse all
 # six raw VRs as one exact transaction and O_EXCL-publish the safe projection.
-/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py verify \
+/bin/sh artifact/python-run.sh artifact/platform_candidate_attestation.py --profile "$PROFILE" verify \
 	"$CANDIDATE_DIR" "$EXPECTED_COMMIT" "$PROJECTION_OUTPUT" \
 	"$ATTESTATION_DIR" "$SNAPSHOT_OUTPUT"

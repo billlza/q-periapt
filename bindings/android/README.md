@@ -62,7 +62,7 @@ The package gate now runs SDK R8 using `classes.jar` and `proguard.txt` read fro
 the actual AAR. Its only application root calls `runtimeVersion()`; the full-API
 compile-only consumer is excluded from R8 inputs. The existing SDK `dexdump`
 checks all nine native names/descriptors and the public exception constructor.
-This does not execute JNI or AGP's AAR transforms. A future consumer gate must
+This does not execute JNI or AGP's AAR transforms. The r2 consumer gate must
 build a minified Release app from the exact AAR through AGP, without supplying
 extra Q-Periapt keep rules in the app, then execute the existing
 `QPeriaptSmokeActivity` workload from
@@ -73,7 +73,12 @@ AGP/ART acceptance is a separate required consumer result; archive, `javap` or
 standalone R8 success does not establish it. A separate minimal-entry variant
 that calls only `runtimeVersion()` must also initialize JNI successfully and retain every native
 name/descriptor plus the exception callback in its shrunk DEX. The complete
-workload alone cannot detect removal of unused native methods.
+workload alone cannot detect removal of unused native methods. The r2 source and
+gate are candidates until the independent `abi2-platforms-v0.1.5-r2-verified` tag
+and maintenance receipt confirm the exact public assets. Once verified, select
+`abi2-platforms-v0.1.5-r2` for Android and Linux while retaining library SemVer
+`0.1.5`; the corrected AAR needs neither manifest conversion nor application-side
+Q-Periapt keep rules.
 
 The canonical Android release proof runs the exact package-gate AAR on a script-owned,
 cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB pages,
@@ -301,26 +306,30 @@ release proof nor physical-device production evidence.
 
 ## Stable AAR publication transaction
 
-The stable transaction published a prebuilt AAR in `abi2-platforms-v0.1.4`, a
-non-prerelease GitHub release that is now published and immutable. This tree is the open
-`0.1.5` source line and has produced no `0.1.5` platform release, tag, or prebuilt
-AAR, so a consumer wanting a published binary still takes the
-`abi2-platforms-v0.1.4` asset. That release carries
-one AAR containing `arm64-v8a`,
-`armeabi-v7a`, `x86`, and `x86_64` JNI libraries built with stable NDK r29 and
-Rust 1.96.1. Every ELF has 16 KiB load alignment, the exact nine-symbol ABI 2
-export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
-verified release also binds a runtime-evidence bundle that executed the exact public AAR on
-the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
-16 KiB pages. Public/current status requires the stable verified receipt; the `0.1.4`
-platform receipt is recorded at the annotated tag `v0.1.4-verified-cohort` rather than
-on `main`, whose `artifact/results.json` the `0.1.5` reopening returned to its initial
-baseline, so `main`'s trusted results record no `0.1.4` publication; the published
-release itself is immutable and unaffected. The historical published receipt remains schema v3
-for alpha.2, while current source-tree runs require schema v6
-and do not retroactively change an immutable release. Verify the AAR and its manifest with `gh release verify-asset`
-against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
-[`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
+The original `abi2-platforms-v0.1.5` release is public and immutable. Its
+verified three-domain record is preserved at `v0.1.5-verified-cohort`; this
+open development tree does not replace that frozen record. The published AAR
+has the manifest and consumer keep-rule defects described above.
+
+The separate `abi2-platforms-v0.1.5-r2` maintenance distribution is a **source
+candidate, not a published or verified replacement**. It keeps product version
+`0.1.5` and ABI 2, rebuilds the four-ABI AAR and both Linux packages from one new
+source identity, and requires its own exact assets and public verification.
+It must include the canonical API-35 arm64-v8a / 16 KiB runtime evidence and
+both full and minimal AGP Release consumer evidence for the exact corrected AAR.
+The independent completed record, once produced, is named
+`abi2-platforms-v0.1.5-r2-verified`; it is not a new three-domain crate cohort.
+The original release, Q and all ten published crate bytes remain unchanged.
+
+Until the r2 distribution has a verified public receipt, a consumer correction
+is a derived artifact and must retain that distinction. Do not label an APK,
+a local rebuild, or the r2 source candidate as the corrected public AAR.
+See [`platform-maintenance-release-notes.md`](../../artifact/platform-maintenance-release-notes.md)
+for the explicit candidate and publication contract. Verify the selected public
+AAR and its manifest against that exact tag's `PLATFORM_DISTRIBUTION.json`,
+`SHA256SUMS` and immutable release attestation. An old r1 receipt cannot verify
+new r2 bytes.
+
 Maven Central publication and a current same-source physical-device production proof are explicitly
 not claimed, and published emulator evidence does not replace the clean-tree runtime proof
 required for a source tree that has advanced past the release tag.

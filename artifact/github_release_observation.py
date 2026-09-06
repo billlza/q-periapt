@@ -9,6 +9,8 @@ transaction ordering, private raw bytes, and domain receipt construction.
 
 from __future__ import annotations
 
+from platform_distribution_contract import PlatformReleaseProfile
+
 import dataclasses
 import datetime as dt
 import hashlib
@@ -1485,9 +1487,23 @@ def _capture_github_api_get(
 def parse_stable_tag_rulesets(
     ruleset_list_raw: bytes,
     ruleset_details_raw: Mapping[int, bytes],
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> StableTagProtectionObservation:
     """Require active, no-bypass update+delete rules for both stable tags."""
 
+    _require(
+        type(profile) is PlatformReleaseProfile, "tag protection profile is invalid"
+    )
+    protected_tag_refs = PROTECTED_STABLE_TAG_REFS + (
+        (
+            profile.release_ref,
+            "refs/tags/v0.1.5-verified-cohort",
+            f"refs/tags/{profile.verification_tag}",
+        )
+        if profile is PlatformReleaseProfile.MAINTENANCE_R2
+        else ()
+    )
     ordered_ids = _parse_stable_tag_ruleset_ids(ruleset_list_raw)
     _require(
         set(ruleset_details_raw) == set(ordered_ids)
@@ -1499,7 +1515,7 @@ def parse_stable_tag_rulesets(
     )
 
     required_rules = frozenset({"update", "deletion"})
-    coverage = {tag_ref: set() for tag_ref in PROTECTED_STABLE_TAG_REFS}
+    coverage = {tag_ref: set() for tag_ref in protected_tag_refs}
     authoritative_ids: set[int] = set()
     for ruleset_id in ordered_ids:
         try:
@@ -1549,7 +1565,7 @@ def parse_stable_tag_rulesets(
             and len(excludes) == len(set(excludes)),
             "GitHub tag ruleset ref conditions are malformed",
         )
-        explicit_stable_refs = set(includes) & set(PROTECTED_STABLE_TAG_REFS)
+        explicit_stable_refs = set(includes) & set(protected_tag_refs)
         if not explicit_stable_refs:
             continue
         _require(
@@ -1628,21 +1644,18 @@ def parse_stable_tag_rulesets(
                 coverage[tag_ref].update(protected_rules)
 
     _require(
-        all(
-            coverage[tag_ref] == required_rules
-            for tag_ref in PROTECTED_STABLE_TAG_REFS
-        ),
+        all(coverage[tag_ref] == required_rules for tag_ref in protected_tag_refs),
         "GitHub stable tags lack active no-bypass update and deletion protection",
     )
     projection = {
         "repository": GITHUB_REPOSITORY,
         "ruleset_ids": sorted(authoritative_ids),
-        "tag_refs": list(PROTECTED_STABLE_TAG_REFS),
+        "tag_refs": list(protected_tag_refs),
     }
     return StableTagProtectionObservation(
         repository=GITHUB_REPOSITORY,
         ruleset_ids=tuple(sorted(authoritative_ids)),
-        tag_refs=PROTECTED_STABLE_TAG_REFS,
+        tag_refs=protected_tag_refs,
         observation_sha256=hashlib.sha256(canonical_json(projection)).hexdigest(),
     )
 
@@ -1682,6 +1695,7 @@ def sample_stable_tag_protection_once(
     *,
     source_environment: Mapping[str, str] | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> StableTagProtectionObservation:
     """Take one complete exact stable-tag ruleset sample."""
 
@@ -1717,7 +1731,7 @@ def sample_stable_tag_protection_once(
             label="GitHub stable tag ruleset detail",
             runner=runner,
         )
-    return parse_stable_tag_rulesets(list_raw, detail_raw)
+    return parse_stable_tag_rulesets(list_raw, detail_raw, profile=profile)
 
 
 def observe_stable_tag_protection(
@@ -1972,6 +1986,8 @@ def _stable_tag_state_expectation(
 def _parse_matching_stable_tag_reference(
     raw: bytes,
     expected_reference: str,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> str | None:
     try:
         value = parse_strict_json_bytes(raw, label="GitHub stable tag references")
@@ -1980,7 +1996,15 @@ def _parse_matching_stable_tag_reference(
             "GitHub stable tag references are not strict JSON"
         ) from exc
     _require(
-        expected_reference in STABLE_TAG_REFS and isinstance(value, list),
+        type(profile) is PlatformReleaseProfile, "tag reference profile is invalid"
+    )
+    allowed_refs = (
+        STABLE_TAG_REFS
+        if profile is PlatformReleaseProfile.STABLE
+        else (profile.release_ref,)
+    )
+    _require(
+        expected_reference in allowed_refs and isinstance(value, list),
         "GitHub stable tag reference response is malformed",
     )
     _require(
@@ -2176,6 +2200,119 @@ def sample_stable_tag_state_once(
         expected_commit=commit,
         expected_tree=tree,
         expected_tag_objects=tag_objects,
+    )
+
+
+def parse_platform_maintenance_tag_state(
+    reference_raw: bytes,
+    tag_raw: bytes,
+    commit_raw: bytes,
+    *,
+    expected_tag_object: str,
+    expected_commit: str,
+    expected_tree: str,
+) -> StableTagStateObservation:
+    """Validate only the explicitly named annotated platform r2 tag."""
+
+    reference = PlatformReleaseProfile.MAINTENANCE_R2.release_ref
+    _require(
+        all(
+            isinstance(value, str) and HEX_40.fullmatch(value) is not None
+            for value in (expected_tag_object, expected_commit, expected_tree)
+        )
+        and expected_tag_object != expected_commit,
+        "maintenance tag expectation is malformed",
+    )
+    observed_object = _parse_matching_stable_tag_reference(
+        reference_raw, reference, profile=PlatformReleaseProfile.MAINTENANCE_R2
+    )
+    _require(
+        observed_object == expected_tag_object, "maintenance tag reference differs"
+    )
+    _parse_stable_annotated_tag(
+        tag_raw,
+        reference=reference,
+        expected_tag_object=expected_tag_object,
+        expected_commit=expected_commit,
+    )
+    _parse_stable_commit(
+        commit_raw, expected_commit=expected_commit, expected_tree=expected_tree
+    )
+    projection = {
+        "repository": GITHUB_REPOSITORY,
+        "state": "exact",
+        "tag_refs": [reference],
+        "tag_objects": [expected_tag_object],
+        "commit": expected_commit,
+        "tree": expected_tree,
+    }
+    return StableTagStateObservation(
+        repository=GITHUB_REPOSITORY,
+        state="exact",
+        tag_refs=(reference,),
+        tag_objects=(expected_tag_object,),
+        commit=expected_commit,
+        tree=expected_tree,
+        observation_sha256=hashlib.sha256(canonical_json(projection)).hexdigest(),
+    )
+
+
+def sample_platform_maintenance_tag_state_once(
+    *,
+    expected_tag_object: str,
+    expected_commit: str,
+    expected_tree: str,
+    source_environment: Mapping[str, str] | None = None,
+    runner: GitHubCommandRunner = capture_stdout,
+) -> StableTagStateObservation:
+    """Reuse the bounded observation boundary for one new r2 tag, never a tag write."""
+
+    _require(
+        all(
+            isinstance(value, str) and HEX_40.fullmatch(value) is not None
+            for value in (expected_tag_object, expected_commit, expected_tree)
+        )
+        and expected_tag_object != expected_commit,
+        "maintenance tag expectation is malformed",
+    )
+    reference = PlatformReleaseProfile.MAINTENANCE_R2.release_ref
+    environment = github_cli_environment(
+        os.environ if source_environment is None else source_environment
+    )
+    tool = select_github_cli()
+    raw = tuple(
+        _capture_github_api_get(
+            tool,
+            f"repos/{GITHUB_REPOSITORY}/git/{suffix}",
+            timeout_seconds=120,
+            maximum_bytes=maximum,
+            environment=environment,
+            label=label,
+            runner=runner,
+        )
+        for suffix, maximum, label in (
+            (
+                f"matching-refs/{reference.removeprefix('refs/')}?per_page=100&page=1",
+                MAX_STABLE_TAG_REFERENCE_BYTES,
+                "maintenance tag reference",
+            ),
+            (
+                f"tags/{expected_tag_object}",
+                MAX_STABLE_TAG_OBJECT_BYTES,
+                "maintenance tag object",
+            ),
+            (
+                f"commits/{expected_commit}",
+                MAX_STABLE_COMMIT_OBJECT_BYTES,
+                "maintenance tag commit",
+            ),
+        )
+    )
+    return parse_platform_maintenance_tag_state(
+        *raw,
+        expected_tag_object=expected_tag_object,
+        expected_commit=expected_commit,
+        expected_tree=expected_tree,
     )
 
 

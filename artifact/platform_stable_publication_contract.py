@@ -15,6 +15,7 @@ import re
 from types import MappingProxyType
 
 import platform_distribution_contract as candidate_contract
+from platform_distribution_contract import PlatformReleaseProfile
 
 
 PLATFORM_V0_1_5_PUBLICATION_SCHEMA_VERSION = 3
@@ -59,6 +60,27 @@ PLATFORM_V0_1_5_PUBLICATION_BOUNDARY = (
     "Level-1 accidental-mismatch detection within repository-trusted evidence; "
     "they do not attest a hostile builder or host."
 )
+
+PLATFORM_V0_1_5_R2_PUBLICATION_BOUNDARY = (
+    "ABI 2 0.1.5 r2 platform maintenance distribution. Its independent pending "
+    "and verified receipt binds the new annotated tag, source, exact seven "
+    "assets, candidate provenance, immutable release attestation, fresh "
+    "downloads and API 35 arm64-v8a 16 KiB emulator evidence. The maintenance "
+    "anchor separately names the unchanged original verified cohort. This "
+    "receipt neither rewrites that cohort nor asserts new Apple or crates.io "
+    "publication, physical-device coverage or production promotion."
+)
+
+
+def publication_boundary(profile: PlatformReleaseProfile) -> str:
+    """Select one reviewed receipt boundary without changing frozen r1 text."""
+
+    _require(type(profile) is PlatformReleaseProfile, "platform profile is invalid")
+    return {
+        PlatformReleaseProfile.STABLE: PLATFORM_V0_1_5_PUBLICATION_BOUNDARY,
+        PlatformReleaseProfile.MAINTENANCE_R2: PLATFORM_V0_1_5_R2_PUBLICATION_BOUNDARY,
+    }[profile]
+
 
 RELEASE_MANIFEST = candidate_contract.RELEASE_MANIFEST
 RELEASE_SUMS = candidate_contract.RELEASE_SUMS
@@ -270,7 +292,11 @@ def _validate_sha256_subject(
 
 
 def _validate_candidate_attestation(
-    candidate_value: object, *, tag_commit: str, source_parent_commit: str
+    candidate_value: object,
+    *,
+    tag_commit: str,
+    source_parent_commit: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[dict[str, str], dt.datetime]:
     candidate = _object(
         candidate_value, "platform v0_1_5 candidate attestation"
@@ -296,7 +322,7 @@ def _validate_candidate_attestation(
         "platform v0_1_5 candidate attestation",
     )
     _require(
-        candidate["certificate_san"] == CANDIDATE_SIGNER_WORKFLOW,
+        candidate["certificate_san"] == profile.workflow_uri,
         "platform v0_1_5 candidate certificate identity differs",
     )
     _require(
@@ -304,11 +330,11 @@ def _validate_candidate_attestation(
         "platform v0_1_5 candidate predicate differs",
     )
     _require(
-        candidate["signer_workflow"] == CANDIDATE_SIGNER_WORKFLOW,
+        candidate["signer_workflow"] == profile.workflow_uri,
         "platform v0_1_5 candidate signer workflow differs",
     )
     _require(
-        candidate["source_ref"] == RELEASE_REF,
+        candidate["source_ref"] == profile.release_ref,
         "platform v0_1_5 candidate source ref differs",
     )
     _require(
@@ -440,10 +466,16 @@ def _validate_release_candidate(
     candidate_value: object,
     *,
     candidate_subjects: dict[str, str],
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    expected_source_commit: str | None = None,
+    expected_source_tree_sha256: str | None = None,
 ) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
     try:
         candidate = candidate_contract.validate_release_candidate_projection(
-            candidate_value
+            candidate_value,
+            profile=profile,
+            expected_source_commit=expected_source_commit,
+            expected_source_tree_sha256=expected_source_tree_sha256,
         )
     except candidate_contract.PlatformDistributionContractError as exc:
         raise PlatformV015PublicationContractError(str(exc)) from exc
@@ -459,6 +491,7 @@ def _validate_release_attestation(
     *,
     assets: dict[str, dict[str, object]],
     tag_object: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> None:
     attestation = _object(
         attestation_value, "platform v0_1_5 release attestation"
@@ -508,7 +541,7 @@ def _validate_release_attestation(
         "platform v0_1_5 release tag subject",
     )
     _require(
-        tag_subject["uri"] == TAG_SUBJECT_URI,
+        tag_subject["uri"] == profile.tag_subject_uri,
         "platform v0_1_5 release tag subject URI differs",
     )
     tag_digest = _object(
@@ -582,7 +615,10 @@ def _validate_fresh_download(
 
 
 def _validate_android_runtime(
-    runtime_value: object, *, assets: dict[str, dict[str, object]]
+    runtime_value: object,
+    *,
+    assets: dict[str, dict[str, object]],
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> None:
     runtime = _object(
         runtime_value, "platform v0_1_5 Android runtime evidence"
@@ -604,13 +640,17 @@ def _validate_android_runtime(
                 "tested_aar_manifest_sha256",
                 "tested_aar_sha256",
             }
+        )
+        | (
+            frozenset({"agp_consumers"})
+            if profile is PlatformReleaseProfile.MAINTENANCE_R2
+            else frozenset()
         ),
         "platform v0_1_5 Android runtime evidence",
     )
     _require(
         type(runtime["bundle_schema"]) is int
-        and runtime["bundle_schema"]
-        == ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
+        and runtime["bundle_schema"] == profile.runtime_bundle_schema,
         "platform v0_1_5 Android runtime bundle schema differs",
     )
     _require(
@@ -677,8 +717,10 @@ def _validate_registries(observation: dict[str, object]) -> None:
     )
 
 
-def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
-    """Validate one frozen 0.1.5 stable publication receipt without network I/O."""
+def validate_platform_publication_receipt(
+    receipt_value: object, *, profile: PlatformReleaseProfile
+) -> None:
+    """Validate the exact assets and provenance of one explicit release profile."""
 
     receipt = _object(
         receipt_value, "platform v0_1_5 publication receipt"
@@ -708,7 +750,7 @@ def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
         "platform v0_1_5 publication receipt kind differs",
     )
     _require(
-        receipt["boundary"] == PLATFORM_V0_1_5_PUBLICATION_BOUNDARY,
+        receipt["boundary"] == publication_boundary(profile),
         "platform v0_1_5 publication boundary differs",
     )
     identity = _object(
@@ -727,13 +769,7 @@ def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
         "platform v0_1_5 publication identity",
     )
     _require(
-        identity
-        == {
-            "distribution_revision": DISTRIBUTION_REVISION,
-            "product_version": PRODUCT_VERSION,
-            "release_tag": RELEASE_TAG,
-            "release_url": RELEASE_URL,
-        },
+        identity == profile.identity(),
         "platform v0_1_5 publication identity differs",
     )
 
@@ -767,16 +803,18 @@ def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
         observation["observed_at"], "platform v0_1_5 observed_at"
     )
     source = _validate_source(observation["source"])
-    candidate_subjects, candidate_verified_at = (
-        _validate_candidate_attestation(
-            observation["candidate_attestation"],
-            tag_commit=source["tag_commit"],
-            source_parent_commit=source["source_parent_commit"],
-        )
+    candidate_subjects, candidate_verified_at = _validate_candidate_attestation(
+        observation["candidate_attestation"],
+        tag_commit=source["tag_commit"],
+        source_parent_commit=source["source_parent_commit"],
+        profile=profile,
     )
     release_candidate, release_candidate_assets = _validate_release_candidate(
         observation["release_candidate"],
         candidate_subjects=candidate_subjects,
+        profile=profile,
+        expected_source_commit=source["tag_commit"],
+        expected_source_tree_sha256=source["canonical_source_tree_sha256"],
     )
     _sha256(
         observation["assembly_receipt_sha256"],
@@ -850,13 +888,16 @@ def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
         observation["release_attestation"],
         assets=assets,
         tag_object=source["tag_object"],
+        profile=profile,
     )
     fresh_verified_at = _validate_fresh_download(
         observation["fresh_download_verification"],
         tag_commit=source["tag_commit"],
     )
     _validate_android_runtime(
-        observation["android_runtime_evidence"], assets=assets
+        observation["android_runtime_evidence"],
+        assets=assets,
+        profile=profile,
     )
     _require(
         observation["android_runtime_evidence"]
@@ -871,4 +912,12 @@ def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
     _require(
         published_at <= fresh_verified_at <= observed_at,
         "platform v0_1_5 publication/fresh/observation timestamps are out of order",
+    )
+
+
+def validate_v0_1_5_publication_receipt(receipt_value: object) -> None:
+    """Keep the original 0.1.5 r1 entry point permanently pinned to r1."""
+
+    validate_platform_publication_receipt(
+        receipt_value, profile=PlatformReleaseProfile.STABLE
     )

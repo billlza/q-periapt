@@ -861,10 +861,12 @@ class PlatformV015PublicationTests(unittest.TestCase):
 
         def load_and_mutate(
             path: pathlib.Path,
+            *,
+            profile: publication.PlatformReleaseProfile,
         ) -> platform_distribution.ReleaseCandidateBundle:
             nonlocal calls
             calls += 1
-            value = real_load(path)
+            value = real_load(path, profile=profile)
             if calls == 1:
                 release = (
                     path.parent
@@ -902,6 +904,7 @@ class PlatformV015PublicationTests(unittest.TestCase):
 
         pending_arguments = mock.Mock(
             command="pending",
+            profile="stable",
             candidate_projection=self.root / "candidate.json",
             assembly_receipt=self.root / "assembly.json",
             verifier_checkout=self.verifier,
@@ -929,6 +932,7 @@ class PlatformV015PublicationTests(unittest.TestCase):
 
         verified_arguments = mock.Mock(
             command="collect",
+            profile="stable",
             pending_receipt=self.root / "pending.json",
             verifier_checkout=self.verifier,
             raw_directory=self.raw_root / "raw-cli",
@@ -997,6 +1001,7 @@ class PlatformV015PublicationTests(unittest.TestCase):
         )
         collect_arguments = mock.Mock(
             command="collect",
+            profile="stable",
             pending_receipt=self.root / "pending.json",
             verifier_checkout=self.verifier,
             raw_directory=self.raw_root / "raw-cli-committed",
@@ -1071,6 +1076,7 @@ class PlatformV015PublicationTests(unittest.TestCase):
         )
         pending_arguments = mock.Mock(
             command="pending",
+            profile="stable",
             candidate_projection=self.root / "candidate.json",
             verifier_checkout=self.verifier,
         )
@@ -1388,12 +1394,14 @@ class PlatformV015PublicationTests(unittest.TestCase):
         def capture_before() -> None:
             nonlocal before
             before = receipt_snapshot()
-        real_validate = publication.validate_v0_1_5_publication_receipt
+        real_validate = publication.validate_platform_publication_receipt
         swapped = False
 
-        def validate_and_swap(value: object) -> None:
+        def validate_and_swap(
+            value: object, *, profile: publication.PlatformReleaseProfile
+        ) -> None:
             nonlocal swapped
-            real_validate(value)
+            real_validate(value, profile=profile)
             if (
                 not swapped
                 and isinstance(value, dict)
@@ -1407,7 +1415,7 @@ class PlatformV015PublicationTests(unittest.TestCase):
         with (
             mock.patch.object(
                 publication,
-                "validate_v0_1_5_publication_receipt",
+                "validate_platform_publication_receipt",
                 side_effect=validate_and_swap,
             ),
             self.assertRaisesRegex(

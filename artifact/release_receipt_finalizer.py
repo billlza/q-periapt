@@ -28,6 +28,9 @@ import crates_io_publication
 import crates_io_publication_contract as crates_contract
 import platform_stable_publication
 import platform_stable_publication_contract as platform_contract
+import platform_maintenance_contract as maintenance_contract
+import platform_maintenance as maintenance_source
+from platform_distribution_contract import PlatformReleaseProfile
 from evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import (
     GitProvenanceError,
@@ -52,6 +55,7 @@ from release_publication_contract import (
     ReleasePublicationContractError,
     publication_state,
     stable_source_identity,
+    maintenance_source_identity,
     validate_release_publication_transition,
     validate_release_publications,
     validate_stable_source_currentness,
@@ -212,11 +216,15 @@ def _load_apple_receipt(path: pathlib.Path) -> dict[str, Any]:
     return receipt
 
 
-def _load_platform_receipt(path: pathlib.Path) -> dict[str, Any]:
+def _load_platform_receipt(
+    path: pathlib.Path,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> dict[str, Any]:
     snapshot = read_fixed_json_snapshot(
         path,
         safe_root=platform_stable_publication.PLATFORM_PUBLICATION_RECEIPT_ROOT,
-        expected_leaf=platform_stable_publication.RECEIPT_NAME,
+        expected_leaf=platform_stable_publication.receipt_name(profile),
         label="platform 0.1.5 stable publication receipt input",
         parent_depth=1,
         maximum=platform_stable_publication.MAX_PRIVATE_JSON_BYTES,
@@ -224,8 +232,14 @@ def _load_platform_receipt(path: pathlib.Path) -> dict[str, Any]:
     )
     receipt = snapshot.value
     try:
-        platform_contract.validate_v0_1_5_publication_receipt(receipt)
-    except platform_contract.PlatformV015PublicationContractError as exc:
+        if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+            maintenance_contract.publication(receipt)
+        else:
+            platform_contract.validate_v0_1_5_publication_receipt(receipt)
+    except (
+        platform_contract.PlatformV015PublicationContractError,
+        maintenance_contract.PlatformMaintenanceContractError,
+    ) as exc:
         raise ReleaseReceiptFinalizerError(str(exc)) from exc
     return receipt
 
@@ -257,6 +271,8 @@ def _verify_stable_source_git_binding(
     manifest: dict[str, Any], *, current_commit: str
 ) -> None:
     identity = stable_source_identity(manifest)
+    if identity is None:
+        identity = maintenance_source_identity(manifest)
     if identity is None:
         return
     try:
@@ -292,6 +308,13 @@ def _assert_only_allowed_mutations(
     current_state: str,
 ) -> None:
     """Prove construction changed only the exact coordinated cohort fields."""
+
+    maintenance_key = maintenance_contract.PUBLICATION_KEY
+    if maintenance_key in previous.get(
+        "release_publications", {}
+    ) or maintenance_key in current.get("release_publications", {}):
+        _assert_only_maintenance_mutations(previous, current)
+        return
 
     allowed_top_level = {"release_publications"}
     if current_state == PUBLICATION_STATE_VERIFIED:
@@ -448,6 +471,88 @@ def assemble_next_results(
     return current, committed
 
 
+def _assert_only_maintenance_mutations(
+    previous: dict[str, Any], current: dict[str, Any]
+) -> None:
+    """Permit only the explicitly named independent revision leaf."""
+
+    _require(previous.keys() == current.keys(), "maintenance changed results sections")
+    for key in previous.keys() - {"release_publications"}:
+        _require(
+            _json_equal(previous[key], current[key]),
+            f"maintenance changed results section {key}",
+        )
+    old = _object(previous["release_publications"], "previous publications")
+    new = _object(current["release_publications"], "current publications")
+    key = maintenance_contract.PUBLICATION_KEY
+    _require(
+        set(new) - {key} == set(old) - {key},
+        "maintenance changed other publication keys",
+    )
+    for retained in set(old) - {key}:
+        _require(
+            _json_equal(old[retained], new[retained]),
+            f"maintenance changed retained publication {retained}",
+        )
+    try:
+        validate_release_publication_transition(previous, current)
+        maintenance_contract.validate_transition(old.get(key), new.get(key))
+    except (
+        ReleasePublicationContractError,
+        maintenance_contract.PlatformMaintenanceContractError,
+    ) as exc:
+        raise ReleaseReceiptFinalizerError(str(exc)) from exc
+
+
+def assemble_maintenance_results(
+    expected_results_sha256: str, *, receipt_path: pathlib.Path
+) -> tuple[dict[str, Any], CommittedResults]:
+    """Append or promote r2 using its own source and the exact external Q anchor."""
+
+    committed = load_current_results(expected_results_sha256)
+    receipt = _load_platform_receipt(
+        receipt_path, profile=PlatformReleaseProfile.MAINTENANCE_R2
+    )
+    current = copy.deepcopy(committed.manifest)
+    publications = _object(current["release_publications"], "maintenance publications")
+    publications[maintenance_contract.PUBLICATION_KEY] = receipt
+    try:
+        validate_declared_currentness(current)
+        validate_release_publications(current)
+        identity = maintenance_source_identity(current)
+        _require(identity is not None, "maintenance lacks its source identity")
+        maintenance_source.verify_product_source(
+            REPOSITORY_ROOT, identity.source_parent_commit
+        )
+    except (
+        ProofManifestError,
+        ReleasePublicationContractError,
+        maintenance_contract.PlatformMaintenanceContractError,
+    ) as exc:
+        raise ReleaseReceiptFinalizerError(str(exc)) from exc
+    _assert_only_maintenance_mutations(committed.manifest, current)
+    _verify_stable_source_git_binding(current, current_commit=committed.commit)
+    return current, committed
+
+
+def _emit_results_candidate(
+    current: dict[str, Any], previous: CommittedResults
+) -> tuple[pathlib.Path, str, str, str]:
+    _require(
+        not _json_equal(previous.manifest, current),
+        "provided receipts already match current results; use read-only verify",
+    )
+    path, digest = create_private_transaction_json(
+        safe_root=RESULTS_CANDIDATE_ROOT,
+        transaction_prefix="transaction.",
+        expected_leaf=RESULTS_CANDIDATE_NAME,
+        value=current,
+        label="release publication results candidate",
+        maximum=MAX_RESULTS_BYTES,
+    )
+    return path, digest, previous.commit, previous.sha256
+
+
 def finalize_results(
     expected_results_sha256: str,
     *,
@@ -463,19 +568,7 @@ def finalize_results(
         platform_receipt_path=platform_receipt_path,
         crates_receipt_path=crates_receipt_path,
     )
-    _require(
-        not _json_equal(previous.manifest, current),
-        "provided receipts already match current results; use read-only verify",
-    )
-    path, digest = create_private_transaction_json(
-        safe_root=RESULTS_CANDIDATE_ROOT,
-        transaction_prefix="transaction.",
-        expected_leaf=RESULTS_CANDIDATE_NAME,
-        value=current,
-        label="release publication results candidate",
-        maximum=MAX_RESULTS_BYTES,
-    )
-    return path, digest, previous.commit, previous.sha256
+    return _emit_results_candidate(current, previous)
 
 
 def verify_existing_receipts(
@@ -609,6 +702,14 @@ def verify_installed_results(
         current.manifest,
         current_commit=current.commit,
     )
+    revision = current.manifest["release_publications"].get(
+        maintenance_contract.PUBLICATION_KEY
+    )
+    if revision is not None:
+        current_state = {
+            platform_contract.PLATFORM_V0_1_5_STATUS_PENDING: "platform_maintenance_pending",
+            platform_contract.PLATFORM_V0_1_5_STATUS_VERIFIED: "platform_maintenance_verified",
+        }[maintenance_contract.publication(revision)["status"]]
     return current.commit, current_state
 
 
@@ -625,6 +726,10 @@ def _parser() -> argparse.ArgumentParser:
     installed.add_argument("expected_results_sha256")
     installed.add_argument("expected_parent_commit")
     installed.add_argument("expected_parent_results_sha256")
+    for command in ("finalize-maintenance", "verify-maintenance"):
+        revision = subparsers.add_parser(command)
+        revision.add_argument("expected_results_sha256")
+        revision.add_argument("--platform-receipt", required=True, type=pathlib.Path)
     return parser
 
 
@@ -638,6 +743,35 @@ def _relative_output(path: pathlib.Path) -> str:
 
 
 def run(args: argparse.Namespace) -> None:
+    if args.command in {"finalize-maintenance", "verify-maintenance"}:
+        current, previous = assemble_maintenance_results(
+            args.expected_results_sha256, receipt_path=args.platform_receipt
+        )
+        if args.command == "verify-maintenance":
+            _require(
+                maintenance_contract.publication(
+                    current["release_publications"][
+                        maintenance_contract.PUBLICATION_KEY
+                    ]
+                )["status"]
+                == platform_contract.PLATFORM_V0_1_5_STATUS_VERIFIED,
+                "maintenance verification requires a complete verified receipt",
+            )
+            _require(
+                _json_equal(current, previous.manifest),
+                "maintenance receipt differs from installed results",
+            )
+            print(f"PLATFORM_MAINTENANCE_RESULTS_VERIFY_PASS sha256={previous.sha256}")
+            return
+        path, digest, parent_commit, parent_sha256 = _emit_results_candidate(
+            current, previous
+        )
+        print(
+            "PLATFORM_MAINTENANCE_RESULTS_CANDIDATE_PASS "
+            f"path={_relative_output(path)} sha256={digest} "
+            f"parent_commit={parent_commit} parent_sha256={parent_sha256}"
+        )
+        return
     if args.command == "verify-installed":
         commit, state = verify_installed_results(
             args.expected_results_sha256,

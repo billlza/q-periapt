@@ -12,6 +12,7 @@ has to exist before they do.
 from __future__ import annotations
 
 import re
+from enum import Enum
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Any, NoReturn
@@ -30,6 +31,74 @@ PRODUCT_VERSION = "0.1.5"
 DISTRIBUTION_REVISION = "r1"
 RELEASE_TAG = f"abi2-platforms-v{PRODUCT_VERSION}"
 RELEASE_URL = f"https://github.com/billlza/q-periapt/releases/tag/{RELEASE_TAG}"
+
+
+class PlatformReleaseProfile(Enum):
+    """Reviewed distribution identities; product SemVer and ABI remain fixed."""
+
+    STABLE = "stable"
+    MAINTENANCE_R2 = "maintenance-r2"
+
+    @property
+    def revision(self) -> str:
+        return {self.STABLE: "r1", self.MAINTENANCE_R2: "r2"}[self]
+
+    @property
+    def release_tag(self) -> str:
+        return {
+            self.STABLE: RELEASE_TAG,
+            self.MAINTENANCE_R2: "abi2-platforms-v0.1.5-r2",
+        }[self]
+
+    @property
+    def verification_tag(self) -> str:
+        return {
+            self.STABLE: "v0.1.5-verified-cohort",
+            self.MAINTENANCE_R2: "abi2-platforms-v0.1.5-r2-verified",
+        }[self]
+
+    @property
+    def runtime_bundle_schema(self) -> int:
+        return {self.STABLE: 2, self.MAINTENANCE_R2: 3}[self]
+
+    @property
+    def release_ref(self) -> str:
+        return f"refs/tags/{self.release_tag}"
+
+    @property
+    def release_url(self) -> str:
+        return f"https://github.com/billlza/q-periapt/releases/tag/{self.release_tag}"
+
+    @property
+    def workflow_uri(self) -> str:
+        return (
+            "https://github.com/billlza/q-periapt/.github/workflows/"
+            f"abi2-platform-candidate.yml@{self.release_ref}"
+        )
+
+    @property
+    def tag_subject_uri(self) -> str:
+        return f"pkg:github/billlza/q-periapt@{self.release_tag}"
+
+    @property
+    def publication_key(self) -> str:
+        return {
+            self.STABLE: "platform_v0_1_5",
+            self.MAINTENANCE_R2: "platform_v0_1_5_r2",
+        }[self]
+
+    def identity(self) -> dict[str, str]:
+        return {
+            "distribution_revision": self.revision,
+            "product_version": PRODUCT_VERSION,
+            "release_tag": self.release_tag,
+            "release_url": self.release_url,
+        }
+
+    @property
+    def candidate_receipt_schema(self) -> int:
+        return {self.STABLE: 1, self.MAINTENANCE_R2: 2}[self]
+
 
 RELEASE_MANIFEST = "PLATFORM_DISTRIBUTION.json"
 RELEASE_SUMS = "SHA256SUMS"
@@ -263,10 +332,63 @@ def _validate_release_candidate_assets(
     return assets
 
 
+def validate_agp_consumers(
+    value: object,
+    *,
+    expected_aar_sha256: str,
+    expected_aar_manifest_sha256: str,
+    expected_source_commit: str | None,
+    expected_source_tree_sha256: str | None,
+) -> None:
+    """Bind both consumer-owned projections to the same new package and source."""
+
+    from android_agp_consumer_contract import (
+        AndroidAgpConsumerError,
+        PROFILES,
+        validate_profile_projection,
+    )
+
+    source_commit = _sha1(expected_source_commit, "AGP expected source commit")
+    source_tree = _sha256(expected_source_tree_sha256, "AGP expected source tree")
+    records = _object(value, "platform AGP consumers")
+    _exact_keys(records, PROFILES, "platform AGP consumers")
+    run_ids: set[str] = set()
+    for profile in sorted(PROFILES):
+        record = _object(records[profile], f"AGP {profile} record")
+        _exact_keys(
+            record, frozenset({"proof_path", "projection"}), f"AGP {profile} record"
+        )
+        _require(
+            record["proof_path"] == f"consumers/{profile}/proof.json",
+            "AGP proof archive path differs",
+        )
+        try:
+            projection = validate_profile_projection(
+                record["projection"],
+                expected_profile=profile,
+                expected_aar_sha256=expected_aar_sha256,
+                expected_aar_manifest_sha256=expected_aar_manifest_sha256,
+                expected_source_commit=source_commit,
+            )
+        except AndroidAgpConsumerError as exc:
+            raise PlatformDistributionContractError(str(exc)) from exc
+        _require(
+            projection["source_tree_sha256"] == source_tree,
+            "AGP consumer source tree differs",
+        )
+        _require(
+            projection["run_id"] not in run_ids, "AGP profiles reused one runtime run"
+        )
+        run_ids.add(projection["run_id"])
+
+
 def _validate_release_candidate_runtime(
     value: object,
     *,
     assets: dict[str, dict[str, object]],
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    expected_source_commit: str | None = None,
+    expected_source_tree_sha256: str | None = None,
 ) -> None:
     runtime = _object(value, "platform release candidate Android runtime evidence")
     _exact_keys(
@@ -286,14 +408,27 @@ def _validate_release_candidate_runtime(
                 "tested_aar_manifest_sha256",
                 "tested_aar_sha256",
             }
+        )
+        | (
+            frozenset({"agp_consumers"})
+            if profile is PlatformReleaseProfile.MAINTENANCE_R2
+            else frozenset()
         ),
         "platform release candidate Android runtime evidence",
     )
     _require(
         type(runtime["bundle_schema"]) is int
-        and runtime["bundle_schema"] == ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
+        and runtime["bundle_schema"] == profile.runtime_bundle_schema,
         "platform release candidate Android runtime bundle schema differs",
     )
+    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        validate_agp_consumers(
+            runtime["agp_consumers"],
+            expected_aar_sha256=assets[ANDROID_AAR]["sha256"],
+            expected_aar_manifest_sha256=assets[ANDROID_MANIFEST]["sha256"],
+            expected_source_commit=expected_source_commit,
+            expected_source_tree_sha256=expected_source_tree_sha256,
+        )
     _require(
         type(runtime["proof_schema"]) is int
         and runtime["proof_schema"] == ANDROID_DEVICE_PROOF_SCHEMA_VERSION,
@@ -343,7 +478,25 @@ def _validate_release_candidate_runtime(
     )
 
 
-def validate_release_candidate_receipt(value: object) -> dict[str, Any]:
+def release_candidate_profile(value: object) -> PlatformReleaseProfile:
+    """Identify one retained receipt using its explicit versioned contract."""
+
+    receipt = _object(value, "platform release candidate receipt")
+    schema = receipt.get("schema_version")
+    _require(type(schema) is int, "platform release candidate schema is not an integer")
+    for profile in PlatformReleaseProfile:
+        if schema == profile.candidate_receipt_schema:
+            return profile
+    raise PlatformDistributionContractError(
+        "platform release candidate schema is unknown"
+    )
+
+
+def validate_release_candidate_receipt(
+    value: object,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> dict[str, Any]:
     """Validate one exact prepublication seven-asset completion receipt."""
 
     receipt = _object(value, "platform release candidate receipt")
@@ -359,33 +512,50 @@ def validate_release_candidate_receipt(value: object) -> dict[str, Any]:
                 "schema_version",
                 "source",
             }
+        )
+        | (
+            frozenset({"identity"})
+            if profile is PlatformReleaseProfile.MAINTENANCE_R2
+            else frozenset()
         ),
         "platform release candidate receipt",
     )
     _require(
         type(receipt["schema_version"]) is int
-        and receipt["schema_version"] == PLATFORM_RELEASE_CANDIDATE_SCHEMA_VERSION,
+        and receipt["schema_version"] == profile.candidate_receipt_schema,
         "platform release candidate receipt schema differs",
     )
     _require(
         receipt["kind"] == PLATFORM_RELEASE_CANDIDATE_KIND,
         "platform release candidate receipt kind differs",
     )
-    _validate_release_candidate_source(receipt["source"])
+    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        _require(
+            receipt["identity"] == profile.identity(),
+            "maintenance candidate identity differs",
+        )
+    source = _validate_release_candidate_source(receipt["source"])
     validate_release_candidate_projection(
         {
             "android_runtime_evidence": receipt["android_runtime_evidence"],
             "assets": receipt["assets"],
             "checksums_sha256": receipt["checksums_sha256"],
-            "platform_distribution_sha256": receipt[
-                "platform_distribution_sha256"
-            ],
-        }
+            "platform_distribution_sha256": receipt["platform_distribution_sha256"],
+        },
+        profile=profile,
+        expected_source_commit=source["git_commit"],
+        expected_source_tree_sha256=source["canonical_source_tree_sha256"],
     )
     return receipt
 
 
-def validate_release_candidate_projection(value: object) -> dict[str, Any]:
+def validate_release_candidate_projection(
+    value: object,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    expected_source_commit: str | None = None,
+    expected_source_tree_sha256: str | None = None,
+) -> dict[str, Any]:
     """Validate the exact receipt fields retained in publication observations."""
 
     candidate = _object(value, "platform release candidate projection")
@@ -421,6 +591,9 @@ def validate_release_candidate_projection(value: object) -> dict[str, Any]:
     _validate_release_candidate_runtime(
         candidate["android_runtime_evidence"],
         assets=assets,
+        profile=profile,
+        expected_source_commit=expected_source_commit,
+        expected_source_tree_sha256=expected_source_tree_sha256,
     )
     return candidate
 

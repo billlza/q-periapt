@@ -2072,8 +2072,8 @@ class StableGitHubPublicationTests(unittest.TestCase):
                         ):
                             self.fail("second bootstrap acquired a split lock")
                     named = (expected / publication.LOCK_LEAF).stat()
-                    self.assertEqual(first_lock.lock_inode, named.st_ino)
-                    self.assertEqual(first_lock.lock_device, named.st_dev)
+                    self.assertEqual(first_lock.primary.lock_inode, named.st_ino)
+                    self.assertEqual(first_lock.primary.lock_device, named.st_dev)
 
     def test_crash_after_root_mkdir_before_lock_requires_manual_disposition(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -2252,7 +2252,10 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     state_root=expected,
                 )
             self.assertEqual(self.plan, prepared)
-            build.assert_called_once_with(self.plan.results_sha256)
+            build.assert_called_once_with(
+                self.plan.results_sha256,
+                profile=publication.PlatformReleaseProfile.STABLE,
+            )
             platform_stager.assert_called_once()
             credential_boundary.assert_not_called()
             remote_observer.assert_not_called()
@@ -2343,7 +2346,9 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     self.plan.results_sha256,
                     state_root=self.root,
                 )
-        build.assert_called_once_with(self.plan.results_sha256)
+        build.assert_called_once_with(
+            self.plan.results_sha256, profile=publication.PlatformReleaseProfile.STABLE
+        )
         self.assertFalse((self.root / publication.PLAN_LEAF).exists())
 
     def test_production_mutator_uses_pinned_root_for_all_three_action_kinds(self) -> None:
