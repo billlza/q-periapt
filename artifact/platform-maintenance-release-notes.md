@@ -158,6 +158,30 @@ sh artifact/python-run.sh artifact/stable_github_publication.py \
   --profile maintenance-r2 prepare "$pending_results_sha256"
 ```
 
+The publisher may run from a separately reviewed tooling checkout when its
+implementation needs correction after the release tag is frozen. Select the
+clean, installed P2 checkout explicitly; never edit the tagged verifier or add
+tooling changes to the R-to-P2 results-only history:
+
+```sh
+cd "$tooling_checkout"
+sh artifact/python-run.sh artifact/stable_github_publication.py \
+  --profile maintenance-r2 --repository-root "$pending_checkout" \
+  prepare "$pending_results_sha256"
+```
+
+Use the same `--repository-root` for `status`, `publish`, and `verify`. It selects
+the committed results, local annotated tags and fixed candidate cache. It does
+not select an arbitrary asset path or relocate either account publication lock.
+The path must be an absolute, canonical, owned repository directory with a real
+`.git` directory; aliases and group- or world-writable roots are rejected.
+Every operation still requires the exact P2 HEAD and results digest, the direct
+S-to-R-to-P2 results-only chain, and the recorded tag objects and asset bytes.
+The tooling checkout is never substituted for the candidate source or verifier.
+Complete publisher verification while that checkout still names P2. If the
+control checkout later advances to Q2, retain a separate clean P2 checkout for
+any subsequent publisher status or verification; keep the R verifier fixed.
+
 It observes the original Apple release as an immutable read-only reference.
 No Apple creation, asset upload or publication request exists in this plan.
 The only nine actions create the new platform draft, upload its seven assets,

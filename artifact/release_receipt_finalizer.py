@@ -34,6 +34,7 @@ from platform_distribution_contract import PlatformReleaseProfile
 from evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import (
     GitProvenanceError,
+    canonical_repository_root,
     inspect_worktree,
     require_direct_results_only_child,
     require_results_only_descendant,
@@ -129,7 +130,11 @@ def _owned_results_metadata(metadata: os.stat_result) -> None:
         raise EvidenceIOError("current results manifest metadata differs")
 
 
-def load_current_results(expected_sha256: str) -> CommittedResults:
+def load_current_results(
+    expected_sha256: str,
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> CommittedResults:
     """Load results only when the worktree and HEAD blob are byte-identical."""
 
     _require(
@@ -138,8 +143,21 @@ def load_current_results(expected_sha256: str) -> CommittedResults:
         "expected current results SHA-256 is malformed",
     )
     try:
+        repository = (
+            REPOSITORY_ROOT
+            if repository_root is None
+            else canonical_repository_root(repository_root)
+        )
+    except GitProvenanceError as exc:
+        raise ReleaseReceiptFinalizerError(str(exc)) from exc
+    results_path = (
+        RESULTS_PATH
+        if repository_root is None
+        else repository / "artifact" / "results.json"
+    )
+    try:
         snapshot = read_regular_snapshot(
-            RESULTS_PATH,
+            results_path,
             maximum=MAX_RESULTS_BYTES,
             label="current results manifest",
             validate_metadata=_owned_results_metadata,
@@ -157,9 +175,9 @@ def load_current_results(expected_sha256: str) -> CommittedResults:
         "current results manifest differs from its startup SHA-256 pin",
     )
     try:
-        inspection = inspect_worktree(REPOSITORY_ROOT)
+        inspection = inspect_worktree(repository)
         head_bytes = run_git_bytes(
-            REPOSITORY_ROOT,
+            repository,
             ["show", f"{inspection.commit}:artifact/results.json"],
         )
     except GitProvenanceError as exc:

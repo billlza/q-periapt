@@ -2255,6 +2255,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
             build.assert_called_once_with(
                 self.plan.results_sha256,
                 profile=publication.PlatformReleaseProfile.STABLE,
+                repository_root=None,
             )
             platform_stager.assert_called_once()
             credential_boundary.assert_not_called()
@@ -2347,7 +2348,9 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     state_root=self.root,
                 )
         build.assert_called_once_with(
-            self.plan.results_sha256, profile=publication.PlatformReleaseProfile.STABLE
+            self.plan.results_sha256,
+            profile=publication.PlatformReleaseProfile.STABLE,
+            repository_root=None,
         )
         self.assertFalse((self.root / publication.PLAN_LEAF).exists())
 

@@ -994,6 +994,17 @@ private fixed staging root, and prints the exact plan digest:
 stable_github_plan_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
 ```
 
+To use a separately reviewed publisher implementation, pass
+`--repository-root "$pending_checkout"` before the subcommand on every
+`prepare`, `status`, `publish`, and `verify` invocation. The default remains the
+publisher's own checkout. An explicit root selects the clean committed P,
+annotated tags, fixed Apple distribution and platform candidate cache together;
+it does not change the account state root, journal, locks or publication plan
+schema. The path must be absolute, canonical, owned and not group- or
+world-writable, with a real `.git` directory. All original commit, results,
+source, tag and asset checks continue to apply. Keep the reviewed tooling
+checkout separate from the immutable release and results-only history.
+
 There is one deliberately manual pre-credential bootstrap residue. If the process is
 killed after creating the final state directory but before durably creating its
 persistent lock, every later command rejects that existing empty root; it never
