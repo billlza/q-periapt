@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class QPeriaptHybridTest {
@@ -25,6 +26,42 @@ class QPeriaptHybridTest {
             .replace("\\n", "\n")
             .replace("\\\"", "\"")
             .replace("\\\\", "\\")
+
+    @Test
+    fun resultDescriptionsRedactSecretsAndPreserveDataClassOperations() {
+        // These are fixed public sample bytes, not key material from a native call.
+        val encapsulation = QPeriaptHybrid.EncapsulationResult(
+            byteArrayOf(1, 2), byteArrayOf(3, 4), byteArrayOf(71, 72)
+        )
+        assertEquals(
+            "EncapsulationResult(ctPq=[1, 2], ctTrad=[3, 4], secret=<redacted>)",
+            encapsulation.toString(),
+        )
+        val encapsulationCopy = encapsulation.copy()
+        assertEquals(encapsulation, encapsulationCopy)
+        val (ctPq, ctTrad, secret) = encapsulationCopy
+        assertSame(encapsulation.ctPq, ctPq)
+        assertSame(encapsulation.ctTrad, ctTrad)
+        assertSame(encapsulation.secret, secret)
+        assertContentEquals(byteArrayOf(71, 72), secret)
+
+        val keys = QPeriaptHybrid.KeyPairResult(
+            byteArrayOf(81, 82), byteArrayOf(5, 6), byteArrayOf(91, 92), byteArrayOf(7, 8)
+        )
+        assertEquals(
+            "KeyPairResult(skPq=<redacted>, pkPq=[5, 6], skTrad=<redacted>, pkTrad=[7, 8])",
+            keys.toString(),
+        )
+        val keysCopy = keys.copy()
+        assertEquals(keys, keysCopy)
+        val (skPq, pkPq, skTrad, pkTrad) = keysCopy
+        assertSame(keys.skPq, skPq)
+        assertSame(keys.pkPq, pkPq)
+        assertSame(keys.skTrad, skTrad)
+        assertSame(keys.pkTrad, pkTrad)
+        assertContentEquals(byteArrayOf(81, 82), skPq)
+        assertContentEquals(byteArrayOf(91, 92), skTrad)
+    }
 
     @Test
     fun sourceUsesScopedSecretSegmentOwner() {

@@ -23,17 +23,26 @@ public class Activity {
     public final List<String> closed = new ArrayList<String>();
     public String fail = "";
     private final File directory;
-    public Activity(File directory) { this.directory = directory; }
+    private final boolean channelBacked;
+    public Activity(File directory, boolean channelBacked) {
+        this.directory = directory;
+        this.channelBacked = channelBacked;
+    }
     public File getFilesDir() { return directory; }
     public FileOutputStream openFileOutput(String name, int mode) throws IOException {
         if (mode != MODE_PRIVATE) throw new AssertionError("wrong mode");
-        return new FileOutputStream(new File(directory, name)) {
+        FileOutputStream stream = new FileOutputStream(new File(directory, name)) {
+            private boolean closeStarted;
             @Override public void write(byte[] data) throws IOException {
                 if (fail.equals("json-write") && name.endsWith(".json")) throw new IOException("write failed");
                 super.write(data);
             }
             @Override public void close() throws IOException {
+                // Closing an associated channel can reenter this stream's close.
+                if (closeStarted) return;
+                closeStarted = true;
                 super.close();
+                if (getFD().valid()) throw new AssertionError("file descriptor remained open after close");
                 if (new File(directory, "qperiapt-android-device-result.txt").exists()) throw new AssertionError("marker visible before file close");
                 if (name.endsWith(".pending")) {
                     String json = Files.readString(new File(directory, "qperiapt-android-device-result.json").toPath(), StandardCharsets.UTF_8);
@@ -44,6 +53,8 @@ public class Activity {
                 closed.add(name);
             }
         };
+        if (channelBacked) stream.getChannel();
+        return stream;
     }
 }
 """
@@ -59,8 +70,13 @@ public final class ResultWriterHarness {
     private static final String ID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     public static void main(String[] arguments) throws Exception {
         Path base = Path.of(arguments[0]);
+        verifyCase(Files.createDirectory(base.resolve("direct")), false);
+        verifyCase(Files.createDirectory(base.resolve("channel")), true);
+        System.out.println("RESULT_WRITER_IO_PASS");
+    }
+    private static void verifyCase(Path base, boolean channelBacked) throws Exception {
         Path success = Files.createDirectory(base.resolve("success"));
-        Activity activity = new Activity(success.toFile());
+        Activity activity = new Activity(success.toFile(), channelBacked);
         QPeriaptSmokeResults.write(activity, ID, true, Arrays.asList("runtimeVersionOnly"), null);
         String marker = Files.readString(success.resolve("qperiapt-android-device-result.txt"));
         if (!marker.equals("QPERIAPT_ANDROID_DEVICE_PASS run-id=" + ID + " tests=1\n")) throw new AssertionError("marker bytes changed");
@@ -78,7 +94,7 @@ public final class ResultWriterHarness {
         }
         for (String failure : Arrays.asList("json-write", "marker-close", "rename")) {
             Path directory = Files.createDirectory(base.resolve(failure));
-            Activity failing = new Activity(directory.toFile()); failing.fail = failure;
+            Activity failing = new Activity(directory.toFile(), channelBacked); failing.fail = failure;
             try {
                 QPeriaptSmokeResults.write(failing, ID, true, Arrays.asList("runtimeVersionOnly"), null);
                 throw new AssertionError("I/O failure was swallowed");
@@ -86,7 +102,6 @@ public final class ResultWriterHarness {
                 if (Files.isRegularFile(directory.resolve("qperiapt-android-device-result.txt"))) throw new AssertionError("failed writer exposed completed marker");
             }
         }
-        System.out.println("RESULT_WRITER_IO_PASS");
     }
 }
 """

@@ -193,8 +193,9 @@ misuse resistance from deterministic conformance:
 - **WASM** — `q-periapt-wasm`; both the lean default and opt-in signed-policy
   surfaces run on a real Node runtime via `wasm-pack test` (CI `bindings-wasm`).
 - **Swift** — `bindings/swift` over ABI2; host product test passes.
-- **Kotlin** — `bindings/kotlin` via Panama FFM; the current-source JDK 22 lane
-  compiles, loads the ABI-major native library, and runs with warnings treated as failures.
+- **Kotlin** — `bindings/kotlin` via Panama FFM; the current-source JDK 25 LTS lane
+  requires compilation, loading the ABI-major native library, and tests with warnings
+  treated as failures. The binding targets JVM bytecode and the stable JDK 25 API.
 - **Android** — `bindings/android` via JNI over the same C ABI. `artifact/android-aar.sh`
   builds and audits a deterministic ABI2 four-ABI AAR and compiles an isolated
   Java consumer (CI `bindings-android-aar`). The stable transaction pairs the AAR
@@ -614,7 +615,7 @@ are the gap between research-grade and audited/production.
 | MLKEM768-X25519 byte-exact KAT | **Done for the stated draft scope:** current CFRG `concrete-hybrid-kems-04` Appendix B.2 vector (stored as the repository vector-0 fixture) plus three retained historical X-Wing draft-10 vectors; the current document remains a non-RFC Internet-Draft, and the derived invalid-ciphertext regression is local rather than an official oracle |
 | Both combiner profiles + backend-safety guard | **Done** |
 | `no_std` bare-metal core (one documented `unsafe`) | **Done** |
-| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only stable XCFramework lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The stable platform target covers the Android AAR and Linux C SDK archives and becomes public/current only through a verified receipt; unsigned Windows remains an unsupported CI diagnostic outside the release. Kotlin JDK 22 host tests and the Android x86_64 API-35/16-KiB ART package face are current CI gates. The canonical Android arm64 AVD and independent physical results bindings are implemented and non-interchangeable; production requires both, and remains pending whenever either current selection is absent.** |
+| Native ABI2 C/Swift/Kotlin/Android product surface; deterministic Rust/WASM conformance split | **Implemented; Swift includes a separate Developer ID-signed static-only stable XCFramework lane whose currentness is evidence-selected and whose notarization applicability is explicitly false. The stable platform target covers the Android AAR and Linux C SDK archives and becomes public/current only through a verified receipt; unsigned Windows remains an unsupported CI diagnostic outside the release. Kotlin JDK 25 LTS host tests (JVM/API floor 25) and the Android x86_64 API-35/16-KiB ART package face are current CI gates. The canonical Android arm64 AVD and independent physical results bindings are implemented and non-interchangeable; production requires both, and remains pending whenever either current selection is absent.** |
 | Owned-secret zeroization | **Done for named owners:** core `Secret`, SHA3 staging ranges, one prepared 2,400-byte Compat owner per in-flight rustls client handshake, and the FFI's first Rust-owned dynamic policy-context copy. Caller/marshalling copies, registers, paging, and abort are not covered; prepared keys are not global-cached or exposed through C ABI. |
 | Signed-policy verification + `(version,digest)` state + closed `ResolvedSuite` | **Done; native raw bypass exports removed, byte decision still trusted-local and requires pinned verification key** |
 | Authenticated Migration Contract | **Phase 1 candidate canonical commitment implemented in a publish=false model: fixed role-normalized body, policy-derived consistency checks, independent vectors, and unchanged-ABI2 integration. Transition authentication, monotonic state ownership, key confirmation, rollback/agreement/floor proofs, and hostile-local-caller isolation remain future gates.** |

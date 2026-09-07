@@ -1,7 +1,7 @@
 # Language bindings
 
-One Rust core (`q-periapt-ffi`, the C ABI), current runtime-tested faces **C**,
-**WASM**, **Swift**, and **Kotlin/JVM** (JDK 22),
+One Rust core (`q-periapt-ffi`, the C ABI), shared by **C**,
+**WASM**, **Swift**, and **Kotlin/JVM** (JDK 25+),
 plus a package-tested **Android AAR/JNI** surface.
 The native ABI 2 product property is *one policy-controlled implementation across
 platforms*: C, Swift, and Kotlin consume the same exact-nine dynamic
@@ -52,21 +52,31 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **C ABI** (`q-periapt-ffi`) | ✅ host product smoke + contract verified | `bindings/c/smoke.c`; `artifact/c_abi_contract.py` |
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ lean and signed-policy faces execute on Node/WASM | `wasm-pack test --node` for default and `--features signed-policy`; CI also builds `wasm32` |
-| **Kotlin** (`kotlin/`) | ✅ current-source JDK 22 host verification | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
+| **Kotlin** (`kotlin/`) | JDK 25 LTS host verification gate; JVM/API floor 25 | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
 | **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.5` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
-Kotlin uses a JDK ≥22 (stable FFM); the same warning-failing command is a CI gate:
+Kotlin consumers need JDK ≥25. CI builds and tests on JDK 25 LTS with Kotlin
+2.4.10, targeting JVM bytecode and the stable JDK API level 25:
 
 ```sh
 cargo build -p q-periapt-ffi --release
-JAVA_HOME=/path/to/jdk22+ gradle -p bindings/kotlin test
+(
+  export JAVA_HOME=/path/to/jdk25
+  export PATH="$JAVA_HOME/bin:$PATH"
+  gradle -p bindings/kotlin test --no-daemon --warning-mode fail
+)
 ```
 
-Android AAR/JNI packaging needs an Android SDK/NDK and Rust Android targets:
+Android AAR/JNI release packaging uses JDK 21 LTS, an Android SDK/NDK and Rust
+Android targets:
 
 ```sh
 rustup target add aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android
-sh artifact/android-aar.sh
+(
+  export JAVA_HOME=/path/to/jdk21
+  export PATH="$JAVA_HOME/bin:$PATH"
+  sh artifact/android-aar.sh
+)
 ```
 
 This proves package shape, Android ELF slices, JNI symbols, dex conversion, and an

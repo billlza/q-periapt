@@ -82,6 +82,9 @@ PINNED_CODEQL_ACTION = (
     "github/codeql-action/{action}@5595ccaf912efad79be6eef63a5619ff05969be3 "
     "# v4.37.6"
 )
+PINNED_SETUP_JAVA_ACTION = (
+    "actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0"
+)
 EXPECTED_CHECKOUT_STEP = (
     f"      - uses: {PINNED_CHECKOUT_ACTION}\n"
     "        env:\n"
@@ -1102,6 +1105,112 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("administrator enforcement", notes)
         self.assertIn("replace the obsolete required contexts", notes)
 
+    def test_lts_java_jobs_select_home_and_path_before_consumers(self) -> None:
+        cases = (
+            (
+                CI_WORKFLOW,
+                "check",
+                21,
+                "sh artifact/python-run.sh -m unittest discover",
+            ),
+            (
+                CI_WORKFLOW,
+                "bindings-kotlin",
+                25,
+                "gradle test --project-dir bindings/kotlin",
+            ),
+            (CI_WORKFLOW, "bindings-android-aar", 21, "sh artifact/android-aar.sh"),
+            (
+                CI_WORKFLOW,
+                "bindings-android-runtime-16k",
+                21,
+                "sh artifact/android-device-smoke.sh",
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                "android",
+                21,
+                "sh artifact/android-aar.sh",
+            ),
+            (
+                CODEQL_WORKFLOW,
+                "analyze",
+                25,
+                "gradle test --project-dir bindings/kotlin",
+            ),
+        )
+        for workflow, job_name, version, consumer in cases:
+            with self.subTest(workflow=workflow.name, job=job_name):
+                job = extract_workflow_job(
+                    workflow.read_text(encoding="utf-8"), job_name
+                )
+                condition = (
+                    "        if: matrix.language == 'java-kotlin'\n"
+                    if workflow == CODEQL_WORKFLOW
+                    else ""
+                )
+                setup_name = f"Set up Java {version} LTS"
+                setup = extract_named_workflow_step(job, setup_name)
+                self.assertEqual(
+                    setup.rstrip(),
+                    (
+                        f"      - name: {setup_name}\n"
+                        f"{condition}"
+                        f"        uses: {PINNED_SETUP_JAVA_ACTION}\n"
+                        "        with:\n"
+                        "          distribution: temurin\n"
+                        f'          java-version: "{version}"'
+                    ),
+                )
+                self.assertEqual(
+                    re.findall(r'(?m)^          java-version: "([0-9]+)"$', job),
+                    [str(version)],
+                )
+                verify_name = f"Verify Java {version} LTS"
+                verify = extract_named_workflow_step(job, verify_name)
+                self.assertEqual(
+                    verify.rstrip(),
+                    (
+                        f"      - name: {verify_name}\n"
+                        f"{condition}"
+                        "        run: |\n"
+                        '          test "$(command -v java)" = "$JAVA_HOME/bin/java"\n'
+                        '          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"\n'
+                        "          java -version\n"
+                        "          javac -version"
+                    ),
+                )
+                self.assertLess(job.index(setup_name), job.index(verify_name))
+                self.assertLess(job.index(verify_name), job.index(consumer))
+                if version == 25:
+                    gradle = extract_named_workflow_step(job, "Verify Gradle JVM")
+                    self.assertEqual(
+                        gradle.rstrip(),
+                        "      - name: Verify Gradle JVM\n"
+                        f"{condition}"
+                        "        run: gradle --version",
+                    )
+                    self.assertIn('          gradle-version: "9.2.1"', job)
+                    self.assertLess(
+                        job.index(verify_name), job.index("Verify Gradle JVM")
+                    )
+                    self.assertLess(job.index("Verify Gradle JVM"), job.index(consumer))
+
+    def test_kotlin_lts_build_uses_the_java_25_stable_api_and_bytecode(
+        self,
+    ) -> None:
+        build = (ROOT / "bindings/kotlin/build.gradle.kts").read_text(encoding="utf-8")
+        self.assertIn('kotlin("jvm") version "2.4.10"', build)
+        self.assertEqual(
+            re.findall(r"jvmTarget\.set\(JvmTarget\.JVM_([0-9]+)\)", build), ["25"]
+        )
+        self.assertEqual(
+            re.findall(r"options\.release\.set\(([0-9]+)\)", build), ["25"]
+        )
+        self.assertEqual(re.findall(r"-Xjdk-release=([0-9]+)", build), ["25"])
+        self.assertIn('jvmArgs("--enable-native-access=ALL-UNNAMED")', build)
+        self.assertNotIn("--enable-preview", build)
+
     def test_codeql_covers_all_detected_languages_with_real_builds(self) -> None:
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
         self.assertNotIn("continue-on-error:", source)
@@ -1902,12 +2011,33 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server-start-handshake.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-postinstall-attempt-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-postinstall-attempt-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-cleanup-*-attempt-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-cleanup-*-attempt-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.err\n"
             "          if-no-files-found: error\n",
         )
-        self.assertNotIn("attempt-*.txt", diagnostic_upload)
-        self.assertNotIn("attempt-*.err", diagnostic_upload)
-        self.assertNotIn("adb-uninstall-cleanup.log", diagnostic_upload)
-        self.assertNotIn("adb-package-query-", diagnostic_upload)
+        for forbidden in (
+            "proof/**",
+            "work/**",
+            "*.json",
+            "adbkey",
+            ".emulator_console_auth_token",
+            "keystore",
+            "capability",
+            "owned-runtime",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, diagnostic_upload)
 
         proof_upload = extract_named_workflow_step(job, "Upload Android runtime proof")
         self.assertIn(
@@ -2862,7 +2992,7 @@ if [ "${CC_wasm32_unknown_unknown+x}" = x ] || [ "${wasm_compiler_input+x}" = x 
     printf 'compiler selector or internal state leaked into Java preflight\\n' >&2
     exit 89
 fi
-printf 'openjdk version "22.0.2"\\n' >&2
+printf 'openjdk version "%s"\\n' "$FIXTURE_JAVA_VERSION" >&2
 if [ "${FAIL_JAVA_PROBE:-0}" = 1 ]; then
     exit 7
 fi
@@ -2936,6 +3066,7 @@ exit 0
                     "compiler_version": "attacker-exported-internal-value",
                     "compiler_targets": "attacker-exported-internal-value",
                     "EXPECTED_WASM_COMPILER": str(compiler),
+                    "FIXTURE_JAVA_VERSION": "25.0.4.1",
                     "HOME": str(root),
                     "PATH": f"{stub_bin}:/usr/bin:/bin:/usr/sbin:/sbin",
                     "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve()),
@@ -2947,15 +3078,27 @@ exit 0
                 }
             )
 
-            for failure_flag, expected_error in (
-                ("FAIL_JAVA_PROBE", "Java could not report its version"),
+            for failure_environment, expected_error in (
+                ({"FAIL_JAVA_PROBE": "1"}, "Java could not report its version"),
                 (
-                    "FAIL_TARGET_PROBE",
+                    {"FAIL_TARGET_PROBE": "1"},
                     "CC_wasm32_unknown_unknown could not report supported targets",
                 ),
+                (
+                    {"FIXTURE_JAVA_VERSION": "24.0.2"},
+                    "Kotlin/Panama binding requires JDK >= 25, got Java 24",
+                ),
+                (
+                    {"FIXTURE_JAVA_VERSION": "22.0.2"},
+                    "Kotlin/Panama binding requires JDK >= 25, got Java 22",
+                ),
+                (
+                    {"FIXTURE_JAVA_VERSION": "unknown"},
+                    "cannot parse Java version",
+                ),
             ):
-                with self.subTest(failure_flag=failure_flag):
-                    failed_environment = {**environment, failure_flag: "1"}
+                with self.subTest(environment=failure_environment):
+                    failed_environment = {**environment, **failure_environment}
                     failed = subprocess.run(
                         ["/bin/sh", str(artifact / "embedding-readiness.sh")],
                         cwd=root,
