@@ -1687,6 +1687,404 @@
       },
       "schema_version": 3,
       "status": "observed_public_immutable_fresh_download_verified"
+    },
+    "platform_v0_1_5_r2": {
+      "base_cohort": {
+        "apple_release_id": 383170350,
+        "cohort_commit": "cc21bc1cadac5148aadfd98f1c6b0e4acbbb0c06",
+        "cohort_tag": "v0.1.5-verified-cohort",
+        "platform_publication_key": "platform_v0_1_5",
+        "platform_release_id": 383171691,
+        "platform_release_tag": "abi2-platforms-v0.1.5",
+        "results_sha256": "90f5faed852311a59f388eaf79072c4887aa9cb3e68a78ac4a2e0ea0acf6844f"
+      },
+      "kind": "qperiapt.platform_maintenance_receipt",
+      "publication": {
+        "boundary": "ABI 2 0.1.5 r2 platform maintenance distribution. Its independent pending and verified receipt binds the new annotated tag, source, exact seven assets, candidate provenance, immutable release attestation, fresh downloads and API 35 arm64-v8a 16 KiB emulator evidence. The maintenance anchor separately names the unchanged original verified cohort. This receipt neither rewrites that cohort nor asserts new Apple or crates.io publication, physical-device coverage or production promotion.",
+        "identity": {
+          "distribution_revision": "r2",
+          "product_version": "0.1.5",
+          "release_tag": "abi2-platforms-v0.1.5-r2",
+          "release_url": "https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5-r2"
+        },
+        "kind": "qperiapt.abi2_platform_publication_receipt",
+        "observation": {
+          "assembly_receipt_sha256": "46aca46ecde1782f6dd6a374a054a15d3ce5571f11f5168a22ee6f34f6b50f55",
+          "candidate_attestation": {
+            "certificate_san": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.5-r2",
+            "predicate_type": "https://slsa.dev/provenance/v1",
+            "security_gate": {
+              "code_scanning": {
+                "analyses": [
+                  {
+                    "analysis_id": 1735084118,
+                    "analysis_key": ".github/workflows/codeql.yml:analyze",
+                    "category": "/language:actions",
+                    "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "error": "",
+                    "ref": "refs/heads/main",
+                    "results_count": 0,
+                    "rules_count": 23,
+                    "tool": {
+                      "name": "CodeQL",
+                      "version": "2.26.2"
+                    },
+                    "warning": ""
+                  },
+                  {
+                    "analysis_id": 1735082593,
+                    "analysis_key": ".github/workflows/codeql.yml:analyze",
+                    "category": "/language:c-cpp",
+                    "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "error": "",
+                    "ref": "refs/heads/main",
+                    "results_count": 0,
+                    "rules_count": 95,
+                    "tool": {
+                      "name": "CodeQL",
+                      "version": "2.26.2"
+                    },
+                    "warning": ""
+                  },
+                  {
+                    "analysis_id": 1735092766,
+                    "analysis_key": ".github/workflows/codeql.yml:analyze",
+                    "category": "/language:java-kotlin",
+                    "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "error": "",
+                    "ref": "refs/heads/main",
+                    "results_count": 0,
+                    "rules_count": 120,
+                    "tool": {
+                      "name": "CodeQL",
+                      "version": "2.26.2"
+                    },
+                    "warning": ""
+                  },
+                  {
+                    "analysis_id": 1735089477,
+                    "analysis_key": ".github/workflows/codeql.yml:analyze",
+                    "category": "/language:python",
+                    "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "error": "",
+                    "ref": "refs/heads/main",
+                    "results_count": 197,
+                    "rules_count": 50,
+                    "tool": {
+                      "name": "CodeQL",
+                      "version": "2.26.2"
+                    },
+                    "warning": ""
+                  },
+                  {
+                    "analysis_id": 1735126290,
+                    "analysis_key": ".github/workflows/codeql.yml:analyze",
+                    "category": "/language:rust",
+                    "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "error": "",
+                    "ref": "refs/heads/main",
+                    "results_count": 49,
+                    "rules_count": 27,
+                    "tool": {
+                      "name": "CodeQL",
+                      "version": "2.26.2"
+                    },
+                    "warning": ""
+                  },
+                  {
+                    "analysis_id": 1735211908,
+                    "analysis_key": ".github/workflows/codeql.yml:analyze",
+                    "category": "/language:swift",
+                    "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "error": "",
+                    "ref": "refs/heads/main",
+                    "results_count": 0,
+                    "rules_count": 28,
+                    "tool": {
+                      "name": "CodeQL",
+                      "version": "2.26.2"
+                    },
+                    "warning": ""
+                  }
+                ],
+                "main_ref": {
+                  "commit_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                  "ref": "refs/heads/main"
+                },
+                "open_alerts": []
+              },
+              "kind": "qperiapt.abi2_source_security_gate",
+              "observation_tools": {
+                "github_cli": {
+                  "name": "gh",
+                  "path": "/usr/bin/gh",
+                  "sha256": "62885b97de6a0cd85e616cdd94bcda908bf5cf1018094385892b05cea3537163",
+                  "version": "gh version 2.98.0 (2026-08-20)"
+                }
+              },
+              "receipt_sha256": "974beea01928b5f21b156fe265075b68952a8f370933a6dba4eab1b962eda741",
+              "repository": "billlza/q-periapt",
+              "schema_version": 2,
+              "source_parent_commit": "1a1fd53ac7c90bf05e723318a09e8757110dda5e",
+              "tag_commit": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+              "workflows": {
+                "ci": {
+                  "conclusion": "success",
+                  "event": "push",
+                  "head_branch": "main",
+                  "head_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                  "jobs": [
+                    {
+                      "architecture": "x86_64",
+                      "conclusion": "success",
+                      "implementation": "portable-c",
+                      "job_id": 101699695439,
+                      "name": "Binary CT [x86_64-portable]",
+                      "status": "completed"
+                    },
+                    {
+                      "architecture": "aarch64",
+                      "conclusion": "success",
+                      "implementation": "aarch64-native",
+                      "job_id": 101699695363,
+                      "name": "Binary CT [aarch64-native]",
+                      "status": "completed"
+                    }
+                  ],
+                  "run_attempt": 1,
+                  "run_id": 34108725646,
+                  "status": "completed",
+                  "workflow_name": "ci",
+                  "workflow_path": ".github/workflows/ci.yml",
+                  "workflow_sha256": "2e7ac3c4e8dba9e317910a918316839be01e5d05b0f01fbb61bc6af9fd400328"
+                },
+                "codeql": {
+                  "conclusion": "success",
+                  "event": "push",
+                  "head_branch": "main",
+                  "head_sha": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                  "jobs": [
+                    {
+                      "conclusion": "success",
+                      "job_id": 101699695318,
+                      "language": "actions",
+                      "name": "Analyze (actions)",
+                      "status": "completed"
+                    },
+                    {
+                      "conclusion": "success",
+                      "job_id": 101699694931,
+                      "language": "c-cpp",
+                      "name": "Analyze (c-cpp)",
+                      "status": "completed"
+                    },
+                    {
+                      "conclusion": "success",
+                      "job_id": 101699695162,
+                      "language": "java-kotlin",
+                      "name": "Analyze (java-kotlin)",
+                      "status": "completed"
+                    },
+                    {
+                      "conclusion": "success",
+                      "job_id": 101699695254,
+                      "language": "python",
+                      "name": "Analyze (python)",
+                      "status": "completed"
+                    },
+                    {
+                      "conclusion": "success",
+                      "job_id": 101699695257,
+                      "language": "rust",
+                      "name": "Analyze (rust)",
+                      "status": "completed"
+                    },
+                    {
+                      "conclusion": "success",
+                      "job_id": 101699695118,
+                      "language": "swift",
+                      "name": "Analyze (swift)",
+                      "status": "completed"
+                    }
+                  ],
+                  "run_attempt": 1,
+                  "run_id": 34108725629,
+                  "status": "completed",
+                  "workflow_name": "CodeQL",
+                  "workflow_path": ".github/workflows/codeql.yml",
+                  "workflow_sha256": "5d812ad422ed8b72022c7eef5860c5bc1c605cb5de5deaf2b115f5649944aa81"
+                }
+              }
+            },
+            "signer_workflow": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.5-r2",
+            "source_digest": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+            "source_ref": "refs/tags/abi2-platforms-v0.1.5-r2",
+            "subjects": [
+              {
+                "digest": {
+                  "sha256": "528d2aaad2466465597357a3b5c6ed833341ad4101e15ec670cde8757c2ee538"
+                },
+                "name": "q-periapt-android-0.1.5.aar"
+              },
+              {
+                "digest": {
+                  "sha256": "70d2bc3737cfb0bea8569741ce03c3c19813b24a82245cfeb1127ee4f25dd769"
+                },
+                "name": "q-periapt-android-0.1.5-MANIFEST.json"
+              },
+              {
+                "digest": {
+                  "sha256": "57d1b1b62ca4c67c6b1e92c118c185fa85ab814377810f16c25a4fe1d6046a83"
+                },
+                "name": "q-periapt-c-abi2-0.1.5-x86_64-unknown-linux-gnu.tar.gz"
+              },
+              {
+                "digest": {
+                  "sha256": "5db80e9f728a8c4cfe112e2f30ed7f3451d68ecf95c0f6b022741b3675d542c4"
+                },
+                "name": "q-periapt-c-abi2-0.1.5-aarch64-unknown-linux-gnu.tar.gz"
+              },
+              {
+                "digest": {
+                  "sha256": "d74bbc642f325f8e7579f6ed08ba9ced3a9d035e49b29748d037d694b786f2f8"
+                },
+                "name": "CANDIDATE_SHA256SUMS"
+              },
+              {
+                "digest": {
+                  "sha256": "974beea01928b5f21b156fe265075b68952a8f370933a6dba4eab1b962eda741"
+                },
+                "name": "ABI2_SOURCE_SECURITY_GATE.json"
+              }
+            ],
+            "verification_record_sha256": "997d2f288cb91a0ea71ab3cd86bbc8be71f21cebddca9380d39054aa6e6f3bcd",
+            "verified": true,
+            "verified_at": "2026-09-07T10:40:39Z",
+            "workflow_run_attempt": 1,
+            "workflow_run_id": 34112263123
+          },
+          "observed_at": "2026-09-07T12:19:55Z",
+          "release_candidate": {
+            "android_runtime_evidence": {
+              "agp_consumers": {
+                "agp_full_release": {
+                  "projection": {
+                    "aar_manifest_sha256": "70d2bc3737cfb0bea8569741ce03c3c19813b24a82245cfeb1127ee4f25dd769",
+                    "aar_sha256": "528d2aaad2466465597357a3b5c6ed833341ad4101e15ec670cde8757c2ee538",
+                    "agp_version": "9.4.0",
+                    "apk_sha256": "aec62b0ee3a914457df4f5d00042768db1824bf7368ce871a4d446c46778953d",
+                    "build_receipt_sha256": "f1aa33ada1ccec5b7f02793be173cad471e1d07de6fffd500661909ae087f4aa",
+                    "gradle_version": "9.7.1",
+                    "passed_tests": [
+                      "runtimeMetadataMatches",
+                      "signedPolicyDecisionIsExactAndFailClosed",
+                      "osRandomPolicyRoundtripAndWipes"
+                    ],
+                    "profile": "agp_full_release",
+                    "proof_sha256": "82431b097c371398b83efc72f6fd2a246d1a016c67aae9b1f99de121dc04f4d5",
+                    "result_json_sha256": "3c4074e01fae69b0bbcf64b09d4a008fc749fd63e12384bb097e34f21512ca42",
+                    "run_id": "35dfef1871971a1ea6236414b569635f",
+                    "source_commit": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "source_tree_sha256": "2422431fa6576bc9921ad1a8c558b78d82301bad3ad64e45731b5fc730a61117"
+                  },
+                  "proof_path": "consumers/agp_full_release/proof.json"
+                },
+                "agp_minimal_release": {
+                  "projection": {
+                    "aar_manifest_sha256": "70d2bc3737cfb0bea8569741ce03c3c19813b24a82245cfeb1127ee4f25dd769",
+                    "aar_sha256": "528d2aaad2466465597357a3b5c6ed833341ad4101e15ec670cde8757c2ee538",
+                    "agp_version": "9.4.0",
+                    "apk_sha256": "bd89ecce9334f175e375493aa4ce24f210c1447c062f96b93e9b86e78f35e84a",
+                    "build_receipt_sha256": "cf5f16c15010751463479b2c089377c55282b7ff28599310544eb478d7464937",
+                    "gradle_version": "9.7.1",
+                    "passed_tests": [
+                      "runtimeVersionOnly"
+                    ],
+                    "profile": "agp_minimal_release",
+                    "proof_sha256": "bdfa73ad01f1e8936a91e4bf6926cbb222af81ccfe757e4eb5d7815000dd5da7",
+                    "result_json_sha256": "aeb644d35902c4daf547306331ef9a41582c759cfba0839c36eff0dcd63a15ce",
+                    "run_id": "f295f407e2768da541e305508e8642c8",
+                    "source_commit": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+                    "source_tree_sha256": "2422431fa6576bc9921ad1a8c558b78d82301bad3ad64e45731b5fc730a61117"
+                  },
+                  "proof_path": "consumers/agp_minimal_release/proof.json"
+                }
+              },
+              "bundle_manifest_sha256": "207fb4b1e58e55ef3c5a0c5895e437bbf667b213965e708741cc92e271e59e90",
+              "bundle_schema": 3,
+              "bundle_sha256": "71c5addf4ba7de9f1490cac70a0a03f7ed1f832d1b6bbbd33f86d7cf78fe5545",
+              "device_abi": "arm64-v8a",
+              "device_kind": "emulator",
+              "device_sdk": 35,
+              "page_size": 16384,
+              "proof_schema": 6,
+              "proof_sha256": "9ea63449b00b8ee9514f6e397877b53cb650f6faecb7be23dbd849a5e0c38234",
+              "release_mode": true,
+              "tested_aar_manifest_sha256": "70d2bc3737cfb0bea8569741ce03c3c19813b24a82245cfeb1127ee4f25dd769",
+              "tested_aar_sha256": "528d2aaad2466465597357a3b5c6ed833341ad4101e15ec670cde8757c2ee538"
+            },
+            "assets": [
+              {
+                "bytes": 6420,
+                "content_type": "application/json",
+                "name": "PLATFORM_DISTRIBUTION.json",
+                "sha256": "f10c74c1cf0e134937f906486ae7fdfb2e8cffa8029adf36d22f7d340f2ab653"
+              },
+              {
+                "bytes": 649,
+                "content_type": "application/octet-stream",
+                "name": "SHA256SUMS",
+                "sha256": "e879eafeb78c6f56da3976a8ca7f6469abdad86e0ec2603bbe1833c01e5f4940"
+              },
+              {
+                "bytes": 14245724,
+                "content_type": "application/zip",
+                "name": "q-periapt-android-0.1.5-16k-runtime-evidence.zip",
+                "sha256": "71c5addf4ba7de9f1490cac70a0a03f7ed1f832d1b6bbbd33f86d7cf78fe5545"
+              },
+              {
+                "bytes": 3918,
+                "content_type": "application/json",
+                "name": "q-periapt-android-0.1.5-MANIFEST.json",
+                "sha256": "70d2bc3737cfb0bea8569741ce03c3c19813b24a82245cfeb1127ee4f25dd769"
+              },
+              {
+                "bytes": 3314367,
+                "content_type": "application/octet-stream",
+                "name": "q-periapt-android-0.1.5.aar",
+                "sha256": "528d2aaad2466465597357a3b5c6ed833341ad4101e15ec670cde8757c2ee538"
+              },
+              {
+                "bytes": 1310525,
+                "content_type": "application/x-gtar",
+                "name": "q-periapt-c-abi2-0.1.5-aarch64-unknown-linux-gnu.tar.gz",
+                "sha256": "5db80e9f728a8c4cfe112e2f30ed7f3451d68ecf95c0f6b022741b3675d542c4"
+              },
+              {
+                "bytes": 1363899,
+                "content_type": "application/x-gtar",
+                "name": "q-periapt-c-abi2-0.1.5-x86_64-unknown-linux-gnu.tar.gz",
+                "sha256": "57d1b1b62ca4c67c6b1e92c118c185fa85ab814377810f16c25a4fe1d6046a83"
+              }
+            ],
+            "checksums_sha256": "e879eafeb78c6f56da3976a8ca7f6469abdad86e0ec2603bbe1833c01e5f4940",
+            "platform_distribution_sha256": "f10c74c1cf0e134937f906486ae7fdfb2e8cffa8029adf36d22f7d340f2ab653"
+          },
+          "source": {
+            "canonical_source_tree_sha256": "2422431fa6576bc9921ad1a8c558b78d82301bad3ad64e45731b5fc730a61117",
+            "source_date_epoch": 1788774944,
+            "source_parent_commit": "1a1fd53ac7c90bf05e723318a09e8757110dda5e",
+            "tag_commit": "70b6ba57df2ba882f9103f64c4719d8967b02b67",
+            "tag_object": "cb91e054b86c8ca0ff9731affd3a1f57142e824b",
+            "tag_tree": "f24086a5455e7067163cf1ac8ec7f0f9da59dcdf",
+            "verifier_commit": "70b6ba57df2ba882f9103f64c4719d8967b02b67"
+          }
+        },
+        "schema_version": 3,
+        "status": "candidate_verified_pending_release_verification"
+      },
+      "schema_version": 1,
+      "status": "candidate_verified_pending_release_verification"
     }
   },
   "rust_publish": {
