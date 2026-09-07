@@ -1014,7 +1014,7 @@ class PlatformMaintenanceTransactionTests(unittest.TestCase):
         self.assertEqual(["create-platform-draft"], remote.mutations)
 
 
-def _git(root: pathlib.Path, *arguments: str) -> str:
+def _git(root: pathlib.Path, *arguments: str, umask: int = -1) -> str:
     completed = subprocess.run(
         [
             "/usr/bin/git",
@@ -1031,6 +1031,7 @@ def _git(root: pathlib.Path, *arguments: str) -> str:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=True,
+        umask=umask,
     )
     return completed.stdout.decode("utf-8").strip()
 
@@ -1310,8 +1311,22 @@ class PublicationRepositoryRootTests(unittest.TestCase):
         selected = self.repository
         plan = selected.prepare()
         other = selected.home / "other-checkout"
-        _git(selected.home, "clone", "--no-hardlinks", str(selected.root), str(other))
-        (other / "artifact" / "results.json").chmod(0o644)
+        _git(
+            selected.home,
+            "clone",
+            "--no-hardlinks",
+            str(selected.root),
+            str(other),
+            umask=0o077,
+        )
+        copied_results = other / "artifact" / "results.json"
+        self.assertEqual(0o600, copied_results.stat().st_mode & 0o777)
+        self.assertEqual(
+            git_provenance.run_git_bytes(other, ["show", "HEAD:artifact/results.json"]),
+            copied_results.read_bytes(),
+        )
+        copied_results.chmod(0o644)
+        publication.verify_local_plan(selected.state_root, plan, repository_root=other)
         _git(other, "commit", "--allow-empty", "-qm", "unrelated successor")
         with self.assertRaisesRegex(
             publication.StableGitHubPublicationError, "pending results differ"

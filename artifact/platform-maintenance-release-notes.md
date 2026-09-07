@@ -182,6 +182,34 @@ Complete publisher verification while that checkout still names P2. If the
 control checkout later advances to Q2, retain a separate clean P2 checkout for
 any subsequent publisher status or verification; keep the R verifier fixed.
 
+The retained checkout must also satisfy the existing results-file contract:
+`artifact/results.json` is an owned, regular, non-symlink, single-link file with
+mode `0644` and bytes identical to its HEAD blob. Git checkout under `umask 077`
+creates it as `0600`, which the publisher deliberately rejects. An explicit
+repository root does not change or automatically repair this contract.
+
+Create a new retained copy under a private parent, with a scoped checkout umask
+that materializes the public source-file modes. Select the recorded P2 commit:
+
+```sh
+mkdir -m 0700 "$retained_parent"
+(
+  set -eu
+  umask 022
+  git clone --no-hardlinks --no-checkout "$pending_checkout" "$retained_parent/source"
+  git -C "$retained_parent/source" checkout --detach "$pending_commit"
+)
+```
+
+Both parent paths must be absolute, and `retained_parent` must be new. Run the
+existing `verify-installed` command from the retained checkout with P2's results
+digest, R as the expected parent commit, and R's results digest before selecting
+it with `--repository-root`.
+For an already created `0600` copy, verify the ownership, file kind, link count
+and exact HEAD bytes before explicitly changing only this public results file
+to `0644`; then repeat `verify-installed`. Never recursively change permissions
+or modify the frozen verifier to accommodate a publisher checkout.
+
 It observes the original Apple release as an immutable read-only reference.
 No Apple creation, asset upload or publication request exists in this plan.
 The only nine actions create the new platform draft, upload its seven assets,
