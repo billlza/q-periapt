@@ -56,6 +56,11 @@ that same SDK; they do not authorize a separate executable. This read-only SDK
 selection does not inspect ADB or acquire device state. The AGP collector uses
 the account database's home directory plus `.gradle`; a different
 `GRADLE_USER_HOME` is explicitly unsupported by this internal collector.
+The Android release environment uses JDK 21 LTS with the same JDK selected by
+`JAVA_HOME` and the leading `PATH` entry. The separate Kotlin/FFM host and CodeQL
+lanes use Kotlin 2.4.10 and JDK 25 LTS with JVM bytecode, stable JDK API and
+minimum runtime level 25. Kotlin consumers of the earlier JDK 22 target must
+update their runtime; Android retains its separate JDK 21 build environment.
 `JAVA_HOME` must be the canonical JVM home reported by Gradle. A mismatch retains
 the raw version output and rejects the build before `assemble`.
 The explicit AGP proof paths must identify an existing immutable run layout in

@@ -14,7 +14,7 @@ import java.nio.file.Path
 
 /**
  * Kotlin product face of the PQ/T hybrid suite over the ABI-major C library, via the Foreign
- * Function & Memory API (Project Panama, JDK 22+). It reuses the Rust core but obtains
+ * Function & Memory API (Project Panama, JDK 25+). It reuses the Rust core but obtains
  * randomness inside the native ABI, so tests assert semantic parity rather than deterministic
  * byte replay — see bindings/README.md.
  *
@@ -46,6 +46,9 @@ object QPeriaptHybrid {
         /** Caller-owned secret material. Wipe this array when the session no longer needs it. */
         val secret: ByteArray,
     ) {
+        override fun toString(): String =
+            "EncapsulationResult(ctPq=${ctPq.contentToString()}, ctTrad=${ctTrad.contentToString()}, secret=<redacted>)"
+
         /** Best-effort zeroization of this result's current secret array. */
         fun wipeSecret() {
             secret.fill(0)
@@ -58,6 +61,9 @@ object QPeriaptHybrid {
         val skTrad: ByteArray,
         val pkTrad: ByteArray,
     ) {
+        override fun toString(): String =
+            "KeyPairResult(skPq=<redacted>, pkPq=${pkPq.contentToString()}, skTrad=<redacted>, pkTrad=${pkTrad.contentToString()})"
+
         fun wipeSecrets() {
             skPq.fill(0)
             skTrad.fill(0)
@@ -114,7 +120,7 @@ object QPeriaptHybrid {
     }
 
     private fun handle(name: String, desc: FunctionDescriptor) =
-        linker.downcallHandle(lookup.find(name).orElseThrow { RuntimeException("missing symbol $name") }, desc)
+        linker.downcallHandle(lookup.findOrThrow(name), desc)
 
     private val abiVersionFn = handle("q_periapt_abi_version", FunctionDescriptor.of(JAVA_INT))
     private val versionFn = handle("q_periapt_version", FunctionDescriptor.of(ADDRESS))

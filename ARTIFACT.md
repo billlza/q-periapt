@@ -1015,8 +1015,13 @@ These produce the paper's primary network table and the binary constant-time dis
   passes, reconciles command-unknown outcomes with repeated absence observations, and never clears
   global logcat buffers. One sanitized append-only journal records phase, cleanup invocation, attempt,
   typed state, and consecutive count without raw device output; recurring cleanup cannot truncate an
-  earlier phase. On CI failure, only that journal is uploaded for diagnosis. Raw command and uninstall
-  output remains in the private run tree, and a failed lane still publishes no runtime proof. It requires
+  earlier phase. For CI failures that reached package observation, an explicit log allowlist uploads
+  that journal, numbered typed observer results and errors, existing ADB/emulator logs, and
+  install, uninstall, Activity-start and transport-recovery diagnostics. Observer `.txt` files contain
+  typed tokens, not the original `pm` output. SDK logs are native CI diagnostics that may contain runner
+  paths and transport metadata; they are not normalized public runtime proof. Private keys, console
+  authentication tokens, keystores, ownership capabilities and recovery receipts are excluded, and no
+  whole run directory is uploaded. A failed lane still publishes no runtime proof. It requires
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
   identity directory that is not group/other writable, owner-protected adb key files, and an already
   authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is

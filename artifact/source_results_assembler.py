@@ -227,7 +227,7 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 # succeeded by the next current-to-current reopen baseline emitted by
 # reopen-source.
 INITIAL_RESULTS_SHA256 = (
-    "95a99f5d7e395236762172cbf8593b3eef5aab2eb0ed1a24e41604296cd952d5"
+    "e8429f151e0464cb7d1e6da189ddf38b59f36dcfe2b00b0a7b04b8338aafda01"
 )
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(

@@ -103,18 +103,30 @@ jobs:
             printf 'CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT_SRC=%s\n' "$analysis_sysroot_src"
           } >> "$GITHUB_ENV"
 
-      - name: Set up Java 22
+      - name: Set up Java 25 LTS
         if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
-          java-version: "22"
+          java-version: "25"
+
+      - name: Verify Java 25 LTS
+        if: matrix.language == 'java-kotlin'
+        run: |
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          java -version
+          javac -version
 
       - name: Set up Gradle 9.2.1
         if: matrix.language == 'java-kotlin'
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
           gradle-version: "9.2.1"
+
+      - name: Verify Gradle JVM
+        if: matrix.language == 'java-kotlin'
+        run: gradle --version
 
       - name: Initialize CodeQL
         id: codeql_init

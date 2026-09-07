@@ -1,7 +1,7 @@
 # Q-Periapt Android AAR/JNI
 
 This binding is the Android product surface for `q-periapt-ffi`. It is deliberately
-separate from `bindings/kotlin`, which is a JVM/Panama FFM binding for JDK 22+ and
+separate from `bindings/kotlin`, which is a JVM/Panama FFM binding for JDK 25+ and
 does not run on Android ART.
 
 The AAR and runtime smoke expose the ABI2 signed-policy/OS-random KEM surface, not an identity,
@@ -26,10 +26,15 @@ The Android binding keeps the Rust C ABI as the only cryptographic implementatio
   archive structure does not claim cross-host bit reproducibility of the compiled
   payload.
 
-Run from the repository root:
+Release collectors and CI use JDK 21 LTS. Select the same JDK for `JAVA_HOME`
+and `PATH`, then run from the repository root:
 
 ```sh
-sh artifact/android-aar.sh
+(
+  export JAVA_HOME=/path/to/jdk21
+  export PATH="$JAVA_HOME/bin:$PATH"
+  sh artifact/android-aar.sh
+)
 ```
 
 Local in-progress diagnostics can set `QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1`; that is

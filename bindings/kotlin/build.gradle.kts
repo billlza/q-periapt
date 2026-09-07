@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.4.10"
 }
 
 repositories { mavenCentral() }
@@ -10,16 +10,16 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-// Requires a JDK >= 22 (stable java.lang.foreign / FFM); compiles/runs on the
-// Gradle daemon JVM (set JAVA_HOME). Bytecode target pinned to 22 (FFM's floor)
-// with Java aligned, so it runs on any JDK >= 22 (CI uses 22; dev here uses 26).
+// Build and test on JDK 25 LTS through the Gradle daemon JVM. Both Kotlin and
+// Java use the stable JDK 25 API and bytecode; consumers require JDK 25 or newer.
 kotlin {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_22)
+        jvmTarget.set(JvmTarget.JVM_25)
+        freeCompilerArgs.add("-Xjdk-release=25")
     }
 }
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(22)
+    options.release.set(25)
 }
 
 tasks.test {

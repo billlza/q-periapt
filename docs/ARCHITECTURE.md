@@ -504,7 +504,7 @@ signed-policy-controlled OS-random workflow and its fail-closed controls.
 | **C ABI** | `q-periapt-ffi` | ABI-major `cdylib` + `staticlib`; exact-nine `q_periapt_*` dynamic export table for `cdylib`/DLL, while the static archive constrains only that public namespace and retains unsupported hidden `qpn_*` link internals; OS CSPRNG; `int32` status codes; every public entry `catch_unwind`-wrapped | internal Rust KAT + semantic product C smoke + `c_abi_contract.py` |
 | **WASM** | `q-periapt-wasm` | `wasm-bindgen`; JS supplies randomness as `Uint8Array` | default + signed-policy `wasm-pack test --node`; CI builds `wasm32` |
 | **Swift** | `bindings/swift/` | links the ABI2 C `staticlib`; policy-controlled only | `swift test` + five-slice XCFramework consumer pass; physical-device proof remains source-bound |
-| **Kotlin** | `bindings/kotlin/` | Panama **FFM** over ABI2, JDK ≥ 22; policy-controlled only | `gradle test` on JDK 22+ |
+| **Kotlin** | `bindings/kotlin/` | Panama **FFM** over ABI2, JDK ≥ 25; policy-controlled only | `gradle test` on JDK 25 LTS; JVM/API floor 25 |
 | **Android** | `bindings/android/` | JNI over ABI2; policy-controlled only | four-ABI AAR build + API 35 arm64 16 KiB emulator ART proof; physical proof remains separate |
 
 WASM is a separate deterministic conformance-oriented binding and is not part of the
