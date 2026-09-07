@@ -1144,6 +1144,7 @@ class _MaintenanceRepository:
         transaction.mkdir(mode=0o700)
         payload_root = transaction / distribution.PLATFORM_RELEASE_DIRECTORY_NAME
         payload_root.mkdir(mode=0o755)
+        payload_root.chmod(0o755)
         for name, data in self.payloads.items():
             _write(payload_root / name, data, 0o644)
         cache_bytes = distribution.canonical_json(self.cache_receipt)
@@ -1310,6 +1311,7 @@ class PublicationRepositoryRootTests(unittest.TestCase):
         plan = selected.prepare()
         other = selected.home / "other-checkout"
         _git(selected.home, "clone", "--no-hardlinks", str(selected.root), str(other))
+        (other / "artifact" / "results.json").chmod(0o644)
         _git(other, "commit", "--allow-empty", "-qm", "unrelated successor")
         with self.assertRaisesRegex(
             publication.StableGitHubPublicationError, "pending results differ"
@@ -1341,6 +1343,7 @@ class PublicationRepositoryRootTests(unittest.TestCase):
                         selected.state_root, plan, repository_root=selected.root
                     )
                 _git(selected.root, "reset", "--hard", selected.pending_commit)
+                selected.results.chmod(0o644)
         source = selected.root / "untracked-source.py"
         source.write_text("raise RuntimeError('untrusted input')\n")
         with self.assertRaisesRegex(
@@ -1534,6 +1537,7 @@ class PublicationRepositoryRootTests(unittest.TestCase):
         selected = self.repository
         tool_root = selected.home / "tool-checkout"
         tool_root.mkdir(mode=0o755)
+        tool_root.chmod(0o755)
         _git(tool_root, "init", "-q")
         forbidden_home = tool_root / "target" / "account-home"
         forbidden_home.mkdir(mode=0o700, parents=True)
@@ -1562,6 +1566,7 @@ class CanonicalPublicationRepositoryTests(unittest.TestCase):
         self.base = pathlib.Path(temporary.name).resolve()
         self.root = self.base / "repository"
         self.root.mkdir(mode=0o755)
+        self.root.chmod(0o755)
         _git(self.root, "init", "-q")
 
     def test_owned_0755_clone_is_accepted_without_changing_its_mode(self) -> None:
@@ -1619,6 +1624,7 @@ class ApplePublicationRepositoryRootTests(unittest.TestCase):
         _git(fixture.root, "init", "-q")
         decoy = fixture.root.parent / "other-public-distribution"
         decoy.mkdir(mode=0o755)
+        decoy.chmod(0o755)
         with (
             mock.patch.object(apple_stable_publication, "APPLE_PUBLIC_ROOT", decoy),
             mock.patch.object(
