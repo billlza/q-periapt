@@ -182,6 +182,33 @@ Complete publisher verification while that checkout still names P2. If the
 control checkout later advances to Q2, retain a separate clean P2 checkout for
 any subsequent publisher status or verification; keep the R verifier fixed.
 
+When an existing local HTTP CONNECT proxy is required, select it explicitly on
+each network operation without re-preparing the immutable plan:
+
+```sh
+sh artifact/python-run.sh artifact/stable_github_publication.py \
+  --profile maintenance-r2 --repository-root "$pending_checkout" \
+  status --http-connect-proxy http://127.0.0.1:7890
+```
+
+Use the actual loopback listener port, and append the same option to `publish`
+and `verify`. All existing plan/results pins and publication acknowledgements
+remain required. The route retains destination TLS verification, rejects ambient
+proxy and CA overrides, and does not change system proxy settings or retry an
+uncertain write. An unresolved intent is still reconciled only from its exact
+remote successor under the original account lock.
+
+The separately reviewed collector also accepts `--http-connect-proxy` on
+`platform_stable_publication.py --profile maintenance-r2 collect`. Its receipt,
+raw, download and verifier directories remain direct children of the collector
+checkout's fixed `target/abi2-platform-*` roots. Copy the original pending receipt
+as identical bytes to a fresh private receipt child; keep its fixed leaf name
+and mode `0600`. Use a separate clean, annotated-tag R clone with a real `.git`
+directory under that checkout's fixed publication-worktree root. The collector
+checks the original receipt's source identity against R and executes R's offline
+distribution verifier with no GitHub credential or proxy. Neither the original
+control checkout nor the frozen R source requires editing or a new root option.
+
 The retained checkout must also satisfy the existing results-file contract:
 `artifact/results.json` is an owned, regular, non-symlink, single-link file with
 mode `0644` and bytes identical to its HEAD blob. Git checkout under `umask 077`

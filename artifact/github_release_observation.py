@@ -37,6 +37,7 @@ from evidence_io import (
     consume_regular_snapshot,
     parse_strict_json_bytes,
 )
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
 
 try:
     import pwd
@@ -632,9 +633,18 @@ def resample_github_cli(expected: GitHubCliIdentity) -> None:
         )
 
 
-def github_cli_environment(source: Mapping[str, str]) -> dict[str, str]:
+def github_cli_environment(
+    source: Mapping[str, str],
+    *,
+    http_connect_proxy: str | None = None,
+) -> dict[str, str]:
     """Build the only credential-bearing environment admitted for ``gh``."""
 
+    if http_connect_proxy is not None:
+        try:
+            http_connect_proxy = validate_http_connect_proxy(http_connect_proxy)
+        except HttpConnectProxyError as exc:
+            raise GitHubReleaseObservationError(str(exc)) from exc
     overridden = sorted(
         name
         for name in source
@@ -682,6 +692,8 @@ def github_cli_environment(source: Mapping[str, str]) -> dict[str, str]:
         "PATH": "/usr/bin:/bin",
         "TERM": "dumb",
     }
+    if http_connect_proxy is not None:
+        environment["HTTPS_PROXY"] = http_connect_proxy
     return _validated_github_cli_environment(environment)
 
 
@@ -737,6 +749,15 @@ def _validated_github_cli_environment(
         "PATH": "/usr/bin:/bin",
         "TERM": "dumb",
     }
+    if "HTTPS_PROXY" in environment:
+        try:
+            static["HTTPS_PROXY"] = validate_http_connect_proxy(
+                environment["HTTPS_PROXY"]
+            )
+        except HttpConnectProxyError as exc:
+            raise GitHubReleaseObservationError(
+                "GitHub command environment differs from the fixed minimal policy"
+            ) from exc
     _require(
         isinstance(credential_value, str)
         and 0 < len(credential_value) <= 4_096
@@ -1694,13 +1715,15 @@ def _parse_stable_tag_ruleset_ids(ruleset_list_raw: bytes) -> tuple[int, ...]:
 def sample_stable_tag_protection_once(
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> StableTagProtectionObservation:
     """Take one complete exact stable-tag ruleset sample."""
 
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
     list_endpoint = (
@@ -1737,15 +1760,20 @@ def sample_stable_tag_protection_once(
 def observe_stable_tag_protection(
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagProtectionObservation:
     """Sample exact stable-tag rules twice through the pinned read-only CLI."""
 
     before = sample_stable_tag_protection_once(
-        source_environment=source_environment, runner=runner
+        source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
+        runner=runner,
     )
     after = sample_stable_tag_protection_once(
-        source_environment=source_environment, runner=runner
+        source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
+        runner=runner,
     )
     _require(
         before == after,
@@ -2138,6 +2166,7 @@ def sample_stable_tag_state_once(
     expected_tree: str | None = None,
     expected_tag_objects: Sequence[str] | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Take one complete sample of both exact stable refs and objects."""
@@ -2148,7 +2177,8 @@ def sample_stable_tag_state_once(
         expected_tag_objects,
     )
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
 
@@ -2263,6 +2293,7 @@ def sample_platform_maintenance_tag_state_once(
     expected_commit: str,
     expected_tree: str,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Reuse the bounded observation boundary for one new r2 tag, never a tag write."""
@@ -2277,7 +2308,8 @@ def sample_platform_maintenance_tag_state_once(
     )
     reference = PlatformReleaseProfile.MAINTENANCE_R2.release_ref
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
     raw = tuple(
@@ -2322,6 +2354,7 @@ def observe_stable_tag_state(
     expected_tree: str | None = None,
     expected_tag_objects: Sequence[str] | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Sample both exact stable refs and their immutable objects twice."""
@@ -2331,6 +2364,7 @@ def observe_stable_tag_state(
         expected_tree=expected_tree,
         expected_tag_objects=expected_tag_objects,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     after = sample_stable_tag_state_once(
@@ -2338,6 +2372,7 @@ def observe_stable_tag_state(
         expected_tree=expected_tree,
         expected_tag_objects=expected_tag_objects,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(before == after, "GitHub stable tag state changed during observation")
@@ -2350,6 +2385,7 @@ def observe_stable_tag_recovery_state(
     expected_tag_objects: Sequence[str],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Double-sample the only safe states after an uncertain ordered push."""
@@ -2362,7 +2398,8 @@ def observe_stable_tag_recovery_state(
     if commit is None or tree is None or tag_objects is None:
         _fail("GitHub stable tag recovery expectation is incomplete")
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
 
@@ -3223,6 +3260,7 @@ def _observe_mutable_release_transaction_once(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> MutableReleaseTransactionObservation:
     """Observe the two target releases, immutable setting, and latest tag."""
@@ -3234,7 +3272,8 @@ def _observe_mutable_release_transaction_once(
     for policy in policies:
         _validate_mutable_release_policy(policy)
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
     list_arguments = (
@@ -3496,6 +3535,7 @@ def observe_mutable_release_transaction(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> MutableReleaseTransactionObservation:
     """Return two byte-identical complete remote release samples."""
@@ -3503,11 +3543,13 @@ def observe_mutable_release_transaction(
     before = _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     after = _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(
@@ -3521,6 +3563,7 @@ def sample_mutable_release_transaction_once(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> MutableReleaseTransactionObservation:
     """Expose one complete sample for a higher-level composite sampler."""
@@ -3528,6 +3571,7 @@ def sample_mutable_release_transaction_once(
     return _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
 

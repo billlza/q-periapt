@@ -54,6 +54,7 @@ from evidence_io import (
 )
 from git_provenance import GIT, GitProvenanceError, require_direct_results_only_child
 import github_release_observation as github_release
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
 import platform_candidate_attestation as candidate_attestation
 import platform_distribution
 from publication_receipt_io import (
@@ -1403,6 +1404,7 @@ def collect_verified_receipt(
     clock: Clock = _system_clock,
     monotonic: MonotonicClock = time.monotonic,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     git_tool: str | None = None,
     source_inspector: SourceInspector = inspect_verifier_source,
     deep_verifier: Callable[
@@ -1412,6 +1414,11 @@ def collect_verified_receipt(
 ) -> tuple[pathlib.Path, str, int]:
     """Collect one promotion while every mutable transaction directory is pinned."""
 
+    if http_connect_proxy is not None:
+        try:
+            http_connect_proxy = validate_http_connect_proxy(http_connect_proxy)
+        except HttpConnectProxyError as exc:
+            raise PlatformV015PublicationError(str(exc)) from exc
     _ensure_platform_safe_roots()
     receipt = _load_receipt(
         pending_receipt, expected_status=PLATFORM_V0_1_5_STATUS_PENDING, profile=profile
@@ -1464,6 +1471,7 @@ def collect_verified_receipt(
                 clock=clock,
                 monotonic=monotonic,
                 source_environment=source_environment,
+                http_connect_proxy=http_connect_proxy,
                 git_tool=git_tool,
                 source_inspector=source_inspector,
                 deep_verifier=deep_verifier,
@@ -1489,6 +1497,7 @@ def _collect_verified_receipt_pinned(
     clock: Clock = _system_clock,
     monotonic: MonotonicClock = time.monotonic,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     git_tool: str | None = None,
     source_inspector: SourceInspector = inspect_verifier_source,
     deep_verifier: Callable[
@@ -1501,7 +1510,9 @@ def _collect_verified_receipt_pinned(
     source = os.environ if source_environment is None else source_environment
     git_environment = _git_environment(source)
     try:
-        github_environment = github_release.github_cli_environment(source)
+        github_environment = github_release.github_cli_environment(
+            source, http_connect_proxy=http_connect_proxy
+        )
         github_cli = github_release.select_github_cli()
     except github_release.GitHubReleaseObservationError as exc:
         raise PlatformV015PublicationError(str(exc)) from exc
@@ -1920,6 +1931,10 @@ def build_parser() -> argparse.ArgumentParser:
     pending.add_argument("--assembly-receipt", required=True, type=pathlib.Path)
     pending.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
     collect = subparsers.add_parser("collect")
+    collect.add_argument(
+        "--http-connect-proxy",
+        help="explicit canonical loopback HTTP CONNECT route for GitHub collection only",
+    )
     collect.add_argument("--pending-receipt", required=True, type=pathlib.Path)
     collect.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
     collect.add_argument("--raw-directory", required=True, type=pathlib.Path)
@@ -1969,6 +1984,7 @@ def main(argv: Sequence[str]) -> int:
                     zipalign=arguments.android_zipalign,
                 ),
                 profile=profile,
+                http_connect_proxy=arguments.http_connect_proxy,
             )
             print(
                 "ABI2_PLATFORM_V0_1_5_VERIFIED_RECEIPT_PASS "
