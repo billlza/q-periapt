@@ -86,6 +86,12 @@ class ReleaseIndexTests(unittest.TestCase):
         shutil.copy2(self.contract_source, contract)
         (root / "FIXTURE_SOURCE.txt").write_text("fixture\n", encoding="utf-8")
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        # Fixture maintenance must finish before TemporaryDirectory removes .git.
+        subprocess.run(
+            ["git", "config", "--local", "maintenance.autoDetach", "false"],
+            cwd=root,
+            check=True,
+        )
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         subprocess.run(
             [
@@ -103,6 +109,71 @@ class ReleaseIndexTests(unittest.TestCase):
             check=True,
         )
         return root
+
+    def test_fixture_finishes_automatic_maintenance_before_returning(self) -> None:
+        with tempfile.TemporaryDirectory() as evidence:
+            trace_path = pathlib.Path(evidence).resolve() / "git-trace.jsonl"
+            with tempfile.TemporaryDirectory() as temporary:
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "GIT_TRACE2_EVENT": str(trace_path),
+                        "GIT_CONFIG_COUNT": "3",
+                        "GIT_CONFIG_KEY_0": "maintenance.commit-graph.enabled",
+                        "GIT_CONFIG_VALUE_0": "true",
+                        "GIT_CONFIG_KEY_1": "maintenance.commit-graph.auto",
+                        "GIT_CONFIG_VALUE_1": "-1",
+                        "GIT_CONFIG_KEY_2": "maintenance.auto",
+                        "GIT_CONFIG_VALUE_2": "true",
+                    },
+                ):
+                    root = self._root(temporary)
+                # Snapshot immediately after the fixture returns: no waiting for
+                # a background worker to finish before checking its lifetime.
+                events = [
+                    json.loads(line)
+                    for line in trace_path.read_text(encoding="utf-8").splitlines()
+                ]
+                maintenance = [
+                    event
+                    for event in events
+                    if event["event"] == "cmd_name" and event["name"] == "maintenance"
+                ]
+                self.assertEqual(len(maintenance), 1)
+                maintenance_sid = maintenance[0]["sid"]
+                maintenance_events = [
+                    event for event in events if event["sid"] == maintenance_sid
+                ]
+                self.assertFalse(
+                    any(
+                        event["event"] == "region_enter"
+                        and event.get("category") == "maintenance"
+                        and event.get("label") == "detach"
+                        for event in maintenance_events
+                    ),
+                    "fixture maintenance detached from its owning Git command",
+                )
+                maintenance_exits = [
+                    event for event in maintenance_events if event["event"] == "exit"
+                ]
+                self.assertEqual(len(maintenance_exits), 1)
+                self.assertEqual(maintenance_exits[0]["code"], 0)
+                commit_sid = maintenance_sid.rsplit("/", 1)[0]
+                commit_exit = next(
+                    event
+                    for event in events
+                    if event["event"] == "exit" and event["sid"] == commit_sid
+                )
+                self.assertLess(
+                    events.index(maintenance_exits[0]), events.index(commit_exit)
+                )
+                graph_chain = (
+                    root / ".git/objects/info/commit-graphs/commit-graph-chain"
+                )
+                self.assertTrue(graph_chain.is_file())
+                self.assertTrue(graph_chain.read_text(encoding="ascii").strip())
+                subprocess.run(["git", "commit-graph", "verify"], cwd=root, check=True)
+            self.assertFalse(root.exists())
 
     def _release_pointer(
         self,
