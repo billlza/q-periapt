@@ -419,6 +419,133 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 self.assertEqual([], remote.mutations)
                 self.assertEqual([], list(journal.iterdir()))
 
+    def test_explicit_proxy_resumes_unknown_exact_successor_without_repeating_mutation(
+        self,
+    ) -> None:
+        proxy = "http://127.0.0.1:7890"
+        source = {"GH_TOKEN": "fixture-route-token"}
+        journal = self.root / publication.JOURNAL_DIRECTORY
+        remote = FakeRemote(self.plan, journal)
+        original_plan = (self.root / publication.PLAN_LEAF).read_bytes()
+        original_digest = self.plan.sha256()
+
+        def observe(
+            plan: publication.PublicationPlan,
+            *,
+            source_environment: Mapping[str, str] | None,
+            http_connect_proxy: str | None,
+            runner: github_release.GitHubCommandRunner,
+        ) -> publication.RemoteSnapshot:
+            del runner
+            self.assertEqual(source, source_environment)
+            self.assertEqual(proxy, http_connect_proxy)
+            return remote.observe(plan)
+
+        def mutate(
+            root: PrivateDirectoryHandle,
+            plan: publication.PublicationPlan,
+            action: publication.MutationAction,
+            before: publication.RemoteSnapshot,
+            *,
+            source_environment: Mapping[str, str] | None,
+            http_connect_proxy: str | None,
+            runner: github_release.GitHubInputRunner,
+        ) -> None:
+            del runner
+            self.assertEqual(self.root, root.path)
+            self.assertEqual(source, source_environment)
+            self.assertEqual(proxy, http_connect_proxy)
+            remote.mutate(plan, action, before)
+            if action.index == 0:
+                remote.fail_next_observation = True
+
+        def publish() -> publication.PublicationStatus:
+            return publication.publish_plan(
+                execute_real_github_mutation=True,
+                expected_plan_sha256=original_digest,
+                expected_results_sha256=self.plan.results_sha256,
+                draft_barrier_ack=publication.ACK_DRAFT_BARRIER,
+                publication_order_ack=publication.ACK_PUBLICATION_ORDER,
+                state_root=self.root,
+                source_environment=source,
+                http_connect_proxy=proxy,
+            )
+
+        with (
+            self.publisher_patches(),
+            mock.patch.object(
+                publication, "observe_remote_transaction", side_effect=observe
+            ),
+            mock.patch.object(
+                publication, "execute_production_mutation", side_effect=mutate
+            ),
+        ):
+            with self.assertRaises(publication.StableGitHubPublicationOutcomeUnknown):
+                publish()
+            intent = (journal / "000000-intent.json").read_bytes()
+            reconciliation = (journal / "000000-reconciliation.json").read_bytes()
+            self.assertFalse((journal / "000000-outcome.json").exists())
+            status = publication.status_plan(
+                state_root=self.root,
+                source_environment=source,
+                http_connect_proxy=proxy,
+            )
+            self.assertEqual(1, status.state_index)
+            self.assertEqual(0, status.applied_actions)
+            self.assertTrue(status.unresolved_intent)
+            self.assertTrue(status.reconciliation_eligible)
+            self.assertEqual([EXPECTED_ACTION_IDS[0]], remote.mutations)
+            self.assertTrue(publish().complete)
+            self.assertTrue(
+                publication.verify_publication(
+                    state_root=self.root,
+                    source_environment=source,
+                    http_connect_proxy=proxy,
+                ).complete
+            )
+        self.assertEqual(list(EXPECTED_ACTION_IDS), remote.mutations)
+        self.assertEqual(intent, (journal / "000000-intent.json").read_bytes())
+        self.assertEqual(
+            reconciliation, (journal / "000000-reconciliation.json").read_bytes()
+        )
+        self.assertEqual(
+            original_plan, (self.root / publication.PLAN_LEAF).read_bytes()
+        )
+        self.assertEqual(original_digest, self.plan.sha256())
+        for leaf in journal.iterdir():
+            self.assertNotIn(proxy.encode(), leaf.read_bytes())
+            self.assertNotIn(source["GH_TOKEN"].encode(), leaf.read_bytes())
+
+    def test_invalid_proxy_is_rejected_before_publication_lock_or_source(self) -> None:
+        invalid = "http://user:fixture-secret@127.0.0.1:7890"
+        with (
+            mock.patch.object(publication, "validate_state_root") as roots,
+            mock.patch.object(publication, "publication_lock") as lock,
+            mock.patch.object(publication, "observe_remote_transaction") as observer,
+        ):
+            for command in (publication.status_plan, publication.verify_publication):
+                with (
+                    self.subTest(command=command.__name__),
+                    self.assertRaisesRegex(
+                        publication.StableGitHubPublicationError, "HTTP CONNECT proxy"
+                    ),
+                ):
+                    command(http_connect_proxy=invalid)
+            with self.assertRaisesRegex(
+                publication.StableGitHubPublicationError, "HTTP CONNECT proxy"
+            ):
+                publication.publish_plan(
+                    execute_real_github_mutation=True,
+                    expected_plan_sha256=self.plan.sha256(),
+                    expected_results_sha256=self.plan.results_sha256,
+                    draft_barrier_ack=publication.ACK_DRAFT_BARRIER,
+                    publication_order_ack=publication.ACK_PUBLICATION_ORDER,
+                    http_connect_proxy=invalid,
+                )
+        roots.assert_not_called()
+        lock.assert_not_called()
+        observer.assert_not_called()
+
     def test_every_action_requires_a_fresh_exact_predecessor(self) -> None:
         journal = self.root / publication.JOURNAL_DIRECTORY
         remote = FakeRemote(self.plan, journal)
@@ -1902,6 +2029,69 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 )
         self.assertEqual(publication.MAX_ACTIONS, len(remote.mutations))
 
+    def test_cli_propagates_explicit_proxy_to_status_publish_and_verify(self) -> None:
+        proxy = "http://127.0.0.1:7890"
+        result = publication.PublicationStatus(
+            plan_sha256=self.plan.sha256(),
+            state_index=15,
+            state_name="both_published",
+            applied_actions=15,
+            unresolved_intent=False,
+            reconciliation_eligible=False,
+            manual_review_required=False,
+            complete=True,
+        )
+        for command, entry in (
+            ("status", "status_plan"),
+            ("publish", "publish_plan"),
+            ("verify", "verify_publication"),
+        ):
+            arguments = [command, "--http-connect-proxy", proxy]
+            if command == "publish":
+                arguments.extend(
+                    [
+                        "--execute-real-github-mutation",
+                        "--expected-plan-sha256",
+                        self.plan.sha256(),
+                        "--expected-results-sha256",
+                        self.plan.results_sha256,
+                        "--ack-draft-barrier",
+                        publication.ACK_DRAFT_BARRIER,
+                        "--ack-publication-order",
+                        publication.ACK_PUBLICATION_ORDER,
+                    ]
+                )
+            with (
+                self.subTest(command=command),
+                mock.patch.object(publication, entry, return_value=result) as called,
+                mock.patch.object(
+                    publication, "expected_state_root", return_value=self.root
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, publication.main(arguments))
+            called.assert_called_once()
+            self.assertEqual(proxy, called.call_args.kwargs["http_connect_proxy"])
+
+        for command in ("status", "verify"):
+            with (
+                self.subTest(invalid_command=command),
+                mock.patch.object(publication, "expected_state_root") as roots,
+                contextlib.redirect_stderr(io.StringIO()) as stderr,
+            ):
+                self.assertEqual(
+                    1,
+                    publication.main(
+                        [
+                            command,
+                            "--http-connect-proxy",
+                            "http://user:fixture-secret@127.0.0.1:7890",
+                        ]
+                    ),
+                )
+            roots.assert_not_called()
+            self.assertNotIn("fixture-secret", stderr.getvalue())
+
     def test_cli_usage_errors_are_fixed_and_never_echo_argv(self) -> None:
         sentinel = f"GH_TOKEN=fixture_secret:{self.root}"
         cases = (
@@ -2412,11 +2602,6 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     github_release,
-                    "github_cli_environment",
-                    return_value={"GH_TOKEN": "not-recorded"},
-                ),
-                mock.patch.object(
-                    github_release,
                     "execute_github_api_json_mutation",
                     side_effect=consume_json,
                 ),
@@ -2437,6 +2622,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     ),
                     fixture_snapshot(self.plan, 0),
                     source_environment={"GH_TOKEN": "fixture"},
+                    http_connect_proxy="http://127.0.0.1:7890",
                 )
                 publication.execute_production_mutation(
                     root_handle,
@@ -2450,6 +2636,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     ),
                     fixture_snapshot(self.plan, 2),
                     source_environment={"GH_TOKEN": "fixture"},
+                    http_connect_proxy="http://127.0.0.1:7890",
                 )
                 publication.execute_production_mutation(
                     root_handle,
@@ -2462,6 +2649,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     ),
                     fixture_snapshot(self.plan, 13),
                     source_environment={"GH_TOKEN": "fixture"},
+                    http_connect_proxy="http://127.0.0.1:7890",
                 )
                 create_path = (
                     self.root
@@ -2487,6 +2675,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                         ),
                         fixture_snapshot(self.plan, 0),
                         source_environment={"GH_TOKEN": "fixture"},
+                        http_connect_proxy="http://127.0.0.1:7890",
                     )
         finally:
             os.close(root_fd)
@@ -2501,6 +2690,13 @@ class StableGitHubPublicationTests(unittest.TestCase):
         )
         self.assertEqual(101, upload_calls[0]["release_id"])
         self.assertEqual(apple_asset.sha256, upload_calls[0]["input_sha256"])
+        for call in json_calls + upload_calls:
+            self.assertEqual(
+                github_release.github_cli_environment(
+                    {"GH_TOKEN": "fixture"}, http_connect_proxy="http://127.0.0.1:7890"
+                ),
+                call["environment"],
+            )
 
 
 if __name__ == "__main__":

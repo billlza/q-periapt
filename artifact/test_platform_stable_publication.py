@@ -64,6 +64,7 @@ class RemoteFixtureRunner:
         self.release_after = release_after
         self.verification = verification
         self.calls: list[tuple[str, ...]] = []
+        self.environments: list[dict[str, str]] = []
         self.release_views = 0
 
     def __call__(
@@ -75,7 +76,8 @@ class RemoteFixtureRunner:
         stderr: int,
         environment: Mapping[str, str],
     ) -> BoundedResult:
-        del timeout_seconds, stderr, environment
+        del timeout_seconds, stderr
+        self.environments.append(dict(environment))
         command = tuple(argv)
         self.calls.append(command)
         if command[1:3] == ("repo", "view"):
@@ -107,6 +109,7 @@ class AssetSinkRunner:
         self.assets = dict(assets)
         self.mutate = mutate
         self.calls: list[tuple[str, ...]] = []
+        self.environments: list[dict[str, str]] = []
 
     def __call__(
         self,
@@ -119,7 +122,8 @@ class AssetSinkRunner:
         stderr: int,
         environment: Mapping[str, str],
     ) -> BoundedResult:
-        del timeout_seconds, stderr, environment
+        del timeout_seconds, stderr
+        self.environments.append(dict(environment))
         command = tuple(argv)
         self.calls.append(command)
         pattern_index = command.index("--pattern")
@@ -753,7 +757,10 @@ class PlatformV015PublicationTests(unittest.TestCase):
         deep_mutation: Callable[[], None] | None = None,
         remote_runner: RemoteFixtureRunner | None = None,
         before_collect: Callable[[], None] | None = None,
-    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, RemoteFixtureRunner, AssetSinkRunner]:
+        http_connect_proxy: str | None = None,
+    ) -> tuple[
+        pathlib.Path, pathlib.Path, pathlib.Path, RemoteFixtureRunner, AssetSinkRunner
+    ]:
         assets, manifest = self._asset_fixture()
         candidate = self._candidate_for_assets(f"candidate-{name}", assets)
         pending = self._pending_receipt(
@@ -791,6 +798,10 @@ class PlatformV015PublicationTests(unittest.TestCase):
             self.assertEqual(downloads, download_directory)
             self.assertEqual(self.tools, tools)
             self.assertEqual(self.TAG_COMMIT, kwargs["expected_commit"])
+            self.assertEqual(
+                publication.github_release.git_observation_environment(),
+                kwargs["environment"],
+            )
             if deep_mutation is not None:
                 deep_mutation()
             return copy.deepcopy(manifest), (
@@ -808,11 +819,10 @@ class PlatformV015PublicationTests(unittest.TestCase):
             android_tools=self.tools,
             runner=runner,
             sink_runner=sink,
-            clock=QueueClock(
-                "2026-08-14T04:00:00Z", "2026-08-14T05:00:00Z"
-            ),
+            clock=QueueClock("2026-08-14T04:00:00Z", "2026-08-14T05:00:00Z"),
             monotonic=lambda: 100.0,
             source_environment={"GH_TOKEN": "fixture-token"},
+            http_connect_proxy=http_connect_proxy,
             git_tool="/usr/bin/git",
             source_inspector=self._source_inspector,
             deep_verifier=deep_verifier,
@@ -899,6 +909,47 @@ class PlatformV015PublicationTests(unittest.TestCase):
         self.assertEqual(2, calls)
         self.assertEqual(before, set(self.receipt_root.iterdir()))
 
+    def test_collect_proxy_applies_to_all_github_children_and_keeps_deep_verifier_offline(
+        self,
+    ) -> None:
+        proxy = "http://127.0.0.1:7890"
+        for name, selected in (("direct-route", None), ("proxy-route", proxy)):
+            with self.subTest(route=name):
+                _output, _raw, _downloads, remote, sink = self._collect_fixture(
+                    name, http_connect_proxy=selected
+                )
+                self.assertEqual(5, len(remote.environments))
+                self.assertEqual(7, len(sink.environments))
+                for environment in remote.environments + sink.environments:
+                    self.assertEqual("fixture-token", environment["GH_TOKEN"])
+                    if selected is None:
+                        self.assertNotIn("HTTPS_PROXY", environment)
+                    else:
+                        self.assertEqual(selected, environment["HTTPS_PROXY"])
+                    for name in ("HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "GH_HOST"):
+                        self.assertNotIn(name, environment)
+
+    def test_invalid_proxy_is_rejected_before_collect_files_or_network(self) -> None:
+        with (
+            mock.patch.object(publication, "_ensure_platform_safe_roots") as roots,
+            mock.patch.object(publication, "_load_receipt") as receipt,
+            self.assertRaisesRegex(
+                publication.PlatformV015PublicationError, "HTTP CONNECT proxy"
+            ) as caught,
+        ):
+            publication.collect_verified_receipt(
+                self.root / "unread.json",
+                self.verifier,
+                self.raw_root / "unused",
+                self.download_root / "unused",
+                android_tools=self.tools,
+                http_connect_proxy="http://user:fixture-secret@127.0.0.1:7890",
+            )
+        roots.assert_not_called()
+        receipt.assert_not_called()
+        self.select_github_cli.assert_not_called()
+        self.assertNotIn("fixture-secret", str(caught.exception))
+
     def test_cli_markers_identify_receipt_digest_for_both_states(self) -> None:
         output = self.root / "platform-v0.1.5-publication-receipt.json"
 
@@ -941,6 +992,7 @@ class PlatformV015PublicationTests(unittest.TestCase):
             android_llvm_readelf=self.tools.llvm_readelf,
             android_apksigner=self.tools.apksigner,
             android_zipalign=self.tools.zipalign,
+            http_connect_proxy=None,
         )
         verified_parser = mock.Mock()
         verified_parser.parse_args.return_value = verified_arguments
@@ -964,6 +1016,62 @@ class PlatformV015PublicationTests(unittest.TestCase):
             self.assertEqual(0, publication.main(["collect"]))
         self.assertIn(f"receipt_sha256={'b' * 64}", verified_stdout.getvalue())
         self.assertNotIn("projection_sha256=", verified_stdout.getvalue())
+
+    def test_collect_cli_passes_proxy_and_pending_rejects_it(self) -> None:
+        proxy = "http://127.0.0.1:7890"
+        command = [
+            "collect",
+            "--pending-receipt",
+            str(self.root / "pending.json"),
+            "--verifier-checkout",
+            str(self.verifier),
+            "--raw-directory",
+            str(self.raw_root / "raw-cli"),
+            "--download-directory",
+            str(self.download_root / "downloads-cli"),
+            "--android-llvm-nm",
+            str(self.tools.llvm_nm),
+            "--android-llvm-readelf",
+            str(self.tools.llvm_readelf),
+            "--android-apksigner",
+            str(self.tools.apksigner),
+            "--android-zipalign",
+            str(self.tools.zipalign),
+            "--http-connect-proxy",
+            proxy,
+        ]
+        with (
+            mock.patch.object(
+                publication,
+                "collect_verified_receipt",
+                return_value=(self.root / "receipt.json", "b" * 64, self.RELEASE_ID),
+            ) as collect,
+            mock.patch.object(
+                publication, "_relative_output", return_value="target/receipt.json"
+            ),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(0, publication.main(command))
+        collect.assert_called_once()
+        self.assertEqual(proxy, collect.call_args.kwargs["http_connect_proxy"])
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as caught,
+        ):
+            publication.build_parser().parse_args(
+                [
+                    "pending",
+                    "--candidate-projection",
+                    "candidate.json",
+                    "--assembly-receipt",
+                    "assembly.json",
+                    "--verifier-checkout",
+                    str(self.verifier),
+                    "--http-connect-proxy",
+                    proxy,
+                ]
+            )
+        self.assertEqual(2, caught.exception.code)
 
     def test_pending_cli_requires_the_assembly_receipt(self) -> None:
         parser = publication.build_parser()

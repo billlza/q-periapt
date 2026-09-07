@@ -1083,6 +1083,22 @@ set -euf
 QPERIAPT_STABLE_GITHUB_PUBLICATION
 ```
 
+If this host requires its existing local HTTP CONNECT proxy, append
+`--http-connect-proxy http://127.0.0.1:7890` with the actual listener port to each
+`stable_github_publication.py status`, `publish`, or `verify` invocation and to
+`platform_stable_publication.py collect`. The option selects one explicit route
+for all GitHub CLI children in that invocation. It does not re-prepare or change
+the plan, request bytes, account locks, or journal. Omitting it preserves direct
+connections; `prepare` and `pending` do not accept the network option.
+
+Only canonical loopback HTTP URLs without userinfo, paths, query or fragments
+are accepted. Ambient proxy, CA, Git and GitHub configuration overrides remain
+rejected. The selected route is passed only to the isolated GitHub child;
+destination TLS certificate and hostname verification stay enabled, and the
+collector's tagged offline verifier receives neither proxy nor credential.
+This does not change system proxy settings, add a fallback route, or retry any
+GitHub command or upload.
+
 A timeout or nonzero command is never retried. If every local boundary remains
 intact, the coordinator takes a fresh complete observation: an exact successor is
 journaled, while a predecessor or temporarily unavailable ordinary remote observation

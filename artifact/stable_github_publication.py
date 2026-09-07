@@ -10,6 +10,8 @@ retried automatically.
 
 from __future__ import annotations
 
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
+
 from platform_distribution_contract import PlatformReleaseProfile
 import platform_maintenance_contract as maintenance_contract
 import platform_maintenance as maintenance_source
@@ -209,6 +211,14 @@ def _fail(message: str) -> Never:
 def _require(condition: bool, message: str) -> None:
     if not condition:
         _fail(message)
+
+
+def _validate_http_connect_proxy_option(value: str | None) -> None:
+    if value is not None:
+        try:
+            validate_http_connect_proxy(value)
+        except HttpConnectProxyError as exc:
+            raise StableGitHubPublicationError(str(exc)) from exc
 
 
 def _sha1(value: object, label: str) -> str:
@@ -2820,6 +2830,7 @@ def _sample_publication_tags(
     plan: PublicationPlan,
     *,
     source_environment: Mapping[str, str] | None,
+    http_connect_proxy: str | None = None,
     runner: github_release.GitHubCommandRunner,
 ) -> github_release.StableTagStateObservation:
     if plan.profile is PlatformReleaseProfile.STABLE:
@@ -2828,6 +2839,7 @@ def _sample_publication_tags(
             expected_tree=plan.tag_tree,
             expected_tag_objects=(plan.apple.tag_object, plan.platform.tag_object),
             source_environment=source_environment,
+            http_connect_proxy=http_connect_proxy,
             runner=runner,
         )
     original = github_release.sample_stable_tag_state_once(
@@ -2838,6 +2850,7 @@ def _sample_publication_tags(
             maintenance_contract.BASE_PLATFORM_TAG_OBJECT,
         ),
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     revision = github_release.sample_platform_maintenance_tag_state_once(
@@ -2845,6 +2858,7 @@ def _sample_publication_tags(
         expected_commit=plan.tag_commit,
         expected_tree=plan.tag_tree,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(
@@ -2870,31 +2884,37 @@ def _observe_remote_composite_once(
     plan: PublicationPlan,
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: github_release.GitHubCommandRunner = capture_stdout,
 ) -> RemoteSnapshot:
     protection_before = github_release.sample_stable_tag_protection_once(
         profile=plan.profile,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     tag_before = _sample_publication_tags(
         plan,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     releases = github_release.sample_mutable_release_transaction_once(
         plan.policies(),
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     tag_after = _sample_publication_tags(
         plan,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     protection_after = github_release.sample_stable_tag_protection_once(
         profile=plan.profile,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(
@@ -2914,6 +2934,7 @@ def observe_remote_transaction(
     plan: PublicationPlan,
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: github_release.GitHubCommandRunner = capture_stdout,
 ) -> RemoteSnapshot:
     """Double-sample the complete protection/tag/release composite."""
@@ -2921,11 +2942,13 @@ def observe_remote_transaction(
     before = _observe_remote_composite_once(
         plan,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     after = _observe_remote_composite_once(
         plan,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(
@@ -3474,10 +3497,12 @@ def execute_production_mutation(
     before: RemoteSnapshot,
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: github_release.GitHubInputRunner = capture_stdout,
 ) -> None:
     """Execute exactly one planned REST mutation from a pinned staged fd."""
 
+    _validate_http_connect_proxy_option(http_connect_proxy)
     _require(parse_plan(plan.document()) == plan, "mutation plan is not canonical")
     actions = action_sequence(plan)
     _require(
@@ -3497,7 +3522,8 @@ def execute_production_mutation(
         "pinned GitHub CLI differs from the publication plan",
     )
     environment = github_release.github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     release = plan.apple if action.domain == "apple" else plan.platform
     remote_release = before.releases.releases[
@@ -3815,11 +3841,13 @@ def publish_plan(
     observer: RemoteObserver | None = None,
     mutator: RemoteMutator | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
     mutation_runner: github_release.GitHubInputRunner = capture_stdout,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
     repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
+    _validate_http_connect_proxy_option(http_connect_proxy)
     _require(type(profile) is PlatformReleaseProfile, "publication profile is invalid")
     maintenance = profile is PlatformReleaseProfile.MAINTENANCE_R2
     _require(
@@ -3843,6 +3871,7 @@ def publish_plan(
         lambda plan: observe_remote_transaction(
             plan,
             source_environment=source_environment,
+            http_connect_proxy=http_connect_proxy,
             runner=read_runner,
         )
     )
@@ -3865,6 +3894,7 @@ def publish_plan(
                 action,
                 before,
                 source_environment=source_environment,
+                http_connect_proxy=http_connect_proxy,
                 runner=mutation_runner,
             )
         )
@@ -4129,14 +4159,17 @@ def status_plan(
     state_root: pathlib.Path | None = None,
     observer: RemoteObserver | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
     repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
+    _validate_http_connect_proxy_option(http_connect_proxy)
     root = validate_state_root(state_root, repository_root=repository_root)
     selected_observer: RemoteObserver = observer or (
         lambda plan: observe_remote_transaction(
             plan,
             source_environment=source_environment,
+            http_connect_proxy=http_connect_proxy,
             runner=read_runner,
         )
     )
@@ -4190,6 +4223,7 @@ def verify_publication(
     state_root: pathlib.Path | None = None,
     observer: RemoteObserver | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
     repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
@@ -4197,6 +4231,7 @@ def verify_publication(
         state_root=state_root,
         observer=observer,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         read_runner=read_runner,
         repository_root=repository_root,
     )
@@ -4247,18 +4282,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     prepare = commands.add_parser("prepare", allow_abbrev=False)
     prepare.add_argument("expected_results_sha256")
-    commands.add_parser("status", allow_abbrev=False)
+    status = commands.add_parser("status", allow_abbrev=False)
     publish = commands.add_parser("publish", allow_abbrev=False)
     publish.add_argument("--execute-real-github-mutation", action="store_true")
     publish.add_argument("--expected-plan-sha256", required=True)
     publish.add_argument("--expected-results-sha256", required=True)
     publish.add_argument("--ack-draft-barrier", required=True)
     publish.add_argument("--ack-publication-order", required=True)
-    commands.add_parser("verify", allow_abbrev=False)
+    verify = commands.add_parser("verify", allow_abbrev=False)
+    for command in (status, publish, verify):
+        command.add_argument(
+            "--http-connect-proxy",
+            help="explicit canonical loopback HTTP CONNECT route; TLS verification stays enabled",
+        )
     arguments = parser.parse_args(argv)
     repository_root = arguments.repository_root
     profile = PlatformReleaseProfile(arguments.profile)
     try:
+        if arguments.command != "prepare":
+            _validate_http_connect_proxy_option(arguments.http_connect_proxy)
         state_root = expected_state_root(profile)
         if arguments.command == "prepare":
             plan = prepare_plan(
@@ -4277,7 +4319,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "status":
             _emit_status(
                 "STABLE_GITHUB_STATUS",
-                status_plan(state_root=state_root, repository_root=repository_root),
+                status_plan(
+                    state_root=state_root,
+                    repository_root=repository_root,
+                    http_connect_proxy=arguments.http_connect_proxy,
+                ),
             )
             return 0
         if arguments.command == "publish":
@@ -4286,6 +4332,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 publish_plan(
                     state_root=state_root,
                     profile=profile,
+                    http_connect_proxy=arguments.http_connect_proxy,
                     execute_real_github_mutation=(
                         arguments.execute_real_github_mutation
                     ),
@@ -4299,7 +4346,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         _emit_status(
             "STABLE_GITHUB_VERIFIED",
-            verify_publication(state_root=state_root, repository_root=repository_root),
+            verify_publication(
+                state_root=state_root,
+                repository_root=repository_root,
+                http_connect_proxy=arguments.http_connect_proxy,
+            ),
         )
         return 0
     except KeyboardInterrupt:

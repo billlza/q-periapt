@@ -368,6 +368,75 @@ class PlatformMaintenanceContractTests(unittest.TestCase):
                         listing, {42: canonical_json_bytes(changed)}, profile=PROFILE
                     )
 
+    def test_explicit_proxy_covers_original_and_revision_tags_in_both_composites(
+        self,
+    ) -> None:
+        plan = maintenance_plan()
+        proxy = "http://127.0.0.1:7890"
+        source = {"GH_TOKEN": "fixture-maintenance-token"}
+        protection = github.StableTagProtectionObservation(
+            repository=publication.REPOSITORY,
+            ruleset_ids=(42,),
+            tag_refs=github.STABLE_TAG_REFS + (PROFILE.release_ref,),
+            observation_sha256="a" * 64,
+        )
+        original = github.StableTagStateObservation(
+            repository=publication.REPOSITORY,
+            state="exact",
+            tag_refs=github.STABLE_TAG_REFS,
+            tag_objects=(
+                maintenance.BASE_APPLE_TAG_OBJECT,
+                maintenance.BASE_PLATFORM_TAG_OBJECT,
+            ),
+            commit=maintenance.BASE_TAG_COMMIT,
+            tree=maintenance.BASE_TAG_TREE,
+            observation_sha256="b" * 64,
+        )
+        revision = dataclasses.replace(
+            original,
+            tag_refs=(PROFILE.release_ref,),
+            tag_objects=(plan.platform.tag_object,),
+            commit=plan.tag_commit,
+            tree=plan.tag_tree,
+            observation_sha256="c" * 64,
+        )
+        with (
+            mock.patch.object(
+                github, "sample_stable_tag_protection_once", return_value=protection
+            ) as protected,
+            mock.patch.object(
+                github, "sample_stable_tag_state_once", return_value=original
+            ) as stable,
+            mock.patch.object(
+                github,
+                "sample_platform_maintenance_tag_state_once",
+                return_value=revision,
+            ) as revised,
+            mock.patch.object(
+                github,
+                "sample_mutable_release_transaction_once",
+                return_value=maintenance_snapshot(plan, 0).releases,
+            ) as releases,
+        ):
+            observed = publication.observe_remote_transaction(
+                plan, source_environment=source, http_connect_proxy=proxy
+            )
+        self.assertEqual(0, publication.classify_remote_state(plan, observed).index)
+        for sampler, count in (
+            (protected, 4),
+            (stable, 4),
+            (revised, 4),
+            (releases, 2),
+        ):
+            self.assertEqual(count, sampler.call_count)
+            for call in sampler.call_args_list:
+                self.assertEqual(proxy, call.kwargs["http_connect_proxy"])
+                self.assertEqual(source, call.kwargs["source_environment"])
+        self.assertEqual(
+            maintenance.BASE_TAG_COMMIT, stable.call_args.kwargs["expected_commit"]
+        )
+        self.assertEqual(plan.tag_commit, revised.call_args.kwargs["expected_commit"])
+
     def test_new_annotated_tag_cannot_alias_original_or_change_object_commit_tree(
         self,
     ) -> None:

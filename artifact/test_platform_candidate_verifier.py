@@ -85,6 +85,7 @@ class PlatformCandidateVerifierTests(unittest.TestCase):
             "artifact/evidence_io.py",
             "artifact/git_provenance.py",
             "artifact/github_release_observation.py",
+            "artifact/http_connect_proxy.py",
             "artifact/publication_receipt_io.py",
             "artifact/platform_candidate_attestation.py",
             "artifact/platform_distribution_contract.py",

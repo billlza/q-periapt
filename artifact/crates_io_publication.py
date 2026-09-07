@@ -17,7 +17,6 @@ import dataclasses
 import datetime as dt
 import errno
 import hashlib
-import ipaddress
 import os
 import pathlib
 import re
@@ -37,6 +36,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, ContextManager, Literal, Never, TextIO
 
 import rust_package_handoff
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
 from bounded_process import (
     BOUNDED_PROCESS_ERROR_KINDS,
     BoundedProcessError,
@@ -960,28 +960,12 @@ def production_lock_factory(
 
 
 def _validated_http_connect_proxy(value: str) -> str:
-    """Accept only an explicit canonical loopback HTTP proxy without userinfo.
+    """Translate the shared route boundary into the crates publication domain."""
 
-    The independently installed uploader repeats this boundary check; it cannot
-    import repository code. An exact grammar also rejects URL parser stripping of
-    control characters and empty query/fragment markers.
-    """
-
-    match = (
-        re.fullmatch(r"http://(127(?:\.[0-9]{1,3}){3}|\[::1\]):([1-9][0-9]{0,4})", value)
-        if type(value) is str else None
-    )
-    _require(match is not None, "HTTP CONNECT proxy must be a canonical loopback HTTP host and port")
-    host = match.group(1).strip("[]")
     try:
-        address = ipaddress.ip_address(host)
-    except ValueError as exc:
-        raise CratesIoPublicationError("HTTP CONNECT proxy address is malformed") from exc
-    _require(
-        address.is_loopback and str(address) == host and int(match.group(2)) <= 65535,
-        "HTTP CONNECT proxy address or port differs from the loopback contract",
-    )
-    return value
+        return validate_http_connect_proxy(value)
+    except HttpConnectProxyError as exc:
+        raise CratesIoPublicationError(str(exc)) from exc
 
 
 def production_upload_runner(
