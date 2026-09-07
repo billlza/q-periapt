@@ -9,12 +9,19 @@ import dataclasses
 import hashlib
 import io
 import json
+import os
+import tempfile
 import pathlib
 import subprocess
 import unittest
 from unittest import mock
 
+import apple_distribution
+import apple_stable_publication
+import git_provenance
 import github_release_observation as github
+import platform_distribution_contract as distribution_contract
+import test_apple_stable_publication as apple_fixtures
 import platform_maintenance_contract as maintenance
 import platform_maintenance as maintenance_source
 import platform_distribution as distribution
@@ -1005,6 +1012,657 @@ class PlatformMaintenanceTransactionTests(unittest.TestCase):
                 self._publish(remote)
         self.assertEqual(intent, (journal / "000000-intent.json").read_bytes())
         self.assertEqual(["create-platform-draft"], remote.mutations)
+
+
+def _git(root: pathlib.Path, *arguments: str, umask: int = -1) -> str:
+    completed = subprocess.run(
+        [
+            "/usr/bin/git",
+            "-c",
+            "user.name=Q-Periapt Test",
+            "-c",
+            "user.email=q-periapt-test@example.invalid",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-C",
+            str(root),
+            *arguments,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+        umask=umask,
+    )
+    return completed.stdout.decode("utf-8").strip()
+
+
+def _write(path: pathlib.Path, data: bytes, mode: int) -> None:
+    path.write_bytes(data)
+    path.chmod(mode)
+
+
+class _MaintenanceRepository:
+    """Reuse the full manifest fixture, real S/R/P2 commits and real annotated tags.
+
+    Payloads and attestation projections are fixture data. Their byte inventory,
+    currentness contracts, Git ancestry, cache selection and publication staging
+    execute the production validators without replacements.
+    """
+
+    def __init__(self, case: unittest.TestCase) -> None:
+        history = PlatformMaintenanceFinalizerTests()
+        history.setUp()
+        case.addCleanup(history.doCleanups)
+        self.history = history
+        self.fixture = history.fixture
+        self.root = self.fixture.root
+        self.results = self.fixture.results
+
+        _git(
+            self.root,
+            "tag",
+            "-a",
+            "v0.1.5",
+            self.fixture.source_commit,
+            "-m",
+            "original release",
+        )
+        _git(
+            self.root,
+            "tag",
+            "-a",
+            PROFILE.release_tag,
+            self.fixture.results_commit,
+            "-m",
+            "platform revision",
+        )
+        case.enterContext(
+            mock.patch.multiple(
+                maintenance,
+                BASE_TAG_COMMIT=self.fixture.source_commit,
+                BASE_TAG_TREE=_git(
+                    self.root, "rev-parse", f"{self.fixture.source_commit}^{{tree}}"
+                ),
+                BASE_APPLE_TAG_OBJECT=_git(
+                    self.root, "rev-parse", "refs/tags/v0.1.5^{tag}"
+                ),
+            )
+        )
+        self.receipt_path = history._receipt(verified=False)
+        receipt = json.loads(self.receipt_path.read_bytes())
+        observation = receipt["publication"]["observation"]
+        observation["source"]["tag_object"] = _git(
+            self.root, "rev-parse", f"refs/tags/{PROFILE.release_tag}^{{tag}}"
+        )
+        self.payloads = {
+            name: f"publication fixture bytes for {name}\n".encode("ascii")
+            for name in platform.PUBLIC_ASSET_NAMES
+        }
+        digests = {
+            name: hashlib.sha256(data).hexdigest()
+            for name, data in self.payloads.items()
+        }
+        candidate = observation["release_candidate"]
+        for asset in candidate["assets"]:
+            name = asset["name"]
+            asset.update(bytes=len(self.payloads[name]), sha256=digests[name])
+        candidate["checksums_sha256"] = digests[platform.RELEASE_SUMS]
+        candidate["platform_distribution_sha256"] = digests[platform.RELEASE_MANIFEST]
+        runtime = candidate["android_runtime_evidence"]
+        runtime.update(
+            bundle_sha256=digests[platform.ANDROID_RUNTIME_BUNDLE],
+            tested_aar_sha256=digests[platform.ANDROID_AAR],
+            tested_aar_manifest_sha256=digests[platform.ANDROID_MANIFEST],
+        )
+        for consumer in runtime["agp_consumers"].values():
+            consumer["projection"].update(
+                aar_sha256=digests[platform.ANDROID_AAR],
+                aar_manifest_sha256=digests[platform.ANDROID_MANIFEST],
+            )
+        for subject in observation["candidate_attestation"]["subjects"]:
+            if subject["name"] in digests:
+                subject["digest"]["sha256"] = digests[subject["name"]]
+        source = observation["source"]
+        self.cache_receipt = {
+            **copy.deepcopy(candidate),
+            "schema_version": PROFILE.candidate_receipt_schema,
+            "kind": distribution_contract.PLATFORM_RELEASE_CANDIDATE_KIND,
+            "identity": PROFILE.identity(),
+            "source": {
+                "canonical_source_tree_sha256": source["canonical_source_tree_sha256"],
+                "git_commit": source["tag_commit"],
+                "git_dirty": False,
+                "git_tree": source["tag_tree"],
+                "source_date_epoch": source["source_date_epoch"],
+            },
+        }
+        distribution_contract.validate_release_candidate_receipt(
+            self.cache_receipt, profile=PROFILE
+        )
+        self.cache_root = self.root / "target" / "abi2-platform-release-candidates"
+        self.cache_root.mkdir(mode=0o700)
+        transaction = self.cache_root / "transaction.root-regression"
+        transaction.mkdir(mode=0o700)
+        payload_root = transaction / distribution.PLATFORM_RELEASE_DIRECTORY_NAME
+        payload_root.mkdir(mode=0o755)
+        payload_root.chmod(0o755)
+        for name, data in self.payloads.items():
+            _write(payload_root / name, data, 0o644)
+        cache_bytes = distribution.canonical_json(self.cache_receipt)
+        _write(
+            transaction / distribution.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME,
+            cache_bytes,
+            0o600,
+        )
+        observation["assembly_receipt_sha256"] = hashlib.sha256(cache_bytes).hexdigest()
+        maintenance.publication(receipt)
+        _write(self.receipt_path, canonical_json_bytes(receipt), 0o600)
+        current, previous = finalizer.assemble_maintenance_results(
+            self.fixture._current_sha256(), receipt_path=self.receipt_path
+        )
+        case.assertEqual(self.fixture.results_commit, previous.commit)
+        self.fixture._write_results(current)
+        _git(self.root, "add", "artifact/results.json")
+        _git(self.root, "commit", "-qm", "record pending platform revision")
+        self.pending_commit = _git(self.root, "rev-parse", "HEAD")
+        self.digest = self.fixture._current_sha256()
+        proof_manifest.validate_declared_currentness(current)
+        release.validate_stable_source_currentness(current)
+        case.assertEqual(
+            release.PUBLICATION_STATE_SOURCE, release.publication_state(current)
+        )
+
+        tool = github.GitHubCliIdentity(
+            path="/usr/bin/gh",
+            device=1,
+            inode=2,
+            mode=0o755,
+            uid=os.geteuid(),
+            link_count=1,
+            size=1,
+            sha256=github.GITHUB_CLI_SHA256,
+        )
+        case.enterContext(
+            mock.patch.object(github, "select_github_cli", return_value=tool)
+        )
+        home = tempfile.TemporaryDirectory()
+        case.addCleanup(home.cleanup)
+        self.home = pathlib.Path(home.name).resolve()
+        case.enterContext(
+            mock.patch.object(publication, "_account_home", return_value=self.home)
+        )
+        self.account_root = publication.expected_state_root()
+        self.state_root = publication.expected_state_root(PROFILE)
+        self.account_root.mkdir(mode=0o700, parents=True)
+        for parent in (self.account_root.parent.parent, self.account_root.parent):
+            parent.chmod(0o700)
+        _write(self.account_root / publication.LOCK_LEAF, b"", 0o600)
+
+    def prepare(self) -> publication.PublicationPlan:
+        return publication.prepare_plan(
+            self.digest, profile=PROFILE, repository_root=self.root
+        )
+
+
+class PublicationRepositoryRootTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repository = _MaintenanceRepository(self)
+
+    def test_real_r_to_p2_prepare_and_verify_preserve_currentness_and_exact_bytes(
+        self,
+    ) -> None:
+        selected = self.repository
+        before = selected.results.read_bytes()
+        plan = selected.prepare()
+        publication.verify_local_plan(
+            selected.state_root, plan, repository_root=selected.root
+        )
+        self.assertEqual(selected.pending_commit, plan.pending_commit)
+        self.assertEqual(selected.fixture.results_commit, plan.tag_commit)
+        self.assertEqual(PROFILE, plan.profile)
+        self.assertEqual(9, plan.action_count)
+        self.assertIsNone(plan.apple.create_request)
+        self.assertIsNone(plan.apple.publish_request)
+        for asset in plan.platform.assets:
+            staged = (
+                selected.state_root / publication.STAGING_DIRECTORY / asset.staging_leaf
+            )
+            self.assertEqual(selected.payloads[asset.name], staged.read_bytes())
+        self.assertEqual(before, selected.results.read_bytes())
+
+    def test_cli_prepare_uses_explicit_checkout_without_changing_default_roots(
+        self,
+    ) -> None:
+        selected = self.repository
+        defaults = (
+            publication.REPOSITORY_ROOT,
+            finalizer.REPOSITORY_ROOT,
+            finalizer.RESULTS_PATH,
+        )
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+            result = publication.main(
+                [
+                    "--repository-root",
+                    str(selected.root),
+                    "--profile",
+                    PROFILE.value,
+                    "prepare",
+                    selected.digest,
+                ]
+            )
+        self.assertEqual(0, result)
+        self.assertIn("STABLE_GITHUB_PREPARED", output.getvalue())
+        self.assertIn("actions=9 assets=7", output.getvalue())
+        self.assertEqual(
+            defaults,
+            (
+                publication.REPOSITORY_ROOT,
+                finalizer.REPOSITORY_ROOT,
+                finalizer.RESULTS_PATH,
+            ),
+        )
+
+    def test_completed_prepare_and_status_do_not_require_disposable_candidate_cache(
+        self,
+    ) -> None:
+        selected = self.repository
+        plan = selected.prepare()
+        selected.cache_root.rename(
+            selected.cache_root.with_name("retained-candidate-cache")
+        )
+        self.assertEqual(plan, selected.prepare())
+        status = publication.status_plan(
+            repository_root=selected.root,
+            state_root=selected.state_root,
+            observer=lambda current: maintenance_snapshot(current, 0),
+        )
+        self.assertEqual(0, status.applied_actions)
+        self.assertFalse(status.complete)
+
+    def test_selected_cache_is_used_even_when_tool_default_cache_is_invalid(
+        self,
+    ) -> None:
+        selected = self.repository
+        decoy = selected.home / "invalid-tool-cache"
+        decoy.mkdir(mode=0o700)
+        _write(decoy / "unexpected", b"wrong cache\n", 0o600)
+        with mock.patch.object(distribution, "PLATFORM_RELEASE_CANDIDATE_ROOT", decoy):
+            plan = selected.prepare()
+        self.assertEqual(selected.pending_commit, plan.pending_commit)
+        self.assertEqual(b"wrong cache\n", (decoy / "unexpected").read_bytes())
+
+    def test_selected_cache_failure_does_not_fall_back_to_tool_default_cache(
+        self,
+    ) -> None:
+        selected = self.repository
+        retained = selected.cache_root.with_name("retained-valid-cache")
+        selected.cache_root.rename(retained)
+        selected.cache_root.mkdir(mode=0o700)
+        with mock.patch.object(
+            distribution, "PLATFORM_RELEASE_CANDIDATE_ROOT", retained
+        ):
+            with self.assertRaises(distribution.PlatformDistributionError):
+                selected.prepare()
+        self.assertFalse((selected.state_root / publication.PLAN_LEAF).exists())
+
+    def test_wrong_head_rejected_then_original_root_remains_usable_in_same_process(
+        self,
+    ) -> None:
+        selected = self.repository
+        plan = selected.prepare()
+        other = selected.home / "other-checkout"
+        _git(
+            selected.home,
+            "clone",
+            "--no-hardlinks",
+            str(selected.root),
+            str(other),
+            umask=0o077,
+        )
+        copied_results = other / "artifact" / "results.json"
+        self.assertEqual(0o600, copied_results.stat().st_mode & 0o777)
+        self.assertEqual(
+            git_provenance.run_git_bytes(other, ["show", "HEAD:artifact/results.json"]),
+            copied_results.read_bytes(),
+        )
+        copied_results.chmod(0o644)
+        publication.verify_local_plan(selected.state_root, plan, repository_root=other)
+        _git(other, "commit", "--allow-empty", "-qm", "unrelated successor")
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError, "pending results differ"
+        ):
+            publication.verify_local_plan(
+                selected.state_root, plan, repository_root=other
+            )
+        publication.verify_local_plan(
+            selected.state_root, plan, repository_root=selected.root
+        )
+        self.assertEqual(
+            selected.pending_commit,
+            finalizer.load_current_results(
+                selected.digest, repository_root=selected.root
+            ).commit,
+        )
+
+    def test_staged_and_unstaged_changes_cannot_authorize_publication(self) -> None:
+        selected = self.repository
+        plan = selected.prepare()
+        before = selected.results.read_bytes()
+        for staged in (False, True):
+            with self.subTest(staged=staged):
+                _write(selected.results, before + b"\n", 0o644)
+                if staged:
+                    _git(selected.root, "add", "artifact/results.json")
+                with self.assertRaises(publication.StableGitHubPublicationError):
+                    publication.verify_local_plan(
+                        selected.state_root, plan, repository_root=selected.root
+                    )
+                _git(selected.root, "reset", "--hard", selected.pending_commit)
+                selected.results.chmod(0o644)
+        source = selected.root / "untracked-source.py"
+        source.write_text("raise RuntimeError('untrusted input')\n")
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError, "clean committed checkout"
+        ):
+            publication.verify_local_plan(
+                selected.state_root, plan, repository_root=selected.root
+            )
+
+    def test_committed_pending_child_with_source_change_is_rejected(self) -> None:
+        selected = self.repository
+        pending_bytes = selected.results.read_bytes()
+        _git(selected.root, "reset", "--hard", selected.fixture.results_commit)
+        _write(selected.results, pending_bytes, 0o644)
+        (selected.root / "source.txt").write_text("changed source\n")
+        _git(selected.root, "add", "artifact/results.json", "source.txt")
+        _git(selected.root, "commit", "-qm", "change source with pending receipt")
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError, "results-only commits"
+        ):
+            selected.prepare()
+
+    def test_stable_profile_rejects_maintenance_pending_manifest(self) -> None:
+        selected = self.repository
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError, "pending cohort P"
+        ):
+            publication.build_plan_from_pending_results(
+                selected.digest, repository_root=selected.root
+            )
+
+    def test_maintenance_rejects_a_valid_verified_revision(self) -> None:
+        selected = self.repository
+        manifest = json.loads(selected.results.read_bytes())
+        verified_path = selected.history._receipt(verified=True)
+        manifest["release_publications"][maintenance.PUBLICATION_KEY] = json.loads(
+            verified_path.read_bytes()
+        )
+        proof_manifest.validate_declared_currentness(manifest)
+        self.assertEqual(
+            release.PUBLICATION_STATE_SOURCE, release.publication_state(manifest)
+        )
+        with self.assertRaisesRegex(
+            publication.StableGitHubPublicationError, "own installed pending receipt"
+        ):
+            publication._require_pending_profile(manifest, PROFILE)
+
+    def test_neither_profile_accepts_source_results_without_pending_receipt(
+        self,
+    ) -> None:
+        selected = self.repository
+        manifest = json.loads(
+            _git(
+                selected.root,
+                "show",
+                f"{selected.fixture.results_commit}:artifact/results.json",
+            )
+        )
+        proof_manifest.validate_declared_currentness(manifest)
+        for profile in publication.PlatformReleaseProfile:
+            with self.subTest(profile=profile.value):
+                with self.assertRaises(publication.StableGitHubPublicationError):
+                    publication._require_pending_profile(manifest, profile)
+
+    def test_real_currentness_rejects_committed_stale_package_identity(self) -> None:
+        selected = self.repository
+        manifest = json.loads(selected.results.read_bytes())
+        manifest["android_aar"]["source_commit"] = "0" * 40
+        digest = selected.fixture._write_results(manifest)
+        _git(selected.root, "add", "artifact/results.json")
+        _git(selected.root, "commit", "-qm", "record inconsistent package source")
+        with self.assertRaisesRegex(
+            finalizer.ReleaseReceiptFinalizerError, "Android AAR"
+        ):
+            finalizer.load_current_results(digest, repository_root=selected.root)
+
+    def test_unknown_then_exact_recovery_uses_live_checkout_without_resending(
+        self,
+    ) -> None:
+        selected = self.repository
+        plan = selected.prepare()
+        journal = selected.state_root / publication.JOURNAL_DIRECTORY
+        remote = MaintenanceRemote(plan, journal)
+        remote.fail_after_effect = True
+
+        def publish() -> publication.PublicationStatus:
+            return publication.publish_plan(
+                profile=PROFILE,
+                repository_root=selected.root,
+                state_root=selected.state_root,
+                execute_real_github_mutation=True,
+                expected_plan_sha256=plan.sha256(),
+                expected_results_sha256=selected.digest,
+                draft_barrier_ack="I_ACKNOWLEDGE_PLATFORM_REVISION_DRAFT_BEFORE_UPLOAD",
+                publication_order_ack="I_ACKNOWLEDGE_ORIGINAL_RELEASES_REMAIN_UNCHANGED",
+                observer=remote.observe,
+                mutator=remote.mutate,
+            )
+
+        with self.assertRaises(publication.StableGitHubPublicationOutcomeUnknown):
+            publish()
+        intent = (journal / "000000-intent.json").read_bytes()
+        self.assertTrue((journal / "000000-reconciliation.json").is_file())
+        self.assertFalse((journal / "000000-outcome.json").exists())
+        self.assertEqual(["create-platform-draft"], remote.mutations)
+        status = publish()
+        self.assertTrue(status.complete)
+        self.assertEqual(9, status.applied_actions)
+        self.assertEqual(list(EXPECTED_ACTIONS), remote.mutations)
+        self.assertEqual(intent, (journal / "000000-intent.json").read_bytes())
+        repeated = publication.verify_publication(
+            repository_root=selected.root,
+            state_root=selected.state_root,
+            observer=remote.observe,
+        )
+        self.assertTrue(repeated.complete)
+        self.assertEqual(list(EXPECTED_ACTIONS), remote.mutations)
+
+    def test_swapped_tag_is_rejected_before_remote_observation(self) -> None:
+        selected = self.repository
+        plan = selected.prepare()
+        _git(selected.root, "tag", "-d", PROFILE.release_tag)
+        _git(
+            selected.root,
+            "tag",
+            "-a",
+            PROFILE.release_tag,
+            selected.pending_commit,
+            "-m",
+            "wrong target",
+        )
+        observer = mock.Mock(
+            side_effect=AssertionError(
+                "local tag failure must precede remote observation"
+            )
+        )
+        with self.assertRaises(publication.StableGitHubPublicationError):
+            publication.status_plan(
+                repository_root=selected.root,
+                state_root=selected.state_root,
+                observer=observer,
+            )
+        observer.assert_not_called()
+        self.assertEqual(selected.pending_commit, plan.pending_commit)
+
+    def test_r2_external_checkout_keeps_original_account_lock_and_inode(self) -> None:
+        selected = self.repository
+        selected.prepare()
+        account_lock = selected.account_root / publication.LOCK_LEAF
+        before = account_lock.stat().st_ino
+        for first, second in (
+            (selected.account_root, selected.state_root),
+            (selected.state_root, selected.account_root),
+        ):
+            with self.subTest(first=first.name):
+                with publication.publication_lock(
+                    first, allow_create=False, repository_root=selected.root
+                ):
+                    with self.assertRaises(publication.StableGitHubPublicationLockHeld):
+                        with publication.publication_lock(
+                            second, allow_create=False, repository_root=selected.root
+                        ):
+                            self.fail(
+                                "both publication lanes acquired the account authority"
+                            )
+        self.assertEqual(before, account_lock.stat().st_ino)
+
+    def test_registered_worktree_exclusion_uses_selected_repository(self) -> None:
+        selected = self.repository
+        self.assertIn(
+            selected.root,
+            publication._registered_worktrees(repository_root=selected.root),
+        )
+        forbidden_home = selected.root / "target" / "account-home"
+        forbidden_home.mkdir(mode=0o700)
+        with mock.patch.object(
+            publication, "_account_home", return_value=forbidden_home
+        ):
+            with self.assertRaisesRegex(
+                publication.StableGitHubPublicationError, "inside a registered worktree"
+            ):
+                publication.ensure_state_root_for_prepare(
+                    publication.expected_state_root(PROFILE),
+                    repository_root=selected.root,
+                )
+        self.assertFalse((forbidden_home / ".q-periapt").exists())
+
+    def test_external_checkout_keeps_tool_worktrees_out_of_state_authority(
+        self,
+    ) -> None:
+        selected = self.repository
+        tool_root = selected.home / "tool-checkout"
+        tool_root.mkdir(mode=0o755)
+        tool_root.chmod(0o755)
+        _git(tool_root, "init", "-q")
+        forbidden_home = tool_root / "target" / "account-home"
+        forbidden_home.mkdir(mode=0o700, parents=True)
+        with (
+            mock.patch.object(publication, "REPOSITORY_ROOT", tool_root),
+            mock.patch.object(
+                publication, "_account_home", return_value=forbidden_home
+            ),
+        ):
+            roots = publication._registered_worktrees(repository_root=selected.root)
+            self.assertEqual({selected.root, tool_root}, set(roots))
+            with self.assertRaisesRegex(
+                publication.StableGitHubPublicationError, "inside a registered worktree"
+            ):
+                publication.ensure_state_root_for_prepare(
+                    publication.expected_state_root(PROFILE),
+                    repository_root=selected.root,
+                )
+        self.assertFalse((forbidden_home / ".q-periapt").exists())
+
+
+class CanonicalPublicationRepositoryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.base = pathlib.Path(temporary.name).resolve()
+        self.root = self.base / "repository"
+        self.root.mkdir(mode=0o755)
+        self.root.chmod(0o755)
+        _git(self.root, "init", "-q")
+
+    def test_owned_0755_clone_is_accepted_without_changing_its_mode(self) -> None:
+        self.assertEqual(self.root, git_provenance.canonical_repository_root(self.root))
+        self.assertEqual(0o755, self.root.stat().st_mode & 0o777)
+
+    def test_relative_parent_traversal_and_symlink_aliases_are_rejected(self) -> None:
+        alias = self.base / "alias"
+        alias.symlink_to(self.root, target_is_directory=True)
+        for root in (
+            pathlib.Path("."),
+            self.root / ".." / self.root.name,
+            alias,
+            self.base / "missing",
+        ):
+            with self.subTest(root=root):
+                with self.assertRaises(git_provenance.GitProvenanceError):
+                    git_provenance.canonical_repository_root(root)
+
+    def test_group_and_world_writable_roots_are_rejected(self) -> None:
+        for mode in (0o775, 0o757, 0o777):
+            with self.subTest(mode=oct(mode)):
+                self.root.chmod(mode)
+                with self.assertRaises(git_provenance.GitProvenanceError):
+                    git_provenance.canonical_repository_root(self.root)
+        self.root.chmod(0o755)
+
+    def test_root_owned_by_another_identity_is_rejected(self) -> None:
+        with mock.patch.object(
+            git_provenance.os, "geteuid", return_value=os.geteuid() + 1
+        ):
+            with self.assertRaises(git_provenance.GitProvenanceError):
+                git_provenance.canonical_repository_root(self.root)
+
+    def test_git_file_and_symlink_cannot_replace_independent_git_directory(
+        self,
+    ) -> None:
+        original = self.root / ".git"
+        retained = self.base / "retained.git"
+        original.rename(retained)
+        _write(original, f"gitdir: {retained}\n".encode(), 0o644)
+        with self.assertRaises(git_provenance.GitProvenanceError):
+            git_provenance.canonical_repository_root(self.root)
+        original.unlink()
+        original.symlink_to(retained, target_is_directory=True)
+        with self.assertRaises(git_provenance.GitProvenanceError):
+            git_provenance.canonical_repository_root(self.root)
+
+
+class ApplePublicationRepositoryRootTests(unittest.TestCase):
+    def test_four_selected_apple_files_are_read_from_explicit_checkout(self) -> None:
+        fixture = apple_fixtures.AppleStablePublicationTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        _git(fixture.root, "init", "-q")
+        decoy = fixture.root.parent / "other-public-distribution"
+        decoy.mkdir(mode=0o755)
+        decoy.chmod(0o755)
+        with (
+            mock.patch.object(apple_stable_publication, "APPLE_PUBLIC_ROOT", decoy),
+            mock.patch.object(
+                apple_stable_publication, "APPLE_PUBLIC_DISTRIBUTION", decoy / "missing"
+            ),
+            mock.patch.object(
+                apple_distribution,
+                "project_trusted_results_candidate_distribution",
+                return_value=fixture.distribution,
+            ) as signature_boundary,
+        ):
+            snapshots = apple_stable_publication.load_pending_publication_assets(
+                fixture.pending, repository_root=fixture.root
+            )
+        self.assertEqual(
+            tuple(fixture.asset_bytes.values()),
+            tuple(snapshot.data for snapshot in snapshots),
+        )
+        signature_boundary.assert_called_once()
+        self.assertEqual(
+            fixture.asset_bytes[apple_distribution.XCFRAMEWORK_ZIP_NAME],
+            signature_boundary.call_args.kwargs["zip_data"],
+        )
 
 
 if __name__ == "__main__":

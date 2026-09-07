@@ -116,9 +116,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
         patches = (
             mock.patch.object(finalizer, "REPOSITORY_ROOT", self.root),
             mock.patch.object(finalizer, "RESULTS_PATH", self.results),
-            mock.patch.object(
-                finalizer, "RESULTS_CANDIDATE_ROOT", self.candidate_root
-            ),
+            mock.patch.object(finalizer, "RESULTS_CANDIDATE_ROOT", self.candidate_root),
             mock.patch.object(
                 apple_stable_publication,
                 "APPLE_PUBLICATION_RECEIPT_ROOT",
@@ -134,7 +132,6 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
                 "CRATES_IO_PUBLICATION_RECEIPT_ROOT",
                 self.crates_root,
             ),
-            mock.patch.object(finalizer, "validate_declared_currentness"),
         )
         for patcher in patches:
             patcher.start()

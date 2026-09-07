@@ -193,7 +193,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         for attribute, value in patches:
             patcher = mock.patch.object(publication, attribute, value)
             patcher.start()
-        self.addCleanup(patcher.stop)
+            self.addCleanup(patcher.stop)
 
     def test_runtime_derivation_uses_scanner_visible_guard(self) -> None:
         tree = ast.parse(

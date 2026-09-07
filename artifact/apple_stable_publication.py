@@ -40,6 +40,7 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
+    canonical_repository_root,
     inspect_worktree,
     require_direct_results_only_child,
     require_commit_or_evidence_successor,
@@ -466,26 +467,43 @@ def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
     return ledger, source_commit
 
 
-def _public_distribution_entries() -> frozenset[str]:
+def _public_distribution_paths(
+    repository_root: pathlib.Path | None,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    if repository_root is None:
+        return APPLE_PUBLIC_ROOT, APPLE_PUBLIC_DISTRIBUTION
+    try:
+        repository = canonical_repository_root(repository_root)
+    except GitProvenanceError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+    public_root = repository / "target" / "qperiapt-swift-xcframework"
+    return public_root, public_root / APPLE_PUBLIC_DISTRIBUTION_NAME
+
+
+def _public_distribution_entries(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> frozenset[str]:
+    public_root, distribution_path = _public_distribution_paths(repository_root)
     root = normalize_safe_root(
-        APPLE_PUBLIC_ROOT,
+        public_root,
         label="Apple public distribution root",
         required_mode=0o755,
     )
     _require(
-        APPLE_PUBLIC_DISTRIBUTION.parent == root,
+        distribution_path.parent == root,
         "Apple public distribution path differs",
     )
     try:
-        metadata = APPLE_PUBLIC_DISTRIBUTION.lstat()
-        entries = frozenset(os.listdir(APPLE_PUBLIC_DISTRIBUTION))
+        metadata = distribution_path.lstat()
+        entries = frozenset(os.listdir(distribution_path))
     except OSError as exc:
         raise AppleStablePublicationError(
             "cannot inspect Apple public distribution"
         ) from exc
     _require(
         stat.S_ISDIR(metadata.st_mode)
-        and not APPLE_PUBLIC_DISTRIBUTION.is_symlink()
+        and not distribution_path.is_symlink()
         and metadata.st_uid == os.geteuid()
         and stat.S_IMODE(metadata.st_mode) == 0o755,
         "Apple public distribution must be an owned mode-0755 directory",
@@ -494,7 +512,7 @@ def _public_distribution_entries() -> frozenset[str]:
         entries == APPLE_PUBLIC_DIRECTORY_ENTRIES,
         "Apple public distribution entry set differs",
     )
-    xcframework = APPLE_PUBLIC_DISTRIBUTION / "CQPeriapt.xcframework"
+    xcframework = distribution_path / "CQPeriapt.xcframework"
     try:
         xcframework_metadata = xcframework.lstat()
     except OSError as exc:
@@ -514,8 +532,11 @@ def _public_distribution_entries() -> frozenset[str]:
 def _load_public_distribution(
     expected_hashes: Mapping[str, object],
     source_commit: str,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> dict[str, object]:
-    entries_before = _public_distribution_entries()
+    public_root, distribution_path = _public_distribution_paths(repository_root)
+    entries_before = _public_distribution_entries(repository_root=repository_root)
     snapshots: dict[str, FileSnapshot] = {}
     for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         maximum = (
@@ -524,8 +545,8 @@ def _load_public_distribution(
             else apple_distribution.MAX_TEXT_BYTES
         )
         snapshots[name] = read_fixed_file_snapshot(
-            APPLE_PUBLIC_DISTRIBUTION / name,
-            safe_root=APPLE_PUBLIC_ROOT,
+            distribution_path / name,
+            safe_root=public_root,
             expected_leaf=name,
             label=f"Apple public asset {name}",
             parent_depth=1,
@@ -566,7 +587,7 @@ def _load_public_distribution(
         raise AppleStablePublicationError(
             "Apple public distribution deep validation failed"
         ) from exc
-    entries_after = _public_distribution_entries()
+    entries_after = _public_distribution_entries(repository_root=repository_root)
     _require(
         entries_after == entries_before,
         "Apple public distribution changed while assembling its receipt",
@@ -574,12 +595,16 @@ def _load_public_distribution(
     return distribution
 
 
-def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
-    entries_before = _public_distribution_entries()
+def _snapshot_public_asset_files(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> tuple[FileSnapshot, ...]:
+    public_root, distribution_path = _public_distribution_paths(repository_root)
+    entries_before = _public_distribution_entries(repository_root=repository_root)
     snapshots = tuple(
         read_fixed_file_snapshot(
-            APPLE_PUBLIC_DISTRIBUTION / name,
-            safe_root=APPLE_PUBLIC_ROOT,
+            distribution_path / name,
+            safe_root=public_root,
             expected_leaf=name,
             label=f"Apple stable publication asset {name}",
             parent_depth=1,
@@ -599,7 +624,7 @@ def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
         "Apple stable publication asset is empty",
     )
     _require(
-        _public_distribution_entries() == entries_before,
+        _public_distribution_entries(repository_root=repository_root) == entries_before,
         "Apple public distribution changed during asset snapshot",
     )
     return snapshots
@@ -607,6 +632,8 @@ def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
 
 def load_pending_publication_assets(
     pending_receipt: object,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> tuple[FileSnapshot, ...]:
     """Return the fixed four Apple files selected by the pending P receipt."""
 
@@ -630,16 +657,17 @@ def load_pending_publication_assets(
     )
     source = _object(pending.get("source"), "pending Apple stable source")
     expected_hashes = _public_asset_sha256s(distribution)
-    before = _snapshot_public_asset_files()
+    before = _snapshot_public_asset_files(repository_root=repository_root)
     rebuilt = _load_public_distribution(
         expected_hashes,
         _sha1(source.get("source_parent_commit"), "Apple source parent"),
+        repository_root=repository_root,
     )
     _require(
         apple_contract.publication_values_equal(rebuilt, distribution),
         "Apple fixed distribution differs from the selected pending receipt",
     )
-    after = _snapshot_public_asset_files()
+    after = _snapshot_public_asset_files(repository_root=repository_root)
     _require(
         before == after,
         "Apple stable publication assets changed while loading",

@@ -62,7 +62,12 @@ from evidence_io import (
     load_json_object_snapshot_at,
     read_regular_snapshot,
 )
-from git_provenance import GitProvenanceError, inspect_worktree, run_git_text
+from git_provenance import (
+    GitProvenanceError,
+    canonical_repository_root,
+    inspect_worktree,
+    run_git_text,
+)
 from platform_distribution_contract import (
     ANDROID_AAR,
     ANDROID_MANIFEST,
@@ -1607,6 +1612,7 @@ def find_selected_release_candidate_bundle(
     expected_receipt_sha256: str | None = None,
     allow_existing_staging: bool = False,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    repository_root: pathlib.Path | None = None,
 ) -> ReleaseCandidateBundle:
     """Find a deterministic fixed-root cache selected by pending results.
 
@@ -1626,15 +1632,22 @@ def find_selected_release_candidate_bundle(
     )
 
     try:
+        candidate_root = (
+            PLATFORM_RELEASE_CANDIDATE_ROOT
+            if repository_root is None
+            else canonical_repository_root(repository_root)
+            / "target"
+            / "abi2-platform-release-candidates"
+        )
         root = normalize_safe_root(
-            PLATFORM_RELEASE_CANDIDATE_ROOT,
+            candidate_root,
             label="platform release candidate root",
         )
         root_descriptor = open_private_directory(
             root,
             label="platform release candidate root",
         )
-    except PublicationReceiptIOError as exc:
+    except (GitProvenanceError, PublicationReceiptIOError) as exc:
         raise PlatformDistributionError(str(exc)) from exc
     primary_error: BaseException | None = None
     try:

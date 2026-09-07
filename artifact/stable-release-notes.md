@@ -994,6 +994,24 @@ private fixed staging root, and prints the exact plan digest:
 stable_github_plan_sha256=EMITTED_64_LOWERCASE_HEX_SHA256
 ```
 
+To use a separately reviewed publisher implementation, pass
+`--repository-root "$pending_checkout"` before the subcommand on every
+`prepare`, `status`, `publish`, and `verify` invocation. The default remains the
+publisher's own checkout. An explicit root selects the clean committed P,
+annotated tags, fixed Apple distribution and platform candidate cache together;
+it does not change the account state root, journal, locks or publication plan
+schema. The path must be absolute, canonical, owned and not group- or
+world-writable, with a real `.git` directory. All original commit, results,
+source, tag and asset checks continue to apply. Keep the reviewed tooling
+checkout separate from the immutable release and results-only history.
+The selected checkout's `artifact/results.json` must retain its existing owned,
+regular, non-symlink, single-link `0644` contract and exact HEAD bytes. Git clones
+created under `umask 077` need explicit preparation before selection; the
+publisher does not accept or silently normalize their `0600` results file. Use
+the private-parent/scoped-checkout procedure in
+`artifact/platform-maintenance-release-notes.md`, followed by the existing
+`verify-installed` gate with the selected cohort's exact parent and digest pins.
+
 There is one deliberately manual pre-credential bootstrap residue. If the process is
 killed after creating the final state directory but before durably creating its
 persistent lock, every later command rejects that existing empty root; it never

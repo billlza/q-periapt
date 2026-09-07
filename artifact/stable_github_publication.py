@@ -38,6 +38,7 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
+    canonical_repository_root,
     require_direct_results_only_child,
     run_git_bytes,
     run_git_text,
@@ -1006,11 +1007,22 @@ def _selected_state_root(state_root: pathlib.Path | None) -> pathlib.Path:
     _fail("publication state root differs from the passwd-derived authority")
 
 
-def _registered_worktrees() -> tuple[pathlib.Path, ...]:
+def _selected_repository_root(repository_root: pathlib.Path | None) -> pathlib.Path:
+    if repository_root is None:
+        return REPOSITORY_ROOT
     try:
-        raw = run_git_bytes(
-            REPOSITORY_ROOT, ["worktree", "list", "--porcelain", "-z"]
-        )
+        return canonical_repository_root(repository_root)
+    except GitProvenanceError as exc:
+        raise StableGitHubPublicationError(str(exc)) from exc
+
+
+def _registered_worktrees(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> tuple[pathlib.Path, ...]:
+    repository = _selected_repository_root(repository_root)
+    try:
+        raw = run_git_bytes(repository, ["worktree", "list", "--porcelain", "-z"])
     except GitProvenanceError as exc:
         raise StableGitHubPublicationError(
             "cannot enumerate registered Git worktrees"
@@ -1035,10 +1047,17 @@ def _registered_worktrees() -> tuple[pathlib.Path, ...]:
         )
         roots.append(pathlib.Path(os.path.realpath(text)))
     _require(roots and len(roots) == len(set(roots)), "worktree inventory differs")
+    if repository_root is not None and repository != REPOSITORY_ROOT:
+        roots.extend(_registered_worktrees())
+        return tuple(dict.fromkeys(roots))
     return tuple(roots)
 
 
-def validate_state_root(state_root: pathlib.Path | None = None) -> pathlib.Path:
+def validate_state_root(
+    state_root: pathlib.Path | None = None,
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> pathlib.Path:
     expected = _selected_state_root(state_root)
     selected = expected if state_root is None else state_root
     _require(
@@ -1073,7 +1092,7 @@ def validate_state_root(state_root: pathlib.Path | None = None) -> pathlib.Path:
             "stable GitHub publication state-root boundary failed",
             preceding_error=exc,
         ) from exc
-    for worktree in _registered_worktrees():
+    for worktree in _registered_worktrees(repository_root=repository_root):
         _require(
             root != worktree and not root.is_relative_to(worktree),
             "publication state root is inside a registered worktree",
@@ -1083,6 +1102,8 @@ def validate_state_root(state_root: pathlib.Path | None = None) -> pathlib.Path:
 
 def ensure_state_root_for_prepare(
     state_root: pathlib.Path | None = None,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> tuple[pathlib.Path, PrivateSafeRootCreatedIdentity | None]:
     """Create only the fixed passwd-home private chain used by ``prepare``."""
 
@@ -1094,7 +1115,7 @@ def ensure_state_root_for_prepare(
         and os.fspath(selected) == os.fspath(expected),
         "publication state root differs from the passwd-derived authority",
     )
-    for worktree in _registered_worktrees():
+    for worktree in _registered_worktrees(repository_root=repository_root):
         _require(
             expected != worktree and not expected.is_relative_to(worktree),
             "publication state root is inside a registered worktree",
@@ -1120,7 +1141,10 @@ def ensure_state_root_for_prepare(
             "cannot establish the fixed private publication state",
             preceding_error=exc,
         ) from exc
-    return validate_state_root(expected), created_root_identity
+    return (
+        validate_state_root(expected, repository_root=repository_root),
+        created_root_identity,
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -1143,8 +1167,9 @@ def publication_lock(
     *,
     allow_create: bool,
     created_root_identity: PrivateSafeRootCreatedIdentity | None = None,
+    repository_root: pathlib.Path | None = None,
 ) -> Iterator[PublicationLockAuthority]:
-    root = validate_state_root(state_root)
+    root = validate_state_root(state_root, repository_root=repository_root)
     try:
         with contextlib.ExitStack() as stack:
             account = None
@@ -1153,6 +1178,7 @@ def publication_lock(
                     publication_lock(
                         expected_state_root(),
                         allow_create=False,
+                        repository_root=repository_root,
                     )
                 ).primary
             with exclusive_private_file_lock(
@@ -1222,20 +1248,25 @@ def _request_plan(leaf: str, payload: bytes) -> RequestPlan:
     )
 
 
-def _local_tag_object(tag: str, expected_commit: str, expected_tree: str) -> str:
+def _local_tag_object(
+    tag: str,
+    expected_commit: str,
+    expected_tree: str,
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> str:
+    repository = _selected_repository_root(repository_root)
     try:
-        tag_type = run_git_text(
-            REPOSITORY_ROOT, ["cat-file", "-t", f"refs/tags/{tag}"]
-        )
+        tag_type = run_git_text(repository, ["cat-file", "-t", f"refs/tags/{tag}"])
         tag_object = run_git_text(
-            REPOSITORY_ROOT, ["rev-parse", "--verify", f"refs/tags/{tag}^{{tag}}"]
+            repository, ["rev-parse", "--verify", f"refs/tags/{tag}^{{tag}}"]
         )
         commit = run_git_text(
-            REPOSITORY_ROOT,
+            repository,
             ["rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}"],
         )
         tree = run_git_text(
-            REPOSITORY_ROOT,
+            repository,
             ["rev-parse", "--verify", f"refs/tags/{tag}^{{tree}}"],
         )
     except GitProvenanceError as exc:
@@ -1331,6 +1362,7 @@ def build_plan_from_pending_results(
     expected_results_sha256: str,
     *,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    repository_root: pathlib.Path | None = None,
 ) -> tuple[
     PublicationPlan,
     tuple[FileSnapshot, ...],
@@ -1338,9 +1370,12 @@ def build_plan_from_pending_results(
     dict[str, Any],
 ]:
     """Build a deterministic plan without touching credentials or remote state."""
+    repository = _selected_repository_root(repository_root)
 
     try:
-        committed = load_current_results(expected_results_sha256)
+        committed = load_current_results(
+            expected_results_sha256, repository_root=repository_root
+        )
     except ReleaseReceiptFinalizerError as exc:
         raise StableGitHubPublicationError(str(exc)) from exc
     manifest = committed.manifest
@@ -1354,12 +1389,12 @@ def build_plan_from_pending_results(
         _fail("pending results lack stable source identity")
     try:
         require_direct_results_only_child(
-            REPOSITORY_ROOT,
+            repository,
             identity.source_parent_commit,
             identity.tag_commit,
         )
         require_direct_results_only_child(
-            REPOSITORY_ROOT,
+            repository,
             identity.tag_commit,
             committed.commit,
         )
@@ -1372,7 +1407,7 @@ def build_plan_from_pending_results(
     apple_pending = None
     if maintenance:
         maintenance_source.verify_product_source(
-            REPOSITORY_ROOT, identity.source_parent_commit
+            repository, identity.source_parent_commit
         )
         platform_pending = maintenance_contract.publication(
             publications[maintenance_contract.PUBLICATION_KEY]
@@ -1403,23 +1438,28 @@ def build_plan_from_pending_results(
     apple_snapshots = (
         ()
         if maintenance
-        else apple_stable_publication.load_pending_publication_assets(apple_pending)
+        else apple_stable_publication.load_pending_publication_assets(
+            apple_pending, repository_root=repository_root
+        )
     )
     platform_bundle = platform_distribution.find_selected_release_candidate_bundle(
         platform_candidate,
         platform_source,
         expected_receipt_sha256=assembly_receipt_sha256,
         profile=profile,
+        repository_root=repository_root,
     )
     apple_tag_object = _local_tag_object(
         apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
         maintenance_contract.BASE_TAG_COMMIT if maintenance else identity.tag_commit,
         maintenance_contract.BASE_TAG_TREE if maintenance else identity.tag_tree,
+        repository_root=repository_root,
     )
     platform_tag_object = _local_tag_object(
         profile.release_tag,
         identity.tag_commit,
         identity.tag_tree,
+        repository_root=repository_root,
     )
     _require(
         (
@@ -1722,6 +1762,8 @@ def _read_plan_leaf(root: pathlib.Path, leaf: str) -> PublicationPlan:
 def validate_plan_against_pending_manifest(
     plan: PublicationPlan,
     manifest: dict[str, object],
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> None:
     """Rebind every publication authority field to the installed pending P.
 
@@ -1729,6 +1771,7 @@ def validate_plan_against_pending_manifest(
     completed prepare therefore never depends on disposable candidate-cache or
     Apple distribution paths remaining available.
     """
+    repository = _selected_repository_root(repository_root)
 
     _require_pending_profile(manifest, plan.profile)
     maintenance = plan.profile is PlatformReleaseProfile.MAINTENANCE_R2
@@ -1740,12 +1783,12 @@ def validate_plan_against_pending_manifest(
     _require(identity is not None, "installed results lack stable source identity")
     try:
         require_direct_results_only_child(
-            REPOSITORY_ROOT,
+            repository,
             identity.source_parent_commit,
             identity.tag_commit,
         )
         require_direct_results_only_child(
-            REPOSITORY_ROOT,
+            repository,
             identity.tag_commit,
             plan.pending_commit,
         )
@@ -1771,7 +1814,7 @@ def validate_plan_against_pending_manifest(
     publications = _object(manifest["release_publications"], "pending publications")
     if maintenance:
         maintenance_source.verify_product_source(
-            REPOSITORY_ROOT, identity.source_parent_commit
+            repository, identity.source_parent_commit
         )
         _require(
             plan.apple == _maintenance_apple_reference(),
@@ -1883,9 +1926,15 @@ def validate_plan_against_pending_manifest(
             plan.apple.tag,
             maintenance_contract.BASE_TAG_COMMIT if maintenance else plan.tag_commit,
             maintenance_contract.BASE_TAG_TREE if maintenance else plan.tag_tree,
+            repository_root=repository_root,
         )
         == plan.apple.tag_object
-        and _local_tag_object(plan.platform.tag, plan.tag_commit, plan.tag_tree)
+        and _local_tag_object(
+            plan.platform.tag,
+            plan.tag_commit,
+            plan.tag_tree,
+            repository_root=repository_root,
+        )
         == plan.platform.tag_object,
         "local annotated stable tag objects differ from pending results",
     )
@@ -1895,6 +1944,7 @@ def _validate_plan_against_current_pending(
     plan: PublicationPlan,
     *,
     expected_results_sha256: str | None = None,
+    repository_root: pathlib.Path | None = None,
 ) -> None:
     if expected_results_sha256 is not None:
         _require(
@@ -1902,16 +1952,19 @@ def _validate_plan_against_current_pending(
             "publication plan binds different pending results",
         )
     try:
-        committed = load_current_results(plan.results_sha256)
+        committed = load_current_results(
+            plan.results_sha256, repository_root=repository_root
+        )
     except ReleaseReceiptFinalizerError as exc:
         raise StableGitHubPublicationError(str(exc)) from exc
     _require(
         committed.sha256 == plan.results_sha256
-        and committed.commit == plan.pending_commit
-        and publication_state(committed.manifest) == PUBLICATION_STATE_PENDING,
+        and committed.commit == plan.pending_commit,
         "installed pending results differ from the publication plan",
     )
-    validate_plan_against_pending_manifest(plan, committed.manifest)
+    validate_plan_against_pending_manifest(
+        plan, committed.manifest, repository_root=repository_root
+    )
     tool = github_release.select_github_cli()
     _require(
         tool.sha256 == plan.github_cli_sha256,
@@ -2025,6 +2078,8 @@ def _verify_planned_files(
 def verify_local_plan(
     root: pathlib.Path,
     plan: PublicationPlan,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> None:
     try:
         root_descriptor = os.open(
@@ -2053,7 +2108,7 @@ def verify_local_plan(
                 preceding_error=exc,
             ) from exc
     try:
-        _validate_plan_against_current_pending(plan)
+        _validate_plan_against_current_pending(plan, repository_root=repository_root)
     except _LOCAL_GITHUB_INTEGRITY_ERRORS as exc:
         raise StableGitHubPublicationBoundaryIntegrityError(
             "local GitHub tool identity changed from the publication plan",
@@ -2073,17 +2128,21 @@ def prepare_plan(
     *,
     state_root: pathlib.Path | None = None,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    repository_root: pathlib.Path | None = None,
 ) -> PublicationPlan:
     selected_root = expected_state_root(profile) if state_root is None else state_root
     _require(
         selected_root == expected_state_root(profile),
         "publication profile state root differs",
     )
-    root, created_root_identity = ensure_state_root_for_prepare(selected_root)
+    root, created_root_identity = ensure_state_root_for_prepare(
+        selected_root, repository_root=repository_root
+    )
     with publication_lock(
         root,
         allow_create=created_root_identity is not None,
         created_root_identity=created_root_identity,
+        repository_root=repository_root,
     ) as lock:
         root_descriptor = lock.primary.root_descriptor
         _recover_state_root_residues(root_descriptor)
@@ -2099,7 +2158,7 @@ def prepare_plan(
                 and existing.profile is profile,
                 "existing publication plan binds different pending results",
             )
-            verify_local_plan(root, existing)
+            verify_local_plan(root, existing, repository_root=repository_root)
             _verify_publication_lock(lock)
             return existing
         current_root_entries = frozenset(os.listdir(root_descriptor))
@@ -2129,6 +2188,7 @@ def prepare_plan(
                 _validate_plan_against_current_pending(
                     plan,
                     expected_results_sha256=expected_results_sha256,
+                    repository_root=repository_root,
                 )
             except _LOCAL_GITHUB_INTEGRITY_ERRORS as exc:
                 raise StableGitHubPublicationBoundaryIntegrityError(
@@ -2150,7 +2210,9 @@ def prepare_plan(
             )
             plan, apple_snapshots, platform_candidate, platform_source = (
                 build_plan_from_pending_results(
-                    expected_results_sha256, profile=profile
+                    expected_results_sha256,
+                    profile=profile,
+                    repository_root=repository_root,
                 )
             )
             for directory_name in (
@@ -2234,7 +2296,9 @@ def prepare_plan(
                         platform_candidate,
                         platform_source,
                     ) = build_plan_from_pending_results(
-                        expected_results_sha256, profile=profile
+                        expected_results_sha256,
+                        profile=profile,
+                        repository_root=repository_root,
                     )
                     _require(
                         rebuilt_plan == plan,
@@ -2281,6 +2345,7 @@ def prepare_plan(
                     expected_receipt_sha256=(plan.platform_candidate_receipt_sha256),
                     allow_existing_staging=True,
                     profile=plan.profile,
+                    repository_root=repository_root,
                 )
                 _require(
                     _validate_staged_asset_prefix(staging, plan),
@@ -2316,7 +2381,7 @@ def prepare_plan(
             maximum=MAX_PLAN_BYTES,
         )
         _verify_state_root_inventory_at(root_descriptor, _ROOT_FIXED_LEAVES)
-        verify_local_plan(root, plan)
+        verify_local_plan(root, plan, repository_root=repository_root)
         _verify_publication_lock(lock)
         return plan
 
@@ -3550,6 +3615,8 @@ def _resolve_trailing_intent(
     plan: PublicationPlan,
     cursor: JournalCursor,
     remote: RemoteSnapshot,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> JournalCursor:
     intent = cursor.trailing_intent
     _require(intent is not None, "no trailing mutation intent exists")
@@ -3566,7 +3633,7 @@ def _resolve_trailing_intent(
         raise StableGitHubPublicationOutcomeUnknown(
             "the unresolved mutation cannot be classified from remote state"
         ) from exc
-    _verify_mutation_local(root, plan, lock, directory)
+    _verify_mutation_local(root, plan, lock, directory, repository_root=repository_root)
     resampled_cursor = load_journal(directory, plan, recover_residues=False)
     _require(
         resampled_cursor.trailing_intent == intent
@@ -3590,7 +3657,9 @@ def _resolve_trailing_intent(
             raise StableGitHubPublicationOutcomeUnknown(
                 "the remote successor does not prove the intended exact transition"
             ) from exc
-        _verify_mutation_local(root, plan, lock, directory)
+        _verify_mutation_local(
+            root, plan, lock, directory, repository_root=repository_root
+        )
         final_cursor = load_journal(directory, plan, recover_residues=False)
         _require(
             final_cursor.trailing_intent == intent
@@ -3641,6 +3710,7 @@ def _verify_mutation_local(
     journal: PrivateDirectoryHandle,
     *,
     preceding_error: BaseException | None = None,
+    repository_root: pathlib.Path | None = None,
 ) -> None:
     """Revalidate every local authority immediately around a mutation."""
 
@@ -3652,7 +3722,7 @@ def _verify_mutation_local(
         verify_private_directory_handle_identity(
             journal, label="stable GitHub journal directory"
         )
-        verify_local_plan(root, plan)
+        verify_local_plan(root, plan, repository_root=repository_root)
         _verify_publication_lock(lock)
         _verify_state_root_inventory_at(
             lock.primary.root_descriptor, _ROOT_FIXED_LEAVES
@@ -3691,6 +3761,7 @@ def _authorize_later_reconciliation(
     intent: Mapping[str, object],
     *,
     cli_failure: github_release.GitHubCliExecutionError | None,
+    repository_root: pathlib.Path | None = None,
 ) -> None:
     """Durably opt a clean local attempt into exact-successor recovery."""
 
@@ -3700,6 +3771,7 @@ def _authorize_later_reconciliation(
         lock,
         journal,
         preceding_error=cli_failure,
+        repository_root=repository_root,
     )
     before = load_journal(journal, plan, recover_residues=False)
     _require(
@@ -3721,6 +3793,7 @@ def _authorize_later_reconciliation(
         lock,
         journal,
         preceding_error=cli_failure,
+        repository_root=repository_root,
     )
     after = load_journal(journal, plan, recover_residues=False)
     _require(
@@ -3745,6 +3818,7 @@ def publish_plan(
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
     mutation_runner: github_release.GitHubInputRunner = capture_stdout,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
     _require(type(profile) is PlatformReleaseProfile, "publication profile is invalid")
     maintenance = profile is PlatformReleaseProfile.MAINTENANCE_R2
@@ -3759,7 +3833,8 @@ def publish_plan(
     _sha256(expected_plan_sha256, "expected publication plan")
     _sha256(expected_results_sha256, "expected pending results")
     root = validate_state_root(
-        expected_state_root(profile) if state_root is None else state_root
+        expected_state_root(profile) if state_root is None else state_root,
+        repository_root=repository_root,
     )
     _require(
         root == expected_state_root(profile), "publication profile state root differs"
@@ -3771,7 +3846,9 @@ def publish_plan(
             runner=read_runner,
         )
     )
-    with publication_lock(root, allow_create=False) as lock:
+    with publication_lock(
+        root, allow_create=False, repository_root=repository_root
+    ) as lock:
         root_handle = PrivateDirectoryHandle(
             path=root,
             descriptor=lock.primary.root_descriptor,
@@ -3802,7 +3879,7 @@ def publish_plan(
             and plan.results_sha256 == expected_results_sha256,
             "explicit publication plan or pending-results pin differs",
         )
-        verify_local_plan(root, plan)
+        verify_local_plan(root, plan, repository_root=repository_root)
         with _open_journal(root_handle) as journal:
             cursor = load_journal(journal, plan, recover_residues=True)
             remote = _observe_with_local_integrity_priority(
@@ -3816,8 +3893,11 @@ def publish_plan(
                     plan,
                     cursor,
                     remote,
+                    repository_root=repository_root,
                 )
-                _verify_mutation_local(root, plan, lock, journal)
+                _verify_mutation_local(
+                    root, plan, lock, journal, repository_root=repository_root
+                )
                 remote = _observe_with_local_integrity_priority(
                     selected_observer, plan
                 )
@@ -3829,14 +3909,20 @@ def publish_plan(
                     state.index == action.index,
                     "journal and action predecessor indices differ",
                 )
-                _verify_mutation_local(root, plan, lock, journal)
+                _verify_mutation_local(
+                    root, plan, lock, journal, repository_root=repository_root
+                )
                 predecessor = _observe_with_local_integrity_priority(
                     selected_observer, plan
                 )
                 _ensure_cursor_matches_remote(plan, cursor, predecessor)
-                _verify_mutation_local(root, plan, lock, journal)
+                _verify_mutation_local(
+                    root, plan, lock, journal, repository_root=repository_root
+                )
                 intent = _write_intent(journal, plan, action, predecessor)
-                _verify_mutation_local(root, plan, lock, journal)
+                _verify_mutation_local(
+                    root, plan, lock, journal, repository_root=repository_root
+                )
                 intent_cursor = load_journal(
                     journal, plan, recover_residues=False
                 )
@@ -3862,6 +3948,7 @@ def publish_plan(
                     lock,
                     journal,
                     preceding_error=cli_failure,
+                    repository_root=repository_root,
                 )
                 try:
                     successor = _observe_with_local_integrity_priority(
@@ -3882,6 +3969,7 @@ def publish_plan(
                         action,
                         intent,
                         cli_failure=cli_failure,
+                        repository_root=repository_root,
                     )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation outcome cannot be observed and remains unresolved"
@@ -3903,6 +3991,7 @@ def publish_plan(
                         action,
                         intent,
                         cli_failure=cli_failure,
+                        repository_root=repository_root,
                     )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation observation is policy-invalid and remains unresolved"
@@ -3913,6 +4002,7 @@ def publish_plan(
                     lock,
                     journal,
                     preceding_error=cli_failure,
+                    repository_root=repository_root,
                 )
                 post_observation_cursor = load_journal(
                     journal, plan, recover_residues=False
@@ -3935,6 +4025,7 @@ def publish_plan(
                         action,
                         intent,
                         cli_failure=cli_failure,
+                        repository_root=repository_root,
                     )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation produced an invalid or unclassifiable remote state"
@@ -3948,6 +4039,7 @@ def publish_plan(
                         action,
                         intent,
                         cli_failure=cli_failure,
+                        repository_root=repository_root,
                     )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation retained its predecessor; its intent remains unresolved"
@@ -3972,6 +4064,7 @@ def publish_plan(
                         action,
                         intent,
                         cli_failure=cli_failure,
+                        repository_root=repository_root,
                     )
                     raise StableGitHubPublicationOutcomeUnknown(
                         "mutation did not produce the exact intended transition"
@@ -3984,6 +4077,7 @@ def publish_plan(
                     action,
                     intent,
                     cli_failure=cli_failure,
+                    repository_root=repository_root,
                 )
                 final_intent_cursor = load_journal(
                     journal, plan, recover_residues=False
@@ -4012,6 +4106,7 @@ def publish_plan(
                     lock,
                     journal,
                     preceding_error=cli_failure,
+                    repository_root=repository_root,
                 )
                 cursor = load_journal(journal, plan, recover_residues=False)
                 remote = successor
@@ -4035,8 +4130,9 @@ def status_plan(
     observer: RemoteObserver | None = None,
     source_environment: Mapping[str, str] | None = None,
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
+    repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
-    root = validate_state_root(state_root)
+    root = validate_state_root(state_root, repository_root=repository_root)
     selected_observer: RemoteObserver = observer or (
         lambda plan: observe_remote_transaction(
             plan,
@@ -4044,7 +4140,9 @@ def status_plan(
             runner=read_runner,
         )
     )
-    with publication_lock(root, allow_create=False) as lock:
+    with publication_lock(
+        root, allow_create=False, repository_root=repository_root
+    ) as lock:
         root_handle = PrivateDirectoryHandle(
             path=root,
             descriptor=lock.primary.root_descriptor,
@@ -4058,7 +4156,7 @@ def status_plan(
             lock.primary.root_descriptor, _ROOT_FIXED_LEAVES
         )
         plan = _load_prepared_plan(root)
-        verify_local_plan(root, plan)
+        verify_local_plan(root, plan, repository_root=repository_root)
         with _open_journal(root_handle) as journal:
             cursor = load_journal(journal, plan, recover_residues=False)
             remote = _observe_with_local_integrity_priority(
@@ -4093,12 +4191,14 @@ def verify_publication(
     observer: RemoteObserver | None = None,
     source_environment: Mapping[str, str] | None = None,
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
+    repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
     status = status_plan(
         state_root=state_root,
         observer=observer,
         source_environment=source_environment,
         read_runner=read_runner,
+        repository_root=repository_root,
     )
     _require(status.complete, "stable GitHub publication is not complete")
     return status
@@ -4135,6 +4235,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--profile", choices=[p.value for p in PlatformReleaseProfile], default="stable"
     )
+    parser.add_argument(
+        "--repository-root",
+        type=pathlib.Path,
+        help="canonical clean publication checkout; defaults to this tool's repository",
+    )
     commands = parser.add_subparsers(
         dest="command",
         required=True,
@@ -4151,6 +4256,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     publish.add_argument("--ack-publication-order", required=True)
     commands.add_parser("verify", allow_abbrev=False)
     arguments = parser.parse_args(argv)
+    repository_root = arguments.repository_root
     profile = PlatformReleaseProfile(arguments.profile)
     try:
         state_root = expected_state_root(profile)
@@ -4159,6 +4265,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments.expected_results_sha256,
                 state_root=state_root,
                 profile=profile,
+                repository_root=repository_root,
             )
             print(
                 "STABLE_GITHUB_PREPARED "
@@ -4168,7 +4275,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         if arguments.command == "status":
-            _emit_status("STABLE_GITHUB_STATUS", status_plan(state_root=state_root))
+            _emit_status(
+                "STABLE_GITHUB_STATUS",
+                status_plan(state_root=state_root, repository_root=repository_root),
+            )
             return 0
         if arguments.command == "publish":
             _emit_status(
@@ -4183,11 +4293,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     expected_results_sha256=arguments.expected_results_sha256,
                     draft_barrier_ack=arguments.ack_draft_barrier,
                     publication_order_ack=arguments.ack_publication_order,
+                    repository_root=repository_root,
                 ),
             )
             return 0
         _emit_status(
-            "STABLE_GITHUB_VERIFIED", verify_publication(state_root=state_root)
+            "STABLE_GITHUB_VERIFIED",
+            verify_publication(state_root=state_root, repository_root=repository_root),
         )
         return 0
     except KeyboardInterrupt:
