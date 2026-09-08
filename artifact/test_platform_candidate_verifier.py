@@ -891,6 +891,14 @@ esac
                 ["--profile", "maintenance-r2", "release-tag"],
                 "abi2-platforms-v0.1.5-r2",
             ),
+            (
+                ["--profile", "maintenance-r3", "release-tag"],
+                "abi2-platforms-v0.1.5-r3",
+            ),
+            (
+                ["--profile", "maintenance-r4", "release-tag"],
+                "abi2-platforms-v0.1.5-r4",
+            ),
         ):
             with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
                 self.assertEqual(0, attestation.main(arguments))
@@ -901,9 +909,12 @@ esac
             )
         self.assertIn("unknown platform release profile", errors.getvalue())
         self.assertIn("PROFILE=stable", self.script)
+        self.assertIn("stable|maintenance-r2|maintenance-r3|maintenance-r4)", self.script)
         self.assertNotIn(f"RELEASE_TAG={release_tag}", self.script)
         self.assertIn(f"- {release_tag}", self.workflow)
         self.assertIn("- abi2-platforms-v0.1.5-r2", self.workflow)
+        self.assertIn("- abi2-platforms-v0.1.5-r3", self.workflow)
+        self.assertIn("- abi2-platforms-v0.1.5-r4", self.workflow)
         self.assertIn("group: ${{ github.ref_name }}", self.workflow)
         self.assertIn('test "$GITHUB_REF" = "refs/tags/$release_tag"', self.workflow)
         self.assertNotIn("abi2-platforms-v0.1.0-alpha.2-r2", self.script)

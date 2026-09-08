@@ -134,6 +134,7 @@ def receipt_name(profile: PlatformReleaseProfile) -> str:
         PlatformReleaseProfile.STABLE: RECEIPT_NAME,
         PlatformReleaseProfile.MAINTENANCE_R2: "platform-v0.1.5-r2-publication-receipt.json",
         PlatformReleaseProfile.MAINTENANCE_R3: "platform-v0.1.5-r3-publication-receipt.json",
+        PlatformReleaseProfile.MAINTENANCE_R4: "platform-v0.1.5-r4-publication-receipt.json",
     }[profile]
 
 

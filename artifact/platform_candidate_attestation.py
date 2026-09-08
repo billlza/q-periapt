@@ -357,7 +357,10 @@ def validate_tag_source_currentness(
         release_publication_contract.validate_stable_source_currentness(manifest)
     except release_publication_contract.ReleasePublicationContractError as exc:
         raise CandidateAttestationError(str(exc)) from exc
-    if profile is PlatformReleaseProfile.MAINTENANCE_R3:
+    if profile in {
+        PlatformReleaseProfile.MAINTENANCE_R3,
+        PlatformReleaseProfile.MAINTENANCE_R4,
+    }:
         import platform_maintenance
         from platform_maintenance_contract import PlatformMaintenanceContractError
 

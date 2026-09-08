@@ -1,4 +1,4 @@
-"""R3 product provenance and revision isolation using local, synthetic fixtures.
+"""Reviewed maintenance product provenance and revision isolation using local, synthetic fixtures.
 
 Git commits and journal files are real private test objects. Remote and SDK
 boundaries use the existing fixture oracles; no result here is release evidence.
@@ -33,14 +33,17 @@ import stable_github_publication as publication
 import test_android_maintenance_bundle as bundle_fixture
 import test_platform_maintenance as fixtures
 import test_stable_github_publication as stable_fixture
+import test_platform_stable_publication_contract as stable_receipt_fixture
 from publication_receipt_io import PublicationReceiptIOError, canonical_json_bytes
 
 
 R2 = distribution.PlatformReleaseProfile.MAINTENANCE_R2
 R3 = distribution.PlatformReleaseProfile.MAINTENANCE_R3
+R4 = distribution.PlatformReleaseProfile.MAINTENANCE_R4
 
 
 class R3ContractTests(unittest.TestCase):
+    profile = R3
 
     def test_candidate_profile_requires_exact_schema_and_complete_identity(
         self,
@@ -53,14 +56,14 @@ class R3ContractTests(unittest.TestCase):
         for receipt in (
             {"schema_version": True},
             {"schema_version": 9},
-            {"schema_version": 1, "identity": R3.identity()},
+            {"schema_version": 1, "identity": self.profile.identity()},
             {"schema_version": 2},
             {"schema_version": 2, "identity": None},
             {"schema_version": 2, "identity": {"distribution_revision": "r3"}},
-            {"schema_version": 2, "identity": {**R3.identity(), "extra": True}},
+            {"schema_version": 2, "identity": {**self.profile.identity(), "extra": True}},
             {
                 "schema_version": 2,
-                "identity": {**R3.identity(), "release_tag": R2.release_tag},
+                "identity": {**self.profile.identity(), "release_tag": R2.release_tag},
             },
         ):
             with self.subTest(receipt=receipt):
@@ -86,8 +89,8 @@ class R3ContractTests(unittest.TestCase):
             },
         )
 
-    def test_r3_has_exact_product_identity_and_unchanged_asset_count(self) -> None:
-        receipt = fixtures.revision_receipt(release_profile=R3)
+    def test_reviewed_revision_has_exact_identity_and_unchanged_asset_count(self) -> None:
+        receipt = fixtures.revision_receipt(release_profile=self.profile)
         self.assertEqual(2, receipt["schema_version"])
         self.assertEqual(
             {
@@ -96,12 +99,29 @@ class R3ContractTests(unittest.TestCase):
             },
             receipt["reviewed_product"],
         )
-        self.assertEqual("abi2-platforms-v0.1.5-r3", R3.release_tag)
-        self.assertEqual("abi2-platforms-v0.1.5-r3-verified", R3.verification_tag)
-        self.assertEqual("platform_v0_1_5_r3", R3.publication_key)
+        expected = {
+            R3: (
+                "r3", "abi2-platforms-v0.1.5-r3",
+                "abi2-platforms-v0.1.5-r3-verified", "platform_v0_1_5_r3",
+                "platform-v0.1.5-r3-publication-receipt.json",
+            ),
+            R4: (
+                "r4", "abi2-platforms-v0.1.5-r4",
+                "abi2-platforms-v0.1.5-r4-verified", "platform_v0_1_5_r4",
+                "platform-v0.1.5-r4-publication-receipt.json",
+            ),
+        }[self.profile]
         self.assertEqual(
-            "platform-v0.1.5-r3-publication-receipt.json", collector.receipt_name(R3)
+            expected,
+            (
+                self.profile.revision, self.profile.release_tag,
+                self.profile.verification_tag, self.profile.publication_key,
+                collector.receipt_name(self.profile),
+            ),
         )
+        self.assertEqual("0.1.5", self.profile.identity()["product_version"])
+        self.assertEqual(2, self.profile.candidate_receipt_schema)
+        self.assertEqual(3, self.profile.runtime_bundle_schema)
         self.assertEqual(4, len(distribution.PLATFORM_CANDIDATE_ASSETS))
         self.assertEqual(6, len(distribution.PLATFORM_CANDIDATE_ATTESTATION_SUBJECTS))
         self.assertEqual(7, len(distribution.PUBLIC_ASSET_NAMES))
@@ -109,14 +129,18 @@ class R3ContractTests(unittest.TestCase):
         self.assertEqual(2, len(distribution.CONSTANT_TIME_JOB_CONTRACT))
 
     def test_each_profile_rejects_the_other_wrapper(self) -> None:
-        for producer, verifier in ((R2, R3), (R3, R2)):
+        other = R4 if self.profile is R3 else R3
+        for producer, verifier in (
+            (R2, self.profile), (self.profile, R2),
+            (other, self.profile), (self.profile, other),
+        ):
             with self.subTest(producer=producer.value):
                 receipt = fixtures.revision_receipt(release_profile=producer)
                 with self.assertRaises(maintenance.PlatformMaintenanceContractError):
                     maintenance.publication(receipt, profile=verifier)
 
     def test_product_anchor_cannot_be_missing_changed_or_extended(self) -> None:
-        valid = fixtures.revision_receipt(release_profile=R3)
+        valid = fixtures.revision_receipt(release_profile=self.profile)
         for mutation in (
             lambda r: r.pop("reviewed_product"),
             lambda r: r["reviewed_product"].update(commit="0" * 40),
@@ -128,24 +152,24 @@ class R3ContractTests(unittest.TestCase):
             changed = copy.deepcopy(valid)
             mutation(changed)
             with self.assertRaises(maintenance.PlatformMaintenanceContractError):
-                maintenance.publication(changed, profile=R3)
+                maintenance.publication(changed, profile=self.profile)
 
     def test_pending_promotion_and_complete_idempotence_are_preserved(self) -> None:
-        pending = fixtures.revision_receipt(release_profile=R3)
-        verified = fixtures.revision_receipt(verified=True, release_profile=R3)
-        maintenance.validate_transition(None, pending, profile=R3)
-        maintenance.validate_transition(pending, verified, profile=R3)
-        maintenance.validate_transition(verified, copy.deepcopy(verified), profile=R3)
+        pending = fixtures.revision_receipt(release_profile=self.profile)
+        verified = fixtures.revision_receipt(verified=True, release_profile=self.profile)
+        maintenance.validate_transition(None, pending, profile=self.profile)
+        maintenance.validate_transition(pending, verified, profile=self.profile)
+        maintenance.validate_transition(verified, copy.deepcopy(verified), profile=self.profile)
         for before, after in ((None, verified), (verified, pending), (verified, None)):
             with self.assertRaises(maintenance.PlatformMaintenanceContractError):
-                maintenance.validate_transition(before, after, profile=R3)
+                maintenance.validate_transition(before, after, profile=self.profile)
         changed = copy.deepcopy(verified)
         changed["publication"]["observation"]["assembly_receipt_sha256"] = "0" * 64
         with self.assertRaises(maintenance.PlatformMaintenanceContractError):
-            maintenance.validate_transition(pending, changed, profile=R3)
+            maintenance.validate_transition(pending, changed, profile=self.profile)
 
-    def test_r3_cannot_omit_canonical_or_either_agp_closure(self) -> None:
-        valid = fixtures.revision_receipt(release_profile=R3)
+    def test_reviewed_revision_cannot_omit_canonical_or_either_agp_closure(self) -> None:
+        valid = fixtures.revision_receipt(release_profile=self.profile)
         for mutation in (
             lambda r: r.update(bundle_schema=2),
             lambda r: r.pop("agp_consumers"),
@@ -165,22 +189,26 @@ class R3ContractTests(unittest.TestCase):
                 ]
             )
             with self.assertRaises(maintenance.PlatformMaintenanceContractError):
-                maintenance.publication(changed, profile=R3)
+                maintenance.publication(changed, profile=self.profile)
 
     def test_independent_revision_sources_cannot_share_current_provenance(self) -> None:
-        receipts = {
-            p.publication_key: fixtures.revision_receipt(release_profile=p)
-            for p in (R2, R3)
-        }
-        with self.assertRaisesRegex(
-            maintenance.PlatformMaintenanceContractError, "mix"
-        ):
-            maintenance.selected_profile(receipts)
-        with self.assertRaises(dispatcher.PlatformPublicationContractError):
-            dispatcher.validate_release_publications({"release_publications": receipts})
+        for profiles in ((R2, self.profile), (R3, R4)):
+            with self.subTest(profiles=profiles):
+                receipts = {
+                    p.publication_key: fixtures.revision_receipt(release_profile=p)
+                    for p in profiles
+                }
+                with self.assertRaisesRegex(
+                    maintenance.PlatformMaintenanceContractError, "mix"
+                ):
+                    maintenance.selected_profile(receipts)
+                with self.assertRaises(dispatcher.PlatformPublicationContractError):
+                    dispatcher.validate_release_publications(
+                        {"release_publications": receipts}
+                    )
 
     def test_plan_is_explicit_platform_only_and_cross_profile_rejected(self) -> None:
-        plan = fixtures.maintenance_plan(release_profile=R3)
+        plan = fixtures.maintenance_plan(release_profile=self.profile)
         self.assertEqual(plan, publication.parse_plan(plan.document()))
         self.assertEqual(9, plan.action_count)
         self.assertEqual(
@@ -191,9 +219,14 @@ class R3ContractTests(unittest.TestCase):
         self.assertIsNone(plan.apple.create_request)
         self.assertIsNone(plan.apple.publish_request)
         self.assertEqual(
-            "Q-Periapt 0.1.5 ABI 2 SDK Distribution r3", plan.platform.title
+            {
+                R3: "Q-Periapt 0.1.5 ABI 2 SDK Distribution r3",
+                R4: "Q-Periapt 0.1.5 ABI 2 SDK Distribution r4",
+            }[self.profile],
+            plan.platform.title
         )
-        for profile in (R2.value, "maintenance-r4", "stable", None):
+        other = R4 if self.profile is R3 else R3
+        for profile in (R2.value, other.value, "maintenance-r5", "stable", None):
             changed = plan.document()
             changed["profile"] = profile
             with self.assertRaises(publication.StableGitHubPublicationError):
@@ -215,15 +248,16 @@ class R3ContractTests(unittest.TestCase):
                     )
             credential.assert_not_called()
         with self.assertRaises(candidate.CandidateAttestationError):
-            candidate._main(["--profile", "maintenance-r4", "release-tag"])
+            candidate._main(["--profile", "maintenance-r5", "release-tag"])
         with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
-            self.assertEqual(0, candidate._main(["--profile", R3.value, "release-tag"]))
-        self.assertEqual(R3.release_tag + "\n", output.getvalue())
+            self.assertEqual(0, candidate._main(["--profile", self.profile.value, "release-tag"]))
+        self.assertEqual(self.profile.release_tag + "\n", output.getvalue())
 
 
 class R3RetainedCandidateTests(unittest.TestCase):
+    profile = R3
     def setUp(self) -> None:
-        self.repository = fixtures._MaintenanceRepository(self, release_profile=R3)
+        self.repository = fixtures._MaintenanceRepository(self, release_profile=self.profile)
 
     def retain_candidate(self, profile):
         selected = self.repository
@@ -271,12 +305,14 @@ class R3RetainedCandidateTests(unittest.TestCase):
             )
         }
 
-    def test_retained_r1_r2_r3_auto_identification_selection_and_real_plan_staging(
+    def test_retained_profiles_auto_identification_selection_and_real_plan_staging(
         self,
     ) -> None:
         selected = self.repository
-        receipts = {R3: selected.cache_receipt}
-        for profile in (distribution.PlatformReleaseProfile.STABLE, R2):
+        receipts = {self.profile: selected.cache_receipt}
+        for profile in distribution.PlatformReleaseProfile:
+            if profile is self.profile:
+                continue
             _path, receipts[profile] = self.retain_candidate(profile)
         before = {
             path: path.read_bytes()
@@ -303,7 +339,7 @@ class R3RetainedCandidateTests(unittest.TestCase):
         publication.verify_local_plan(
             selected.state_root, plan, repository_root=selected.root
         )
-        self.assertIs(R3, plan.profile)
+        self.assertIs(self.profile, plan.profile)
         self.assertEqual(selected.pending_commit, plan.pending_commit)
         self.assertEqual(9, plan.action_count)
         self.assertEqual(7, len(plan.platform.assets))
@@ -324,11 +360,14 @@ class R3RetainedCandidateTests(unittest.TestCase):
             None,
             {},
             {"distribution_revision": "r3"},
-            {**R3.identity(), "release_tag": R2.release_tag},
-            {**R3.identity(), "release_url": R2.release_url},
-            {**R3.identity(), "product_version": "0.1.6"},
-            {**R3.identity(), "distribution_revision": "r4"},
-            {**R3.identity(), "unexpected": True},
+            {**self.profile.identity(), "release_tag": R2.release_tag},
+            {**self.profile.identity(), "release_url": R2.release_url},
+            {**self.profile.identity(), "product_version": "0.1.6"},
+            {
+                **self.profile.identity(),
+                "distribution_revision": "r4" if self.profile is R3 else "r3",
+            },
+            {**self.profile.identity(), "unexpected": True},
         ]
         before_results = selected.results.read_bytes()
         for index, identity in enumerate(variants):
@@ -354,7 +393,7 @@ class R3RetainedCandidateTests(unittest.TestCase):
                             staging_leaves={
                                 name: name for name in distribution.PUBLIC_ASSET_NAMES
                             },
-                            profile=R3,
+                            profile=self.profile,
                             repository_root=selected.root,
                         )
                 finally:
@@ -364,6 +403,7 @@ class R3RetainedCandidateTests(unittest.TestCase):
 
 
 class R3LocalGitTests(unittest.TestCase):
+    profile = R3
     def setUp(self) -> None:
         self.history = fixtures.PlatformMaintenanceFinalizerTests()
         self.history.setUp()
@@ -385,10 +425,10 @@ class R3LocalGitTests(unittest.TestCase):
         self,
     ) -> None:
         pending, _digest, _path = self.history._install(
-            verified=False, release_profile=R3
+            verified=False, release_profile=self.profile
         )
         verified, digest, receipt = self.history._install(
-            verified=True, release_profile=R3
+            verified=True, release_profile=self.profile
         )
         self.assertEqual(pending, self.fixture._git_text("rev-parse", f"{verified}^"))
         before = self.fixture.results.read_bytes()
@@ -398,15 +438,15 @@ class R3LocalGitTests(unittest.TestCase):
                     command="verify-maintenance",
                     expected_results_sha256=digest,
                     platform_receipt=receipt,
-                    profile=R3.value,
+                    profile=self.profile.value,
                 )
             )
         self.assertIn("PLATFORM_MAINTENANCE_RESULTS_VERIFY_PASS", output.getvalue())
         self.assertEqual(before, self.fixture.results.read_bytes())
         self.assertNotIn(R2.publication_key, json.loads(before)["release_publications"])
 
-    def test_r3_receipt_and_wrong_profile_are_rejected_before_install(self) -> None:
-        receipt = self.history._receipt(verified=False, release_profile=R3)
+    def test_revision_receipt_and_wrong_profile_are_rejected_before_install(self) -> None:
+        receipt = self.history._receipt(verified=False, release_profile=self.profile)
         before = self.fixture.results.read_bytes()
         with self.assertRaises(PublicationReceiptIOError):
             finalizer.assemble_maintenance_results(
@@ -418,13 +458,13 @@ class R3LocalGitTests(unittest.TestCase):
         self,
     ) -> None:
         source.verify_product_source(
-            self.fixture.root, self.fixture.results_commit, profile=R3
+            self.fixture.root, self.fixture.results_commit, profile=self.profile
         )
         (self.fixture.root / "artifact/revision.txt").write_text("reviewed tooling\n")
         self.fixture._git("add", "artifact/revision.txt")
         self.fixture._git("commit", "-qm", "update revision tooling")
         tooling = self.fixture._commit()
-        source.verify_product_source(self.fixture.root, tooling, profile=R3)
+        source.verify_product_source(self.fixture.root, tooling, profile=self.profile)
         for path in (
             "Cargo.toml",
             "Cargo.lock",
@@ -449,16 +489,16 @@ class R3LocalGitTests(unittest.TestCase):
                     maintenance.PlatformMaintenanceContractError, "frozen product"
                 ):
                     source.verify_product_source(
-                        self.fixture.root, self.fixture._commit(), profile=R3
+                        self.fixture.root, self.fixture._commit(), profile=self.profile
                     )
 
-    def test_r3_requires_exact_product_tree_and_real_ancestry(self) -> None:
+    def test_revision_requires_exact_product_tree_and_real_ancestry(self) -> None:
         with mock.patch.object(maintenance, "REVIEWED_R3_PRODUCT_TREE", "0" * 40):
             with self.assertRaisesRegex(
                 maintenance.PlatformMaintenanceContractError, "tree differs"
             ):
                 source.verify_product_source(
-                    self.fixture.root, self.fixture.results_commit, profile=R3
+                    self.fixture.root, self.fixture.results_commit, profile=self.profile
                 )
         with mock.patch.object(
             maintenance, "REVIEWED_R3_PRODUCT_COMMIT", source.BASE_COHORT_COMMIT
@@ -467,11 +507,11 @@ class R3LocalGitTests(unittest.TestCase):
                 maintenance.PlatformMaintenanceContractError, "frozen product"
             ):
                 source.verify_product_source(
-                    self.fixture.root, self.fixture.results_commit, profile=R3
+                    self.fixture.root, self.fixture.results_commit, profile=self.profile
                 )
 
-    def test_installed_r3_leaf_cannot_be_replaced_by_r2_or_another_source(self) -> None:
-        self.history._install(verified=False, release_profile=R3)
+    def test_installed_revision_leaf_cannot_be_replaced_by_r2_or_another_source(self) -> None:
+        self.history._install(verified=False, release_profile=self.profile)
         current = json.loads(self.fixture.results.read_bytes())
         with self.assertRaises(release.ReleasePublicationContractError):
             release.maintenance_source_identity(current, profile=R2)
@@ -480,39 +520,40 @@ class R3LocalGitTests(unittest.TestCase):
         with self.assertRaisesRegex(
             release.ReleasePublicationContractError, "provenance"
         ):
-            release.maintenance_source_identity(changed, profile=R3)
+            release.maintenance_source_identity(changed, profile=self.profile)
 
-    def test_candidate_currentness_runs_the_r3_product_guard(self) -> None:
+    def test_candidate_currentness_runs_the_reviewed_product_guard(self) -> None:
         manifest = json.loads(self.fixture.results.read_bytes())
         with (
             mock.patch.object(candidate, "_results_manifest", return_value=manifest),
             mock.patch.object(candidate, "REPOSITORY_ROOT", self.fixture.root),
         ):
-            candidate.validate_tag_source_currentness(self.product_commit, profile=R3)
+            candidate.validate_tag_source_currentness(self.product_commit, profile=self.profile)
             with mock.patch.object(maintenance, "REVIEWED_R3_PRODUCT_TREE", "0" * 40):
                 with self.assertRaises(candidate.CandidateAttestationError):
                     candidate.validate_tag_source_currentness(
-                        self.product_commit, profile=R3
+                        self.product_commit, profile=self.profile
                     )
 
 
 class R3BundleTests(unittest.TestCase):
+    profile = R3
     def setUp(self) -> None:
         self.fixture = bundle_fixture.AndroidMaintenanceBundleTests()
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
 
-    def test_r3_export_revalidates_both_agp_consumers_without_original_inputs(
+    def test_revision_export_revalidates_both_agp_consumers_without_original_inputs(
         self,
     ) -> None:
         f = self.fixture
-        f.manifest["profile"] = R3.value
-        archive = f._archive("r3-download")
+        f.manifest["profile"] = self.profile.value
+        archive = f._archive(f"{self.profile.revision}-download")
         f._hide_private_inputs()
         with mock.patch.object(
             agp, "run_sdk_tool", side_effect=agp_fixture.sdk_runner
         ) as sdk:
-            verified = f._verify(archive, "verified-r3", release_profile=R3)
+            verified = f._verify(archive, f"verified-{self.profile.revision}", release_profile=self.profile)
         self.assertEqual(f.canonical, verified.runtime_bundle.read_bytes())
         self.assertEqual(f.manifest["agp_consumers"], verified.consumers)
         self.assertEqual(
@@ -525,38 +566,46 @@ class R3BundleTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 bundle.AndroidMaintenanceBundleError, "discriminant"
             ):
-                self.fixture._verify(archive, "wrong-r3", release_profile=R3)
+                self.fixture._verify(archive, f"wrong-{self.profile.revision}", release_profile=self.profile)
             sdk.assert_not_called()
 
 
 class R3TransactionTests(unittest.TestCase):
+    profile = R3
     def setUp(self) -> None:
         stable_fixture.StableGitHubPublicationTests.setUp(self)
         self.addCleanup(self.temporary.cleanup)
-        self.plan = fixtures.maintenance_plan(release_profile=R3)
+        self.plan = fixtures.maintenance_plan(release_profile=self.profile)
         self.account_root = self.root
-        self.root = self.account_root.with_name("github-platform-v0.1.5-r3")
+        self.root = self.account_root.with_name(
+            f"github-platform-v0.1.5-{self.profile.revision}"
+        )
         self.account_root.rename(self.root)
         self.account_root.mkdir(mode=0o700)
         lock = self.account_root / publication.LOCK_LEAF
         lock.write_bytes(b"")
         lock.chmod(0o600)
-        self.r2_root = self.root.with_name("github-platform-v0.1.5-r2")
-        self.r2_root.mkdir(mode=0o700)
-        for name, data in (
-            (publication.LOCK_LEAF, b""),
-            ("retained-claim", b"consumed r2 claim\n"),
-        ):
-            path = self.r2_root / name
-            path.write_bytes(data)
-            path.chmod(0o600)
+        self.retained_roots = {}
+        for profile in maintenance.MAINTENANCE_PROFILES:
+            if profile is self.profile:
+                continue
+            retained = self.root.with_name(f"github-platform-v0.1.5-{profile.revision}")
+            retained.mkdir(mode=0o700)
+            self.retained_roots[profile] = retained
+            for name, data in (
+                (publication.LOCK_LEAF, b""),
+                ("retained-claim", f"consumed {profile.revision} claim\n".encode()),
+            ):
+                path = retained / name
+                path.write_bytes(data)
+                path.chmod(0o600)
 
     @contextlib.contextmanager
     def _patches(self):
         roots = {
             distribution.PlatformReleaseProfile.STABLE: self.account_root,
-            R2: self.r2_root,
-            R3: self.root,
+            **self.retained_roots,
+            self.profile: self.root,
         }
         with (
             mock.patch.object(
@@ -576,7 +625,7 @@ class R3TransactionTests(unittest.TestCase):
 
     def _publish(self, remote):
         return publication.publish_plan(
-            profile=R3,
+            profile=self.profile,
             execute_real_github_mutation=True,
             expected_plan_sha256=self.plan.sha256(),
             expected_results_sha256=self.plan.results_sha256,
@@ -587,9 +636,9 @@ class R3TransactionTests(unittest.TestCase):
             mutator=remote.mutate,
         )
 
-    def test_nine_exact_writes_and_idempotence_leave_r2_claim_untouched(self) -> None:
-        claim = self.r2_root / "retained-claim"
-        before = claim.stat().st_ino, claim.read_bytes()
+    def test_nine_exact_writes_and_idempotence_leave_other_claims_untouched(self) -> None:
+        claims = [root / "retained-claim" for root in self.retained_roots.values()]
+        before = {path: (path.stat().st_ino, path.read_bytes()) for path in claims}
         remote = fixtures.MaintenanceRemote(
             self.plan, self.root / publication.JOURNAL_DIRECTORY
         )
@@ -597,7 +646,9 @@ class R3TransactionTests(unittest.TestCase):
             self.assertTrue(self._publish(remote).complete)
             self.assertTrue(self._publish(remote).complete)
         self.assertEqual(list(fixtures.EXPECTED_ACTIONS), remote.mutations)
-        self.assertEqual(before, (claim.stat().st_ino, claim.read_bytes()))
+        self.assertEqual(
+            before, {path: (path.stat().st_ino, path.read_bytes()) for path in claims}
+        )
 
     def test_unknown_effect_is_observed_read_only_then_resumed_without_resend(
         self,
@@ -620,12 +671,11 @@ class R3TransactionTests(unittest.TestCase):
         self.assertEqual(intent, (journal / "000000-intent.json").read_bytes())
         self.assertEqual(list(fixtures.EXPECTED_ACTIONS), remote.mutations)
 
-    def test_original_r2_r3_publication_lanes_share_the_same_account_lock(self) -> None:
+    def test_all_revision_publication_lanes_share_the_same_account_lock(self) -> None:
         with self._patches():
+            peers = (*self.retained_roots.values(), self.account_root)
             for held, blocked in (
-                (self.r2_root, self.root),
-                (self.root, self.r2_root),
-                (self.account_root, self.root),
+                pair for peer in peers for pair in ((peer, self.root), (self.root, peer))
             ):
                 with publication.publication_lock(held, allow_create=False):
                     with self.assertRaises(publication.StableGitHubPublicationLockHeld):
@@ -633,6 +683,91 @@ class R3TransactionTests(unittest.TestCase):
                             self.fail(
                                 "independent revisions acquired concurrent account authority"
                             )
+
+
+
+class R4ContractTests(R3ContractTests):
+    profile = R4
+
+    def test_r4_text_preserves_r3_as_retained_candidate_history(self) -> None:
+        plan = fixtures.maintenance_plan(release_profile=R4)
+        receipt = fixtures.revision_receipt(release_profile=R4)
+        retained = "the r3 producer tag, plan and retained candidate artifacts are preserved."
+        self.assertIn(retained, plan.platform.body)
+        self.assertIn(retained, receipt["publication"]["boundary"])
+        self.assertNotIn("r2 and r3 releases", plan.platform.body)
+
+    def test_r4_explicitly_reuses_c3_without_an_unknown_profile_fallback(self) -> None:
+        self.assertEqual(maintenance.product_contract(R3), maintenance.product_contract(R4))
+        for invalid in (None, "maintenance-r4", object()):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(maintenance.PlatformMaintenanceContractError):
+                    maintenance.product_contract(invalid)
+        # Enrolling an enum member alone cannot assign it an implicit product.
+        with (
+            mock.patch.object(
+                maintenance,
+                "MAINTENANCE_PROFILES",
+                (*maintenance.MAINTENANCE_PROFILES, distribution.PlatformReleaseProfile.STABLE),
+            ),
+            self.assertRaisesRegex(
+                maintenance.PlatformMaintenanceContractError,
+                "lacks a reviewed product boundary",
+            ),
+        ):
+            maintenance.product_contract(distribution.PlatformReleaseProfile.STABLE)
+
+    def test_frozen_original_and_r3_fixture_bytes_are_unchanged(self) -> None:
+        values = {
+            "stable": {
+                "plan": stable_fixture.fixture_plan().document(),
+                "pending": stable_receipt_fixture.pending_receipt(),
+                "verified": stable_receipt_fixture.verified_receipt(),
+            },
+            "r3": {
+                "plan": fixtures.maintenance_plan(release_profile=R3).document(),
+                "pending": fixtures.revision_receipt(release_profile=R3),
+                "verified": fixtures.revision_receipt(verified=True, release_profile=R3),
+            },
+        }
+        # Captured at the exact parent before introducing any r4 contract entry.
+        self.assertEqual(
+            {
+                "stable": {
+                    "plan": "b66064b352c510203ae53a6624a76dedccc517769b8c400a9bf17aa63feedf01",
+                    "pending": "a17cc1e9ba432f17516c91c62c5fc4e3b69871d14c59d1b9cf4b3286e8bdbe68",
+                    "verified": "d787371fbe871c4b6cd34a0c319b8fb213e154346b67e62253efea42c408bf35",
+                },
+                "r3": {
+                    "plan": "2a6ac33b66336daa9191b41a1b09b1cecaade0a595eba9d2d98b5a3212a5011f",
+                    "pending": "aeb9875dd116611b590c5100c63b8c0e9dab94e2434adf5b1e6df4ca916295ae",
+                    "verified": "797d6ff97a92ff3ab6218b9515971a34fc771c5974d0e4e80ea67f1b452b5b1c",
+                },
+            },
+            {
+                profile: {
+                    name: hashlib.sha256(canonical_json_bytes(value)).hexdigest()
+                    for name, value in records.items()
+                }
+                for profile, records in values.items()
+            },
+        )
+
+
+class R4RetainedCandidateTests(R3RetainedCandidateTests):
+    profile = R4
+
+
+class R4LocalGitTests(R3LocalGitTests):
+    profile = R4
+
+
+class R4BundleTests(R3BundleTests):
+    profile = R4
+
+
+class R4TransactionTests(R3TransactionTests):
+    profile = R4
 
 
 if __name__ == "__main__":

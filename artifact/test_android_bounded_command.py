@@ -7,6 +7,7 @@ import io
 import json
 import os
 import pathlib
+import select
 import shlex
 import signal
 import socket
@@ -2459,12 +2460,16 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         close_lock.assert_called_once_with()
         argv = execve.call_args.args[1]
         child_environment = execve.call_args.args[2]
+        receipt = state.load_owned_runtime_receipt()
+        self.assertIsNotNone(receipt)
+        activation = receipt.adb_listener_activation
+        self.assertIsNotNone(activation)
         self.assertEqual(
             argv,
             [
                 str(self.snapshot),
                 "-L",
-                self.environment["ADB_SERVER_SOCKET"],
+                f"acceptfd:{activation.descriptor}",
                 "--one-device",
                 "SERIAL123",
                 "server",
@@ -2472,6 +2477,14 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ],
         )
         self.assertEqual(child_environment["HOME"], str(self.root))
+        self.assertEqual(
+            child_environment["ADB_SERVER_SOCKET"], self.environment["ADB_SERVER_SOCKET"]
+        )
+        self.assertIs(receipt.phase, state.RuntimePhase.ADB_LISTENER_READY)
+        self.assertEqual(activation.backlog, 128)
+        with self.assertRaises(OSError) as closed:
+            os.fstat(activation.descriptor)
+        self.assertEqual(closed.exception.errno, errno.EBADF)
         self.assertNotIn("LD_PRELOAD", child_environment)
 
     def test_server_exec_durably_advances_receipt_before_fd_close_and_exec(
@@ -2521,6 +2534,458 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             commands.exec_server(self.run_id)
         self.assertEqual(order, ["close-lane", "close-all", "exec"])
+
+    def test_activation_failures_close_fd_and_keep_durable_recovery_state(self) -> None:
+        payload = state._runtime_recovery_payload(self.load_capability())
+        real_complete = state.complete_adb_listener_activation
+        for boundary in ("bind", "listen", "ready-before", "ready-after", "exec"):
+            with self.subTest(boundary=boundary):
+                state._write_owned_runtime_receipt(payload)
+                failure = OSError(f"activation {boundary}")
+
+                def fail_after_ready(
+                    receipt: state.OwnedRuntimeReceipt,
+                ) -> state.OwnedRuntimeReceipt:
+                    real_complete(receipt)
+                    raise failure
+
+                with contextlib.ExitStack() as stack:
+                    stack.enter_context(
+                        mock.patch.dict(
+                            os.environ, {**self.environment, "ADB_USB": "1"}, clear=True
+                        )
+                    )
+                    stack.enter_context(mock.patch.object(state, "validate_lane_lock_descriptor"))
+                    stack.enter_context(mock.patch.object(state, "_arm_lane_lock_close_on_exec"))
+                    stack.enter_context(
+                        mock.patch.object(commands, "_close_nonstandard_descriptors")
+                    )
+                    execve = stack.enter_context(
+                        mock.patch.object(commands.os, "execve", side_effect=failure)
+                    )
+                    if boundary in {"bind", "listen"}:
+                        stack.enter_context(
+                            mock.patch.object(socket.socket, boundary, side_effect=failure)
+                        )
+                    elif boundary == "ready-before":
+                        stack.enter_context(
+                            mock.patch.object(
+                                state, "complete_adb_listener_activation", side_effect=failure
+                            )
+                        )
+                    elif boundary == "ready-after":
+                        stack.enter_context(
+                            mock.patch.object(
+                                state,
+                                "complete_adb_listener_activation",
+                                side_effect=fail_after_ready,
+                            )
+                        )
+                    with self.assertRaises(commands.AndroidCommandError) as observed:
+                        commands.exec_server(self.run_id)
+                self.assertIs(observed.exception.__cause__, failure)
+                receipt = state.load_owned_runtime_receipt()
+                self.assertIsNotNone(receipt)
+                activation = receipt.adb_listener_activation
+                self.assertIsNotNone(activation)
+                with self.assertRaises(OSError) as closed:
+                    os.fstat(activation.descriptor)
+                self.assertEqual(closed.exception.errno, errno.EBADF)
+                self.assertIs(
+                    receipt.phase,
+                    state.RuntimePhase.ADB_LISTENER_READY
+                    if boundary in {"ready-after", "exec"}
+                    else state.RuntimePhase.ADB_CHILD_REGISTERED,
+                )
+                self.assertEqual(execve.call_count, int(boundary == "exec"))
+                self.assertEqual(self.private_adb_socket.exists(), boundary != "bind")
+                if self.private_adb_socket.exists():
+                    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                        with self.assertRaises(ConnectionRefusedError):
+                            client.connect(str(self.private_adb_socket))
+                    self.private_adb_socket.unlink()
+                state.owned_runtime_receipt_path().unlink()
+
+    def test_activation_never_replaces_existing_endpoint(self) -> None:
+        self.private_adb_socket.write_bytes(b"preexisting endpoint")
+        state._write_owned_runtime_receipt(
+            state._runtime_recovery_payload(self.load_capability())
+        )
+        with (
+            mock.patch.dict(os.environ, {**self.environment, "ADB_USB": "1"}, clear=True),
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state, "_arm_lane_lock_close_on_exec"),
+            mock.patch.object(commands, "_close_nonstandard_descriptors"),
+            mock.patch.object(commands.os, "execve") as execve,
+            self.assertRaisesRegex(commands.AndroidCommandError, "already exists"),
+        ):
+            commands.exec_server(self.run_id)
+        execve.assert_not_called()
+        self.assertEqual(self.private_adb_socket.read_bytes(), b"preexisting endpoint")
+        self.assertIs(
+            state.load_owned_runtime_receipt().phase,
+            state.RuntimePhase.ADB_CHILD_REGISTERED,
+        )
+
+    def test_activation_post_ready_replacement_never_execs_or_removes_replacement(self) -> None:
+        real_complete = state.complete_adb_listener_activation
+        for replacement_kind in ("receipt", "socket", "directory"):
+            with self.subTest(replacement_kind=replacement_kind):
+                self.create_capability()
+                state._write_owned_runtime_receipt(
+                    state._runtime_recovery_payload(self.load_capability())
+                )
+                preserved_receipt = None
+                replacement_socket = None
+                replacement_inode = None
+                displaced = self.root / "displaced-private-directory"
+
+                def replace_after_ready(
+                    receipt: state.OwnedRuntimeReceipt,
+                ) -> state.OwnedRuntimeReceipt:
+                    nonlocal preserved_receipt, replacement_socket, replacement_inode
+                    ready = real_complete(receipt)
+                    if replacement_kind == "receipt":
+                        state.begin_adb_seal(ready, ready.adb_listener_descriptor)
+                        preserved_receipt = state.owned_runtime_receipt_path().read_bytes()
+                    elif replacement_kind == "socket":
+                        original_inode = self.private_adb_socket.stat().st_ino
+                        self.private_adb_socket.unlink()
+                        replacement_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                        replacement_socket.bind(str(self.private_adb_socket))
+                        self.private_adb_socket.chmod(0o600)
+                        replacement_socket.listen(1)
+                        replacement_inode = self.private_adb_socket.stat().st_ino
+                        self.assertNotEqual(replacement_inode, original_inode)
+                    else:
+                        self.private_adb_directory.rename(displaced)
+                        self.private_adb_directory.mkdir(mode=0o700)
+                        self.private_adb_socket.write_bytes(b"replacement owner data")
+                        replacement_inode = self.private_adb_directory.stat().st_ino
+                    return ready
+
+                try:
+                    with (
+                        mock.patch.dict(os.environ, {**self.environment, "ADB_USB": "1"}, clear=True),
+                        mock.patch.object(state, "validate_lane_lock_descriptor"),
+                        mock.patch.object(state, "_arm_lane_lock_close_on_exec"),
+                        mock.patch.object(commands, "_close_nonstandard_descriptors"),
+                        mock.patch.object(
+                            state,
+                            "complete_adb_listener_activation",
+                            side_effect=replace_after_ready,
+                        ),
+                        mock.patch.object(commands.os, "execve") as execve,
+                        self.assertRaisesRegex(
+                            commands.AndroidCommandError,
+                            "changed before exec|identity or mode changed",
+                        ),
+                    ):
+                        commands.exec_server(self.run_id)
+                    execve.assert_not_called()
+                    receipt = state.load_owned_runtime_receipt()
+                    with self.assertRaises(OSError) as closed:
+                        os.fstat(receipt.adb_listener_activation.descriptor)
+                    self.assertEqual(closed.exception.errno, errno.EBADF)
+                    if replacement_kind == "receipt":
+                        self.assertEqual(
+                            state.owned_runtime_receipt_path().read_bytes(), preserved_receipt
+                        )
+                        self.assertIs(receipt.phase, state.RuntimePhase.ADB_SEALING)
+                    elif replacement_kind == "socket":
+                        self.assertEqual(self.private_adb_socket.stat().st_ino, replacement_inode)
+                    else:
+                        self.assertEqual(
+                            self.private_adb_directory.stat().st_ino, replacement_inode
+                        )
+                        self.assertEqual(
+                            self.private_adb_socket.read_bytes(), b"replacement owner data"
+                        )
+                finally:
+                    if replacement_socket is not None:
+                        replacement_socket.close()
+                    self.private_adb_socket.unlink(missing_ok=True)
+                    state.owned_runtime_receipt_path().unlink(missing_ok=True)
+                    if displaced.exists():
+                        (displaced / "adb.sock").unlink()
+                        displaced.rmdir()
+
+    def test_linux_and_schema_five_server_exec_keep_direct_listener(self) -> None:
+        for profile, version in (("linux-account", 6), ("macos-account", 5)):
+            with (
+                self.subTest(profile=profile, version=version),
+                mock.patch.object(state, "ADB_PROFILE_PATHS", {profile: self.adb}),
+            ):
+                self.create_capability(adb_profile=profile)
+                payload = state._runtime_recovery_payload(self.load_capability())
+                if version == 5:
+                    payload["schema_version"] = 5
+                    del payload["adb_listener_activation"]
+                state._write_owned_runtime_receipt(payload)
+                with (
+                    mock.patch.dict(os.environ, {**self.environment, "ADB_USB": "1"}, clear=True),
+                    mock.patch.object(state, "validate_lane_lock_descriptor"),
+                    mock.patch.object(state, "_arm_lane_lock_close_on_exec"),
+                    mock.patch.object(commands, "_close_nonstandard_descriptors"),
+                    mock.patch.object(commands.socket, "socket") as create_socket,
+                    mock.patch.object(
+                        commands.os, "execve", side_effect=RuntimeError("exec boundary")
+                    ) as execve,
+                    self.assertRaisesRegex(RuntimeError, "exec boundary"),
+                ):
+                    commands.exec_server(self.run_id)
+                create_socket.assert_not_called()
+                self.assertEqual(
+                    execve.call_args.args[1][1:3], ["-L", self.environment["ADB_SERVER_SOCKET"]]
+                )
+                receipt = state.load_owned_runtime_receipt()
+                self.assertEqual(receipt.schema_version, version)
+                self.assertIsNone(receipt.adb_listener_activation)
+                state.owned_runtime_receipt_path().unlink()
+
+    def test_activated_listener_uses_existing_bound_darwin_parser(self) -> None:
+        receipt, process = self.start_physical_adb_server_receipt()
+        registration = state.AdbListenerActivation(7)
+        payload = state._runtime_receipt_payload(receipt)
+        payload["adb_listener_activation"] = {
+            "kind": "inherited_unix", "descriptor": 7, "backlog": 128
+        }
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            intended = state._replace_owned_runtime_receipt(receipt, payload)
+            ready = state.complete_adb_listener_activation(intended)
+        endpoint = self.load_capability().socket_path
+        raw = f"p{process.pid}\nu{process.uid}\nf6\nn{endpoint}\nf7\nn{endpoint}\n".encode()
+        with mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, raw)):
+            observed = commands._capture_recovery_adb_listener(self.load_capability(), ready)
+        self.assertEqual(observed.listener_descriptor, registration.descriptor)
+        self.assertEqual(tuple(item.descriptor for item in observed.descriptors), (6, 7))
+        with (
+            mock.patch.object(
+                commands,
+                "capture_stdout",
+                return_value=BoundedResult(0, raw.replace(b"f7\n", b"f8\n")),
+            ),
+            self.assertRaisesRegex(commands.AndroidCommandError, "bound listening descriptor"),
+        ):
+            commands._capture_recovery_adb_listener(self.load_capability(), ready)
+
+    def test_client_wait_rebinds_exact_concurrent_activation_ready_receipt(self) -> None:
+        receipt, process = self.start_physical_adb_server_receipt()
+        payload = state._runtime_receipt_payload(receipt)
+        payload["adb_listener_activation"] = {
+            "kind": "inherited_unix", "descriptor": 7, "backlog": 128
+        }
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            intended = state._replace_owned_runtime_receipt(receipt, payload)
+        capability = self.load_capability()
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+            listener.bind(capability.socket_path)
+            listener.listen(128)
+            raw = (
+                f"p{process.pid}\nu{process.uid}\nf6\nn{capability.socket_path}\n"
+                f"f7\nn{capability.socket_path}\n"
+            ).encode()
+            initial = commands.dataclasses.replace(
+                process, executable=intended.adb_server_initial_executable
+            )
+            native = commands.dataclasses.replace(process, executable=self.snapshot)
+            identities = iter((initial, native))
+            current = initial
+
+            def identity(_pid: int) -> commands.ProcessIdentity:
+                nonlocal current
+                current = next(identities, current)
+                return current
+
+            def finish_activation(_seconds: float) -> None:
+                state.complete_adb_listener_activation(intended)
+
+            with (
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(commands, "process_snapshot", side_effect=identity),
+                mock.patch.object(commands.time, "sleep", side_effect=finish_activation) as wait,
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, raw)),
+            ):
+                commands._validate_owned_adb_server_for_client(capability)
+            wait.assert_called_once()
+        sealed = state.load_owned_runtime_receipt()
+        self.assertIs(sealed.phase, state.RuntimePhase.ADB_SEALED)
+        self.assertEqual(sealed.adb_listener_descriptor, 7)
+        self.assertEqual(stat.S_IMODE(self.private_adb_directory.stat().st_mode), 0o500)
+        self.private_adb_directory.chmod(0o700)
+
+    def fork_server_exec(self, *, pause_at: str | None = None) -> tuple[int, int]:
+        """Run the real exec path with a private fixture lock and optional crash barrier."""
+        read_fd, write_fd = os.pipe()
+        pid = os.fork()
+        if pid:
+            os.close(write_fd)
+            return pid, read_fd
+        try:
+            os.close(read_fd)
+            os.dup2(write_fd, 1)
+            if write_fd != 1:
+                os.close(write_fd)
+            lane = os.open(os.devnull, os.O_RDONLY)
+            os.dup2(lane, state.LANE_LOCK_FD, inheritable=False)
+            if lane != state.LANE_LOCK_FD:
+                os.close(lane)
+
+            def barrier() -> None:
+                os.write(1, f"BARRIER {pause_at}\n".encode())
+                while True:
+                    signal.pause()
+
+            real_complete = state.complete_adb_listener_activation
+
+            def complete(
+                receipt: state.OwnedRuntimeReceipt,
+            ) -> state.OwnedRuntimeReceipt:
+                if pause_at == "listening":
+                    barrier()
+                ready = real_complete(receipt)
+                if pause_at == "ready":
+                    barrier()
+                return ready
+
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(
+                    mock.patch.dict(
+                        os.environ, {**self.environment, "ADB_USB": "1"}, clear=True
+                    )
+                )
+                stack.enter_context(mock.patch.object(state, "validate_lane_lock_descriptor"))
+                stack.enter_context(mock.patch.object(state, "_arm_lane_lock_close_on_exec"))
+                if pause_at in {"intent", "bound"}:
+                    operation = "bind" if pause_at == "intent" else "listen"
+                    stack.enter_context(
+                        mock.patch.object(
+                            socket.socket, operation, side_effect=lambda *_args: barrier()
+                        )
+                    )
+                elif pause_at is not None:
+                    stack.enter_context(
+                        mock.patch.object(
+                            state, "complete_adb_listener_activation", side_effect=complete
+                        )
+                    )
+                commands.exec_server(self.run_id)
+        except BaseException as error:
+            os.write(1, f"CHILD_ERROR {type(error).__name__}: {error}\n".encode())
+        os._exit(1)
+
+    def test_sigkill_activation_windows_recover_offline_and_idempotently(self) -> None:
+        for boundary in ("intent", "bound", "listening", "ready"):
+            with self.subTest(boundary=boundary):
+                self.create_capability()
+                state._write_owned_runtime_receipt(
+                    state._runtime_recovery_payload(self.load_capability())
+                )
+                pid, read_fd = self.fork_server_exec(pause_at=boundary)
+                reaped = False
+                try:
+                    readable, _, _ = select.select([read_fd], [], [], 10)
+                    self.assertEqual(readable, [read_fd])
+                    self.assertEqual(os.read(read_fd, 4096), f"BARRIER {boundary}\n".encode())
+                    receipt = state.load_owned_runtime_receipt()
+                    self.assertEqual(receipt.adb_server_pid, pid)
+                    self.assertIs(
+                        receipt.phase,
+                        state.RuntimePhase.ADB_LISTENER_READY
+                        if boundary == "ready"
+                        else state.RuntimePhase.ADB_CHILD_REGISTERED,
+                    )
+                    self.assertEqual(self.private_adb_socket.exists(), boundary != "intent")
+                    os.kill(pid, signal.SIGKILL)
+                    waited, status = os.waitpid(pid, 0)
+                    reaped = True
+                    self.assertEqual(waited, pid)
+                    self.assertEqual(os.waitstatus_to_exitcode(status), -signal.SIGKILL)
+                    self.assertTrue(state.owned_runtime_receipt_path().is_file())
+                    with (
+                        mock.patch.object(state, "validate_lane_lock_descriptor"),
+                        mock.patch.object(
+                            commands,
+                            "run",
+                            side_effect=AssertionError("ADB command during offline recovery"),
+                        ) as run,
+                        mock.patch.object(
+                            commands,
+                            "probe_adb_loopback_absence",
+                            side_effect=AssertionError("shared endpoint probe"),
+                        ) as probe,
+                    ):
+                        self.assertEqual(commands.recover_owned_runtime(), "stale-retired")
+                        self.assertEqual(commands.recover_owned_runtime(), "none")
+                    run.assert_not_called()
+                    probe.assert_not_called()
+                    self.assertFalse(state.owned_runtime_receipt_path().exists())
+                    self.assertFalse(self.private_adb_directory.exists())
+                    self.assertFalse(self.layout.capability.exists())
+                    self.assertFalse(self.snapshot.exists())
+                finally:
+                    os.close(read_fd)
+                    if not reaped:
+                        os.kill(pid, signal.SIGKILL)
+                        os.waitpid(pid, 0)
+
+    def test_private_listener_survives_real_exec_and_all_references_close_on_exit(self) -> None:
+        self.adb.write_text(
+            f"#!{sys.executable}\n"
+            "import errno, fcntl, os, socket, sys\n"
+            "assert sys.argv[1] == '-L' and sys.argv[2].startswith('acceptfd:')\n"
+            "fd = int(sys.argv[2].split(':')[1])\n"
+            "assert not (fcntl.fcntl(fd, fcntl.F_GETFD) & fcntl.FD_CLOEXEC)\n"
+            "try:\n"
+            " os.fstat(9)\n"
+            "except OSError as error:\n"
+            " assert error.errno == errno.EBADF\n"
+            "else:\n"
+            " raise AssertionError('lane lock crossed exec')\n"
+            "with socket.socket(fileno=fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 0)) as listener:\n"
+            " listener.settimeout(5)\n"
+            " print('INHERITED_READY', flush=True)\n"
+            " connection, _ = listener.accept()\n"
+            " with connection:\n"
+            "  assert connection.recv(5) == b'probe'\n"
+            "  connection.sendall(b'OK')\n",
+            encoding="utf-8",
+        )
+        self.create_capability()
+        state._write_owned_runtime_receipt(
+            state._runtime_recovery_payload(self.load_capability())
+        )
+        pid, read_fd = self.fork_server_exec()
+        reaped = False
+        try:
+            readable, _, _ = select.select([read_fd], [], [], 10)
+            self.assertEqual(readable, [read_fd], "child never reached inherited listener")
+            self.assertEqual(os.read(read_fd, 4096), b"INHERITED_READY\n")
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                client.settimeout(5)
+                client.connect(str(self.private_adb_socket))
+                client.sendall(b"probe")
+                self.assertEqual(client.recv(2), b"OK")
+            readable, _, _ = select.select([read_fd], [], [], 10)
+            self.assertEqual(readable, [read_fd])
+            self.assertEqual(os.read(read_fd, 4096), b"")
+            waited, status = os.waitpid(pid, 0)
+            reaped = True
+            self.assertEqual(waited, pid)
+            self.assertEqual(os.waitstatus_to_exitcode(status), 0)
+            receipt = state.load_owned_runtime_receipt()
+            self.assertEqual(receipt.adb_server_pid, pid)
+            self.assertIs(receipt.phase, state.RuntimePhase.ADB_LISTENER_READY)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                with self.assertRaises(ConnectionRefusedError):
+                    client.connect(str(self.private_adb_socket))
+            commands.finalize_owned_adb_stop(self.load_capability(), receipt)
+            self.assertFalse(self.private_adb_directory.exists())
+        finally:
+            os.close(read_fd)
+            if not reaped:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
 
     def test_startup_handshake_waits_for_exact_concurrent_receipt_advance(self) -> None:
         capability = self.load_capability()
@@ -4104,7 +4569,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     "-adb-path",
                     str(self.snapshot),
                     "-gpu",
-                    "swiftshader_indirect",
+                    "swiftshader",
                 ],
             )
             self.assertEqual(environment["HOME"], str(self.root))
@@ -5171,7 +5636,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 side_effect=commands.ProcessIdentityError("missing"),
             ),
             mock.patch.object(commands.os, "kill", side_effect=ProcessLookupError),
-            mock.patch.object(commands, "_finish_recovery_resources") as finish,
+            mock.patch.object(
+                commands, "_finish_recovery_resources", return_value=receipt
+            ) as finish,
         ):
             self.assertEqual(commands.recover_owned_runtime(), "stale-retired")
         finish.assert_called_once_with(self.layout, mock.ANY, receipt)
@@ -5195,7 +5662,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 return_value=(receipt.launcher_path, receipt.backend_path),
             ),
             mock.patch.object(commands, "process_snapshot", return_value=reused),
-            mock.patch.object(commands, "_finish_recovery_resources") as finish,
+            mock.patch.object(
+                commands, "_finish_recovery_resources", return_value=receipt
+            ) as finish,
         ):
             self.assertEqual(commands.recover_owned_runtime(), "stale-retired")
         finish.assert_called_once_with(self.layout, mock.ANY, receipt)
@@ -6185,6 +6654,14 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
             order.append("scratch")
 
+        def finish_resources(
+            _layout: state.AndroidRunLayout,
+            _capability: state.AndroidAdbCapability,
+            exact: state.OwnedRuntimeReceipt,
+        ) -> state.OwnedRuntimeReceipt:
+            order.append("resources")
+            return exact
+
         with (
             mock.patch.object(state, "validate_lane_lock_descriptor"),
             mock.patch.object(
@@ -6230,9 +6707,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(
                 commands,
                 "_finish_recovery_resources",
-                side_effect=lambda _layout, _capability, _receipt: order.append(
-                    "resources"
-                ),
+                side_effect=finish_resources,
             ),
             mock.patch.object(
                 state,

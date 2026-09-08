@@ -32,6 +32,7 @@ REVIEWED_R3_PRODUCT_TREE = "719de4a213f26b00034c62ba9014d5102e5586f4"
 MAINTENANCE_PROFILES = (
     PlatformReleaseProfile.MAINTENANCE_R2,
     PlatformReleaseProfile.MAINTENANCE_R3,
+    PlatformReleaseProfile.MAINTENANCE_R4,
 )
 # Exact observed r1 assets. Q independently pins the corresponding four digests.
 BASE_APPLE_ASSETS = (
@@ -86,9 +87,12 @@ class MaintenanceProductContract:
 
 
 def product_contract(profile: PlatformReleaseProfile) -> MaintenanceProductContract:
-    """Select only an explicitly reviewed product boundary; r2 remains unchanged."""
+    """Select an explicit product boundary; r4 retains r3's reviewed product."""
 
-    _require(profile in MAINTENANCE_PROFILES, "maintenance profile is invalid")
+    _require(
+        type(profile) is PlatformReleaseProfile and profile in MAINTENANCE_PROFILES,
+        "maintenance profile is invalid",
+    )
     if profile is PlatformReleaseProfile.MAINTENANCE_R2:
         return MaintenanceProductContract(
             SCHEMA_VERSION,
@@ -104,19 +108,26 @@ def product_contract(profile: PlatformReleaseProfile) -> MaintenanceProductContr
                 "bindings/android/src",
             ),
         )
-    return MaintenanceProductContract(
-        2,
-        REVIEWED_R3_PRODUCT_COMMIT,
-        REVIEWED_R3_PRODUCT_TREE,
-        (
-            "Cargo.toml",
-            "Cargo.lock",
-            "rust-toolchain.toml",
-            ".cargo",
-            "crates",
-            "bindings",
-        ),
-    )
+    if profile in {
+        PlatformReleaseProfile.MAINTENANCE_R3,
+        PlatformReleaseProfile.MAINTENANCE_R4,
+    }:
+        # Runtime and publication tooling may advance while this complete product
+        # boundary remains at C3. A future profile must make its own decision.
+        return MaintenanceProductContract(
+            2,
+            REVIEWED_R3_PRODUCT_COMMIT,
+            REVIEWED_R3_PRODUCT_TREE,
+            (
+                "Cargo.toml",
+                "Cargo.lock",
+                "rust-toolchain.toml",
+                ".cargo",
+                "crates",
+                "bindings",
+            ),
+        )
+    _fail("maintenance profile lacks a reviewed product boundary")
 
 
 def selected_profile(publications: dict[str, object]) -> PlatformReleaseProfile | None:
