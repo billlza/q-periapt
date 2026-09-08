@@ -245,8 +245,12 @@ def _require(condition: bool, message: str) -> None:
         _fail(message)
 
 
-def _close_nonstandard_descriptors(*, preserve_lane_lock: bool = False) -> None:
-    """Close every inherited descriptor other than stdin/stdout/stderr."""
+def _close_nonstandard_descriptors(
+    *,
+    preserve_lane_lock: bool = False,
+    listener_activation: runtime_state.AdbListenerActivation | None = None,
+) -> None:
+    """Close inherited descriptors except the admitted exec resources."""
     try:
         soft_limit, _hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
     except (OSError, ValueError) as exc:
@@ -264,12 +268,24 @@ def _close_nonstandard_descriptors(*, preserve_lane_lock: bool = False) -> None:
             not os.get_inheritable(runtime_state.LANE_LOCK_FD),
             "preserved Android lane lock is not close-on-exec",
         )
+    preserved = [runtime_state.LANE_LOCK_FD] if preserve_lane_lock else []
+    if listener_activation is not None:
+        descriptor = listener_activation.descriptor
+        _require(
+            type(descriptor) is int
+            and 3 <= descriptor < soft_limit
+            and descriptor != runtime_state.LANE_LOCK_FD
+            and stat.S_ISSOCK(os.fstat(descriptor).st_mode)
+            and not os.get_inheritable(descriptor),
+            "private adb listener is not one reserved close-on-exec socket",
+        )
+        preserved.append(descriptor)
     try:
-        if preserve_lane_lock:
-            os.closerange(3, runtime_state.LANE_LOCK_FD)
-            os.closerange(runtime_state.LANE_LOCK_FD + 1, soft_limit)
-        else:
-            os.closerange(3, soft_limit)
+        lower = 3
+        for descriptor in sorted(preserved):
+            os.closerange(lower, descriptor)
+            lower = descriptor + 1
+        os.closerange(lower, soft_limit)
     except OSError as exc:
         raise AndroidCommandError(
             f"cannot close inherited descriptors before long-lived exec: {exc}"
@@ -1132,7 +1148,7 @@ def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
         "-adb-path",
         str(capability.adb_snapshot_path),
         "-gpu",
-        "swiftshader_indirect",
+        "swiftshader",
     ]
     runtime_state.record_pre_exec_adb_isolation_checkpoint(layout.run_id)
     try:
@@ -1319,11 +1335,26 @@ def _wait_for_recovery_adb_server(
         _validate_receipt_adb_server_executable(receipt, capability, observed)
         socket_present = os.path.lexists(socket_path)
         if observed.executable == capability.adb_snapshot_path and socket_present:
+            receipt = runtime_state.refresh_adb_listener_activation(receipt)
+            _require(
+                receipt.adb_listener_activation is None
+                or receipt.phase is not runtime_state.RuntimePhase.ADB_CHILD_REGISTERED,
+                "owned adb exec lacks its completed listener activation",
+            )
             return observed
         _require(
-            not socket_present,
+            not socket_present or receipt.adb_listener_activation is not None,
             "owned adb socket appeared before the receipt-bound adb exec",
         )
+        if socket_present:
+            _socket_directory_metadata(
+                capability, receipt, allowed_modes=frozenset({0o700, 0o500})
+            )
+            metadata = socket_path.lstat()
+            _require(
+                stat.S_ISSOCK(metadata.st_mode) and metadata.st_uid == receipt.uid,
+                "private adb activation endpoint changed type or owner",
+            )
         remaining = effective_deadline - time.monotonic()
         _require(
             remaining > 0,
@@ -1436,6 +1467,7 @@ def _reconcile_live_adb_seal(
 ) -> runtime_state.OwnedRuntimeReceipt:
     """Make phase and directory mode durably safe before any adb client."""
 
+    receipt = runtime_state.refresh_adb_listener_activation(receipt)
     _validate_receipt_adb_server_executable(receipt, capability, observed)
     _require(
         observed.executable == capability.adb_snapshot_path,
@@ -1452,7 +1484,10 @@ def _reconcile_live_adb_seal(
     )
     directory = pathlib.Path(capability.socket_path).parent
     phase = receipt.phase
-    if phase is runtime_state.RuntimePhase.ADB_CHILD_REGISTERED:
+    if phase in {
+        runtime_state.RuntimePhase.ADB_CHILD_REGISTERED,
+        runtime_state.RuntimePhase.ADB_LISTENER_READY,
+    }:
         _socket_directory_metadata(
             capability, receipt, allowed_modes=frozenset({0o700})
         )
@@ -1506,7 +1541,11 @@ def seal_private_adb_directory(run_id: str) -> None:
     _require(
         receipt is not None
         and receipt.run_id == capability.run_id
-        and receipt.phase is runtime_state.RuntimePhase.ADB_CHILD_REGISTERED,
+        and receipt.phase
+        in {
+            runtime_state.RuntimePhase.ADB_CHILD_REGISTERED,
+            runtime_state.RuntimePhase.ADB_LISTENER_READY,
+        },
         "private adb directory is not awaiting this run's seal",
     )
     observed = _wait_for_recovery_adb_server(receipt, capability)
@@ -1514,6 +1553,7 @@ def seal_private_adb_directory(run_id: str) -> None:
         observed is not None and observed.executable == capability.adb_snapshot_path,
         "cannot seal a private adb directory without its exact live server",
     )
+    receipt = runtime_state.refresh_adb_listener_activation(receipt)
     _require(
         _capture_recovery_adb_listener(capability, receipt),
         "cannot seal a private adb directory without its exact listener",
@@ -2220,19 +2260,20 @@ def request_owned_adb_stop(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidAdbCapability,
     receipt: runtime_state.OwnedRuntimeReceipt,
-) -> bool:
+) -> tuple[bool, runtime_state.OwnedRuntimeReceipt]:
     socket_path = pathlib.Path(capability.socket_path)
     observed = (
         _wait_for_recovery_adb_server(receipt, capability)
         if receipt.adb_server_started
         else None
     )
+    receipt = runtime_state.refresh_adb_listener_activation(receipt)
     if not os.path.lexists(socket_path):
         _require(
             observed is None,
             "owned adb server is live but its private socket is not ready",
         )
-        return False
+        return False, receipt
     try:
         socket_metadata = socket_path.lstat()
     except OSError as exc:
@@ -2257,7 +2298,7 @@ def request_owned_adb_stop(
         )
         pathlib.Path(capability.socket_path).parent.chmod(448)
         socket_path.unlink()
-        return False
+        return False, receipt
     listener_present = _capture_recovery_adb_listener(capability, receipt)
     _require(
         receipt.adb_server_started and listener_present,
@@ -2271,7 +2312,7 @@ def request_owned_adb_stop(
         environment=_client_environment(capability),
     )
     _require(result.returncode == 0, "private adb server rejected protocol shutdown")
-    return True
+    return True, receipt
 
 
 def finalize_owned_adb_stop(
@@ -2314,8 +2355,9 @@ def request_normal_owned_adb_stop(run_id: str) -> None:
         receipt.run_id == layout.run_id, "owned runtime receipt belongs to another run"
     )
     capability = _load_recovery_adb_capability(layout, receipt)
+    requested, _receipt = request_owned_adb_stop(layout, capability, receipt)
     _require(
-        request_owned_adb_stop(layout, capability, receipt),
+        requested,
         "owned adb server exited before its normal protocol shutdown",
     )
 
@@ -2336,13 +2378,14 @@ def _finish_recovery_resources(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidAdbCapability,
     receipt: runtime_state.OwnedRuntimeReceipt,
-) -> None:
+) -> runtime_state.OwnedRuntimeReceipt:
     """Stop and remove the exact prior run's private adb recovery resources."""
-    requested = request_owned_adb_stop(layout, capability, receipt)
+    requested, receipt = request_owned_adb_stop(layout, capability, receipt)
     if requested:
         _wait_for_recovered_adb_server_exit(receipt)
     finalize_owned_adb_stop(capability, receipt)
     runtime_state.retire_recovery_capability(layout, receipt)
+    return receipt
 
 
 def _finish_previous_boot_resources(receipt: runtime_state.OwnedRuntimeReceipt) -> None:
@@ -2486,7 +2529,7 @@ def _current_boot_origin_is_missing(receipt: runtime_state.OwnedRuntimeReceipt) 
 
 def _finish_missing_origin_current_boot(
     receipt: runtime_state.OwnedRuntimeReceipt,
-) -> None:
+) -> runtime_state.OwnedRuntimeReceipt:
     """Narrowly retire account/socket state without protocol or PID signalling."""
     if receipt.emulator_started:
         _require(
@@ -2513,11 +2556,13 @@ def _finish_missing_origin_current_boot(
         signed_apk=run_root / "proof" / runtime_state.SIGNED_APK_LEAF,
     )
     capability = _recovery_adb_capability(layout, receipt)
+    requested, receipt = request_owned_adb_stop(layout, capability, receipt)
     _require(
-        not request_owned_adb_stop(layout, capability, receipt),
+        not requested,
         "missing-origin cleanup unexpectedly requested an adb protocol stop",
     )
     finalize_owned_adb_stop(capability, receipt)
+    return receipt
 
 
 def _retire_quiescent_owned_runtime(
@@ -2557,25 +2602,25 @@ def recover_owned_runtime() -> Literal["none", "stale-retired", "recovered"]:
         _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     if _current_boot_origin_is_missing(receipt):
-        _finish_missing_origin_current_boot(receipt)
+        receipt = _finish_missing_origin_current_boot(receipt)
         _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     context = _validate_recovery_receipt(receipt, validate_active_emulator=False)
     layout = context.layout
     capability = context.capability
     if not receipt.emulator_started:
-        _finish_recovery_resources(layout, capability, receipt)
+        receipt = _finish_recovery_resources(layout, capability, receipt)
         _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     observed = _same_receipt_process(receipt)
     if observed is None:
-        _finish_recovery_resources(layout, capability, receipt)
+        receipt = _finish_recovery_resources(layout, capability, receipt)
         _retire_quiescent_owned_runtime(receipt)
         return "stale-retired"
     active_context = _validate_recovery_receipt(receipt, validate_active_emulator=True)
     _request_verified_owned_emulator_stop(active_context, receipt)
     _wait_for_recovered_emulator_exit(receipt)
-    _finish_recovery_resources(layout, capability, receipt)
+    receipt = _finish_recovery_resources(layout, capability, receipt)
     _retire_quiescent_owned_runtime(receipt)
     return "recovered"
 
@@ -2858,6 +2903,57 @@ def record_owned_emulator_routing(run_id: str) -> pathlib.Path:
     )
 
 
+def _activate_private_adb_listener(
+    listener: socket.socket,
+    capability: runtime_state.AndroidAdbCapability,
+    receipt: runtime_state.OwnedRuntimeReceipt,
+) -> runtime_state.OwnedRuntimeReceipt:
+    """Bind one receipt-owned socket without replacing any existing endpoint."""
+
+    activation = receipt.adb_listener_activation
+    _require(
+        activation is not None
+        and activation.descriptor == listener.fileno()
+        and receipt.phase is runtime_state.RuntimePhase.ADB_CHILD_REGISTERED,
+        "private adb listener lacks its registered activation intent",
+    )
+    _socket_directory_metadata(capability, receipt, allowed_modes=frozenset({0o700}))
+    _require(
+        not os.path.lexists(capability.socket_path),
+        "private adb listener endpoint already exists",
+    )
+    listener.bind(capability.socket_path)
+    os.chmod(capability.socket_path, 0o600, follow_symlinks=False)
+    bound_metadata = pathlib.Path(capability.socket_path).lstat()
+    listener.listen(activation.backlog)
+    _require(
+        listener.getsockname() == capability.socket_path
+        and listener.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) == socket.SOCK_STREAM,
+        "private adb listener did not enter its selected listening state",
+    )
+    _socket_directory_metadata(capability, receipt, allowed_modes=frozenset({0o700}))
+    ready = runtime_state.complete_adb_listener_activation(receipt)
+    current = runtime_state.load_owned_runtime_receipt()
+    _require(
+        current is not None and current.snapshot_sha256 == ready.snapshot_sha256,
+        "private adb activation receipt changed before exec",
+    )
+    _socket_directory_metadata(capability, ready, allowed_modes=frozenset({0o700}))
+    final_metadata = pathlib.Path(capability.socket_path).lstat()
+    _require(
+        stat.S_ISSOCK(final_metadata.st_mode)
+        and final_metadata.st_uid == ready.uid
+        and stat.S_IMODE(final_metadata.st_mode) == 0o600
+        and (final_metadata.st_dev, final_metadata.st_ino)
+        == (bound_metadata.st_dev, bound_metadata.st_ino)
+        and listener.getsockname() == capability.socket_path
+        and listener.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) == socket.SOCK_STREAM
+        and process_snapshot(os.getpid()).token == ready.adb_server_process_identity,
+        "private adb activation socket or process changed before exec",
+    )
+    return ready
+
+
 def exec_server(run_id: str) -> NoReturn:
     runtime_state.validate_lane_lock_descriptor()
     layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
@@ -2878,28 +2974,59 @@ def exec_server(run_id: str) -> NoReturn:
     adb_device, adb_inode = _executable_file_identity(
         capability.adb_snapshot_path, "Android adb snapshot"
     )
-    runtime_state.register_adb_child(
-        prior_receipt,
-        runtime_state.AdbChildRegistration(
-            process=identity,
-            initial_executable_device=initial_device,
-            initial_executable_inode=initial_inode,
-            adb_snapshot_device=adb_device,
-            adb_snapshot_inode=adb_inode,
-        ),
-    )
-    argv = [str(capability.adb_snapshot_path), "-L", capability.server_socket]
-    if capability.device_kind == "physical":
-        argv.extend(("--one-device", capability.expected_serial))
-    argv.extend(("server", "nodaemon"))
+    listener: socket.socket | None = None
+    primary: BaseException | None = None
     try:
+        activation = None
+        if (
+            capability.adb_profile == "macos-account"
+            and prior_receipt.schema_version == runtime_state.OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+        ):
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            activation = runtime_state.AdbListenerActivation(listener.fileno())
+        registered = runtime_state.register_adb_child(
+            prior_receipt,
+            runtime_state.AdbChildRegistration(
+                process=identity,
+                initial_executable_device=initial_device,
+                initial_executable_inode=initial_inode,
+                adb_snapshot_device=adb_device,
+                adb_snapshot_inode=adb_inode,
+                listener_activation=activation,
+            ),
+        )
         runtime_state.arm_lane_lock_close_on_exec()
-        _close_nonstandard_descriptors(preserve_lane_lock=True)
+        _close_nonstandard_descriptors(
+            preserve_lane_lock=True, listener_activation=activation
+        )
+        server_address = capability.server_socket
+        if listener is not None:
+            _activate_private_adb_listener(listener, capability, registered)
+            listener.set_inheritable(True)
+            server_address = f"acceptfd:{listener.fileno()}"
+        argv = [str(capability.adb_snapshot_path), "-L", server_address]
+        if capability.device_kind == "physical":
+            argv.extend(("--one-device", capability.expected_serial))
+        argv.extend(("server", "nodaemon"))
         os.execve(
             str(capability.adb_snapshot_path), argv, _server_environment(capability)
         )
     except OSError as exc:
-        raise AndroidCommandError(f"cannot start the owned adb server: {exc}") from exc
+        primary = AndroidCommandError(f"cannot start the owned adb server: {exc}")
+        raise primary from exc
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        if listener is not None:
+            try:
+                listener.close()
+            except BaseException as exc:
+                if primary is None:
+                    if isinstance(exc, OSError):
+                        raise AndroidCommandError("cannot close private adb listener") from exc
+                    raise
+                primary.add_note(f"closing private adb listener also failed: {exc}")
 
 
 def wait_owned_emulator_backend(*, run_id: str, timeout_seconds: int) -> str:
@@ -3028,6 +3155,17 @@ def wait_owned_adb_server_start(*, run_id: str, timeout_seconds: int) -> str:
             )
             capability = context.capability
             _validate_receipt_adb_server_executable(receipt, capability, observed)
+            if (
+                receipt.adb_listener_activation is not None
+                and (
+                    receipt.phase is runtime_state.RuntimePhase.ADB_CHILD_REGISTERED
+                    or observed.executable != capability.adb_snapshot_path
+                )
+            ):
+                remaining = deadline - time.monotonic()
+                _require(remaining > 0, "activated adb listener did not reach adb exec")
+                time.sleep(min(0.02, remaining))
+                continue
             current = runtime_state.load_owned_runtime_receipt()
             _require(
                 current is not None

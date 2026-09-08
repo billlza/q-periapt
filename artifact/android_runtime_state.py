@@ -81,7 +81,11 @@ ACCOUNT_STATE_LEAF = "dev.qperiapt.android-device-smoke"
 LANE_LOCK_LEAF = "lane.lock"
 OWNED_RUNTIME_RECEIPT_LEAF = "owned-runtime.json"
 OWNED_RUNTIME_RECEIPT_KIND = "qperiapt.android_owned_runtime"
-OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 5
+OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 6
+# Version 5 is read only to finish its original recovery/retirement lifecycle.
+# Its writes retain that exact format; the next newly prepared run writes version 6.
+LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 5
+PRIVATE_ADB_LISTEN_BACKLOG = 128
 MAX_OWNED_RUNTIME_RECEIPT_BYTES = 16 * 1024
 AVD_HOME_LEAF = "avd-home"
 MAX_AVD_INI_BYTES = 64 * 1024
@@ -133,7 +137,7 @@ CAPABILITY_FIELDS = frozenset(
     }
 )
 
-OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
+LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
     {
         "schema_version",
         "kind",
@@ -183,6 +187,9 @@ OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
         "backend_sha256",
     }
 )
+OWNED_RUNTIME_RECEIPT_FIELDS = LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS | {
+    "adb_listener_activation"
+}
 
 ACCOUNT_HOME = pathlib.Path(pwd.getpwuid(os.geteuid()).pw_dir)
 ADB_PROFILE_PATHS: Mapping[str, pathlib.Path] = MappingProxyType(
@@ -210,6 +217,7 @@ class RuntimePhase(str, enum.Enum):
 
     PREPARED = "prepared"
     ADB_CHILD_REGISTERED = "adb_child_registered"
+    ADB_LISTENER_READY = "adb_listener_ready"
     ADB_SEALING = "adb_sealing"
     ADB_SEALED = "adb_sealed"
     EMULATOR_CHILD_REGISTERED = "emulator_child_registered"
@@ -225,6 +233,14 @@ class ConsoleAuthTokenIdentity:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class AdbListenerActivation:
+    """One descriptor reserved for the macOS private listener before exec."""
+
+    descriptor: int
+    backlog: int = PRIVATE_ADB_LISTEN_BACKLOG
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class AdbChildRegistration:
     """Adapter-validated identity required to durably register the adb child."""
 
@@ -233,6 +249,7 @@ class AdbChildRegistration:
     initial_executable_inode: int
     adb_snapshot_device: int
     adb_snapshot_inode: int
+    listener_activation: AdbListenerActivation | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -366,6 +383,8 @@ class OwnedRuntimeReceipt:
     backend_inode: int | None
     backend_sha256: str | None
     snapshot_sha256: str
+    schema_version: int = LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+    adb_listener_activation: AdbListenerActivation | None = None
 
     @property
     def adb_server_started(self) -> bool:
@@ -2568,6 +2587,7 @@ def _runtime_recovery_payload(
         "adb_snapshot_device": None,
         "adb_snapshot_inode": None,
         "adb_listener_descriptor": None,
+        "adb_listener_activation": None,
         "adb_socket_directory_device": socket_directory_metadata.st_dev,
         "adb_socket_directory_inode": socket_directory_metadata.st_ino,
         "avd_name": None,
@@ -2588,10 +2608,10 @@ def _runtime_recovery_payload(
 
 
 def _runtime_receipt_payload(receipt: OwnedRuntimeReceipt) -> dict[str, object]:
-    """Serialize one already-validated runtime receipt without its file digest."""
+    """Preserve a validated recovery format until retirement; never upgrade on read."""
 
-    return {
-        "schema_version": OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION,
+    payload = {
+        "schema_version": receipt.schema_version,
         "kind": OWNED_RUNTIME_RECEIPT_KIND,
         "phase": receipt.phase.value,
         "run_id": receipt.run_id,
@@ -2650,6 +2670,18 @@ def _runtime_receipt_payload(receipt: OwnedRuntimeReceipt) -> dict[str, object]:
         "backend_inode": receipt.backend_inode,
         "backend_sha256": receipt.backend_sha256,
     }
+    if receipt.schema_version == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION:
+        activation = receipt.adb_listener_activation
+        payload["adb_listener_activation"] = (
+            {
+                "kind": "inherited_unix",
+                "descriptor": activation.descriptor,
+                "backlog": activation.backlog,
+            }
+            if activation is not None
+            else None
+        )
+    return payload
 
 
 def _cleanup_owned_runtime_receipt_staging_files() -> None:
@@ -3508,7 +3540,19 @@ def register_adb_child(
         and registration.adb_snapshot_inode > 0,
         "adb child registration identity is invalid",
     )
-    payload = _runtime_receipt_payload(receipt)
+    activation = registration.listener_activation
+    _require(
+        activation is None
+        or (
+            isinstance(activation, AdbListenerActivation)
+            and receipt.schema_version == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+            and receipt.adb_profile == "macos-account"
+        ),
+        "adb listener activation is not admitted by this receipt",
+    )
+    payload = _runtime_receipt_payload(
+        dataclasses.replace(receipt, adb_listener_activation=activation)
+    )
     payload.update(
         {
             "phase": RuntimePhase.ADB_CHILD_REGISTERED.value,
@@ -3526,6 +3570,46 @@ def register_adb_child(
     return _replace_owned_runtime_receipt(receipt, payload)
 
 
+def complete_adb_listener_activation(
+    receipt: OwnedRuntimeReceipt,
+) -> OwnedRuntimeReceipt:
+    """Record a successfully bound/listening bootstrap FD before adb exec."""
+
+    validate_lane_lock_descriptor()
+    activation = receipt.adb_listener_activation
+    _require(
+        receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED
+        and activation is not None,
+        "runtime recovery receipt is not awaiting listener activation",
+    )
+    payload = _runtime_receipt_payload(receipt)
+    payload["phase"] = RuntimePhase.ADB_LISTENER_READY.value
+    payload["adb_listener_descriptor"] = activation.descriptor
+    return _replace_owned_runtime_receipt(receipt, payload)
+
+
+def refresh_adb_listener_activation(
+    receipt: OwnedRuntimeReceipt,
+) -> OwnedRuntimeReceipt:
+    """Accept only the registered child's exact intent-to-ready transition."""
+
+    activation = receipt.adb_listener_activation
+    if activation is None or receipt.phase is not RuntimePhase.ADB_CHILD_REGISTERED:
+        return receipt
+    current = load_owned_runtime_receipt()
+    _require(current is not None, "listener activation receipt disappeared")
+    if current.snapshot_sha256 == receipt.snapshot_sha256:
+        return receipt
+    expected = _runtime_receipt_payload(receipt)
+    expected["phase"] = RuntimePhase.ADB_LISTENER_READY.value
+    expected["adb_listener_descriptor"] = activation.descriptor
+    _require(
+        _runtime_receipt_payload(current) == expected,
+        "listener activation receipt changed outside its ready transition",
+    )
+    return current
+
+
 def begin_adb_seal(
     receipt: OwnedRuntimeReceipt,
     listener_descriptor: int,
@@ -3534,7 +3618,15 @@ def begin_adb_seal(
 
     validate_lane_lock_descriptor()
     _require(
-        receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED,
+        (
+            receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED
+            and receipt.adb_listener_activation is None
+        )
+        or (
+            receipt.phase is RuntimePhase.ADB_LISTENER_READY
+            and receipt.adb_listener_activation is not None
+            and listener_descriptor == receipt.adb_listener_activation.descriptor
+        ),
         "runtime recovery receipt is not awaiting adb sealing",
     )
     _require(
@@ -3650,14 +3742,24 @@ def _absolute_receipt_path(value: object, label: str) -> pathlib.Path:
 
 def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeReceipt:
     value = snapshot.value
+    schema_version = value.get("schema_version")
     _require(
-        set(value) == OWNED_RUNTIME_RECEIPT_FIELDS,
-        "owned runtime receipt fields changed",
+        type(schema_version) is int
+        and schema_version
+        in {
+            LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION,
+            OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION,
+        },
+        "owned runtime receipt schema changed",
     )
     _require(
-        value.get("schema_version") == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
-        and type(value.get("schema_version")) is int,
-        "owned runtime receipt schema changed",
+        set(value)
+        == (
+            LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS
+            if schema_version == LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+            else OWNED_RUNTIME_RECEIPT_FIELDS
+        ),
+        "owned runtime receipt fields changed",
     )
     _require(
         value.get("kind") == OWNED_RUNTIME_RECEIPT_KIND,
@@ -3669,6 +3771,11 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         raise AndroidRuntimeStateError(
             "owned runtime receipt phase is invalid"
         ) from exc
+    _require(
+        schema_version == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+        or phase is not RuntimePhase.ADB_LISTENER_READY,
+        "legacy runtime receipt contains a listener activation phase",
+    )
     run_id = _canonical_run_id(value.get("run_id"))
     host_identity = value.get("host_identity")
     boot_identity = value.get("boot_identity")
@@ -3690,6 +3797,32 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
     run_root_inode = _positive_int(value.get("run_root_inode"), "run root inode")
     uid = _positive_int(value.get("uid"), "uid", allow_zero=True)
     adb_profile = _canonical_concrete_adb_profile(value.get("adb_profile"))
+    activation_payload = value.get("adb_listener_activation")
+    activation = None
+    if activation_payload is not None:
+        _require(
+            type(activation_payload) is dict
+            and set(activation_payload) == {"kind", "descriptor", "backlog"}
+            and activation_payload.get("kind") == "inherited_unix"
+            and adb_profile == "macos-account"
+            and phase is not RuntimePhase.PREPARED,
+            "owned runtime listener activation is invalid",
+        )
+        descriptor = activation_payload.get("descriptor")
+        backlog = activation_payload.get("backlog")
+        _require(
+            type(descriptor) is int
+            and 3 <= descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR
+            and descriptor != LANE_LOCK_FD
+            and type(backlog) is int
+            and backlog == PRIVATE_ADB_LISTEN_BACKLOG,
+            "owned runtime listener activation descriptor or backlog is invalid",
+        )
+        activation = AdbListenerActivation(descriptor, backlog)
+    _require(
+        phase is not RuntimePhase.ADB_LISTENER_READY or activation is not None,
+        "runtime listener-ready phase lacks its activation intent",
+    )
     adb_size = _positive_int(value.get("adb_size"), "adb size")
     _require(adb_size <= MAX_TOOL_BYTES, "owned runtime receipt adb size changed")
     adb_sha256 = value.get("adb_sha256")
@@ -3809,6 +3942,11 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         _require(
             adb_listener_descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR,
             "owned runtime receipt adb listener descriptor is invalid",
+        )
+        _require(
+            activation is None
+            or adb_listener_descriptor == activation.descriptor,
+            "owned runtime bound listener differs from its activation intent",
         )
 
     emulator_fields = (
@@ -3966,6 +4104,8 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         backend_inode=backend_inode,
         backend_sha256=backend_sha256,
         snapshot_sha256=snapshot.file.sha256,
+        schema_version=schema_version,
+        adb_listener_activation=activation,
     )
 
 

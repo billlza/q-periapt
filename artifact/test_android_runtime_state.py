@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import errno
 import hashlib
 import json
@@ -588,7 +589,7 @@ class AndroidRuntimeStateTests(unittest.TestCase):
     def test_current_schema_uses_one_phase_and_no_lifecycle_booleans(self) -> None:
         receipt = self.receipt()
         value = json.loads(state.owned_runtime_receipt_path().read_text())
-        self.assertEqual(value["schema_version"], 5)
+        self.assertEqual(value["schema_version"], 6)
         self.assertEqual(value["phase"], state.RuntimePhase.PREPARED.value)
         self.assertEqual(set(value), state.OWNED_RUNTIME_RECEIPT_FIELDS)
         for removed in (
@@ -1057,6 +1058,124 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         self.assertIs(current.phase, state.RuntimePhase.ADB_SEALING)
         self.assertEqual(current.adb_listener_descriptor, 7)
 
+    def test_inherited_listener_intent_requires_ready_before_sealing(self) -> None:
+        registration = dataclasses.replace(
+            self.adb_registration(),
+            listener_activation=state.AdbListenerActivation(7),
+        )
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            registered = state.register_adb_child(self.receipt(), registration)
+            self.assertEqual(registered.adb_listener_activation, registration.listener_activation)
+            self.assertIsNone(registered.adb_listener_descriptor)
+            with self.assertRaisesRegex(state.AndroidRuntimeStateError, "awaiting adb sealing"):
+                state.begin_adb_seal(registered, 7)
+            ready = state.complete_adb_listener_activation(registered)
+            self.assertIs(ready.phase, state.RuntimePhase.ADB_LISTENER_READY)
+            self.assertEqual(ready.adb_listener_descriptor, 7)
+            with self.assertRaisesRegex(state.AndroidRuntimeStateError, "awaiting adb sealing"):
+                state.begin_adb_seal(ready, 8)
+            sealed = state.complete_adb_seal(state.begin_adb_seal(ready, 7))
+        self.assertTrue(sealed.adb_socket_directory_sealed)
+        self.assertEqual(sealed.adb_listener_activation, state.AdbListenerActivation(7, 128))
+
+    def test_activation_rejects_invalid_descriptor_and_backlog_before_write(self) -> None:
+        original = state.owned_runtime_receipt_path().read_bytes()
+        for activation in (
+            state.AdbListenerActivation(0),
+            state.AdbListenerActivation(True),
+            state.AdbListenerActivation(state.LANE_LOCK_FD),
+            state.AdbListenerActivation(7, 4),
+        ):
+            with (
+                self.subTest(activation=activation),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                self.assertRaises(state.AndroidRuntimeStateError),
+            ):
+                state.register_adb_child(
+                    self.receipt(),
+                    dataclasses.replace(self.adb_registration(), listener_activation=activation),
+                )
+            self.assertEqual(state.owned_runtime_receipt_path().read_bytes(), original)
+
+    def test_activation_refresh_accepts_only_exact_intent_to_ready(self) -> None:
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            intended = state.register_adb_child(
+                self.receipt(),
+                dataclasses.replace(
+                    self.adb_registration(), listener_activation=state.AdbListenerActivation(7)
+                ),
+            )
+            self.assertEqual(state.refresh_adb_listener_activation(intended), intended)
+            ready = state.complete_adb_listener_activation(intended)
+            self.assertEqual(state.refresh_adb_listener_activation(intended), ready)
+            state.begin_adb_seal(ready, 7)
+        with self.assertRaisesRegex(state.AndroidRuntimeStateError, "outside its ready transition"):
+            state.refresh_adb_listener_activation(intended)
+
+    def test_activation_ready_post_replace_failure_keeps_recoverable_intent(self) -> None:
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            registered = state.register_adb_child(
+                self.receipt(),
+                dataclasses.replace(
+                    self.adb_registration(), listener_activation=state.AdbListenerActivation(7)
+                ),
+            )
+        real_fsync = state.os.fsync
+        calls = 0
+
+        def fail_directory_fsync(descriptor: int) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("activation receipt directory fsync")
+            real_fsync(descriptor)
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fsync", side_effect=fail_directory_fsync),
+            self.assertRaisesRegex(OSError, "activation receipt directory fsync"),
+        ):
+            state.complete_adb_listener_activation(registered)
+        recovered = self.receipt()
+        self.assertIs(recovered.phase, state.RuntimePhase.ADB_LISTENER_READY)
+        self.assertEqual(recovered.adb_listener_descriptor, 7)
+        self.assertEqual(recovered.adb_listener_activation, state.AdbListenerActivation(7))
+
+    def test_schema_five_recovery_keeps_exact_old_contract(self) -> None:
+        path = state.owned_runtime_receipt_path()
+        payload = json.loads(path.read_text())
+        payload["schema_version"] = 5
+        del payload["adb_listener_activation"]
+        path.write_text(json.dumps(payload) + "\n")
+        old_bytes = path.read_bytes()
+        legacy = self.receipt()
+        self.assertEqual(legacy.schema_version, 5)
+        self.assertIsNone(legacy.adb_listener_activation)
+        self.assertEqual(path.read_bytes(), old_bytes)
+        with mock.patch.object(state, "validate_lane_lock_descriptor"):
+            with self.assertRaisesRegex(state.AndroidRuntimeStateError, "not admitted"):
+                state.register_adb_child(
+                    legacy,
+                    dataclasses.replace(
+                        self.adb_registration(), listener_activation=state.AdbListenerActivation(7)
+                    ),
+                )
+            registered = state.register_adb_child(legacy, self.adb_registration())
+            sealed = state.complete_adb_seal(state.begin_adb_seal(registered, 7))
+        self.assertEqual(sealed.schema_version, 5)
+        value = json.loads(path.read_text())
+        self.assertEqual(set(value), state.LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS)
+        self.assertEqual(value["schema_version"], 5)
+        for mutation in (
+            {"adb_listener_activation": None},
+            {"phase": "adb_listener_ready"},
+            {"adb_listener_descriptor": None},
+        ):
+            with self.subTest(mutation=mutation):
+                path.write_text(json.dumps({**value, **mutation}) + "\n")
+                with self.assertRaises(state.AndroidRuntimeStateError):
+                    self.receipt()
+
     def test_post_replace_seal_fsync_failure_keeps_bound_recovery_state(
         self,
     ) -> None:
@@ -1227,8 +1346,13 @@ class AndroidRuntimeStateTests(unittest.TestCase):
     ) -> None:
         path = state.owned_runtime_receipt_path()
         for mutation in (
+            lambda value: value.update({"schema_version": 1}),
             lambda value: value.update({"schema_version": 2}),
+            lambda value: value.update({"schema_version": 3}),
             lambda value: value.update({"schema_version": 4}),
+            lambda value: value.update({"schema_version": True}),
+            lambda value: value.update({"schema_version": 5.0}),
+            lambda value: value.update({"schema_version": 7}),
             lambda value: value.update({"phase": "unknown"}),
         ):
             value = json.loads(path.read_text())
