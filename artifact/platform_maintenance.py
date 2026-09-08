@@ -6,10 +6,11 @@ from __future__ import annotations
 import pathlib
 
 from git_provenance import GitProvenanceError, require_commit_ancestor, run_git_bytes
+from platform_distribution_contract import PlatformReleaseProfile
 from platform_maintenance_contract import (
     BASE_COHORT_COMMIT,
-    BASE_SOURCE_COMMIT,
     PlatformMaintenanceContractError,
+    product_contract,
     validate_base_cohort_bytes,
 )
 
@@ -28,27 +29,35 @@ def load_base_cohort(root: pathlib.Path) -> dict[str, object]:
     return validate_base_cohort_bytes(raw)
 
 
-def verify_product_source(root: pathlib.Path, source_commit: str) -> None:
+def verify_product_source(
+    root: pathlib.Path,
+    source_commit: str,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
+) -> None:
     """Keep the maintenance build's product code and locked build inputs at 0.1.5."""
 
+    contract = product_contract(profile)
     load_base_cohort(root)
     try:
-        require_commit_ancestor(root, BASE_SOURCE_COMMIT, source_commit)
+        require_commit_ancestor(root, contract.product_commit, source_commit)
+        if contract.product_tree is not None:
+            observed_tree = run_git_bytes(
+                root, ["rev-parse", "--verify", f"{contract.product_commit}^{{tree}}"]
+            ).strip()
+            if observed_tree != contract.product_tree.encode("ascii"):
+                raise PlatformMaintenanceContractError(
+                    "reviewed product Git tree differs"
+                )
         run_git_bytes(
             root,
             [
                 "diff",
                 "--exit-code",
-                BASE_SOURCE_COMMIT,
+                contract.product_commit,
                 source_commit,
                 "--",
-                "Cargo.toml",
-                "Cargo.lock",
-                "rust-toolchain.toml",
-                ".cargo",
-                "crates",
-                "bindings/android/jni",
-                "bindings/android/src",
+                *contract.product_paths,
             ],
         )
     except GitProvenanceError as exc:

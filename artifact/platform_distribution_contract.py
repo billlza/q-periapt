@@ -38,16 +38,26 @@ class PlatformReleaseProfile(Enum):
 
     STABLE = "stable"
     MAINTENANCE_R2 = "maintenance-r2"
+    MAINTENANCE_R3 = "maintenance-r3"
+
+    @property
+    def is_maintenance(self) -> bool:
+        return self in {self.MAINTENANCE_R2, self.MAINTENANCE_R3}
 
     @property
     def revision(self) -> str:
-        return {self.STABLE: "r1", self.MAINTENANCE_R2: "r2"}[self]
+        return {
+            self.STABLE: "r1",
+            self.MAINTENANCE_R2: "r2",
+            self.MAINTENANCE_R3: "r3",
+        }[self]
 
     @property
     def release_tag(self) -> str:
         return {
             self.STABLE: RELEASE_TAG,
             self.MAINTENANCE_R2: "abi2-platforms-v0.1.5-r2",
+            self.MAINTENANCE_R3: "abi2-platforms-v0.1.5-r3",
         }[self]
 
     @property
@@ -55,11 +65,12 @@ class PlatformReleaseProfile(Enum):
         return {
             self.STABLE: "v0.1.5-verified-cohort",
             self.MAINTENANCE_R2: "abi2-platforms-v0.1.5-r2-verified",
+            self.MAINTENANCE_R3: "abi2-platforms-v0.1.5-r3-verified",
         }[self]
 
     @property
     def runtime_bundle_schema(self) -> int:
-        return {self.STABLE: 2, self.MAINTENANCE_R2: 3}[self]
+        return {self.STABLE: 2, self.MAINTENANCE_R2: 3, self.MAINTENANCE_R3: 3}[self]
 
     @property
     def release_ref(self) -> str:
@@ -85,6 +96,7 @@ class PlatformReleaseProfile(Enum):
         return {
             self.STABLE: "platform_v0_1_5",
             self.MAINTENANCE_R2: "platform_v0_1_5_r2",
+            self.MAINTENANCE_R3: "platform_v0_1_5_r3",
         }[self]
 
     def identity(self) -> dict[str, str]:
@@ -97,7 +109,7 @@ class PlatformReleaseProfile(Enum):
 
     @property
     def candidate_receipt_schema(self) -> int:
-        return {self.STABLE: 1, self.MAINTENANCE_R2: 2}[self]
+        return {self.STABLE: 1, self.MAINTENANCE_R2: 2, self.MAINTENANCE_R3: 2}[self]
 
 
 RELEASE_MANIFEST = "PLATFORM_DISTRIBUTION.json"
@@ -409,11 +421,7 @@ def _validate_release_candidate_runtime(
                 "tested_aar_sha256",
             }
         )
-        | (
-            frozenset({"agp_consumers"})
-            if profile is PlatformReleaseProfile.MAINTENANCE_R2
-            else frozenset()
-        ),
+        | (frozenset({"agp_consumers"}) if profile.is_maintenance else frozenset()),
         "platform release candidate Android runtime evidence",
     )
     _require(
@@ -421,7 +429,7 @@ def _validate_release_candidate_runtime(
         and runtime["bundle_schema"] == profile.runtime_bundle_schema,
         "platform release candidate Android runtime bundle schema differs",
     )
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         validate_agp_consumers(
             runtime["agp_consumers"],
             expected_aar_sha256=assets[ANDROID_AAR]["sha256"],
@@ -513,11 +521,7 @@ def validate_release_candidate_receipt(
                 "source",
             }
         )
-        | (
-            frozenset({"identity"})
-            if profile is PlatformReleaseProfile.MAINTENANCE_R2
-            else frozenset()
-        ),
+        | (frozenset({"identity"}) if profile.is_maintenance else frozenset()),
         "platform release candidate receipt",
     )
     _require(
@@ -529,7 +533,7 @@ def validate_release_candidate_receipt(
         receipt["kind"] == PLATFORM_RELEASE_CANDIDATE_KIND,
         "platform release candidate receipt kind differs",
     )
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         _require(
             receipt["identity"] == profile.identity(),
             "maintenance candidate identity differs",

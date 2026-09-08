@@ -70,6 +70,16 @@ PLATFORM_V0_1_5_R2_PUBLICATION_BOUNDARY = (
     "receipt neither rewrites that cohort nor asserts new Apple or crates.io "
     "publication, physical-device coverage or production promotion."
 )
+PLATFORM_V0_1_5_R3_PUBLICATION_BOUNDARY = (
+    "ABI 2 0.1.5 r3 SDK maintenance distribution from a separately reviewed "
+    "product source. Its independent receipt binds the fixed reviewed product, "
+    "new annotated tag and source, four candidate products, exact seven assets, "
+    "candidate provenance, immutable release attestation, fresh downloads, "
+    "API 35 arm64-v8a 16 KiB canonical runtime and both AGP release consumers. "
+    "The original verified cohort and r2 remain unchanged. This receipt does "
+    "not claim a replacement crates.io 0.1.5 package, a new Apple publication, "
+    "physical-device coverage, client adoption or anonymous download availability."
+)
 
 
 def publication_boundary(profile: PlatformReleaseProfile) -> str:
@@ -79,6 +89,7 @@ def publication_boundary(profile: PlatformReleaseProfile) -> str:
     return {
         PlatformReleaseProfile.STABLE: PLATFORM_V0_1_5_PUBLICATION_BOUNDARY,
         PlatformReleaseProfile.MAINTENANCE_R2: PLATFORM_V0_1_5_R2_PUBLICATION_BOUNDARY,
+        PlatformReleaseProfile.MAINTENANCE_R3: PLATFORM_V0_1_5_R3_PUBLICATION_BOUNDARY,
     }[profile]
 
 
@@ -641,11 +652,7 @@ def _validate_android_runtime(
                 "tested_aar_sha256",
             }
         )
-        | (
-            frozenset({"agp_consumers"})
-            if profile is PlatformReleaseProfile.MAINTENANCE_R2
-            else frozenset()
-        ),
+        | (frozenset({"agp_consumers"}) if profile.is_maintenance else frozenset()),
         "platform v0_1_5 Android runtime evidence",
     )
     _require(

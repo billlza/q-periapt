@@ -250,8 +250,8 @@ def _load_platform_receipt(
     )
     receipt = snapshot.value
     try:
-        if profile is PlatformReleaseProfile.MAINTENANCE_R2:
-            maintenance_contract.publication(receipt)
+        if profile.is_maintenance:
+            maintenance_contract.publication(receipt, profile=profile)
         else:
             platform_contract.validate_v0_1_5_publication_receipt(receipt)
     except (
@@ -327,11 +327,15 @@ def _assert_only_allowed_mutations(
 ) -> None:
     """Prove construction changed only the exact coordinated cohort fields."""
 
-    maintenance_key = maintenance_contract.PUBLICATION_KEY
-    if maintenance_key in previous.get(
-        "release_publications", {}
-    ) or maintenance_key in current.get("release_publications", {}):
-        _assert_only_maintenance_mutations(previous, current)
+    previous_profile = maintenance_contract.selected_profile(
+        previous.get("release_publications", {})
+    )
+    current_profile = maintenance_contract.selected_profile(
+        current.get("release_publications", {})
+    )
+    profile = current_profile or previous_profile
+    if profile is not None:
+        _assert_only_maintenance_mutations(previous, current, profile=profile)
         return
 
     allowed_top_level = {"release_publications"}
@@ -490,7 +494,10 @@ def assemble_next_results(
 
 
 def _assert_only_maintenance_mutations(
-    previous: dict[str, Any], current: dict[str, Any]
+    previous: dict[str, Any],
+    current: dict[str, Any],
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
 ) -> None:
     """Permit only the explicitly named independent revision leaf."""
 
@@ -502,7 +509,8 @@ def _assert_only_maintenance_mutations(
         )
     old = _object(previous["release_publications"], "previous publications")
     new = _object(current["release_publications"], "current publications")
-    key = maintenance_contract.PUBLICATION_KEY
+    maintenance_contract.product_contract(profile)
+    key = profile.publication_key
     _require(
         set(new) - {key} == set(old) - {key},
         "maintenance changed other publication keys",
@@ -514,7 +522,9 @@ def _assert_only_maintenance_mutations(
         )
     try:
         validate_release_publication_transition(previous, current)
-        maintenance_contract.validate_transition(old.get(key), new.get(key))
+        maintenance_contract.validate_transition(
+            old.get(key), new.get(key), profile=profile
+        )
     except (
         ReleasePublicationContractError,
         maintenance_contract.PlatformMaintenanceContractError,
@@ -523,24 +533,26 @@ def _assert_only_maintenance_mutations(
 
 
 def assemble_maintenance_results(
-    expected_results_sha256: str, *, receipt_path: pathlib.Path
+    expected_results_sha256: str,
+    *,
+    receipt_path: pathlib.Path,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
 ) -> tuple[dict[str, Any], CommittedResults]:
-    """Append or promote r2 using its own source and the exact external Q anchor."""
+    """Append or promote one revision using its source and exact external anchors."""
 
+    maintenance_contract.product_contract(profile)
     committed = load_current_results(expected_results_sha256)
-    receipt = _load_platform_receipt(
-        receipt_path, profile=PlatformReleaseProfile.MAINTENANCE_R2
-    )
+    receipt = _load_platform_receipt(receipt_path, profile=profile)
     current = copy.deepcopy(committed.manifest)
     publications = _object(current["release_publications"], "maintenance publications")
-    publications[maintenance_contract.PUBLICATION_KEY] = receipt
+    publications[profile.publication_key] = receipt
     try:
         validate_declared_currentness(current)
         validate_release_publications(current)
-        identity = maintenance_source_identity(current)
+        identity = maintenance_source_identity(current, profile=profile)
         _require(identity is not None, "maintenance lacks its source identity")
         maintenance_source.verify_product_source(
-            REPOSITORY_ROOT, identity.source_parent_commit
+            REPOSITORY_ROOT, identity.source_parent_commit, profile=profile
         )
     except (
         ProofManifestError,
@@ -548,7 +560,7 @@ def assemble_maintenance_results(
         maintenance_contract.PlatformMaintenanceContractError,
     ) as exc:
         raise ReleaseReceiptFinalizerError(str(exc)) from exc
-    _assert_only_maintenance_mutations(committed.manifest, current)
+    _assert_only_maintenance_mutations(committed.manifest, current, profile=profile)
     _verify_stable_source_git_binding(current, current_commit=committed.commit)
     return current, committed
 
@@ -720,14 +732,17 @@ def verify_installed_results(
         current.manifest,
         current_commit=current.commit,
     )
-    revision = current.manifest["release_publications"].get(
-        maintenance_contract.PUBLICATION_KEY
-    )
-    if revision is not None:
+    publications = current.manifest["release_publications"]
+    profile = maintenance_contract.selected_profile(publications)
+    if profile is not None:
         current_state = {
             platform_contract.PLATFORM_V0_1_5_STATUS_PENDING: "platform_maintenance_pending",
             platform_contract.PLATFORM_V0_1_5_STATUS_VERIFIED: "platform_maintenance_verified",
-        }[maintenance_contract.publication(revision)["status"]]
+        }[
+            maintenance_contract.publication(
+                publications[profile.publication_key], profile=profile
+            )["status"]
+        ]
     return current.commit, current_state
 
 
@@ -748,6 +763,11 @@ def _parser() -> argparse.ArgumentParser:
         revision = subparsers.add_parser(command)
         revision.add_argument("expected_results_sha256")
         revision.add_argument("--platform-receipt", required=True, type=pathlib.Path)
+        revision.add_argument(
+            "--profile",
+            choices=[p.value for p in maintenance_contract.MAINTENANCE_PROFILES],
+            default=PlatformReleaseProfile.MAINTENANCE_R2.value,
+        )
     return parser
 
 
@@ -762,15 +782,17 @@ def _relative_output(path: pathlib.Path) -> str:
 
 def run(args: argparse.Namespace) -> None:
     if args.command in {"finalize-maintenance", "verify-maintenance"}:
+        profile = PlatformReleaseProfile(args.profile)
         current, previous = assemble_maintenance_results(
-            args.expected_results_sha256, receipt_path=args.platform_receipt
+            args.expected_results_sha256,
+            receipt_path=args.platform_receipt,
+            profile=profile,
         )
         if args.command == "verify-maintenance":
             _require(
                 maintenance_contract.publication(
-                    current["release_publications"][
-                        maintenance_contract.PUBLICATION_KEY
-                    ]
+                    current["release_publications"][profile.publication_key],
+                    profile=profile,
                 )["status"]
                 == platform_contract.PLATFORM_V0_1_5_STATUS_VERIFIED,
                 "maintenance verification requires a complete verified receipt",

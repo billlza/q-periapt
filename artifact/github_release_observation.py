@@ -1522,7 +1522,7 @@ def parse_stable_tag_rulesets(
             "refs/tags/v0.1.5-verified-cohort",
             f"refs/tags/{profile.verification_tag}",
         )
-        if profile is PlatformReleaseProfile.MAINTENANCE_R2
+        if profile.is_maintenance
         else ()
     )
     ordered_ids = _parse_stable_tag_ruleset_ids(ruleset_list_raw)
@@ -2241,10 +2241,15 @@ def parse_platform_maintenance_tag_state(
     expected_tag_object: str,
     expected_commit: str,
     expected_tree: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
 ) -> StableTagStateObservation:
-    """Validate only the explicitly named annotated platform r2 tag."""
+    """Validate only the explicitly selected annotated platform revision tag."""
 
-    reference = PlatformReleaseProfile.MAINTENANCE_R2.release_ref
+    _require(
+        type(profile) is PlatformReleaseProfile and profile.is_maintenance,
+        "maintenance tag profile is invalid",
+    )
+    reference = profile.release_ref
     _require(
         all(
             isinstance(value, str) and HEX_40.fullmatch(value) is not None
@@ -2254,7 +2259,7 @@ def parse_platform_maintenance_tag_state(
         "maintenance tag expectation is malformed",
     )
     observed_object = _parse_matching_stable_tag_reference(
-        reference_raw, reference, profile=PlatformReleaseProfile.MAINTENANCE_R2
+        reference_raw, reference, profile=profile
     )
     _require(
         observed_object == expected_tag_object, "maintenance tag reference differs"
@@ -2292,12 +2297,17 @@ def sample_platform_maintenance_tag_state_once(
     expected_tag_object: str,
     expected_commit: str,
     expected_tree: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
-    """Reuse the bounded observation boundary for one new r2 tag, never a tag write."""
+    """Reuse the bounded observation boundary for one revision, never a tag write."""
 
+    _require(
+        type(profile) is PlatformReleaseProfile and profile.is_maintenance,
+        "maintenance tag profile is invalid",
+    )
     _require(
         all(
             isinstance(value, str) and HEX_40.fullmatch(value) is not None
@@ -2306,7 +2316,7 @@ def sample_platform_maintenance_tag_state_once(
         and expected_tag_object != expected_commit,
         "maintenance tag expectation is malformed",
     )
-    reference = PlatformReleaseProfile.MAINTENANCE_R2.release_ref
+    reference = profile.release_ref
     environment = github_cli_environment(
         os.environ if source_environment is None else source_environment,
         http_connect_proxy=http_connect_proxy,
@@ -2345,6 +2355,7 @@ def sample_platform_maintenance_tag_state_once(
         expected_tag_object=expected_tag_object,
         expected_commit=expected_commit,
         expected_tree=expected_tree,
+        profile=profile,
     )
 
 

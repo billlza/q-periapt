@@ -483,7 +483,7 @@ def _android_assets(
     bundle = files[ANDROID_RUNTIME_BUNDLE]
     expected_runtime_sha256 = snapshots[ANDROID_RUNTIME_BUNDLE].sha256
     maintenance_bundle = None
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         from android_maintenance_bundle import (
             AndroidMaintenanceBundleError,
             android_sdk_for_tools,
@@ -502,6 +502,7 @@ def _android_assets(
                 expected_source_tree_sha256=source.canonical_source_tree_sha256,
                 expected_source_epoch=source.source_date_epoch,
                 sdk=android_sdk_for_tools(tools.apksigner, tools.zipalign),
+                release_profile=profile,
             )
         except AndroidMaintenanceBundleError as exc:
             fail(f"Android maintenance evidence verification failed: {exc}")
@@ -1098,7 +1099,7 @@ def _candidate_runtime_projection(
         "tested_aar_manifest_sha256": assets[ANDROID_MANIFEST]["sha256"],
         "tested_aar_sha256": runtime.get("tested_aar_sha256"),
     }
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         projection["agp_consumers"] = runtime["agp_consumers"]
     return projection
 
@@ -1121,7 +1122,7 @@ def _release_candidate_receipt(
         "schema_version": profile.candidate_receipt_schema,
         "source": manifest["source"],
     }
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         receipt["identity"] = profile.identity()
     try:
         validate_release_candidate_receipt(receipt, profile=profile)
