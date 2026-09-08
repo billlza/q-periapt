@@ -152,6 +152,7 @@ class PlatformPublicationContractTests(unittest.TestCase):
                     "platform_v0_1_4",
                     "platform_v0_1_5",
                     "platform_v0_1_5_r2",
+                    "platform_v0_1_5_r3",
                 }
             ),
         )

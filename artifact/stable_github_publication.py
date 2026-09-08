@@ -127,6 +127,14 @@ MAINTENANCE_PLATFORM_BODY = (
     "and crates.io releases remain immutable. Verify the new seven assets, "
     "their release attestation and the independent maintenance receipt before use."
 )
+SDK_R3_PLATFORM_TITLE = "Q-Periapt 0.1.5 ABI 2 SDK Distribution r3"
+SDK_R3_PLATFORM_BODY = (
+    "ABI 2 0.1.5 SDK revision r3 from a separately reviewed product source, "
+    "including fixed-input marshalling bounds. The original and r2 releases "
+    "remain immutable; crates.io 0.1.5 is not replaced. Verify all seven assets, "
+    "their release attestation, canonical and AGP runtime evidence, and the "
+    "independent r3 maintenance receipt before use."
+)
 MAINTENANCE_BOUNDARY = (
     "One platform maintenance transaction anchored to the unchanged 0.1.5 "
     "verified cohort. Apple is an observed immutable reference only. Exactly "
@@ -143,6 +151,21 @@ BOUNDARY = (
     "four Apple and seven platform assets, fixed release text and API policy. "
     "It never deletes, replaces, clobbers, or retries an ambiguous mutation."
 )
+
+
+def _platform_release_text(profile: PlatformReleaseProfile) -> tuple[str, str]:
+    _require(type(profile) is PlatformReleaseProfile, "publication profile is invalid")
+    return {
+        PlatformReleaseProfile.STABLE: (PLATFORM_TITLE, PLATFORM_BODY),
+        PlatformReleaseProfile.MAINTENANCE_R2: (
+            MAINTENANCE_PLATFORM_TITLE,
+            MAINTENANCE_PLATFORM_BODY,
+        ),
+        PlatformReleaseProfile.MAINTENANCE_R3: (
+            SDK_R3_PLATFORM_TITLE,
+            SDK_R3_PLATFORM_BODY,
+        ),
+    }[profile]
 
 
 class StableGitHubPublicationError(ValueError):
@@ -344,7 +367,7 @@ class PublicationPlan:
 
     @property
     def mutable_releases(self) -> tuple[ReleasePlan, ...]:
-        if self.profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        if self.profile.is_maintenance:
             return (self.platform,)
         return self.releases
 
@@ -364,9 +387,7 @@ class PublicationPlan:
         document: dict[str, object] = {
             "api_version": github_release.GITHUB_API_VERSION,
             "boundary": (
-                MAINTENANCE_BOUNDARY
-                if self.profile is PlatformReleaseProfile.MAINTENANCE_R2
-                else BOUNDARY
+                MAINTENANCE_BOUNDARY if self.profile.is_maintenance else BOUNDARY
             ),
             "github_cli_sha256": self.github_cli_sha256,
             "kind": PLAN_KIND,
@@ -387,7 +408,7 @@ class PublicationPlan:
                 "canonical_source_tree_sha256": (self.canonical_source_tree_sha256),
             },
         }
-        if self.profile is PlatformReleaseProfile.MAINTENANCE_R2:
+        if self.profile.is_maintenance:
             document.update(
                 {
                     "schema_version": 2,
@@ -412,8 +433,7 @@ class PublicationPlan:
                 tag=release.tag,
                 tag_commit=(
                     maintenance_contract.BASE_TAG_COMMIT
-                    if self.profile is PlatformReleaseProfile.MAINTENANCE_R2
-                    and release.domain == "apple"
+                    if self.profile.is_maintenance and release.domain == "apple"
                     else self.tag_commit
                 ),
                 title=release.title,
@@ -568,16 +588,7 @@ def _parse_release_plan(
         expected_names = platform_contract.PUBLIC_ASSET_NAMES
         expected_types = platform_contract.PUBLIC_ASSET_CONTENT_TYPES
         expected_tag = profile.release_tag
-        expected_title = (
-            MAINTENANCE_PLATFORM_TITLE
-            if profile is PlatformReleaseProfile.MAINTENANCE_R2
-            else PLATFORM_TITLE
-        )
-        expected_body = (
-            MAINTENANCE_PLATFORM_BODY
-            if profile is PlatformReleaseProfile.MAINTENANCE_R2
-            else PLATFORM_BODY
-        )
+        expected_title, expected_body = _platform_release_text(profile)
         expected_latest = False
     assets_value = release["assets"]
     _require(
@@ -599,9 +610,7 @@ def _parse_release_plan(
         )
         for index, name in enumerate(expected_names)
     )
-    reference_only = (
-        profile is PlatformReleaseProfile.MAINTENANCE_R2 and domain == "apple"
-    )
+    reference_only = profile.is_maintenance and domain == "apple"
     if reference_only:
         _require(
             release["create_request"] is None and release["publish_request"] is None,
@@ -635,14 +644,16 @@ def _parse_release_plan(
 def parse_plan(value: object) -> PublicationPlan:
     document = _object(value, "stable GitHub publication plan")
     maintenance = document.get("schema_version") == 2
-    profile = (
-        PlatformReleaseProfile.MAINTENANCE_R2
-        if maintenance
-        else PlatformReleaseProfile.STABLE
-    )
+    profile = PlatformReleaseProfile.STABLE
     if maintenance:
+        try:
+            profile = PlatformReleaseProfile(document.get("profile"))
+        except (TypeError, ValueError) as exc:
+            raise StableGitHubPublicationError(
+                "maintenance publication profile is invalid"
+            ) from exc
         _require(
-            document.get("profile") == profile.value
+            profile.is_maintenance
             and document.get("base_cohort") == maintenance_contract.base_anchor(),
             "maintenance publication profile or base cohort differs",
         )
@@ -770,7 +781,7 @@ def parse_plan(value: object) -> PublicationPlan:
 
 
 def action_sequence(plan: PublicationPlan) -> tuple[MutationAction, ...]:
-    if plan.profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if plan.profile.is_maintenance:
         return (
             MutationAction(0, "create-platform-draft", "create", "platform"),
             *(
@@ -838,7 +849,7 @@ def classify_remote_state(
         "GitHub repository or immutable-release boundary differs",
     )
     apple, platform = remote.releases
-    if plan.profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if plan.profile.is_maintenance:
         _require(
             apple is not None
             and apple.release_id == maintenance_contract.BASE_APPLE_RELEASE_ID
@@ -1001,6 +1012,7 @@ def expected_state_root(
         / {
             PlatformReleaseProfile.STABLE: "github-stable-v0.1.5",
             PlatformReleaseProfile.MAINTENANCE_R2: "github-platform-v0.1.5-r2",
+            PlatformReleaseProfile.MAINTENANCE_R3: "github-platform-v0.1.5-r3",
         }[profile]
     )
 
@@ -1357,7 +1369,7 @@ def _require_pending_profile(
     )
     try:
         revision = maintenance_contract.publication(
-            publications.get(maintenance_contract.PUBLICATION_KEY)
+            publications.get(profile.publication_key), profile=profile
         )
     except maintenance_contract.PlatformMaintenanceContractError as exc:
         raise StableGitHubPublicationError(str(exc)) from exc
@@ -1391,8 +1403,8 @@ def build_plan_from_pending_results(
     manifest = committed.manifest
     _require_pending_profile(manifest, profile)
     identity = (
-        maintenance_source_identity(manifest)
-        if profile is PlatformReleaseProfile.MAINTENANCE_R2
+        maintenance_source_identity(manifest, profile=profile)
+        if profile.is_maintenance
         else stable_source_identity(manifest)
     )
     if identity is None:
@@ -1413,14 +1425,14 @@ def build_plan_from_pending_results(
             "stable publication requires exact direct S-to-R-to-P results-only commits"
         ) from exc
     publications = _object(manifest["release_publications"], "pending publications")
-    maintenance = profile is PlatformReleaseProfile.MAINTENANCE_R2
+    maintenance = profile.is_maintenance
     apple_pending = None
     if maintenance:
         maintenance_source.verify_product_source(
-            repository, identity.source_parent_commit
+            repository, identity.source_parent_commit, profile=profile
         )
         platform_pending = maintenance_contract.publication(
-            publications[maintenance_contract.PUBLICATION_KEY]
+            publications[profile.publication_key], profile=profile
         )
     else:
         apple_pending = _object(
@@ -1488,10 +1500,11 @@ def build_plan_from_pending_results(
         )
     )
     platform_by_name = platform_bundle.asset_by_name()
+    platform_title, platform_body = _platform_release_text(profile)
     create_platform = _create_request_bytes(
         tag=profile.release_tag,
-        title=MAINTENANCE_PLATFORM_TITLE if maintenance else PLATFORM_TITLE,
-        body=MAINTENANCE_PLATFORM_BODY if maintenance else PLATFORM_BODY,
+        title=platform_title,
+        body=platform_body,
         make_latest=False,
         tag_commit=identity.tag_commit,
     )
@@ -1548,8 +1561,8 @@ def build_plan_from_pending_results(
                 domain="platform",
                 tag=profile.release_tag,
                 tag_object=platform_tag_object,
-                title=MAINTENANCE_PLATFORM_TITLE if maintenance else PLATFORM_TITLE,
-                body=MAINTENANCE_PLATFORM_BODY if maintenance else PLATFORM_BODY,
+                title=platform_title,
+                body=platform_body,
                 make_latest=False,
                 assets=_asset_plans(
                     "platform",
@@ -1562,14 +1575,8 @@ def build_plan_from_pending_results(
                     "publish-platform.json",
                     _publish_request_bytes(
                         tag=profile.release_tag,
-                        title=(
-                            MAINTENANCE_PLATFORM_TITLE
-                            if maintenance
-                            else PLATFORM_TITLE
-                        ),
-                        body=(
-                            MAINTENANCE_PLATFORM_BODY if maintenance else PLATFORM_BODY
-                        ),
+                        title=platform_title,
+                        body=platform_body,
                         make_latest=False,
                         tag_commit=identity.tag_commit,
                     ),
@@ -1784,9 +1791,9 @@ def validate_plan_against_pending_manifest(
     repository = _selected_repository_root(repository_root)
 
     _require_pending_profile(manifest, plan.profile)
-    maintenance = plan.profile is PlatformReleaseProfile.MAINTENANCE_R2
+    maintenance = plan.profile.is_maintenance
     identity = (
-        maintenance_source_identity(manifest)
+        maintenance_source_identity(manifest, profile=plan.profile)
         if maintenance
         else stable_source_identity(manifest)
     )
@@ -1824,7 +1831,7 @@ def validate_plan_against_pending_manifest(
     publications = _object(manifest["release_publications"], "pending publications")
     if maintenance:
         maintenance_source.verify_product_source(
-            repository, identity.source_parent_commit
+            repository, identity.source_parent_commit, profile=plan.profile
         )
         _require(
             plan.apple == _maintenance_apple_reference(),
@@ -1873,7 +1880,7 @@ def validate_plan_against_pending_manifest(
 
     platform_pending = (
         maintenance_contract.publication(
-            publications[maintenance_contract.PUBLICATION_KEY]
+            publications[plan.profile.publication_key], profile=plan.profile
         )
         if maintenance
         else _object(
@@ -2324,18 +2331,14 @@ def prepare_plan(
                     zip(
                         (
                             ()
-                            if plan.profile is PlatformReleaseProfile.MAINTENANCE_R2
+                            if plan.profile.is_maintenance
                             else apple_contract.APPLE_PUBLIC_ASSET_NAMES
                         ),
                         apple_snapshots,
                         strict=True,
                     )
                 )
-                for asset in (
-                    ()
-                    if plan.profile is PlatformReleaseProfile.MAINTENANCE_R2
-                    else plan.apple.assets
-                ):
+                for asset in () if plan.profile.is_maintenance else plan.apple.assets:
                     snapshot = apple_by_name[asset.name]
                     _stage_bytes(
                         staging,
@@ -2857,6 +2860,7 @@ def _sample_publication_tags(
         expected_tag_object=plan.platform.tag_object,
         expected_commit=plan.tag_commit,
         expected_tree=plan.tag_tree,
+        profile=plan.profile,
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
@@ -3849,7 +3853,7 @@ def publish_plan(
 ) -> PublicationStatus:
     _validate_http_connect_proxy_option(http_connect_proxy)
     _require(type(profile) is PlatformReleaseProfile, "publication profile is invalid")
-    maintenance = profile is PlatformReleaseProfile.MAINTENANCE_R2
+    maintenance = profile.is_maintenance
     _require(
         execute_real_github_mutation is True
         and draft_barrier_ack

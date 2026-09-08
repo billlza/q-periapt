@@ -133,6 +133,7 @@ def receipt_name(profile: PlatformReleaseProfile) -> str:
     return {
         PlatformReleaseProfile.STABLE: RECEIPT_NAME,
         PlatformReleaseProfile.MAINTENANCE_R2: "platform-v0.1.5-r2-publication-receipt.json",
+        PlatformReleaseProfile.MAINTENANCE_R3: "platform-v0.1.5-r3-publication-receipt.json",
     }[profile]
 
 
@@ -392,8 +393,8 @@ def _write_receipt(
         ) from exc
     try:
         stored_receipt = (
-            maintenance_contract.wrap_publication(receipt)
-            if profile is PlatformReleaseProfile.MAINTENANCE_R2
+            maintenance_contract.wrap_publication(receipt, profile=profile)
+            if profile.is_maintenance
             else receipt
         )
         return create_private_transaction_json(
@@ -765,9 +766,11 @@ def inspect_verifier_source(
         declared_source_parent == source_parent_commit,
         "platform results provenance differs from the tag commit parent",
     )
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         try:
-            maintenance_source.verify_product_source(verifier, source_parent_commit)
+            maintenance_source.verify_product_source(
+                verifier, source_parent_commit, profile=profile
+            )
         except maintenance_contract.PlatformMaintenanceContractError as exc:
             raise PlatformV015PublicationError(str(exc)) from exc
     return SourceObservation(
@@ -814,9 +817,9 @@ def _load_receipt(
         ).value
     except PublicationReceiptIOError as exc:
         raise PlatformV015PublicationError(str(exc)) from exc
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         try:
-            receipt = maintenance_contract.publication(receipt)
+            receipt = maintenance_contract.publication(receipt, profile=profile)
         except maintenance_contract.PlatformMaintenanceContractError as exc:
             raise PlatformV015PublicationError(str(exc)) from exc
     try:
@@ -1335,7 +1338,7 @@ def _runtime_projection(
         "tested_aar_manifest_sha256": assets[ANDROID_MANIFEST]["sha256"],
         "tested_aar_sha256": runtime.get("tested_aar_sha256"),
     }
-    if profile is PlatformReleaseProfile.MAINTENANCE_R2:
+    if profile.is_maintenance:
         projection["agp_consumers"] = runtime["agp_consumers"]
     return projection
 

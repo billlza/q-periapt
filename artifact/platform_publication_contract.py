@@ -31,7 +31,10 @@ PLATFORM_PUBLICATION_KEYS = frozenset(
         PLATFORM_V0_1_3_PUBLICATION_KEY,
         PLATFORM_V0_1_4_PUBLICATION_KEY,
         PLATFORM_V0_1_5_PUBLICATION_KEY,
-        maintenance_contract.PUBLICATION_KEY,
+        *(
+            profile.publication_key
+            for profile in maintenance_contract.MAINTENANCE_PROFILES
+        ),
     }
 )
 
@@ -744,13 +747,14 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
         except stable_contract.PlatformV015PublicationContractError as exc:
             raise PlatformPublicationContractError(str(exc)) from exc
 
-    if maintenance_contract.PUBLICATION_KEY in publications:
-        try:
+    try:
+        profile = maintenance_contract.selected_profile(publications)
+        if profile is not None:
             maintenance_contract.publication(
-                publications[maintenance_contract.PUBLICATION_KEY]
+                publications[profile.publication_key], profile=profile
             )
-        except maintenance_contract.PlatformMaintenanceContractError as exc:
-            raise PlatformPublicationContractError(str(exc)) from exc
+    except maintenance_contract.PlatformMaintenanceContractError as exc:
+        raise PlatformPublicationContractError(str(exc)) from exc
 
 
 def _publication_entries(
@@ -811,10 +815,12 @@ def validate_release_publication_transition(
     current_publications = _publication_entries(current)
 
     try:
-        maintenance_contract.validate_transition(
-            previous_publications.get(maintenance_contract.PUBLICATION_KEY),
-            current_publications.get(maintenance_contract.PUBLICATION_KEY),
-        )
+        for profile in maintenance_contract.MAINTENANCE_PROFILES:
+            maintenance_contract.validate_transition(
+                previous_publications.get(profile.publication_key),
+                current_publications.get(profile.publication_key),
+                profile=profile,
+            )
     except maintenance_contract.PlatformMaintenanceContractError as exc:
         raise PlatformPublicationContractError(str(exc)) from exc
 

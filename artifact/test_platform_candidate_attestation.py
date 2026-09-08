@@ -771,7 +771,10 @@ class PlatformCandidateAttestationTests(unittest.TestCase):
                 f"{candidate_attestation.github_release.GITHUB_API_VERSION}",
                 arguments,
             )
-        currentness.assert_called_once_with(self.SOURCE_PARENT)
+        currentness.assert_called_once_with(
+            self.SOURCE_PARENT,
+            profile=candidate_attestation.PlatformReleaseProfile.STABLE,
+        )
 
     def test_pretag_security_readiness_rejects_second_sample_drift(self) -> None:
         (

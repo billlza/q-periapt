@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The r2 public evidence envelope around canonical runtime and AGP consumers.
+"""The maintenance evidence envelope around canonical runtime and AGP consumers.
 
 The unchanged v2 bundle remains a complete nested artifact. Version 3 adds the
 two closed AGP evidence directories; their owning verifier interprets every
@@ -28,6 +28,7 @@ from deterministic_archive import (
 from evidence_io import EvidenceIOError, read_regular_snapshot, parse_strict_json_bytes
 from platform_distribution_contract import (
     PlatformDistributionContractError,
+    PlatformReleaseProfile,
     validate_agp_consumers,
 )
 
@@ -168,6 +169,7 @@ def verify_and_extract(
     expected_source_tree_sha256: str,
     expected_source_epoch: int,
     sdk: pathlib.Path | None = None,
+    release_profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
 ) -> VerifiedMaintenanceBundle:
     """Verify the envelope and consumers, returning v2 for its separate verifier.
 
@@ -175,6 +177,11 @@ def verify_and_extract(
     the returned ZIP; a valid v3 envelope cannot replace that gate.
     """
 
+    _require(
+        type(release_profile) is PlatformReleaseProfile
+        and release_profile.is_maintenance,
+        "maintenance bundle profile is invalid",
+    )
     try:
         audit = extract_zip(
             bundle,
@@ -210,7 +217,7 @@ def verify_and_extract(
             and type(manifest["schema_version"]) is int
             and manifest["schema_version"] == SCHEMA_VERSION
             and manifest["kind"] == runtime.BUNDLE_KIND
-            and manifest["profile"] == "maintenance-r2",
+            and manifest["profile"] == release_profile.value,
             "maintenance bundle discriminant or fields differ",
         )
         _require(
@@ -311,9 +318,18 @@ def verify_and_extract(
         raise AndroidMaintenanceBundleError(str(exc)) from exc
 
 
-def create_bundle(args: argparse.Namespace) -> str:
+def create_bundle(
+    args: argparse.Namespace,
+    *,
+    release_profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
+) -> str:
     """Package already completed runtime proofs, then independently verify the ZIP."""
 
+    _require(
+        type(release_profile) is PlatformReleaseProfile
+        and release_profile.is_maintenance,
+        "maintenance bundle profile is invalid",
+    )
     root = runtime_state.collector_repository_root(args.root)
     full_proof = agp.collector_proof_path(args.full_proof)
     minimal_proof = agp.collector_proof_path(args.minimal_proof)
@@ -418,7 +434,7 @@ def create_bundle(args: argparse.Namespace) -> str:
             manifest = {
                 "schema_version": SCHEMA_VERSION,
                 "kind": runtime.BUNDLE_KIND,
-                "profile": "maintenance-r2",
+                "profile": release_profile.value,
                 "git_commit": source_commit,
                 "source_date_epoch": original["source_date_epoch"],
                 "source_tree_sha256": proof["proof_source_tree_sha256"],
@@ -452,6 +468,7 @@ def create_bundle(args: argparse.Namespace) -> str:
                 expected_source_epoch=original["source_date_epoch"],
                 expected_source_tree_sha256=proof["proof_source_tree_sha256"],
                 sdk=sdk,
+                release_profile=release_profile,
             )
             return verified.archive_sha256
     except (
@@ -464,6 +481,11 @@ def create_bundle(args: argparse.Namespace) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser.add_argument(
+        "--profile",
+        choices=[p.value for p in PlatformReleaseProfile if p.is_maintenance],
+        default=PlatformReleaseProfile.MAINTENANCE_R2.value,
+    )
     for name in (
         "root",
         "runtime-bundle",
@@ -478,7 +500,9 @@ def main() -> int:
         parser.add_argument(f"--{name}", required=True, type=pathlib.Path)
     args = parser.parse_args()
     try:
-        digest = create_bundle(args)
+        digest = create_bundle(
+            args, release_profile=PlatformReleaseProfile(args.profile)
+        )
     except (
         OSError,
         AndroidMaintenanceBundleError,

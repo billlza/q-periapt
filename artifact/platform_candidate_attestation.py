@@ -331,9 +331,16 @@ def _source_parent_from_results() -> str:
     return source_parent
 
 
-def validate_tag_source_currentness(expected_source_parent: str) -> None:
+def validate_tag_source_currentness(
+    expected_source_parent: str,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> None:
     """Apply the central stable-source authority to the tagged results bytes."""
 
+    _require(
+        type(profile) is PlatformReleaseProfile, "platform release profile is invalid"
+    )
     _require(
         HEX_40.fullmatch(expected_source_parent) is not None,
         "expected source parent is malformed",
@@ -350,6 +357,16 @@ def validate_tag_source_currentness(expected_source_parent: str) -> None:
         release_publication_contract.validate_stable_source_currentness(manifest)
     except release_publication_contract.ReleasePublicationContractError as exc:
         raise CandidateAttestationError(str(exc)) from exc
+    if profile is PlatformReleaseProfile.MAINTENANCE_R3:
+        import platform_maintenance
+        from platform_maintenance_contract import PlatformMaintenanceContractError
+
+        try:
+            platform_maintenance.verify_product_source(
+                REPOSITORY_ROOT, expected_source_parent, profile=profile
+            )
+        except PlatformMaintenanceContractError as exc:
+            raise CandidateAttestationError(str(exc)) from exc
 
 
 def _workflow_sha256(relative: str, *, label: str) -> str:
@@ -1268,6 +1285,7 @@ def verify_pretag_security_readiness(
     expected_source_parent_commit: str,
     *,
     source_environment: Mapping[str, str] | None = None,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[int, int, int, int, str]:
     """Double-sample exact-R hosted-security authority before tags exist."""
 
@@ -1280,7 +1298,7 @@ def verify_pretag_security_readiness(
         _source_parent_from_results() == expected_source_parent_commit,
         "pre-tag security S differs from results",
     )
-    validate_tag_source_currentness(expected_source_parent_commit)
+    validate_tag_source_currentness(expected_source_parent_commit, profile=profile)
     try:
         environment = github_release.github_cli_environment(
             os.environ if source_environment is None else source_environment
@@ -2602,7 +2620,9 @@ def _main(arguments: Sequence[str]) -> int:
         return 0
     if len(arguments) == 3 and arguments[0] == "pretag-security-readiness":
         ci_run, ci_attempt, codeql_run, codeql_attempt, tool_sha256 = (
-            verify_pretag_security_readiness(arguments[1], arguments[2])
+            verify_pretag_security_readiness(
+                arguments[1], arguments[2], profile=profile
+            )
         )
         print(
             "PRETAG_SECURITY_READINESS_PASS "
@@ -2636,7 +2656,7 @@ def _main(arguments: Sequence[str]) -> int:
         )
         return 0
     if len(arguments) == 2 and arguments[0] == "stable-source-currentness":
-        validate_tag_source_currentness(arguments[1])
+        validate_tag_source_currentness(arguments[1], profile=profile)
         return 0
     if len(arguments) == 4 and arguments[0] == "preflight":
         preflight_candidate_paths(

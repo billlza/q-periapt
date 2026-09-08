@@ -12,12 +12,12 @@ if [ "$#" -ge 2 ] && [ "$1" = "--profile" ]; then
     shift 2
 fi
 case "$PROFILE" in
-    stable|maintenance-r2) ;;
+    stable|maintenance-r2|maintenance-r3) ;;
     *) printf 'error: unknown platform release profile\n' >&2; exit 2 ;;
 esac
 
 if [ "$#" -ne 3 ]; then
-	printf 'usage: %s [--profile stable|maintenance-r2] CANDIDATE_DIRECTORY EXPECTED_TAG_COMMIT PROJECTION_OUTPUT\n' "$0" >&2
+	printf 'usage: %s [--profile stable|maintenance-r2|maintenance-r3] CANDIDATE_DIRECTORY EXPECTED_TAG_COMMIT PROJECTION_OUTPUT\n' "$0" >&2
 	exit 2
 fi
 

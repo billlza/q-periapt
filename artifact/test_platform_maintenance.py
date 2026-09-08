@@ -55,14 +55,18 @@ EXPECTED_ACTIONS = (
 )
 
 
-def revision_receipt(*, verified: bool = False) -> dict[str, object]:
+def revision_receipt(
+    *,
+    verified: bool = False,
+    release_profile: publication.PlatformReleaseProfile = PROFILE,
+) -> dict[str, object]:
     value = verified_receipt() if verified else pending_receipt()
-    value["identity"] = PROFILE.identity()
-    value["boundary"] = platform.publication_boundary(PROFILE)
+    value["identity"] = release_profile.identity()
+    value["boundary"] = platform.publication_boundary(release_profile)
     candidate = value["observation"]["candidate_attestation"]
-    candidate["certificate_san"] = PROFILE.workflow_uri
-    candidate["signer_workflow"] = PROFILE.workflow_uri
-    candidate["source_ref"] = PROFILE.release_ref
+    candidate["certificate_san"] = release_profile.workflow_uri
+    candidate["signer_workflow"] = release_profile.workflow_uri
+    candidate["source_ref"] = release_profile.release_ref
     source = value["observation"]["source"]
     runtime = value["observation"]["release_candidate"]["android_runtime_evidence"]
     consumers = {}
@@ -102,17 +106,21 @@ def revision_receipt(*, verified: bool = False) -> dict[str, object]:
         value["observation"]["android_runtime_evidence"] = copy.deepcopy(runtime)
         value["observation"]["release_attestation"]["subjects"][0][
             "uri"
-        ] = PROFILE.tag_subject_uri
-    return maintenance.wrap_publication(value)
+        ] = release_profile.tag_subject_uri
+    return maintenance.wrap_publication(value, profile=release_profile)
 
 
-def maintenance_plan() -> publication.PublicationPlan:
+def maintenance_plan(
+    *,
+    release_profile: publication.PlatformReleaseProfile = PROFILE,
+) -> publication.PublicationPlan:
     original = fixture_plan()
     mutable = original.platform
+    title, body = publication._platform_release_text(release_profile)
     common = {
-        "tag": "abi2-platforms-v0.1.5-r2",
-        "title": publication.MAINTENANCE_PLATFORM_TITLE,
-        "body": publication.MAINTENANCE_PLATFORM_BODY,
+        "tag": release_profile.release_tag,
+        "title": title,
+        "body": body,
         "make_latest": False,
         "tag_commit": original.tag_commit,
     }
@@ -130,7 +138,7 @@ def maintenance_plan() -> publication.PublicationPlan:
     )
     return dataclasses.replace(
         original,
-        profile=PROFILE,
+        profile=release_profile,
         releases=(publication._maintenance_apple_reference(), revised),
     )
 
@@ -569,13 +577,25 @@ class PlatformMaintenanceFinalizerTests(unittest.TestCase):
             ("mktree",), f"040000 tree {tree}\tartifact\n".encode()
         )
         q_commit = self._git_object(("commit-tree", root_tree), b"Frozen Q fixture\n")
-        for field, value in (
-            ("BASE_COHORT_COMMIT", q_commit),
-            ("BASE_SOURCE_COMMIT", self.fixture.source_commit),
-        ):
-            patcher = mock.patch.object(maintenance_source, field, value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
+        self.enterContext(
+            mock.patch.object(maintenance_source, "BASE_COHORT_COMMIT", q_commit)
+        )
+        # The local Git fixture has its own product commit; the immutable receipt's
+        # original-cohort comparison must continue to use the published constant.
+        self.enterContext(
+            mock.patch.object(
+                maintenance_source,
+                "product_contract",
+                side_effect=lambda profile: (
+                    dataclasses.replace(
+                        maintenance.product_contract(profile),
+                        product_commit=self.fixture.source_commit,
+                    )
+                    if profile is PROFILE
+                    else maintenance.product_contract(profile)
+                ),
+            )
+        )
 
     def _git_object(self, arguments: tuple[str, ...], data: bytes) -> str:
         return (
@@ -599,8 +619,13 @@ class PlatformMaintenanceFinalizerTests(unittest.TestCase):
             .strip()
         )
 
-    def _receipt(self, *, verified: bool) -> pathlib.Path:
-        value = revision_receipt(verified=verified)
+    def _receipt(
+        self,
+        *,
+        verified: bool,
+        release_profile: publication.PlatformReleaseProfile = PROFILE,
+    ) -> pathlib.Path:
+        value = revision_receipt(verified=verified, release_profile=release_profile)
         inner = release_fixtures._rebind_platform(
             value["publication"], self.fixture._source_identity()
         )
@@ -616,17 +641,22 @@ class PlatformMaintenanceFinalizerTests(unittest.TestCase):
                 )
         return self.fixture._receipt_path(
             self.fixture.platform_root,
-            collector.receipt_name(PROFILE),
-            maintenance.wrap_publication(inner),
+            collector.receipt_name(release_profile),
+            maintenance.wrap_publication(inner, profile=release_profile),
             "maintenance-verified" if verified else "maintenance-pending",
         )
 
-    def _install(self, *, verified: bool) -> tuple[str, str, pathlib.Path]:
+    def _install(
+        self,
+        *,
+        verified: bool,
+        release_profile: publication.PlatformReleaseProfile = PROFILE,
+    ) -> tuple[str, str, pathlib.Path]:
         previous_commit = self.fixture._commit()
         previous_sha256 = self.fixture._current_sha256()
-        receipt = self._receipt(verified=verified)
+        receipt = self._receipt(verified=verified, release_profile=release_profile)
         current, committed = finalizer.assemble_maintenance_results(
-            previous_sha256, receipt_path=receipt
+            previous_sha256, receipt_path=receipt, profile=release_profile
         )
         self.assertEqual(previous_commit, committed.commit)
         for key in current.keys() - {"release_publications"}:
@@ -634,13 +664,13 @@ class PlatformMaintenanceFinalizerTests(unittest.TestCase):
         retained = {
             key: value
             for key, value in current["release_publications"].items()
-            if key != maintenance.PUBLICATION_KEY
+            if key != release_profile.publication_key
         }
         self.assertEqual(
             {
                 key: value
                 for key, value in committed.manifest["release_publications"].items()
-                if key != maintenance.PUBLICATION_KEY
+                if key != release_profile.publication_key
             },
             retained,
         )
@@ -675,6 +705,7 @@ class PlatformMaintenanceFinalizerTests(unittest.TestCase):
                     command="verify-maintenance",
                     expected_results_sha256=digest,
                     platform_receipt=pending_receipt_path,
+                    profile=PROFILE.value,
                 )
             )
         _verified, digest, receipt = self._install(verified=True)
@@ -685,6 +716,7 @@ class PlatformMaintenanceFinalizerTests(unittest.TestCase):
                     command="verify-maintenance",
                     expected_results_sha256=digest,
                     platform_receipt=receipt,
+                    profile=PROFILE.value,
                 )
             )
         self.assertIn("PLATFORM_MAINTENANCE_RESULTS_VERIFY_PASS", output.getvalue())
@@ -1118,7 +1150,13 @@ class _MaintenanceRepository:
     execute the production validators without replacements.
     """
 
-    def __init__(self, case: unittest.TestCase) -> None:
+    def __init__(
+        self,
+        case: unittest.TestCase,
+        *,
+        release_profile: publication.PlatformReleaseProfile = PROFILE,
+    ) -> None:
+        self.profile = release_profile
         history = PlatformMaintenanceFinalizerTests()
         history.setUp()
         case.addCleanup(history.doCleanups)
@@ -1126,6 +1164,16 @@ class _MaintenanceRepository:
         self.fixture = history.fixture
         self.root = self.fixture.root
         self.results = self.fixture.results
+        if release_profile is publication.PlatformReleaseProfile.MAINTENANCE_R3:
+            case.enterContext(
+                mock.patch.multiple(
+                    maintenance,
+                    REVIEWED_R3_PRODUCT_COMMIT=self.fixture.source_commit,
+                    REVIEWED_R3_PRODUCT_TREE=_git(
+                        self.root, "rev-parse", f"{self.fixture.source_commit}^{{tree}}"
+                    ),
+                )
+            )
 
         _git(
             self.root,
@@ -1140,7 +1188,7 @@ class _MaintenanceRepository:
             self.root,
             "tag",
             "-a",
-            PROFILE.release_tag,
+            self.profile.release_tag,
             self.fixture.results_commit,
             "-m",
             "platform revision",
@@ -1157,11 +1205,13 @@ class _MaintenanceRepository:
                 ),
             )
         )
-        self.receipt_path = history._receipt(verified=False)
+        self.receipt_path = history._receipt(
+            verified=False, release_profile=self.profile
+        )
         receipt = json.loads(self.receipt_path.read_bytes())
         observation = receipt["publication"]["observation"]
         observation["source"]["tag_object"] = _git(
-            self.root, "rev-parse", f"refs/tags/{PROFILE.release_tag}^{{tag}}"
+            self.root, "rev-parse", f"refs/tags/{self.profile.release_tag}^{{tag}}"
         )
         self.payloads = {
             name: f"publication fixture bytes for {name}\n".encode("ascii")
@@ -1194,9 +1244,9 @@ class _MaintenanceRepository:
         source = observation["source"]
         self.cache_receipt = {
             **copy.deepcopy(candidate),
-            "schema_version": PROFILE.candidate_receipt_schema,
+            "schema_version": self.profile.candidate_receipt_schema,
             "kind": distribution_contract.PLATFORM_RELEASE_CANDIDATE_KIND,
-            "identity": PROFILE.identity(),
+            "identity": self.profile.identity(),
             "source": {
                 "canonical_source_tree_sha256": source["canonical_source_tree_sha256"],
                 "git_commit": source["tag_commit"],
@@ -1206,7 +1256,7 @@ class _MaintenanceRepository:
             },
         }
         distribution_contract.validate_release_candidate_receipt(
-            self.cache_receipt, profile=PROFILE
+            self.cache_receipt, profile=self.profile
         )
         self.cache_root = self.root / "target" / "abi2-platform-release-candidates"
         self.cache_root.mkdir(mode=0o700)
@@ -1224,10 +1274,12 @@ class _MaintenanceRepository:
             0o600,
         )
         observation["assembly_receipt_sha256"] = hashlib.sha256(cache_bytes).hexdigest()
-        maintenance.publication(receipt)
+        maintenance.publication(receipt, profile=self.profile)
         _write(self.receipt_path, canonical_json_bytes(receipt), 0o600)
         current, previous = finalizer.assemble_maintenance_results(
-            self.fixture._current_sha256(), receipt_path=self.receipt_path
+            self.fixture._current_sha256(),
+            receipt_path=self.receipt_path,
+            profile=self.profile,
         )
         case.assertEqual(self.fixture.results_commit, previous.commit)
         self.fixture._write_results(current)
@@ -1261,7 +1313,7 @@ class _MaintenanceRepository:
             mock.patch.object(publication, "_account_home", return_value=self.home)
         )
         self.account_root = publication.expected_state_root()
-        self.state_root = publication.expected_state_root(PROFILE)
+        self.state_root = publication.expected_state_root(self.profile)
         self.account_root.mkdir(mode=0o700, parents=True)
         for parent in (self.account_root.parent.parent, self.account_root.parent):
             parent.chmod(0o700)
@@ -1269,7 +1321,7 @@ class _MaintenanceRepository:
 
     def prepare(self) -> publication.PublicationPlan:
         return publication.prepare_plan(
-            self.digest, profile=PROFILE, repository_root=self.root
+            self.digest, profile=self.profile, repository_root=self.root
         )
 
 
