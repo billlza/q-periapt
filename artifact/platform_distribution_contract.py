@@ -39,10 +39,13 @@ class PlatformReleaseProfile(Enum):
     STABLE = "stable"
     MAINTENANCE_R2 = "maintenance-r2"
     MAINTENANCE_R3 = "maintenance-r3"
+    MAINTENANCE_R4 = "maintenance-r4"
 
     @property
     def is_maintenance(self) -> bool:
-        return self in {self.MAINTENANCE_R2, self.MAINTENANCE_R3}
+        return self in {
+            self.MAINTENANCE_R2, self.MAINTENANCE_R3, self.MAINTENANCE_R4
+        }
 
     @property
     def revision(self) -> str:
@@ -50,6 +53,7 @@ class PlatformReleaseProfile(Enum):
             self.STABLE: "r1",
             self.MAINTENANCE_R2: "r2",
             self.MAINTENANCE_R3: "r3",
+            self.MAINTENANCE_R4: "r4",
         }[self]
 
     @property
@@ -58,6 +62,7 @@ class PlatformReleaseProfile(Enum):
             self.STABLE: RELEASE_TAG,
             self.MAINTENANCE_R2: "abi2-platforms-v0.1.5-r2",
             self.MAINTENANCE_R3: "abi2-platforms-v0.1.5-r3",
+            self.MAINTENANCE_R4: "abi2-platforms-v0.1.5-r4",
         }[self]
 
     @property
@@ -66,11 +71,17 @@ class PlatformReleaseProfile(Enum):
             self.STABLE: "v0.1.5-verified-cohort",
             self.MAINTENANCE_R2: "abi2-platforms-v0.1.5-r2-verified",
             self.MAINTENANCE_R3: "abi2-platforms-v0.1.5-r3-verified",
+            self.MAINTENANCE_R4: "abi2-platforms-v0.1.5-r4-verified",
         }[self]
 
     @property
     def runtime_bundle_schema(self) -> int:
-        return {self.STABLE: 2, self.MAINTENANCE_R2: 3, self.MAINTENANCE_R3: 3}[self]
+        return {
+            self.STABLE: 2,
+            self.MAINTENANCE_R2: 3,
+            self.MAINTENANCE_R3: 3,
+            self.MAINTENANCE_R4: 3,
+        }[self]
 
     @property
     def release_ref(self) -> str:
@@ -97,6 +108,7 @@ class PlatformReleaseProfile(Enum):
             self.STABLE: "platform_v0_1_5",
             self.MAINTENANCE_R2: "platform_v0_1_5_r2",
             self.MAINTENANCE_R3: "platform_v0_1_5_r3",
+            self.MAINTENANCE_R4: "platform_v0_1_5_r4",
         }[self]
 
     def identity(self) -> dict[str, str]:
@@ -109,7 +121,12 @@ class PlatformReleaseProfile(Enum):
 
     @property
     def candidate_receipt_schema(self) -> int:
-        return {self.STABLE: 1, self.MAINTENANCE_R2: 2, self.MAINTENANCE_R3: 2}[self]
+        return {
+            self.STABLE: 1,
+            self.MAINTENANCE_R2: 2,
+            self.MAINTENANCE_R3: 2,
+            self.MAINTENANCE_R4: 2,
+        }[self]
 
 
 RELEASE_MANIFEST = "PLATFORM_DISTRIBUTION.json"

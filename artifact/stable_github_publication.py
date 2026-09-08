@@ -135,6 +135,16 @@ SDK_R3_PLATFORM_BODY = (
     "their release attestation, canonical and AGP runtime evidence, and the "
     "independent r3 maintenance receipt before use."
 )
+SDK_R4_PLATFORM_TITLE = "Q-Periapt 0.1.5 ABI 2 SDK Distribution r4"
+SDK_R4_PLATFORM_BODY = (
+    "ABI 2 0.1.5 runtime maintenance revision r4 retaining the reviewed r3 "
+    "product source, with private Android listener activation and recovery "
+    "tooling. Original publication records and the r2 release remain unchanged; "
+    "the r3 producer tag, plan and retained candidate artifacts are preserved. "
+    "Crates.io 0.1.5 is not replaced. Verify all seven assets, their release attestation, "
+    "canonical and AGP runtime evidence, and the independent r4 maintenance "
+    "receipt before use."
+)
 MAINTENANCE_BOUNDARY = (
     "One platform maintenance transaction anchored to the unchanged 0.1.5 "
     "verified cohort. Apple is an observed immutable reference only. Exactly "
@@ -164,6 +174,10 @@ def _platform_release_text(profile: PlatformReleaseProfile) -> tuple[str, str]:
         PlatformReleaseProfile.MAINTENANCE_R3: (
             SDK_R3_PLATFORM_TITLE,
             SDK_R3_PLATFORM_BODY,
+        ),
+        PlatformReleaseProfile.MAINTENANCE_R4: (
+            SDK_R4_PLATFORM_TITLE,
+            SDK_R4_PLATFORM_BODY,
         ),
     }[profile]
 
@@ -1013,6 +1027,7 @@ def expected_state_root(
             PlatformReleaseProfile.STABLE: "github-stable-v0.1.5",
             PlatformReleaseProfile.MAINTENANCE_R2: "github-platform-v0.1.5-r2",
             PlatformReleaseProfile.MAINTENANCE_R3: "github-platform-v0.1.5-r3",
+            PlatformReleaseProfile.MAINTENANCE_R4: "github-platform-v0.1.5-r4",
         }[profile]
     )
 

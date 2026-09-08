@@ -6,6 +6,7 @@ on:
       - abi2-platforms-v0.1.5
       - abi2-platforms-v0.1.5-r2
       - abi2-platforms-v0.1.5-r3
+      - abi2-platforms-v0.1.5-r4
 
 permissions:
   actions: read
@@ -16,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLATFORM_RELEASE_PROFILE: ${{ github.ref == 'refs/tags/abi2-platforms-v0.1.5' && 'stable' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r2' && 'maintenance-r2' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r3' && 'maintenance-r3' || 'invalid' }}
+  PLATFORM_RELEASE_PROFILE: ${{ github.ref == 'refs/tags/abi2-platforms-v0.1.5' && 'stable' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r2' && 'maintenance-r2' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r3' && 'maintenance-r3' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r4' && 'maintenance-r4' || 'invalid' }}
   CARGO_TERM_COLOR: always
   CARGO_NET_RETRY: "10"
   CARGO_HTTP_MULTIPLEXING: "false"

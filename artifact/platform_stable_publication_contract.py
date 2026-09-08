@@ -80,6 +80,17 @@ PLATFORM_V0_1_5_R3_PUBLICATION_BOUNDARY = (
     "not claim a replacement crates.io 0.1.5 package, a new Apple publication, "
     "physical-device coverage, client adoption or anonymous download availability."
 )
+PLATFORM_V0_1_5_R4_PUBLICATION_BOUNDARY = (
+    "ABI 2 0.1.5 r4 runtime maintenance distribution retaining the fixed r3 "
+    "reviewed product source. Its independent receipt binds a new annotated tag "
+    "and tooling source, four candidate products, exact seven assets, candidate "
+    "provenance, immutable release attestation, fresh downloads, API 35 "
+    "arm64-v8a 16 KiB canonical runtime and both AGP release consumers. The "
+    "original verified cohort and r2 publication are unchanged; the r3 producer "
+    "tag, plan and retained candidate artifacts are preserved. This receipt does "
+    "not claim a replacement crates.io 0.1.5 package, a new Apple publication, "
+    "physical-device coverage, client adoption or anonymous download availability."
+)
 
 
 def publication_boundary(profile: PlatformReleaseProfile) -> str:
@@ -90,6 +101,7 @@ def publication_boundary(profile: PlatformReleaseProfile) -> str:
         PlatformReleaseProfile.STABLE: PLATFORM_V0_1_5_PUBLICATION_BOUNDARY,
         PlatformReleaseProfile.MAINTENANCE_R2: PLATFORM_V0_1_5_R2_PUBLICATION_BOUNDARY,
         PlatformReleaseProfile.MAINTENANCE_R3: PLATFORM_V0_1_5_R3_PUBLICATION_BOUNDARY,
+        PlatformReleaseProfile.MAINTENANCE_R4: PLATFORM_V0_1_5_R4_PUBLICATION_BOUNDARY,
     }[profile]
 
 

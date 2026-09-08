@@ -5616,11 +5616,11 @@ with _temporary_release_test_directories(parents):
         self.assertIn("-ExpectedGitTree $gitTree", candidate_verify)
         preflight = extract_workflow_job(candidate, "preflight")
         self.assertIn(
-            "    tags:\n      - abi2-platforms-v0.1.5\n      - abi2-platforms-v0.1.5-r2\n      - abi2-platforms-v0.1.5-r3\n",
+            "    tags:\n      - abi2-platforms-v0.1.5\n      - abi2-platforms-v0.1.5-r2\n      - abi2-platforms-v0.1.5-r3\n      - abi2-platforms-v0.1.5-r4\n",
             candidate,
         )
         self.assertIn(
-            "PLATFORM_RELEASE_PROFILE: ${{ github.ref == 'refs/tags/abi2-platforms-v0.1.5' && 'stable' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r2' && 'maintenance-r2' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r3' && 'maintenance-r3' || 'invalid' }}",
+            "PLATFORM_RELEASE_PROFILE: ${{ github.ref == 'refs/tags/abi2-platforms-v0.1.5' && 'stable' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r2' && 'maintenance-r2' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r3' && 'maintenance-r3' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r4' && 'maintenance-r4' || 'invalid' }}",
             candidate,
         )
         self.assertEqual(

@@ -1164,7 +1164,10 @@ class _MaintenanceRepository:
         self.fixture = history.fixture
         self.root = self.fixture.root
         self.results = self.fixture.results
-        if release_profile is publication.PlatformReleaseProfile.MAINTENANCE_R3:
+        if release_profile in {
+            publication.PlatformReleaseProfile.MAINTENANCE_R3,
+            publication.PlatformReleaseProfile.MAINTENANCE_R4,
+        }:
             case.enterContext(
                 mock.patch.multiple(
                     maintenance,
