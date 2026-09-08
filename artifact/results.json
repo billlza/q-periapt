@@ -1709,7 +1709,102 @@
         },
         "kind": "qperiapt.abi2_platform_publication_receipt",
         "observation": {
+          "android_runtime_evidence": {
+            "agp_consumers": {
+              "agp_full_release": {
+                "projection": {
+                  "aar_manifest_sha256": "b260546b747b2dde285ddb1ec6c90ab63469e6caed1c9b25f56a054d09950ee3",
+                  "aar_sha256": "1062e91bbc2c431da4b559583d877765922c17459d57f779abc5a56de17d390d",
+                  "agp_version": "9.4.0",
+                  "apk_sha256": "e63c1ad48917c3865027664093ea6b0895b7e8f9bb3fdc76d0b563692278ea45",
+                  "build_receipt_sha256": "f9b4946b82a367c98de0ab01e2f98b66a6b4a06b48bc5d1fd2e83fc9f53da4ca",
+                  "gradle_version": "9.7.1",
+                  "passed_tests": [
+                    "runtimeMetadataMatches",
+                    "signedPolicyDecisionIsExactAndFailClosed",
+                    "osRandomPolicyRoundtripAndWipes"
+                  ],
+                  "profile": "agp_full_release",
+                  "proof_sha256": "4774722cf53849ee46297e22418b6eca90fe2fa02b6f91a9e459215cdce8ec97",
+                  "result_json_sha256": "ec8c8b2b5c94e398448a2349a15593de22a4706a194eba0583a472f04c41fb04",
+                  "run_id": "dfc3444f4641011ef440454e1bb4e8eb",
+                  "source_commit": "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+                  "source_tree_sha256": "b9f507e43e1ada769255dd16840c68ff90fc725a7b2dc9ae4c08de883db59ba3"
+                },
+                "proof_path": "consumers/agp_full_release/proof.json"
+              },
+              "agp_minimal_release": {
+                "projection": {
+                  "aar_manifest_sha256": "b260546b747b2dde285ddb1ec6c90ab63469e6caed1c9b25f56a054d09950ee3",
+                  "aar_sha256": "1062e91bbc2c431da4b559583d877765922c17459d57f779abc5a56de17d390d",
+                  "agp_version": "9.4.0",
+                  "apk_sha256": "ad071f4f0a9b0a5016c816b15c86192a78bc4436d276191093f02869bd466eb7",
+                  "build_receipt_sha256": "5e2a15a1fab296f104a775df5e272d5e5a4c9f047f5243738267aadb24c7223a",
+                  "gradle_version": "9.7.1",
+                  "passed_tests": [
+                    "runtimeVersionOnly"
+                  ],
+                  "profile": "agp_minimal_release",
+                  "proof_sha256": "99b24268844580cbb93a9f939b24e1c375028627b1a3efc5eda78331c8b20e58",
+                  "result_json_sha256": "c79267d1300d7577af11036c2989a0c646f66eb42dfa020166f0be769373593c",
+                  "run_id": "38f885c2fcf0adc7db45d8e6f08aa0f7",
+                  "source_commit": "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+                  "source_tree_sha256": "b9f507e43e1ada769255dd16840c68ff90fc725a7b2dc9ae4c08de883db59ba3"
+                },
+                "proof_path": "consumers/agp_minimal_release/proof.json"
+              }
+            },
+            "bundle_manifest_sha256": "e512aaf398042aba2e224a9fc945d5e63e8886273cf338cce06e04e66dcc1dad",
+            "bundle_schema": 3,
+            "bundle_sha256": "44e9b9b43041539e86e05446e5ef10da67a503af4bdb8f9980a6e233a0c97935",
+            "device_abi": "arm64-v8a",
+            "device_kind": "emulator",
+            "device_sdk": 35,
+            "page_size": 16384,
+            "proof_schema": 6,
+            "proof_sha256": "d4f19ebbfdcc436fbb45b70f9b8668b2d9b7a534bf98b2d0443d0f12a4e498aa",
+            "release_mode": true,
+            "tested_aar_manifest_sha256": "b260546b747b2dde285ddb1ec6c90ab63469e6caed1c9b25f56a054d09950ee3",
+            "tested_aar_sha256": "1062e91bbc2c431da4b559583d877765922c17459d57f779abc5a56de17d390d"
+          },
           "assembly_receipt_sha256": "43ba5c7bc8ed6d54fb61e6b6c7348b9141b1bd2d8407e370a7ec1415c2d5c903",
+          "assets": [
+            {
+              "bytes": 6420,
+              "name": "PLATFORM_DISTRIBUTION.json",
+              "sha256": "d263b9c325e9fe624ed697d50265b60063eb8cf55f1e6d19b57d94a84b92d388"
+            },
+            {
+              "bytes": 649,
+              "name": "SHA256SUMS",
+              "sha256": "7bfd7373adc6d297a95ce40c39466244cdfd0385f6a8efc3e85981afd48fb93d"
+            },
+            {
+              "bytes": 14264544,
+              "name": "q-periapt-android-0.1.5-16k-runtime-evidence.zip",
+              "sha256": "44e9b9b43041539e86e05446e5ef10da67a503af4bdb8f9980a6e233a0c97935"
+            },
+            {
+              "bytes": 3918,
+              "name": "q-periapt-android-0.1.5-MANIFEST.json",
+              "sha256": "b260546b747b2dde285ddb1ec6c90ab63469e6caed1c9b25f56a054d09950ee3"
+            },
+            {
+              "bytes": 3316334,
+              "name": "q-periapt-android-0.1.5.aar",
+              "sha256": "1062e91bbc2c431da4b559583d877765922c17459d57f779abc5a56de17d390d"
+            },
+            {
+              "bytes": 1310600,
+              "name": "q-periapt-c-abi2-0.1.5-aarch64-unknown-linux-gnu.tar.gz",
+              "sha256": "b081e490a516f2d428fc0ede37a32782444d298b60d26e12a699b54bb9e50cd9"
+            },
+            {
+              "bytes": 1363981,
+              "name": "q-periapt-c-abi2-0.1.5-x86_64-unknown-linux-gnu.tar.gz",
+              "sha256": "ba49aec9acaa49df8b5730c8b5806260e26f1483ef215d64df8d4b5a76afcc99"
+            }
+          ],
           "candidate_attestation": {
             "certificate_san": "https://github.com/billlza/q-periapt/.github/workflows/abi2-platform-candidate.yml@refs/tags/abi2-platforms-v0.1.5-r4",
             "predicate_type": "https://slsa.dev/provenance/v1",
@@ -1963,7 +2058,85 @@
             "workflow_run_attempt": 1,
             "workflow_run_id": 34271178195
           },
-          "observed_at": "2026-09-08T20:44:20Z",
+          "checksums_sha256": "7bfd7373adc6d297a95ce40c39466244cdfd0385f6a8efc3e85981afd48fb93d",
+          "draft": false,
+          "fresh_download_verification": {
+            "asset_count": 7,
+            "deep_distribution_verified": true,
+            "record_sha256": "b17ff5be52189ada684080e19f119a7dd423b9ba74de0d16b43887ac4ef25624",
+            "verified_at": "2026-09-08T23:01:20Z",
+            "verifier_commit": "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad"
+          },
+          "immutable_release": true,
+          "observed_at": "2026-09-08T23:01:32Z",
+          "platform_distribution_sha256": "d263b9c325e9fe624ed697d50265b60063eb8cf55f1e6d19b57d94a84b92d388",
+          "prerelease": false,
+          "public_release": true,
+          "published_at": "2026-09-08T22:45:06Z",
+          "registries": {
+            "crates_io": "not_published",
+            "deb": "not_published",
+            "maven_central": "not_published",
+            "msix": "not_published",
+            "rpm": "not_published"
+          },
+          "release_asset_verification_count": 7,
+          "release_attestation": {
+            "certificate_san": "https://dotcom.releases.github.com",
+            "predicate_type": "https://in-toto.io/attestation/release/v0.2",
+            "subjects": [
+              {
+                "digest": {
+                  "sha1": "14ed8468826445d9651d44ded9f14543a069891b"
+                },
+                "uri": "pkg:github/billlza/q-periapt@abi2-platforms-v0.1.5-r4"
+              },
+              {
+                "digest": {
+                  "sha256": "d263b9c325e9fe624ed697d50265b60063eb8cf55f1e6d19b57d94a84b92d388"
+                },
+                "name": "PLATFORM_DISTRIBUTION.json"
+              },
+              {
+                "digest": {
+                  "sha256": "7bfd7373adc6d297a95ce40c39466244cdfd0385f6a8efc3e85981afd48fb93d"
+                },
+                "name": "SHA256SUMS"
+              },
+              {
+                "digest": {
+                  "sha256": "44e9b9b43041539e86e05446e5ef10da67a503af4bdb8f9980a6e233a0c97935"
+                },
+                "name": "q-periapt-android-0.1.5-16k-runtime-evidence.zip"
+              },
+              {
+                "digest": {
+                  "sha256": "b260546b747b2dde285ddb1ec6c90ab63469e6caed1c9b25f56a054d09950ee3"
+                },
+                "name": "q-periapt-android-0.1.5-MANIFEST.json"
+              },
+              {
+                "digest": {
+                  "sha256": "1062e91bbc2c431da4b559583d877765922c17459d57f779abc5a56de17d390d"
+                },
+                "name": "q-periapt-android-0.1.5.aar"
+              },
+              {
+                "digest": {
+                  "sha256": "b081e490a516f2d428fc0ede37a32782444d298b60d26e12a699b54bb9e50cd9"
+                },
+                "name": "q-periapt-c-abi2-0.1.5-aarch64-unknown-linux-gnu.tar.gz"
+              },
+              {
+                "digest": {
+                  "sha256": "ba49aec9acaa49df8b5730c8b5806260e26f1483ef215d64df8d4b5a76afcc99"
+                },
+                "name": "q-periapt-c-abi2-0.1.5-x86_64-unknown-linux-gnu.tar.gz"
+              }
+            ],
+            "verification_record_sha256": "e09b1babb34359610c65f6b8ef904315f8842eb49a8c111272670d330e612aaf",
+            "verified": true
+          },
           "release_candidate": {
             "android_runtime_evidence": {
               "agp_consumers": {
@@ -2070,6 +2243,7 @@
             "checksums_sha256": "7bfd7373adc6d297a95ce40c39466244cdfd0385f6a8efc3e85981afd48fb93d",
             "platform_distribution_sha256": "d263b9c325e9fe624ed697d50265b60063eb8cf55f1e6d19b57d94a84b92d388"
           },
+          "release_id": 385077134,
           "source": {
             "canonical_source_tree_sha256": "b9f507e43e1ada769255dd16840c68ff90fc725a7b2dc9ae4c08de883db59ba3",
             "source_date_epoch": 1788893572,
@@ -2081,14 +2255,14 @@
           }
         },
         "schema_version": 3,
-        "status": "candidate_verified_pending_release_verification"
+        "status": "observed_public_immutable_fresh_download_verified"
       },
       "reviewed_product": {
         "commit": "97907371efdda0b629b738f5261c9db149b03875",
         "tree": "719de4a213f26b00034c62ba9014d5102e5586f4"
       },
       "schema_version": 2,
-      "status": "candidate_verified_pending_release_verification"
+      "status": "observed_public_immutable_fresh_download_verified"
     }
   },
   "rust_publish": {
