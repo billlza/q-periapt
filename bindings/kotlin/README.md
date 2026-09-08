@@ -47,6 +47,16 @@ secrets and private keys; the data classes retain their existing copy and
 destructuring behavior. Their secret arrays remain caller-owned and must still be
 wiped after use.
 
+Fixed-size key/ciphertext and signed-policy signature/key inputs are rejected
+before native segment allocation or copying. The existing exception contract is
+preserved: malformed KEM lengths throw `QPeriaptException` with the same operation
+and code `-2`; malformed signature/key shapes use code `-3`. Null arguments,
+context/TOML limits and trusted-state shape checks retain their existing
+precedence and exception types. Eliminating the rejected input's temporary copy
+also avoids its otherwise unnecessary native-memory demand. Binding length
+constants are checked against the existing ABI2 contract, whose two new policy
+length constants do not change the nine native function signatures.
+
 ## Usage
 
 ```kotlin

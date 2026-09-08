@@ -26,6 +26,8 @@ public final class QPeriaptAndroid {
     public static final int TRUSTED_POLICY_STATE_LEN = 36;
     public static final int MAX_SIGNED_POLICY_BYTES = 64 * 1024;
     public static final int MAX_APPLICATION_CONTEXT_BYTES = 64 * 1024;
+    public static final int POLICY_SIGNATURE_LEN = 3309;
+    public static final int POLICY_VERIFICATION_KEY_LEN = 1952;
     public static final byte SUITE_MLKEM768_X25519 = 1;
     public static final byte KEY_FORMAT_EXPANDED = 1;
     private static final String FIXED_SUITE_ID = "ML-KEM-768+X25519";
