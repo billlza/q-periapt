@@ -34,6 +34,8 @@ object QPeriaptHybrid {
     const val TRUSTED_POLICY_STATE_LEN = 36
     const val MAX_SIGNED_POLICY_BYTES = 64 * 1024
     const val MAX_APPLICATION_CONTEXT_BYTES = 64 * 1024
+    const val POLICY_SIGNATURE_LEN = 3309
+    const val POLICY_VERIFICATION_KEY_LEN = 1952
     const val SUITE_MLKEM768_X25519: Byte = 1
     const val KEY_FORMAT_EXPANDED: Byte = 1
 
@@ -256,6 +258,9 @@ object QPeriaptHybrid {
         require(lastTrustedState.isEmpty() || lastTrustedState.size == TRUSTED_POLICY_STATE_LEN) {
             "lastTrustedState must be empty or $TRUSTED_POLICY_STATE_LEN bytes"
         }
+        if (signature.size != POLICY_SIGNATURE_LEN || verificationKey.size != POLICY_VERIFICATION_KEY_LEN) {
+            checkOk("q_periapt_decision_from_signed_policy", -3)
+        }
         val tomlSeg = a.seg(toml)
         val sigSeg = a.seg(signature)
         val vkSeg = a.seg(verificationKey)
@@ -307,6 +312,9 @@ object QPeriaptHybrid {
         require(applicationContext.size <= MAX_APPLICATION_CONTEXT_BYTES) {
             "applicationContext exceeds $MAX_APPLICATION_CONTEXT_BYTES bytes: ${applicationContext.size}"
         }
+        if (pkPq.size != MLKEM_PK_LEN || pkTrad.size != X25519_LEN) {
+            checkOk("q_periapt_encapsulate", -2)
+        }
         SecretSegments(a).use { secrets ->
             val decisionBytes = decision.encoded()
             val decisionSeg = a.seg(decisionBytes)
@@ -342,6 +350,11 @@ object QPeriaptHybrid {
     ): ByteArray = Arena.ofConfined().use { a ->
         require(applicationContext.size <= MAX_APPLICATION_CONTEXT_BYTES) {
             "applicationContext exceeds $MAX_APPLICATION_CONTEXT_BYTES bytes: ${applicationContext.size}"
+        }
+        if (skPq.size != MLKEM_SK_LEN || ctPq.size != MLKEM_CT_LEN || pkPq.size != MLKEM_PK_LEN ||
+            skTrad.size != X25519_LEN || ctTrad.size != X25519_LEN || pkTrad.size != X25519_LEN
+        ) {
+            checkOk("q_periapt_decapsulate", -2)
         }
         SecretSegments(a).use { secrets ->
             val decisionBytes = decision.encoded()

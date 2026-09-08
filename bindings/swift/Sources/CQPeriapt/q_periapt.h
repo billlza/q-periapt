@@ -34,6 +34,16 @@
 #define Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES 65536
 
 /**
+ * Detached ML-DSA-65 signature size accepted by the signed-policy ABI.
+ */
+#define Q_PERIAPT_POLICY_SIGNATURE_LEN 3309
+
+/**
+ * Pinned ML-DSA-65 verification-key size accepted by the signed-policy ABI.
+ */
+#define Q_PERIAPT_POLICY_VERIFICATION_KEY_LEN 1952
+
+/**
  * Success.
  */
 #define Q_PERIAPT_OK 0

@@ -26,6 +26,25 @@ The Android binding keeps the Rust C ABI as the only cryptographic implementatio
   archive structure does not claim cross-host bit reproducibility of the compiled
   payload.
 
+Fixed-size KEM inputs, policy decisions, detached policy signatures and pinned
+verification keys are checked before JNI allocates or copies their arrays. KEM
+length failures retain the same `QPeriaptException` operation and
+`-2/ERR_LENGTH`; signature/key shape failures retain `-3/ERR_POLICY`. Existing
+facade null, context/TOML limit and trusted-state checks keep their precedence.
+The native adapter also keeps output checks ahead of context/input checks,
+checks all input nulls before fixed shapes, and rejects a KEM key/ciphertext
+shape before an invalid policy-decision shape. Zero-length trusted state remains
+the explicitly provisioned first-enrollment form. Native temporary wiping is
+unchanged, including copy/allocation failures.
+
+`artifact/test_android_jni_input_shapes.py` executes the actual C adapter with
+bounded public fixtures and records copies, allocations, exception mapping and
+zeroization before free. It covers every fixed input/output shape, combined
+invalid-input precedence and failure paths. This host test does not replace ART
+or package/runtime qualification. The policy signature/key length constants are
+additions to the existing ABI2 header contract; the nine dynamic functions and
+their signatures are unchanged.
+
 Release collectors and CI use JDK 21 LTS. Select the same JDK for `JAVA_HOME`
 and `PATH`, then run from the repository root:
 

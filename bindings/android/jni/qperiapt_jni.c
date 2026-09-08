@@ -99,46 +99,61 @@ static uint8_t *alloc_bytes(JNIEnv *env, size_t len, const char *label) {
 	return buf;
 }
 
-static uint8_t *copy_input(JNIEnv *env, jbyteArray array, uintptr_t *out_len, const char *label) {
-	if (array == NULL) {
-		throw_null(env, label);
-		return NULL;
-	}
-	jsize len = (*env)->GetArrayLength(env, array);
-	if (len < 0) {
-		throw_arg(env, "negative Java array length");
-		return NULL;
-	}
-	uint8_t *buf = alloc_bytes(env, (size_t)len, "native input allocation failed");
-	if (buf == NULL) {
-		return NULL;
-	}
-	if (len > 0) {
-		(*env)->GetByteArrayRegion(env, array, 0, len, (jbyte *)buf);
-		if ((*env)->ExceptionCheck(env)) {
-			secure_zero(buf, (size_t)len);
-			free(buf);
-			return NULL;
-		}
-	}
-	*out_len = (uintptr_t)len;
-	return buf;
+/* Preserve input-null precedence while rejecting fixed shapes before any copy. */
+static int read_input_lengths(
+        JNIEnv *env,
+        const jbyteArray *arrays,
+        const char *const *labels,
+        size_t count,
+        uintptr_t *lengths) {
+    for (size_t i = 0; i < count; i++) {
+        if (arrays[i] == NULL) {
+            throw_null(env, labels[i]);
+            return 0;
+        }
+        jsize length = (*env)->GetArrayLength(env, arrays[i]);
+        if ((*env)->ExceptionCheck(env)) {
+            return 0;
+        }
+        if (length < 0) {
+            throw_arg(env, "negative Java array length");
+            return 0;
+        }
+        lengths[i] = (uintptr_t)length;
+    }
+    return 1;
+}
+
+/* Array lengths are immutable; read_input_lengths admitted this exact extent. */
+static uint8_t *copy_input(JNIEnv *env, jbyteArray array, uintptr_t length) {
+    uint8_t *buf = alloc_bytes(env, (size_t)length, "native input allocation failed");
+    if (buf == NULL) {
+        return NULL;
+    }
+    if (length > 0) {
+        (*env)->GetByteArrayRegion(env, array, 0, (jsize)length, (jbyte *)buf);
+        if ((*env)->ExceptionCheck(env)) {
+            secure_zero(buf, (size_t)length);
+            free(buf);
+            return NULL;
+        }
+    }
+    return buf;
 }
 
 static int copy_inputs(
-		JNIEnv *env,
-		const jbyteArray *arrays,
-		const char *const *labels,
-		size_t count,
-		uint8_t **buffers,
-		uintptr_t *lengths) {
-	for (size_t i = 0; i < count; i++) {
-		buffers[i] = copy_input(env, arrays[i], &lengths[i], labels[i]);
-		if ((*env)->ExceptionCheck(env)) {
-			return 0;
-		}
-	}
-	return 1;
+        JNIEnv *env,
+        const jbyteArray *arrays,
+        size_t count,
+        uint8_t **buffers,
+        const uintptr_t *lengths) {
+    for (size_t i = 0; i < count; i++) {
+        buffers[i] = copy_input(env, arrays[i], lengths[i]);
+        if ((*env)->ExceptionCheck(env)) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 static void wipe_free_inputs(uint8_t **buffers, const uintptr_t *lengths, size_t count) {
@@ -244,19 +259,41 @@ static jbyteArray native_decision_from_signed_policy(
 			"toml must not be null", "toml exceeds maximum signed-policy size")) {
 		goto cleanup;
 	}
-	toml = copy_input(env, toml_array, &toml_len, "toml must not be null");
+    jbyteArray arrays[] = {toml_array, signature_array, vk_array, last_state_array};
+    const char *labels[] = {
+        "toml must not be null", "signature must not be null",
+        "verificationKey must not be null", "lastTrustedState must not be null"
+    };
+    uintptr_t lengths[4] = {0};
+    if (!read_input_lengths(env, arrays, labels, 4, lengths)) {
+        goto cleanup;
+    }
+    toml_len = lengths[0];
+    signature_len = lengths[1];
+    vk_len = lengths[2];
+    last_state_len = lengths[3];
+    if (last_state_len != 0 && last_state_len != Q_PERIAPT_TRUSTED_POLICY_STATE_LEN) {
+        throw_qperiapt(env, "q_periapt_decision_from_signed_policy", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (signature_len != Q_PERIAPT_POLICY_SIGNATURE_LEN ||
+            vk_len != Q_PERIAPT_POLICY_VERIFICATION_KEY_LEN) {
+        throw_qperiapt(env, "q_periapt_decision_from_signed_policy", Q_PERIAPT_ERR_POLICY);
+        goto cleanup;
+    }
+    toml = copy_input(env, toml_array, toml_len);
 	if ((*env)->ExceptionCheck(env)) {
 		goto cleanup;
 	}
-	signature = copy_input(env, signature_array, &signature_len, "signature must not be null");
+	signature = copy_input(env, signature_array, signature_len);
 	if ((*env)->ExceptionCheck(env)) {
 		goto cleanup;
 	}
-	vk = copy_input(env, vk_array, &vk_len, "verificationKey must not be null");
+	vk = copy_input(env, vk_array, vk_len);
 	if ((*env)->ExceptionCheck(env)) {
 		goto cleanup;
 	}
-	last_state = copy_input(env, last_state_array, &last_state_len, "lastTrustedState must not be null");
+	last_state = copy_input(env, last_state_array, last_state_len);
 	if ((*env)->ExceptionCheck(env)) {
 		goto cleanup;
 	}
@@ -312,8 +349,17 @@ static void native_generate_keypair(
             !check_exact_array(env, out_pk_trad_array, Q_PERIAPT_X25519_LEN, "outPkTrad must not be null")) {
         return;
     }
+    jbyteArray arrays[] = {decision_array};
+    const char *labels[] = {"decision must not be null"};
     uintptr_t decision_len = 0;
-    uint8_t *decision = copy_input(env, decision_array, &decision_len, "decision must not be null");
+    if (!read_input_lengths(env, arrays, labels, 1, &decision_len)) {
+        return;
+    }
+    if (decision_len != Q_PERIAPT_POLICY_DECISION_LEN) {
+        throw_qperiapt(env, "q_periapt_generate_keypair", Q_PERIAPT_ERR_POLICY);
+        return;
+    }
+    uint8_t *decision = copy_input(env, decision_array, decision_len);
     uint8_t *sk_pq = NULL;
     uint8_t *pk_pq = NULL;
     uint8_t *sk_trad = NULL;
@@ -389,7 +435,18 @@ static void native_encapsulate(
 			"applicationContext must not be null", "applicationContext exceeds maximum size")) {
 		goto cleanup;
 	}
-    if (!copy_inputs(env, arrays, labels, 4, inputs, lengths)) {
+    if (!read_input_lengths(env, arrays, labels, 4, lengths)) {
+        goto cleanup;
+    }
+    if (lengths[1] != Q_PERIAPT_MLKEM768_PK_LEN || lengths[2] != Q_PERIAPT_X25519_LEN) {
+        throw_qperiapt(env, "q_periapt_encapsulate", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (lengths[0] != Q_PERIAPT_POLICY_DECISION_LEN) {
+        throw_qperiapt(env, "q_periapt_encapsulate", Q_PERIAPT_ERR_POLICY);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 4, inputs, lengths)) {
 		goto cleanup;
 	}
 	out_ct_pq = alloc_bytes(env, Q_PERIAPT_MLKEM768_CT_LEN, "native ct_pq allocation failed");
@@ -461,7 +518,23 @@ static void native_decapsulate(
 			"applicationContext must not be null", "applicationContext exceeds maximum size")) {
 		goto cleanup;
 	}
-	if (!copy_inputs(env, arrays, labels, 8, inputs, lengths)) {
+    if (!read_input_lengths(env, arrays, labels, 8, lengths)) {
+        goto cleanup;
+    }
+    if (lengths[1] != Q_PERIAPT_MLKEM768_SK_LEN ||
+            lengths[2] != Q_PERIAPT_MLKEM768_CT_LEN ||
+            lengths[3] != Q_PERIAPT_MLKEM768_PK_LEN ||
+            lengths[4] != Q_PERIAPT_X25519_LEN ||
+            lengths[5] != Q_PERIAPT_X25519_LEN ||
+            lengths[6] != Q_PERIAPT_X25519_LEN) {
+        throw_qperiapt(env, "q_periapt_decapsulate", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (lengths[0] != Q_PERIAPT_POLICY_DECISION_LEN) {
+        throw_qperiapt(env, "q_periapt_decapsulate", Q_PERIAPT_ERR_POLICY);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 8, inputs, lengths)) {
 		goto cleanup;
 	}
 	out_secret = alloc_bytes(env, Q_PERIAPT_SECRET_LEN, "native secret allocation failed");

@@ -66,6 +66,10 @@ pub const Q_PERIAPT_ABI_VERSION: u32 = 2;
 pub const Q_PERIAPT_MAX_SIGNED_POLICY_BYTES: usize = 65_536;
 /// Maximum application-context size accepted by policy-bound operations.
 pub const Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES: usize = 65_536;
+/// Detached ML-DSA-65 signature size accepted by the signed-policy ABI.
+pub const Q_PERIAPT_POLICY_SIGNATURE_LEN: usize = 3309;
+/// Pinned ML-DSA-65 verification-key size accepted by the signed-policy ABI.
+pub const Q_PERIAPT_POLICY_VERIFICATION_KEY_LEN: usize = 1952;
 /// Success.
 pub const Q_PERIAPT_OK: i32 = 0;
 /// A required pointer was null.
@@ -136,6 +140,10 @@ pub const Q_PERIAPT_SECRET_LEN: usize = 32;
 /// [`Q_PERIAPT_ABI_VERSION`] at startup before trusting any length constants or entry points.
 #[no_mangle]
 pub extern "C" fn q_periapt_abi_version() -> u32 {
+    // Keep generated header constants tied to the selected backend at compile time.
+    const _: [(); Q_PERIAPT_POLICY_SIGNATURE_LEN] = [(); q_periapt_backends::ML_DSA_65_SIG_LEN];
+    const _: [(); Q_PERIAPT_POLICY_VERIFICATION_KEY_LEN] =
+        [(); q_periapt_backends::ML_DSA_65_VK_LEN];
     Q_PERIAPT_ABI_VERSION
 }
 
