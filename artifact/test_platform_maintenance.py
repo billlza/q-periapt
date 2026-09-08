@@ -1150,7 +1150,13 @@ class _MaintenanceRepository:
     execute the production validators without replacements.
     """
 
-    def __init__(self, case: unittest.TestCase) -> None:
+    def __init__(
+        self,
+        case: unittest.TestCase,
+        *,
+        release_profile: publication.PlatformReleaseProfile = PROFILE,
+    ) -> None:
+        self.profile = release_profile
         history = PlatformMaintenanceFinalizerTests()
         history.setUp()
         case.addCleanup(history.doCleanups)
@@ -1158,6 +1164,16 @@ class _MaintenanceRepository:
         self.fixture = history.fixture
         self.root = self.fixture.root
         self.results = self.fixture.results
+        if release_profile is publication.PlatformReleaseProfile.MAINTENANCE_R3:
+            case.enterContext(
+                mock.patch.multiple(
+                    maintenance,
+                    REVIEWED_R3_PRODUCT_COMMIT=self.fixture.source_commit,
+                    REVIEWED_R3_PRODUCT_TREE=_git(
+                        self.root, "rev-parse", f"{self.fixture.source_commit}^{{tree}}"
+                    ),
+                )
+            )
 
         _git(
             self.root,
@@ -1172,7 +1188,7 @@ class _MaintenanceRepository:
             self.root,
             "tag",
             "-a",
-            PROFILE.release_tag,
+            self.profile.release_tag,
             self.fixture.results_commit,
             "-m",
             "platform revision",
@@ -1189,11 +1205,13 @@ class _MaintenanceRepository:
                 ),
             )
         )
-        self.receipt_path = history._receipt(verified=False)
+        self.receipt_path = history._receipt(
+            verified=False, release_profile=self.profile
+        )
         receipt = json.loads(self.receipt_path.read_bytes())
         observation = receipt["publication"]["observation"]
         observation["source"]["tag_object"] = _git(
-            self.root, "rev-parse", f"refs/tags/{PROFILE.release_tag}^{{tag}}"
+            self.root, "rev-parse", f"refs/tags/{self.profile.release_tag}^{{tag}}"
         )
         self.payloads = {
             name: f"publication fixture bytes for {name}\n".encode("ascii")
@@ -1226,9 +1244,9 @@ class _MaintenanceRepository:
         source = observation["source"]
         self.cache_receipt = {
             **copy.deepcopy(candidate),
-            "schema_version": PROFILE.candidate_receipt_schema,
+            "schema_version": self.profile.candidate_receipt_schema,
             "kind": distribution_contract.PLATFORM_RELEASE_CANDIDATE_KIND,
-            "identity": PROFILE.identity(),
+            "identity": self.profile.identity(),
             "source": {
                 "canonical_source_tree_sha256": source["canonical_source_tree_sha256"],
                 "git_commit": source["tag_commit"],
@@ -1238,7 +1256,7 @@ class _MaintenanceRepository:
             },
         }
         distribution_contract.validate_release_candidate_receipt(
-            self.cache_receipt, profile=PROFILE
+            self.cache_receipt, profile=self.profile
         )
         self.cache_root = self.root / "target" / "abi2-platform-release-candidates"
         self.cache_root.mkdir(mode=0o700)
@@ -1256,10 +1274,12 @@ class _MaintenanceRepository:
             0o600,
         )
         observation["assembly_receipt_sha256"] = hashlib.sha256(cache_bytes).hexdigest()
-        maintenance.publication(receipt)
+        maintenance.publication(receipt, profile=self.profile)
         _write(self.receipt_path, canonical_json_bytes(receipt), 0o600)
         current, previous = finalizer.assemble_maintenance_results(
-            self.fixture._current_sha256(), receipt_path=self.receipt_path
+            self.fixture._current_sha256(),
+            receipt_path=self.receipt_path,
+            profile=self.profile,
         )
         case.assertEqual(self.fixture.results_commit, previous.commit)
         self.fixture._write_results(current)
@@ -1293,7 +1313,7 @@ class _MaintenanceRepository:
             mock.patch.object(publication, "_account_home", return_value=self.home)
         )
         self.account_root = publication.expected_state_root()
-        self.state_root = publication.expected_state_root(PROFILE)
+        self.state_root = publication.expected_state_root(self.profile)
         self.account_root.mkdir(mode=0o700, parents=True)
         for parent in (self.account_root.parent.parent, self.account_root.parent):
             parent.chmod(0o700)
@@ -1301,7 +1321,7 @@ class _MaintenanceRepository:
 
     def prepare(self) -> publication.PublicationPlan:
         return publication.prepare_plan(
-            self.digest, profile=PROFILE, repository_root=self.root
+            self.digest, profile=self.profile, repository_root=self.root
         )
 
 

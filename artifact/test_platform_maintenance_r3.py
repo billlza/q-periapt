@@ -12,6 +12,7 @@ import copy
 import hashlib
 import io
 import json
+import os
 import unittest
 from unittest import mock
 
@@ -20,6 +21,7 @@ import android_agp_test_fixture as agp_fixture
 import android_maintenance_bundle as bundle
 import github_release_observation as github
 import platform_candidate_attestation as candidate
+import platform_distribution as assembly
 import platform_distribution_contract as distribution
 import platform_maintenance as source
 import platform_maintenance_contract as maintenance
@@ -39,6 +41,32 @@ R3 = distribution.PlatformReleaseProfile.MAINTENANCE_R3
 
 
 class R3ContractTests(unittest.TestCase):
+
+    def test_candidate_profile_requires_exact_schema_and_complete_identity(
+        self,
+    ) -> None:
+        for profile in distribution.PlatformReleaseProfile:
+            receipt = {"schema_version": profile.candidate_receipt_schema}
+            if profile.is_maintenance:
+                receipt["identity"] = profile.identity()
+            self.assertIs(profile, distribution.release_candidate_profile(receipt))
+        for receipt in (
+            {"schema_version": True},
+            {"schema_version": 9},
+            {"schema_version": 1, "identity": R3.identity()},
+            {"schema_version": 2},
+            {"schema_version": 2, "identity": None},
+            {"schema_version": 2, "identity": {"distribution_revision": "r3"}},
+            {"schema_version": 2, "identity": {**R3.identity(), "extra": True}},
+            {
+                "schema_version": 2,
+                "identity": {**R3.identity(), "release_tag": R2.release_tag},
+            },
+        ):
+            with self.subTest(receipt=receipt):
+                with self.assertRaises(distribution.PlatformDistributionContractError):
+                    distribution.release_candidate_profile(receipt)
+
     def test_frozen_r2_fixture_bytes_keep_their_original_digests(self) -> None:
         # Captured from the unchanged C3 implementation before r3 tooling edits.
         values = {
@@ -191,6 +219,148 @@ class R3ContractTests(unittest.TestCase):
         with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
             self.assertEqual(0, candidate._main(["--profile", R3.value, "release-tag"]))
         self.assertEqual(R3.release_tag + "\n", output.getvalue())
+
+
+class R3RetainedCandidateTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repository = fixtures._MaintenanceRepository(self, release_profile=R3)
+
+    def retain_candidate(self, profile):
+        selected = self.repository
+        receipt = copy.deepcopy(selected.cache_receipt)
+        receipt["schema_version"] = profile.candidate_receipt_schema
+        if profile.is_maintenance:
+            receipt["identity"] = profile.identity()
+        else:
+            receipt.pop("identity")
+            receipt["android_runtime_evidence"][
+                "bundle_schema"
+            ] = profile.runtime_bundle_schema
+            receipt["android_runtime_evidence"].pop("agp_consumers")
+        distribution.validate_release_candidate_receipt(receipt, profile=profile)
+        transaction = selected.cache_root / f"transaction.zzz-retained-{profile.value}"
+        transaction.mkdir(mode=0o700)
+        payload_root = transaction / assembly.PLATFORM_RELEASE_DIRECTORY_NAME
+        payload_root.mkdir(mode=0o755)
+        payload_root.chmod(0o755)
+        for name, payload in selected.payloads.items():
+            fixtures._write(payload_root / name, payload, 0o644)
+        path = transaction / assembly.PLATFORM_RELEASE_CANDIDATE_RECEIPT_NAME
+        fixtures._write(path, assembly.canonical_json(receipt), 0o600)
+        return path, receipt
+
+    def selected_source(self):
+        receipt = self.repository.cache_receipt
+        return {
+            "canonical_source_tree_sha256": receipt["source"][
+                "canonical_source_tree_sha256"
+            ],
+            "tag_commit": receipt["source"]["git_commit"],
+            "tag_tree": receipt["source"]["git_tree"],
+            "source_date_epoch": receipt["source"]["source_date_epoch"],
+        }
+
+    def projection(self, receipt):
+        return {
+            key: receipt[key]
+            for key in (
+                "android_runtime_evidence",
+                "assets",
+                "checksums_sha256",
+                "platform_distribution_sha256",
+            )
+        }
+
+    def test_retained_r1_r2_r3_auto_identification_selection_and_real_plan_staging(
+        self,
+    ) -> None:
+        selected = self.repository
+        receipts = {R3: selected.cache_receipt}
+        for profile in (distribution.PlatformReleaseProfile.STABLE, R2):
+            _path, receipts[profile] = self.retain_candidate(profile)
+        before = {
+            path: path.read_bytes()
+            for path in selected.cache_root.rglob("*")
+            if path.is_file()
+        }
+        before_results = selected.results.read_bytes()
+        for profile, receipt in receipts.items():
+            with self.subTest(profile=profile.value):
+                # The selector reads every retained receipt with profile=None;
+                # its dispatch, contract validation and byte reads are unpatched.
+                found = assembly.find_selected_release_candidate_bundle(
+                    self.projection(receipt),
+                    self.selected_source(),
+                    profile=profile,
+                    repository_root=selected.root,
+                )
+                self.assertEqual(receipt, found.receipt)
+                self.assertEqual(
+                    hashlib.sha256(assembly.canonical_json(receipt)).hexdigest(),
+                    found.receipt_sha256,
+                )
+        plan = selected.prepare()
+        publication.verify_local_plan(
+            selected.state_root, plan, repository_root=selected.root
+        )
+        self.assertIs(R3, plan.profile)
+        self.assertEqual(selected.pending_commit, plan.pending_commit)
+        self.assertEqual(9, plan.action_count)
+        self.assertEqual(7, len(plan.platform.assets))
+        for asset in plan.platform.assets:
+            staged = (
+                selected.state_root / publication.STAGING_DIRECTORY / asset.staging_leaf
+            )
+            self.assertEqual(selected.payloads[asset.name], staged.read_bytes())
+        self.assertEqual(before_results, selected.results.read_bytes())
+        self.assertEqual(before, {path: path.read_bytes() for path in before})
+
+    def test_missing_mixed_or_unknown_retained_identity_rejects_before_staging(
+        self,
+    ) -> None:
+        selected = self.repository
+        retained, valid = self.retain_candidate(R2)
+        variants = [
+            None,
+            {},
+            {"distribution_revision": "r3"},
+            {**R3.identity(), "release_tag": R2.release_tag},
+            {**R3.identity(), "release_url": R2.release_url},
+            {**R3.identity(), "product_version": "0.1.6"},
+            {**R3.identity(), "distribution_revision": "r4"},
+            {**R3.identity(), "unexpected": True},
+        ]
+        before_results = selected.results.read_bytes()
+        for index, identity in enumerate(variants):
+            with self.subTest(identity=identity):
+                changed = copy.deepcopy(valid)
+                if identity is None:
+                    changed.pop("identity")
+                else:
+                    changed["identity"] = identity
+                retained.write_bytes(assembly.canonical_json(changed))
+                staging = selected.root / "target" / f"candidate-staging-{index}"
+                staging.mkdir(mode=0o700)
+                fd = os.open(staging, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    with self.assertRaisesRegex(
+                        assembly.PlatformDistributionError,
+                        "retained platform candidate",
+                    ):
+                        assembly.find_selected_release_candidate_bundle(
+                            self.projection(selected.cache_receipt),
+                            self.selected_source(),
+                            staging_directory_fd=fd,
+                            staging_leaves={
+                                name: name for name in distribution.PUBLIC_ASSET_NAMES
+                            },
+                            profile=R3,
+                            repository_root=selected.root,
+                        )
+                finally:
+                    os.close(fd)
+                self.assertEqual([], list(staging.iterdir()))
+        self.assertEqual(before_results, selected.results.read_bytes())
 
 
 class R3LocalGitTests(unittest.TestCase):

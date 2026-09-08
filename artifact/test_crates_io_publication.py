@@ -423,32 +423,46 @@ source = RustPackageHandoffSource(
     source_tree=sys.argv[6],
     canonical_source_tree_sha256=sys.argv[7],
 )
+wakeup_reader, wakeup_writer = os.pipe()
+os.set_blocking(wakeup_writer, False)
+previous_wakeup_fd = signal.set_wakeup_fd(wakeup_writer)
+
+def wait_for_term() -> None:
+    if os.read(wakeup_reader, 1) != bytes((signal.SIGTERM,)):
+        raise RuntimeError("unexpected handoff fixture signal notification")
 
 def window() -> None:
     ready.write_bytes(b"ready")
     os.chmod(ready, 0o600)
-    signal.pause()
+    # A delivered signal remains buffered even if it arrives before this read.
+    wait_for_term()
     observed.write_bytes(b"observed")
     os.chmod(observed, 0o600)
-    while not proceed.exists():
-        signal.pause()
+    wait_for_term()
+    if not proceed.exists():
+        raise RuntimeError("handoff fixture resumed before proceed was published")
 
 hooks = {
     "precommit_hook": window if phase == "precommit" else None,
     "commit_boundary_hook": window if phase == "visibility" else None,
     "postcommit_hook": window if phase == "postcommit" else None,
 }
-finalize_rust_package_handoff_for_cli(
-    stage,
-    staging_device=int(sys.argv[2]),
-    staging_inode=int(sys.argv[3]),
-    handoff_root=handoff_root,
-    source_inspector=lambda: source,
-    marker_path_formatter=(
-        lambda path: "target/test-rust-handoffs/" + path.parent.name + "/" + path.name
-    ),
-    **hooks,
-)
+try:
+    finalize_rust_package_handoff_for_cli(
+        stage,
+        staging_device=int(sys.argv[2]),
+        staging_inode=int(sys.argv[3]),
+        handoff_root=handoff_root,
+        source_inspector=lambda: source,
+        marker_path_formatter=(
+            lambda path: "target/test-rust-handoffs/" + path.parent.name + "/" + path.name
+        ),
+        **hooks,
+    )
+finally:
+    signal.set_wakeup_fd(previous_wakeup_fd)
+    os.close(wakeup_reader)
+    os.close(wakeup_writer)
 """
         process = subprocess.Popen(
             [

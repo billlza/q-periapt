@@ -487,16 +487,23 @@ def _validate_release_candidate_runtime(
 
 
 def release_candidate_profile(value: object) -> PlatformReleaseProfile:
-    """Identify one retained receipt using its explicit versioned contract."""
+    """Identify a retained receipt by schema and its complete release identity."""
 
     receipt = _object(value, "platform release candidate receipt")
     schema = receipt.get("schema_version")
     _require(type(schema) is int, "platform release candidate schema is not an integer")
     for profile in PlatformReleaseProfile:
-        if schema == profile.candidate_receipt_schema:
+        if schema != profile.candidate_receipt_schema:
+            continue
+        if profile.is_maintenance:
+            # Maintenance revisions share a schema; its version alone cannot
+            # identify which exact revision owns this retained candidate.
+            if receipt.get("identity") == profile.identity():
+                return profile
+        elif "identity" not in receipt:
             return profile
     raise PlatformDistributionContractError(
-        "platform release candidate schema is unknown"
+        "platform release candidate schema or identity is unknown"
     )
 
 
