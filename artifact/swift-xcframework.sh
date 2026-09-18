@@ -756,9 +756,12 @@ lipo -create \
 	"$SANITIZED_TARGET_ARCHIVES/x86_64-apple-ios/libq_periapt_ffi_abi2.a" \
 	-output "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"
 
-lipo "$LIBS/macos/libq_periapt_ffi_abi2.a" -verify_arch arm64 x86_64
+# Xcode 27 accepts exactly one architecture per -verify_arch invocation.
+lipo "$LIBS/macos/libq_periapt_ffi_abi2.a" -verify_arch arm64
+lipo "$LIBS/macos/libq_periapt_ffi_abi2.a" -verify_arch x86_64
 lipo "$LIBS/ios/libq_periapt_ffi_abi2.a" -verify_arch arm64
-lipo "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a" -verify_arch arm64 x86_64
+lipo "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a" -verify_arch arm64
+lipo "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a" -verify_arch x86_64
 for lib in "$LIBS/macos/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a" "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"; do
 	validate_apple_static_archive_paths "$lib"
 	validate_abi2_exports "$lib"
