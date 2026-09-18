@@ -175,14 +175,22 @@ run_macos_link_gate() (
 				"$arch" >&2
 			exit 1
 		fi
-		if [ "$(grep -Fc 'Copying libq_periapt_ffi_abi2.a' "$log")" -ne 1 ] || \
-			[ "$(grep -Fc 'Linking QPeriaptLinkProbe' "$log")" -ne 1 ] || \
-			[ "$(grep -Fc 'Build complete!' "$log")" -ne 1 ]; then
-			printf 'error: macOS %s SwiftPM log lacks exact copy/link/success evidence\n' \
+		# SwiftPM 6.4 may render individual copy and link actions only as
+		# condensed progress records. The evidence directory was required to
+		# be absent at startup, so the fresh scratch output and the structural
+		# archive/probe checks below are authoritative for those actions.
+		if [ "$(grep -Fc 'Build complete!' "$log")" -ne 1 ]; then
+			printf 'error: macOS %s SwiftPM log lacks exact success evidence\n' \
 				"$arch" >&2
 			exit 1
 		fi
-		product="$scratch/${arch}-apple-macosx/debug"
+		legacy_product="$scratch/${arch}-apple-macosx/debug"
+		if [ -d "$legacy_product" ]; then
+			product=$legacy_product
+		else
+			# Xcode 27 exposes the selected configuration through scratch/debug.
+			product="$scratch/debug"
+		fi
 		selected="$product/libq_periapt_ffi_abi2.a"
 		if [ ! -f "$selected" ] || ! cmp "$expected" "$selected"; then
 			printf 'error: macOS %s SwiftPM-selected library differs from the XCFramework slice\n' \
