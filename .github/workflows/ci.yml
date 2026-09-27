@@ -1354,10 +1354,10 @@ jobs:
             printf 'ANDROID_KVM_PREPARE profile=%s\n' "$profile"
             test -c /dev/kvm && test ! -L /dev/kvm
             stat -c 'device=%t:%T inode=%i mode=%a owner=%u:%g' /dev/kvm
-            getfacl --omit-header /dev/kvm
+            getfacl --absolute-names --omit-header /dev/kvm
             sudo setfacl -m "u:$runner_user:rw" /dev/kvm
             test -r /dev/kvm && test -w /dev/kvm
-            getfacl --omit-header /dev/kvm
+            getfacl --absolute-names --omit-header /dev/kvm
             timeout 15s "$ANDROID_HOME/emulator/emulator" -accel-check
             QPERIAPT_ANDROID_CONSUMER_PROFILE="$profile" \
             QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
@@ -1383,6 +1383,7 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log
             target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err

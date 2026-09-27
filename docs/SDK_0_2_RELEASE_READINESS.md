@@ -31,6 +31,16 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+At `51982a6bcac222bbb9a6cf1d233c0bbfb3acd5c0`, the hosted
+[CI cohort](https://github.com/billlza/q-periapt/actions/runs/36323838117)
+completed 33 jobs successfully and failed both Windows package jobs and the
+Android runtime job. The complete Swift package/connection job passed. All six
+[CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36323838125)
+completed; the PR merge ref has 19 open alerts. The new static-copy path alert
+starts at the explicit local CLI output option, not an archive member name.
+Alert/data-flow review remains distinct from scanner completion and independent
+security review; no findings were dismissed or rules disabled.
+
 The clean standalone `a24e3c0c876bca44a212dcf8ab051c0b7e52545b` snapshot passed
 all 2,233 artifact tests in 398.539 seconds, without skips, and the exact-source
 gate. Its local Swift/Rust run passed all twelve socket cases, with the
@@ -89,6 +99,20 @@ ACL before each consumer, records the prior/current device permissions and runs
 the emulator's bounded acceleration preflight. The earlier job did not retain
 enough ACL state to attribute the permission change to a particular host event;
 the minimal consumer still needs a successful native run.
+
+The `328bf90` run confirms that the runner ACL was absent before the second
+launch and that reapplying it restored usable KVM. The minimal consumer then
+lost its emulator transport after one exact APK observation; a nonempty pstore
+also prevented retirement. Neither condition is bypassed. At `51982a6`, the full
+consumer instead returned `INSTRUMENTATION_ABORTED: System has crashed.` after
+two exact installed-APK observations. Its owned uninstall and retirement
+completed, but the workload did not. The producer now collects scoped failure
+logs before exiting on a rejected Instrumentation response. System-crash tags
+are available only from the same live, receipt-bound emulator, under the
+existing time/output limits; physical-device logging is unchanged. The real
+response decoder and producer shell flow reproduce the missing-log defect and
+its repair while retaining exit status 1 and publishing no successful result.
+The crash's underlying cause and both-profile ART qualification remain open.
 
 The subsequent hosted checkpoint at `7c7a76343d724c889286b594e47a8398aa63bf06`
 ([CI](https://github.com/billlza/q-periapt/actions/runs/36315599184)) completed

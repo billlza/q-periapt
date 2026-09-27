@@ -197,6 +197,65 @@ class AgpProjectionTests(unittest.TestCase):
 
 
 class AgpTransportTests(unittest.TestCase):
+    def test_system_crash_decode_keeps_failure_and_captures_scoped_logs(self) -> None:
+        source = (ROOT / "artifact/android-device-smoke.sh").read_text()
+        function_start = source.index("fail_instrumentation_with_logs() {\n")
+        function_end = source.index("\n}\n", function_start) + 3
+        block_start = source.index("\tif ! android_command run-instrumentation; then")
+        block_end = source.index("\nfi\ncapture_app_logcat", block_start)
+        script = r'''
+set -eu
+test_root=$1
+test_python=$2
+DIST=$3
+DEVICE_KIND=$4
+log_status=$5
+RUN_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+RESULT_TXT="$DIST/result.txt"
+RESULT_JSON="$DIST/result.json"
+capture_app_logcat() {
+    printf 'scoped smoke log\n'
+    return "$log_status"
+}
+android_command() {
+    printf '%s\n' "$1" >> "$DIST/calls.txt"
+    case "$1" in
+        run-instrumentation) return 0 ;;
+        capture-emulator-diagnostics) return "$log_status" ;;
+        *) return 99 ;;
+    esac
+}
+python3() {
+    "$test_python" -I -S "$test_root/artifact/python_bootstrap.py" "$@"
+}
+'''
+        script += source[function_start:function_end] + source[block_start:block_end]
+        script += "\nprintf 'incorrect continuation\\n'\n"
+        for kind in ("emulator", "physical"):
+            for log_status in (0, 29):
+                with self.subTest(kind=kind, log_status=log_status), tempfile.TemporaryDirectory() as temporary:
+                    folder = pathlib.Path(temporary)
+                    (folder / "adb-instrumentation.txt").write_text(
+                        "INSTRUMENTATION_ABORTED: System has crashed.\n"
+                    )
+                    result = subprocess.run(
+                        ["sh", "-c", script, "instrumentation-failure", str(ROOT),
+                         sys.executable, str(folder), kind, str(log_status)],
+                        cwd=ROOT, capture_output=True, text=True, timeout=15,
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertNotIn("incorrect continuation", result.stdout)
+                    self.assertIn("instrumentation did not complete successfully exactly once", result.stderr)
+                    self.assertEqual((folder / "logcat.txt").read_text(), "scoped smoke log\n")
+                    expected = ["run-instrumentation"]
+                    if kind == "emulator":
+                        expected.append("capture-emulator-diagnostics")
+                    self.assertEqual((folder / "calls.txt").read_text().splitlines(), expected)
+                    self.assertFalse((folder / "result.txt").exists())
+                    self.assertFalse((folder / "result.json").exists())
+                    if log_status:
+                        self.assertIn("smoke-log capture also failed", result.stderr)
+
     def test_one_successful_nonce_bound_bundle_decodes_exact_bytes(self) -> None:
         self.assertEqual(
             consumer.decode_instrumentation_output(response(), RUN_ID),

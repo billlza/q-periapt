@@ -192,6 +192,7 @@ class AndroidOperation(str, enum.Enum):
     READ_RESULT_TEXT = "read-result-text"
     READ_RESULT_JSON = "read-result-json"
     CAPTURE_LOGCAT = "capture-logcat"
+    CAPTURE_EMULATOR_DIAGNOSTICS = "capture-emulator-diagnostics"
 
 
 class OutputRoot(str, enum.Enum):
@@ -216,6 +217,7 @@ class OperationSpec:
         "recover-emulator",
         "observe-apk",
         "logcat",
+        "emulator-diagnostics",
         "register-emulator",
     ]
     timeout_seconds: int
@@ -849,6 +851,13 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             30,
             30,
             OutputSpec(proof, "logcat-raw.txt", 16777216),
+            lambda cap: (),
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS: OperationSpec(
+            "emulator-diagnostics",
+            30,
+            30,
+            OutputSpec(proof, "emulator-crash-logcat.txt", 16777216),
             lambda cap: (),
         ),
     }
@@ -3930,6 +3939,76 @@ def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
     return value
 
 
+def _capture_emulator_diagnostics(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Read bounded system-crash tags only from this run's live owned emulator."""
+    _require(
+        capability.device_kind == "emulator",
+        "system diagnostics require an owned emulator",
+    )
+    deadline = time.monotonic() + timeout_seconds
+    _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == layout.run_id
+        and receipt.device_kind == "emulator"
+        and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED,
+        "system diagnostics lack this run's active emulator receipt",
+    )
+    context = _validate_recovery_receipt(receipt)
+    _require(
+        context.layout == layout
+        and _command_capability_adb_identity(context.capability)
+        == _command_capability_adb_identity(capability),
+        "system diagnostic capability differs from its receipt",
+    )
+    process = _same_receipt_process(receipt)
+    _require(
+        process is not None
+        and context.backend is not None
+        and process.executable == context.backend,
+        "system diagnostics require the receipt-bound live backend",
+    )
+    _revalidate_emulator_transport_identity(
+        layout, capability, context, receipt, process, deadline=deadline
+    )
+    remaining = _remaining_observation_timeout(deadline)
+    _require(remaining is not None, "system diagnostic deadline expired")
+    argv = _device(
+        capability,
+        "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
+        "-T", _device_epoch(layout), "-s",
+        "AndroidRuntime:E", "Watchdog:*", "ActivityManager:E", "SystemServer:E",
+        "Zygote:E", "lmkd:*", "libc:F", "DEBUG:*", "*:S",
+    )
+    primary: BaseException | None = None
+    try:
+        return _write_operation(
+            layout,
+            capability,
+            OPERATION_SPECS[AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS],
+            argv,
+            remaining,
+        )
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            _revalidate_emulator_transport_identity(
+                layout, capability, context, receipt, process, deadline=deadline
+            )
+        except BaseException as exc:
+            if primary is None:
+                raise
+            primary.add_note(f"system diagnostic postcheck also failed: {exc}")
+
+
 def invoke_operation(
     operation: AndroidOperation, *, run_id: str, timeout_seconds: int | None = None
 ) -> BoundedResult:
@@ -3945,6 +4024,10 @@ def invoke_operation(
     )
     if spec.mode == "recover-emulator":
         return _recover_owned_emulator_transport(
+            layout, capability, timeout_seconds=timeout
+        )
+    if spec.mode == "emulator-diagnostics":
+        return _capture_emulator_diagnostics(
             layout, capability, timeout_seconds=timeout
         )
     if spec.mode == "package-state":

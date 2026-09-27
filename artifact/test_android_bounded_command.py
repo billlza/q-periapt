@@ -934,6 +934,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "recover-emulator",
                         "observe-apk",
                         "logcat",
+                        "emulator-diagnostics",
                         "register-emulator",
                     },
                 )
@@ -3837,6 +3838,70 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         ):
             self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
         write.assert_not_called()
+
+    def test_emulator_crash_logs_refuse_physical_or_missing_owner_before_read(self) -> None:
+        cases = (
+            ("physical", commands.AndroidCommandError, "owned emulator"),
+            ("emulator", state.AndroidRuntimeStateError, "owned runtime receipt is missing"),
+        )
+        for kind, error_type, expected in cases:
+            if kind == "emulator":
+                self.create_capability(device_kind=kind, expected_serial="emulator-5584")
+            with (
+                self.subTest(kind=kind),
+                mock.patch.object(commands, "write_stdout_at") as write,
+                self.assertRaisesRegex(error_type, expected),
+            ):
+                self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS)
+            write.assert_not_called()
+
+    def test_emulator_crash_logs_are_bounded_and_recheck_the_same_live_owner(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        epoch = self.proof / "adb-device-time.txt"
+        epoch.write_text("1786240000.123\n", encoding="ascii")
+        epoch.chmod(0o600)
+        for phase in ("success", "replaced-before-read", "replaced-after-read", "read-and-postcheck-fail"):
+            processes = [identity, None] if phase == "replaced-before-read" else [identity, identity, None if phase != "success" else identity]
+            with (
+                self.subTest(phase=phase),
+                mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+                mock.patch.object(commands, "_same_receipt_process", side_effect=processes),
+                mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+                mock.patch.object(commands, "write_stdout_at", return_value=BoundedResult(0)) as write,
+            ):
+                if phase == "read-and-postcheck-fail":
+                    write.side_effect = commands.BoundedProcessError("timeout", "fixture diagnostic read timeout")
+                    with self.assertRaisesRegex(commands.BoundedProcessError, "diagnostic read timeout") as raised:
+                        self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS)
+                    self.assertTrue(any("postcheck also failed" in note for note in raised.exception.__notes__))
+                elif phase != "success":
+                    with self.assertRaisesRegex(commands.AndroidCommandError, "identity changed"):
+                        self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS)
+                else:
+                    self.assertEqual(self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS), BoundedResult(0))
+                    argv = write.call_args.args[0]
+                    self.assertEqual(argv[argv.index("logcat"):], (
+                        "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
+                        "-T", "1786240000.123", "-s", "AndroidRuntime:E", "Watchdog:*",
+                        "ActivityManager:E", "SystemServer:E", "Zygote:E", "lmkd:*",
+                        "libc:F", "DEBUG:*", "*:S",
+                    ))
+                    self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], 30)
+                    self.assertEqual(write.call_args.kwargs["maximum_bytes"], 16777216)
+                    self.assertEqual(write.call_args.kwargs["output_name"], "emulator-crash-logcat.txt")
+                    self.assertEqual(listeners.call_count, 2)
+                self.assertEqual(write.call_count, 0 if phase == "replaced-before-read" else 1)
 
     def test_parser_rejects_unknown_operation_and_extra_arguments(self) -> None:
         diagnostics = io.StringIO()

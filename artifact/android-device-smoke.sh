@@ -2006,6 +2006,24 @@ for line in text.splitlines():
 PY
 }
 
+fail_instrumentation_with_logs() {
+	# Keep the original failure authoritative even if its device has disappeared.
+	# Physical-device diagnostics remain restricted to the run's smoke tag.
+	if capture_app_logcat >"$DIST/logcat.txt"; then
+		:
+	else
+		printf 'error: failed Instrumentation smoke-log capture also failed\n' >&2
+	fi
+	if [ "$DEVICE_KIND" = "emulator" ]; then
+		if android_command capture-emulator-diagnostics; then
+			:
+		else
+			printf 'error: owned emulator crash-log capture also failed\n' >&2
+		fi
+	fi
+	exit "$1"
+}
+
 select_serial_or_empty() {
 	set +e
 	selected=$(choose_device_serial)
@@ -2555,13 +2573,17 @@ test -f "$RESULT_TXT" || {
 android_command read-result-json
 else
 	if ! android_command run-instrumentation; then
-		capture_app_logcat >"$DIST/logcat.txt"
 		printf 'error: AGP Release Instrumentation command failed; see %s\n' "$DIST/adb-instrumentation.txt" >&2
-		exit 1
+		fail_instrumentation_with_logs 1
 	fi
-	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
+	if PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
 		--input "$DIST/adb-instrumentation.txt" --run-id "$RUN_ID" \
-		--text-output "$RESULT_TXT" --json-output "$RESULT_JSON"
+		--text-output "$RESULT_TXT" --json-output "$RESULT_JSON"; then
+		:
+	else
+		instrumentation_status=$?
+		fail_instrumentation_with_logs "$instrumentation_status"
+	fi
 fi
 capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
