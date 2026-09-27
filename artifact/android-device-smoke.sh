@@ -75,15 +75,20 @@ try:
     else:
         runtime_target(sys.argv[1], sys.argv[2] or None, sys.argv[3])
         aar_profile = profile_spec(sys.argv[1]).aar_profile
-    print(f"{aar_profile}:{selected.sdk}:{selected.page_size}")
+    print(f"{aar_profile}:{selected.sdk}:{selected.page_size}:"
+          f"{selected.page_size_operation}:{selected.clock_operation}")
 except (AndroidAgpConsumerError, ValueError) as error:
     raise SystemExit(f"error: {error}") from error
 PY
 )
 ANDROID_AAR_PROFILE=${ANDROID_PROFILE_SELECTION%%:*}
 ANDROID_RUNTIME_SHAPE=${ANDROID_PROFILE_SELECTION#*:}
-ANDROID_RUNTIME_SDK=${ANDROID_RUNTIME_SHAPE%:*}
-ANDROID_RUNTIME_PAGE_SIZE=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_RUNTIME_SDK=${ANDROID_RUNTIME_SHAPE%%:*}
+ANDROID_RUNTIME_SHAPE=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_RUNTIME_PAGE_SIZE=${ANDROID_RUNTIME_SHAPE%%:*}
+ANDROID_RUNTIME_PROBES=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_PAGE_SIZE_OPERATION=${ANDROID_RUNTIME_PROBES%:*}
+ANDROID_CLOCK_OPERATION=${ANDROID_RUNTIME_PROBES#*:}
 
 # Hold one host/account-scoped open-file-description lock for the whole lane.
 # The stable private file serializes every checkout that can reach the same
@@ -470,6 +475,10 @@ fi
 android_command() {
 	operation=$1
 	shift
+	case "$operation" in
+		page-size) operation=$ANDROID_PAGE_SIZE_OPERATION ;;
+		device-time) operation=$ANDROID_CLOCK_OPERATION ;;
+	esac
 	PYTHONPATH=artifact python3 artifact/android_bounded_command.py invoke \
 		"$operation" --run-id "$RUN_ID" "$@"
 }
@@ -2519,14 +2528,16 @@ else
 		"$device_time_status" "$DIST/adb-device-time.err" >&2
 	exit 1
 fi
-LOGCAT_START_EPOCH=$(tr -d '\r\n ' <"$DIST/adb-device-time.txt")
-python3 - "$LOGCAT_START_EPOCH" <<'PY'
-import re
+LOGCAT_START_TIME=$(tr -d '\r\n' <"$DIST/adb-device-time.txt")
+python3 - "$LOGCAT_START_TIME" <<'PY'
 import sys
+from android_bounded_command import AndroidCommandError, canonical_logcat_start_time
+from android_runtime_state import AndroidRuntimeStateError
 
-value = sys.argv[1]
-if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
-    raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
+try:
+    canonical_logcat_start_time(sys.argv[1])
+except (AndroidCommandError, AndroidRuntimeStateError) as error:
+    raise SystemExit(f"error: Android device returned an invalid logcat start time: {error}") from error
 PY
 ANDROID_APP_CLEANUP_ARMED=1
 if ! android_command install-apk >"$DIST/adb-install.log" 2>&1; then

@@ -20,12 +20,17 @@ import android_agp_consumer as consumer
 import android_agp_consumer_contract as contract
 import android_agp_test_fixture as fixture
 import android_device_proof as runtime
+import android_runtime_profile as runtime_profiles
 from test_android_elf import zip_bytes
 from test_android_agp_consumer import projection
 
 
 class SDKProjectionTests(unittest.TestCase):
     def test_minimum_scope_is_explicit_and_cannot_replace_the_16k_scope(self):
+        default = runtime_profiles.runtime_profile("api35-16k")
+        minimum = runtime_profiles.runtime_profile("api23-4k")
+        self.assertEqual((default.page_size_operation, default.clock_operation), ("page-size", "device-time"))
+        self.assertEqual((minimum.page_size_operation, minimum.clock_operation), ("page-size-auxv", "device-time-calendar"))
         for profile in contract.SDK_PROFILES:
             expected = dict(expected_profile=profile, expected_aar_sha256="b" * 64,
                 expected_aar_manifest_sha256="b" * 64, expected_source_commit="c" * 40,

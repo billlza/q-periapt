@@ -921,7 +921,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_operation_table_has_only_fixed_modes_and_outputs(self) -> None:
         self.assertEqual(set(commands.OPERATION_SPECS), set(commands.AndroidOperation))
-        output_pairs: set[tuple[commands.OutputRoot, str]] = set()
+        output_pairs: dict[tuple[commands.OutputRoot, str], set[commands.AndroidOperation]] = {}
         for operation, spec in commands.OPERATION_SPECS.items():
             with self.subTest(operation=operation.value):
                 self.assertIn(
@@ -929,6 +929,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     {
                         "run",
                         "capture",
+                        "page-size-auxv",
                         "write",
                         "package-state",
                         "recover-emulator",
@@ -941,9 +942,13 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 self.assertGreaterEqual(spec.timeout_maximum, spec.timeout_seconds)
                 if spec.output is not None:
                     pair = (spec.output.root, spec.output.leaf)
-                    self.assertNotIn(pair, output_pairs)
-                    output_pairs.add(pair)
+                    output_pairs.setdefault(pair, set()).add(operation)
                     self.assertNotIn("/", spec.output.leaf)
+        aliases = {pair: operations for pair, operations in output_pairs.items() if len(operations) != 1}
+        self.assertEqual(aliases, {
+            (commands.OutputRoot.PROOF, "adb-device-time.txt"):
+                {commands.AndroidOperation.DEVICE_TIME, commands.AndroidOperation.DEVICE_TIME_CALENDAR},
+        })
         source = pathlib.Path(commands.__file__).read_text(encoding="utf-8")
         self.assertNotIn("argparse.REMAINDER", source)
         self.assertNotIn("--output", source)
@@ -1524,8 +1529,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         expected_argv = commands._device(
             capability,
             "shell",
-            "cmd",
-            "package",
+            "pm",
             "list",
             "packages",
             commands.PACKAGE,
@@ -3872,27 +3876,69 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(rejected.exception.code, 2)
         invoke.assert_not_called()
 
+    def test_minimum_page_probe_parses_complete_aux_vectors_and_refuses_failure(self) -> None:
+        def vector(width, entries):
+            return b"".join(value.to_bytes(width, "little") for entry in entries for value in entry)
+
+        for width in (4, 8):
+            for pages in (4096, 16384):
+                data = vector(width, [(3, 0x12340000), (6, pages), (11, 2000), (0, 0)])
+                with mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, data)) as capture:
+                    result = self.invoke(commands.AndroidOperation.PAGE_SIZE_AUXV)
+                self.assertEqual(result, BoundedResult(0, f"{pages}\n".encode()))
+                self.assertEqual(capture.call_args.args[0][-3:], ("exec-out", "cat", "/proc/self/auxv"))
+                self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 4096)
+            for entries in ([(6, 4096)], [(0, 0)], [(6, 8192), (0, 0)],
+                            [(6, 4096), (6, 4096), (0, 0)],
+                            [(0, 0), (6, 4096), (0, 0)], [(6, 4096), (0, 1)]):
+                with self.subTest(width=width, entries=entries), self.assertRaises(commands.AndroidCommandError):
+                    commands._auxv_page_size(vector(width, entries))
+        for data in (b"", b"permission denied\n", b"\0" * 4097, vector(8, [(6, 4096), (0, 0)])[:-1]):
+            with self.assertRaises(commands.AndroidCommandError):
+                commands._auxv_page_size(data)
+        for result in (BoundedResult(1, b""), BoundedResult(0, b"error reading auxv\n")):
+            with mock.patch.object(commands, "capture_stdout", return_value=result), self.assertRaises(commands.AndroidCommandError):
+                self.invoke(commands.AndroidOperation.PAGE_SIZE_AUXV)
+
+    def test_calendar_clock_keeps_its_format_as_one_guest_shell_argument(self) -> None:
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.DEVICE_TIME_CALENDAR]
+        argv = spec.build_argv(self.load_capability())
+        shell_command = " ".join(argv[argv.index("shell") + 1:])
+        result = subprocess.run(
+            ["/bin/sh", "-c", shell_command], capture_output=True, timeout=5,
+            env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, b"")
+        timestamp = result.stdout.decode("ascii").rstrip("\n")
+        self.assertTrue(timestamp.endswith(".000"))
+        self.assertEqual(commands.canonical_logcat_start_time(timestamp), timestamp)
+
     def test_logcat_epoch_is_validated_before_it_enters_argv(self) -> None:
         epoch_path = self.proof / "adb-device-time.txt"
-        epoch_path.write_text("1786240000.123\n", encoding="ascii")
-        epoch_path.chmod(0o600)
-        with mock.patch.object(
-            commands, "write_stdout_at", return_value=BoundedResult(0)
-        ) as write:
-            self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
-        argv = write.call_args.args[0]
-        self.assertIn("1786240000.123", argv)
+        for epoch in ("1786240000.123", "09-27 21:30:01.000", "02-29 23:59:59.999"):
+            epoch_path.write_text(epoch + "\n", encoding="ascii")
+            epoch_path.chmod(0o600)
+            with mock.patch.object(
+                commands, "write_stdout_at", return_value=BoundedResult(0)
+            ) as write:
+                self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
+            argv = write.call_args.args[0]
+            self.assertIn(epoch, argv)
 
-        epoch_path.write_text("1786240000.123 --help\n", encoding="ascii")
-        epoch_path.chmod(0o600)
-        with (
-            mock.patch.object(commands, "write_stdout_at") as write,
-            self.assertRaises(
-                (commands.AndroidCommandError, state.AndroidRuntimeStateError)
-            ),
-        ):
-            self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
-        write.assert_not_called()
+        for invalid in ("1786240000.123 --help\n", "1786240000.%3N\n",
+                        "02-30 21:30:01.000\n", "09-27 24:00:00.000\n",
+                        "9-27 21:30:01.000\n", "09-27 21:30:01.000 --help\n"):
+            epoch_path.write_text(invalid, encoding="ascii")
+            epoch_path.chmod(0o600)
+            with (
+                mock.patch.object(commands, "write_stdout_at") as write,
+                self.assertRaises(
+                    (commands.AndroidCommandError, state.AndroidRuntimeStateError)
+                ),
+            ):
+                self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
+            write.assert_not_called()
 
     def test_emulator_crash_logs_refuse_physical_or_missing_owner_before_read(self) -> None:
         cases = (

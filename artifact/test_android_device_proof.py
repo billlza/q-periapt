@@ -5731,7 +5731,7 @@ os.execve(
             pathlib.Path(__file__).resolve().parent / "android_bounded_command.py"
         ).read_text(encoding="utf-8")
         self.assertIn('"logcat",', adapter)
-        self.assertIn('"-T",\n            _device_epoch(layout),', adapter)
+        self.assertIn('"-T",\n            _device_logcat_start_time(layout),', adapter)
         self.assertIn('"QPeriaptSmoke:*",\n            "*:S",', adapter)
         self.assertIn('needle = f"run-id={run_id}"', producer)
         self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)

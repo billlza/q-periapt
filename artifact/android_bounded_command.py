@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime
 import enum
 import errno
 import hashlib
@@ -69,6 +70,7 @@ RESULT_TEXT_REMOTE = "files/qperiapt-android-device-result.txt"
 RESULT_JSON_REMOTE = "files/qperiapt-android-device-result.json"
 REMOTE_BASE_APK = re.compile("/[A-Za-z0-9_./+=~:-]+/base\\.apk")
 DEVICE_EPOCH = re.compile("[1-9][0-9]{9,12}\\.[0-9]{3}")
+DEVICE_CALENDAR_TIME = re.compile(r"[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}")
 _REMOTE_PATH_CHARACTERS = frozenset(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_./+=~:-"
 )
@@ -188,6 +190,8 @@ class AndroidOperation(str, enum.Enum):
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
     DEVICE_TIME = "device-time"
+    DEVICE_TIME_CALENDAR = "device-time-calendar"
+    PAGE_SIZE_AUXV = "page-size-auxv"
     START_APP = "start-app"
     RUN_INSTRUMENTATION = "run-instrumentation"
     READ_RESULT_TEXT = "read-result-text"
@@ -213,6 +217,7 @@ class OperationSpec:
     mode: Literal[
         "run",
         "capture",
+        "page-size-auxv",
         "write",
         "package-state",
         "recover-emulator",
@@ -700,6 +705,10 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             None,
             lambda cap: _device(cap, "shell", "getconf", "PAGE_SIZE"),
         ),
+        AndroidOperation.PAGE_SIZE_AUXV: OperationSpec(
+            "page-size-auxv", 15, 15, None,
+            lambda cap: _device(cap, "exec-out", "cat", "/proc/self/auxv"),
+        ),
         AndroidOperation.DEVICE_SDK: OperationSpec(
             "capture",
             15,
@@ -751,7 +760,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             None,
             lambda cap: _device(
-                cap, "shell", "cmd", "package", "list", "packages", PACKAGE
+                cap, "shell", "pm", "list", "packages", PACKAGE
             ),
             requires_private_server=True,
             stderr_to_stdout=True,
@@ -791,6 +800,13 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             OutputSpec(proof, "adb-device-time.txt", 4096),
             lambda cap: _device(cap, "shell", "date", "+%s.%3N"),
+        ),
+        AndroidOperation.DEVICE_TIME_CALENDAR: OperationSpec(
+            "write", 15, 15, OutputSpec(proof, "adb-device-time.txt", 4096),
+            # API 23 date uses strftime; logcat accepts this local calendar
+            # form. Round down to the containing second for a lower bound.
+            # adb shell joins its arguments before the guest shell parses them.
+            lambda cap: _device(cap, "shell", "date", "'+%m-%d %H:%M:%S.000'"),
         ),
         AndroidOperation.START_APP: OperationSpec(
             "capture",
@@ -3948,7 +3964,26 @@ def _recover_owned_emulator_transport(
     return result
 
 
-def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
+def canonical_logcat_start_time(value: object) -> str:
+    _require(isinstance(value, str) and 14 <= len(value) <= 18,
+             "Android logcat start time has invalid type or length")
+    if DEVICE_EPOCH.fullmatch(value) is not None:
+        return runtime_state.canonical_ascii_atom(
+            value, characters=_EPOCH_CHARACTERS, minimum=14, maximum=17,
+            label="Android logcat start time",
+        )
+    _require(DEVICE_CALENDAR_TIME.fullmatch(value) is not None,
+             "Android logcat start time is non-canonical")
+    try:
+        # A leap year admits Feb 29; the guest logcat resolves its local year.
+        parsed = datetime.datetime.strptime("2000-" + value, "%Y-%m-%d %H:%M:%S.%f")
+    except ValueError as error:
+        raise AndroidCommandError("Android logcat calendar time is invalid") from error
+    return (f"{parsed.month:02d}-{parsed.day:02d} {parsed.hour:02d}:"
+            f"{parsed.minute:02d}:{parsed.second:02d}.{parsed.microsecond // 1000:03d}")
+
+
+def _device_logcat_start_time(layout: runtime_state.AndroidRunLayout) -> str:
     snapshot = read_regular_snapshot(
         layout.proof / "adb-device-time.txt",
         maximum=4096,
@@ -3961,18 +3996,32 @@ def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
         raise AndroidCommandError(
             f"Android logcat start time is not ASCII: {exc}"
         ) from exc
-    value = runtime_state.canonical_ascii_atom(
-        raw_value,
-        characters=_EPOCH_CHARACTERS,
-        minimum=14,
-        maximum=17,
-        label="Android logcat start time",
-    )
-    _require(
-        DEVICE_EPOCH.fullmatch(value) is not None,
-        "Android logcat start time is non-canonical",
-    )
-    return value
+    return canonical_logcat_start_time(raw_value)
+
+
+def _auxv_page_size(data: bytes) -> int:
+    """Read AT_PAGESZ from one complete little-endian Android ELF aux vector.
+
+    The minimum x86_64 profile can run a 32- or 64-bit cat. Require one valid
+    interpretation, a final AT_NULL pair and exactly one supported page size.
+    This measures kernel pages and is not the API 35 16 KiB libc emulation probe.
+    """
+    _require(0 < len(data) <= 4096, "Android aux vector size differs")
+    candidates = []
+    for width in (4, 8):
+        stride = width * 2
+        if len(data) % stride != 0:
+            continue
+        entries = [(int.from_bytes(data[i:i + width], "little"),
+                    int.from_bytes(data[i + width:i + stride], "little"))
+                   for i in range(0, len(data), stride)]
+        if entries[-1] != (0, 0) or any(kind == 0 for kind, _ in entries[:-1]):
+            continue
+        pages = [value for kind, value in entries if kind == 6]  # Linux AT_PAGESZ
+        if len(pages) == 1 and pages[0] in (4096, 16384):
+            candidates.append(pages[0])
+    _require(len(candidates) == 1, "Android aux vector lacks one unambiguous page size")
+    return candidates[0]
 
 
 def _capture_emulator_diagnostics(
@@ -4018,7 +4067,7 @@ def _capture_emulator_diagnostics(
     argv = _device(
         capability,
         "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
-        "-T", _device_epoch(layout), "-s",
+        "-T", _device_logcat_start_time(layout), "-s",
         "AndroidRuntime:E", "Watchdog:*", "ActivityManager:E", "SystemServer:E",
         "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
         "Zygote:E", "lmkd:*", "libc:F", "DEBUG:*", "*:S",
@@ -4087,7 +4136,7 @@ def invoke_operation(
             "-v",
             "tag",
             "-T",
-            _device_epoch(layout),
+            _device_logcat_start_time(layout),
             "-s",
             "QPeriaptSmoke:*",
             "*:S",
@@ -4101,6 +4150,14 @@ def invoke_operation(
         _validate_owned_adb_server_for_client(capability)
         return result
     argv = spec.build_argv(capability)
+    if spec.mode == "page-size-auxv":
+        result = capture_stdout(
+            argv, timeout_seconds=timeout, maximum_bytes=4096,
+            stderr=subprocess.STDOUT, environment=_client_environment(capability),
+        )
+        _validate_owned_adb_server_for_client(capability)
+        _require(result.returncode == 0, "Android kernel page-size query failed")
+        return BoundedResult(0, f"{_auxv_page_size(result.stdout)}\n".encode("ascii"))
     if spec.mode == "run":
         result = run(
             argv, timeout_seconds=timeout, environment=_client_environment(capability)

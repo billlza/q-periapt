@@ -15,6 +15,8 @@ class RuntimeProfile:
     sdk: int
     page_size: int
     avds: Mapping[tuple[str, str], str]
+    page_size_operation: str = "page-size"
+    clock_operation: str = "device-time"
 
     def target(self, abi: str) -> dict[str, object]:
         if not any(selected_abi == abi for _, selected_abi in self.avds):
@@ -29,7 +31,7 @@ RUNTIME_PROFILES: Mapping[str, RuntimeProfile] = MappingProxyType({
     })),
     "api23-4k": RuntimeProfile(23, 4096, MappingProxyType({
         ("linux-system", "x86_64"): "QPeriapt_SDK_4K_API_23_CI_V1",
-    })),
+    }), page_size_operation="page-size-auxv", clock_operation="device-time-calendar"),
 })
 
 

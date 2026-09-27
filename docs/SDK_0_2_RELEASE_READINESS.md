@@ -69,6 +69,41 @@ unchanged private-tree verifier. Seven real file-shape cases cover byte/inode
 preservation and refusal of links, FIFO, writable modes and empty files. The
 corrected API 23 workload still requires a hosted result.
 
+The package-state command now uses the public `pm list packages` interface.
+The API 23 AOSP `Pm` implementation provides it, while its Binder/package
+service predates the shell-command entry used by `cmd package`. API 35 retains
+`pm` as a wrapper over that service. Exact package-output parsing, combined
+output bounds, deadlines, signer checks and removal rules are unchanged. The
+API 23 lane uses a newly created single-user emulator; this source inspection
+does not qualify physical or multi-user API 23 devices. See the
+[Android command documentation](https://developer.android.com/tools/adb#pm) and
+[API 23 implementation](https://android.googlesource.com/platform/frameworks/base/+/android-6.0.1_r81/cmds/pm/src/com/android/commands/pm/Pm.java).
+
+The closed API 23 profile selects its own metadata probes before execution:
+`cat /proc/self/auxv` supplies the kernel's `AT_PAGESZ`, and
+`date '+%m-%d %H:%M:%S.000'` supplies the local calendar lower bound accepted by
+its `logcat -T`. The AOSP API 23 toolbox/Toybox inventory has no `getconf`; its
+date implementation has no nanosecond extension and its logcat parser expects
+calendar time. The bounded aux-vector parser accepts exactly one complete
+32- or 64-bit little-endian interpretation, one page-size entry and a terminal
+null pair. Failed reads, truncation, duplicates and unsupported sizes fail.
+
+API 35 retains its `getconf PAGE_SIZE` and epoch/millisecond probes: kernel
+aux-vector pages must not replace the 16 KiB emulator's libc page-size view.
+Both captured clock forms receive strict validation before installation and
+before entering logcat arguments. The API 23 lower bound can include less than
+one second of preceding, tag-filtered diagnostics; it is not a millisecond
+measurement or an operation deadline. Existing log-size, time, owner and privacy
+checks remain. These command changes still require execution on both targets.
+
+The hosted `40f5bb6` minimum attempt confirms the preparation fix: its owned
+2 GiB userdata file starts at mode 0644, is restricted successfully, and passes
+full AVD admission. The runtime boots, then fails at the old metadata probe with
+`getconf: not found`. Its owned server cleanup and failed-receipt retirement
+complete with primary status 1. No SDK workload acceptance is recorded for this
+attempt. The same source passes all 2,272 local artifact tests in 460.251 seconds,
+without skips, plus its pre/post source gate.
+
 The `0e2a670` source completes all 36
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36345633624) and all six
 [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36345633631).
