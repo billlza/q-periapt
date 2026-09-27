@@ -53,12 +53,24 @@ separate gate.
 
 The subsequent `eebadda` native run exposed Rust's mixed archive: LLVM rejects
 its short DLL import records when asked to strip the whole library. A minimal
-Rust static library reproduces that failure. The current copy operation instead
+Rust static library reproduces that failure. The `328bf90` copy operation instead
 replaces only COFF FILE auxiliary filename bytes with a fixed placeholder;
 all offsets, indexes, import records and other bytes are preserved. Both the
 26-object NASM archive and a real Rust mixed archive retain exact external-symbol
 listings. Cross-linking the original and normalized minimal Rust archives yields
 byte-identical PE DLLs; this is not native Windows execution.
+
+The `51982a6` native diagnostic locates the remaining path in a `.debug$S`
+section. Its member hash and byte offset exactly match the normalized
+`ring 0.17.14` prebuilt ChaCha object. The producer now runs LLVM debug stripping
+on copied ordinary COFF objects and rebuilds the index, preserving duplicate
+members, their order and byte-identical short imports. External symbol names,
+types, values and sizes must remain unchanged. All eight ring objects pass the
+local section/symbol comparison and path scan. The production PowerShell helper
+also passes with a real mixed Rust archive (296 ordinary objects and four short
+imports); its minimal cross-linked DLL remains byte-identical to the original.
+The 78 affected Python tests and PowerShell boundary fixtures pass. Native MSVC
+archive consumption remains required; these local checks do not replace it.
 
 The `a24e3c0` Android full SDK consumer completed its ART workload, owned-runtime
 cleanup and proof publication. Portable evidence export then failed because

@@ -82,6 +82,26 @@ class WindowsStaticFilenameTests(unittest.TestCase):
                 windows.create_static_distribution_copy(source, destination)
             self.assertEqual(destination.read_bytes(), b"previous attempt")
 
+    def test_archive_labels_never_select_host_paths_and_duplicates_are_retained(self):
+        first, _ = self.object()
+        second = first + b"different member bytes"
+        names = b"C:\\upstream\\first\\same.obj\0../../second/same.obj\0"
+        offset = names.index(b"../../")
+        archive = (b"!<arch>\n" + self.member("//", names)
+                   + self.member("/0", first) + self.member("/" + str(offset), second))
+        self.assertEqual(windows._static_archive_objects(archive),
+                         [("same.obj", first), ("same.obj", second)])
+
+    def test_invalid_archive_label_tables_and_leaf_names_are_rejected(self):
+        obj, _ = self.object()
+        for data in (self.member("/0", obj), self.member("../", obj),
+                     self.member("CON.obj/", obj), self.member("bad name.obj/", obj),
+                     self.member("//", b"unterminated") + self.member("/0", obj),
+                     self.member("//", b"a.obj\0") + self.member("/999", obj),
+                     self.member("//", b"a.obj\0") * 2 + self.member("/0", obj)):
+            with self.subTest(data=data[:16]), self.assertRaises(windows.WindowsPackageError):
+                windows._static_archive_objects(b"!<arch>\n" + data)
+
 
 class WindowsSDKStaticLibraryTests(unittest.TestCase):
     def test_sdk_and_legacy_link_dependencies_require_the_selected_profile(self):

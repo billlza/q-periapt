@@ -73,10 +73,14 @@ rejects ambient AWS-LC build overrides and sets/restores its own scoped values.
 The distribution static archive is a separate copy of the compiler output.
 The packager replaces only the filename bytes in COFF
 [FILE auxiliary records](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-4-files)
-with a fixed placeholder. Archive lengths, indexes, import records, sections
-and all other bytes remain unchanged. This handles Rust's mixed object/import
-archive, which `llvm-strip` rejects. The producer retains the original archive and requires its hash and
-the complete external-symbol listing to remain unchanged. The final copy must
+with a fixed placeholder in an intermediate copy, without moving any bytes.
+It then strips debug sections from copied ordinary objects using the matching
+Rust toolchain's LLVM tools. Short DLL import records bypass stripping and must
+remain byte-identical. LLVM rebuilds the archive index, retaining member order
+and duplicates; archive labels are canonical basenames, never host input paths.
+This also removes upstream build paths in ring's prebuilt CodeView debug data.
+The producer retains the original archive and requires its hash and every
+external symbol's name, type, value and size to remain unchanged. The final copy must
 pass the full path scan, static-link dependency checks and installed C
 consumers; debug removal does not authorize a failed scan or missing symbol.
 

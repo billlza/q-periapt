@@ -16,6 +16,7 @@ import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Callable
@@ -399,17 +400,11 @@ def _require(condition: bool, message: str) -> None:
         raise WindowsPackageError(message)
 
 
-def normalize_static_debug_filenames(data: bytes) -> tuple[bytes, int]:
-    """Replace only AMD64 COFF FILE auxiliary filenames, without moving any byte.
-
-    Rust's archive also contains short import records, which llvm-strip cannot
-    process. Those records and the archive indexes remain byte-identical. This
-    accepts the normal COFF objects emitted by the pinned toolchain; unsupported
-    object dialects fail. It never searches/replaces strings in code or data.
-    """
+def _static_archive_layout(data: bytes) -> list[tuple[bytes, int, int]]:
+    """Bounded regular archive framing; no member name is used as a path here."""
     _require(data.startswith(b"!<arch>\n"), "static library must be a regular COFF archive")
-    result = bytearray(data)
-    cursor, changed = 8, 0
+    cursor = 8
+    members = []
     while cursor < len(data):
         _require(cursor + 60 <= len(data), "truncated static archive member header")
         header = data[cursor:cursor + 60]
@@ -418,7 +413,23 @@ def normalize_static_debug_filenames(data: bytes) -> tuple[bytes, int]:
         size = int(size_text)
         start, end = cursor + 60, cursor + 60 + size
         _require(end + size % 2 <= len(data), "truncated static archive member")
+        members.append((header, start, end))
+        _require(len(members) <= 10_000, "static archive member budget exceeded")
         cursor = end + size % 2
+    return members
+
+
+def normalize_static_debug_filenames(data: bytes) -> tuple[bytes, int]:
+    """Replace only AMD64 COFF FILE auxiliary filenames, without moving any byte.
+
+    Rust's archive also contains short import records, which llvm-strip cannot
+    process. Those records and the archive indexes remain byte-identical. This
+    accepts the normal COFF objects emitted by the pinned toolchain; unsupported
+    object dialects fail. It never searches/replaces strings in code or data.
+    """
+    result = bytearray(data)
+    changed = 0
+    for header, start, end in _static_archive_layout(data):
         if header[:16].strip() in (b"/", b"//", b"/SYM64/"):
             continue # Linker/string indexes are preserved, including duplicate member names.
         member = memoryview(data)[start:end]
@@ -466,6 +477,114 @@ def normalize_static_debug_filenames(data: bytes) -> tuple[bytes, int]:
                 changed += 1
             index += 1 + auxiliaries
     return bytes(result), changed
+
+
+def _static_archive_objects(data: bytes) -> list[tuple[str, bytes]]:
+    layout = _static_archive_layout(data)
+    tables = [data[start:end] for header, start, end in layout if header[:16].strip() == b"//"]
+    _require(len(tables) <= 1, "ambiguous static archive long-name table")
+    objects = []
+    for header, start, end in layout:
+        name = header[:16].strip()
+        if name in (b"/", b"//", b"/SYM64/"):
+            continue
+        if name.startswith(b"/"):
+            _require(name[1:].isdigit() and len(tables) == 1, "invalid static archive name reference")
+            offset, table = int(name[1:]), tables[0]
+            _require(0 <= offset < len(table), "static archive name offset is out of range")
+            endings = [position for terminator in (b"\0", b"/\n") if (position := table.find(terminator, offset)) >= 0]
+            _require(bool(endings), "unterminated static archive member name")
+            name = table[offset:min(endings)]
+        else:
+            name = name.removesuffix(b"/")
+        _require(re.fullmatch(rb"[\x20-\x7e]{1,32767}", name) is not None,
+                 "static archive member name is not bounded ASCII")
+        # Some Rust compiler-builtins members carry the upstream absolute path
+        # as their archive label. It never selects a host input file. Use only
+        # its basename for the copied member, preserving duplicates by index.
+        name = ntpath.basename(name.decode("ascii")).encode("ascii")
+        _require(re.fullmatch(rb"[A-Za-z0-9_.$+-]{1,255}", name) is not None
+                 and name not in (b".", b"..")
+                 and re.fullmatch(rb"(?i)(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?", name) is None,
+                 "static archive member name is not a safe basename")
+        objects.append((name.decode("ascii"), data[start:end]))
+    _require(bool(objects), "static archive has no object members")
+    return objects
+
+
+def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
+                               *, llvm_strip: pathlib.Path, llvm_ar: pathlib.Path) -> dict[str, object]:
+    """Strip copied COFF objects with LLVM, preserving short imports and member order."""
+    snapshot = read_regular_snapshot(source, maximum=MAX_PACKAGE_FILE_BYTES, label="static metadata archive")
+    objects = _static_archive_objects(snapshot.data)
+    _require(not destination.exists() and not destination.is_symlink(), "static distribution output already exists")
+    suffix = ".exe" if os.name == "nt" else ""
+    strip = _regular_windows_tool(llvm_strip, expected_name="llvm-strip" + suffix, label="LLVM strip")
+    ar = _regular_windows_tool(llvm_ar, expected_name="llvm-ar" + suffix, label="LLVM archiver")
+    # Retain intermediate objects/logs on failure as well as success. Each index
+    # gets its own directory, so repeated import member names never overwrite.
+    work = pathlib.Path(tempfile.mkdtemp(prefix="static-debug-", dir=destination.parent)).resolve()
+    paths, ordinary, imports = [], [], {}
+    for index, (name, data) in enumerate(objects):
+        folder = work / str(index)
+        folder.mkdir()
+        path = folder / name
+        with path.open("xb") as stream:
+            stream.write(data)
+        paths.append(path)
+        if data[:8] == b"\x00\x00\xff\xff\x00\x00\x64\x86":
+            _require(len(data) >= 20 and struct.unpack_from("<I", data, 12)[0] == len(data) - 20,
+                     "invalid AMD64 import record size")
+            imports[index] = data
+        else:
+            _require(data[:2] == b"\x64\x86", "unsupported static object for debug stripping")
+            ordinary.append(path)
+
+    def batches(selected: list[pathlib.Path]) -> Iterable[list[str]]:
+        batch, length = [], 0
+        for path in selected:
+            argument = str(path)
+            _require(len(argument) < 8_000, "static object tool argument is too long")
+            if length + len(argument) + 3 > 16_000:
+                yield batch
+                batch, length = [], 0
+            batch.append(argument)
+            length += len(argument) + 3
+        if batch:
+            yield batch
+
+    invocation = 0
+    def run(arguments: list[str]) -> None:
+        nonlocal invocation
+        invocation += 1
+        completed = _run_bounded_process(arguments, cwd=str(work), stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=60)
+        (work / f"tool-{invocation}.stdout").write_bytes(completed.stdout)
+        (work / f"tool-{invocation}.stderr").write_bytes(completed.stderr)
+        _require(completed.returncode == 0 and not completed.stdout and not completed.stderr,
+                 "static archive tool failed or emitted diagnostics; attempt logs retained")
+
+    for batch in batches(ordinary):
+        run([str(strip), "--strip-debug", *batch])
+    candidate = work / "distribution.lib"
+    for batch in batches(paths):
+        run([str(ar), "--format=coff", "qcD", str(candidate), *batch])
+    run([str(ar), "sD", str(candidate)])
+    final = read_regular_snapshot(candidate, maximum=MAX_PACKAGE_FILE_BYTES, label="stripped static archive")
+    rebuilt = _static_archive_objects(final.data)
+    _require([name for name, _ in rebuilt] == [name for name, _ in objects], "static archive member order or names changed")
+    for index, (_, data) in enumerate(rebuilt):
+        object_snapshot = read_regular_snapshot(paths[index], maximum=MAX_PACKAGE_FILE_BYTES, label="stripped object")
+        _require(data == object_snapshot.data, "static archive member changed during indexing")
+        if index in imports:
+            _require(data == imports[index], "static import record changed")
+    _require(_sha256(source) == snapshot.sha256, "static metadata source changed")
+    with destination.open("xb") as stream:
+        _require(stream.write(final.data) == len(final.data), "incomplete stripped static archive")
+        stream.flush()
+        os.fsync(stream.fileno())
+    return {"source_sha256": snapshot.sha256, "sha256": final.sha256,
+            "object_members": len(ordinary), "unchanged_import_members": len(imports)}
 
 
 def create_static_distribution_copy(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
@@ -2397,6 +2516,9 @@ def _parse_args() -> argparse.Namespace:
     static_copy = subparsers.add_parser("create-static-distribution-copy")
     static_copy.add_argument("--source", required=True, type=pathlib.Path)
     static_copy.add_argument("--destination", required=True, type=pathlib.Path)
+    static_debug = subparsers.add_parser("strip-static-debug")
+    for name in ("source", "destination", "llvm-strip", "llvm-ar"):
+        static_debug.add_argument("--" + name, required=True, type=pathlib.Path)
     native_libraries = subparsers.add_parser("parse-native-static-libraries")
     native_libraries.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
     native_libraries.add_argument(
@@ -2443,6 +2565,11 @@ def main() -> int:
     try:
         if args.command == "create-static-distribution-copy":
             result = create_static_distribution_copy(args.source, args.destination)
+            print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+            return 0
+        if args.command == "strip-static-debug":
+            result = strip_static_archive_debug(args.source, args.destination,
+                llvm_strip=args.llvm_strip, llvm_ar=args.llvm_ar)
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
             return 0
         if args.command == "parse-native-static-libraries":

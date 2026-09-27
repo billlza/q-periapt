@@ -381,23 +381,45 @@ function New-SdkCargoHome {
     return $privateCache
 }
 
+function Get-SdkStaticSymbolEntries {
+    param([Parameter(Mandatory)] [string] $Nm, [Parameter(Mandatory)] [string] $Library)
+    $text = Get-TrimmedOutput -FilePath $Nm -Arguments @("--extern-only", "--format=posix", $Library)
+    $entries = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in ($text -split "`r?`n")) {
+        if (-not $line -or $line.EndsWith(':', [System.StringComparison]::Ordinal)) { continue }
+        $record = [regex]::Match($line, '^(\S+)\s+([A-Za-z?])\s+([0-9a-fA-F]+)\s+([0-9a-fA-F]+)$')
+        if (-not $record.Success) { throw "LLVM external symbol entry has an unexpected format" }
+        [void] $entries.Add(($record.Groups[1..4].Value -join ' '))
+    }
+    if ($entries.Count -eq 0) { throw "SDK static archive has no external symbol entries" }
+    return $entries -join "`n"
+}
+
 function New-SdkStaticDistributionLibrary {
     param(
         [Parameter(Mandatory)] [string] $Source,
         [Parameter(Mandatory)] [string] $Destination,
+        [Parameter(Mandatory)] [string] $Strip,
+        [Parameter(Mandatory)] [string] $Ar,
         [Parameter(Mandatory)] [string] $Nm
     )
     if (Test-Path -LiteralPath $Destination) { throw "SDK static distribution output already exists" }
     $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
-    $symbolArguments = @("--extern-only", "--format=just-symbols")
-    $before = Get-TrimmedOutput -FilePath $Nm -Arguments ($symbolArguments + @($Source))
-    # Preserve Rust's mixed COFF/import archive and all external symbol entries.
-    # Only fixed-size FILE auxiliary filenames change; indexes and code do not.
+    $before = Get-SdkStaticSymbolEntries -Nm $Nm -Library $Source
+    # Preserve the compiler archive. First normalize FILE filenames, then let
+    # LLVM strip copied ordinary objects; short imports bypass unsupported
+    # stripping and remain byte-identical when LLVM rebuilds the archive index.
+    $filenameCopy = $Destination + ".filenames"
     Invoke-PythonChecked -Arguments @(
         "artifact/windows_package.py", "create-static-distribution-copy",
-        "--source", $Source, "--destination", $Destination
+        "--source", $Source, "--destination", $filenameCopy
     )
-    $after = Get-TrimmedOutput -FilePath $Nm -Arguments ($symbolArguments + @($Destination))
+    Invoke-PythonChecked -Arguments @(
+        "artifact/windows_package.py", "strip-static-debug",
+        "--source", $filenameCopy, "--destination", $Destination,
+        "--llvm-strip", $Strip, "--llvm-ar", $Ar
+    )
+    $after = Get-SdkStaticSymbolEntries -Nm $Nm -Library $Destination
     if (-not $before -or $before -cne $after) { throw "SDK static debug copy changed external symbol entries" }
     if ((Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash -cne $sourceHash) {
         throw "SDK static debug copy changed its source archive"
@@ -1642,6 +1664,11 @@ $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustHost $RustHostMatch.Groups['host'].Value
 $LlvmAr = $RustLlvmTools.Ar
 $LlvmNm = $RustLlvmTools.Nm
+if ($Profile -eq "sdk-alpha1" -and $Mode -eq "Build") {
+    $LlvmStrip = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $RustLlvmTools.Bin "llvm-strip.exe") `
+        -TrustedRoot $RustLlvmTools.Bin -ExpectedName "llvm-strip.exe"
+}
 $ProducerRoots = Get-ReleaseProducerRoots `
     -SourceRoot $Root `
     -CargoHome $CargoHome `
@@ -2007,7 +2034,7 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
 if ($Profile -eq "sdk-alpha1") {
     $distributionStaticLibrary = Join-Path $OutRoot "q_periapt_ffi_abi2_static.lib"
     New-SdkStaticDistributionLibrary -Source $staticLibrary -Destination $distributionStaticLibrary `
-        -Nm $LlvmNm
+        -Strip $LlvmStrip -Ar $LlvmAr -Nm $LlvmNm
     $staticLibrary = $distributionStaticLibrary
 }
 $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
