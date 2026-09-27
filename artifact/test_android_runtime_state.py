@@ -319,7 +319,7 @@ class AndroidRuntimeStateTests(unittest.TestCase):
     def test_pstore_refusal_retains_fixed_ram_file_and_reports_only_metadata(self) -> None:
         receipt, pstore = self.create_sdk_pstore_fixture()
         path = pstore / "pstore.bin"
-        data = b"private guest bytes".ljust(65536, b"\0")
+        data = b"private guest bytes".ljust(65535, b"\0")
         path.write_bytes(data)
         path.chmod(0o600)
         before = path.stat()
@@ -336,12 +336,80 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         self.assertFalse(report["truncated"])
         self.assertEqual(len(report["entries"]), 1)
         self.assertEqual(report["entries"][0]["name"], "pstore.bin")
-        self.assertEqual(report["entries"][0]["bytes"], 65536)
+        self.assertEqual(report["entries"][0]["bytes"], 65535)
         self.assertEqual(report["entries"][0]["sha256"], hashlib.sha256(data).hexdigest())
         self.assertEqual(path.read_bytes(), data)
         self.assertEqual((path.stat().st_ino, path.stat().st_mode, path.stat().st_mtime_ns),
                          (before.st_ino, before.st_mode, before.st_mtime_ns))
         self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+
+    def test_pstore_retirement_preserves_complete_private_ram_and_is_idempotent(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        path = pstore / "pstore.bin"
+        data = bytes(range(256)) * 256
+        path.write_bytes(data)
+        path.chmod(0o600)
+        before = path.stat()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fchmod", wraps=os.fchmod) as chmod,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+            state.restore_owned_avd_pstore_permissions(receipt)
+        self.assertEqual(chmod.call_count, 1)
+        self.assertEqual(chmod.call_args.args[1], 0o700)
+        self.assertEqual(path.read_bytes(), data)
+        self.assertEqual(state._avd_scratch_identity(path.stat()),
+                         state._avd_scratch_identity(before))
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+        self.assertEqual([entry.name for entry in pstore.iterdir()], ["pstore.bin"])
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
+        state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+    def test_pstore_rejects_wrong_size_permissions_and_hard_links_before_mutation(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        path = pstore / "pstore.bin"
+        alias = self.root / "pstore-alias"
+        for kind in ("empty", "short", "long", "shared-mode", "hard-link"):
+            size = {"empty": 0, "short": 65535, "long": 65537}.get(kind, 65536)
+            data = b"x" * size
+            path.write_bytes(data)
+            path.chmod(0o644 if kind == "shared-mode" else 0o600)
+            if kind == "hard-link":
+                os.link(path, alias)
+            with (
+                self.subTest(kind=kind),
+                mock.patch.object(state, "validate_lane_lock_descriptor"),
+                mock.patch.object(state.os, "fchmod") as chmod,
+                self.assertRaisesRegex(state.AndroidRuntimeStateError, "private RAM file"),
+            ):
+                state.restore_owned_avd_pstore_permissions(receipt)
+            chmod.assert_not_called()
+            self.assertEqual(path.read_bytes(), data)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+            if alias.exists():
+                alias.unlink()
+            path.unlink()
+
+    def test_pstore_rejects_same_size_content_change_during_permission_restoration(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        path = pstore / "pstore.bin"
+        path.write_bytes(b"a" * 65536)
+        path.chmod(0o600)
+        real_chmod = os.fchmod
+
+        def mutate_after_chmod(descriptor: int, mode: int) -> None:
+            real_chmod(descriptor, mode)
+            path.write_bytes(b"b" * 65536)
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fchmod", side_effect=mutate_after_chmod),
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "pstore changed after inspection"),
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        self.assertEqual(path.read_bytes(), b"b" * 65536)
+        self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
 
     def test_pstore_diagnostic_never_reads_links_or_logs_unknown_names(self) -> None:
         receipt, pstore = self.create_sdk_pstore_fixture()

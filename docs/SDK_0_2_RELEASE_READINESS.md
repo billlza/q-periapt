@@ -14,22 +14,54 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
-| Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external runtime consumers; Android now has a four-ABI AAR and independent Maven/R8 APK builds, with ART/device execution pending; JVM Java-source owner construction is closed |
-| Rust compiler floor | Actual minimum-compiler build and public API execution from the same pinned packages; explicit development-toolchain scope | Current source builds all eighteen default workspace packages on Rust 1.85.0/macOS ARM64; its new library passes both C consumers. A fresh twelve-crate cohort has four public API tests passing from nine extracted archives on both Rust 1.85.0 and 1.96.1, plus canonical Clippy. Linux and remaining target/feature coverage are open; full development tests require the canonical toolchain |
+| Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted Android full ART/export gates pass at named checkpoints; minimal cleanup/retirement remains open. Physical Android evidence remains open; JVM Java-source owner construction is closed |
+| Rust compiler floor | Actual minimum-compiler build and public API execution from the same pinned packages; explicit development-toolchain scope | Rust 1.85.0 builds the default workspace on macOS ARM64 and hosted Linux; the 830e381 Linux MSRV job passes. The retained twelve-crate package cohort has four public API tests passing from nine extracted archives on Rust 1.85.0 and 1.96.1. Remaining target/feature floors require their own evidence; full development tests use the canonical toolchain |
 | Immutable verified runtime | Actual signature/root/state validation; no raw decision constructor; policy epoch/revocation rules and persistence boundary | Prepare/persist/activate, one-winner revocation, disabled-policy recovery and later re-enabling implemented across all six surfaces; shared Rust/C/Swift persistent runtime and both installed macOS peers have real-file/process recovery evidence; native Linux reference qualification remains open |
 | Explicit expert access and named-purpose derivation | Separate APIs, specified formats/KDF/domain binding, rejection and interoperability evidence | Owned HKDF-SHA-256 purpose derivation and explicit expanded-key transfer implemented across all six surfaces; native integrity/PCT checks and foreign roundtrips pass locally; external review remains open |
 | Resource failures and budgets | Bounded inputs, in-flight workspace/live-object budgets, cleanup on entropy/allocation failure, no success-shaped error path | Per-runtime quotas plus native 1024-owner/64-call aggregate limits implemented; close and prepared activation exempt; full-budget activation and JNI failure/copy disposal exercised; process OOM recovery is not claimed |
 | ContextBound efficiency without protocol change | KAT/differential/implicit rejection/import checks plus exact-byte transcript equivalence; state and scratch erasure review | Current local workspace/WASM conformance passes; binary CT, formal and device gates remain separate |
-| x86_64 native candidate | Pinned source, CPU/OS capability contract, native Linux execution, differential and CT evidence; separate MSVC disposition | Opt-in GNU Linux candidate implemented with full CPU/OS checks and portable dispatch; versioned source profile, cross-build and local admission checks pass; native Linux execution/CT/performance qualification pending |
+| x86_64 native candidate | Pinned source, CPU/OS capability contract, native Linux execution, differential and CT evidence; separate MSVC disposition | Opt-in GNU Linux candidate implemented with CPU/OS checks and portable dispatch. Hosted 830e381 differential tests and the binary CT gate pass for 512/768/1024. Controlled performance, broader CT coverage and separate non-GNU disposition remain required; this finite gate is not a general constant-time proof |
 | Real SDK performance | Source/binary-bound paired primitive, Rust, C/foreign binding measurements; tail latency, allocation, concurrency, long-run/energy limits recorded | Rust/C/Swift comparisons, connection timing and allocation observations are retained. The installed Swift package and release archive-derived Rust peer add five timing blocks with 1,005 connections and 3,015 checked echoes. A native C run covers eight-thread work for 600 seconds, close races and 21 capacity-recovery probes. Controlled tail, foreign-wrapper/native-C allocator, peak memory, broader concurrency, longer runs and energy gates remain open |
-| Standard TLS interoperability | RFC-compliant standard group, actual independent peer, auth/policy parity and no silent classic fallback | Separate opt-in TLS 1.3 + X25519MLKEM768 mutual-certificate path implemented; the archive-built Rust peer passes eight independent OpenSSL client/server cases; installed Swift/Rust macOS peers pass policy confirmation and failure scenarios; hosted/Linux execution remains open |
-| Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | The current Swift package and archive-derived Rust peer pass twelve installed macOS process/socket cases with persistence on both peers. The standalone consumer's missing Unix readiness dependency was reproduced and fixed; the macOS CI job now declares this package boundary. Hosted execution and the native Linux server remain open |
-| Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Rust, macOS ARM64 C/JVM and the rebuilt Apple cohort have fresh outside-checkout consumers. Apple passes five architecture links and two four-test macOS host runs. WASM retains its Node/Chrome/Firefox evidence. Android has a four-ABI AAR and inspected unsigned full/minimal Maven/R8 applications; ART/device execution remains open. Each receipt keeps its own source scope; public registries, other platforms, signing and current devices remain open |
-| Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; external review recorded honestly | Initial local conformance only; independent external review pending |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and independent critical-path review | The latest complete artifact checkpoint passes 2,220 tests across 90 modules in 427.457 seconds with no skips. The later consumer/CI change passes 56 focused tests, actual package builds, Clippy and connection checks. Its macOS job passes actionlint; the full workflow retains the verified pre-existing runner-catalogue diagnostic. Rust inventory remains 137 files; hosted CI/CodeQL, independent review and final release qualification remain open |
+| Standard TLS interoperability | RFC-compliant standard group, actual independent peer, auth/policy parity and no silent classic fallback | Separate opt-in TLS 1.3 + X25519MLKEM768 mutual-certificate path implemented. The archive-built Rust peer and hosted Linux 830e381 run pass eight independent OpenSSL client/server cases. Installed Swift/Rust macOS peers pass policy confirmation and failure scenarios; the actual macOS-to-Linux reference remains open |
+| Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
+| Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Android full ART/export passes at named checkpoints; minimal retirement remains open. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
+| Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; external review recorded honestly | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. They do not replace independent external security review, which remains pending |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and independent critical-path review | The clean 5ec7fc0 artifact checkpoint passes 2,243 tests in 441.545 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The pstore follow-up passes 219 Android state/command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and independent review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | Not ready; no publication authorized by readiness alone |
 
 ## Latest qualification checkpoints
+
+At `830e3813a61cec8009875b3602ad4cab5bb1da7a`, the completed
+[CI cohort](https://github.com/billlza/q-periapt/actions/runs/36328485723) passed
+35 jobs and failed Android runtime. Both Windows package jobs now pass,
+including the Windows 2022 static consumers that previously rejected volatile
+metadata. Each producer strips 12 reviewed CodeView objects and preserves
+651 other objects plus five short imports. The downloaded MSVC 19.51 archive
+has SHA-256 `bc2a4a17c1bfdbff887677a3d3483a7411882547858f8bd47ec13d8cfacd9ac1`;
+its manifest binds the matching PR tree and ABI 2 / 43 exports. It remains
+unsigned. Swift package/connection, Linux MSRV, eight independent OpenSSL cases
+and the scoped AVX2 differential/binary-CT gates also pass. All six
+[CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36328485780)
+completed; the matching PR ref still has 19 open alerts, with no dismissals or
+rule suppression. Scanner completion does not replace finding review.
+
+The same Android run completed the full ART/export gate and the minimal
+Instrumentation workload. During minimal cleanup, its emulator transport
+disappeared twice; the one permitted identity-checked recovery succeeded once,
+but two fresh exact APK samples were never obtained. No uninstall was
+authorized, and no minimal success proof was published. This transport failure
+remains unresolved. Retirement additionally identified a regular 0600,
+current-owner, single-link, 65,536-byte `pstore.bin`. The pinned upstream
+[header](https://android.googlesource.com/platform/external/qemu/+/ba29194f97e72ffe770bd56e4e5c5c620598004b/include/hw/misc/goldfish_pstore.h)
+defines that RAM size and private file mode; its
+[device teardown](https://android.googlesource.com/platform/external/qemu/+/ba29194f97e72ffe770bd56e4e5c5c620598004b/hw/misc/goldfish_pstore.c)
+saves the RAM file even without a crash. The follow-up admits only this fixed
+private file or an empty directory after proven owned-runtime shutdown. It
+preserves file identity/content while restoring directory privacy, rejects
+partial/shared/linked/unknown entries, and rechecks content after restoration.
+The old source reproduces the exact valid-file refusal; 219 local state/command
+tests pass after repair, including both successful and failed retirement.
+Native execution of this follow-up remains required.
 
 The clean `5ec7fc01bd49915e40620b50ad70858b5e780dd6` snapshot passed all 2,243
 artifact tests in 441.545 seconds, without skips, and passed the exact-source
@@ -40,19 +72,20 @@ jitterentropy object's volatile metadata. The follow-up limits LLVM rewriting
 to the reviewed CodeView NASM section layout; all other objects remain
 byte-identical to the fixed-length filename copy. Unknown debug layouts still
 have to pass the complete producer path scan. The real mixed-archive helper,
-eight ring objects and 79 Windows tests pass locally; native MSVC acceptance of
-this follow-up remains pending.
+eight ring objects and 79 Windows tests passed locally before the successful
+native MSVC follow-up recorded above.
 
 Both `6f62f22` and `5ec7fc0` hosted Android runs completed the full consumer's
 final gate and received the minimal consumer's valid runtime result. Minimal
 retirement then refused nonempty `pstore`, so its proof was not published.
-The follow-up preserves this refusal and adds bounded, read-only metadata to
+The `830e381` follow-up preserved this refusal and added bounded, read-only metadata to
 the error; only a regular private `pstore.bin` can be hashed, and neither its
 contents nor unrecognized entry names are printed. The 215 state/command tests
 pass. [Upstream emulator code](https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android-qemu2-glue/main.cpp)
 creates a persistent RAM block on Linux/x86 while
-disabling it on Apple Silicon, but the actual retained CI entry has not yet
-been observed and its cleanup contract is not reclassified without that evidence.
+disabling it on Apple Silicon. The subsequent native observation and narrowly
+scoped persistent-file repair are recorded above; the prior refusal remains
+part of the retained failure evidence.
 
 The `6f62f22` Windows 2022 run processed 663 ordinary COFF objects, preserved
 five short import records and passed the complete DLL/import/static producer

@@ -5964,11 +5964,50 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
+    def test_normal_retirement_preserves_private_pstore_ram_before_checkpoint(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
+        ram = pstore / "pstore.bin"
+        contents = bytes(range(256)) * 256
+        ram.write_bytes(contents)
+        ram.chmod(0o600)
+        before = state._avd_scratch_identity(ram.stat())
+        state.retire_recovery_capability(self.layout, receipt)
+        self.private_adb_directory.rmdir()
+
+        def checkpoint_after_restoration(exact: state.OwnedRuntimeReceipt) -> None:
+            self.assertEqual(exact, receipt)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+            self.assertEqual(ram.read_bytes(), contents)
+            self.assertEqual(state._avd_scratch_identity(ram.stat()), before)
+            self.assertTrue(state.owned_runtime_receipt_path().exists())
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "_same_receipt_process", return_value=None),
+            mock.patch.object(commands, "_same_receipt_adb_server_process", return_value=None),
+            mock.patch.object(
+                state, "record_post_cleanup_adb_isolation_checkpoint",
+                side_effect=checkpoint_after_restoration,
+            ) as checkpoint,
+        ):
+            commands.retire_stopped_owned_runtime(receipt.run_id)
+        checkpoint.assert_called_once_with(receipt)
+        self.assertFalse(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(ram.read_bytes(), contents)
+        self.assertEqual(state._avd_scratch_identity(ram.stat()), before)
+
     def test_failed_retirement_requires_primary_failure_and_omits_checkpoints(
         self,
     ) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
         pstore = self.create_sdk_pstore_fixture()
+        ram = pstore / "pstore.bin"
+        contents = b"preserved guest RAM".ljust(65536, b"\0")
+        ram.write_bytes(contents)
+        ram.chmod(0o600)
+        before = state._avd_scratch_identity(ram.stat())
         with self.assertRaisesRegex(
             commands.AndroidCommandError,
             "nonzero primary exit status",
@@ -6021,6 +6060,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         )
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+        self.assertEqual(ram.read_bytes(), contents)
+        self.assertEqual(state._avd_scratch_identity(ram.stat()), before)
 
     def test_retirement_refuses_nonempty_pstore_and_retains_recovery_receipt(
         self,
