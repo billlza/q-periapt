@@ -1389,6 +1389,12 @@ def export_completed_profile(
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         with target.open("xb") as output:
             output.write(_bytes(source, MAX_APK))
+            # The collector runs with umask 077. Only the exported copy has the
+            # portable bundle mode; its containing directory stays private and
+            # the live receipt remains 0600. Set mode on the new descriptor.
+            output.flush()
+            os.fchmod(output.fileno(), 0o644)
+            os.fsync(output.fileno())
     after = verify_exported_profile(root, directory, **expected)
     require(after == before, "AGP exported evidence changed during collection")
     return after

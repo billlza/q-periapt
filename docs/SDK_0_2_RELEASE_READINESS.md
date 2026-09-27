@@ -41,6 +41,25 @@ failed the producer scan. The pinned AWS-LC source also converts paths to 8.3
 aliases; these now receive explicit maps and preflight checks. This is not yet
 evidence that the final native package scan passes.
 
+At `0ab5091a96ecc18c3521a76e3be1b5c524d4b32c`, Windows 2022's native preflight
+passed both long and short C paths. Its DLL and import library passed the path
+scan; the static archive then exposed upstream workspace names in the bundled
+NASM objects' COFF `.file` auxiliary records. A local review of all 26 objects
+from the hash-verified `aws-lc-sys 0.45.0` crate confirms that removing these
+debug records preserves every section's bytes, non-file symbol and relocation
+target. The producer now retains the raw archive and creates a distribution
+copy with unchanged external symbols. Native archive consumption is still a
+separate gate.
+
+The `a24e3c0` Android full SDK consumer completed its ART workload, owned-runtime
+cleanup and proof publication. Portable evidence export then failed because
+the collector's `umask 077` created 0600 copies while the bundle contract requires
+0644. A local red/green regression reproduces the same refusal. The exporter now
+sets only newly created copies to 0644 through their open descriptors, preserving
+0700 enclosing directories and the original 0600 receipts. Both full/minimal
+profiles and architectures replay in the 46-test local follow-up; actual ART
+completion of both consumers remains required.
+
 The subsequent hosted checkpoint at `7c7a76343d724c889286b594e47a8398aa63bf06`
 ([CI](https://github.com/billlza/q-periapt/actions/runs/36315599184)) completed
 32 jobs successfully and failed four. Linux's complete check job now passes.

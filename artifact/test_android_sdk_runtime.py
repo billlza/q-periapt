@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 import shutil
+import stat
 import tempfile
 import unittest
 from unittest import mock
@@ -68,15 +70,22 @@ class SDKRuntimeExportTests(unittest.TestCase):
         cls.temporary = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.temporary.cleanup)
         cls.directory = Path(cls.temporary.name)
-        cls.pairs, cls.exports, cls.projections = {}, {}, {}
+        cls.pairs, cls.exports, cls.projections, cls.receipt_identity = {}, {}, {}, {}
         with mock.patch.object(consumer, "run_sdk_tool", side_effect=fixture.sdk_runner):
             for abi in ("arm64-v8a", "x86_64"):
                 pair = fixture.create_agp_fixture_pair(cls.directory / abi, sdk_profile=True, device_abi=abi)
                 cls.pairs[abi] = pair
                 for name, profile in pair.profiles.items():
                     destination = cls.directory / (abi + "-" + name)
-                    cls.projections[abi, name] = consumer.export_completed_profile(
-                        profile.root, profile.proof, destination, sdk=profile.sdk, **profile.expected)
+                    source = profile.root / json.loads(profile.proof.read_bytes())["paths"]["adb_isolation_emulator_pre_exec"]
+                    before = (stat.S_IMODE(source.stat().st_mode), fixture.digest(source))
+                    previous_umask = os.umask(0o077) # The real collector's private creation policy.
+                    try:
+                        cls.projections[abi, name] = consumer.export_completed_profile(
+                            profile.root, profile.proof, destination, sdk=profile.sdk, **profile.expected)
+                    finally:
+                        os.umask(previous_umask)
+                    cls.receipt_identity[abi, name] = (before, (stat.S_IMODE(source.stat().st_mode), fixture.digest(source)))
                     cls.exports[abi, name] = destination
                 # Replaying the portable closure cannot fall back to original run or AAR paths.
                 (pair.root / "target" / runtime.ANDROID_RUNS_ROOT_LEAF).rename(pair.root / "target/retired-runs")
@@ -97,6 +106,17 @@ class SDKRuntimeExportTests(unittest.TestCase):
                 self.verify(abi, name, directory, expected_device_abi="x86_64" if abi == "arm64-v8a" else "arm64-v8a")
             with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "explicit"):
                 self.verify(abi, name, directory, expected_device_abi=None)
+
+    def test_export_uses_portable_copy_modes_without_changing_private_receipts(self):
+        for key, directory in self.exports.items():
+            with self.subTest(profile=key):
+                before, after = self.receipt_identity[key]
+                self.assertEqual(before, after)
+                self.assertEqual(after[0], 0o600)
+                self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+                for path in directory.rglob("*"):
+                    expected = 0o700 if path.is_dir() else 0o644
+                    self.assertEqual(stat.S_IMODE(path.stat().st_mode), expected, str(path))
 
     def test_mutated_sdk_evidence_cannot_masquerade_as_old_or_current_evidence(self):
         name, abi = "agp_sdk_full_release", "x86_64"

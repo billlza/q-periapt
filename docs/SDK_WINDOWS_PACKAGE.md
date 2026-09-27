@@ -55,8 +55,8 @@ only the `dllexport` modifier to an empty modifier. This prevents the upstream
 jitterentropy header from adding its internal functions to the SDK DLL table;
 `dllimport`, alignment, noinline, entropy collection and crypto code are retained.
 The final DLL must still export exactly the same 43 SDK functions. No symbols
-are added to the ABI allowlist, and no binary sections or dependency sources
-are rewritten. The C build helper applies the same setting. Direct Cargo builds
+are added to the ABI allowlist, and this export setting does not rewrite binary
+sections or dependency sources. The C build helper applies the same setting. Direct Cargo builds
 of a Windows C DLL need these target-scoped settings as well; ordinary Rust
 library consumers do not require a C export table.
 
@@ -69,6 +69,14 @@ cargo +1.97.0 build --locked --release -p q-periapt-ffi
 
 Use those settings only for the direct Cargo invocation. The package producer
 rejects ambient AWS-LC build overrides and sets/restores its own scoped values.
+
+The distribution static archive is a separate copy of the compiler output.
+The matching Rust toolchain's `llvm-strip` removes debug sections and COFF
+`.file` filename records, including build paths in AWS-LC's prebuilt NASM
+objects. The producer retains the original archive and requires its hash and
+the complete external-symbol listing to remain unchanged. The final copy must
+pass the full path scan, static-link dependency checks and installed C
+consumers; debug removal does not authorize a failed scan or missing symbol.
 
 The SDK's exact native static-link tuple adds `bcrypt.lib` and `advapi32.lib`,
 required by ring's getrandom 0.2 Windows backend, ahead of the historical tuple.
