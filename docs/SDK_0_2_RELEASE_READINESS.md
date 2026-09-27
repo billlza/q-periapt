@@ -31,6 +31,16 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The clean standalone `a24e3c0c876bca44a212dcf8ab051c0b7e52545b` snapshot passed
+all 2,233 artifact tests in 398.539 seconds, without skips, and the exact-source
+gate. Its local Swift/Rust run passed all twelve socket cases, with the
+silent-peer failure and repair retained in the
+[connection/transport checkpoint](../research/sdk-alpha1/evidence/20260927-sdk-silent-peer-and-transport-repair/manifest.json).
+Hosted MSVC confirmed both long-path compiler maps worked, but the DLL still
+failed the producer scan. The pinned AWS-LC source also converts paths to 8.3
+aliases; these now receive explicit maps and preflight checks. This is not yet
+evidence that the final native package scan passes.
+
 The subsequent hosted checkpoint at `7c7a76343d724c889286b594e47a8398aa63bf06`
 ([CI](https://github.com/billlza/q-periapt/actions/runs/36315599184)) completed
 32 jobs successfully and failed four. Linux's complete check job now passes.

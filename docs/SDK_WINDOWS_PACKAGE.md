@@ -39,6 +39,12 @@ The producer fetches the locked dependencies into its own Cargo cache without
 copying ambient configuration or credentials. Subsequent native, BOM and license
 collection steps use that cache offline. The cache is a separate temporary
 directory; both it and the source root have explicit, non-overlapping path maps.
+The C maps also cover their Windows 8.3 aliases: the pinned AWS-LC build script
+[converts its source and output paths to that spelling](https://github.com/aws/aws-lc-rs/pull/1081).
+A native MSVC preflight requires both long and short forms of `__FILE__` to map
+to the intended relative prefix. The final binary scan rejects both producer
+spellings and the original Cargo cache; the latter is scanned to detect
+unexpected reuse and is not added as an allowed/remapped dependency source.
 Missing offline dependencies, compiler/linker diagnostics and changed source
 identities fail the build. The checked-in Rust standard-library notice must
 match the selected toolchain's actual `COPYRIGHT-library.html` bytes.

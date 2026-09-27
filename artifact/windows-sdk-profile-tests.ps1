@@ -146,6 +146,10 @@ function Get-TrimmedOutput {
     }
     return $script:preprocessorOutput
 }
+function Get-WindowsShortPath {
+    param([string] $Path)
+    return $Path # No native path-alias claim is made by rejection fixtures.
+}
 $fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("qperiapt-sdk-c-remap-test-" + [System.Guid]::NewGuid().ToString("N"))
 try {
     New-Item -ItemType Directory -Path $fixtureRoot | Out-Null

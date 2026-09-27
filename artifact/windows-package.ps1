@@ -381,6 +381,29 @@ function New-SdkCargoHome {
     return $privateCache
 }
 
+function Get-WindowsShortPath {
+    param([Parameter(Mandatory)] [string] $Path)
+    if (-not [System.OperatingSystem]::IsWindows()) { throw "Windows path aliases require Windows" }
+    if (-not ("QPeriapt.BuildPathNames" -as [type])) {
+        Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+using System.Text;
+namespace QPeriapt {
+    public static class BuildPathNames {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        public static extern uint GetShortPathNameW(string path, StringBuilder buffer, uint capacity);
+    }
+}
+'@
+    }
+    $capacity = [QPeriapt.BuildPathNames]::GetShortPathNameW($Path, $null, 0)
+    if ($capacity -eq 0 -or $capacity -gt 32768) { throw "Windows short path size query failed" }
+    $buffer = [System.Text.StringBuilder]::new([int] $capacity)
+    $length = [QPeriapt.BuildPathNames]::GetShortPathNameW($Path, $buffer, $capacity)
+    if ($length -eq 0 -or $length -ge $capacity) { throw "Windows short path changed or could not be resolved" }
+    return $buffer.ToString()
+}
+
 function Assert-SdkCPathRemapping {
     param(
         [Parameter(Mandatory)] [string] $Compiler,
@@ -394,13 +417,18 @@ function Assert-SdkCPathRemapping {
     )) {
         $path = Join-Path $probe.Directory "qperiapt-pathmap-probe.c"
         Write-Utf8File -Path $path -Content "__FILE__`n"
-        $literal = Get-TrimmedOutput -FilePath $Compiler -Arguments (@("/nologo", "/EP") + $Flags + @($path))
-        try { $mappedPath = ConvertFrom-Json -InputObject $literal -NoEnumerate }
-        catch { throw "MSVC path remap probe emitted noncanonical preprocessing output" }
-        $mapped = $mappedPath -is [string] -and $mappedPath.Replace('/', '\').StartsWith(
-            $probe.Prefix + '\', [System.StringComparison]::Ordinal)
-        Write-Host "WINDOWS_SDK_C_PATHMAP scope=$($probe.Scope) mapped=$mapped"
-        if (-not $mapped) { throw "MSVC $($probe.Scope) path remapping did not affect __FILE__" }
+        foreach ($spelling in @(
+            @{ Kind = "long"; Path = $path },
+            @{ Kind = "short"; Path = (Get-WindowsShortPath -Path $path) }
+        )) {
+            $literal = Get-TrimmedOutput -FilePath $Compiler -Arguments (@("/nologo", "/EP") + $Flags + @($spelling.Path))
+            try { $mappedPath = ConvertFrom-Json -InputObject $literal -NoEnumerate }
+            catch { throw "MSVC path remap probe emitted noncanonical preprocessing output" }
+            $mapped = $mappedPath -is [string] -and $mappedPath.Replace('/', '\').StartsWith(
+                $probe.Prefix + '\', [System.StringComparison]::Ordinal)
+            Write-Host "WINDOWS_SDK_C_PATHMAP scope=$($probe.Scope) spelling=$($spelling.Kind) mapped=$mapped"
+            if (-not $mapped) { throw "MSVC $($probe.Scope) path remapping did not affect __FILE__" }
+        }
     }
 }
 
@@ -1538,6 +1566,7 @@ function Verify-WindowsArchive {
 
 Assert-TrustedBuildEnvironment
 $CargoHome = Resolve-CargoHome
+$OriginalCargoHome = $CargoHome
 Assert-NoAmbientCargoConfiguration -SourceRoot $Root -CargoHome $CargoHome
 if ($Profile -eq "sdk-alpha1" -and $Mode -eq "Build") {
     # Do not inherit ambient Cargo configuration or credentials. Both Rust and
@@ -1594,6 +1623,19 @@ $ProducerRoots = Get-ReleaseProducerRoots `
     -CargoHome $CargoHome `
     -RustSysroot $RustSysroot `
     -MsvcInstallation $MsvcInstallation
+if ($Profile -eq "sdk-alpha1") {
+    # aws-lc-sys 0.45 converts its manifest/output paths with GetShortPathNameW.
+    # Map and scan both spellings; never assume the compiler sees Cargo's long
+    # path. Keep the original cache in the scan to diagnose unexpected reuse.
+    $SdkShortSourceRoot = Get-WindowsShortPath -Path $Root
+    $SdkShortCargoHome = Get-WindowsShortPath -Path $CargoHome
+    $SdkShortOriginalCargoHome = Get-WindowsShortPath -Path $OriginalCargoHome
+    $sdkProducerRoots = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in @($ProducerRoots) + @(
+        $SdkShortSourceRoot, $SdkShortCargoHome, $OriginalCargoHome, $SdkShortOriginalCargoHome
+    )) { [void] $sdkProducerRoots.Add($path.Replace('/', '\').TrimEnd([char[]] @('\', '/'))) }
+    $ProducerRoots = [string[]] @($sdkProducerRoots | Sort-Object -CaseSensitive)
+}
 
 if ($Mode -eq "VerifyArchive") {
     if (-not $Archive) {
@@ -1760,6 +1802,8 @@ if ($Profile -eq "sdk-alpha1") {
         "/experimental:deterministic", "/WX",
         "/pathmap:$Root=qperiapt-source", "/pathmap:$CargoHome=qperiapt-cargo-home"
     )
+    if ($SdkShortSourceRoot -cne $Root) { $sdkCompilerArguments += "/pathmap:$SdkShortSourceRoot=qperiapt-source" }
+    if ($SdkShortCargoHome -cne $CargoHome) { $sdkCompilerArguments += "/pathmap:$SdkShortCargoHome=qperiapt-cargo-home" }
     $sdkCompilerFlags = ($sdkCompilerArguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
     # AWS-LC is a private static dependency of this DLL. Its bundled jitter
     # header declares dllexport even for static builds. Remove only that
@@ -1940,7 +1984,11 @@ $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
 if ($Profile -eq "sdk-alpha1") {
     foreach ($known in @(
         @{ Kind = "source"; Value = $Root }, @{ Kind = "cargo"; Value = $CargoHome },
-        @{ Kind = "rust-sysroot"; Value = $RustSysroot }
+        @{ Kind = "rust-sysroot"; Value = $RustSysroot },
+        @{ Kind = "source-short"; Value = $SdkShortSourceRoot },
+        @{ Kind = "cargo-short"; Value = $SdkShortCargoHome },
+        @{ Kind = "original-cargo"; Value = $OriginalCargoHome },
+        @{ Kind = "original-cargo-short"; Value = $SdkShortOriginalCargoHome }
     )) {
         $knownPath = $known.Value.Replace('/', '\').TrimEnd([char[]] @('\', '/'))
         $indices = @(for ($index = 0; $index -lt $ProducerRoots.Count; $index++) {
