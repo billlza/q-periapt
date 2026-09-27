@@ -86,10 +86,15 @@ function Invoke-Captured {
         [AllowEmptyCollection()]
         [string[]] $Arguments,
         [switch] $Echo,
-        [switch] $RedactArguments
+        [switch] $RedactArguments,
+        # Only use with a tool mode whose entire output is explicitly public.
+        [switch] $PublicOutput
     )
 
     $process = $null
+    $stdout = ""
+    $stderr = ""
+    $exitStatus = "not-started"
     try {
         $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
         $startInfo.FileName = $FilePath
@@ -110,7 +115,8 @@ function Invoke-Captured {
         $process.WaitForExit()
         $stdout = $stdoutTask.GetAwaiter().GetResult()
         $stderr = $stderrTask.GetAwaiter().GetResult()
-        if ($Echo -and -not $RedactArguments) {
+        $exitStatus = [string] $process.ExitCode
+        if ($Echo -and (-not $RedactArguments -or $PublicOutput)) {
             if ($stdout.Length -gt 0) { [Console]::Out.Write($stdout) }
             if ($stderr.Length -gt 0) { [Console]::Error.Write($stderr) }
         }
@@ -131,8 +137,10 @@ function Invoke-Captured {
     }
     catch {
         if ($RedactArguments) {
+            $detail = if ($PublicOutput) { "`n" + ($stderr + "`n" + $stdout).Trim() } else { "" }
+            $redactionLabel = if ($PublicOutput) { "<redacted invocation>" } else { "<redacted invocation and output>" }
             throw [System.InvalidOperationException]::new(
-                "native command failed: <redacted invocation and output>"
+                "native command failed (exit=$exitStatus): $redactionLabel$detail"
             )
         }
         throw
@@ -150,19 +158,22 @@ function Invoke-Checked {
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
         [string[]] $Arguments,
-        [switch] $RedactArguments
+        [switch] $RedactArguments,
+        [switch] $PublicOutput
     )
     [void] (Invoke-Captured `
         -FilePath $FilePath `
         -Arguments $Arguments `
         -Echo `
-        -RedactArguments:$RedactArguments)
+        -RedactArguments:$RedactArguments `
+        -PublicOutput:$PublicOutput)
 }
 
 function Invoke-PythonChecked {
     param(
         [Parameter(Mandatory)] [string[]] $Arguments,
-        [switch] $RedactArguments
+        [switch] $RedactArguments,
+        [switch] $PublicOutput
     )
 
     $invocationArguments = @(
@@ -171,7 +182,8 @@ function Invoke-PythonChecked {
     Invoke-Checked `
         -FilePath $Python `
         -Arguments $invocationArguments `
-        -RedactArguments:$RedactArguments
+        -RedactArguments:$RedactArguments `
+        -PublicOutput:$PublicOutput
 }
 
 function Get-TrimmedOutput {
@@ -1896,6 +1908,7 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
 }
 $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
 [void] $compilerRootScanArguments.Add("artifact/release_binary_scan.py")
+[void] $compilerRootScanArguments.Add("--redact-paths")
 foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
     [void] $compilerRootScanArguments.Add($path)
 }
@@ -1905,7 +1918,7 @@ foreach ($path in $ProducerRoots) {
 }
 Invoke-PythonChecked `
     -Arguments ([string[]] $compilerRootScanArguments) `
-    -RedactArguments
+    -RedactArguments -PublicOutput
 Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"
 $unexpectedPdbs = @(
     Get-ChildItem `

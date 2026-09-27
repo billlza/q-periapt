@@ -2512,7 +2512,9 @@ class WindowsPackageManifestTests(unittest.TestCase):
             'Write-Host "WINDOWS_PACKAGE_MANIFEST_VERIFY_PASS"',
             '<redacted invocation and output>',
             '-RedactArguments:$RedactArguments',
-            'if ($Echo -and -not $RedactArguments)',
+            'if ($Echo -and (-not $RedactArguments -or $PublicOutput))',
+            '$compilerRootScanArguments.Add("--redact-paths")',
+            '-RedactArguments -PublicOutput',
             'throw [System.InvalidOperationException]::new(',
             'Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"',
         ):

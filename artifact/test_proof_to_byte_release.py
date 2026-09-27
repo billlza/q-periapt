@@ -2821,7 +2821,26 @@ class BoundVerifierWiringTests(unittest.TestCase):
             )
 
 
+def _release_test_environment() -> dict[str, str]:
+    """Isolate release knobs while retaining the interpreter running the tests.
+
+    A setup-python interpreter may live outside the fixed discovery roots, so
+    dropping QPERIAPT_PYTHON must not silently select an older system Python.
+    """
+    environment = {name: value for name, value in os.environ.items()
+                   if not name.startswith("QPERIAPT_")}
+    environment["QPERIAPT_PYTHON"] = str(pathlib.Path(sys.executable).resolve())
+    return environment
+
+
 class ProofToByteReleaseMarkerTests(unittest.TestCase):
+    def test_isolated_release_environment_pins_python_without_inheriting_release_knobs(self) -> None:
+        with mock.patch.dict(os.environ, {"PATH": "/fixture/bin",
+            "QPERIAPT_PYTHON": "/untrusted/python", "QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF": "1"}, clear=True):
+            environment = _release_test_environment()
+        self.assertEqual(environment, {"PATH": "/fixture/bin",
+            "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve())})
+
     def test_embedding_android_final_mode_is_read_only_and_exits_before_producers(
         self,
     ) -> None:
@@ -2853,15 +2872,10 @@ exit "${BOUND_EXIT_CODE:-0}"
 """,
                 encoding="utf-8",
             )
-            environment = {
-                name: value
-                for name, value in os.environ.items()
-                if not name.startswith("QPERIAPT_")
-            }
+            environment = _release_test_environment()
             environment.update(
                 {
                     "BOUND_EVENT_LOG": str(event_log),
-                    "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve()),
                     "QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME": "1",
                     "QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
                     "QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER": "1",
@@ -3062,11 +3076,7 @@ exit 0
 """,
             )
 
-            environment = {
-                name: value
-                for name, value in os.environ.items()
-                if not name.startswith("QPERIAPT_")
-            }
+            environment = _release_test_environment()
             environment.update(
                 {
                     "CC_wasm32_unknown_unknown": str(compiler),
@@ -3078,7 +3088,6 @@ exit 0
                     "FIXTURE_JAVA_VERSION": "25.0.4.1",
                     "HOME": str(root),
                     "PATH": f"{stub_bin}:/usr/bin:/bin:/usr/sbin:/sbin",
-                    "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve()),
                     "SCOPE_EVENT_LOG": str(event_log),
                     "SWIFT_SCOPE_MARKER": str(swift_marker),
                     "WASM_SCOPE_MARKER": str(wasm_marker),
@@ -3170,11 +3179,7 @@ exit 0
         )
         for flag in flags:
             with self.subTest(flag=flag):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         flag: "yes",
@@ -3455,11 +3460,7 @@ exit 0
         )
         for label, overrides, expected_error in cases:
             with self.subTest(label=label):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         "QPERIAPT_SKIP_SMOKE": "1",
@@ -3507,11 +3508,7 @@ exit 0
             )
             for overrides, expected_error in loop_cases:
                 with self.subTest(symlink_loop=expected_error):
-                    environment = {
-                        name: value
-                        for name, value in os.environ.items()
-                        if not name.startswith("QPERIAPT_")
-                    }
+                    environment = _release_test_environment()
                     environment.update(
                         {
                             "QPERIAPT_SKIP_SMOKE": "1",
@@ -4122,11 +4119,7 @@ with _temporary_release_test_directories(parents):
                     process.communicate()
 
     def test_required_tools_are_checked_before_proof_markers(self) -> None:
-        environment = {
-            name: value
-            for name, value in os.environ.items()
-            if not name.startswith("QPERIAPT_")
-        }
+        environment = _release_test_environment()
         environment.update(
             {
                 "HOME": "",
@@ -4171,11 +4164,7 @@ with _temporary_release_test_directories(parents):
         )
         for overrides in cases:
             with self.subTest(overrides=overrides):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         "QPERIAPT_SKIP_SMOKE": "1",
@@ -4263,11 +4252,7 @@ with _temporary_release_test_directories(parents):
                         name: hostile_path if value == "" else value
                         for name, value in template.items()
                     }
-                    environment = {
-                        name: value
-                        for name, value in os.environ.items()
-                        if not name.startswith("QPERIAPT_")
-                    }
+                    environment = _release_test_environment()
                     environment.update(
                         {
                             "QPERIAPT_SKIP_SMOKE": "1",
@@ -4343,11 +4328,7 @@ with _temporary_release_test_directories(parents):
         )
         for overrides, expected_label in empty_path_cases:
             with self.subTest(empty_path=expected_label):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         "QPERIAPT_SKIP_SMOKE": "1",
@@ -5868,11 +5849,7 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("GITHUB_SHA", source)
 
         def run_with_expected_commit(value: str) -> subprocess.CompletedProcess[str]:
-            environment = {
-                name: current
-                for name, current in os.environ.items()
-                if not name.startswith("QPERIAPT_")
-            }
+            environment = _release_test_environment()
             environment.update(
                 {
                     "QPERIAPT_SKIP_SMOKE": "1",
@@ -5945,11 +5922,7 @@ with _temporary_release_test_directories(parents):
             )
             alternate_head = git_commit(alternate)
             self.assertNotEqual(alternate_head, repository_head())
-            environment = {
-                name: value
-                for name, value in os.environ.items()
-                if not name.startswith("QPERIAPT_")
-            }
+            environment = _release_test_environment()
             environment.update(
                 {
                     "QPERIAPT_SKIP_SMOKE": "1",

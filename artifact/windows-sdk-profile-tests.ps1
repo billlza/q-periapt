@@ -41,6 +41,19 @@ catch {
     $rejected = $true
 }
 if (-not $rejected) { throw "failed command was accepted" }
+$rejected = $false
+try {
+    [void](Invoke-Captured -FilePath $Python -Arguments @(
+        "-I", "-S", "-c", "print('public-finding'); raise SystemExit(7) # private-argument-sentinel"
+    ) -RedactArguments -PublicOutput)
+}
+catch {
+    $message = $_.Exception.Message
+    if ($message.Contains("private-argument-sentinel") -or
+        -not $message.Contains("public-finding") -or -not $message.Contains("exit=7")) { throw }
+    $rejected = $true
+}
+if (-not $rejected) { throw "redacted failure lost its public diagnostic or returned success" }
 Write-Host "WINDOWS_SDK_COMMAND_BOUNDARY_PASS"
 
 # These are symbol-list fixtures, not a dumpbin/MSVC or Windows runtime result.

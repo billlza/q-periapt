@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import pathlib
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 import release_binary_scan
@@ -308,6 +309,43 @@ class ReleaseBinaryScanTests(unittest.TestCase):
             message = str(captured.exception)
             self.assertIn("caller-forbidden Windows path 1", message)
             self.assertNotIn(roots[1], message)
+
+    def test_redacted_cli_preserves_failure_location_without_private_paths_or_bytes(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="private-path-sentinel-") as temporary:
+            first = pathlib.Path(temporary) / "first.bin"
+            second = pathlib.Path(temporary) / "private-file-sentinel.bin"
+            first.write_bytes(b"safe")
+            second.write_bytes(b"prefix private-content-sentinel suffix")
+            arguments = ["release_binary_scan.py", "--redact-paths", str(first), str(second),
+                         "--forbid-text", "private-content-sentinel"]
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 1)
+            report = json.loads(stderr.getvalue())
+            self.assertEqual(report, {"status": "fail", "file_index": 1,
+                "reason": "caller-forbidden text 0", "byte_offset": 7,
+                "sha256": hashlib.sha256(second.read_bytes()).hexdigest()})
+            self.assertEqual(stdout.getvalue(), "")
+            for secret in (temporary, "private-file-sentinel", "private-content-sentinel"):
+                self.assertNotIn(secret, stderr.getvalue())
+
+            second.unlink()
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 1)
+            self.assertEqual(json.loads(stderr.getvalue()), {
+                "status": "fail", "file_index": 1, "reason": "scan-input-rejected"})
+
+            second.write_bytes(b"safe again")
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 0)
+            report = json.loads(stdout.getvalue())
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual([row["file_index"] for row in report["files"]], [0, 1])
+            self.assertTrue(all(set(row) == {"bytes", "file_index", "sha256"} for row in report["files"]))
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertNotIn(temporary, stdout.getvalue())
 
     def test_credentials_are_rejected_in_both_utf16_encodings_and_alignments(self) -> None:
         cases = {
