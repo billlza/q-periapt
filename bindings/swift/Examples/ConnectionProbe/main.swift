@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-// Local transport diagnostic with private test credentials and persisted policy
-// on both peers. It is not installed cross-platform or power-loss qualification.
+// Transport diagnostic with private test credentials and persisted policy on
+// both peers. The default address is loopback; --host selects an explicit peer.
+// Execution alone is not installed cross-platform or power-loss qualification.
 import Foundation
 import Darwin
 import QPeriaptSDK
@@ -10,6 +11,54 @@ enum ProbeError: Error { case usage, unexpectedResult, expectedFailureMissing, c
 @main
 @available(macOS 13.0, *)
 struct ConnectionProbe {
+    struct Arguments {
+        let folder: URL
+        let port: UInt16
+        let scenario: String
+        let serverName: String
+        let action: String
+        let host: String
+        let reconnects: Int
+
+        init(_ input: [String]) throws {
+            var arguments = input
+            if arguments.count >= 2, arguments[arguments.count - 2] == "--host" {
+                host = arguments.removeLast()
+                arguments.removeLast()
+            } else {
+                host = "127.0.0.1"
+            }
+            guard !host.isEmpty, host.utf8.count <= 253,
+                  host.utf8.allSatisfy({ $0 > 0x20 && $0 != 0x7f }),
+                  (5...6).contains(arguments.count), !arguments[0].isEmpty,
+                  let port = UInt16(arguments[1]),
+                  (port > 0 || ["store-rollback", "store-disabled"].contains(arguments[2])),
+                  ["provision", "open"].contains(arguments[4]),
+                  ["measure", "roundtrip", "concurrent", "timeout", "cancel",
+                   "request-timeout", "request-cancel", "runtime-revoke", "mismatch",
+                   "hostname", "store-rollback", "store-disabled"].contains(arguments[2]) else {
+                throw ProbeError.usage
+            }
+            folder = URL(fileURLWithPath: arguments[0], isDirectory: true)
+            self.port = port
+            scenario = arguments[2]
+            serverName = arguments[3]
+            action = arguments[4]
+            if scenario == "measure" {
+                guard arguments.count == 6, let count = Int(arguments[5]), (200...1000).contains(count) else {
+                    throw ProbeError.usage
+                }
+                reconnects = count
+            } else if ["cancel", "request-cancel", "runtime-revoke"].contains(scenario) {
+                guard arguments.count == 6, arguments[5] == "observed-io" else { throw ProbeError.usage }
+                reconnects = 0
+            } else {
+                guard arguments.count == 5 else { throw ProbeError.usage }
+                reconnects = 0
+            }
+        }
+    }
+
     struct SetupTiming: Encodable {
         let schema = 1
         let kind = "setup"
@@ -49,14 +98,14 @@ struct ConnectionProbe {
         guard signal == Data([0x0a]) else { throw ProbeError.unexpectedResult }
     }
 
-    static func measure(_ client: QPeriaptClient, port: UInt16, serverName: String,
+    static func measure(_ client: QPeriaptClient, host: String, port: UInt16, serverName: String,
                         reconnects: Int) async throws {
         let payloads = [0, 1, 65_536].map { [UInt8](repeating: 0x51, count: $0) }
         // A fresh process's first connection is retained separately. Reconnects
         // still perform full TLS authentication and policy confirmation.
         for index in 0...reconnects {
             let started = DispatchTime.now().uptimeNanoseconds
-            let connection = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+            let connection = try await client.connect(host: host, port: port, serverName: serverName)
             let connected = DispatchTime.now().uptimeNanoseconds
             var requests: [UInt64] = []
             for payload in payloads {
@@ -113,28 +162,17 @@ struct ConnectionProbe {
     }
 
     static func run() async throws {
-        let arguments = Array(CommandLine.arguments.dropFirst())
-        guard (5...6).contains(arguments.count), let port = UInt16(arguments[1]) else { throw ProbeError.usage }
-        let folder = URL(fileURLWithPath: arguments[0], isDirectory: true)
-        let scenario = arguments[2]
-        let serverName = arguments[3]
-        let reconnects: Int
-        if scenario == "measure" {
-            guard arguments.count == 6, let count = Int(arguments[5]), (200...1000).contains(count) else {
-                throw ProbeError.usage
-            }
-            reconnects = count
-        } else if ["cancel", "request-cancel", "runtime-revoke"].contains(scenario) {
-            guard arguments.count == 6, arguments[5] == "observed-io" else { throw ProbeError.usage }
-            reconnects = 0
-        } else {
-            guard arguments.count == 5 else { throw ProbeError.usage }
-            reconnects = 0 // Only the explicit measurement scenario consumes this count.
-        }
+        // Validate the complete invocation before provisioning durable state.
+        let arguments = try Arguments(Array(CommandLine.arguments.dropFirst()))
+        let folder = arguments.folder
+        let scenario = arguments.scenario
+        let serverName = arguments.serverName
+        let host = arguments.host
+        let port = arguments.port
         let setupStarted = DispatchTime.now().uptimeNanoseconds
         if scenario == "store-rollback" {
             do {
-                let unexpected = try await policyStore(folder, action: arguments[4])
+                let unexpected = try await policyStore(folder, action: arguments.action)
                 try await unexpected.close()
                 throw ProbeError.expectedFailureMissing
             } catch let error as QPeriaptSDKError where error.code == -3 {
@@ -142,7 +180,7 @@ struct ConnectionProbe {
                 return
             }
         }
-        let store = try await policyStore(folder, action: arguments[4])
+        let store = try await policyStore(folder, action: arguments.action)
         let runtime = store.runtime
         if scenario == "store-disabled" {
             guard try !runtime.isEnabled(), try runtime.trustedState().prefix(4) == [0, 0, 0, 3] else {
@@ -169,10 +207,10 @@ struct ConnectionProbe {
         switch scenario {
         case "measure":
             try emit(SetupTiming(elapsed_ns: DispatchTime.now().uptimeNanoseconds - setupStarted))
-            try await measure(client, port: port, serverName: serverName, reconnects: reconnects)
+            try await measure(client, host: host, port: port, serverName: serverName, reconnects: arguments.reconnects)
         case "roundtrip":
             for _ in 0..<2 {
-                let connection = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+                let connection = try await client.connect(host: host, port: port, serverName: serverName)
                 for count in [0, 1, 65_536] {
                     let payload = [UInt8](repeating: 0x51, count: count)
                     guard try await connection.request(payload) == payload else { throw ProbeError.unexpectedResult }
@@ -180,7 +218,7 @@ struct ConnectionProbe {
                 try await connection.shutdown()
             }
         case "concurrent":
-            let connection = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+            let connection = try await client.connect(host: host, port: port, serverName: serverName)
             let replies = try await withThrowingTaskGroup(of: Bool.self) { group in
                 for _ in 0..<2 {
                     group.addTask {
@@ -199,7 +237,7 @@ struct ConnectionProbe {
             try await connection.shutdown()
         case "timeout":
             do {
-                let unexpected = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+                let unexpected = try await client.connect(host: host, port: port, serverName: serverName)
                 try await unexpected.close()
                 throw ProbeError.expectedFailureMissing
             } catch let error as QPeriaptSDKError where error.code == -15 { print("EXPECTED_TIMEOUT") }
@@ -207,7 +245,7 @@ struct ConnectionProbe {
             // Twice with capacity one: cancellation must release its native
             // connection before the task completes, including a silent peer.
             for _ in 0..<2 {
-                let task = Task { try await client.connect(host: "127.0.0.1", port: port, serverName: serverName) }
+                let task = Task { try await client.connect(host: host, port: port, serverName: serverName) }
                 defer { task.cancel() }
                 try await waitForObservedOperation()
                 task.cancel()
@@ -218,14 +256,14 @@ struct ConnectionProbe {
                 } catch is CancellationError { print("EXPECTED_CANCELLATION") }
             }
         case "request-timeout":
-            let connection = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+            let connection = try await client.connect(host: host, port: port, serverName: serverName)
             do {
                 _ = try await connection.request([9])
                 throw ProbeError.expectedFailureMissing
             } catch let error as QPeriaptSDKError where error.code == -15 { print("EXPECTED_REQUEST_TIMEOUT") }
             try await connection.close()
         case "request-cancel", "runtime-revoke":
-            let connection = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+            let connection = try await client.connect(host: host, port: port, serverName: serverName)
             let task = Task { try await connection.request([9]) }
             defer { task.cancel() }
             try await waitForObservedOperation()
@@ -242,7 +280,7 @@ struct ConnectionProbe {
             try await connection.close()
         case "mismatch":
             do {
-                let unexpected = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+                let unexpected = try await client.connect(host: host, port: port, serverName: serverName)
                 try await unexpected.close()
                 throw ProbeError.expectedFailureMissing
             } catch let error as QPeriaptSDKError where error.code == -18 || error.code == -14 {
@@ -251,7 +289,7 @@ struct ConnectionProbe {
             }
         case "hostname":
             do {
-                let unexpected = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
+                let unexpected = try await client.connect(host: host, port: port, serverName: serverName)
                 try await unexpected.close()
                 throw ProbeError.expectedFailureMissing
             } catch let error as QPeriaptSDKError where error.code == -14 { print("EXPECTED_TLS_REJECTION") }

@@ -69,18 +69,28 @@ rechecks the probe binary hash. This is binary dataflow evidence, not a proof of
 all timing behavior. Tail latency and the source/formal assurance boundary must
 also be evaluated separately.
 
-CI now declares a separate `x86-avx2-candidate` job. Declaring the job is not
-evidence that hosted CI ran.
+CI uses a separate `x86-avx2-candidate` job. Its observed execution is recorded
+below, independently of its workflow declaration.
 
 ## Observed state and remaining work
 
-Local macOS/ARM baseline tests and candidate CPU/compiler-admission tests run on
-this host. Linux GNU core, SDK, FFI and their test executables cross-compile using
+The initial 2026-09-25 checkpoint ran macOS/ARM baseline and candidate
+CPU/compiler-admission tests. Linux GNU core, SDK, FFI and their test executables cross-compiled using
 Clang 22 and task-local, checksum-verified Rust 1.96.1 GNU standard libraries and
 Zig 0.15.2 glibc/link inputs. Disassembly checks distinguish baseline C objects
 from the separate AVX assembly object. Cross compilation does not execute the
-candidate; native Linux KAT/differential/CT/performance results remain absent.
+candidate; that checkpoint contained no native Linux KAT/differential/CT/performance results.
 No VM, emulator or Linux endpoint was started as a substitute.
+
+Later hosted execution is separate evidence. At `caca8a7`, the
+[native x86 job](https://github.com/billlza/q-periapt/actions/runs/36338497784/job/108673836461)
+passes strict Clippy, KAT, native/portable and independent implementation
+differentials, rejection/import and SDK checks. Its final marker is
+`AVX2_BINARY_CT_PASS parameters=512,768,1024`, after the planted-leak control and
+genuine-secret probes. The raw job log is retained with that source cohort.
+This closes the earlier absence of native candidate execution; controlled
+performance, wider side-channel coverage and separate non-GNU qualification
+remain open. The opt-in feature is still off in the default SDK packages.
 
 The historical 0.1.5 sys source allowlist rejects the changed local TCB, including
 the new dispatcher. Its failed checks and exact historical bytes are retained.

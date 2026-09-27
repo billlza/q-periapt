@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Bounded loopback transport diagnostic using public SDK connection APIs.
+//! Bounded transport diagnostic using public SDK connection APIs. The default
+//! listener is loopback; a different interface requires an explicit address.
 //! Both reference peers persist/reopen policy state. Measurement uses the same
 //! engine and authentication as the acceptance cases, with per-message logging
 //! disabled. This example alone is not installed cross-platform qualification.
@@ -9,7 +10,7 @@ use q_periapt_rustls::connection::{
 };
 use std::fs::File;
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -258,7 +259,23 @@ fn accept_before(_listener: &TcpListener, _deadline: Instant) -> std::io::Result
     ))
 }
 
-fn serve(directory: &Path, mode: &str, count: usize, provision: bool) -> Result<()> {
+fn listen_address(value: &str) -> Result<SocketAddr> {
+    let address: SocketAddr = value.parse()?;
+    let ip = address.ip();
+    if ip.is_unspecified() || ip.is_multicast() || matches!(ip, IpAddr::V4(ip) if ip.is_broadcast())
+    {
+        return Err("diagnostic listener requires a specific unicast interface address".into());
+    }
+    Ok(address)
+}
+
+fn serve(
+    directory: &Path,
+    mode: &str,
+    count: usize,
+    provision: bool,
+    address: SocketAddr,
+) -> Result<()> {
     let valid_count = if mode == "measure" {
         (201..=1001).contains(&count)
     } else {
@@ -268,7 +285,7 @@ fn serve(directory: &Path, mode: &str, count: usize, provision: bool) -> Result<
         return Err("invalid diagnostic mode/count".into());
     }
     let (_store, endpoint) = endpoint(directory, mode == "mismatch", provision)?;
-    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let listener = TcpListener::bind(address)?;
     println!("LISTEN {}", listener.local_addr()?);
     std::io::stdout().flush()?;
     let mut total = 0;
@@ -302,10 +319,21 @@ fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.as_slice() {
         [directory, mode, count, action] if action == "provision" || action == "open" => {
-            serve(Path::new(directory), mode, count.parse()?, action == "provision")
+            serve(
+                Path::new(directory), mode, count.parse()?, action == "provision",
+                SocketAddr::from(([127, 0, 0, 1], 0)),
+            )
+        }
+        [directory, mode, count, action, option, address]
+            if (action == "provision" || action == "open") && option == "--listen" =>
+        {
+            serve(
+                Path::new(directory), mode, count.parse()?, action == "provision",
+                listen_address(address)?,
+            )
         }
         _ => {
-            Err("usage: connection_peer TEST_FIXTURES echo|delay|hold|stall|mismatch|measure CONNECTIONS provision|open".into())
+            Err("usage: connection_peer TEST_FIXTURES echo|delay|hold|stall|mismatch|measure CONNECTIONS provision|open [--listen IP:PORT]".into())
         }
     }
 }
@@ -313,6 +341,34 @@ fn main() -> Result<()> {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explicit_listener_accepts_only_specific_interface_addresses() -> Result<()> {
+        for value in [
+            "127.0.0.1:0",
+            "[::1]:9443",
+            "192.0.2.1:9443",
+            "[2001:db8::1]:9443",
+        ] {
+            assert_eq!(listen_address(value)?.to_string(), value);
+        }
+        for value in [
+            "0.0.0.0:9443",
+            "[::]:9443",
+            "224.0.0.1:9443",
+            "[ff02::1]:9443",
+            "255.255.255.255:9443",
+            "localhost:9443",
+            "127.0.0.1",
+            "127.0.0.1:65536",
+        ] {
+            assert!(
+                listen_address(value).is_err(),
+                "accepted invalid listener {value}"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn silent_peer_observes_eof_after_client_bytes() -> Result<()> {

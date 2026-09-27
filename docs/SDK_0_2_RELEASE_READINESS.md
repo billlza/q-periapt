@@ -31,6 +31,35 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The preceding `caca8a7` source completes all 36
+[CI jobs](https://github.com/billlza/q-periapt/actions/runs/36338497784) and all six
+[CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36338497702).
+Both Android full/minimal consumers complete ART, ownership-checked cleanup,
+retirement and export replay on the API 35 / 16 KiB / x86_64 emulator. The
+analysis binds merge `b0b6da0b235abf5028a0d5a0460bfedc3485c5cb`, whose tree equals
+that source head. Its 41 open alerts have the same IDs/rules as the preceding
+analysis; none were dismissed. These results retain their source scope and do
+not qualify the later example changes below or close independent review.
+
+The reference examples now expose explicit transport addresses: Rust accepts
+`--listen IP:PORT` and Swift accepts `--host HOST`, while retaining loopback
+defaults, independent certificate-name verification and all original budgets.
+Both use the existing connection engine. Fifteen Swift tests, six Rust example
+tests and nineteen affected harness checks pass. All twelve existing real TCP
+cases pass; two additional IPv6 runs complete four authenticated connections
+and twelve echoes across provisioning and process-restart recovery, with only
+each role's own private TLS key in its directory. These are Darwin loopback
+observations; they prepare the requested cross-host run but do not qualify a
+native Linux server or new installed packages.
+
+Rebuilding the old Swift probe from `caca8a7` also reproduces a CLI side effect:
+an unknown scenario creates a policy database before reporting usage failure.
+The new argument parser rejects it before persistence. An initial validation
+mistakenly rejected the existing zero-port placeholder used by store-only
+scenarios; the full connection regression detected it. The corrected parser
+preserves that non-network contract while rejecting zero ports for network
+scenarios. Failed captures and the original build diagnostics are retained.
+
 The `715c52b` Android run failed before the SDK workload: the APK installation
 reply reported `cmd: Failure calling service package: Broken pipe (32)`.
 Cleanup subsequently observed the installed APK twice, verified its signer,

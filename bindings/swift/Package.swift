@@ -30,6 +30,7 @@ let package = Package(
         .testTarget(name: "QPeriaptSDKTests", dependencies: ["QPeriaptSDK"]),
         .executableTarget(name: "QPeriaptConnectionProbe", dependencies: ["QPeriaptSDK"],
                           path: "Examples/ConnectionProbe"),
+        .testTarget(name: "QPeriaptConnectionProbeTests", dependencies: ["QPeriaptConnectionProbe"]),
         .executableTarget(name: "QPeriaptPathProbe", dependencies: ["QPeriaptHybrid", "QPeriaptSDK"],
                           path: "Examples/PathProbe"),
     ]

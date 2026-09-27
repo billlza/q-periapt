@@ -169,6 +169,66 @@ or authenticated request, using bounded control input to the client. The
 request-timeout, request-cancellation and runtime-revocation peers wait silently
 for closure; a delayed reply cannot mask a missing revocation check.
 
+## Explicit peer addresses
+
+The same example executables also accept explicit addresses for an operator-run
+reference connection. `connection_peer` accepts a final `--listen IP:PORT`
+option; IPv6 uses `[IP]:PORT`. The address must name a specific unicast
+interface. Wildcard, multicast and IPv4 limited-broadcast addresses are refused before
+policy-store provisioning. Omitting the option retains `127.0.0.1:0`.
+`QPeriaptConnectionProbe` accepts a final `--host HOST` option after any scenario
+argument; its default remains `127.0.0.1`. The transport host and certificate
+server name remain separate inputs, and both certificate checks remain active.
+Malformed arguments and unknown scenarios are rejected before opening a store.
+
+Provision separate private fixture directories on the two authorized hosts:
+
+| Files | Server directory | Client directory |
+| --- | --- | --- |
+| `policy.toml`, `policy.sig`, `policy.vk` | Same selected signed test policy and root | Same selected signed test policy and root |
+| `server.der`, `client.der` | Both public certificates | Both public certificates |
+| Private TLS key | `server.key.der` only | `client.key.der` only |
+| Persistent state | Locally created `server.policy.redb` | Locally created `client.policy.redb` |
+
+Use a fresh generated TLS fixture and a trusted transfer channel for the two
+role directories. Keep directories private, retain each role's private key only
+where that role runs, and do not copy live policy databases between hosts.
+The repository's signed policy fixtures are public test material, not production
+trust provisioning. The `standard_peer fixtures` command generates the TLS test
+material; copying its entire output directory to each peer is unnecessary.
+
+After independently verifying and building the selected package consumers as
+described in [SDK_INSTALLED_CONNECTION.md](SDK_INSTALLED_CONNECTION.md), the
+server invocation is:
+
+```sh
+./connection_peer "$SERVER_FIXTURES" echo 2 provision --listen "$LISTEN_ADDRESS"
+```
+
+Start the client on macOS once the server prints `LISTEN`, within the existing
+ten-second accept deadline:
+
+```sh
+./QPeriaptConnectionProbe "$CLIENT_FIXTURES" "$SERVER_PORT" roundtrip \
+  localhost provision --host "$SERVER_HOST"
+```
+
+`LISTEN_ADDRESS`, `SERVER_HOST` and `SERVER_PORT` identify the operator-selected
+reachable interface and port. `localhost` is the certificate name in the fresh
+test fixture; it does not replace the explicit transport address. The roundtrip
+scenario makes two fresh authenticated connections and checks empty, one-byte
+and 65,536-byte echoes. Repeat with `open` on both sides to recover their own
+persisted policy stores. Provisioning never overwrites an existing store.
+
+The other scenarios retain their existing mode/count and `observed-io`
+requirements. Cancellation/revocation still requires the driver to observe the
+actual server-side operation before signalling the client. There is no implicit
+retry, longer handshake budget or weaker authentication for explicit addresses.
+This interface enables a cross-host run; only actual source/package-bound logs
+from the selected macOS and Linux hosts can qualify that boundary.
+
+## Observed local scope
+
 The first nine real TCP scenarios pass locally on macOS ARM64: first/reconnect with
 empty/1-byte/64-KiB messages; busy rejection without disrupting the first request;
 silent-peer handshake timeout; repeated cancellation at capacity one;
@@ -186,3 +246,14 @@ external security review or performance. Hosted macOS installed-package checks
 passed at `4349c6aebbc18cac971a5ceff31cee7d3c6fb307`; the subsequent silent-peer
 revocation repair requires its own package qualification. See the
 [readiness ledger](SDK_0_2_RELEASE_READINESS.md) for the source-specific receipts.
+
+The explicit-address follow-up passes all twelve existing cases with newly
+built examples and the same hash-identified SDK library. Two additional `::1`
+roundtrip runs exercise provisioning and then reopening each role's own store:
+four authenticated connections and twelve checked echoes in total. Each role
+directory contains only its own private TLS key. A probe rebuilt from `caca8a7`
+also reproduces an invalid-scenario side effect: it creates the policy database
+before returning usage failure. The new parser rejects that invocation without
+creating the database. Store-only scenarios retain their unused zero-port
+placeholder; network scenarios require a nonzero port. These are local Darwin
+observations, not installed-package or native-Linux qualification.
