@@ -891,6 +891,17 @@ jobs:
           cmp target/qperiapt-ci-header.h crates/q-periapt-ffi/include/q_periapt.h
           cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
       - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+      - name: Execute SDK device workload on macOS and link iOS runner
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/apple-sdk-device-check.sh
+      - name: Retain SDK device-workload build and host logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-sdk-device-host-and-compile
+          path: target/apple-sdk-device-check/*.log
+          if-no-files-found: warn
       - name: Actual Swift and Rust connection boundary
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}

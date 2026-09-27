@@ -31,6 +31,36 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The `ba2cd3b` source completes all 36
+[CI jobs](https://github.com/billlza/q-periapt/actions/runs/36340910445) and all six
+[CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36340910438).
+The PR-scoped query retains 41 open alerts, bound to merge
+`701b35031305298e363a52a8cc6bef5e31debbc2` with the same tree as that source.
+No alert was dismissed. These results do not qualify the subsequent Apple
+device-harness changes or replace independent review.
+
+The [SDK Apple device profile](SDK_APPLE_DEVICE_ACCEPTANCE.md) now builds and
+executes a distinct owner workload, with version/ABI/extension/test-group-bound
+markers and separate proof kinds. The same four groups execute successfully on
+macOS; the full iOS executable and unsigned app build locally without diagnostics.
+This is source-workload/build evidence, not physical or packaged-device acceptance.
+The initial iOS link failed because Rust defaulted to iOS 10 while C dependencies
+defaulted to SDK 27; using the already-declared iOS 16 floor fixes that mismatch.
+The first unsigned app build also found duplicate Info.plist resource processing;
+the SDK target now excludes that input from its copy phase. Failed logs remain.
+
+The initial receipt attempt rejects the installed App Store Xcode's different
+signing chain. The new SDK profile pins that distribution explicitly,
+retains Apple's Xcode identifier/team, root ownership, deep strict verification,
+Gatekeeper and hash checks, and has a real local receipt. Legacy schema and
+toolchain admission remain unchanged. No device installation, provisioning,
+release signing or publication was performed for this preparation.
+All 230 affected Apple artifact checks pass locally, including cross-profile,
+source-change, matrix-route and signature-identity rejection cases. The repeatable
+host/iOS check is now part of the Swift CI job; it retains build/host logs and
+cannot emit a physical-device success marker. The broader final-source artifact
+suite and hosted qualification still need their own result.
+
 The preceding `caca8a7` source completes all 36
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36338497784) and all six
 [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36338497702).
