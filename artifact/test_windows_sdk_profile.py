@@ -12,6 +12,29 @@ import test_windows_package as legacy_fixture
 import windows_package as windows
 
 
+class WindowsSDKStaticLibraryTests(unittest.TestCase):
+    def test_sdk_and_legacy_link_dependencies_require_the_selected_profile(self):
+        sdk = ("bcrypt.lib", "advapi32.lib", "kernel32.lib", "ntdll.lib", "userenv.lib",
+               "ws2_32.lib", "dbghelp.lib", "/defaultlib:msvcrt")
+        self.assertEqual(windows.SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS, sdk)
+        output = legacy_fixture._native_static_libraries_output(*sdk)
+        self.assertEqual(windows.parse_rustc_native_static_libraries(output, profile="sdk-alpha1"),
+                         [*sdk[:-1], "msvcrt.lib"])
+        with self.assertRaises(windows.WindowsPackageError):
+            windows.parse_rustc_native_static_libraries(output)
+        legacy = legacy_fixture._native_static_libraries_output(
+            *windows.EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS)
+        with self.assertRaises(windows.WindowsPackageError):
+            windows.parse_rustc_native_static_libraries(legacy, profile="sdk-alpha1")
+        for changed in (sdk[:-1], (*sdk, "extra.lib"), (sdk[1], sdk[0], *sdk[2:]),
+                        (*sdk[:-1], "/defaultlib:libcmt"), (*sdk[:-1], "@extra.rsp")):
+            with self.subTest(tokens=changed), self.assertRaises(windows.WindowsPackageError):
+                windows.parse_rustc_native_static_libraries(
+                    legacy_fixture._native_static_libraries_output(*changed), profile="sdk-alpha1")
+        with self.assertRaisesRegex(windows.WindowsPackageError, "unknown.*profile"):
+            windows.parse_rustc_native_static_libraries(output, profile="unknown")
+
+
 class WindowsSDKProfileTests(unittest.TestCase):
     def setUp(self):
         self.repository = Path(__file__).resolve().parent.parent
@@ -132,6 +155,13 @@ class WindowsSDKProfileTests(unittest.TestCase):
                 self.assertIn(required, script)
         self.assertIn('"bin/q_periapt_ffi_abi2.dll"', script)
         self.assertNotIn("q_periapt_ffi_abi3", script)
+        self.assertIn('"AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc"] = "1"', script)
+        self.assertIn('"AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc"] = "0"', script)
+        self.assertIn('"AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc"]', script)
+        self.assertIn('/Ddllexport=', script)
+        self.assertNotIn('/D__declspec', script)
+        self.assertNotIn('/Ddllimport', script)
+        self.assertNotIn('DISABLE_CPU_JITTER_ENTROPY=1', script)
         self.assertEqual(windows.SCHEMA_VERSION, 3)
         self.assertEqual(windows.PACKAGE_SEMVER, "0.1.5")
 

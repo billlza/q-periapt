@@ -31,6 +31,26 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The hosted checkpoint at `f0214466bb1364aea0cfdf369f8291b29eb7900a`
+([PR 111](https://github.com/billlza/q-periapt/pull/111),
+[CI](https://github.com/billlza/q-periapt/actions/runs/36312252550)) completed
+31 jobs successfully and failed five. The failures identified the explicit
+Python binding, SDK static-link dependencies, AWS-LC's private DLL exports,
+conflicting Xcode warning flags, and missing Android SDK log markers. The
+Android full consumer returned its run-bound result on API 35 with 16 KiB pages,
+but its evidence verifier correctly refused the missing log marker; this is not
+completed ART qualification. The subsequent fixes require another native run.
+All six [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36312252921)
+completed, with 19 open alerts requiring review. Analysis completion is not a
+zero-finding or external-security-review result.
+
+The diagnostic input review also reproduced a blocking FIFO read in
+`standard_tls_interop.py`. Identity and executable sealing now use the existing
+bounded regular-file snapshot reader. A real FIFO changes from a parent-enforced
+timeout to an immediate nonzero rejection; the eight OpenSSL loopback cases
+still pass with the revised harness. This fixes diagnostic input handling and
+does not reinterpret earlier binary or release evidence.
+
 The alpha CI source check uses the explicit `sdk-alpha1` profile of
 `source_results_assembler.py ci-source-gate`. It checks a clean exact commit,
 the alpha workspace version, both ABI 2 header contracts, and the current 254

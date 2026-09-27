@@ -311,6 +311,15 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
     "dbghelp.lib",
     "msvcrt.lib",
 )
+# The SDK's reference-connection closure includes getrandom 0.2 through ring.
+# Its Windows backend links BCryptGenRandom and RtlGenRandom explicitly. Keep
+# the historical 0.1.5 tuple separate: neither profile admits arbitrary libs.
+SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS = (
+    "bcrypt.lib", "advapi32.lib", *EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS
+)
+SDK_WINDOWS_NATIVE_STATIC_LIBRARIES = (
+    "bcrypt.lib", "advapi32.lib", *CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES
+)
 
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
 REQUIRED_MSVC_LINK_ARGUMENTS = ("/nologo", "/wx")
@@ -766,9 +775,14 @@ def parse_dumpbin_dependents(output: bytes) -> list[str]:
     return _normalize_dependencies(dependencies)
 
 
-def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
+def parse_rustc_native_static_libraries(output: bytes, *, profile: str = "legacy") -> list[str]:
     """Parse and freeze rustc's ordered Windows static-link contract."""
 
+    _require(profile in PACKAGE_PROFILES, "unknown Windows native static library profile")
+    expected = (SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS if profile == "sdk-alpha1"
+                else EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS)
+    canonical = (SDK_WINDOWS_NATIVE_STATIC_LIBRARIES if profile == "sdk-alpha1"
+                 else CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
     _require(isinstance(output, bytes), "rustc native-static-libs output must be bytes")
     _require(
         len(output) <= MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES,
@@ -801,10 +815,10 @@ def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
     )
     libraries = matches[0].split()
     _require(
-        tuple(libraries) == EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS,
+        tuple(libraries) == expected,
         "rustc Windows native-static-libs contract differs",
     )
-    return list(CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
+    return list(canonical)
 
 
 def _decode_rust_debug_string(
@@ -2300,6 +2314,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     native_libraries = subparsers.add_parser("parse-native-static-libraries")
+    native_libraries.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
     native_libraries.add_argument(
         "--compiler-output", required=True, type=pathlib.Path
     )
@@ -2348,7 +2363,7 @@ def main() -> int:
                 maximum=MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES,
                 label="rustc native-static-libs output",
             ).data
-            libraries = parse_rustc_native_static_libraries(output)
+            libraries = parse_rustc_native_static_libraries(output, profile=args.profile)
             payload = (
                 json.dumps(libraries, separators=(",", ":")) + "\n"
             ).encode("ascii")

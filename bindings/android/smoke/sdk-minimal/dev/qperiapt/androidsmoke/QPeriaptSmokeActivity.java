@@ -20,10 +20,11 @@ public final class QPeriaptSmokeActivity extends Activity {
             }
             passed.add("runtimeVersionOnly");
             QPeriaptSmokeResults.write(this, runId, true, passed, null);
+            Log.i("QPeriaptSmoke", "QPERIAPT_ANDROID_DEVICE_PASS run-id=" + runId + " tests=" + passed.size());
         } catch (Throwable failure) {
             try { QPeriaptSmokeResults.write(this, runId, false, passed, failure); }
             catch (Exception writeFailure) { failure.addSuppressed(writeFailure); }
-            Log.e("QPeriaptSmoke", "SDK minimal consumer failed", failure);
+            Log.e("QPeriaptSmoke", "QPERIAPT_ANDROID_DEVICE_FAIL run-id=" + runId, failure);
         } finally { finish(); }
     }
 }

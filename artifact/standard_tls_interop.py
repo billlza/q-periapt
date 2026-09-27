@@ -8,7 +8,6 @@ diagnostic harness, not the Swift/macOS-to-Rust/Linux reference application.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,8 +16,13 @@ import shutil
 import subprocess
 import time
 
+from evidence_io import read_regular_snapshot
+
 ROOT = Path(__file__).resolve().parent.parent
 MAX_LOG = 1_048_576
+# Covers executables and the smaller policy/manifest inputs identified by the
+# connection harnesses. Special files and larger inputs are explicit errors.
+MAX_IDENTITY_BYTES = 256 * 1024 * 1024
 
 
 def read_log(path: Path) -> bytes:
@@ -87,20 +91,19 @@ def require(condition: bool, message: str) -> None:
 
 
 def identity(path: Path) -> dict:
-    return {"path": str(path.resolve()), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    resolved = path.resolve(strict=True)
+    snapshot = read_regular_snapshot(resolved, maximum=MAX_IDENTITY_BYTES, label="diagnostic identity")
+    return {"path": str(resolved), "sha256": snapshot.sha256}
 
 
 def seal_peer(source: Path, output: Path) -> Path:
     """Run one immutable executable even if Cargo rebuilds the source path."""
+    snapshot = read_regular_snapshot(source, maximum=MAX_IDENTITY_BYTES, label="peer executable")
     folder = output / "bin"
     folder.mkdir(mode=0o700)
     destination = folder / "standard_peer"
-    with source.open("rb") as reader, destination.open("xb") as writer:
-        before = os.fstat(reader.fileno())
-        shutil.copyfileobj(reader, writer)
-        after = os.fstat(reader.fileno())
-        require((before.st_size, before.st_mtime_ns, before.st_ctime_ns) ==
-                (after.st_size, after.st_mtime_ns, after.st_ctime_ns), "peer executable changed while sealing")
+    with destination.open("xb") as writer:
+        require(writer.write(snapshot.data) == snapshot.size, "peer executable copy was incomplete")
     destination.chmod(0o500)
     return destination
 

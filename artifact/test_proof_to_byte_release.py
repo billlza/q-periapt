@@ -116,6 +116,7 @@ EXPECTED_SDK_SOURCE_STEP = (
     "      - name: Exact SDK source and historical evidence boundary\n"
     "        env:\n"
     "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
+    "          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}\n"
     "        run: |\n"
     "          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)\n"
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"

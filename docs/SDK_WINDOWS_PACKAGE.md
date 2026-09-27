@@ -7,10 +7,12 @@ The default `legacy` profile still describes 0.1.5 with nine exports; it cannot
 admit an alpha archive. Use the explicit profile in both build and verify modes.
 
 This profile is implemented but **native Windows qualification is pending**.
-The local checks use macOS, synthetic PE fixtures and actual PowerShell command
-execution. They do not establish an MSVC build, Windows DLL loading or native
-consumer execution. Neither a Windows alpha ZIP nor an Authenticode signature
-has been qualified by these checks. The candidate manifest explicitly records
+Hosted MSVC builds have reached the package boundary; the first native attempts
+exposed SDK-specific static dependencies and nine unintended jitterentropy DLL
+exports from AWS-LC 0.45.0. The fixes still require a complete native build,
+archive verification and installed consumer run on both Windows runners.
+Neither a Windows alpha ZIP nor an Authenticode signature has been qualified.
+The candidate manifest explicitly records
 `release_claim_eligible: false`; it does not claim publication or attestation.
 
 ## Build from frozen source
@@ -35,11 +37,36 @@ uncommitted changes.
 
 The producer fetches the locked dependencies into its own Cargo cache without
 copying ambient configuration or credentials. Subsequent native, BOM and license
-collection steps use that cache offline. The cache lives under the remapped
-source root so dependency C filenames are covered by the same MSVC path map.
+collection steps use that cache offline. The cache is a separate temporary
+directory; both it and the source root have explicit, non-overlapping path maps.
 Missing offline dependencies, compiler/linker diagnostics and changed source
 identities fail the build. The checked-in Rust standard-library notice must
 match the selected toolchain's actual `COPYRIGHT-library.html` bytes.
+
+AWS-LC is built from the locked bundled sources as a private static dependency.
+The x64 MSVC build uses its crate-specific `AWS_LC_SYS_CFLAGS` setting to expand
+only the `dllexport` modifier to an empty modifier. This prevents the upstream
+jitterentropy header from adding its internal functions to the SDK DLL table;
+`dllimport`, alignment, noinline, entropy collection and crypto code are retained.
+The final DLL must still export exactly the same 43 SDK functions. No symbols
+are added to the ABI allowlist, and no binary sections or dependency sources
+are rewritten. The C build helper applies the same setting. Direct Cargo builds
+of a Windows C DLL need these target-scoped settings as well; ordinary Rust
+library consumers do not require a C export table.
+
+```powershell
+$env:AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc = "1"
+$env:AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc = "0"
+$env:AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc = "/Ddllexport="
+cargo +1.97.0 build --locked --release -p q-periapt-ffi
+```
+
+Use those settings only for the direct Cargo invocation. The package producer
+rejects ambient AWS-LC build overrides and sets/restores its own scoped values.
+
+The SDK's exact native static-link tuple adds `bcrypt.lib` and `advapi32.lib`,
+required by ring's getrandom 0.2 Windows backend, ahead of the historical tuple.
+Legacy package parsing retains the original dependency contract.
 
 The closed schema-4 manifest binds the SDK header/contract, frozen 0.1.5 header,
 consumer sources, 37-asset native SDK CBOM, workspace SBOM, target-specific

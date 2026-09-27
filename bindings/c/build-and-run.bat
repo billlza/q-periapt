@@ -6,6 +6,13 @@ REM works even when cl.exe is not on PATH). Run from anywhere:  bindings\c\build
 setlocal enabledelayedexpansion
 cd /d "%~dp0\..\.."
 
+REM Keep the bundled AWS-LC static dependency private to our DLL. This scoped
+REM macro removes only its dllexport modifier, preserving all other attributes
+REM and crypto/entropy code. Rust's public ABI exports remain unchanged.
+set "AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc=1"
+set "AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc=0"
+set "AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc=/Ddllexport="
+
 echo [1/5] cargo +1.97.0 build -p q-periapt-ffi --release
 cargo +1.97.0 build -p q-periapt-ffi --release --locked || exit /b 1
 

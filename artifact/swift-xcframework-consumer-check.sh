@@ -259,7 +259,9 @@ run_ios_link_gate() (
 	log="$EVIDENCE_DIR/$gate.log"
 	set --
 	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
-		set -- SWIFT_STRICT_CONCURRENCY=complete SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
+		# Xcode 26 suppresses warnings in package dependencies by default. Keep
+		# their diagnostics visible as well as fatal in this SDK qualification.
+		set -- SWIFT_STRICT_CONCURRENCY=complete SWIFT_SUPPRESS_WARNINGS=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
 	fi
 
 	if [ "$MODE" = "build" ]; then

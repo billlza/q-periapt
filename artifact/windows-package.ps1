@@ -266,6 +266,7 @@ function Assert-TrustedBuildEnvironment {
         '^(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)_.+$|' +
         '^.+_(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)$|' +
         '^CARGO_PROFILE_.+$|' +
+        '^AWS_LC_(?:FIPS_)?SYS_.+$|' +
         '^CARGO_TARGET_.+_(?:AR|LINKER|RUNNER|RUSTDOCFLAGS|RUSTFLAGS)$|' +
         '^GIT_CONFIG_(?:KEY|VALUE)_[0-9]+$',
         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor
@@ -1719,6 +1720,16 @@ $targetCompilerEnvironment = @{
     "CC_x86_64-pc-windows-msvc" = $Cl
     "CC_x86_64_pc_windows_msvc" = $Cl
 }
+if ($Profile -eq "sdk-alpha1") {
+    # AWS-LC is a private static dependency of this DLL. Its bundled jitter
+    # header declares dllexport even for static builds. Remove only that
+    # storage-class modifier in AWS-LC's x64 MSVC compilation; dllimport,
+    # alignment, noinline and every entropy/crypto operation stay intact.
+    # Rust's 43 public exports are unaffected. The final export gate is exact.
+    $targetCompilerEnvironment["AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc"] = "1"
+    $targetCompilerEnvironment["AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc"] = "0"
+    $targetCompilerEnvironment["AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc"] = '/experimental:deterministic /WX /Ddllexport= "/pathmap:' + $Root + '=qperiapt-source" "/pathmap:' + $CargoHome + '=qperiapt-cargo-home"'
+}
 $savedTargetCompilerEnvironment = @{}
 foreach ($name in $targetCompilerEnvironment.Keys) {
     $savedTargetCompilerEnvironment[$name] =
@@ -1801,6 +1812,7 @@ try {
     $nativeLibrariesJson = Get-TrimmedOutput -FilePath $Python -Arguments @(
         "-I", "-S", "-B", "-W", "error", "artifact/python_bootstrap.py",
         "artifact/windows_package.py", "parse-native-static-libraries",
+        "--profile", $Profile,
         "--compiler-output", $nativeStaticLibrariesLog
     )
     $decodedNativeStaticLibraries = ConvertFrom-Json `
@@ -1817,6 +1829,11 @@ try {
         "dbghelp.lib",
         "msvcrt.lib"
     )
+    if ($Profile -eq "sdk-alpha1") {
+        $expectedNativeStaticLibraries = [string[]] @(
+            "bcrypt.lib", "advapi32.lib"
+        ) + $expectedNativeStaticLibraries
+    }
     if ($decodedNativeStaticLibraries.Count -ne $expectedNativeStaticLibraries.Count) {
         throw "Python verifier emitted an unexpected native static library count"
     }
