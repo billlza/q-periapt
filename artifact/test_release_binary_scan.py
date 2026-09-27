@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import pathlib
+import struct
 import sys
 import tempfile
 import unittest
@@ -362,6 +363,34 @@ class ReleaseBinaryScanTests(unittest.TestCase):
                 {"index": 0, "byte_offset": 7}, {"index": 1, "byte_offset": 7}])
             self.assertNotIn("private-user", stderr.getvalue())
             self.assertNotIn("source.c", stderr.getvalue())
+
+    def test_archive_diagnostic_locates_metadata_without_disclosing_names_or_admitting_it(self) -> None:
+        private = b"C:\\Users\\private-person\\source.c\0"
+        coff = (struct.pack("<HHIIIHH", 0x8664, 1, 0, 0, 0, 0, 0)
+                + struct.pack("<8sIIIIIIHHI", b".debug$S", 0, 0, len(private), 60, 0, 0, 0, 0, 0x42000040)
+                + private)
+        def archive(name, payload):
+            header = (name.ljust(16) + b"0".ljust(12) + b"0".ljust(6) + b"0".ljust(6)
+                      + b"644".ljust(8) + str(len(payload)).encode().ljust(10) + b"`\n")
+            return b"!<arch>\n" + header + payload + (b"\n" if len(payload) % 2 else b"")
+        cases = ((archive(b"//", private), "long-name-table"),
+                 (archive(b"private.obj/", coff), "coff-section"),
+                 (b"!<arch>\nmalformed " + private, "unclassified-archive-position"))
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "private-library.lib"
+            for data, region in cases:
+                with self.subTest(region=region):
+                    path.write_bytes(data)
+                    stderr = io.StringIO()
+                    with mock.patch.object(sys, "argv", ["release_binary_scan.py", "--redact-paths", str(path)]), redirect_stderr(stderr):
+                        self.assertEqual(release_binary_scan.main(), 1)
+                    report = json.loads(stderr.getvalue())
+                    self.assertEqual(report["status"], "fail")
+                    self.assertEqual(report["archive_location"]["region"], region)
+                    if region == "coff-section":
+                        self.assertEqual(report["archive_location"]["section"], ".debug$S")
+                    for secret in ("private-person", "private.obj", "private-library", "source.c", temporary):
+                        self.assertNotIn(secret, stderr.getvalue())
 
     def test_credentials_are_rejected_in_both_utf16_encodings_and_alignments(self) -> None:
         cases = {
