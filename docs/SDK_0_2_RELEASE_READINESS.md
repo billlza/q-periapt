@@ -70,8 +70,10 @@ The downloaded runtime artifact has SHA-256
 `c4bb2d6aa7813e1053e0953fc40fe617738c02f13f57d1091c04e04e2e28b641`.
 Both records bind PR merge `88bc75ef26670e6d6e2a2b81b15d0659df4d82d3`,
 whose tree equals this head, and API 35 / 16 KiB / x86_64 emulator execution.
-The earlier intermittent transport failure did not recur in this run; its
-cause remains open. A separate macOS replay of the downloaded closure was
+Both consumers completed cleanup in this run. Successful uploads omit the
+per-attempt transport diagnostics, so this does not establish that no recovered
+disconnect occurred; the earlier unresolved cleanup failure's cause remains
+open. A separate macOS replay of the downloaded closure was
 refused because the local `dexdump` hash differed from the recorded Linux tool.
 That failed attempt is retained and no tool identity check was relaxed. The
 native Linux export replay passed; cross-OS APK-tool replay is not claimed.
