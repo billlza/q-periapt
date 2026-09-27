@@ -2128,7 +2128,7 @@ try {
     $cbomArguments = @("+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt")
     if ($Profile -eq "sdk-alpha1") { $cbomArguments += @("--features", "sdk-cbom") }
     $cbomArguments += @("--", "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json"))
-    if ($Profile -eq "sdk-alpha1") { $cbomArguments += @("--profile", "native-sdk-alpha1") }
+    if ($Profile -eq "sdk-alpha1") { $cbomArguments += @("--native-sdk") }
     Invoke-Checked -FilePath "cargo.exe" -Arguments $cbomArguments
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
         "+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",

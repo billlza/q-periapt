@@ -31,6 +31,23 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The `6f62f22` Windows 2022 run processed 663 ordinary COFF objects, preserved
+five short import records and passed the complete DLL/import/static producer
+path scan. It then rejected the Windows CBOM invocation's nonexistent
+`--profile` option. The producer now uses the CLI's `--native-sdk` option with
+the existing `sdk-cbom` build feature. Actual PowerShell argument construction
+and the locally rebuilt Rust CLI reproduce the old rejection and generate a
+verified 37-component CBOM / 249-component lock-bound SBOM after repair. This
+does not yet qualify the complete native package.
+
+The same cohort exposed a new diagnostic regression's direct Python startup,
+which created repository bytecode and correctly failed cache/source checks.
+The regression now uses the canonical launcher. The failed local run was
+interrupted after the cause was confirmed; its logs and cache files are
+retained separately. Head `99487f5` passes the clean source gate before its
+fresh full run. The workflow's exact diagnostic-upload contract also needed
+the newly added emulator crash-log leaf; its closed allowlist remains exact.
+
 At `51982a6bcac222bbb9a6cf1d233c0bbfb3acd5c0`, the hosted
 [CI cohort](https://github.com/billlza/q-periapt/actions/runs/36323838117)
 completed 33 jobs successfully and failed both Windows package jobs and the

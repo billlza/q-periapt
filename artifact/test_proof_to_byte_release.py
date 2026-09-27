@@ -2021,6 +2021,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err\n"

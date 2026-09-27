@@ -236,7 +236,7 @@ class WindowsSDKProfileTests(unittest.TestCase):
     def test_sdk_producer_and_archive_verifier_select_profile_and_same_library_names(self):
         script = (self.repository / "artifact/windows-package.ps1").read_text()
         for required in ('[ValidateSet("legacy", "sdk-alpha1")]', '$Version = "0.2.0-alpha.1"',
-                         '"--profile", $Profile', '"--profile", "native-sdk-alpha1"',
+                         '"--profile", $Profile', '"--native-sdk"',
                          '"--features", "sdk-cbom"', '"share/q-periapt/legacy/q_periapt.h"',
                          '"share/q-periapt/sdk_smoke.c"', '"LICENSES/Rust-1.97.0-library.html"',
                          'dynamic-smoke,sdk-dynamic-smoke,sdk-static-smoke,static-smoke',
