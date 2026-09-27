@@ -132,16 +132,22 @@ fn map_error(error: sdk::Error) -> i32 {
 struct Admission;
 impl Admission {
     fn enter() -> StatusResult<Self> {
-        call_count()
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                if n < Q_PERIAPT_SDK_MAX_CALLS {
-                    Some(n + 1)
-                } else {
-                    None
-                }
-            })
-            .map(|_| Self)
-            .map_err(|_| Q_PERIAPT_ERR_RESOURCE_LIMIT)
+        let counter = call_count();
+        let mut current = counter.load(Ordering::Acquire);
+        loop {
+            if current >= Q_PERIAPT_SDK_MAX_CALLS {
+                return Err(Q_PERIAPT_ERR_RESOURCE_LIMIT);
+            }
+            match counter.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(Self),
+                Err(observed) => current = observed,
+            }
+        }
     }
 }
 impl Drop for Admission {

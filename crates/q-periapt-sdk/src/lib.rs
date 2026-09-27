@@ -147,12 +147,21 @@ impl Drop for Operation<'_> {
     }
 }
 fn reserve(counter: &AtomicUsize, limit: usize) -> Result<(), Error> {
-    counter
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-            (n < limit).then_some(n + 1)
-        })
-        .map(|_| ())
-        .map_err(|_| Error::ResourceLimit)
+    let mut current = counter.load(Ordering::Acquire);
+    loop {
+        if current >= limit {
+            return Err(Error::ResourceLimit);
+        }
+        match counter.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => return Ok(()),
+            Err(observed) => current = observed,
+        }
+    }
 }
 impl State {
     fn ensure_open(&self) -> Result<(), Error> {

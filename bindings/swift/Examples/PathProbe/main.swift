@@ -37,6 +37,7 @@ private func time(_ body: () throws -> Void) throws -> UInt64 {
     guard ended > started else { throw ProbeError.clock }
     return ended - started
 }
+@available(macOS 13.0, *)
 private func pairs(_ operation: String, context: Int, count: Int, phase: Int,
                    legacy: () throws -> Void, owner: () throws -> Void) throws {
     for i in 0..<64 {
@@ -63,6 +64,7 @@ private func consume(_ secret: QPeriaptSecret) throws {
     try secret.close()
 }
 
+@available(macOS 13.0, *)
 private func run() throws {
     let args = CommandLine.arguments
     guard args.count == 4, let count = Int(args[2]), (200...5000).contains(count),
@@ -152,9 +154,14 @@ private func run() throws {
     try runtime.close()
 }
 
-do { try run() }
-catch {
-    do { try FileHandle.standardError.write(contentsOf: Data("Swift SDK diagnostic failed: \(error)\n".utf8)) }
-    catch { exit(2) }
-    exit(1)
+if #available(macOS 13.0, *) {
+    do { try run() }
+    catch {
+        do { try FileHandle.standardError.write(contentsOf: Data("Swift SDK diagnostic failed: \(error)\n".utf8)) }
+        catch { exit(2) }
+        exit(1)
+    }
+} else {
+    // This diagnostic follows the packaged SDK's macOS 13 minimum.
+    exit(2)
 }

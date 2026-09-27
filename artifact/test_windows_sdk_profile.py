@@ -46,13 +46,15 @@ class WindowsSDKProfileTests(unittest.TestCase):
 
     def reseal(self, manifest):
         entries = []
-        for path in sorted(self.package.rglob("*")):
+        for path in self.package.rglob("*"):
             if not path.is_file() or path.name in {"MANIFEST.json", "SHA256SUMS"}:
                 continue
             data = path.read_bytes()
             entries.append({"path": path.relative_to(self.package).as_posix(), "bytes": len(data),
                             "mode": "0o644", "type": "file", "sha256": hashlib.sha256(data).hexdigest()})
-        manifest["files"] = entries
+        # The wire format orders exact POSIX strings. WindowsPath ordering
+        # instead folds case, which can mask the intended rejection below.
+        manifest["files"] = sorted(entries, key=lambda entry: entry["path"])
         document = windows._canonical_json(manifest)
         (self.package / "MANIFEST.json").write_bytes(document)
         hashes = {entry["path"]: entry["sha256"] for entry in entries}
@@ -69,6 +71,8 @@ class WindowsSDKProfileTests(unittest.TestCase):
         self.assertIs(manifest["release_claim_eligible"], False)
         self.assertEqual(manifest["authenticode"]["reason"], windows.SDK_UNSIGNED_REASON)
         self.assertNotIn("attestations", manifest["authenticode"]["reason"])
+        self.assertEqual(self.verify(), manifest)
+        self.reseal(manifest)
         self.assertEqual(self.verify(), manifest)
         with self.assertRaises(windows.WindowsPackageError):
             self.verify(profile="legacy")

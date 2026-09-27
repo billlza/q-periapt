@@ -570,6 +570,42 @@ fn global_call_budget_is_bounded_and_disposal_remains_available() {
 }
 
 #[test]
+fn concurrent_call_admission_keeps_the_exact_limit_and_recovers_capacity() {
+    let _tests = TESTS.lock().expect("serial test guard");
+    let held: Vec<_> = (0..Q_PERIAPT_SDK_MAX_CALLS - 4)
+        .map(|_| Admission::enter().expect("reserved call slot"))
+        .collect();
+    let start = std::sync::Barrier::new(17);
+    let results = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..16)
+            .map(|_| {
+                scope.spawn(|| {
+                    start.wait();
+                    Admission::enter()
+                })
+            })
+            .collect();
+        start.wait();
+        workers
+            .into_iter()
+            .map(|worker| worker.join().expect("admission worker"))
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 4);
+    assert!(results
+        .iter()
+        .all(|result| matches!(result, Ok(_) | Err(Q_PERIAPT_ERR_RESOURCE_LIMIT))));
+    assert_eq!(
+        call_count().load(Ordering::Acquire),
+        Q_PERIAPT_SDK_MAX_CALLS
+    );
+    drop(results);
+    drop(held);
+    assert_eq!(call_count().load(Ordering::Acquire), 0);
+    assert!(Admission::enter().is_ok());
+}
+
+#[test]
 fn close_waits_for_an_admitted_key_lease_and_never_reuses_its_id() {
     let _tests = TESTS.lock().expect("serial test guard");
     let runtime = create();

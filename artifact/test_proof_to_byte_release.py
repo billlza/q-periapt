@@ -5432,26 +5432,27 @@ with _temporary_release_test_directories(parents):
             (
                 CI_WORKFLOW,
                 {
-                    "check": CANONICAL_RUST_TOOLCHAIN,
-                    "rust-publish-contract": CANONICAL_RUST_TOOLCHAIN,
-                    "windows": WINDOWS_RELEASE_RUST_TOOLCHAIN,
-                    "abi2-windows-package-2022": WINDOWS_RELEASE_RUST_TOOLCHAIN,
-                    "abi2-linux-package": CANONICAL_RUST_TOOLCHAIN,
-                    "bindings-wasm": CANONICAL_RUST_TOOLCHAIN,
-                    "fuzz": "nightly",
-                    "bindings-swift": CANONICAL_RUST_TOOLCHAIN,
-                    "bindings-kotlin": CANONICAL_RUST_TOOLCHAIN,
-                    "bindings-android-aar": CANONICAL_RUST_TOOLCHAIN,
-                    "audit": CANONICAL_RUST_TOOLCHAIN,
-                    "hqc-draft-candidate": CANONICAL_RUST_TOOLCHAIN,
+                    "check": (CANONICAL_RUST_TOOLCHAIN,),
+                    "rust-publish-contract": (CANONICAL_RUST_TOOLCHAIN,),
+                    "windows": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
+                    "abi2-windows-package-2022": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
+                    "abi2-linux-package": (CANONICAL_RUST_TOOLCHAIN,),
+                    "bindings-wasm": (CANONICAL_RUST_TOOLCHAIN,),
+                    "fuzz": ("nightly",),
+                    # Header generation and the installed Rust-package audit.
+                    "bindings-swift": (CANONICAL_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN),
+                    "bindings-kotlin": (CANONICAL_RUST_TOOLCHAIN,),
+                    "bindings-android-aar": (CANONICAL_RUST_TOOLCHAIN,),
+                    "audit": (CANONICAL_RUST_TOOLCHAIN,),
+                    "hqc-draft-candidate": (CANONICAL_RUST_TOOLCHAIN,),
                 },
             ),
             (
                 ABI2_PLATFORM_CANDIDATE_WORKFLOW,
                 {
-                    "linux": CANONICAL_RUST_TOOLCHAIN,
-                    "windows": WINDOWS_RELEASE_RUST_TOOLCHAIN,
-                    "android": CANONICAL_RUST_TOOLCHAIN,
+                    "linux": (CANONICAL_RUST_TOOLCHAIN,),
+                    "windows": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
+                    "android": (CANONICAL_RUST_TOOLCHAIN,),
                 },
             ),
         )
@@ -5459,15 +5460,14 @@ with _temporary_release_test_directories(parents):
         for path, expected_jobs in install_jobs:
             source = path.read_text(encoding="utf-8")
             all_installs = list(install_pattern.finditer(source))
-            self.assertEqual(len(all_installs), len(expected_jobs))
+            self.assertEqual(len(all_installs), sum(map(len, expected_jobs.values())))
             self.assertTrue(all(match.group("selector") for match in all_installs))
-            for job_name, expected_selector in expected_jobs.items():
+            for job_name, expected_selectors in expected_jobs.items():
                 with self.subTest(workflow=path.name, install_job=job_name):
                     job = extract_workflow_job(source, job_name)
                     matches = list(install_pattern.finditer(job))
-                    self.assertEqual(len(matches), 1)
                     self.assertEqual(
-                        matches[0].group("selector"), expected_selector
+                        tuple(match.group("selector") for match in matches), expected_selectors
                     )
 
         ci = CI_WORKFLOW.read_text(encoding="utf-8")

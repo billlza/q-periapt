@@ -1026,6 +1026,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
+          components: llvm-tools
       - name: Set up Java 25 LTS
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
@@ -1126,6 +1127,8 @@ jobs:
           java -version
           javac -version
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - name: Verify exact canonical Rust toolchain
         run: |
           test "$(rustc -vV | sed -n 's/^host: //p')" = "x86_64-unknown-linux-gnu"
@@ -1215,6 +1218,8 @@ jobs:
           java -version
           javac -version
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: abi2-android-sdk-alpha1-aar

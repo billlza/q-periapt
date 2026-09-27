@@ -402,6 +402,36 @@ fn malformed_lengths_kinds_sequences_and_replayed_confirmation_are_terminal() {
 }
 
 #[test]
+fn concurrent_connection_admission_keeps_the_exact_limit_and_recovers_capacity() {
+    let p = policy(8, 2, "");
+    let (client, _server) = endpoints(Arc::clone(&p), p, b"", b"", 3);
+    let start = std::sync::Barrier::new(17);
+    let results = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..16)
+            .map(|_| {
+                scope.spawn(|| {
+                    start.wait();
+                    client.connect("localhost")
+                })
+            })
+            .collect();
+        start.wait();
+        workers
+            .into_iter()
+            .map(|worker| worker.join().expect("connection worker"))
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 3);
+    assert!(results
+        .iter()
+        .all(|result| matches!(result, Ok(_) | Err(Error::ResourceLimit))));
+    assert_eq!(client.shared.live.load(Ordering::Acquire), 3);
+    drop(results);
+    assert_eq!(client.shared.live.load(Ordering::Acquire), 0);
+    assert!(client.connect("localhost").is_ok());
+}
+
+#[test]
 fn runtime_and_endpoint_revocation_erase_queued_work_and_release_capacity() {
     let p = policy(8, 2, "");
     let (client_endpoint, server_endpoint) = endpoints(Arc::clone(&p), Arc::clone(&p), b"", b"", 1);

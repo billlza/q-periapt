@@ -627,6 +627,38 @@ fn entropy_failure_returns_quota_and_never_publishes_a_key_or_result() {
 }
 
 #[test]
+fn concurrent_key_admission_keeps_the_exact_limit_and_recovers_capacity() {
+    let owner = runtime(Limits {
+        max_live_keys: 3,
+        max_in_flight: 16,
+    });
+    let start = std::sync::Barrier::new(17);
+    let results = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..16)
+            .map(|_| {
+                scope.spawn(|| {
+                    start.wait();
+                    owner.generate_key()
+                })
+            })
+            .collect();
+        start.wait();
+        workers
+            .into_iter()
+            .map(|worker| worker.join().expect("key worker"))
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 3);
+    assert!(results
+        .iter()
+        .all(|result| matches!(result, Ok(_) | Err(Error::ResourceLimit))));
+    assert_eq!(owner.state.keys.load(Ordering::Acquire), 3);
+    drop(results);
+    assert_eq!(owner.state.keys.load(Ordering::Acquire), 0);
+    assert!(owner.generate_key().is_ok());
+}
+
+#[test]
 fn close_drop_and_resource_bounds_are_enforced() {
     let runtime = runtime(Limits {
         max_live_keys: 1,

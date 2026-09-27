@@ -8,6 +8,7 @@ import QPeriaptSDK
 enum ProbeError: Error { case usage, unexpectedResult, expectedFailureMissing }
 
 @main
+@available(macOS 13.0, *)
 struct ConnectionProbe {
     struct SetupTiming: Encodable {
         let schema = 1

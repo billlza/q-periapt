@@ -293,12 +293,21 @@ impl Endpoint {
     }
     fn lease(&self) -> Result<Lease, Error> {
         self.shared.check()?;
-        self.shared
-            .live
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                (n < self.shared.limits.max_connections).then_some(n + 1)
-            })
-            .map_err(|_| Error::ResourceLimit)?;
+        let mut current = self.shared.live.load(Ordering::Acquire);
+        loop {
+            if current >= self.shared.limits.max_connections {
+                return Err(Error::ResourceLimit);
+            }
+            match self.shared.live.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => break,
+                Err(observed) => current = observed,
+            }
+        }
         let lease = Lease(Arc::clone(&self.shared));
         self.shared.check()?;
         Ok(lease)
