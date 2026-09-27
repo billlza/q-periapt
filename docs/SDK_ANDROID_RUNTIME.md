@@ -80,6 +80,11 @@ results, emulator control evidence, AGP source/JVM/R8 receipts, and binary dumps
 The exporter re-verifies that copy, including actual SDK-tool replay of the APK.
 The source checkout must still match the receipt; the original run and AAR
 paths need not remain available for exported replay.
+Use a compatible host with the recorded Build Tools executables: replay checks
+the hashes of `dexdump`, `aapt2`, `apksigner` and `zipalign` before executing APK
+inspection. Host-specific binaries can differ even at the same Build Tools
+version. For example, a Linux receipt can reject a macOS `dexdump` before any
+DEX replay; that refusal does not complete local replay.
 
 ```sh
 sh artifact/python-run.sh artifact/android_agp_consumer.py verify-export \
