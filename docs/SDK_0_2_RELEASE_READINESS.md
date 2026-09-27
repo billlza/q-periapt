@@ -31,6 +31,40 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The subsequent hosted checkpoint at `7c7a76343d724c889286b594e47a8398aa63bf06`
+([CI](https://github.com/billlza/q-periapt/actions/runs/36315599184)) completed
+32 jobs successfully and failed four. Linux's complete check job now passes.
+The native Windows build has verified the exact 43-export contract and run both
+legacy and SDK C consumers; both Windows package jobs remain blocked by the
+producer-path scan. The redacted diagnostic retains the offending file's hash,
+byte offset and root index. It does not yet identify a repaired Windows package.
+All six [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36315599181)
+completed with 18 open alerts on `refs/pull/111/merge`, without dismissals or
+suppressed rules. Source/data-flow review is recorded separately from analysis
+completion and does not replace independent security review.
+
+Hosted Swift qualification passed at `4349c6aebbc18cac971a5ceff31cee7d3c6fb307`,
+but the next cohort exposed a cancellation diagnostic that assumed TCP accept
+within a fixed 40 ms sleep. The diagnostic now waits for an actual peer
+observation. Its silent-peer variant then exposed a product defect: runtime
+revocation during pending Network I/O returned timeout after five seconds.
+Swift now rechecks native state every 100 ms during pending establishment or
+request I/O, retaining the original operation deadline. The repaired local
+12-case Swift/Rust run observes the revocation error with no response from the
+peer; current-source hosted package qualification remains required.
+
+Android's full SDK workload and exact run-bound log marker succeeded in the
+preceding cohort, but an ADB disconnect prevented cleanup confirmation. The
+latest cohort lost the owned emulator transport before its first exact package
+observation. The repair distinguishes observed transport absence from package
+unavailability and permits the existing one-shot, identity-checked recovery
+before that first sample. Two fresh exact APK observations and signature checks
+are still mandatory. The complete ART job remains unqualified until rerun.
+
+The clean standalone `4349c6a` snapshot passed the complete 2,226-test artifact
+suite without skips. The `7c7a763` snapshot passed 172 focused tests and the
+exact-source gate; neither result is relabelled as execution of subsequent edits.
+
 The hosted checkpoint at `f0214466bb1364aea0cfdf369f8291b29eb7900a`
 ([PR 111](https://github.com/billlza/q-periapt/pull/111),
 [CI](https://github.com/billlza/q-periapt/actions/runs/36312252550)) completed

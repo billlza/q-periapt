@@ -57,8 +57,10 @@ public final class QPeriaptClient: Sendable {
         owned = OwnedHandle(endpoint, parent: runtime.owned)
     }
 
-    /// Revoke this endpoint and all its connections. Pending network operations
-    /// observe revocation at their next native call, no later than their budget.
+    /// Revoke this endpoint and all its connections. During pending establishment
+    /// or request I/O the async adapter rechecks native state every 100 ms;
+    /// revocation does not require another network event. Already queued TCP
+    /// bytes cannot be recalled. Idle connections are checked on their next use.
     public func close() throws { try owned.close() }
 
     func engine(serverName: String) throws -> ConnectionEngine {

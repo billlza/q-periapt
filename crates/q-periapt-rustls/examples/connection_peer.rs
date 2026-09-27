@@ -78,10 +78,53 @@ fn endpoint(directory: &Path, mismatch: bool, provision: bool) -> Result<(Policy
     Ok((store, endpoint))
 }
 
+#[derive(Clone, Copy)]
+enum ReplyMode {
+    Echo,
+    Delay,
+    WaitForClose,
+}
+
+fn wait_for_peer_close(mut stream: TcpStream, deadline: Instant) -> std::io::Result<()> {
+    use std::io::{Error, ErrorKind};
+
+    stream.set_nonblocking(false)?;
+    let mut buffer = [0; 4096];
+    let mut received = 0;
+    loop {
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .filter(|duration| !duration.is_zero())
+            .ok_or_else(|| Error::new(ErrorKind::TimedOut, "peer close deadline expired"))?;
+        stream.set_read_timeout(Some(remaining))?;
+        match stream.read(&mut buffer) {
+            Ok(0) => return Ok(()),
+            Ok(length) => {
+                received += length;
+                if received > MAX_TLS_IO_BYTES {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "silent peer input budget exceeded",
+                    ));
+                }
+            }
+            // Both FIN and RST establish closure for this intentionally silent
+            // diagnostic. Other failures never count as observed cancellation.
+            Err(error) if error.kind() == ErrorKind::ConnectionReset => return Ok(()),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    ErrorKind::Interrupted | ErrorKind::WouldBlock | ErrorKind::TimedOut
+                ) => {}
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 fn exchange(
     mut stream: TcpStream,
     mut engine: Connection,
-    delayed: bool,
+    reply_mode: ReplyMode,
     trace: bool,
 ) -> Result<usize> {
     stream.set_nonblocking(false)?;
@@ -125,8 +168,14 @@ fn exchange(
                 println!("REQUEST {} {}", request.request_id(), request.bytes().len());
                 std::io::stdout().flush()?;
             }
-            if delayed {
-                std::thread::sleep(Duration::from_millis(400));
+            match reply_mode {
+                ReplyMode::Echo => {}
+                ReplyMode::Delay => std::thread::sleep(Duration::from_millis(400)),
+                ReplyMode::WaitForClose => {
+                    wait_for_peer_close(stream, Instant::now() + Duration::from_secs(10))?;
+                    println!("PEER_CLOSED_BEFORE_RESPONSE");
+                    return Err("peer closed before the diagnostic response".into());
+                }
             }
             engine.send_response(request.request_id(), request.bytes())?;
             requests += 1;
@@ -215,7 +264,7 @@ fn serve(directory: &Path, mode: &str, count: usize, provision: bool) -> Result<
     } else {
         (1..=8).contains(&count)
     };
-    if !valid_count || !["echo", "delay", "stall", "mismatch", "measure"].contains(&mode) {
+    if !valid_count || !["echo", "delay", "hold", "stall", "mismatch", "measure"].contains(&mode) {
         return Err("invalid diagnostic mode/count".into());
     }
     let (_store, endpoint) = endpoint(directory, mode == "mismatch", provision)?;
@@ -223,20 +272,25 @@ fn serve(directory: &Path, mode: &str, count: usize, provision: bool) -> Result<
     println!("LISTEN {}", listener.local_addr()?);
     std::io::stdout().flush()?;
     let mut total = 0;
-    for _ in 0..count {
+    for index in 0..count {
         let deadline = Instant::now() + Duration::from_secs(10);
         let stream = accept_before(&listener, deadline)?;
         if mode == "stall" {
-            // Deliberately silent peer tests the adapter's independent deadline
-            // wakeup/cancellation. The diagnostic driver also bounds this process.
-            std::thread::sleep(Duration::from_millis(500));
-            drop(stream);
+            // The driver cancels only after this actual accept observation.
+            // Stay silent until FIN/RST rather than racing a fixed sleep.
+            println!("ACCEPTED {}", index + 1);
+            std::io::stdout().flush()?;
+            wait_for_peer_close(stream, deadline)?;
             continue;
         }
         total += exchange(
             stream,
             endpoint.accept()?,
-            mode == "delay",
+            match mode {
+                "delay" => ReplyMode::Delay,
+                "hold" => ReplyMode::WaitForClose,
+                _ => ReplyMode::Echo,
+            },
             mode != "measure",
         )?;
     }
@@ -251,7 +305,7 @@ fn main() -> Result<()> {
             serve(Path::new(directory), mode, count.parse()?, action == "provision")
         }
         _ => {
-            Err("usage: connection_peer TEST_FIXTURES echo|delay|stall|mismatch|measure CONNECTIONS provision|open".into())
+            Err("usage: connection_peer TEST_FIXTURES echo|delay|hold|stall|mismatch|measure CONNECTIONS provision|open".into())
         }
     }
 }
@@ -261,9 +315,53 @@ mod tests {
     use super::*;
 
     #[test]
-    fn expired_deadline_does_not_consume_a_queued_connection() -> Result<()> {
+    fn silent_peer_observes_eof_after_client_bytes() -> Result<()> {
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let mut client = TcpStream::connect(listener.local_addr()?)?;
+        let (server, _) = listener.accept()?;
+        client.write_all(b"unanswered client bytes")?;
+        client.shutdown(std::net::Shutdown::Write)?;
+        wait_for_peer_close(server, Instant::now() + Duration::from_secs(1))?;
+        Ok(())
+    }
+
+    #[test]
+    fn silent_peer_cannot_wait_forever_or_accept_unbounded_input() -> Result<()> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         let client = TcpStream::connect(listener.local_addr()?)?;
+        let (server, _) = listener.accept()?;
+        let error = wait_for_peer_close(server, Instant::now() + Duration::from_millis(30))
+            .expect_err("live peer must not count as closed");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        drop(client);
+
+        let mut client = TcpStream::connect(listener.local_addr()?)?;
+        let (server, _) = listener.accept()?;
+        let writer = std::thread::spawn(move || client.write_all(&vec![1; MAX_TLS_IO_BYTES + 1]));
+        let error = wait_for_peer_close(server, Instant::now() + Duration::from_secs(1))
+            .expect_err("oversized stream must be rejected");
+        writer.join().expect("writer thread must finish")?;
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        Ok(())
+    }
+
+    #[test]
+    fn expired_deadline_does_not_consume_a_queued_connection() -> Result<()> {
+        use rustix::event::{poll, PollFd, PollFlags, Timespec};
+
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let client = TcpStream::connect(listener.local_addr()?)?;
+        // connect() completion can precede accept-queue readiness on macOS.
+        // Establish the queued-peer precondition before testing expiration.
+        let mut ready = [PollFd::new(&listener, PollFlags::IN)];
+        assert_eq!(
+            poll(
+                &mut ready,
+                Some(&Timespec::try_from(Duration::from_secs(1))?)
+            )?,
+            1
+        );
+        assert!(ready[0].revents().contains(PollFlags::IN));
         let deadline = Instant::now();
         let error =
             accept_before(&listener, deadline).expect_err("deadline must reject queued peer");

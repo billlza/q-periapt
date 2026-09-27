@@ -5,7 +5,7 @@ import Foundation
 import Darwin
 import QPeriaptSDK
 
-enum ProbeError: Error { case usage, unexpectedResult, expectedFailureMissing }
+enum ProbeError: Error { case usage, unexpectedResult, expectedFailureMissing, controlUnavailable }
 
 @main
 @available(macOS 13.0, *)
@@ -33,6 +33,20 @@ struct ConnectionProbe {
         var data = try encoder.encode(value)
         data.append(0x0a)
         try FileHandle.standardOutput.write(contentsOf: data)
+    }
+
+    static func waitForObservedOperation() async throws {
+        // The local driver sends one byte only after Rust logs the actual TCP
+        // accept or authenticated request. A fixed sleep cannot establish that
+        // the operation started on a busy runner. Keep blocking pipe I/O off
+        // the executor running the connection task; the driver bounds the child.
+        let signal = try await Task.detached {
+            var descriptor = pollfd(fd: STDIN_FILENO, events: Int16(POLLIN), revents: 0)
+            guard Darwin.poll(&descriptor, 1, 2000) == 1,
+                  descriptor.revents & Int16(POLLIN) != 0 else { throw ProbeError.controlUnavailable }
+            return try FileHandle.standardInput.read(upToCount: 1)
+        }.value
+        guard signal == Data([0x0a]) else { throw ProbeError.unexpectedResult }
     }
 
     static func measure(_ client: QPeriaptClient, port: UInt16, serverName: String,
@@ -110,6 +124,9 @@ struct ConnectionProbe {
                 throw ProbeError.usage
             }
             reconnects = count
+        } else if ["cancel", "request-cancel", "runtime-revoke"].contains(scenario) {
+            guard arguments.count == 6, arguments[5] == "observed-io" else { throw ProbeError.usage }
+            reconnects = 0
         } else {
             guard arguments.count == 5 else { throw ProbeError.usage }
             reconnects = 0 // Only the explicit measurement scenario consumes this count.
@@ -191,7 +208,8 @@ struct ConnectionProbe {
             // connection before the task completes, including a silent peer.
             for _ in 0..<2 {
                 let task = Task { try await client.connect(host: "127.0.0.1", port: port, serverName: serverName) }
-                try await Task.sleep(nanoseconds: 40_000_000)
+                defer { task.cancel() }
+                try await waitForObservedOperation()
                 task.cancel()
                 do {
                     let unexpected = try await task.value
@@ -209,7 +227,8 @@ struct ConnectionProbe {
         case "request-cancel", "runtime-revoke":
             let connection = try await client.connect(host: "127.0.0.1", port: port, serverName: serverName)
             let task = Task { try await connection.request([9]) }
-            try await Task.sleep(nanoseconds: 40_000_000)
+            defer { task.cancel() }
+            try await waitForObservedOperation()
             if scenario == "request-cancel" { task.cancel() }
             else { try await store.close() }
             do {

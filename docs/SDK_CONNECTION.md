@@ -100,11 +100,17 @@ Swift serializes complete operations with an actor. A second request receives
 resumes the pending continuation once, and releases the native connection before
 the task returns. Native calls are bounded and synchronous; storage remains
 borrowed until each finishes. Endpoint/runtime close revokes subsequent native
-operations; pending Network I/O observes this on the next call, no later than
-its admitted deadline. Swift child wrappers retain parent owner storage.
+operations. While establishment or request I/O is pending, Swift rechecks
+native state on a 100 ms timer so a silent peer cannot defer revocation until
+the request deadline. Scheduling can delay a tick; this is not a hard real-time
+latency guarantee. Each operation retains its original absolute deadline, idle
+connections do not poll, and bytes already queued to TCP cannot be recalled.
+Swift child wrappers retain parent owner storage.
 
 `shutdown()` queues and drains TLS `close_notify` when no request is active;
-`close()` immediately aborts, including an active request. Bare TCP EOF is not
+`close()` immediately aborts, including an active request. The final
+`close_notify` write retains its deadline without polling the native engine,
+which may already have closed when the adapter drained that record. Bare TCP EOF is not
 an empty successful response. There is no silent reconnect, replay or downgrade.
 After failure the caller explicitly creates a new connection.
 
@@ -158,6 +164,10 @@ Use a fresh output path. The driver freezes the Rust and Swift executables and
 the ABI 2 dylib, requires dyld to report that exact library, and checks hashes
 after execution. It retains failures and reaps its children. Test keys remain
 in the private fixture directory and are excluded from evidence uploads.
+Cancellation is triggered only after the server reports the actual TCP accept
+or authenticated request, using bounded control input to the client. The
+request-timeout, request-cancellation and runtime-revocation peers wait silently
+for closure; a delayed reply cannot mask a missing revocation check.
 
 The first nine real TCP scenarios pass locally on macOS ARM64: first/reconnect with
 empty/1-byte/64-KiB messages; busy rejection without disrupting the first request;
@@ -171,6 +181,8 @@ successful fresh connections. Native tests separately cover fragmentation, lengt
 attacks, replay across fresh TLS sessions, duplicate confirmation, missing ALPN
 or confirmation, and a reissued certificate with the same public key.
 
-These results do not qualify Linux, installed packages, mobile devices, external
-security review or performance. The CI step is
-declared but has not run on a hosted runner. See the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
+These local results do not qualify Linux, installed packages, mobile devices,
+external security review or performance. Hosted macOS installed-package checks
+passed at `4349c6aebbc18cac971a5ceff31cee7d3c6fb307`; the subsequent silent-peer
+revocation repair requires its own package qualification. See the
+[readiness ledger](SDK_0_2_RELEASE_READINESS.md) for the source-specific receipts.

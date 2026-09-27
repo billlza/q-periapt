@@ -34,13 +34,15 @@ def read_log(path: Path) -> bytes:
 
 
 class Peer:
-    def __init__(self, command: list[str], output: Path, name: str, records: list[dict]):
+    def __init__(self, command: list[str], output: Path, name: str, records: list[dict],
+                 *, environment: dict[str, str] | None = None, control_input: bool = False):
         self.stdout = output / f"{name}.stdout"
         self.stderr = output / f"{name}.stderr"
         self.record = {"command": command, "name": name, "returncode": None}
         records.append(self.record)
         with self.stdout.open("xb") as stdout, self.stderr.open("xb") as stderr:
-            self.process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr)
+            self.process = subprocess.Popen(command, stdin=subprocess.PIPE if control_input else subprocess.DEVNULL,
+                                            stdout=stdout, stderr=stderr, env=environment, bufsize=0)
 
     def ready(self, prefix: bytes) -> str:
         deadline = time.monotonic() + 10
@@ -70,6 +72,8 @@ class Peer:
                 self.process.kill()
                 self.process.wait(timeout=2)
         self.record["returncode"] = self.process.returncode
+        if self.process.stdin is not None:
+            self.process.stdin.close()
 
 
 def run(command: list[str], output: Path, name: str, records: list[dict], data: bytes | None = None,

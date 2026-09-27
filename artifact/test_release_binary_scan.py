@@ -347,6 +347,22 @@ class ReleaseBinaryScanTests(unittest.TestCase):
             self.assertEqual(stderr.getvalue(), "")
             self.assertNotIn(temporary, stdout.getvalue())
 
+    def test_redacted_windows_findings_identify_nested_roots_without_exposing_them(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "library.bin"
+            path.write_bytes(br"prefix C:\Users\private-user\cache\source.c" + b"\0")
+            arguments = ["release_binary_scan.py", "--redact-paths", str(path),
+                         "--forbid-windows-path", r"C:\Users\private-user",
+                         "--forbid-windows-path", r"C:\Users\private-user\cache"]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 1)
+            report = json.loads(stderr.getvalue())
+            self.assertEqual(report["matched_windows_paths"], [
+                {"index": 0, "byte_offset": 7}, {"index": 1, "byte_offset": 7}])
+            self.assertNotIn("private-user", stderr.getvalue())
+            self.assertNotIn("source.c", stderr.getvalue())
+
     def test_credentials_are_rejected_in_both_utf16_encodings_and_alignments(self) -> None:
         cases = {
             "utf16le-even": (

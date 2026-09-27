@@ -19,10 +19,16 @@ actor NetworkTransport {
     }
     private struct Pending {
         let id: UInt64
+        let deadline: UInt64
         let continuation: CheckedContinuation<Event, Error>
     }
 
     private let connection: NWConnection
+    private let checkNativeState: @Sendable () throws -> Void
+    // Only pending I/O polls native revocation. Idle connections do not wake,
+    // and I/O finishing before the first tick adds no native calls. Preserve
+    // the original absolute deadline even if the native phase later changes.
+    private static let stateCheckInterval: UInt64 = 100_000_000
     private let queue = DispatchQueue(label: "dev.qperiapt.connection")
     private var started = false
     private var nextID: UInt64 = 1
@@ -30,7 +36,8 @@ actor NetworkTransport {
     private var timer: Task<Void, Never>?
     private var failure: Error?
 
-    init(host: String, port: NWEndpoint.Port) {
+    init(host: String, port: NWEndpoint.Port, checkNativeState: @escaping @Sendable () throws -> Void) {
+        self.checkNativeState = checkNativeState
         connection = NWConnection(host: NWEndpoint.Host(host), port: port,
                                   using: NWParameters(tls: nil, tcp: NWProtocolTCP.Options()))
     }
@@ -46,8 +53,9 @@ actor NetworkTransport {
         }
     }
 
-    func send(_ data: Data, milliseconds: UInt32) async throws {
-        guard case .sent = try await perform(.send(data), milliseconds: milliseconds) else {
+    func send(_ data: Data, milliseconds: UInt32, checkingNativeState: Bool = true) async throws {
+        guard case .sent = try await perform(.send(data), milliseconds: milliseconds,
+                                             checkingNativeState: checkingNativeState) else {
             throw QPeriaptSDKError(operation: "TCP send contract", code: Q_PERIAPT_ERR_INTERNAL)
         }
     }
@@ -61,7 +69,8 @@ actor NetworkTransport {
 
     func abort() { fail(CancellationError()) }
 
-    private func perform(_ operation: Operation, milliseconds: UInt32) async throws -> Event {
+    private func perform(_ operation: Operation, milliseconds: UInt32,
+                         checkingNativeState: Bool = true) async throws -> Event {
         try Task.checkCancellation()
         let event: Event = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Event, Error>) in
@@ -77,12 +86,24 @@ actor NetworkTransport {
                 }
                 let id = nextID
                 nextID = followingID
-                pending = Pending(id: id, continuation: continuation)
+                let budget = UInt64(milliseconds) * 1_000_000
+                let (deadline, deadlineOverflow) = DispatchTime.now().uptimeNanoseconds.addingReportingOverflow(budget)
+                guard !deadlineOverflow else {
+                    continuation.resume(throwing: QPeriaptSDKError(operation: "TCP deadline range", code: Q_PERIAPT_ERR_LIMITS))
+                    return
+                }
+                pending = Pending(id: id, deadline: deadline, continuation: continuation)
                 timer = Task { [weak self] in
-                    do { try await Task.sleep(nanoseconds: UInt64(milliseconds) * 1_000_000) }
+                    do {
+                        var delay = checkingNativeState ? min(budget, Self.stateCheckInterval) : budget
+                        while true {
+                            try await Task.sleep(nanoseconds: delay)
+                            guard let next = await self?.timerTick(id: id, checkingNativeState: checkingNativeState) else { return }
+                            delay = next
+                        }
+                    }
                     catch is CancellationError { return }
                     catch { await self?.timerFailed(id: id, error: error); return }
-                    await self?.timedOut(id: id)
                 }
                 switch operation {
                 case .start:
@@ -140,9 +161,19 @@ actor NetworkTransport {
         succeed(id: id, event: .received(data, endOfInput: complete))
     }
 
-    private func timedOut(id: UInt64) {
-        guard pending?.id == id else { return }
-        fail(QPeriaptSDKError(operation: "connection deadline", code: Q_PERIAPT_ERR_TIMEOUT))
+    private func timerTick(id: UInt64, checkingNativeState: Bool) -> UInt64? {
+        guard let operation = pending, operation.id == id else { return nil }
+        if checkingNativeState {
+            do { try checkNativeState() }
+            catch { fail(error); return nil }
+        }
+        let now = DispatchTime.now().uptimeNanoseconds
+        guard now < operation.deadline else {
+            fail(QPeriaptSDKError(operation: "connection deadline", code: Q_PERIAPT_ERR_TIMEOUT))
+            return nil
+        }
+        let remaining = operation.deadline - now
+        return checkingNativeState ? min(remaining, Self.stateCheckInterval) : remaining
     }
 
     private func timerFailed(id: UInt64, error: Error) {

@@ -3,12 +3,55 @@ import hashlib
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from evidence_io import EvidenceIOError
 import standard_tls_interop as interop
+from sdk_connection_interop import run_controlled_client
+
+
+class ControlObservationTests(unittest.TestCase):
+    def command(self, code):
+        return [sys.executable, "-I", "-S", "-c", code]
+
+    def test_two_exact_observations_authorize_two_pipe_signals(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            records = []
+            server = interop.Peer(self.command(
+                "import time; print('ACCEPTED 1',flush=True); time.sleep(.05); "
+                "print('ACCEPTED 2',flush=True); time.sleep(5)"), output, "server", records)
+            try:
+                client = self.command("import os; "
+                    "first=os.read(0,1); second=os.read(0,1); "
+                    "raise SystemExit(0 if first==second==b'\\n' else 1)")
+                self.assertEqual(run_controlled_client(client, output, "client", records, server,
+                    (b"ACCEPTED 1", b"ACCEPTED 2"), dict(os.environ)), 0)
+                self.assertEqual(records[-1]["control_observations"], ["ACCEPTED 1", "ACCEPTED 2"])
+                self.assertEqual(records[-1]["returncode"], 0)
+            finally:
+                server.close()
+
+    def test_similar_marker_never_grants_control_and_children_are_reaped(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            records = []
+            server = interop.Peer(self.command(
+                "import time; print('ACCEPTED 10',flush=True); time.sleep(5)"),
+                output, "server", records)
+            try:
+                client = self.command("import os; os.read(0,1); print('WRONGLY_GRANTED',flush=True)")
+                with self.assertRaises(TimeoutError):
+                    run_controlled_client(client, output, "client", records, server,
+                                          (b"ACCEPTED 1",), dict(os.environ))
+                self.assertEqual(records[-1]["control_observations"], [])
+                self.assertIsNotNone(records[-1]["returncode"])
+                self.assertNotIn(b"WRONGLY_GRANTED", (output / "client.stdout").read_bytes())
+            finally:
+                server.close()
 
 
 class PeerSnapshotTests(unittest.TestCase):

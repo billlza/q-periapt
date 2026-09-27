@@ -26,11 +26,13 @@ class ReleaseBinaryScanError(ValueError):
 class ReleaseBinaryFinding(ReleaseBinaryScanError):
     """A finding whose category/offset can be reported without private bytes."""
 
-    def __init__(self, label: str, offset: int, path: pathlib.Path, sha256: str) -> None:
+    def __init__(self, label: str, offset: int, path: pathlib.Path, sha256: str,
+                 windows_path_matches: tuple[tuple[int, int], ...] = ()) -> None:
         super().__init__(f"release binary contains {label} at byte offset {offset}: {path}")
         self.label = label
         self.offset = offset
         self.sha256 = sha256
+        self.windows_path_matches = windows_path_matches
 
 
 @dataclass(frozen=True, slots=True)
@@ -446,6 +448,7 @@ def scan_release_file(
     forbidden_text: Iterable[str] = (),
     forbidden_windows_paths: Iterable[str] = (),
     maximum: int = MAX_RELEASE_FILE_BYTES,
+    collect_windows_matches: bool = False,
 ) -> ScanResult:
     """Scan the exact regular-file snapshot used for the returned digest."""
 
@@ -469,12 +472,20 @@ def scan_release_file(
         if offset is not None:
             raise ReleaseBinaryFinding(label, offset, snapshot.path, snapshot.sha256)
 
+    windows_matches = []
     for index, text in enumerate(forbidden_windows_paths):
         normalized = _normalize_forbidden_windows_path(text, index)
         offset = _find_windows_path(snapshot.data, normalized)
         if offset is not None:
+            if collect_windows_matches:
+                windows_matches.append((index, offset))
+                continue
             raise ReleaseBinaryFinding(f"caller-forbidden Windows path {index}", offset,
                                        snapshot.path, snapshot.sha256)
+    if windows_matches:
+        index, offset = windows_matches[0]
+        raise ReleaseBinaryFinding(f"caller-forbidden Windows path {index}", offset,
+                                   snapshot.path, snapshot.sha256, tuple(windows_matches))
 
     sensitive = _first_sensitive_match(snapshot.data)
     if sensitive is not None:
@@ -531,6 +542,7 @@ def main() -> int:
                 path,
                 forbidden_text=args.forbid_text,
                 forbidden_windows_paths=args.forbid_windows_path,
+                collect_windows_matches=args.redact_paths,
             ))
     except ReleaseBinaryScanError as exc:
         if args.redact_paths:
@@ -540,6 +552,9 @@ def main() -> int:
                           "reason": "scan-input-rejected"}
             if isinstance(exc, ReleaseBinaryFinding):
                 diagnostic.update(reason=exc.label, byte_offset=exc.offset, sha256=exc.sha256)
+                if exc.windows_path_matches:
+                    diagnostic["matched_windows_paths"] = [
+                        {"index": index, "byte_offset": offset} for index, offset in exc.windows_path_matches]
             print(json.dumps(diagnostic, sort_keys=True, separators=(",", ":")), file=sys.stderr)
             return 1
         raise SystemExit(f"error: {exc}") from exc

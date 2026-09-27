@@ -1196,7 +1196,7 @@ observe_installed_package_sample() {
 		retryable:*)
 			ownership_reason=${ownership_result#retryable:}
 			case "$ownership_reason" in
-				package-unavailable | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
+				package-unavailable | transport-absent | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
 				*)
 					printf 'error: Android package ownership observation returned a malformed retry reason\n' >&2
 					remove_installed_apk_copy || return 2
@@ -1257,12 +1257,15 @@ observe_owned_installed_package() {
 				ownership_transport_recovery_eligible=0
 				if [ "$ownership_phase" = "postinstall" ] && \
 					[ "$ownership_invocation" = "1" ] && \
-					[ "$OWNERSHIP_SAMPLE_RETRY_REASON" = "package-unavailable" ] && \
-					[ "$ownership_consecutive_exact" -eq 1 ] && \
 					[ "$ANDROID_BOOT_AVD" = "1" ] && [ "$DEVICE_KIND" = "emulator" ] && \
 					[ "$EMULATOR_STARTED" = "1" ] && \
 					[ "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" = "0" ]; then
-					ownership_transport_recovery_eligible=1
+					case "$OWNERSHIP_SAMPLE_RETRY_REASON:$ownership_consecutive_exact" in
+						# A missing transport is independently observed in the private
+						# ADB table; package-unavailable alone is not that evidence.
+						transport-absent:* | package-unavailable:1)
+							ownership_transport_recovery_eligible=1 ;;
+					esac
 				fi
 				ownership_consecutive_exact=0
 				ownership_previous_path_sha256=

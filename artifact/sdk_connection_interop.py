@@ -89,6 +89,30 @@ def verify_client_load(log: bytes, client: Path, library: Path, *, static: bool)
                 "dynamic client loaded another Q-Periapt library")
 
 
+def run_controlled_client(command: list[str], output: Path, name: str, records: list[dict],
+                          server: Peer, markers: tuple[bytes, ...], environment: dict[str, str]) -> int:
+    """Authorize cancellation/revocation only after the peer observes real I/O."""
+    client = Peer(command, output, name, records, environment=environment, control_input=True)
+    client.record["control_observations"] = []
+    try:
+        for marker in markers:
+            deadline = time.monotonic() + 2
+            while marker not in read_log(server.stdout).splitlines():
+                require(server.process.poll() is None and client.process.poll() is None,
+                        "peer exited before the controlled operation was observed")
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"peer observation deadline expired: {name}")
+                time.sleep(0.005)
+            require(server.process.poll() is None, "observed peer already exited before interruption")
+            require(client.process.stdin is not None, "diagnostic control pipe is missing")
+            require(client.process.stdin.write(b"\n") == 1, "diagnostic control write was incomplete")
+            client.record["control_observations"].append(marker.decode("ascii"))
+        client.process.stdin.close()
+        return client.finish()
+    finally:
+        client.close()
+
+
 def run_boundary(output: Path, *, swift: Path, server: Path, fixtures_binary: Path,
                  library: Path | None = None, static_linkage: StaticClientLinkage | None = None) -> dict:
     require(os.uname().sysname == "Darwin", "this boundary driver requires a native macOS Swift client")
@@ -129,9 +153,9 @@ def run_boundary(output: Path, *, swift: Path, server: Path, fixtures_binary: Pa
             ("concurrent", "delay", 1, "localhost"),
             ("timeout", "stall", 1, "localhost"),
             ("cancel", "stall", 2, "localhost"),
-            ("request-timeout", "delay", 1, "localhost"),
-            ("request-cancel", "delay", 1, "localhost"),
-            ("runtime-revoke", "delay", 1, "localhost"),
+            ("request-timeout", "hold", 1, "localhost"),
+            ("request-cancel", "hold", 1, "localhost"),
+            ("runtime-revoke", "hold", 1, "localhost"),
             ("mismatch", "mismatch", 1, "localhost"),
             ("hostname", "echo", 1, "wrong.test"),
         ]):
@@ -141,9 +165,15 @@ def run_boundary(output: Path, *, swift: Path, server: Path, fixtures_binary: Pa
             try:
                 address = server.ready(b"LISTEN")
                 started = time.monotonic()
-                status = run([str(frozen["client"]), str(fixtures), address.rsplit(":", 1)[1], case, hostname,
-                              "provision" if index == 0 else "open"],
-                             output, case + "-swift", records, environment=environment)
+                command = [str(frozen["client"]), str(fixtures), address.rsplit(":", 1)[1], case, hostname,
+                           "provision" if index == 0 else "open"]
+                markers = {"cancel": (b"ACCEPTED 1", b"ACCEPTED 2"),
+                           "request-cancel": (b"REQUEST 1 1",), "runtime-revoke": (b"REQUEST 1 1",)}
+                if case in markers:
+                    status = run_controlled_client([*command, "observed-io"], output, case + "-swift", records,
+                                                   server, markers[case], environment)
+                else:
+                    status = run(command, output, case + "-swift", records, environment=environment)
                 elapsed = time.monotonic() - started
                 server_status = server.finish()
                 require(status == 0, f"Swift boundary case failed: {case}")

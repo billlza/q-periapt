@@ -129,3 +129,39 @@ try {
     }
 }
 Write-Host "WINDOWS_SDK_CACHE_REMAP_BOUNDARY_PASS"
+
+# Preprocessor-output fixtures check rejection and redaction only. The real
+# package build runs this same probe with its pinned MSVC and both source roots.
+foreach ($name in @("Assert-SdkCPathRemapping", "Write-Utf8File")) {
+    $definitions = @($ast.FindAll({ param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name
+    }, $true))
+    if ($definitions.Count -ne 1) { throw "production remap probe is ambiguous" }
+    Invoke-Expression $definitions[0].Extent.Text
+}
+function Get-TrimmedOutput {
+    param([string] $FilePath, [string[]] $Arguments)
+    if ($FilePath -cne "fixture-compiler" -or $Arguments[0] -cne "/nologo" -or $Arguments[1] -cne "/EP") {
+        throw "path remap probe did not invoke the expected preprocessing boundary"
+    }
+    return $script:preprocessorOutput
+}
+$fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("qperiapt-sdk-c-remap-test-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+    New-Item -ItemType Directory -Path $fixtureRoot | Out-Null
+    foreach ($script:preprocessorOutput in @('null', '42', '[]', '"C:\\private-fixture\\source.c"', '"qperiapt-source-extra\\source.c"')) {
+        $rejected = $false
+        try {
+            Assert-SdkCPathRemapping -Compiler "fixture-compiler" -Flags @("/WX") `
+                -OutputDirectory $fixtureRoot -CargoDirectory $fixtureRoot
+        } catch {
+            if ($_.Exception.Message.Contains("private-fixture") -or
+                -not $_.Exception.Message.Contains("path remapping did not affect __FILE__")) { throw }
+            $rejected = $true
+        }
+        if (-not $rejected) { throw "unmapped/non-string compiler filename was accepted" }
+    }
+} finally {
+    Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
+}
+Write-Host "WINDOWS_SDK_C_REMAP_REJECTION_FIXTURES_PASS"

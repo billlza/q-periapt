@@ -381,6 +381,29 @@ function New-SdkCargoHome {
     return $privateCache
 }
 
+function Assert-SdkCPathRemapping {
+    param(
+        [Parameter(Mandatory)] [string] $Compiler,
+        [Parameter(Mandatory)] [string[]] $Flags,
+        [Parameter(Mandatory)] [string] $OutputDirectory,
+        [Parameter(Mandatory)] [string] $CargoDirectory
+    )
+    foreach ($probe in @(
+        @{ Scope = "source"; Directory = $OutputDirectory; Prefix = "qperiapt-source" },
+        @{ Scope = "cargo"; Directory = $CargoDirectory; Prefix = "qperiapt-cargo-home" }
+    )) {
+        $path = Join-Path $probe.Directory "qperiapt-pathmap-probe.c"
+        Write-Utf8File -Path $path -Content "__FILE__`n"
+        $literal = Get-TrimmedOutput -FilePath $Compiler -Arguments (@("/nologo", "/EP") + $Flags + @($path))
+        try { $mappedPath = ConvertFrom-Json -InputObject $literal -NoEnumerate }
+        catch { throw "MSVC path remap probe emitted noncanonical preprocessing output" }
+        $mapped = $mappedPath -is [string] -and $mappedPath.Replace('/', '\').StartsWith(
+            $probe.Prefix + '\', [System.StringComparison]::Ordinal)
+        Write-Host "WINDOWS_SDK_C_PATHMAP scope=$($probe.Scope) mapped=$mapped"
+        if (-not $mapped) { throw "MSVC $($probe.Scope) path remapping did not affect __FILE__" }
+    }
+}
+
 function New-EncodedReleaseRustFlags {
     param(
         [Parameter(Mandatory)] [string] $SourceRoot,
@@ -1733,6 +1756,11 @@ $targetCompilerEnvironment = @{
     "CC_x86_64_pc_windows_msvc" = $Cl
 }
 if ($Profile -eq "sdk-alpha1") {
+    $sdkCompilerArguments = [string[]] @(
+        "/experimental:deterministic", "/WX",
+        "/pathmap:$Root=qperiapt-source", "/pathmap:$CargoHome=qperiapt-cargo-home"
+    )
+    $sdkCompilerFlags = ($sdkCompilerArguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
     # AWS-LC is a private static dependency of this DLL. Its bundled jitter
     # header declares dllexport even for static builds. Remove only that
     # storage-class modifier in AWS-LC's x64 MSVC compilation; dllimport,
@@ -1740,7 +1768,7 @@ if ($Profile -eq "sdk-alpha1") {
     # Rust's 43 public exports are unaffected. The final export gate is exact.
     $targetCompilerEnvironment["AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc"] = "1"
     $targetCompilerEnvironment["AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc"] = "0"
-    $targetCompilerEnvironment["AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc"] = '/experimental:deterministic /WX /Ddllexport= "/pathmap:' + $Root + '=qperiapt-source" "/pathmap:' + $CargoHome + '=qperiapt-cargo-home"'
+    $targetCompilerEnvironment["AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc"] = $sdkCompilerFlags + ' /Ddllexport='
 }
 $savedTargetCompilerEnvironment = @{}
 foreach ($name in $targetCompilerEnvironment.Keys) {
@@ -1765,7 +1793,9 @@ try {
     $env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"
     if ($Profile -eq "sdk-alpha1") {
         $env:CC_SHELL_ESCAPED_FLAGS = "1"
-        $env:CFLAGS = '/experimental:deterministic /WX "/pathmap:' + $Root + '=qperiapt-source" "/pathmap:' + $CargoHome + '=qperiapt-cargo-home"'
+        $env:CFLAGS = $sdkCompilerFlags
+        Assert-SdkCPathRemapping -Compiler $Cl -Flags $sdkCompilerArguments `
+            -OutputDirectory $OutRoot -CargoDirectory $CargoHome
         Invoke-Checked -FilePath "cargo.exe" -Arguments @("+1.97.0", "fetch", "--locked")
         $env:CARGO_NET_OFFLINE = "true"
     }
@@ -1907,6 +1937,19 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
     }
 }
 $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
+if ($Profile -eq "sdk-alpha1") {
+    foreach ($known in @(
+        @{ Kind = "source"; Value = $Root }, @{ Kind = "cargo"; Value = $CargoHome },
+        @{ Kind = "rust-sysroot"; Value = $RustSysroot }
+    )) {
+        $knownPath = $known.Value.Replace('/', '\').TrimEnd([char[]] @('\', '/'))
+        $indices = @(for ($index = 0; $index -lt $ProducerRoots.Count; $index++) {
+            if ([string]::Equals($ProducerRoots[$index], $knownPath, [System.StringComparison]::OrdinalIgnoreCase)) { $index }
+        })
+        if ($indices.Count -ne 1) { throw "producer scan root index is missing or ambiguous" }
+        Write-Host "WINDOWS_RELEASE_ROOT_INDEX kind=$($known.Kind) index=$($indices[0])"
+    }
+}
 [void] $compilerRootScanArguments.Add("artifact/release_binary_scan.py")
 [void] $compilerRootScanArguments.Add("--redact-paths")
 foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {

@@ -123,6 +123,7 @@ class InstalledApkRetryReason(str, enum.Enum):
     """Safe shell-facing reasons for an inconclusive installed-APK observation."""
 
     PACKAGE_UNAVAILABLE = "package-unavailable"
+    TRANSPORT_ABSENT = "transport-absent"
     PULL_FAILED = "pull-failed"
     PATH_CHANGED = "path-changed"
     BYTES_MISMATCH = "bytes-mismatch"
@@ -3328,6 +3329,21 @@ def _capture_installed_apk_path(
     return result, _parse_remote_base_apk_output(result.stdout)
 
 
+def _package_unavailable_observation(
+    capability: runtime_state.AndroidCommandCapability, *, deadline: float,
+) -> BoundedResult:
+    """Keep package absence distinct from an observed missing emulator transport."""
+    timeout = _remaining_observation_timeout(deadline)
+    reason = InstalledApkRetryReason.PACKAGE_UNAVAILABLE
+    if timeout is None:
+        reason = InstalledApkRetryReason.DEADLINE_EXHAUSTED
+    elif capability.device_kind == "emulator" and _observe_expected_transport(
+        capability, timeout_seconds=timeout
+    ) is ExpectedTransportState.ABSENT:
+        reason = InstalledApkRetryReason.TRANSPORT_ABSENT
+    return BoundedResult(0, f"retryable:{reason.value}\n".encode("ascii"))
+
+
 def _observe_installed_apk(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidCommandCapability,
@@ -3350,12 +3366,7 @@ def _observe_installed_apk(
         capability, timeout_seconds=before_timeout
     )
     if before_result.returncode != 0 or before_path is None:
-        return BoundedResult(
-            0,
-            f"retryable:{InstalledApkRetryReason.PACKAGE_UNAVAILABLE.value}\n".encode(
-                "ascii"
-            ),
-        )
+        return _package_unavailable_observation(capability, deadline=deadline)
 
     pull_timeout = _remaining_observation_timeout(deadline)
     if pull_timeout is None:
@@ -3413,12 +3424,7 @@ def _observe_installed_apk(
     )
     if after_result.returncode != 0 or after_path is None:
         _remove_installed_apk_copy(layout)
-        return BoundedResult(
-            0,
-            f"retryable:{InstalledApkRetryReason.PACKAGE_UNAVAILABLE.value}\n".encode(
-                "ascii"
-            ),
-        )
+        return _package_unavailable_observation(capability, deadline=deadline)
     if after_path != before_path:
         _remove_installed_apk_copy(layout)
         return BoundedResult(

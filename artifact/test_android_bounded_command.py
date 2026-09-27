@@ -3379,6 +3379,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         copied_bytes: bytes | None = None,
         pull_result: BoundedResult = BoundedResult(0),
         timeout_seconds: int = 30,
+        transport_state: commands.ExpectedTransportState = commands.ExpectedTransportState.DEVICE,
     ) -> tuple[BoundedResult, mock.Mock, mock.Mock]:
         path_capture = mock.Mock(side_effect=path_results)
 
@@ -3397,6 +3398,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands, "capture_stdout", path_capture),
             mock.patch.object(commands, "write_stdout_at", write),
             mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_observe_expected_transport", return_value=transport_state),
         ):
             result = commands.invoke_operation(
                 commands.AndroidOperation.OBSERVE_INSTALLED_APK,
@@ -3456,6 +3458,20 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         capture.assert_called_once()
         write.assert_called_once()
         self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_retry_distinguishes_proven_transport_absence_from_other_failures(self) -> None:
+        for kind, serial in (("emulator", "emulator-5584"), ("physical", "SERIAL123")):
+            self.create_capability(device_kind=kind, expected_serial=serial)
+            for state in commands.ExpectedTransportState:
+                with self.subTest(kind=kind, state=state):
+                    result, capture, write = self._invoke_installed_apk_observation(
+                        path_results=[BoundedResult(1, b"path command failed\n")],
+                        transport_state=state)
+                    absent_emulator = kind == "emulator" and state is commands.ExpectedTransportState.ABSENT
+                    expected = b"transport-absent" if absent_emulator else b"package-unavailable"
+                    self.assertEqual(result, BoundedResult(0, b"retryable:" + expected + b"\n"))
+                    capture.assert_called_once()
+                    write.assert_not_called()
 
     def test_installed_apk_observation_retries_only_bounded_timeouts(self) -> None:
         with (

@@ -14,7 +14,8 @@ extension QPeriaptClient {
         }
         try Task.checkCancellation()
         let engine = try engine(serverName: serverName)
-        let connection = QPeriaptConnection(engine: engine, transport: NetworkTransport(host: host, port: port))
+        let connection = QPeriaptConnection(engine: engine,
+            transport: NetworkTransport(host: host, port: port, checkNativeState: { _ = try engine.progress() }))
         try await connection.establish()
         return connection
     }
@@ -94,7 +95,11 @@ public actor QPeriaptConnection {
                     throw QPeriaptSDKError(operation: "TLS shutdown progress", code: Q_PERIAPT_ERR_INTERNAL)
                 }
                 let output = try engine.drain()
-                try await transport.send(Data(output), milliseconds: progress.remainingMilliseconds)
+                // Draining close_notify can close the native engine before TCP
+                // finishes writing it. This final flush keeps its original
+                // deadline without treating that expected closure as revocation.
+                try await transport.send(Data(output), milliseconds: progress.remainingMilliseconds,
+                                         checkingNativeState: false)
                 drained = true
             }
             try await close()

@@ -4676,6 +4676,23 @@ fi
                     files["adb-package-state-observation.log"].decode("ascii"),
                 )
 
+    def test_missing_owned_transport_can_recover_before_first_exact_without_granting_ownership(self) -> None:
+        path = "a" * 64
+        for owned in (False, True):
+            with self.subTest(owned=owned):
+                result, files, count, signer_count = self._run_installed_package_ownership_observation(
+                    ("retryable:transport-absent", f"exact:{path}", f"exact:{path}"),
+                    transport_recovery_outcomes=("recovered",), boot_owned_emulator=owned)
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                self.assertEqual(count, 3)
+                self.assertEqual(signer_count, 1)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"1\n" if owned else b"0\n")
+                journal = files["adb-package-state-observation.log"].decode()
+                self.assertIn(f"path_sha256={path} consecutive=1", journal)
+                self.assertIn(f"path_sha256={path} consecutive=2", journal)
+                if owned:
+                    self.assertLess(journal.index("transport-recovery=recovered"), journal.index("state=exact"))
+
     def test_postinstall_transport_recovery_never_masks_integrity_retries(
         self,
     ) -> None:
