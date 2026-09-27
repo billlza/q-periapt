@@ -87,5 +87,5 @@ The new Ubuntu 26.04 CI job declares these checks against its OpenSSL 3.5 provid
 hosted execution has not occurred. This remains source/local interoperability
 evidence. Installed package verification, Linux/device execution, dependency
 and CBOM profiles for the AWS-LC path, durable host policy state,
-the Swift/macOS-to-Rust/Linux reference connection and final external review
+and the Swift/macOS-to-Rust/Linux reference connection
 remain in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).

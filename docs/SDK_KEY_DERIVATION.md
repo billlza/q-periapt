@@ -90,7 +90,7 @@ Tests cover the RFC 5869 Appendix A.1 first block, independent Python-HMAC
 framing bytes, every purpose, policy/root/context separation, input boundaries,
 resource admission, type confusion and revocation. Real host C, Swift, JVM,
 JNI and Node consumers exercise the Rust implementation. Android ART, hosted
-CI, current installed packages, binary CT and external security review remain
+CI, current installed packages and binary CT remain
 separate release gates in [the readiness ledger](SDK_0_2_RELEASE_READINESS.md).
 
 The framing vector uses public test-only material: IKM=`07` repeated 32 times,

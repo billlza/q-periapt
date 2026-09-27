@@ -15,12 +15,11 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 > standardized/ecosystem primitives (ML-KEM, X25519, ML-DSA, SLH-DSA) through
 > third-party backends. The known-leaky, unmaintained PQClean-HQC adapter has been
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
-> in a `publish = false` shadow crate with no suite code or ABI. It has **no third-party audit**, and
-> the release graph depends on the target-selected `q-periapt-mlkem-native-sys`
+> in a `publish = false` shadow crate with no suite code or ABI. The release
+> graph depends on the target-selected `q-periapt-mlkem-native-sys`
 > boundary over vendored `mlkem-native` v1.2.0 plus pinned pre-1.0 backends
-> (`fips204` 0.4.6 and `sha3` 0.10.9) that have not been independently audited for
-> this integration. **Do not
-> deploy.** The value proposition is *not* primitive or speed superiority — it is
+> (`fips204` 0.4.6 and `sha3` 0.10.9). **Do not deploy.** The value proposition is
+> *not* primitive or speed superiority — it is
 > auditable composition, crypto-agility, side-channel CI, machine-checked binding
 > proofs, deterministic byte identity in the explicitly tested conformance cells,
 > and fail-closed semantic parity in the native product cells.

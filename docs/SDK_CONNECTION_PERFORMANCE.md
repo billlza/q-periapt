@@ -218,7 +218,7 @@ strict example/test Clippy, formatting and 57 affected artifact checks pass.
 The changed Swift job lints; full old/new workflows retain the existing Ubuntu
 26.04 actionlint catalogue error. No diagnostic is suppressed and no hosted CI
 result is inferred. Full source freeze, regenerated packages, native platform
-and device execution, controlled performance/CT and independent review remain
+and device execution, and controlled performance/CT remain
 required for release.
 
 ## Fresh source build after space recovery (2026-09-26)
@@ -243,7 +243,7 @@ Reconnect P50/P95/P99 block medians are 1.092/1.449/2.056 ms; all block P99s spa
 This fresh capture is descriptive and does not replace the preceding paired
 comparison or establish controlled tail non-regression. The accompanying full
 artifact suite passes 2,219 tests in 496.991 seconds. Native Linux, installed
-final packages, devices, controlled performance/CT, hosted CI and external review
+final packages, devices, controlled performance/CT and hosted CI
 remain separate release requirements.
 
 ## Installed-package connection baseline (2026-09-27)

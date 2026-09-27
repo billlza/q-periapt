@@ -8,8 +8,9 @@ current-source evidence. The user's latest direction is **retain ABI major 2**.
 The current release quality gates are internal review of cryptographic
 boundaries, ownership/error paths, code quality and maintainability, together
 with source-bound tests, platform execution and the release transaction.
-The current requirements table governs this release; historical checkpoints
-below retain the criteria and observations recorded at their time. The
+The current requirements table governs this release. Checkpoints below retain
+source identities and observed outcomes; their release-gate references follow
+the current requirements. The
 [internal implementation review](SDK_INTERNAL_REVIEW.md) records inspected
 contracts, validation and remaining code-review boundaries.
 
@@ -70,6 +71,14 @@ was previously ignored. A real child-process regression confirms capture and
 the shared output limit, retaining the previous file when the limit fails.
 These transport/diagnostic corrections do not establish why Instrumentation
 returned no output; the next hosted execution must still supply that evidence.
+The `712072a` implementation passes all 2,276 local artifact tests in 487.117
+seconds without skips, with warnings treated as errors and pre/post source
+gates. Its 196 affected tests include real PTY and child-process regressions.
+The preceding `47e7fcc` hosted cohort finishes 36 of 37 CI jobs, with only the
+API 23 runtime failing, and completes all six CodeQL analyses. Its 41 open
+alert IDs/rules are unchanged and all thirteen reported location files match
+the previously reviewed `99fb979` source. New-source hosted qualification is
+still required for the transport corrections.
 
 The first complete local run at `99fb979` executes 2,271 tests and identifies two
 integration failures: the isolated remote-consumer source list omits the new
@@ -182,7 +191,7 @@ retirement and export replay on the API 35 / 16 KiB / x86_64 emulator. The
 analysis binds merge `b0b6da0b235abf5028a0d5a0460bfedc3485c5cb`, whose tree equals
 that source head. Its 41 open alerts have the same IDs/rules as the preceding
 analysis; none were dismissed. These results retain their source scope and do
-not qualify the later example changes below or close independent review.
+not qualify the later example changes below.
 
 The reference examples now expose explicit transport addresses: Rust accepts
 `--listen IP:PORT` and Swift accepts `--host HOST`, while retaining loopback
@@ -448,7 +457,7 @@ byte offset and root index. It does not yet identify a repaired Windows package.
 All six [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36315599181)
 completed with 18 open alerts on `refs/pull/111/merge`, without dismissals or
 suppressed rules. Source/data-flow review is recorded separately from analysis
-completion and does not replace independent security review.
+completion, including each finding's reachable path and applicable trust boundary.
 
 Hosted Swift qualification passed at `4349c6aebbc18cac971a5ceff31cee7d3c6fb307`,
 but the next cohort exposed a cancellation diagnostic that assumed TCP accept
@@ -483,7 +492,7 @@ but its evidence verifier correctly refused the missing log marker; this is not
 completed ART qualification. The subsequent fixes require another native run.
 All six [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36312252921)
 completed, with 19 open alerts requiring review. Analysis completion is not a
-zero-finding or external-security-review result.
+zero-finding result.
 
 The diagnostic input review also reproduced a blocking FIFO read in
 `standard_tls_interop.py`. Identity and executable sealing now use the existing
@@ -652,7 +661,7 @@ JVM tests, eight actual host-JNI scenarios and the Node product/entropy-failure
 checks pass. The JNI fault boundary covers 193 legacy and 80 SDK cases. Four NDK
 JNI objects and GNU Linux candidate tests compile; macOS/Linux dynamic export
 sets match all 26 symbols. No package/install identity, native Linux/ART run,
-current-source performance, hosted CI, independent TLS peer or external audit
+current-source performance, hosted CI or independent TLS peer
 qualification is inferred from these local results.
 
 Subsequent [standard TLS work](SDK_STANDARD_TLS.md) adds an explicit
@@ -699,7 +708,7 @@ the failed build and the passing runs are retained. Historical 26-export Linux
 and Android observations predate the added TLS dependency and do not qualify
 that 40-export library. At that checkpoint, durable host policy state, actual installed
 Swift/macOS-to-Rust/Linux execution, updated package/CBOM profiles, performance,
-devices and external security review remain open. No publication has occurred.
+and device qualification remain open. No publication has occurred.
 
 The [host-store checkpoint](../research/sdk-alpha1/evidence/20260925-host-policy-store/manifest.json)
 adds the unpublished `q-periapt-host-store` crate and reuses its private-file/ACL
@@ -731,7 +740,7 @@ No new source transition/publication record was manufactured. Local filesystem
 durability, cross-process advisory locking and these bounded fault tests are not
 hardware snapshot-rollback protection, power-loss qualification or a production
 IPC authority. Linux execution, persistent Swift integration and the remaining
-package/device/performance/external-review gates were open at that checkpoint.
+package/device/performance gates were open at that checkpoint.
 
 The [persistent-runtime binding checkpoint](../research/sdk-alpha1/evidence/20260925-persistent-runtime-bindings/manifest.json)
 adds three C functions, bringing the alpha table to **43 exact exports** while
@@ -766,7 +775,7 @@ policy and complete new connections. The initial Swift fixture-path/build and
 format failures are retained. A full distribution validator still rejects the
 unpackaged Cargo dylib's filename; the separate exact export-set check passes
 all 43 names and does not confer package identity. No publication or current
-Linux/package/device/performance/external-review qualification is inferred.
+Linux/package/device/performance qualification is inferred.
 
 The [SDK performance checkpoint](../research/sdk-alpha1/evidence/20260925-sdk-path-performance/manifest.json)
 adds actual compiled C and public Swift owner/compatibility consumers of the
@@ -896,7 +905,7 @@ Another 58 historical Apple publication/verification regressions pass; the
 25 workflow-source checks pass after adding scheme-inventory retention.
 The immutable prior checkpoints and historical proof results are unchanged.
 Other language/platform packages, installed Swift-to-Linux networking, native
-x86/CT/performance qualification, devices and external review remain open.
+x86/CT/performance qualification and devices remain open.
 
 The [C SDK package checkpoint](../research/sdk-alpha1/evidence/20260926-c-sdk-package/manifest.json)
 adds the explicit `sdk-alpha1` mode to the existing C producer. Its schema-3
@@ -934,7 +943,7 @@ stopped, those same bytes were copied and equality was established before the
 next build. Historical digest semantics were not weakened. All attempts,
 schema/import assertion failures and diagnostic identities remain retained.
 Other platforms/languages, installed Swift-to-Linux networking, CT/performance,
-devices and external review still block a complete 0.2.0 release claim.
+and devices still block a complete 0.2.0 release claim.
 
 The [WASM package checkpoint](../research/sdk-alpha1/evidence/20260926-wasm-sdk-package/manifest.json)
 adds one product npm candidate with a closed default owner export set, separate
@@ -1034,7 +1043,7 @@ Public-registry installation and version-specific publication receipts remain
 open. The local compiler was Rust 1.96.1; declared dependency MSRVs do not replace
 an actual minimum-toolchain run. Hosted CI selects the new profile but has not
 been observed. Other platform packages, installed Swift/macOS-to-Rust/Linux,
-current devices, CT/performance and independent security review still prevent
+current devices and CT/performance still prevent
 formal 0.2.0 release readiness. ABI 2 and the native interface source bytes are
 unchanged from the preceding checkpoint.
 
@@ -1096,7 +1105,7 @@ The matching native C archive is
 Initial failed attempts and their causal corrections are retained separately.
 No Maven Central upload, signing, commit or push was performed. Linux/Windows
 JVM execution, Android ART/devices, installed Swift/macOS-to-Rust/Linux reference,
-native x86 CT/performance and external security review still prevent stable
+and native x86 CT/performance still prevent stable
 0.2.0 release readiness.
 
 ### Current C and JVM packages (2026-09-27)
@@ -1204,7 +1213,7 @@ readiness update is recorded separately as a post-build status-document change.
 No public upload, signing, device operation, commit or push was performed.
 About 1 GiB remained free after the final build; no existing caches/candidates
 were deleted. SDK runtime/CI integration, installed Swift/macOS-to-Rust/Linux,
-device and minimum-version execution, CT/performance and external security review
+device and minimum-version execution, and CT/performance
 continue to block formal 0.2.0 release readiness.
 
 
@@ -1262,7 +1271,7 @@ No implementation commit, push, package signing, device operation or publication
 was performed. Read-only host observation still finds an existing ADB listener
 on port 5037. Exact-source hosted CI, the canonical arm64 emulator, minimum/current
 API and physical-device runs, release-source freeze, cross-platform/reference
-execution, performance/CT and external review remain open. **0.2.0 is not ready
+execution and performance/CT remain open. **0.2.0 is not ready
 for formal release.**
 
 
@@ -1310,7 +1319,7 @@ Both runtime endpoints in this result are **macOS ARM64 on loopback**.
 explicit. This closes the local installed-package boundary and strengthens the
 standard interop evidence; it does not substitute for the required native Linux
 server, target-device/minimum-OS, controlled performance/CT, exact-source hosted
-CI, external review or final release transaction. No implementation commit,
+CI or final release transaction. No implementation commit,
 push, signing or publication was performed.
 
 
@@ -1392,7 +1401,7 @@ The three affected CI jobs pass actionlint. The installed actionlint 1.7.12 stil
 rejects the pre-existing `ubuntu-26.04` label elsewhere in the full workflow; its
 full diagnostic is retained, without suppressing the check or changing that
 runner. No hosted CI result is claimed. Native Linux, the remaining platform and
-feature matrix, device/browser execution, CT/performance, independent review,
+feature matrix, device/browser execution, CT/performance,
 signed distribution and registry publication remain open. No source commit,
 push, device operation, publication or release was performed.
 
@@ -1501,7 +1510,7 @@ therefore still need a separately closed SDK producer/consumer profile; the
 unit-suite pass does not make those jobs or a Windows package valid. This is the
 next packaging implementation task. Final packages/receipts must then be
 regenerated from frozen source. Hosted CI, native Linux, devices, other runtime
-floors, controlled performance/CT and independent review remain open. No
+floors and controlled performance/CT remain open. No
 publication, signing credentials or device operation occurred.
 
 ## Windows SDK profile implementation (2026-09-26)
@@ -1553,7 +1562,7 @@ now distinguish the implemented profile from native qualification; the C README
 also corrects its obsolete 26-export and pre-r4 distribution descriptions.
 
 Windows/MSVC production and archive execution, Linux reference execution,
-minimum-runtime/device coverage, CT/performance, independent security review,
+minimum-runtime/device coverage, CT/performance,
 source freeze and final package regeneration remain open. Source was not
 committed or pushed, and no device, signing or publication operation occurred.
 
@@ -1601,7 +1610,7 @@ browser run. Native ABI 2, 43 C exports and 26 JNI registrations are unchanged.
 The [installation entry](SDK_GETTING_STARTED.md) and
 [WASM package guide](SDK_WASM_PACKAGE.md) now report the observed minimum.
 Linux/Windows runtime floors, other browsers, bundlers/workers, native platform
-and device coverage, performance/CT, independent review, source freeze and final
+and device coverage, performance/CT, source freeze and final
 release coordination remain open. The earlier request to submit/push the
 candidate for native CI is still pending; this checkpoint involves no remote
 write, device operation or publication.
@@ -1645,7 +1654,7 @@ Safari result is claimed or replaced with Playwright WebKit evidence. The
 and the Firefox host diagnostics. Test browsers use task-owned or isolated
 profiles, and the started sessions/fixture servers are closed afterwards.
 Safari authorization, remaining browser/platform/runtime floors, bundlers and
-workers, native CI, devices, performance/CT, independent review and final release
+workers, native CI, devices, performance/CT and final release
 coordination remain open. No source commit, push or publication occurred.
 
 ## Dedicated browser Worker execution (2026-09-26)
@@ -1686,7 +1695,7 @@ ABI major remains 2, with 43 C exports and 26 JNI registrations. Source changes
 are limited to shared browser fixtures, their consumer-copy list and guidance.
 Forced termination/erasure, shared/service workers, Node worker threads,
 minimum/mobile browser versions and bundlers remain separate gaps. Native
-Linux/Windows CI, current devices, performance/CT, independent review, final
+Linux/Windows CI, current devices, performance/CT, final
 source freeze and release publication remain open. Neither pending CI nor
 Safari-setting authorization has been assumed.
 
@@ -1719,8 +1728,8 @@ follow the new measurement snapshot.
 No cryptographic implementation, Rust/Swift product API, ABI major, export table
 or package version changes in this follow-up. The uncontrolled host capture is
 a diagnostic and does not close small-context P99, installed-package timing,
-allocation/concurrency/long-run/energy, CT, native platform/device, hosted CI,
-independent review or final publication gates.
+allocation/concurrency/long-run/energy, CT, native platform/device, hosted CI
+or final publication gates.
 
 ## Full reference connection timing (2026-09-26)
 
@@ -1765,7 +1774,7 @@ digest. Earlier package cohorts retain their original identities and are not
 promoted to qualification of the new snapshot; final package regeneration and
 installed/device/hosted acceptance remain required after source freeze. Native
 Linux reference execution, allocation/concurrency/soak/energy measurements,
-controlled tail comparison, independent review and publication remain open.
+controlled tail comparison and publication remain open.
 
 ## First-connection CPU attribution (2026-09-26)
 
@@ -1795,8 +1804,7 @@ records are retained as evidence. Targeted ABI/binding/measurement checks run
 again. The preceding 2,219-test suite remains the latest full-suite run; it is
 not represented as a new run after these documentation changes. Native
 platform/device/hosted CI, controlled performance, allocation/energy/soak/CT,
-independent review, final source freeze/package regeneration and publication
-remain open.
+final source freeze/package regeneration and publication remain open.
 
 ## Bounded reference listener readiness (2026-09-26)
 
@@ -1830,7 +1838,7 @@ binaries and rebuilds the changed peer; it does not claim a new full SDK build
 or the previous 2,219-test complete artifact suite. Disk space remains below the
 full connection build's unchanged 2 GiB guard. Previous package/source cohorts
 retain their identities; final package regeneration, native/device/controlled
-performance/CT, independent review and publication are still required.
+performance/CT and publication are still required.
 
 ## Rust allocation observation and full quality rerun (2026-09-26)
 
@@ -1865,7 +1873,7 @@ All 843 selected sources match the primary checkout at execution, including
 the listener changes; the primary Git index is unchanged. Only the three
 performance/readiness guides change afterward. No source commit, push or
 publication occurs. Native Linux/Windows, current and minimum-OS devices,
-controlled performance/CT, exact-source hosted CI, external security review,
+controlled performance/CT, exact-source hosted CI,
 final freeze/package regeneration and publication remain open.
 
 ## C owner allocation cost and paired public view (2026-09-27)
@@ -1912,8 +1920,8 @@ seconds**, with warnings treated as errors. Its owned standalone copy contains
 the current product bytes; only these performance, WASM-package and readiness
 guides change afterward. The primary index remains unchanged and no source
 commit, push or publication occurs. ABI 2 is retained. Native Linux/Windows,
-devices, controlled performance/CT, current-source browser/hosted CI evidence,
-independent security review and final freeze/package regeneration remain open.
+devices, controlled performance/CT, current-source browser/hosted CI evidence
+and final freeze/package regeneration remain open.
 
 ## Browser execution of the rebuilt public-view package (2026-09-27)
 
@@ -1939,7 +1947,7 @@ The preceding 2,219-test artifact result remains the latest full quality run for
 these unchanged product bytes; it is not represented as a new test execution.
 ABI 2, 43 C exports, 26 JNI registrations and version 0.2.0-alpha.1 are unchanged.
 Native Linux/Windows, physical devices, controlled performance/CT, exact-source
-hosted CI, independent review and final freeze/package regeneration still block
+hosted CI and final freeze/package regeneration still block
 formal release. No source commit, push, global setting change or publication is
 performed.
 
@@ -1967,4 +1975,4 @@ Product source, ABI 2, the 43 exports and the package version remain unchanged;
 only these guides change after execution. The source-review patch retains its
 original identity and must be refreshed before a future commit to include these
 documentation updates. Native/installed/device coverage, controlled performance
-and energy, exact-source hosted CI and independent review remain open.
+and energy, and exact-source hosted CI remain open.

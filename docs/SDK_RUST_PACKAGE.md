@@ -54,7 +54,7 @@ consumer location and validation scope. It never sets `release_claim_eligible`
 to true. The old ten-crate 0.1.5 contract, handoff and upload receipts remain
 separate and are not rewritten to accept this candidate. Public registry
 publication/observation, the complete MSRV and platform matrix, Linux/network/device
-qualification, CT/performance, signed distributions and external review remain
+qualification, CT/performance and signed distributions remain
 independent gates.
 
 Cargo's multi-package behavior is documented in the primary

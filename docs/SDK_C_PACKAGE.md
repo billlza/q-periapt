@@ -74,7 +74,7 @@ The [2026-09-26 checkpoint](../research/sdk-alpha1/evidence/20260926-c-sdk-packa
 records the actual local producer/installation run, three independent dynamic
 loader observations, source identities and failures. The source-only Linux
 profile mutation tests do not establish native Linux execution, GLIBC/runtime
-qualification, CT/performance results or a signed/external-audited release.
+qualification, CT/performance results or a signed release.
 
 The retained macOS ARM64 diagnostic archive is 5,870,014 bytes, SHA-256
 `e7ee6c8ea2ba8de9ea0f4bff374bab42007c0835bfca7e52aac3c5807dd93453`.

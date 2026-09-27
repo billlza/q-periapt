@@ -47,8 +47,8 @@ The SDK's SHA-256/HMAC/HKDF labels are reviewed source declarations for its
 library in Cargo.lock. TLS cipher/hash choices and certificate identities are
 read from linked implementation objects. This is a product algorithm catalogue,
 not a binary-wide census of every transitive internal hash, arithmetic routine
-or operating-system entropy mechanism. It is not an external security audit or
-evidence that any remote peer negotiated PQ certificate authentication.
+or operating-system entropy mechanism. It does not establish that any remote
+peer negotiated PQ certificate authentication.
 
 Post-quantum KEM/signature categories retain their implementation/policy source.
 Traditional signature/key-agreement rows explicitly have category 0. The native
@@ -75,7 +75,7 @@ enumeration results are retained in the
 Native inventory generation/verification is declared in the existing BOM CI
 job, but hosted execution has not been observed. Complete native package
 producer and receipt profiles, target-specific installation, device/CT/performance
-evidence and external review remain open. The historical source results and
+evidence remain open. The historical source results and
 publication receipts are unchanged.
 
 The first 36-asset draft omitted ContextBound itself. Review against the real

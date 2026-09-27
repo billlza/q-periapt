@@ -57,4 +57,4 @@ process snapshots and swap are outside a whole-process erasure guarantee.
 Cross-language consumers exercise export/import public-key pairing, actual
 ContextBound roundtrips, format rejection, and revocation. Core tests also cover
 damaged embedded public-key/hash/private-prefix material, entropy failure and
-quota recovery. These checks do not replace external cryptographic review.
+quota recovery.

@@ -241,8 +241,8 @@ successful fresh connections. Native tests separately cover fragmentation, lengt
 attacks, replay across fresh TLS sessions, duplicate confirmation, missing ALPN
 or confirmation, and a reissued certificate with the same public key.
 
-These local results do not qualify Linux, installed packages, mobile devices,
-external security review or performance. Hosted macOS installed-package checks
+These local results do not qualify Linux, installed packages, mobile devices
+or performance. Hosted macOS installed-package checks
 passed at `4349c6aebbc18cac971a5ceff31cee7d3c6fb307`; the subsequent silent-peer
 revocation repair requires its own package qualification. See the
 [readiness ledger](SDK_0_2_RELEASE_READINESS.md) for the source-specific receipts.

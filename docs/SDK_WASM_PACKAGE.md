@@ -114,7 +114,7 @@ The [current browser execution record](SDK_BROWSER_RUNTIME.md) covers five cases
 in both window and dedicated module Worker in Chrome 153 and stock Firefox 156
 on macOS ARM64, with Firefox host diagnostics
 retained separately. Safari's automation setting is disabled; Safari/mobile and
-minimum browser versions, bundlers, other Worker types and external review remain open. The browser path is
+minimum browser versions, bundlers and other Worker types remain open. The browser path is
 synchronous after initialization; applications own durable policy storage,
 authenticated protocols and erasure of any explicitly exported JS bytes.
 

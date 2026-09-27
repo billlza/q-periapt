@@ -79,8 +79,8 @@ Swift/macOS-to-Rust/Linux reference-connection acceptance gate.
 
 The profile is an unsigned alpha candidate. The historical signed Apple release
 schema and receipts remain separate and cannot admit it. Source-local success
-does not claim hosted CI, minimum-OS runtime testing, device coverage, signing,
-an external audit or readiness for 0.2.0 publication. See the
+does not claim hosted CI, minimum-OS runtime testing, device coverage, signing
+or readiness for 0.2.0 publication. See the
 [release-readiness ledger](SDK_0_2_RELEASE_READINESS.md) for outstanding gates.
 
 The 2026-09-26 local unsigned run completed the full producer. Its complete SDK

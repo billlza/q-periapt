@@ -112,6 +112,6 @@ enable the browser setting before the same fixture can run.
 
 Other operating systems, mobile browsers, minimum browser versions, bundlers
 and other Worker types remain unqualified. These checks also do not establish
-constant-time behavior, performance/energy targets, independent security review
-or formal 0.2.0 release readiness. See the
+constant-time behavior, performance/energy targets or formal 0.2.0 release
+readiness. See the
 [release ledger](SDK_0_2_RELEASE_READINESS.md).

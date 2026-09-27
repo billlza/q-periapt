@@ -17,7 +17,7 @@ implementation, package and runtime result and the remaining gates.
 [SDK_0_2_ALPHA1.md](SDK_0_2_ALPHA1.md) is the historical first Rust/WASM checkpoint,
 not the current pending-work list. Exact-source hosted CI/CodeQL, native Linux
 reference execution, remaining platform/device coverage, controlled performance,
-binary CT, external security review and final release coordination remain open.
+binary CT and final release coordination remain open.
 The alpha is not release-complete; the 0.1.5 history below does not qualify it.
 Full Continuity remains a later protocol milestone.
 
@@ -546,7 +546,7 @@ are the gap between research-grade and audited/production.
    Rust package line into a production or
    full-binary release.
 
-6. **Production hardening.** Backends are pre-1.0 / unaudited for this integration.
+6. **Production hardening.** Review pinned backends and verify each supported target.
    The current graph uses target-selected `mlkem-native` v1.2.0, `fips204`, and `sha3`; it
    removes both the `fips203` path that failed the project CT gate and the earlier
    `libcrux`/hax/`proc-macro-error2` advisory edge. The ML-KEM trust anchors are commit

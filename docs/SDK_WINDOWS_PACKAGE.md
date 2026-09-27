@@ -172,4 +172,4 @@ Both `windows-latest` and `windows-2022` CI jobs select this SDK profile, with
 their previous source/toolchain checks and separate clean archive consumption.
 Their native execution is still an open gate. The current
 [release ledger](SDK_0_2_RELEASE_READINESS.md) also retains Linux, device,
-minimum-runtime, performance/CT, independent-review and distribution gates.
+minimum-runtime, performance/CT and distribution gates.

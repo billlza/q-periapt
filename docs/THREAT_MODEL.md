@@ -5,10 +5,10 @@
 > Historical Apple/Android/Linux/Windows research-prerelease receipts bind only their exact
 > portable-derived artifacts; the current target-selected source has no fresh attested
 > multi-platform binary bundle.
-> No third-party audit. The target-selected `q-periapt-mlkem-native-sys` integration
+> The target-selected `q-periapt-mlkem-native-sys` integration
 > over vendored `mlkem-native` v1.2.0, pinned `fips204` 0.4.6,
-> `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations are unaudited
-> as this suite and ABI. This document is the
+> `sha3` 0.10.9, x25519-dalek, and optional fips205 is scoped to the source,
+> build and target identified by each verification record. This document is the
 > authoritative statement of *what the design defends against and — equally
 > important — what it does not.* Every guarantee below is tagged as **ENFORCED**
 > (a CI gate or a compile-time/type-level invariant fails the build on regression),
@@ -83,7 +83,7 @@ corresponding guarantee fails:
   constant-time claim is limited to the backend/ISA evidence actually checked.**
   The vendored target-selected `mlkem-native` ML-KEM, `fips204` ML-DSA, RustCrypto SHA3, x25519-dalek, and
   fips205 SLH-DSA integrations are
-  third-party implementations and remain **unaudited for this use**. The known-leaky,
+  third-party implementations. The known-leaky,
   unmaintained `pqcrypto-hqc` adapter was removed from the publishable/runtime graph.
   The standalone RustCrypto HQC-v5/FIPS-207-draft RC shadow has only its explicitly tested
   research correctness/format boundary and no constant-time or production-suitability claim.
@@ -451,23 +451,23 @@ guarantee. Known carve-out: **ML-DSA signing uses rejection sampling, so its
 iteration count is secret-dependent by design** — an auditable, documented exception,
 not a covert leak.
 
-### 5.3 No third-party audit
+### 5.3 Evidence scope
 
-Nobody outside this project has reviewed the design or the code. The mechanized
-proof is a strong internal artifact, not an external attestation.
+The mechanized proof applies to its stated abstract model and assumptions.
+Source review, compiled-binary checks and runtime qualification each retain
+their own scope; none automatically establishes the others.
 
-### 5.4 Pre-1.0 / unaudited backends
+### 5.4 Pinned backend integration
 
-The cryptographic primitives come from external pre-1.0 sources and remain unaudited
-for this integration. The `0.1.5` stable-version source path uses target-selected `mlkem-native` v1.2.0,
+The cryptographic primitives come from pinned third-party sources, including
+pre-1.0 dependencies. The `0.1.5` stable-version source path uses target-selected `mlkem-native` v1.2.0,
 `fips204` 0.4.6, and `sha3` 0.10.9, removing both the failed `fips203` path and the
 earlier `libcrux`/hax/`proc-macro-error2` advisory edge. The vendored ML-KEM trust
 anchors are commit `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub
 commit archive SHA-256 `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
 `cargo audit --deny warnings` passes while `.cargo/audit.toml` retains `ignore = []`.
 RustSec does not inspect vendored C, its compiler output, provenance, licenses or side
-channels. This is a warning-clean Rust dependency scan, not an independent
-cryptographic, C/FFI, side-channel, implementation, or ABI audit.
+channels. This result applies to Rust dependency advisory checking.
 
 ### 5.5 ACVP conformance, not CMVP certification
 

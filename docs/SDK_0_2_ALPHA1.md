@@ -39,7 +39,7 @@ before any alpha publication.
 No new hash construction, relaxed import check, classic fallback, or change to
 ContextBound/X-Wing field semantics was introduced. The byte-equivalence tests
 and retained KATs are implementation evidence, not a new computational proof or
-an independent constant-time/security audit.
+a binary constant-time proof.
 
 ## Ownership and authorization boundaries
 

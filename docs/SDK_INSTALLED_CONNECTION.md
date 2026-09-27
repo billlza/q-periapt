@@ -104,8 +104,8 @@ unsigned Swift package is 19,628,601 bytes with SHA-256
 `09ca75158c4d9bb339617505d6e160fc48a6e7378e5e92ab9797cfa2d6124343`.
 The native ZIP is bound separately by SHA-256
 `cb30961c78c1bbb121a00e450cb95bff9e8e0bf361ebb9a828690c762ba9fab9`.
-Native Linux, current devices/minimum OS, hosted CI, performance/energy and
-external security review remain open in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
+Native Linux, current devices/minimum OS, hosted CI and performance/energy
+remain open in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
 
 The subsequent [loader-provenance checkpoint](../research/sdk-alpha1/evidence/20260926-installed-sdk-loader-provenance/manifest.json)
 corrects an overbroad path-substring check in the diagnostic harness. A retained
