@@ -1874,6 +1874,49 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", with_package)
         self.assertIn("rust_package_contract=1", with_package)
 
+    def test_ci_created_avd_image_preparation_is_narrow_and_preserves_bytes(self) -> None:
+        job = extract_workflow_job(CI_WORKFLOW.read_text(), "bindings-android-runtime-16k")
+        start = 'sh artifact/python-run.sh - "$ANDROID_AVD_HOME/$avd_name.avd/userdata.img" <<\'PY\'\n'
+        source = job.split(start, 1)[1].split("          PY\n", 1)[0]
+        code = "\n".join(line.removeprefix("          ") for line in source.splitlines())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            for kind in ("regular", "private", "symlink", "hardlink", "fifo", "writable", "empty"):
+                with self.subTest(kind=kind):
+                    directory = root / kind
+                    directory.mkdir(mode=0o700)
+                    original = directory / "factory.img"
+                    original.write_bytes(b"factory image fixture")
+                    original.chmod(0o644)
+                    leaf = directory / "userdata.img"
+                    if kind == "symlink":
+                        leaf.symlink_to(original)
+                    elif kind == "hardlink":
+                        os.link(original, leaf)
+                    elif kind == "fifo":
+                        os.mkfifo(leaf, 0o600)
+                    else:
+                        leaf.write_bytes(b"" if kind == "empty" else original.read_bytes())
+                        leaf.chmod(0o664 if kind == "writable" else 0o600 if kind == "private" else 0o644)
+                    before = leaf.lstat()
+                    run = subprocess.run(
+                        ["/bin/sh", str(ROOT / "artifact/python-run.sh"), "-c", code, str(leaf)],
+                        cwd=ROOT, capture_output=True, timeout=10,
+                    )
+                    after = leaf.lstat()
+                    self.assertEqual((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns),
+                                     (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns))
+                    self.assertEqual(stat.S_IMODE(original.stat().st_mode), 0o644)
+                    if kind in {"regular", "private"}:
+                        self.assertEqual(run.returncode, 0, run.stderr)
+                        self.assertTrue(run.stdout.endswith(b"CREATED_AVD_IMAGE_PRIVATE_PASS\n"))
+                        self.assertEqual(stat.S_IMODE(after.st_mode), 0o600)
+                        self.assertEqual(leaf.read_bytes(), original.read_bytes())
+                    else:
+                        self.assertNotEqual(run.returncode, 0)
+                        self.assertNotIn(b"CREATED_AVD_IMAGE_PRIVATE_PASS", run.stdout)
+                        self.assertEqual(before.st_mode, after.st_mode)
+
     def test_ci_android_runtime_matrix_consumes_same_run_aar_fail_closed(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         job = extract_workflow_job(workflow, "bindings-android-runtime-16k")
@@ -2024,6 +2067,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertLess(derive_name, create_avd)
         self.assertLess(create_avd, verify_avd)
         self.assertLess(verify_avd, execute_smoke)
+        prepare_image = job.index("CREATED_AVD_IMAGE_PRIVATE_PASS", create_avd)
+        self.assertLess(create_avd, prepare_image)
+        self.assertLess(prepare_image, verify_avd)
 
         diagnostic_upload = extract_named_workflow_step(
             job, "Upload bounded Android package diagnostics after failure"

@@ -56,7 +56,18 @@ fixed matrix targets, their shared AAR and per-target artifacts. A real isolated
 validation call reproduces the old missing-module error; the corrected snapshot
 loads that path and rejects the same empty projection at its intended boundary.
 The initial import-only probe did not reach the lazy import, so it was not used
-as validation. All failed logs remain; the corrected complete suite is pending.
+as validation. The corrected `b611beb` standalone checkout passes all 2,271 tests
+in 413.836 seconds without skips, with pre/post source gates and Python warnings
+treated as errors. All failed logs remain.
+
+Hosted `99fb979` completes 35 of 37 CI jobs and all six CodeQL analyses. The
+check job reproduces the same two local integration failures. API 35 / 16 KiB
+completes both workloads, while API 23 stops before SDK execution: its newly
+created `userdata.img` exposes group/other permissions. The follow-up restricts
+only that new, canonical, singly linked owned file to mode 0600, then runs the
+unchanged private-tree verifier. Seven real file-shape cases cover byte/inode
+preservation and refusal of links, FIFO, writable modes and empty files. The
+corrected API 23 workload still requires a hosted result.
 
 The `0e2a670` source completes all 36
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36345633624) and all six

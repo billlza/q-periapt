@@ -1353,6 +1353,46 @@ jobs:
           test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
           test -f "$ANDROID_AVD_HOME/$avd_name.ini"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
+          if [ "$QPERIAPT_ANDROID_RUNTIME_PROFILE" = api23-4k ]; then
+            # This image materializes userdata.img during creation. Restrict only
+            # that new leaf before the unchanged private-tree admission check.
+            sh artifact/python-run.sh - "$ANDROID_AVD_HOME/$avd_name.avd/userdata.img" <<'PY'
+          import os
+          import pathlib
+          import stat
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          if path.name != "userdata.img" or path.parent.resolve(strict=True) != path.parent:
+              raise SystemExit("created AVD image path is not canonical")
+          descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+          try:
+              before = os.fstat(descriptor)
+              named = path.lstat()
+              def content_identity(metadata):
+                  return (metadata.st_dev, metadata.st_ino, metadata.st_uid, metadata.st_gid,
+                          metadata.st_nlink, metadata.st_size, metadata.st_mtime_ns)
+              print(f"CREATED_AVD_IMAGE mode={stat.S_IMODE(before.st_mode):04o} "
+                    f"links={before.st_nlink} bytes={before.st_size} owned={before.st_uid == os.geteuid()}")
+              if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
+                      or before.st_nlink != 1 or before.st_size <= 0
+                      or stat.S_IMODE(before.st_mode) not in {0o600, 0o644}
+                      or content_identity(before) != content_identity(named)
+                      or before.st_mode != named.st_mode):
+                  raise SystemExit("created AVD image identity or mode differs")
+              os.fchmod(descriptor, 0o600)
+              after = os.fstat(descriptor)
+              named = path.lstat()
+              if (content_identity(before) != content_identity(after)
+                      or content_identity(after) != content_identity(named)
+                      or after.st_mode != named.st_mode
+                      or stat.S_IMODE(after.st_mode) != 0o600):
+                  raise SystemExit("created AVD image changed during private-mode preparation")
+              print("CREATED_AVD_IMAGE_PRIVATE_PASS")
+          finally:
+              os.close(descriptor)
+          PY
+          fi
           sh artifact/python-run.sh artifact/android_device_proof.py \
             verify-avd-home \
             --avd-home "$ANDROID_AVD_HOME" \
