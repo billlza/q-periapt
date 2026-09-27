@@ -2257,6 +2257,30 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 )
             self.assertEqual(guard.call_count, 2)
 
+    def test_malformed_package_state_diagnostic_keeps_physical_output_private(self) -> None:
+        reply = b"package:dev.qperiapt.androidsmoke\r\r\n\x1b[31m\xff"
+        for kind, serial in (("physical", "SERIAL123"), ("emulator", "emulator-5584")):
+            self.create_capability(device_kind=kind, expected_serial=serial)
+            diagnostic = io.StringIO()
+            with (
+                self.subTest(kind=kind),
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, reply)) as capture,
+                contextlib.redirect_stderr(diagnostic),
+                self.assertRaisesRegex(commands.AndroidCommandError, "package-state output is malformed"),
+            ):
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+            expected = {
+                "operation": "package-state", "stage": "observation", "failure": "malformed",
+                "returncode": 0, "output_bytes": len(reply),
+                "output_sha256": hashlib.sha256(reply).hexdigest(),
+            }
+            if kind == "emulator":
+                expected["output"] = reply.decode("utf-8", errors="backslashreplace")
+            self.assertEqual(json.loads(diagnostic.getvalue()), expected)
+            self.assertNotIn("\x1b", diagnostic.getvalue())
+            self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
+            self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
+
     def test_package_state_preserves_primary_when_postcheck_also_fails(self) -> None:
         with (
             mock.patch.object(
@@ -4058,8 +4082,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     self.assertEqual(argv[argv.index("logcat"):], (
                         "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
                         "-v", "threadtime",
-                        "-T", "1786240000.123", "-s", "AndroidRuntime:E", "Watchdog:*",
-                        "ActivityManager:E", "SystemServer:E", "PackageManager:E",
+                        "-T", "1786240000.123", "-s", "AndroidRuntime:E", "art:E",
+                        "dalvikvm:E", "debuggerd:E", "Watchdog:*",
+                        "ActivityManager:I", "SystemServer:E", "PackageManager:E",
                         "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
                         "Zygote:E", "lmkd:*",
                         "libc:F", "DEBUG:*", "*:S",

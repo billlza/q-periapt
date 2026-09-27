@@ -80,6 +80,18 @@ alert IDs/rules are unchanged and all thirteen reported location files match
 the previously reviewed `99fb979` source. New-source hosted qualification is
 still required for the transport corrections.
 
+At `37dfdb7`, API 23 again installs and verifies the APK but produces no
+Instrumentation result. The corrected system-log command now captures a guest
+`SIGABRT` before the decoder failure, followed by an unavailable debuggerd
+connection. The log does not identify whether the aborted process is the
+command VM or SDK application, so no product-level cause is asserted. Package
+cleanup separately returns malformed output even with LF/CRLF support.
+The next diagnostic capture includes ART errors and ActivityManager process
+starts within the same owned-emulator/time/size bounds. Failed package queries
+retain escaped response bytes only for the disposable emulator; physical
+responses retain size/hash metadata. Malformed responses still fail, and no
+uninstall or successful runtime result is inferred from these diagnostics.
+
 The first complete local run at `99fb979` executes 2,271 tests and identifies two
 integration failures: the isolated remote-consumer source list omits the new
 runtime-profile module, and the workflow contract test still expects a single

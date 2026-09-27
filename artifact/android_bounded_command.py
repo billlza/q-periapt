@@ -3356,27 +3356,35 @@ def _capture_installed_apk_path(
     except BoundedProcessError as exc:
         if exc.kind != "timeout" or getattr(exc, "__notes__", None):
             raise
-        _report_installed_apk_path_failure(capability, stage=stage, result=None)
+        _report_package_command_failure(
+            capability, operation="installed-apk-path", stage=stage,
+            failure="timeout", result=None,
+        )
         return BoundedResult(1), None
     if result.returncode != 0 or not result.stdout:
-        _report_installed_apk_path_failure(capability, stage=stage, result=result)
+        _report_package_command_failure(
+            capability, operation="installed-apk-path", stage=stage,
+            failure="unavailable", result=result,
+        )
         return result, None
     return result, _parse_remote_base_apk_output(result.stdout)
 
 
-def _report_installed_apk_path_failure(
+def _report_package_command_failure(
     capability: runtime_state.AndroidCommandCapability,
     *,
-    stage: Literal["before-copy", "after-copy"],
+    operation: Literal["installed-apk-path", "package-state"],
+    stage: Literal["before-copy", "after-copy", "observation"],
+    failure: Literal["timeout", "unavailable", "malformed"],
     result: BoundedResult | None,
 ) -> None:
     # The producer already retains this operation's stderr per attempt. Keep
-    # its typed stdout unchanged. pm path has a 64 KiB combined-output bound;
+    # its typed stdout unchanged. Both queries have a 64 KiB combined-output bound;
     # JSON escaping prevents guest text from becoming terminal/log commands.
     diagnostic: dict[str, object] = {
-        "operation": "installed-apk-path",
+        "operation": operation,
         "stage": stage,
-        "failure": "timeout" if result is None else "unavailable",
+        "failure": failure,
     }
     if result is not None:
         diagnostic.update(
@@ -3706,6 +3714,10 @@ def _observe_package_state(
     ):
         state = PackageState.PRESENT
     else:
+        _report_package_command_failure(
+            capability, operation="package-state", stage="observation",
+            failure="malformed", result=raw,
+        )
         _fail("Android package-state output is malformed")
     return BoundedResult(0, f"{state.value}\n".encode("ascii"))
 
@@ -4068,7 +4080,8 @@ def _capture_emulator_diagnostics(
         "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
         "-v", "threadtime",
         "-T", _device_logcat_start_time(layout), "-s",
-        "AndroidRuntime:E", "Watchdog:*", "ActivityManager:E", "SystemServer:E",
+        "AndroidRuntime:E", "art:E", "dalvikvm:E", "debuggerd:E",
+        "Watchdog:*", "ActivityManager:I", "SystemServer:E",
         "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
         "Zygote:E", "lmkd:*", "libc:F", "DEBUG:*", "*:S",
     )
