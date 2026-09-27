@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, runtime_profile
+
 
 class AndroidAgpConsumerError(RuntimeError):
     """The selected AGP consumer evidence does not satisfy its fixed contract."""
@@ -97,17 +99,25 @@ def profile_spec(profile: str) -> ProfileSpec:
     return PROFILE_SPECS[profile]
 
 
-def runtime_target(profile: str, expected_device_abi: str | None) -> dict[str, object]:
-    """SDK callers select the architecture; the proof cannot select its own scope."""
+def runtime_target(
+    profile: str, expected_device_abi: str | None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
+) -> dict[str, object]:
+    """The caller selects both architecture and runtime; evidence cannot choose."""
     profile_spec(profile)
     if profile in SDK_PROFILES:
         require(isinstance(expected_device_abi, str) and expected_device_abi in {"arm64-v8a", "x86_64"},
                 "SDK AGP verification requires an explicit arm64-v8a or x86_64 target")
         abi = expected_device_abi
     else:
+        require(expected_runtime_profile == DEFAULT_RUNTIME_PROFILE,
+                "legacy AGP target must remain API 35 / 16 KiB")
         require(expected_device_abi is None or expected_device_abi == "arm64-v8a", "legacy AGP target must remain arm64-v8a")
         abi = "arm64-v8a"
-    return {"kind": "emulator", "abi": abi, "sdk": 35, "page_size": 16384}
+    try:
+        return runtime_profile(expected_runtime_profile).target(abi)
+    except ValueError as error:
+        raise AndroidAgpConsumerError(str(error)) from error
 
 
 def _object(
@@ -133,13 +143,14 @@ def validate_profile_projection(
     expected_aar_manifest_sha256: str,
     expected_source_commit: str,
     expected_device_abi: str | None = None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> dict[str, object]:
     """Validate the fixed public projection without filesystem, Gradle, or device access."""
     require(
         isinstance(expected_profile, str) and expected_profile in ALL_PROFILES,
         "unknown AGP consumer profile",
     )
-    target = runtime_target(expected_profile, expected_device_abi)
+    target = runtime_target(expected_profile, expected_device_abi, expected_runtime_profile)
     sdk_profile = expected_profile in SDK_PROFILES
     record = _object(value, PROJECTION_FIELDS | ({"runtime_target"} if sdk_profile else set()), "AGP consumer projection")
     if sdk_profile:

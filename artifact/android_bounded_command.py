@@ -1067,7 +1067,10 @@ def _executable_file_identity(path: pathlib.Path, label: str) -> tuple[int, int]
     return metadata.st_dev, metadata.st_ino
 
 
-def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
+def exec_emulator(
+    run_id: str, device_abi: str,
+    expected_runtime_profile: str = runtime_state.DEFAULT_RUNTIME_PROFILE,
+) -> NoReturn:
     """Persist recovery identity, drop the lane lock, and exec one fixed AVD."""
     runtime_state.validate_lane_lock_descriptor()
     layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
@@ -1087,6 +1090,7 @@ def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
     selection = runtime_state.validate_runtime_avd_selection(
         capability.adb_profile,
         canonical_abi,
+        expected_runtime_profile,
     )
     canonical_avd = selection.name
     launcher, backend = _fixed_emulator_paths(capability, canonical_abi)
@@ -1118,6 +1122,7 @@ def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
     confirmed_selection = runtime_state.validate_runtime_avd_selection(
         capability.adb_profile,
         canonical_abi,
+        expected_runtime_profile,
     )
     _require(
         confirmed_selection == selection,
@@ -4186,6 +4191,9 @@ def _build_parser() -> argparse.ArgumentParser:
     runtime_avd.add_argument(
         "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
     )
+    for command in (emulator, runtime_avd):
+        command.add_argument("--runtime-profile", choices=tuple(runtime_state.RUNTIME_PROFILES),
+                             default=runtime_state.DEFAULT_RUNTIME_PROFILE)
     sub.add_parser("avd-home-path")
     isolation = sub.add_parser("record-adb-isolation-checkpoint")
     isolation.add_argument("--run-id", required=True)
@@ -4267,7 +4275,7 @@ def main(argv: list[str]) -> int:
         print(runtime_state.avd_home_directory())
         return 0
     if args.action == "runtime-avd-name":
-        print(runtime_state.runtime_avd_name(args.adb_profile, args.device_abi))
+        print(runtime_state.runtime_avd_name(args.adb_profile, args.device_abi, args.runtime_profile))
         return 0
     if args.action == "capability-adb-path":
         layout = runtime_state.AndroidRunLayout.from_run_id(args.run_id)
@@ -4295,7 +4303,7 @@ def main(argv: list[str]) -> int:
         print(identity)
         return 0
     if args.action == "emulator-nodaemon":
-        exec_emulator(args.run_id, args.device_abi)
+        exec_emulator(args.run_id, args.device_abi, args.runtime_profile)
     if args.action == "record-adb-isolation-checkpoint":
         checkpoint = AdbIsolationCheckpoint(args.checkpoint)
         record_adb_isolation_checkpoint(args.run_id, checkpoint)

@@ -72,5 +72,8 @@ future Continuity recovery protocol. The required installed Swift/macOS to
 Rust/Linux reference execution remains open.
 
 The [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records the remaining release
-work. Package creation and the local checks above do not establish independent
-security review, a complete platform matrix or formal 0.2.0 release readiness.
+work. Package creation and the local checks above do not complete the platform
+matrix or the formal 0.2.0 release requirements.
+
+The current 0.2.0 release quality gates include internal code/security and
+maintainability review, with the validation results recorded in the ledger.

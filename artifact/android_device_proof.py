@@ -21,6 +21,7 @@ import zipfile
 from typing import Any
 
 import android_runtime_state as runtime_state
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, runtime_profile
 from android_agp_consumer_contract import PROFILE_TESTS, profile_spec
 from android_elf import (
     AndroidVerificationError,
@@ -322,6 +323,7 @@ def result_tests(profile: RuntimeResultProfile) -> list[str]:
 
 
 SOURCE_INPUTS = {
+    "android_runtime_profile": "artifact/android_runtime_profile.py",
     "bounded_process": "artifact/bounded_process.py",
     "process_identity": "artifact/process_identity.py",
     "android_emulator_control": "artifact/android_emulator_control.py",
@@ -843,6 +845,7 @@ def verify_avd_home(args: argparse.Namespace) -> None:
         runtime_state.validate_runtime_avd_selection(
             args.adb_profile,
             args.device_abi,
+            args.runtime_profile,
         )
     except runtime_state.AndroidRuntimeStateError as exc:
         raise SystemExit(f"error: {exc}") from exc
@@ -2671,7 +2674,12 @@ def verify_device_metadata(
     expected_page_size: int | None = None,
     expected_device_sdk: int | None = None,
     require_release_mode: bool = False,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> None:
+    try:
+        selected_runtime = runtime_profile(expected_runtime_profile)
+    except ValueError as error:
+        raise SystemExit(f"error: {error}") from error
     device = proof.get("device")
     require(isinstance(device, dict), "proof lacks device metadata")
     require(
@@ -2733,8 +2741,8 @@ def verify_device_metadata(
     # to the emulator kind.
     if require_release_mode and kind == "emulator":
         require(
-            expected_device_sdk == ANDROID_RELEASE_SDK,
-            f"release verification requires expected Android device SDK {ANDROID_RELEASE_SDK}",
+            expected_device_sdk == selected_runtime.sdk,
+            f"release verification requires expected Android device SDK {selected_runtime.sdk}",
         )
     if expected_device_sdk is not None:
         require(
@@ -2752,17 +2760,22 @@ def verify_device_metadata(
             "release verification requires an explicit expected Android device ABI",
         )
         if kind == "emulator":
+            if expected_runtime_profile != DEFAULT_RUNTIME_PROFILE:
+                try:
+                    selected_runtime.target(expected_device_abi)
+                except ValueError as error:
+                    raise SystemExit(f"error: {error}") from error
             require(
-                expected_page_size == 16384,
-                "release verification requires expected Android page size 16384",
+                expected_page_size == selected_runtime.page_size,
+                f"release verification requires expected Android page size {selected_runtime.page_size}",
             )
             require(
-                page_size == 16384,
-                "Android release proof did not run on a 16 KiB page-size device",
+                page_size == selected_runtime.page_size,
+                "Android release proof did not run on the selected page-size device",
             )
             require(
-                device_sdk == ANDROID_RELEASE_SDK,
-                f"Android release proof did not run on device SDK {ANDROID_RELEASE_SDK}",
+                device_sdk == selected_runtime.sdk,
+                f"Android release proof did not run on device SDK {selected_runtime.sdk}",
             )
 
     android = proof.get("android")
@@ -2866,7 +2879,13 @@ def verify_runtime_contents(
     require_release_mode: bool = False,
     allow_dirty_proof: bool = False,
     bundled: bool = False,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> None:
+    require(
+        expected_runtime_profile == DEFAULT_RUNTIME_PROFILE
+        or result_package_profile(result_profile) == "sdk-alpha1",
+        "legacy Android verification must retain its runtime profile",
+    )
     require(
         set(paths) == expected_proof_path_keys(proof),
         "selected Android evidence path fields differ",
@@ -2898,6 +2917,7 @@ def verify_runtime_contents(
         expected_page_size=expected_page_size,
         expected_device_sdk=expected_device_sdk,
         require_release_mode=require_release_mode,
+        expected_runtime_profile=expected_runtime_profile,
     )
     verify_emulator_control(proof, require_release_mode=require_release_mode)
     verify_emulator_control_evidence(proof, paths, bundled=bundled)
@@ -4208,6 +4228,8 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("arm64-v8a", "x86_64"),
     )
     avd_home_parser.set_defaults(func=verify_avd_home)
+    avd_home_parser.add_argument("--runtime-profile", choices=tuple(RUNTIME_PROFILES),
+                                default=DEFAULT_RUNTIME_PROFILE)
 
     default_adb_parser = sub.add_parser(
         "assert-default-adb-server-absent",

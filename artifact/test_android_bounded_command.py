@@ -4074,6 +4074,13 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                             0,
                         )
                     self.assertEqual(output.getvalue(), f"{expected}\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(commands.main([
+                    "runtime-avd-name", "--adb-profile", "linux-system",
+                    "--device-abi", "x86_64", "--runtime-profile", "api23-4k",
+                ]), 0)
+            self.assertEqual(output.getvalue(), "QPeriapt_SDK_4K_API_23_CI_V1\n")
             with self.assertRaisesRegex(
                 state.AndroidRuntimeStateError,
                 "no fixed AVD selection",

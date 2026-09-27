@@ -25,6 +25,25 @@ from test_android_agp_consumer import projection
 
 
 class SDKProjectionTests(unittest.TestCase):
+    def test_minimum_scope_is_explicit_and_cannot_replace_the_16k_scope(self):
+        for profile in contract.SDK_PROFILES:
+            expected = dict(expected_profile=profile, expected_aar_sha256="b" * 64,
+                expected_aar_manifest_sha256="b" * 64, expected_source_commit="c" * 40,
+                expected_device_abi="x86_64", expected_runtime_profile="api23-4k")
+            value = projection(profile)
+            value["runtime_target"] = {"kind": "emulator", "abi": "x86_64", "sdk": 23, "page_size": 4096}
+            self.assertEqual(contract.validate_profile_projection(value, **expected), value)
+            with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "target mismatch"):
+                contract.validate_profile_projection(value, **{**expected, "expected_runtime_profile": "api35-16k"})
+            for runtime_profile in (None, True, [], "", "api23", "api35-4k"):
+                with self.subTest(profile=runtime_profile), self.assertRaises(contract.AndroidAgpConsumerError):
+                    contract.validate_profile_projection(value, **{**expected, "expected_runtime_profile": runtime_profile})
+            with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "selected ABI"):
+                contract.runtime_target(profile, "arm64-v8a", "api23-4k")
+        for profile in contract.PROFILES:
+            with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "legacy AGP target"):
+                contract.runtime_target(profile, "arm64-v8a", "api23-4k")
+
     def test_scope_requires_a_caller_selected_architecture_and_exact_types(self):
         for profile in contract.SDK_PROFILES:
             for abi in ("arm64-v8a", "x86_64"):
@@ -106,6 +125,35 @@ class SDKRuntimeExportTests(unittest.TestCase):
                 self.verify(abi, name, directory, expected_device_abi="x86_64" if abi == "arm64-v8a" else "arm64-v8a")
             with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "explicit"):
                 self.verify(abi, name, directory, expected_device_abi=None)
+
+    def test_minimum_exports_replay_only_under_the_independently_selected_scope(self):
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            consumer, "run_sdk_tool", side_effect=fixture.sdk_runner,
+        ):
+            root = Path(temporary)
+            pair = fixture.create_agp_fixture_pair(root / "fixture", sdk_profile=True,
+                device_abi="x86_64", expected_runtime_profile="api23-4k")
+            for name, profile in pair.profiles.items():
+                destination = root / name
+                result = consumer.export_completed_profile(profile.root, profile.proof, destination,
+                    sdk=profile.sdk, **profile.expected)
+                self.assertEqual(result["runtime_target"],
+                    {"kind": "emulator", "abi": "x86_64", "sdk": 23, "page_size": 4096})
+            (pair.root / "target" / runtime.ANDROID_RUNS_ROOT_LEAF).rename(pair.root / "target/retired-runs")
+            pair.aar.parent.rename(pair.root / "target/retired-aar")
+            for name, profile in pair.profiles.items():
+                consumer.verify_exported_profile(profile.root, root / name, sdk=profile.sdk, **profile.expected)
+                with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "page size|device SDK"):
+                    consumer.verify_exported_profile(profile.root, root / name, sdk=profile.sdk,
+                        **{**profile.expected, "expected_runtime_profile": "api35-16k"})
+                with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "page size|device SDK"):
+                    consumer.verify_exported_profile(profile.root, root / name, sdk=profile.sdk,
+                        **{key: value for key, value in profile.expected.items() if key != "expected_runtime_profile"})
+                proof = json.loads((root / name / "proof.json").read_bytes())
+                proof["device"]["page_size"] = 16384
+                fixture.write(root / name / "proof.json", fixture.json_bytes(proof))
+                with self.assertRaisesRegex(contract.AndroidAgpConsumerError, "page size"):
+                    consumer.verify_exported_profile(profile.root, root / name, sdk=profile.sdk, **profile.expected)
 
     def test_export_uses_portable_copy_modes_without_changing_private_receipts(self):
         for key, directory in self.exports.items():

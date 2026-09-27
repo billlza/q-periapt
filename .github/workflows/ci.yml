@@ -1189,11 +1189,31 @@ jobs:
             target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/SHA256SUMS
           if-no-files-found: error
 
-  # Execute the exact four-ABI AAR produced above on a real Android 15/API 35
-  # 16 KiB-page ART runtime. GitHub's Linux host is x86_64, so this is an
-  # independent x86_64 SDK gate for full and minimal minified AGP consumers.
+  # Execute the same four-ABI AAR at the API 23 floor and on API 35 / 16 KiB.
+  # Both targets run full and minimal minified AGP consumers on x86_64 ART.
   # The canonical arm64 runtime and physical-device gates remain separate.
   bindings-android-runtime-16k:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: bindings-android-runtime-16k
+            profile: api35-16k
+            sdk: "35"
+            page_size: "16384"
+            image: system-images;android-35;google_apis_ps16k;x86_64
+            avd: QPeriapt_Release_16K_API_35_CI_V1
+          - name: bindings-android-runtime-minimum
+            profile: api23-4k
+            sdk: "23"
+            page_size: "4096"
+            image: system-images;android-23;google_apis;x86_64
+            avd: QPeriapt_SDK_4K_API_23_CI_V1
+    env:
+      QPERIAPT_ANDROID_RUNTIME_PROFILE: ${{ matrix.profile }}
+      ANDROID_RUNTIME_IMAGE: ${{ matrix.image }}
+      ANDROID_RUNTIME_AVD: ${{ matrix.avd }}
     needs: bindings-android-aar
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -1257,7 +1277,7 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: sh artifact/python-run.sh artifact/workflow_artifact.py android-sdk-alpha1-aar
-      - name: Install the API 35 16 KiB emulator runtime
+      - name: Install the selected Android emulator runtime
         run: |
           command -v setfacl
           command -v getfacl
@@ -1271,7 +1291,7 @@ jobs:
             "platforms;android-35" \
             "build-tools;36.0.0" \
             "ndk;29.0.14206865" \
-            "system-images;android-35;google_apis_ps16k;x86_64"
+            "$ANDROID_RUNTIME_IMAGE"
           test -c /dev/kvm
       - name: Qualify the installed Maven SDK and prepare the offline AGP toolchain
         env:
@@ -1290,7 +1310,7 @@ jobs:
             --manifest-sha256 "$(sha256sum "$manifest" | cut -d' ' -f1)" \
             --sdk "$ANDROID_HOME" --gradle "$wrapper" \
             --output "$GITHUB_WORKSPACE/target/sdk-android-package"
-      - name: Create private Android identities and the cold 16 KiB AVD
+      - name: Create private Android identities and the selected cold AVD
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
@@ -1318,15 +1338,16 @@ jobs:
           chmod 700 "$avd_home"
           export ANDROID_AVD_HOME="$avd_home"
           avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py \
-            runtime-avd-name --adb-profile linux-system --device-abi x86_64)
-          test "$avd_name" = QPeriapt_Release_16K_API_35_CI_V1
+            runtime-avd-name --adb-profile linux-system --device-abi x86_64 \
+            --runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE")
+          test "$avd_name" = "$ANDROID_RUNTIME_AVD"
           test ! -e "$ANDROID_AVD_HOME/$avd_name.avd"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
           test ! -e "$ANDROID_AVD_HOME/$avd_name.ini"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
           avdmanager create avd \
             --name "$avd_name" \
-            --package "system-images;android-35;google_apis_ps16k;x86_64" \
+            --package "$ANDROID_RUNTIME_IMAGE" \
             --device pixel_6 <<< 'no'
           test -d "$ANDROID_AVD_HOME/$avd_name.avd"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
@@ -1336,9 +1357,10 @@ jobs:
             verify-avd-home \
             --avd-home "$ANDROID_AVD_HOME" \
             --adb-profile linux-system \
-            --device-abi x86_64
+            --device-abi x86_64 \
+            --runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE"
           unset ANDROID_AVD_HOME avd_home avd_name
-      - name: Execute both SDK consumers against the hash-bound AAR on API 35 16 KiB ART
+      - name: Execute both SDK consumers against the hash-bound AAR on the selected ART runtime
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
           QPERIAPT_ANDROID_ADB_PROFILE: linux-system
@@ -1346,8 +1368,8 @@ jobs:
           QPERIAPT_ANDROID_BOOT_AVD: "1"
           QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator
           QPERIAPT_ANDROID_EXPECT_ABI: x86_64
-          QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"
-          QPERIAPT_ANDROID_EXPECT_SDK: "35"
+          QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: ${{ matrix.page_size }}
+          QPERIAPT_ANDROID_EXPECT_SDK: ${{ matrix.sdk }}
         run: |
           canonical_java_home=$(realpath -e "$JAVA_HOME")
           export JAVA_HOME="$canonical_java_home"
@@ -1384,7 +1406,7 @@ jobs:
         if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-sdk-alpha1-runtime-api35-16k-x86_64-failure-diagnostics
+          name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log
@@ -1411,7 +1433,7 @@ jobs:
         if: always() && (hashFiles('target/sdk-android-package/*.stdout') != '' || hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/proof.json') != '')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-sdk-alpha1-runtime-api35-16k-x86_64
+          name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
             target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/

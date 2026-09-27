@@ -698,6 +698,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             avd_home=fixed_home,
             adb_profile="macos-account",
             device_abi="arm64-v8a",
+            runtime_profile="api35-16k",
         )
         with (
             mock.patch.object(
@@ -712,7 +713,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             contextlib.redirect_stdout(io.StringIO()) as output,
         ):
             android_device_proof.verify_avd_home(arguments)
-        validate.assert_called_once_with("macos-account", "arm64-v8a")
+        validate.assert_called_once_with("macos-account", "arm64-v8a", "api35-16k")
         self.assertEqual(output.getvalue(), "ANDROID_AVD_HOME_VERIFY_PASS\n")
 
         wrong = copy.copy(arguments)
@@ -3522,7 +3523,8 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
         self.assertLess(verify, pass_marker)
         self.assertLess(verify, bundle)
         self.assertLess(bundle, pass_marker)
-        self.assertIn("QPERIAPT_ANDROID_EXPECT_SDK=35", producer)
+        self.assertIn('ANDROID_RUNTIME_PROFILE=${QPERIAPT_ANDROID_RUNTIME_PROFILE:-api35-16k}', producer)
+        self.assertIn('[ "$EXPECTED_DEVICE_SDK" != "$ANDROID_RUNTIME_SDK" ]', producer)
         self.assertIn('"sdk": device_sdk', producer)
         self.assertIn('--expected-device-sdk "$DEVICE_SDK"', producer)
 

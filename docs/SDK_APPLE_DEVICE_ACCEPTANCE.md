@@ -90,5 +90,5 @@ Historical device schema 4, matrix schema 5 and their release-manifest bindings
 remain legacy-only. SDK captures are separate qualification inputs and cannot
 be inserted into the old release manifest as equivalent evidence. A successful
 host regression, unsigned app build or toolchain receipt is not a physical-device
-proof. Physical/current/minimum-OS runs, packaged device acceptance, independent
-review and the coordinated 0.2.0 release transaction remain open.
+proof. Physical/current/minimum-OS runs, packaged device acceptance, internal
+code/security review and the coordinated 0.2.0 release transaction remain open.

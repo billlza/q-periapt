@@ -44,6 +44,7 @@ need keytool
 need python3
 
 ANDROID_CONSUMER_PROFILE=${QPERIAPT_ANDROID_CONSUMER_PROFILE:-legacy_full}
+ANDROID_RUNTIME_PROFILE=${QPERIAPT_ANDROID_RUNTIME_PROFILE:-api35-16k}
 case "$ANDROID_CONSUMER_PROFILE" in
 	legacy_full) ;;
 	agp_full_release | agp_minimal_release | agp_sdk_full_release | agp_sdk_minimal_release)
@@ -61,19 +62,28 @@ case "$ANDROID_CONSUMER_PROFILE" in
 		;;
 esac
 
-ANDROID_AAR_PROFILE=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" <<'PY'
+ANDROID_PROFILE_SELECTION=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" "$ANDROID_RUNTIME_PROFILE" <<'PY'
 import sys
 from android_agp_consumer_contract import AndroidAgpConsumerError, profile_spec, runtime_target
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, runtime_profile
 try:
+    selected = runtime_profile(sys.argv[3])
     if sys.argv[1] == "legacy_full":
-        print("legacy")
+        if sys.argv[3] != DEFAULT_RUNTIME_PROFILE:
+            raise ValueError("legacy Android capture must retain its runtime profile")
+        aar_profile = "legacy"
     else:
-        runtime_target(sys.argv[1], sys.argv[2] or None)
-        print(profile_spec(sys.argv[1]).aar_profile)
-except AndroidAgpConsumerError as error:
+        runtime_target(sys.argv[1], sys.argv[2] or None, sys.argv[3])
+        aar_profile = profile_spec(sys.argv[1]).aar_profile
+    print(f"{aar_profile}:{selected.sdk}:{selected.page_size}")
+except (AndroidAgpConsumerError, ValueError) as error:
     raise SystemExit(f"error: {error}") from error
 PY
 )
+ANDROID_AAR_PROFILE=${ANDROID_PROFILE_SELECTION%%:*}
+ANDROID_RUNTIME_SHAPE=${ANDROID_PROFILE_SELECTION#*:}
+ANDROID_RUNTIME_SDK=${ANDROID_RUNTIME_SHAPE%:*}
+ANDROID_RUNTIME_PAGE_SIZE=${ANDROID_RUNTIME_SHAPE#*:}
 
 # Hold one host/account-scoped open-file-description lock for the whole lane.
 # The stable private file serializes every checkout that can reach the same
@@ -243,17 +253,17 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
 		exit 2
 	fi
-	# The canonical release profile pins the emulator's exact device shape;
+	# The selected release profile pins the emulator's exact device shape;
 	# a physical release capture keeps the collection discipline while the
 	# hardware supplies its own page size and SDK.
 	case "$EXPECTED_DEVICE_KIND" in
 		emulator)
-			if [ "$EXPECTED_PAGE_SIZE" != "16384" ]; then
-				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384\n' >&2
+			if [ "$EXPECTED_PAGE_SIZE" != "$ANDROID_RUNTIME_PAGE_SIZE" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=%s\n' "$ANDROID_RUNTIME_PAGE_SIZE" >&2
 				exit 2
 			fi
-			if [ "$EXPECTED_DEVICE_SDK" != "35" ]; then
-				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=35\n' >&2
+			if [ "$EXPECTED_DEVICE_SDK" != "$ANDROID_RUNTIME_SDK" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=%s\n' "$ANDROID_RUNTIME_SDK" >&2
 				exit 2
 			fi
 			if [ "$ANDROID_BOOT_AVD" != "1" ]; then
@@ -448,10 +458,12 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 	ANDROID_AVD_NAME=$(PYTHONPATH=artifact python3 \
 		artifact/android_bounded_command.py runtime-avd-name \
 		--adb-profile "$ADB_PROFILE" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI")
 	python3 artifact/android_device_proof.py verify-avd-home \
 		--avd-home "$ANDROID_AVD_HOME" \
 		--adb-profile "$ADB_PROFILE" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI" >/dev/null
 fi
 
@@ -2272,6 +2284,7 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		"$QPERIAPT_PYTHON_BOOTSTRAP" artifact/android_bounded_command.py \
 		emulator-nodaemon \
 		--run-id "$RUN_ID" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI" \
 		>"$DIST/emulator.log" 2>&1 &
 	EMULATOR_PID=$!
@@ -3046,6 +3059,7 @@ else
 		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
 		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
 		--expected-source-commit "$AGP_SOURCE_COMMIT" \
+		--expected-runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--expected-device-abi "$EXPECTED_DEVICE_ABI" "$@"
 fi
 if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then

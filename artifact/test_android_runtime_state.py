@@ -753,6 +753,15 @@ class AndroidRuntimeStateTests(unittest.TestCase):
                 state.runtime_avd_name("linux-system", "x86_64"),
                 "QPeriapt_Release_16K_API_35_CI_V1",
             )
+            self.assertEqual(
+                state.runtime_avd_name("linux-system", "x86_64", "api23-4k"),
+                "QPeriapt_SDK_4K_API_23_CI_V1",
+            )
+            for runtime_profile in (None, [], "api23", "api35-4k"):
+                with self.assertRaisesRegex(state.AndroidRuntimeStateError, "runtime profile"):
+                    state.runtime_avd_name("linux-system", "x86_64", runtime_profile)
+            with self.assertRaisesRegex(state.AndroidRuntimeStateError, "no fixed AVD selection"):
+                state.runtime_avd_name("macos-account", "arm64-v8a", "api23-4k")
             for profile, abi in (
                 ("macos-account", "x86_64"),
                 ("linux-system", "arm64-v8a"),
@@ -785,6 +794,38 @@ class AndroidRuntimeStateTests(unittest.TestCase):
             "require arm64-v8a or x86_64",
         ):
             state.runtime_avd_name("macos-account", "armeabi-v7a")
+
+    def test_minimum_avd_admission_and_retirement_keep_the_recorded_identity(self) -> None:
+        minimum = "QPeriapt_SDK_4K_API_23_CI_V1"
+        _home, directory, _ini = self.create_avd_fixture(minimum)
+        pstore = directory / "data/misc/pstore"
+        pstore.mkdir(mode=0o700, parents=True)
+        pstore.parent.chmod(0o700)
+        pstore.parent.parent.chmod(0o700)
+        pstore.chmod(0o777)
+        prior = self.active_emulator_receipt()
+        payload = state._runtime_receipt_payload(prior)
+        payload.update(adb_profile="linux-system", device_abi="x86_64", avd_name=minimum)
+        with mock.patch.object(state, "ADB_PROFILE_PATHS", {"macos-account": self.adb, "linux-system": self.adb}):
+            receipt = state._replace_owned_runtime_receipt(prior, payload)
+            before = state.owned_runtime_receipt_path().read_bytes()
+            # Retirement must select the recorded AVD even when the next caller
+            # has selected another runtime. It must not touch a same-host AVD.
+            with mock.patch.object(state, "validate_lane_lock_descriptor"), mock.patch.dict(
+                os.environ, {"QPERIAPT_ANDROID_RUNTIME_PROFILE": "api35-16k"},
+            ):
+                state.restore_owned_avd_pstore_permissions(receipt)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+            self.assertEqual(state.owned_runtime_receipt_path().read_bytes(), before)
+            self.assertEqual(state.validate_runtime_avd_selection(
+                "linux-system", "x86_64", "api23-4k").name, minimum)
+            with self.assertRaisesRegex(state.AndroidRuntimeStateError,
+                                       "selected Android AVD ini.*QPeriapt_Release_16K_API_35_CI_V1"):
+                state.validate_runtime_avd_selection("linux-system", "x86_64")
+            with mock.patch.object(state, "validate_lane_lock_descriptor"), self.assertRaisesRegex(
+                state.AndroidRuntimeStateError, "receipt changed|selection differs",
+            ):
+                state.restore_owned_avd_pstore_permissions(dataclasses.replace(receipt, avd_name="Unrelated_AVD"))
 
     def test_runtime_paths_cover_every_shared_adb_profile(self) -> None:
         self.assertEqual(

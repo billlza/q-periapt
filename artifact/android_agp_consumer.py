@@ -17,6 +17,7 @@ from typing import Any
 import android_device_proof as runtime
 import android_elf
 import android_runtime_state as runtime_state
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES
 from bounded_process import BoundedProcessError, capture_output
 from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
@@ -1118,10 +1119,11 @@ def _validate(
     expected_source_commit: str,
     sdk: pathlib.Path | None = None,
     expected_device_abi: str | None = None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> dict[str, object]:
     selected = _profile(expected_profile)
     spec = profile_spec(expected_profile)
-    target = runtime_target(expected_profile, expected_device_abi)
+    target = runtime_target(expected_profile, expected_device_abi, expected_runtime_profile)
     _object(proof, runtime.PROOF_FIELDS | {"kind", "consumer"}, "AGP runtime proof")
     require(
         type(proof["schema"]) is int
@@ -1164,6 +1166,7 @@ def _validate(
             result_profile=selected,
             expected_device_kind=target["kind"],
             expected_device_abi=target["abi"],
+            expected_runtime_profile=expected_runtime_profile,
             expected_device_sdk=target["sdk"],
             expected_page_size=target["page_size"],
             require_release_mode=True,
@@ -1227,6 +1230,7 @@ def _validate(
         expected_aar_manifest_sha256=expected_aar_manifest_sha256,
         expected_source_commit=expected_source_commit,
         expected_device_abi=expected_device_abi,
+        expected_runtime_profile=expected_runtime_profile,
     )
 
 
@@ -1240,6 +1244,7 @@ def validate_completed_profile(
     expected_source_commit: str,
     sdk: pathlib.Path | None = None,
     expected_device_abi: str | None = None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> dict[str, object]:
     """Validate local evidence with read-only Git/SDK replay; never run Gradle/devices."""
     proof, paths, build_paths, build_path, instrumentation = _read_selection(
@@ -1260,6 +1265,7 @@ def validate_completed_profile(
         expected_source_commit=expected_source_commit,
         sdk=sdk,
         expected_device_abi=expected_device_abi,
+        expected_runtime_profile=expected_runtime_profile,
     )
 
 
@@ -1275,6 +1281,7 @@ def profile_bundle_paths(proof: dict[str, Any], profile: str) -> dict[str, str]:
 def profile_evidence_files(
     root: pathlib.Path, proof_path: pathlib.Path, *, sdk: pathlib.Path | None = None,
     expected_device_abi: str | None = None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> dict[str, pathlib.Path]:
     """Return fixed archive-relative names for a complete, portable per-profile closure."""
     proof, paths, build_paths, build_path, instrumentation = _read_selection(
@@ -1290,6 +1297,7 @@ def profile_evidence_files(
         expected_source_commit=proof["git_commit"],
         sdk=sdk,
         expected_device_abi=expected_device_abi,
+        expected_runtime_profile=expected_runtime_profile,
     )
     names = profile_bundle_paths(proof, consumer["profile"])
     result = {
@@ -1316,6 +1324,7 @@ def verify_exported_profile(
     expected_source_commit: str,
     sdk: pathlib.Path | None = None,
     expected_device_abi: str | None = None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> dict[str, object]:
     """Verify safely extracted evidence through the same checks, with no original run paths."""
     require(
@@ -1366,6 +1375,7 @@ def verify_exported_profile(
         expected_source_commit=expected_source_commit,
         sdk=sdk,
         expected_device_abi=expected_device_abi,
+        expected_runtime_profile=expected_runtime_profile,
     )
 
 
@@ -1374,14 +1384,19 @@ def export_completed_profile(
     expected_profile: str, expected_aar_sha256: str,
     expected_aar_manifest_sha256: str, expected_source_commit: str,
     sdk: pathlib.Path | None = None, expected_device_abi: str | None = None,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> dict[str, object]:
     """Export a verified closure, then replay it independently of original run paths."""
     expected = dict(expected_profile=expected_profile, expected_aar_sha256=expected_aar_sha256,
                     expected_aar_manifest_sha256=expected_aar_manifest_sha256,
                     expected_source_commit=expected_source_commit, sdk=sdk,
-                    expected_device_abi=expected_device_abi)
+                    expected_device_abi=expected_device_abi,
+                    expected_runtime_profile=expected_runtime_profile)
     before = validate_completed_profile(root, proof_path, **expected)
-    files = profile_evidence_files(root, proof_path, sdk=sdk, expected_device_abi=expected_device_abi)
+    files = profile_evidence_files(
+        root, proof_path, sdk=sdk, expected_device_abi=expected_device_abi,
+        expected_runtime_profile=expected_runtime_profile,
+    )
     require(not directory.exists() and not directory.is_symlink(), "AGP export already exists")
     directory.mkdir(mode=0o700)
     for name, source in files.items():
@@ -1417,6 +1432,8 @@ def main() -> int:
         command.add_argument("--root", type=pathlib.Path, required=True)
         command.add_argument("--sdk", type=pathlib.Path)
         command.add_argument("--expected-device-abi", choices=("arm64-v8a", "x86_64"))
+        command.add_argument("--expected-runtime-profile", choices=tuple(RUNTIME_PROFILES),
+                             default=DEFAULT_RUNTIME_PROFILE)
         for name in (
             "profile",
             "expected-aar-sha256",
@@ -1452,6 +1469,7 @@ def main() -> int:
                 expected_source_commit=arguments.expected_source_commit,
                 sdk=sdk,
                 expected_device_abi=arguments.expected_device_abi,
+                expected_runtime_profile=arguments.expected_runtime_profile,
             )
             if arguments.command == "verify-export":
                 value = verify_exported_profile(root, arguments.directory, **expected)

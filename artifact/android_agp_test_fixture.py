@@ -152,7 +152,8 @@ class AgpFixturePair:
 
 
 def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = False,
-                            device_abi: str = "arm64-v8a") -> AgpFixturePair:
+                            device_abi: str = "arm64-v8a",
+                            expected_runtime_profile: str = contract.DEFAULT_RUNTIME_PROFILE) -> AgpFixturePair:
     """Build two complete synthetic profiles sharing one real source commit and AAR."""
     root = directory.resolve() / "source"
     root.mkdir(mode=0o700, parents=True)
@@ -163,7 +164,7 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
     package = android_elf.package_profile("sdk-alpha1" if sdk_profile else "legacy")
     names = set()
     for profile in selected_profiles:
-        contract.runtime_target(profile, device_abi)
+        contract.runtime_target(profile, device_abi, expected_runtime_profile)
         names.update(runtime.source_inputs(runtime.RuntimeResultProfile(profile)).values())
         names.update(consumer.source_inputs(profile))
     names.add(package.contract)
@@ -248,7 +249,7 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
             run_id=run_id,
             release_candidate_mode=True,
         )
-        proof["device"]["abi"] = device_abi
+        proof["device"].update(contract.runtime_target(profile, device_abi, expected_runtime_profile))
         proof["emulator_control"]["backend"]["identity"] = "qemu-system-" + ("aarch64" if device_abi == "arm64-v8a" else "x86_64") + "-headless"
         proof["abi"]["contract_path"] = package.contract
         tests = list(contract.PROFILE_TESTS[profile])
@@ -483,7 +484,8 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
                 "expected_aar_sha256": digest(aar),
                 "expected_aar_manifest_sha256": digest(manifest),
                 "expected_source_commit": commit,
-                **({"expected_device_abi": device_abi} if sdk_profile else {}),
+                **({"expected_device_abi": device_abi,
+                    "expected_runtime_profile": expected_runtime_profile} if sdk_profile else {}),
             },
         )
     return AgpFixturePair(root, sdk, aar, manifest, profiles)

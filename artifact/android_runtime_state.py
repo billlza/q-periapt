@@ -20,6 +20,10 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal, NoReturn
 
+from android_runtime_profile import (
+    DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, owned_avd_profile, runtime_profile,
+)
+
 from android_emulator_control import (
     ADB_ISOLATION_CHECKPOINT_LEAVES,
     ADB_ISOLATION_RECEIPT_KIND,
@@ -200,12 +204,7 @@ ADB_PROFILE_PATHS: Mapping[str, pathlib.Path] = MappingProxyType(
         "linux-opt": pathlib.Path("/opt/android-sdk/platform-tools/adb"),
     }
 )
-RUNTIME_AVD_NAMES: Mapping[tuple[str, str], str] = MappingProxyType(
-    {
-        ("macos-account", "arm64-v8a"): "QPeriapt_Release_16K_API_35_V1",
-        ("linux-system", "x86_64"): "QPeriapt_Release_16K_API_35_CI_V1",
-    }
-)
+RUNTIME_AVD_NAMES = RUNTIME_PROFILES[DEFAULT_RUNTIME_PROFILE].avds
 
 
 class AndroidRuntimeStateError(RuntimeError):
@@ -1835,12 +1834,19 @@ def canonical_runtime_emulator_abi(
     return _canonical_emulator_abi(value)
 
 
-def runtime_avd_name(adb_profile: object, device_abi: object) -> str:
+def runtime_avd_name(
+    adb_profile: object, device_abi: object,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
+) -> str:
     """Derive the only admitted AVD name from code-owned runtime identities."""
 
     canonical_profile = _canonical_concrete_adb_profile(adb_profile)
     canonical_abi = _canonical_emulator_abi(device_abi)
-    selected = RUNTIME_AVD_NAMES.get((canonical_profile, canonical_abi))
+    try:
+        spec = runtime_profile(expected_runtime_profile)
+    except ValueError as error:
+        raise AndroidRuntimeStateError(str(error)) from error
+    selected = spec.avds.get((canonical_profile, canonical_abi))
     _require(
         selected is not None,
         "Android runtime adb profile and emulator ABI have no fixed AVD selection",
@@ -2325,10 +2331,11 @@ def _validate_default_avd_fallback_absence(avd_name: str) -> None:
 def validate_runtime_avd_selection(
     adb_profile: object,
     device_abi: object,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> AvdSelection:
     """Validate the fixed AVD and prove every same-name fallback is absent."""
 
-    avd_name = runtime_avd_name(adb_profile, device_abi)
+    avd_name = runtime_avd_name(adb_profile, device_abi, expected_runtime_profile)
     selection = _validate_avd_home_selection(avd_name)
     _validate_default_avd_fallback_absence(selection.name)
     return selection
@@ -2432,8 +2439,11 @@ def restore_owned_avd_pstore_permissions(receipt: OwnedRuntimeReceipt) -> None:
         current is not None and current.snapshot_sha256 == receipt.snapshot_sha256,
         "AVD scratch retirement receipt changed",
     )
-    name = runtime_avd_name(receipt.adb_profile, receipt.device_abi)
-    _require(receipt.avd_name == name, "AVD scratch receipt selection differs")
+    try:
+        selected_profile = owned_avd_profile(receipt.adb_profile, receipt.device_abi, receipt.avd_name)
+    except ValueError as error:
+        raise AndroidRuntimeStateError(f"AVD scratch receipt selection differs: {error}") from error
+    name = runtime_avd_name(receipt.adb_profile, receipt.device_abi, selected_profile)
     home = avd_home_directory()
     selected = home / f"{name}.avd"
     descriptors: list[tuple[int, str]] = []
@@ -2555,7 +2565,7 @@ def restore_owned_avd_pstore_permissions(receipt: OwnedRuntimeReceipt) -> None:
                     "AVD pstore changed after inspection",
                 )
         recheck_bindings()
-        validate_runtime_avd_selection(receipt.adb_profile, receipt.device_abi)
+        validate_runtime_avd_selection(receipt.adb_profile, receipt.device_abi, selected_profile)
         recheck_bindings()
     except OSError as exc:
         primary = AndroidRuntimeStateError(f"cannot restore owned AVD pstore: {exc}")

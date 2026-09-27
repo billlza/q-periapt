@@ -5,6 +5,14 @@ Goal: finish alpha.1, then the beta/0.2.0 product requirements in the supplied
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+The current release quality gates are internal review of cryptographic
+boundaries, ownership/error paths, code quality and maintainability, together
+with source-bound tests, platform execution and the release transaction.
+The current requirements table governs this release; historical checkpoints
+below retain the criteria and observations recorded at their time. The
+[internal implementation review](SDK_INTERNAL_REVIEW.md) records inspected
+contracts, validation and remaining code-review boundaries.
+
 The original nine entry points keep their signatures, layouts, existing status
 codes and library identity. Package-version metadata reflects the new package;
 new status codes receive their new names. Owner functions are additive ABI 2 extensions, with an
@@ -17,7 +25,7 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 | Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. Physical Android evidence remains open; JVM Java-source owner construction is closed |
 | Rust compiler floor | Actual minimum-compiler build and public API execution from the same pinned packages; explicit development-toolchain scope | Rust 1.85.0 builds the default workspace on macOS ARM64 and hosted Linux; the 830e381 Linux MSRV job passes. The retained twelve-crate package cohort has four public API tests passing from nine extracted archives on Rust 1.85.0 and 1.96.1. Remaining target/feature floors require their own evidence; full development tests use the canonical toolchain |
 | Immutable verified runtime | Actual signature/root/state validation; no raw decision constructor; policy epoch/revocation rules and persistence boundary | Prepare/persist/activate, one-winner revocation, disabled-policy recovery and later re-enabling implemented across all six surfaces; shared Rust/C/Swift persistent runtime and both installed macOS peers have real-file/process recovery evidence; native Linux reference qualification remains open |
-| Explicit expert access and named-purpose derivation | Separate APIs, specified formats/KDF/domain binding, rejection and interoperability evidence | Owned HKDF-SHA-256 purpose derivation and explicit expanded-key transfer implemented across all six surfaces; native integrity/PCT checks and foreign roundtrips pass locally; external review remains open |
+| Explicit expert access and named-purpose derivation | Separate APIs, specified formats/KDF/domain binding, rejection and interoperability evidence | Owned HKDF-SHA-256 purpose derivation and explicit expanded-key transfer implemented across all six surfaces; native integrity/PCT checks and foreign roundtrips pass locally; focused internal review remains required |
 | Resource failures and budgets | Bounded inputs, in-flight workspace/live-object budgets, cleanup on entropy/allocation failure, no success-shaped error path | Per-runtime quotas plus native 1024-owner/64-call aggregate limits implemented; close and prepared activation exempt; full-budget activation and JNI failure/copy disposal exercised; process OOM recovery is not claimed |
 | ContextBound efficiency without protocol change | KAT/differential/implicit rejection/import checks plus exact-byte transcript equivalence; state and scratch erasure review | Current local workspace/WASM conformance passes; binary CT, formal and device gates remain separate |
 | x86_64 native candidate | Pinned source, CPU/OS capability contract, native Linux execution, differential and CT evidence; separate MSVC disposition | Opt-in GNU Linux candidate implemented with CPU/OS checks and portable dispatch. Hosted 830e381 differential tests and the binary CT gate pass for 512/768/1024. Controlled performance, broader CT coverage and separate non-GNU disposition remain required; this finite gate is not a general constant-time proof |
@@ -25,19 +33,45 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 | Standard TLS interoperability | RFC-compliant standard group, actual independent peer, auth/policy parity and no silent classic fallback | Separate opt-in TLS 1.3 + X25519MLKEM768 mutual-certificate path implemented. The archive-built Rust peer and hosted Linux 830e381 run pass eight independent OpenSSL client/server cases. Installed Swift/Rust macOS peers pass policy confirmation and failure scenarios; the actual macOS-to-Linux reference remains open |
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
-| Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; external review recorded honestly | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. They do not replace independent external security review, which remains pending |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and independent critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and independent review remain required |
+| Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | Not ready; no publication authorized by readiness alone |
 
 ## Latest qualification checkpoints
+
+The Android SDK lane now selects one of two closed runtime profiles:
+`api35-16k` retains the existing API 35 / 16 KiB target, and `api23-4k` adds the
+API 23 / 4 KiB / x86_64 floor. Both CI jobs consume the same AAR and run the
+existing full/minimal R8 workloads, installation checks, owned cleanup and
+independent export replay. Verification requires a caller-selected runtime
+profile; an API 23 result cannot satisfy API 35 acceptance. Crash cleanup uses
+the admitted AVD identity stored in its receipt. The legacy default remains
+API 35 / 16 KiB. The new minimum runtime still needs hosted execution.
+
+The `0e2a670` source completes all 36
+[CI jobs](https://github.com/billlza/q-periapt/actions/runs/36345633624) and all six
+[CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36345633631).
+The PR merge `06db6468429b8097f2af0bb9087b49e0e2b55962` has the same tree,
+`a2d00304d649af24440870f77f7d67dc33a22319`. All 41 open alerts retain their
+preceding IDs/rules, and their thirteen source-location files are byte-identical
+to the preceding candidate. No alert was dismissed or suppressed.
+
+The clean standalone source passes 2,268 artifact tests in 453.901 seconds
+without skips and its pre/post source gate. Hosted artifact `10940517353`
+contains the passing Apple SDK host workload and iOS build logs; its downloaded
+ZIP matches API SHA-256
+`ce567e45fd0e4ecf771735a898ad5b332823d2c7d97089ee6ef98a1de0b9e1df`.
+This completes hosted qualification for the Apple harness source. Physical
+device execution, the macOS-to-Linux reference, controlled performance and the
+release transaction retain their own acceptance requirements.
 
 The `ba2cd3b` source completes all 36
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36340910445) and all six
 [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36340910438).
 The PR-scoped query retains 41 open alerts, bound to merge
 `701b35031305298e363a52a8cc6bef5e31debbc2` with the same tree as that source.
-No alert was dismissed. These results do not qualify the subsequent Apple
-device-harness changes or replace independent review.
+No alert was dismissed. These results retain their preceding source scope;
+the current Apple harness results are recorded above.
 
 The [SDK Apple device profile](SDK_APPLE_DEVICE_ACCEPTANCE.md) now builds and
 executes a distinct owner workload, with version/ABI/extension/test-group-bound
@@ -58,8 +92,8 @@ release signing or publication was performed for this preparation.
 All 230 affected Apple artifact checks pass locally, including cross-profile,
 source-change, matrix-route and signature-identity rejection cases. The repeatable
 host/iOS check is now part of the Swift CI job; it retains build/host logs and
-cannot emit a physical-device success marker. The broader final-source artifact
-suite and hosted qualification still need their own result.
+cannot emit a physical-device success marker. The broader artifact suite and
+hosted qualification for this source are recorded above.
 
 The preceding `caca8a7` source completes all 36
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36338497784) and all six
