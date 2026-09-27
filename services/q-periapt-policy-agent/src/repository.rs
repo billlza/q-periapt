@@ -370,9 +370,11 @@ impl StateRepository {
     pub fn open_existing(path: &Path, roots: MigrationTrustRoots) -> Result<Self, RepositoryError> {
         let file =
             open_private_file(path, false).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
-        refuse_unclean_foreign_redb(&file).map_err(|_| RepositoryError::CorruptStore)?;
+        let backend =
+            redb::backends::FileBackend::new(file).map_err(|_| RepositoryError::CorruptStore)?;
+        refuse_unclean_foreign_redb(&backend).map_err(|_| RepositoryError::CorruptStore)?;
         let mut database = Database::builder()
-            .create_file(file)
+            .create_with_backend(backend)
             .map_err(|_| RepositoryError::CorruptStore)?;
         if !database
             .check_integrity()

@@ -10,6 +10,9 @@ The finalize command is deliberately a one-time 190-to-254 proof-input
 migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
+
+The explicit sdk-alpha1 CI profile validates current source and ABI contracts
+while preserving the 0.1.5 results bytes as history. It grants no release claim.
 """
 
 from __future__ import annotations
@@ -23,12 +26,14 @@ import pathlib
 import re
 import stat
 import sys
+import tomllib
 from collections.abc import Callable
 from typing import Any, Never, TypeVar
 
 import android_device_proof
 import android_elf
 import apple_publication_contract
+import c_abi_contract
 import crates_io_publication_contract
 import platform_publication_contract
 import platform_stable_publication_contract
@@ -234,6 +239,19 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 INITIAL_RESULTS_SHA256 = (
     "a5cbbac1f3cec5f9d20de1912e5ee6ebc16d36da3eb934333259107087db9590"
 )
+
+# The SDK source lane preserves this published 0.1.5 ledger as historical
+# evidence. It cannot qualify new SDK binaries, devices or a release transaction.
+SDK_HISTORICAL_RESULTS_SHA256 = (
+    "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda"
+)
+SDK_NEW_PROOF_INPUT_KEYS = frozenset({
+    "migration_agent_filesystem_adapter_sha256",
+    "host_store_manifest_sha256",
+    "host_store_lib_sha256",
+    "host_store_policy_sha256",
+    "host_store_policy_tests_sha256",
+})
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(
     {
@@ -553,14 +571,19 @@ def validate_baseline(
 def source_ci_gate(
     expected_results_sha256: str,
     expected_commit: str,
+    *,
+    profile: str = "legacy",
 ) -> tuple[str, SourceIdentity]:
-    """Select only the exact initial-readiness or full installed CI state."""
+    """Select the explicitly requested legacy transition or SDK source contract."""
 
     _require(
         isinstance(expected_commit, str)
         and COMMIT_RE.fullmatch(expected_commit) is not None,
         "expected CI source commit is malformed",
     )
+    _require(isinstance(profile, str) and profile in {"legacy", "sdk-alpha1"}, "unsupported source CI profile")
+    if profile == "sdk-alpha1":
+        return "sdk-alpha1", _sdk_source_ci_gate(expected_results_sha256, expected_commit)
     baseline = _load_pinned_baseline(expected_results_sha256)
     baseline_inputs = _object(
         baseline.get("proof_to_byte_inputs"),
@@ -625,6 +648,53 @@ def source_ci_gate(
     raise SourceResultsAssemblerError(
         "CI results proof-input state is neither exact initial nor installed"
     )
+
+
+def _sdk_source_ci_gate(expected_results_sha256: str, expected_commit: str) -> SourceIdentity:
+    _require(
+        expected_results_sha256 == SDK_HISTORICAL_RESULTS_SHA256,
+        "SDK historical results differ from the frozen 0.1.5 ledger",
+    )
+    baseline = _load_pinned_baseline(expected_results_sha256)
+    baseline_inputs = _object(baseline.get("proof_to_byte_inputs"), "historical proof inputs")
+    _require(
+        len(baseline_inputs) == 249
+        and set(baseline_inputs) == set(PROOF_TO_BYTE_INPUT_PATHS) - SDK_NEW_PROOF_INPUT_KEYS,
+        "SDK historical proof-input inventory differs",
+    )
+    source = _source_identity()
+    _require(source.commit == expected_commit, "SDK CI source differs from the expected commit")
+    try:
+        manifest = read_regular_snapshot(
+            REPOSITORY_ROOT / "Cargo.toml", maximum=1024 * 1024, label="SDK workspace manifest"
+        )
+        document = _object(tomllib.loads(manifest.data.decode("utf-8")), "SDK manifest")
+        workspace = _object(document.get("workspace"), "SDK workspace")
+        package = _object(workspace.get("package"), "SDK workspace package")
+        _require(
+            package.get("version") == "0.2.0-alpha.1",
+            "SDK source gate requires the exact alpha workspace version",
+        )
+        for contract_path, header_path, count in (
+            ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json",
+             "crates/q-periapt-ffi/include/q_periapt.h", 43),
+            ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+             "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h", 9),
+        ):
+            contract = c_abi_contract.load_contract(REPOSITORY_ROOT / contract_path)
+            _require(len(contract.export_names) == count, "SDK/legacy ABI profile was substituted")
+            c_abi_contract.verify_header(contract, REPOSITORY_ROOT / header_path)
+    except (EvidenceIOError, UnicodeError, tomllib.TOMLDecodeError, c_abi_contract.CAbiContractError) as exc:
+        raise SourceResultsAssemblerError("SDK source contract was rejected") from exc
+    authority = capture_proof_input_digests(REPOSITORY_ROOT)
+    _require(len(authority) == 254, "SDK current proof-input inventory differs")
+    _load_pinned_baseline(expected_results_sha256)
+    _require(
+        capture_proof_input_digests(REPOSITORY_ROOT) == authority,
+        "SDK proof inputs changed during source validation",
+    )
+    _require(_source_identity() == source, "SDK source changed during validation")
+    return source
 
 
 def _validate_baseline_document_shape(
@@ -2311,6 +2381,7 @@ def _parser() -> argparse.ArgumentParser:
     ci_gate = commands.add_parser("ci-source-gate")
     ci_gate.add_argument("expected_results_sha256")
     ci_gate.add_argument("expected_commit")
+    ci_gate.add_argument("--profile", choices=("legacy", "sdk-alpha1"), default="legacy")
     reopen = commands.add_parser("reopen-source")
     reopen.add_argument("expected_results_sha256")
     return parser
@@ -2321,19 +2392,28 @@ def run(args: argparse.Namespace) -> None:
         mode, source = source_ci_gate(
             args.expected_results_sha256,
             args.expected_commit,
+            profile=args.profile,
         )
-        if mode == "initial":
+        if mode == "sdk-alpha1":
+            print(
+                "SDK_SOURCE_READINESS_PASS profile=sdk-alpha1 "
+                f"commit={source.commit} results_sha256={args.expected_results_sha256} "
+                "current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
+            )
+        elif mode == "initial":
             print(
                 "SOURCE_TRANSITION_READINESS_PASS mode=initial "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
                 "proof_inputs=254 declared_delta=64"
             )
-        else:
+        elif mode == "installed":
             print(
                 "SOURCE_CI_GATE_MODE mode=installed "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
                 "proof_inputs=254"
             )
+        else:
+            _fail("source CI gate returned an unsupported mode")
         return
     if args.command == "verify-installed":
         commit = verify_installed_source_successor(args.expected_results_sha256)

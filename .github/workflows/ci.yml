@@ -20,7 +20,8 @@ env:
 jobs:
   # Format + lint + unit tests on the host.
   check:
-    runs-on: ubuntu-latest
+    # This job also produces the C SDK, whose GLIBC floor is 2.35.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -39,6 +40,11 @@ jobs:
             echo "checked-out HEAD $actual_commit does not match GitHub commit $EXPECTED_COMMIT" >&2
             exit 1
           fi
+      - name: Set up canonical artifact Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13.14"
+          check-latest: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
         with:
           toolchain: 1.96.1
@@ -68,21 +74,17 @@ jobs:
           java -version
           javac -version
       - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
-      - name: Exact source-transition or installed proof-to-byte gate
+      - name: Exact SDK source and historical evidence boundary
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
         run: |
           results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)
           source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
-            ci-source-gate \
+            ci-source-gate --profile sdk-alpha1 \
             "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
-          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=254 declared_delta=64"
-          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=254"
-          if [ "$source_gate" = "$initial_gate" ]; then
+          expected_gate="SDK_SOURCE_READINESS_PASS profile=sdk-alpha1 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
+          if [ "$source_gate" = "$expected_gate" ]; then
             printf '%s\n' "$source_gate"
-          elif [ "$source_gate" = "$installed_gate" ]; then
-            printf '%s\n' "$source_gate"
-            QPERIAPT_SKIP_SMOKE=1 /bin/sh artifact/proof-to-byte.sh
           else
             printf 'unexpected source CI gate result\n' >&2
             exit 2
@@ -1007,7 +1009,8 @@ jobs:
         run: cargo +1.96.1 test --locked -p q-periapt-policy-agent
 
   bindings-kotlin:
-    runs-on: ubuntu-latest
+    # The native library must keep the same GLIBC 2.35 floor as the Linux SDK.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -1251,6 +1254,9 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
+          canonical_java_home=$(realpath -e "$JAVA_HOME")
+          export JAVA_HOME="$canonical_java_home"
+          export PATH="$JAVA_HOME/bin:$PATH"
           aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/q-periapt-android-0.2.0-alpha.1.aar"
           manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/MANIFEST.json"
           wrapper="$GITHUB_WORKSPACE/artifact/android-agp-consumer/gradlew"
@@ -1320,6 +1326,9 @@ jobs:
           QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"
           QPERIAPT_ANDROID_EXPECT_SDK: "35"
         run: |
+          canonical_java_home=$(realpath -e "$JAVA_HOME")
+          export JAVA_HOME="$canonical_java_home"
+          export PATH="$JAVA_HOME/bin:$PATH"
           aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/q-periapt-android-0.2.0-alpha.1.aar"
           manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/MANIFEST.json"
           test -f "$aar" && test -f "$manifest"

@@ -112,22 +112,18 @@ EXPECTED_CHECKOUT_PROVENANCE_STEP = (
     "            exit 1\n"
     "          fi\n"
 )
-EXPECTED_PROOF_TO_BYTE_STEP = (
-    "      - name: Exact source-transition or installed proof-to-byte gate\n"
+EXPECTED_SDK_SOURCE_STEP = (
+    "      - name: Exact SDK source and historical evidence boundary\n"
     "        env:\n"
     "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
     "        run: |\n"
     "          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)\n"
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
-    "            ci-source-gate \\\n"
+    "            ci-source-gate --profile sdk-alpha1 \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=254 declared_delta=64\"\n"
-    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=254\"\n"
-    "          if [ \"$source_gate\" = \"$initial_gate\" ]; then\n"
+    "          expected_gate=\"SDK_SOURCE_READINESS_PASS profile=sdk-alpha1 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false\"\n"
+    "          if [ \"$source_gate\" = \"$expected_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
-    "          elif [ \"$source_gate\" = \"$installed_gate\" ]; then\n"
-    "            printf '%s\\n' \"$source_gate\"\n"
-    "            QPERIAPT_SKIP_SMOKE=1 /bin/sh artifact/proof-to-byte.sh\n"
     "          else\n"
     "            printf 'unexpected source CI gate result\\n' >&2\n"
     "            exit 2\n"
@@ -957,15 +953,15 @@ def validate_ci_check_checkout(check_job: str) -> None:
     proof_starts = [
         index
         for index, line in enumerate(lines)
-        if line == "      - name: Exact source-transition or installed proof-to-byte gate\n"
+        if line == "      - name: Exact SDK source and historical evidence boundary\n"
     ]
     if len(proof_starts) != 1:
-        raise ValueError("CI check job must contain one explicit proof-to-byte step")
+        raise ValueError("CI check job must contain one explicit SDK source step")
     proof_start = proof_starts[0]
     proof_step = "".join(lines[proof_start : step_end(proof_start)])
-    if proof_step != EXPECTED_PROOF_TO_BYTE_STEP:
+    if proof_step != EXPECTED_SDK_SOURCE_STEP:
         raise ValueError(
-            "CI proof-to-byte step differs from the audited fail-closed form"
+            "CI SDK source step differs from the audited fail-closed form"
         )
 
 
@@ -5786,18 +5782,18 @@ with _temporary_release_test_directories(parents):
                 1,
             ),
             "non-blocking proof": check_job.replace(
-                EXPECTED_PROOF_TO_BYTE_STEP,
-                EXPECTED_PROOF_TO_BYTE_STEP + "        continue-on-error: true\n",
+                EXPECTED_SDK_SOURCE_STEP,
+                EXPECTED_SDK_SOURCE_STEP + "        continue-on-error: true\n",
                 1,
             ),
             "conditional proof": check_job.replace(
-                EXPECTED_PROOF_TO_BYTE_STEP,
-                EXPECTED_PROOF_TO_BYTE_STEP + "        if: failure()\n",
+                EXPECTED_SDK_SOURCE_STEP,
+                EXPECTED_SDK_SOURCE_STEP + "        if: failure()\n",
                 1,
             ),
             "PR head instead of tested merge commit": check_job.replace(
-                EXPECTED_PROOF_TO_BYTE_STEP,
-                EXPECTED_PROOF_TO_BYTE_STEP.replace(
+                EXPECTED_SDK_SOURCE_STEP,
+                EXPECTED_SDK_SOURCE_STEP.replace(
                     "${{ github.sha }}",
                     "${{ github.event.pull_request.head.sha }}",
                 ),

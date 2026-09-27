@@ -849,12 +849,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         for mode, expected_marker in (
             ("initial", "SOURCE_TRANSITION_READINESS_PASS mode=initial"),
             ("installed", "SOURCE_CI_GATE_MODE mode=installed"),
+            ("sdk-alpha1", "SDK_SOURCE_READINESS_PASS profile=sdk-alpha1"),
         ):
             output = io.StringIO()
             args = mock.Mock(
                 command="ci-source-gate",
                 expected_results_sha256=RESULTS_DIGEST,
                 expected_commit=SOURCE_COMMIT,
+                profile="sdk-alpha1" if mode == "sdk-alpha1" else "legacy",
             )
             with (
                 mock.patch.object(
@@ -868,6 +870,60 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             self.assertTrue(output.getvalue().startswith(expected_marker))
             if mode == "installed":
                 self.assertNotIn("READINESS_PASS", output.getvalue())
+            if mode == "sdk-alpha1":
+                self.assertIn("release_claim_eligible=false", output.getvalue())
+                self.assertIn("historical_proof_inputs=249", output.getvalue())
+
+    def test_sdk_source_profile_preserves_history_and_requires_explicit_selection(self) -> None:
+        historical = json.loads((ROOT / "artifact/results.json").read_bytes())
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        authority = _proof_inputs(installed=True)
+        with (
+            mock.patch.object(assembler, "_load_pinned_baseline", return_value=historical),
+            mock.patch.object(assembler, "_source_identity", return_value=source),
+            mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
+        ):
+            self.assertEqual(assembler.source_ci_gate(
+                assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT, profile="sdk-alpha1"
+            ), ("sdk-alpha1", source))
+            # The legacy finalizer still refuses this SDK transition's shape.
+            with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "neither exact"):
+                assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT)
+            for profile in ("sdk", "latest", None, []):
+                with self.subTest(profile=profile), self.assertRaises(assembler.SourceResultsAssemblerError):
+                    assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
+                                             SOURCE_COMMIT, profile=profile)
+            with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "frozen 0.1.5"):
+                assembler.source_ci_gate(RESULTS_DIGEST, SOURCE_COMMIT, profile="sdk-alpha1")
+
+    def test_sdk_source_profile_rejects_contract_substitution_and_races(self) -> None:
+        historical = json.loads((ROOT / "artifact/results.json").read_bytes())
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        authority = _proof_inputs(installed=True)
+        changed_authority = dict(authority)
+        changed_authority[next(iter(changed_authority))] = "f" * 64
+        changed_history = copy.deepcopy(historical)
+        changed_history["proof_to_byte_inputs"].pop(next(iter(changed_history["proof_to_byte_inputs"])))
+        legacy = assembler.c_abi_contract.load_contract(ROOT / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
+        changes = (
+            mock.patch.object(assembler, "_load_pinned_baseline", return_value=changed_history),
+            mock.patch.object(assembler, "_source_identity", return_value=assembler.SourceIdentity(RESULTS_COMMIT, SOURCE_DIGEST)),
+            mock.patch.object(assembler, "_source_identity", side_effect=[source, assembler.SourceIdentity(SOURCE_COMMIT, "e" * 64)]),
+            mock.patch.object(assembler, "capture_proof_input_digests", side_effect=[authority, changed_authority]),
+            mock.patch.object(assembler, "read_regular_snapshot", return_value=mock.Mock(data=b'[workspace.package]\nversion = "0.1.5"\n')),
+            mock.patch.object(assembler, "read_regular_snapshot", return_value=mock.Mock(data=b'workspace = "invalid"\n')),
+            mock.patch.object(assembler.c_abi_contract, "load_contract", return_value=legacy),
+        )
+        for change in changes:
+            with (
+                mock.patch.object(assembler, "_load_pinned_baseline", return_value=historical),
+                mock.patch.object(assembler, "_source_identity", return_value=source),
+                mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
+                change,
+                self.assertRaises(assembler.SourceResultsAssemblerError),
+            ):
+                assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
+                                         SOURCE_COMMIT, profile="sdk-alpha1")
 
     def test_validate_baseline_pins_worktree_bytes_to_head_and_mode(self) -> None:
         for require_initial in (True, False):

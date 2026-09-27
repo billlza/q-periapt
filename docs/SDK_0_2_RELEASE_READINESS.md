@@ -31,6 +31,17 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The alpha CI source check uses the explicit `sdk-alpha1` profile of
+`source_results_assembler.py ci-source-gate`. It checks a clean exact commit,
+the alpha workspace version, both ABI 2 header contracts, and the current 254
+proof-input paths. The published 0.1.5 results ledger remains byte-frozen at
+`9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda`;
+its 249 inputs are historical evidence, not evidence for the SDK build. The
+source check emits `release_claim_eligible=false`. The separate legacy source
+transition/finalizer retains its exact initial and installed requirements.
+Native package, runtime, formal and CodeQL jobs still qualify the current SDK
+source independently; source readiness alone does not authorize a release.
+
 - [Complete artifact regression](../research/sdk-alpha1/evidence/20260927-sdk-android-repair-quality/manifest.json):
   2,220 tests with warnings as errors, after the Android notice repair. The
   private build-copy index mismatch and its metadata-only repair are retained.

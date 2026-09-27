@@ -358,6 +358,16 @@ function Assert-NoAmbientCargoConfiguration {
     }
 }
 
+function New-SdkCargoHome {
+    # Keep the cache separate from the checkout so every compiler remap has a
+    # distinct root. Leave it in place for inspection, including failed builds.
+    $privateCache = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetTempPath()) (
+        "qperiapt-windows-sdk-cargo-" + [System.Guid]::NewGuid().ToString("N")
+    )))
+    New-Item -ItemType Directory -Path $privateCache | Out-Null
+    return $privateCache
+}
+
 function New-EncodedReleaseRustFlags {
     param(
         [Parameter(Mandatory)] [string] $SourceRoot,
@@ -1494,11 +1504,10 @@ Assert-TrustedBuildEnvironment
 $CargoHome = Resolve-CargoHome
 Assert-NoAmbientCargoConfiguration -SourceRoot $Root -CargoHome $CargoHome
 if ($Profile -eq "sdk-alpha1" -and $Mode -eq "Build") {
-    # A private cache keeps dependency C sources below the already remapped
-    # source root, including AWS-LC's __FILE__ diagnostics. Do not copy ambient
-    # Cargo configuration or credentials into this cache.
-    $CargoHome = Join-Path $OutRoot "cargo-home"
-    New-Item -ItemType Directory -Path $CargoHome | Out-Null
+    # Do not inherit ambient Cargo configuration or credentials. Both Rust and
+    # C dependency paths receive their own explicit compiler remap below.
+    $CargoHome = New-SdkCargoHome
+    Write-Host "WINDOWS_SDK_CARGO_HOME=$CargoHome"
 }
 $MsvcInstallation = Initialize-MsvcEnvironment
 Assert-TrustedBuildEnvironment
@@ -1733,7 +1742,7 @@ try {
     $env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"
     if ($Profile -eq "sdk-alpha1") {
         $env:CC_SHELL_ESCAPED_FLAGS = "1"
-        $env:CFLAGS = '/experimental:deterministic /WX "/pathmap:' + $Root + '=qperiapt-source"'
+        $env:CFLAGS = '/experimental:deterministic /WX "/pathmap:' + $Root + '=qperiapt-source" "/pathmap:' + $CargoHome + '=qperiapt-cargo-home"'
         Invoke-Checked -FilePath "cargo.exe" -Arguments @("+1.97.0", "fetch", "--locked")
         $env:CARGO_NET_OFFLINE = "true"
     }

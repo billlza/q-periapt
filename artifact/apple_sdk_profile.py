@@ -221,7 +221,9 @@ def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
     parent = parent.resolve(strict=True)
     if host_target not in TARGETS[:2]:
         raise ValueError("SDK BOM tool requires an explicit Apple host target")
-    package, consumer = parent / "QPeriapt", parent / "consumer"
+    # Xcode 26 names the workspace after this directory; Xcode 27 uses the
+    # package name. Keep both identities equal to the checked consumer name.
+    package, consumer = parent / "QPeriapt", parent / "QPeriaptSDKConsumer"
     if package.exists() or consumer.exists():
         raise ValueError("SDK package/consumer destination already exists")
     source = ROOT / "bindings/swift/Sources/QPeriaptSDK"

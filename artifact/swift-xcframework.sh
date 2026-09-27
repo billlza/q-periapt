@@ -434,7 +434,7 @@ XCFRAMEWORK="$DIST/CQPeriapt.xcframework"
 ZIP_PATH="$DIST/CQPeriapt.xcframework.zip"
 CONSUMER="$OUT_ROOT/consumer"
 if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
-	CONSUMER="$OUT_ROOT/sdk-layout/consumer"
+	CONSUMER="$OUT_ROOT/sdk-layout/QPeriaptSDKConsumer"
 fi
 MANIFEST="$DIST/MANIFEST.json"
 SHA256SUMS="$DIST/SHA256SUMS"

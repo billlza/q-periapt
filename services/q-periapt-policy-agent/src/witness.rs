@@ -724,7 +724,7 @@ impl WitnessStore {
         // until FileBackend has obtained its nonblocking exclusive flock.
         let backend =
             redb::backends::FileBackend::new(file).map_err(|_| WitnessError::Persistence)?;
-        refuse_unclean_foreign_redb(&reader).map_err(|_| WitnessError::Persistence)?;
+        refuse_unclean_foreign_redb(&backend).map_err(|_| WitnessError::Persistence)?;
         {
             let mut scratch = parent
                 .create_anonymous_scratch()

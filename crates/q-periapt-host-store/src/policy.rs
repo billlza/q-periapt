@@ -152,7 +152,7 @@ fn database(file: File, create: bool) -> Result<Database, StoreError> {
         return Err(StoreError::Corrupt);
     }
     if !create {
-        refuse_unclean_foreign_redb(&probe).map_err(|_| StoreError::Corrupt)?;
+        refuse_unclean_foreign_redb(&backend).map_err(|_| StoreError::Corrupt)?;
     }
     let mut builder = Database::builder();
     builder.set_cache_size(CACHE_BYTES);

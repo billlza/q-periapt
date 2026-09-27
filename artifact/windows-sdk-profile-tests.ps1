@@ -76,3 +76,43 @@ foreach ($mutated in $mutations) {
     if (-not $rejected) { throw "incomplete, extra or duplicate SDK import symbols were accepted" }
 }
 Write-Host "WINDOWS_SDK_IMPORT_SYMBOL_FIXTURES_PASS"
+
+# Exercise the actual cache placement together with the production remap
+# validator. This is filesystem/argument validation, not native MSVC evidence.
+foreach ($name in @("New-SdkCargoHome", "New-EncodedReleaseRustFlags")) {
+    $definitions = @($ast.FindAll({ param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name
+    }, $true))
+    if ($definitions.Count -ne 1) { throw "production SDK cache/remap function is ambiguous: $name" }
+    Invoke-Expression $definitions[0].Extent.Text
+}
+$fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("qperiapt-sdk-remap-test-" + [System.Guid]::NewGuid().ToString("N"))
+$sourceRoot = Join-Path $fixtureRoot "source with spaces"
+$sysroot = Join-Path $fixtureRoot "rust-sysroot"
+$oldCache = Join-Path $sourceRoot "target/cargo-home"
+$caches = @()
+try {
+    New-Item -ItemType Directory -Path $sourceRoot, $sysroot, $oldCache -Force | Out-Null
+    $rejected = $false
+    try { [void](New-EncodedReleaseRustFlags -SourceRoot $sourceRoot -CargoHome $oldCache -RustSysroot $sysroot) }
+    catch {
+        if (-not $_.Exception.Message.Contains("must be distinct and non-overlapping")) { throw }
+        $rejected = $true
+    }
+    if (-not $rejected) { throw "overlapping SDK cache was admitted" }
+    for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        $cache = New-SdkCargoHome
+        $caches += $cache
+        if (@(Get-ChildItem -LiteralPath $cache -Force).Count -ne 0) { throw "new SDK cache is not empty" }
+        $flags = New-EncodedReleaseRustFlags -SourceRoot $sourceRoot -CargoHome $cache -RustSysroot $sysroot
+        if (-not $flags.Contains("--remap-path-prefix=$cache=qperiapt-cargo-home")) {
+            throw "the private Cargo root was not remapped"
+        }
+    }
+    if ($caches[0] -ceq $caches[1]) { throw "SDK attempts reused a cache" }
+} finally {
+    foreach ($path in @($caches) + @($fixtureRoot)) {
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
+    }
+}
+Write-Host "WINDOWS_SDK_CACHE_REMAP_BOUNDARY_PASS"

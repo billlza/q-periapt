@@ -209,7 +209,7 @@ fn open_private_leaf(
 }
 
 /// Refuse a redb store file that was left unclean by a writer other than this
-/// crate's stores, before the file is handed to redb at all.
+/// crate's stores, before redb parses or recovers the database.
 ///
 /// Every commit the three stores make is two-phase, and that is the premise
 /// of letting redb finish crash recovery on open: with two-phase commit redb
@@ -223,31 +223,30 @@ fn open_private_leaf(
 /// Layout (redb 2.6 file format v2): nine magic bytes, then the god byte at
 /// offset 9 with bit 2 = recovery required and bit 4 = two-phase commit.
 /// This format check does not establish private-file ownership. In particular,
-/// Windows private-file admission remains unsupported. The Windows read advances
-/// the file cursor; callers must not concurrently use that cursor.
+/// Windows private-file admission remains unsupported. The already-locked backend
+/// performs the read through the same handle that owns the lifetime lock. Reading
+/// through a competing handle first would hide Windows lock conflicts as I/O errors.
 #[cfg(any(unix, windows))]
-pub fn refuse_unclean_foreign_redb(file: &File) -> Result<(), PrivateFileError> {
-    #[cfg(unix)]
-    use std::os::unix::fs::FileExt;
-    #[cfg(windows)]
-    use std::os::windows::fs::FileExt;
+pub fn refuse_unclean_foreign_redb(
+    backend: &redb::backends::FileBackend,
+) -> Result<(), PrivateFileError> {
+    use redb::StorageBackend;
 
     const GOD_BYTE_OFFSET: u64 = 9;
     const RECOVERY_REQUIRED: u8 = 2;
     const TWO_PHASE_COMMIT: u8 = 4;
 
-    let mut god = [0u8; 1];
-    #[cfg(unix)]
-    let read = file.read_at(&mut god, GOD_BYTE_OFFSET);
-    #[cfg(windows)]
-    let read = file.seek_read(&mut god, GOD_BYTE_OFFSET);
-    match read {
-        Ok(1) => {}
-        Ok(_) => return Ok(()),
-        Err(_) => return Err(PrivateFileError),
+    if backend.len().map_err(|_| PrivateFileError)? <= GOD_BYTE_OFFSET {
+        return Ok(());
     }
-    let unclean = god[0] & RECOVERY_REQUIRED != 0;
-    let two_phase = god[0] & TWO_PHASE_COMMIT != 0;
+    let header = backend
+        .read(GOD_BYTE_OFFSET, 1)
+        .map_err(|_| PrivateFileError)?;
+    let [god] = header.as_slice() else {
+        return Err(PrivateFileError);
+    };
+    let unclean = god & RECOVERY_REQUIRED != 0;
+    let two_phase = god & TWO_PHASE_COMMIT != 0;
     if unclean && !two_phase {
         return Err(PrivateFileError);
     }
@@ -256,37 +255,46 @@ pub fn refuse_unclean_foreign_redb(file: &File) -> Result<(), PrivateFileError> 
 
 #[cfg(not(any(unix, windows)))]
 /// Refuse header inspection on platforms without a reviewed file-offset read.
-pub fn refuse_unclean_foreign_redb(_: &File) -> Result<(), PrivateFileError> {
+pub fn refuse_unclean_foreign_redb(
+    _: &redb::backends::FileBackend,
+) -> Result<(), PrivateFileError> {
     Err(PrivateFileError)
 }
 
 #[cfg(all(test, any(unix, windows)))]
 mod redb_header_tests {
     use super::*;
+    use redb::backends::FileBackend;
     use std::io::{Seek, SeekFrom, Write};
 
     #[test]
-    fn header_inspection_requires_two_phase_commit_for_unclean_files() -> std::io::Result<()> {
-        let mut file = tempfile::tempfile()?;
+    fn header_inspection_requires_two_phase_commit_for_unclean_files(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         for (flags, accepted) in [(0u8, true), (2, false), (4, true), (6, true)] {
-            file.seek(SeekFrom::Start(0))?;
+            let mut file = tempfile::tempfile()?;
             let header = [0, 0, 0, 0, 0, 0, 0, 0, 0, flags];
             file.write_all(&header)?;
             // The read must use offset 9, independent of the current cursor.
             file.seek(SeekFrom::Start(3))?;
-            assert_eq!(refuse_unclean_foreign_redb(&file).is_ok(), accepted);
+            let backend = FileBackend::new(file)?;
+            assert_eq!(refuse_unclean_foreign_redb(&backend).is_ok(), accepted);
         }
+        let file = tempfile::tempfile()?;
         file.set_len(9)?;
         // The storage engine, not this narrow header check, rejects short files.
-        assert_eq!(refuse_unclean_foreign_redb(&file), Ok(()));
+        let backend = FileBackend::new(file)?;
+        assert_eq!(refuse_unclean_foreign_redb(&backend), Ok(()));
         Ok(())
     }
 
     #[test]
-    fn header_read_failure_is_not_accepted_as_a_short_file() -> std::io::Result<()> {
+    fn header_read_failure_is_not_accepted_as_a_short_file(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempfile::tempdir()?;
         let file = File::create(directory.path().join("write-only.redb"))?;
-        assert_eq!(refuse_unclean_foreign_redb(&file), Err(PrivateFileError));
+        file.set_len(10)?;
+        let backend = FileBackend::new(file)?;
+        assert_eq!(refuse_unclean_foreign_redb(&backend), Err(PrivateFileError));
         Ok(())
     }
 
