@@ -48,6 +48,16 @@ profile; an API 23 result cannot satisfy API 35 acceptance. Crash cleanup uses
 the admitted AVD identity stored in its receipt. The legacy default remains
 API 35 / 16 KiB. The new minimum runtime still needs hosted execution.
 
+The first complete local run at `99fb979` executes 2,271 tests and identifies two
+integration failures: the isolated remote-consumer source list omits the new
+runtime-profile module, and the workflow contract test still expects a single
+literal system image. The follow-up adds the transitive module and checks both
+fixed matrix targets, their shared AAR and per-target artifacts. A real isolated
+validation call reproduces the old missing-module error; the corrected snapshot
+loads that path and rejects the same empty projection at its intended boundary.
+The initial import-only probe did not reach the lazy import, so it was not used
+as validation. All failed logs remain; the corrected complete suite is pending.
+
 The `0e2a670` source completes all 36
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36345633624) and all six
 [CodeQL analyses](https://github.com/billlza/q-periapt/actions/runs/36345633631).

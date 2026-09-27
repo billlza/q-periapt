@@ -1874,7 +1874,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", with_package)
         self.assertIn("rust_package_contract=1", with_package)
 
-    def test_ci_android_16k_runtime_consumes_same_run_aar_fail_closed(self) -> None:
+    def test_ci_android_runtime_matrix_consumes_same_run_aar_fail_closed(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         job = extract_workflow_job(workflow, "bindings-android-runtime-16k")
 
@@ -1913,16 +1913,39 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertNotIn("yes | sdkmanager", job)
         self.assertNotIn("sdkmanager --licenses <<< \"$license_answers\" ||", job)
 
-        image = '"system-images;android-35;google_apis_ps16k;x86_64"'
-        self.assertGreaterEqual(job.count(image), 2)
+        matrix = job.split("        include:\n", 1)[1].split("    env:\n", 1)[0]
+        targets = []
+        for line in matrix.splitlines():
+            if line.startswith("          - name: "):
+                targets.append({"name": line.removeprefix("          - name: ")})
+            else:
+                self.assertTrue(line.startswith("            "), line)
+                self.assertTrue(targets)
+                key, value = line.strip().split(": ", 1)
+                self.assertNotIn(key, targets[-1])
+                targets[-1][key] = value.removeprefix('"').removesuffix('"')
+        self.assertEqual(targets, [
+            {"name": "bindings-android-runtime-16k", "profile": "api35-16k", "sdk": "35",
+             "page_size": "16384", "image": "system-images;android-35;google_apis_ps16k;x86_64",
+             "avd": "QPeriapt_Release_16K_API_35_CI_V1"},
+            {"name": "bindings-android-runtime-minimum", "profile": "api23-4k", "sdk": "23",
+             "page_size": "4096", "image": "system-images;android-23;google_apis;x86_64",
+             "avd": "QPeriapt_SDK_4K_API_23_CI_V1"},
+        ])
+        self.assertEqual(job.count('"$ANDROID_RUNTIME_IMAGE"'), 2)
         for required in (
+            'name: ${{ matrix.name }}',
+            'fail-fast: false',
+            'QPERIAPT_ANDROID_RUNTIME_PROFILE: ${{ matrix.profile }}',
+            'ANDROID_RUNTIME_IMAGE: ${{ matrix.image }}',
+            'ANDROID_RUNTIME_AVD: ${{ matrix.avd }}',
             'QPERIAPT_ANDROID_ADB_PROFILE: linux-system',
             'QPERIAPT_ANDROID_RELEASE_MODE: "1"',
             'QPERIAPT_ANDROID_BOOT_AVD: "1"',
             'QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator',
             'QPERIAPT_ANDROID_EXPECT_ABI: x86_64',
-            'QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"',
-            'QPERIAPT_ANDROID_EXPECT_SDK: "35"',
+            'QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: ${{ matrix.page_size }}',
+            'QPERIAPT_ANDROID_EXPECT_SDK: ${{ matrix.sdk }}',
             'QPERIAPT_ANDROID_EXISTING_AAR="$aar"',
             'QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest"',
             'QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256"',
@@ -1937,7 +1960,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "sh artifact/python-run.sh",
             "artifact/android_bounded_command.py avd-home-path",
             "runtime-avd-name --adb-profile linux-system --device-abi x86_64",
-            'test "$avd_name" = QPeriapt_Release_16K_API_35_CI_V1',
+            'test "$avd_name" = "$ANDROID_RUNTIME_AVD"',
+            '--runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE"',
             'test ! -e "$avd_home"',
             'mkdir "$avd_home"',
             'export ANDROID_AVD_HOME="$avd_home"',
@@ -2011,7 +2035,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''\n"
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n"
             "        with:\n"
-            "          name: abi2-android-sdk-alpha1-runtime-api35-16k-x86_64-failure-diagnostics\n"
+            "          name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics\n"
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
@@ -2052,7 +2076,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn(
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
         )
-        self.assertIn("name: abi2-android-sdk-alpha1-runtime-api35-16k-x86_64\n", proof_upload)
+        self.assertIn("name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64\n", proof_upload)
         self.assertIn("if: always() &&", proof_upload)
         self.assertNotIn("if: failure()", proof_upload)
         self.assertIn("if-no-files-found: error\n", proof_upload)
