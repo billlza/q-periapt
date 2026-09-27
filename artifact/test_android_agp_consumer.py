@@ -226,7 +226,7 @@ android_command() {
     esac
 }
 python3() {
-    "$test_python" -I -S "$test_root/artifact/python_bootstrap.py" "$@"
+    QPERIAPT_PYTHON="$test_python" sh "$test_root/artifact/python-run.sh" "$@"
 }
 '''
         script += source[function_start:function_end] + source[block_start:block_end]
