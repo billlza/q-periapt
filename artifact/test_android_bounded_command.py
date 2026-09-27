@@ -7,6 +7,7 @@ import io
 import json
 import os
 import pathlib
+import pty
 import select
 import shlex
 import signal
@@ -15,8 +16,10 @@ import stat
 import subprocess
 import sys
 import tempfile
+import termios
 import threading
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 import android_bounded_command as commands
@@ -1517,6 +1520,12 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 b"present\n",
             ),
             (
+                BoundedResult(
+                    0, b"package:dev.qperiapt.androidsmoke\r\n"
+                ),
+                b"present\n",
+            ),
+            (
                 BoundedResult(17, b"raw package service diagnostic\n"),
                 b"retryable:query-nonzero\n",
             ),
@@ -1557,6 +1566,55 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 capture.call_args.kwargs["environment"],
                 commands._client_environment(capability),
             )
+
+    def test_package_state_accepts_one_complete_line_from_legacy_pty(self) -> None:
+        # API 23 adbd sends shell output through a PTY. Exercise the actual
+        # terminal newline transformation, then feed its bytes to the observer.
+        master, slave = pty.openpty()
+        try:
+            attributes = termios.tcgetattr(slave)
+            attributes[1] |= termios.OPOST | termios.ONLCR
+            termios.tcsetattr(slave, termios.TCSANOW, attributes)
+            line = b"package:dev.qperiapt.androidsmoke\n"
+            self.assertEqual(os.write(slave, line), len(line))
+            readable, _, _ = select.select([master], [], [], 5)
+            self.assertEqual(readable, [master])
+            output = os.read(master, 4096)
+        finally:
+            os.close(slave)
+            os.close(master)
+        self.assertEqual(output, b"package:dev.qperiapt.androidsmoke\r\n")
+        with mock.patch.object(
+            commands, "capture_stdout", return_value=BoundedResult(0, output)
+        ):
+            self.assertEqual(
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE),
+                BoundedResult(0, b"present\n"),
+            )
+
+    def test_instrumentation_write_captures_and_bounds_stderr(self) -> None:
+        capability = self.load_capability()
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.RUN_INSTRUMENTATION]
+        shell = str(pathlib.Path("/bin/sh").resolve())
+        result = commands._write_operation(
+            self.layout, capability, spec,
+            (shell, "-c", "printf 'stdout\\n'; printf 'stderr\\n' >&2"), 5,
+        )
+        self.assertEqual(result.returncode, 0)
+        output = self.proof / "adb-instrumentation.txt"
+        self.assertEqual(output.read_bytes(), b"stdout\nstderr\n")
+        # The same fixed budget must cover stderr. A limit failure must leave
+        # the previous committed output untouched rather than publish a prefix.
+        limited = replace(
+            spec, output=replace(spec.output, maximum_bytes=32)
+        )
+        with self.assertRaises(commands.BoundedProcessError) as raised:
+            commands._write_operation(
+                self.layout, capability, limited,
+                (shell, "-c", "printf '%064d' 0 >&2"), 5,
+            )
+        self.assertEqual(raised.exception.kind, "output_limit")
+        self.assertEqual(output.read_bytes(), b"stdout\nstderr\n")
 
     def test_package_state_maps_only_bounded_timeout_to_retryable(self) -> None:
         with mock.patch.object(
@@ -2154,7 +2212,12 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             b"package:dev.qperiapt.androidsmoke\n\n",
             b" package:dev.qperiapt.androidsmoke\n",
             b"package:dev.qperiapt.other\n",
-            b"package:dev.qperiapt.androidsmoke\r\n",
+            b"package:dev.qperiapt.androidsmoke\r",
+            b"package:dev.qperiapt.androidsmoke\r\r\n",
+            b"package:dev.qperiapt.androidsmoke\r\n\r\n",
+            b"package:dev.qperiapt.androidsmoke\r\npackage:dev.qperiapt.other\r\n",
+            b"package:dev.qperiapt.android\rsmoke\n",
+            b"package:dev.qperiapt.androidsmoke\x1b\n",
             b"package:dev.qperiapt.androidsmoke\x00\n",
             b"\xff",
         )
@@ -3993,7 +4056,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     self.assertEqual(self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS), BoundedResult(0))
                     argv = write.call_args.args[0]
                     self.assertEqual(argv[argv.index("logcat"):], (
-                        "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
+                        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
+                        "-v", "threadtime",
                         "-T", "1786240000.123", "-s", "AndroidRuntime:E", "Watchdog:*",
                         "ActivityManager:E", "SystemServer:E", "PackageManager:E",
                         "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",

@@ -46,7 +46,30 @@ existing full/minimal R8 workloads, installation checks, owned cleanup and
 independent export replay. Verification requires a caller-selected runtime
 profile; an API 23 result cannot satisfy API 35 acceptance. Crash cleanup uses
 the admitted AVD identity stored in its receipt. The legacy default remains
-API 35 / 16 KiB. The new minimum runtime still needs hosted execution.
+API 35 / 16 KiB. The new minimum runtime still needs successful hosted execution.
+
+At `47e7fcc`, all 2,274 local artifact tests pass without skips in 478.096
+seconds, with warnings treated as errors and pre/post source gates. Hosted
+API 35 completes both workloads. The API 23 job now passes its metadata
+probes, installs the APK and verifies the installed bytes twice, but its
+Instrumentation output is empty and the decoder rejects it. Cleanup separately
+rejects the package-query output; app removal is not confirmed. The owned
+emulator and ADB server are retired, and the failure diagnostics are retained.
+
+The follow-up accepts only the exact expected package line ending in LF or
+CRLF. API 23's shell service uses a PTY, and a real local PTY test reproduces
+the CRLF rejection before the change and acceptance after it; extra lines,
+other package names and embedded controls remain invalid. It also uses
+separate `-b main -b system -b crash` options, because API 23 logcat treats the
+previous comma-separated value as one unknown buffer. Both behaviors follow
+the [API 23 shell service](https://raw.githubusercontent.com/aosp-mirror/platform_system_core/android-6.0.1_r81/adb/services.cpp)
+and [logcat parser](https://raw.githubusercontent.com/aosp-mirror/platform_system_core/android-6.0.1_r81/logcat/logcat.cpp).
+
+Bounded write operations now apply their declared stderr merge option, which
+was previously ignored. A real child-process regression confirms capture and
+the shared output limit, retaining the previous file when the limit fails.
+These transport/diagnostic corrections do not establish why Instrumentation
+returned no output; the next hosted execution must still supply that evidence.
 
 The first complete local run at `99fb979` executes 2,271 tests and identifies two
 integration failures: the isolated remote-consumer source list omits the new

@@ -3260,6 +3260,7 @@ def _write_operation(
             output_name=output.leaf,
             timeout_seconds=timeout_seconds,
             maximum_bytes=output.maximum_bytes,
+            stderr=subprocess.STDOUT if spec.stderr_to_stdout else None,
             environment=_client_environment(capability),
         )
     except BaseException as exc:
@@ -3694,17 +3695,15 @@ def _observe_package_state(
                     f"{PackageState.DEVICE_UNAVAILABLE.value}\n".encode("ascii"),
                 )
         return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
-    if b"\x00" in raw.stdout or b"\r" in raw.stdout:
-        _fail("Android package-state output contains a forbidden control character")
-    try:
-        text = raw.stdout.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise AndroidCommandError(
-            f"Android package-state output is not UTF-8: {exc}"
-        ) from exc
-    if text == "":
+    # API 23 adbd uses a PTY for shell commands, which maps the final LF to
+    # CRLF. Accept exactly these two complete lines, without stripping controls
+    # or whitespace that could conceal extra packages or command diagnostics.
+    if raw.stdout == b"":
         state = PackageState.ABSENT
-    elif text == f"package:{PACKAGE}\n":
+    elif raw.stdout in (
+        f"package:{PACKAGE}\n".encode("ascii"),
+        f"package:{PACKAGE}\r\n".encode("ascii"),
+    ):
         state = PackageState.PRESENT
     else:
         _fail("Android package-state output is malformed")
@@ -4066,7 +4065,8 @@ def _capture_emulator_diagnostics(
     _require(remaining is not None, "system diagnostic deadline expired")
     argv = _device(
         capability,
-        "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
+        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
+        "-v", "threadtime",
         "-T", _device_logcat_start_time(layout), "-s",
         "AndroidRuntime:E", "Watchdog:*", "ActivityManager:E", "SystemServer:E",
         "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
