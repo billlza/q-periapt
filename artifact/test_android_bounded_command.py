@@ -3474,8 +3474,59 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     capture.assert_called_once()
                     write.assert_not_called()
 
+    def test_installed_apk_path_failure_records_bounded_emulator_reply_per_stage(self) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        path = b"package:/data/app/run/base.apk\n"
+        reply = b"\x1b[31mpackage service unavailable\xff\n::error::guest text\n"
+        for stage in ("before-copy", "after-copy"):
+            responses = [BoundedResult(7, reply)]
+            if stage == "after-copy":
+                responses.insert(0, BoundedResult(0, path))
+            error_log = io.StringIO()
+            with self.subTest(stage=stage):
+                with contextlib.redirect_stderr(error_log):
+                    result, capture, write = self._invoke_installed_apk_observation(
+                        path_results=responses, copied_bytes=self.apk.read_bytes(),
+                    )
+                self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+                self.assertEqual(len(error_log.getvalue().splitlines()), 1)
+                self.assertNotIn("\x1b", error_log.getvalue())
+                self.assertEqual(json.loads(error_log.getvalue()), {
+                    "operation": "installed-apk-path", "stage": stage,
+                    "failure": "unavailable", "returncode": 7,
+                    "output_bytes": len(reply),
+                    "output_sha256": hashlib.sha256(reply).hexdigest(),
+                    "output": reply.decode("utf-8", errors="backslashreplace"),
+                })
+                for call in capture.call_args_list:
+                    self.assertEqual(call.kwargs["maximum_bytes"], 65536)
+                    self.assertEqual(call.kwargs["stderr"], subprocess.STDOUT)
+                self.assertEqual(write.call_count, int(stage == "after-copy"))
+                self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_path_diagnostic_keeps_physical_reply_private(self) -> None:
+        self.create_capability(device_kind="physical", expected_serial="SERIAL123")
+        reply = b"device SERIAL123 package service unavailable\n"
+        error_log = io.StringIO()
+        with contextlib.redirect_stderr(error_log):
+            result, _capture, write = self._invoke_installed_apk_observation(
+                path_results=[BoundedResult(1, reply)],
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+        self.assertEqual(json.loads(error_log.getvalue()), {
+            "operation": "installed-apk-path", "stage": "before-copy",
+            "failure": "unavailable", "returncode": 1,
+            "output_bytes": len(reply),
+            "output_sha256": hashlib.sha256(reply).hexdigest(),
+        })
+        self.assertNotIn("SERIAL123", error_log.getvalue())
+        self.assertNotIn("package service unavailable", error_log.getvalue())
+        write.assert_not_called()
+
     def test_installed_apk_observation_retries_only_bounded_timeouts(self) -> None:
+        error_log = io.StringIO()
         with (
+            contextlib.redirect_stderr(error_log),
             mock.patch.object(
                 commands,
                 "capture_stdout",
@@ -3490,6 +3541,10 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 timeout_seconds=30,
             )
         self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+        self.assertEqual(json.loads(error_log.getvalue()), {
+            "operation": "installed-apk-path", "stage": "before-copy",
+            "failure": "timeout",
+        })
         write.assert_not_called()
 
         path = b"package:/data/app/run/base.apk\n"

@@ -8,6 +8,7 @@ import dataclasses
 import enum
 import errno
 import hashlib
+import json
 import os
 import pathlib
 import re
@@ -3320,6 +3321,7 @@ def _capture_installed_apk_path(
     capability: runtime_state.AndroidCommandCapability,
     *,
     timeout_seconds: int,
+    stage: Literal["before-copy", "after-copy"],
 ) -> tuple[BoundedResult, str | None]:
     try:
         result = capture_stdout(
@@ -3332,10 +3334,39 @@ def _capture_installed_apk_path(
     except BoundedProcessError as exc:
         if exc.kind != "timeout" or getattr(exc, "__notes__", None):
             raise
+        _report_installed_apk_path_failure(capability, stage=stage, result=None)
         return BoundedResult(1), None
     if result.returncode != 0 or not result.stdout:
+        _report_installed_apk_path_failure(capability, stage=stage, result=result)
         return result, None
     return result, _parse_remote_base_apk_output(result.stdout)
+
+
+def _report_installed_apk_path_failure(
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    stage: Literal["before-copy", "after-copy"],
+    result: BoundedResult | None,
+) -> None:
+    # The producer already retains this operation's stderr per attempt. Keep
+    # its typed stdout unchanged. pm path has a 64 KiB combined-output bound;
+    # JSON escaping prevents guest text from becoming terminal/log commands.
+    diagnostic: dict[str, object] = {
+        "operation": "installed-apk-path",
+        "stage": stage,
+        "failure": "timeout" if result is None else "unavailable",
+    }
+    if result is not None:
+        diagnostic.update(
+            returncode=result.returncode,
+            output_bytes=len(result.stdout),
+            output_sha256=hashlib.sha256(result.stdout).hexdigest(),
+        )
+        # Only the disposable, receipt-owned emulator exposes guest errors.
+        # Physical-device identifiers and responses remain outside this log.
+        if capability.device_kind == "emulator":
+            diagnostic["output"] = result.stdout.decode("utf-8", errors="backslashreplace")
+    print(json.dumps(diagnostic, sort_keys=True, separators=(",", ":")), file=sys.stderr)
 
 
 def _package_unavailable_observation(
@@ -3372,7 +3403,7 @@ def _observe_installed_apk(
             ),
         )
     before_result, before_path = _capture_installed_apk_path(
-        capability, timeout_seconds=before_timeout
+        capability, timeout_seconds=before_timeout, stage="before-copy"
     )
     if before_result.returncode != 0 or before_path is None:
         return _package_unavailable_observation(capability, deadline=deadline)
@@ -3429,7 +3460,7 @@ def _observe_installed_apk(
             ),
         )
     after_result, after_path = _capture_installed_apk_path(
-        capability, timeout_seconds=after_timeout
+        capability, timeout_seconds=after_timeout, stage="after-copy"
     )
     if after_result.returncode != 0 or after_path is None:
         _remove_installed_apk_copy(layout)

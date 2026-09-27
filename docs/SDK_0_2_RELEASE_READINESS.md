@@ -26,10 +26,28 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Android full ART/export passes at named checkpoints; minimal retirement remains open. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; external review recorded honestly | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. They do not replace independent external security review, which remains pending |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and independent critical-path review | The clean 5ec7fc0 artifact checkpoint passes 2,243 tests in 441.545 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The pstore follow-up passes 219 Android state/command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and independent review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and independent critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and independent review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | Not ready; no publication authorized by readiness alone |
 
 ## Latest qualification checkpoints
+
+The clean `2493ffe68ad99920880a9bd4c70be79dc37c1850` snapshot passed all 2,250
+artifact tests in 482.705 seconds, without skips, and the post-test exact-source
+gate. The [persistent RAM checkpoint](../research/sdk-alpha1/evidence/20260927-sdk-owned-pstore-retirement/manifest.json)
+retains the previous native failures, upstream implementation, source-bound
+red/green regression and both retirement paths. Its native follow-up is running.
+
+Tracing the remaining transport failure found that failed `pm path` responses
+were collapsed into the typed `package-unavailable` state without retaining the
+underlying exit code or reply. The command now writes bounded diagnostics to
+the existing per-attempt stderr file, identifying whether failure preceded or
+followed the APK copy. Only the owned emulator's reply is included, with control
+characters escaped; physical-device replies remain represented by metadata and
+a digest. Timeout is explicit. The typed result, deadlines, recovery budget and
+uninstall authorization are unchanged. Both missing-log stages reproduce on the
+old source and pass after repair; 171 command tests and 155 producer/consumer
+regressions pass. The underlying guest
+transport failure is not attributed without its native diagnostic evidence.
 
 At `830e3813a61cec8009875b3602ad4cab5bb1da7a`, the completed
 [CI cohort](https://github.com/billlza/q-periapt/actions/runs/36328485723) passed
