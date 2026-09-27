@@ -13,6 +13,7 @@ import pathlib
 import re
 import signal
 import stat
+import struct
 import subprocess
 import sys
 import threading
@@ -396,6 +397,86 @@ class WindowsPackageError(ValueError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise WindowsPackageError(message)
+
+
+def normalize_static_debug_filenames(data: bytes) -> tuple[bytes, int]:
+    """Replace only AMD64 COFF FILE auxiliary filenames, without moving any byte.
+
+    Rust's archive also contains short import records, which llvm-strip cannot
+    process. Those records and the archive indexes remain byte-identical. This
+    accepts the normal COFF objects emitted by the pinned toolchain; unsupported
+    object dialects fail. It never searches/replaces strings in code or data.
+    """
+    _require(data.startswith(b"!<arch>\n"), "static library must be a regular COFF archive")
+    result = bytearray(data)
+    cursor, changed = 8, 0
+    while cursor < len(data):
+        _require(cursor + 60 <= len(data), "truncated static archive member header")
+        header = data[cursor:cursor + 60]
+        size_text = header[48:58].strip()
+        _require(header[58:] == b"`\n" and size_text.isdigit(), "invalid static archive member header")
+        size = int(size_text)
+        start, end = cursor + 60, cursor + 60 + size
+        _require(end + size % 2 <= len(data), "truncated static archive member")
+        cursor = end + size % 2
+        if header[:16].strip() in (b"/", b"//", b"/SYM64/"):
+            continue # Linker/string indexes are preserved, including duplicate member names.
+        member = memoryview(data)[start:end]
+        _require(len(member) >= 20, "truncated COFF member")
+        if member[:8] == b"\x00\x00\xff\xff\x00\x00\x64\x86":
+            _require(struct.unpack_from("<I", member, 12)[0] == len(member) - 20,
+                     "invalid AMD64 import record size")
+            continue # Short imports have no COFF symbol table or FILE auxiliary records.
+        machine, sections, _, symbol_offset, symbols, optional, _ = struct.unpack_from("<HHIIIHH", member)
+        _require(machine == 0x8664 and optional == 0, "unsupported static COFF object dialect")
+        header_end = 20 + 40 * sections
+        _require(header_end <= len(member), "truncated COFF section table")
+        if symbols == 0:
+            continue
+        symbol_end = symbol_offset + 18 * symbols
+        _require(header_end <= symbol_offset < symbol_end <= len(member), "invalid COFF symbol table extent")
+        # Refuse aliases into section contents, relocations or line records.
+        # This makes the write boundary independent of a producer's layout.
+        for index in range(sections):
+            _, _, _, raw_size, raw_pointer, reloc_pointer, line_pointer, relocs, lines, flags = struct.unpack_from(
+                "<8sIIIIIIHHI", member, 20 + 40 * index)
+            if flags & 0x01000000: # IMAGE_SCN_LNK_NRELOC_OVFL: first record stores the count.
+                _require(relocs == 0xffff and 0 < reloc_pointer <= len(member) - 10,
+                         "invalid COFF relocation overflow record")
+                relocs = struct.unpack_from("<I", member, reloc_pointer)[0]
+                _require(relocs > 0xffff, "invalid COFF relocation overflow count")
+            ranges = [(reloc_pointer, 10 * relocs), (line_pointer, 6 * lines)]
+            if raw_pointer or not flags & 0x80: # Uninitialized .bss has no stored bytes.
+                ranges.append((raw_pointer, raw_size))
+            for offset, length in ranges:
+                if length:
+                    _require(header_end <= offset and offset + length <= len(member), "invalid COFF section extent")
+                    _require(offset + length <= symbol_offset or symbol_end <= offset,
+                             "COFF symbol table overlaps section contents")
+        index = 0
+        while index < symbols:
+            location = symbol_offset + 18 * index
+            name, _, section, _, storage, auxiliaries = struct.unpack_from("<8sIhHBB", member, location)
+            _require(index + 1 + auxiliaries <= symbols, "truncated COFF auxiliary records")
+            if storage == 103: # IMAGE_SYM_CLASS_FILE, PE/COFF Auxiliary Format 4.
+                _require(name == b".file\0\0\0" and section == -2 and auxiliaries > 0,
+                         "invalid COFF FILE symbol")
+                first, length = start + location + 18, 18 * auxiliaries
+                result[first:first + length] = b"<source>".ljust(length, b"\0")
+                changed += 1
+            index += 1 + auxiliaries
+    return bytes(result), changed
+
+
+def create_static_distribution_copy(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
+    snapshot = read_regular_snapshot(source, maximum=MAX_PACKAGE_FILE_BYTES, label="static compiler archive")
+    data, count = normalize_static_debug_filenames(snapshot.data)
+    with destination.open("xb") as output:
+        _require(output.write(data) == len(data), "incomplete static distribution copy")
+        output.flush()
+        os.fsync(output.fileno())
+    return {"source_sha256": snapshot.sha256, "sha256": hashlib.sha256(data).hexdigest(),
+            "bytes": len(data), "normalized_filename_records": count}
 
 
 def _sdk_profile(profile: str) -> bool:
@@ -2313,6 +2394,9 @@ def verify_package(
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    static_copy = subparsers.add_parser("create-static-distribution-copy")
+    static_copy.add_argument("--source", required=True, type=pathlib.Path)
+    static_copy.add_argument("--destination", required=True, type=pathlib.Path)
     native_libraries = subparsers.add_parser("parse-native-static-libraries")
     native_libraries.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
     native_libraries.add_argument(
@@ -2357,6 +2441,10 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     try:
+        if args.command == "create-static-distribution-copy":
+            result = create_static_distribution_copy(args.source, args.destination)
+            print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+            return 0
         if args.command == "parse-native-static-libraries":
             output = read_regular_snapshot(
                 args.compiler_output,

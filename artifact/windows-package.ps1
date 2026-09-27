@@ -385,19 +385,17 @@ function New-SdkStaticDistributionLibrary {
     param(
         [Parameter(Mandatory)] [string] $Source,
         [Parameter(Mandatory)] [string] $Destination,
-        [Parameter(Mandatory)] [string] $Strip,
         [Parameter(Mandatory)] [string] $Nm
     )
     if (Test-Path -LiteralPath $Destination) { throw "SDK static distribution output already exists" }
     $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
     $symbolArguments = @("--extern-only", "--format=just-symbols")
     $before = Get-TrimmedOutput -FilePath $Nm -Arguments ($symbolArguments + @($Source))
-    # Prebuilt AWS-LC NASM objects retain COFF .file auxiliary records. These
-    # are debug filenames, not loadable sections. --strip-debug alone retains
-    # them. Preserve the raw compiler archive and all external symbol entries.
-    Invoke-Checked -FilePath $Strip -Arguments @(
-        "--strip-debug", "--strip-symbol=.file", "--enable-deterministic-archives",
-        "-o", $Destination, $Source
+    # Preserve Rust's mixed COFF/import archive and all external symbol entries.
+    # Only fixed-size FILE auxiliary filenames change; indexes and code do not.
+    Invoke-PythonChecked -Arguments @(
+        "artifact/windows_package.py", "create-static-distribution-copy",
+        "--source", $Source, "--destination", $Destination
     )
     $after = Get-TrimmedOutput -FilePath $Nm -Arguments ($symbolArguments + @($Destination))
     if (-not $before -or $before -cne $after) { throw "SDK static debug copy changed external symbol entries" }
@@ -1644,11 +1642,6 @@ $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustHost $RustHostMatch.Groups['host'].Value
 $LlvmAr = $RustLlvmTools.Ar
 $LlvmNm = $RustLlvmTools.Nm
-if ($Profile -eq "sdk-alpha1" -and $Mode -eq "Build") {
-    $LlvmStrip = Resolve-TrustedToolchainFile `
-        -Path (Join-Path $RustLlvmTools.Bin "llvm-strip.exe") `
-        -TrustedRoot $RustLlvmTools.Bin -ExpectedName "llvm-strip.exe"
-}
 $ProducerRoots = Get-ReleaseProducerRoots `
     -SourceRoot $Root `
     -CargoHome $CargoHome `
@@ -2014,7 +2007,7 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
 if ($Profile -eq "sdk-alpha1") {
     $distributionStaticLibrary = Join-Path $OutRoot "q_periapt_ffi_abi2_static.lib"
     New-SdkStaticDistributionLibrary -Source $staticLibrary -Destination $distributionStaticLibrary `
-        -Strip $LlvmStrip -Nm $LlvmNm
+        -Nm $LlvmNm
     $staticLibrary = $distributionStaticLibrary
 }
 $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()

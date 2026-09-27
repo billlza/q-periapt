@@ -71,9 +71,11 @@ Use those settings only for the direct Cargo invocation. The package producer
 rejects ambient AWS-LC build overrides and sets/restores its own scoped values.
 
 The distribution static archive is a separate copy of the compiler output.
-The matching Rust toolchain's `llvm-strip` removes debug sections and COFF
-`.file` filename records, including build paths in AWS-LC's prebuilt NASM
-objects. The producer retains the original archive and requires its hash and
+The packager replaces only the filename bytes in COFF
+[FILE auxiliary records](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-4-files)
+with a fixed placeholder. Archive lengths, indexes, import records, sections
+and all other bytes remain unchanged. This handles Rust's mixed object/import
+archive, which `llvm-strip` rejects. The producer retains the original archive and requires its hash and
 the complete external-symbol listing to remain unchanged. The final copy must
 pass the full path scan, static-link dependency checks and installed C
 consumers; debug removal does not authorize a failed scan or missing symbol.

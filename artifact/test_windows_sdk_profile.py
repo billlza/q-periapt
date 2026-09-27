@@ -4,12 +4,83 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import struct
 import tempfile
 import unittest
 
 import test_sdk_cbom_contract as cbom_fixture
 import test_windows_package as legacy_fixture
 import windows_package as windows
+
+
+class WindowsStaticFilenameTests(unittest.TestCase):
+    @staticmethod
+    def member(name, data):
+        header = (name.encode().ljust(16) + b"0".ljust(12) + b"0".ljust(6)
+                  + b"0".ljust(6) + b"644".ljust(8) + str(len(data)).encode().ljust(10) + b"`\n")
+        return header + data + (b"\n" if len(data) % 2 else b"")
+
+    @staticmethod
+    def object():
+        code = b"D:\\a\\must-remain-in-code\0"
+        symbol_offset = 60 + len(code)
+        header = struct.pack("<HHIIIHH", 0x8664, 1, 0, symbol_offset, 3, 0, 0)
+        section = struct.pack("<8sIIIIIIHHI", b".text", 0, 0, len(code), 60, 0, 0, 0, 0, 0x60000020)
+        symbol = struct.pack("<8sIhHBB", b".file", 0, -2, 0, 103, 1)
+        filename = b"D:\\a\\private.asm\0".ljust(18, b"\0")
+        public = struct.pack("<8sIhHBB", b"answer", 0, 1, 0x20, 2, 0)
+        return header + section + code + symbol + filename + public + struct.pack("<I", 4), symbol_offset
+
+    def test_only_file_auxiliary_bytes_change_in_mixed_archive(self):
+        obj, symbol_offset = self.object()
+        payload = b"answer\0example.dll\0"
+        imported = struct.pack("<HHHHIIHH", 0, 0xffff, 0, 0x8664, 0, len(payload), 0, 4) + payload
+        prefix = b"!<arch>\n" + self.member("/", b"index-offsets-remain")
+        archive = prefix + self.member("source.obj/", obj) + self.member("example.dll/", imported)
+        expected = bytearray(archive)
+        start = len(prefix) + 60 + symbol_offset + 18
+        expected[start:start + 18] = b"<source>".ljust(18, b"\0")
+        actual, count = windows.normalize_static_debug_filenames(archive)
+        self.assertEqual((actual, count), (bytes(expected), 1))
+        self.assertIn(b"D:\\a\\must-remain-in-code\0", actual)
+        self.assertTrue(actual.endswith(self.member("example.dll/", imported)))
+        self.assertEqual(windows.normalize_static_debug_filenames(actual), (actual, 1))
+
+    def test_malformed_or_overlapping_metadata_is_rejected(self):
+        original, symbol_offset = self.object()
+        changes = []
+        for offset, fmt, value in ((0, "<H", 0xaa64), (8, "<I", 60),
+                                   (12, "<I", 0xffffffff), (16, "<H", 2),
+                                   (symbol_offset + 12, "<h", 1),
+                                   (symbol_offset + 17, "<B", 4)):
+            value_bytes = bytearray(original)
+            struct.pack_into(fmt, value_bytes, offset, value)
+            changes.append(bytes(value_bytes))
+        changes.append(original[:-6])
+        for obj in changes:
+            with self.subTest(data_sha256=hashlib.sha256(obj).hexdigest()), self.assertRaises(windows.WindowsPackageError):
+                windows.normalize_static_debug_filenames(b"!<arch>\n" + self.member("bad.obj/", obj))
+        valid = b"!<arch>\n" + self.member("source.obj/", original)
+        for data in (b"!<thin>\n", valid[:-1], valid + b"unexpected tail"):
+            with self.subTest(data=data[:8]), self.assertRaises(windows.WindowsPackageError):
+                windows.normalize_static_debug_filenames(data)
+
+    def test_copy_preserves_input_and_refuses_existing_output(self):
+        obj, _ = self.object()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, destination = root / "compiler.lib", root / "distribution.lib"
+            data = b"!<arch>\n" + self.member("source.obj/", obj)
+            source.write_bytes(data)
+            result = windows.create_static_distribution_copy(source, destination)
+            self.assertEqual(source.read_bytes(), data)
+            self.assertEqual(result["source_sha256"], hashlib.sha256(data).hexdigest())
+            self.assertEqual(result["bytes"], len(data))
+            self.assertEqual(result["normalized_filename_records"], 1)
+            destination.write_bytes(b"previous attempt")
+            with self.assertRaises(FileExistsError):
+                windows.create_static_distribution_copy(source, destination)
+            self.assertEqual(destination.read_bytes(), b"previous attempt")
 
 
 class WindowsSDKStaticLibraryTests(unittest.TestCase):

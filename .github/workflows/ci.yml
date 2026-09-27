@@ -1249,6 +1249,7 @@ jobs:
       - name: Install the API 35 16 KiB emulator runtime
         run: |
           command -v setfacl
+          command -v getfacl
           command -v lsof
           license_answers=$(printf 'y\n%.0s' {1..64})
           sdkmanager --licenses <<< "$license_answers" >/dev/null
@@ -1261,8 +1262,6 @@ jobs:
             "ndk;29.0.14206865" \
             "system-images;android-35;google_apis_ps16k;x86_64"
           test -c /dev/kvm
-          sudo setfacl -m "u:$USER:rw" /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
       - name: Qualify the installed Maven SDK and prepare the offline AGP toolchain
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
@@ -1347,7 +1346,19 @@ jobs:
           test -f "$aar" && test -f "$manifest"
           aar_sha256=$(sha256sum "$aar" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "$manifest" | cut -d' ' -f1)
+          runner_user=$(id -un)
           for profile in agp_sdk_full_release agp_sdk_minimal_release; do
+            # Reassert the existing runner-only grant before each cold boot.
+            # Record the prior state: a second-launch KVM denial must remain
+            # distinguishable from an application or emulator workload failure.
+            printf 'ANDROID_KVM_PREPARE profile=%s\n' "$profile"
+            test -c /dev/kvm && test ! -L /dev/kvm
+            stat -c 'device=%t:%T inode=%i mode=%a owner=%u:%g' /dev/kvm
+            getfacl --omit-header /dev/kvm
+            sudo setfacl -m "u:$runner_user:rw" /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+            getfacl --omit-header /dev/kvm
+            timeout 15s "$ANDROID_HOME/emulator/emulator" -accel-check
             QPERIAPT_ANDROID_CONSUMER_PROFILE="$profile" \
             QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
             QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest" \

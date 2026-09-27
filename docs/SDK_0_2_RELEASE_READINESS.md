@@ -51,6 +51,15 @@ target. The producer now retains the raw archive and creates a distribution
 copy with unchanged external symbols. Native archive consumption is still a
 separate gate.
 
+The subsequent `eebadda` native run exposed Rust's mixed archive: LLVM rejects
+its short DLL import records when asked to strip the whole library. A minimal
+Rust static library reproduces that failure. The current copy operation instead
+replaces only COFF FILE auxiliary filename bytes with a fixed placeholder;
+all offsets, indexes, import records and other bytes are preserved. Both the
+26-object NASM archive and a real Rust mixed archive retain exact external-symbol
+listings. Cross-linking the original and normalized minimal Rust archives yields
+byte-identical PE DLLs; this is not native Windows execution.
+
 The `a24e3c0` Android full SDK consumer completed its ART workload, owned-runtime
 cleanup and proof publication. Portable evidence export then failed because
 the collector's `umask 077` created 0600 copies while the bundle contract requires
@@ -59,6 +68,15 @@ sets only newly created copies to 0644 through their open descriptors, preservin
 0700 enclosing directories and the original 0600 receipts. Both full/minimal
 profiles and architectures replay in the 46-test local follow-up; actual ART
 completion of both consumers remains required.
+
+At `eebadda`, the hosted full Android consumer completed ART execution, cleanup,
+portable export and the final `ANDROID_AGP_RUNTIME_PASS` gate. The minimal
+consumer then failed before workload execution because its new emulator reported
+KVM permission denial. The workflow now applies the same existing runner-only
+ACL before each consumer, records the prior/current device permissions and runs
+the emulator's bounded acceleration preflight. The earlier job did not retain
+enough ACL state to attribute the permission change to a particular host event;
+the minimal consumer still needs a successful native run.
 
 The subsequent hosted checkpoint at `7c7a76343d724c889286b594e47a8398aa63bf06`
 ([CI](https://github.com/billlza/q-periapt/actions/runs/36315599184)) completed
