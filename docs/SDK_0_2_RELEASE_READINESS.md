@@ -31,6 +31,29 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The clean `5ec7fc01bd49915e40620b50ad70858b5e780dd6` snapshot passed all 2,243
+artifact tests in 441.545 seconds, without skips, and passed the exact-source
+gate again afterward. Its Windows 2022 producer completed CBOM/license checks,
+two byte-identical ZIP builds, manifest verification and the extracted legacy
+dynamic consumer. Static linking then failed with `LNK1400` on the rewritten
+jitterentropy object's volatile metadata. The follow-up limits LLVM rewriting
+to the reviewed CodeView NASM section layout; all other objects remain
+byte-identical to the fixed-length filename copy. Unknown debug layouts still
+have to pass the complete producer path scan. The real mixed-archive helper,
+eight ring objects and 79 Windows tests pass locally; native MSVC acceptance of
+this follow-up remains pending.
+
+Both `6f62f22` and `5ec7fc0` hosted Android runs completed the full consumer's
+final gate and received the minimal consumer's valid runtime result. Minimal
+retirement then refused nonempty `pstore`, so its proof was not published.
+The follow-up preserves this refusal and adds bounded, read-only metadata to
+the error; only a regular private `pstore.bin` can be hashed, and neither its
+contents nor unrecognized entry names are printed. The 215 state/command tests
+pass. [Upstream emulator code](https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android-qemu2-glue/main.cpp)
+creates a persistent RAM block on Linux/x86 while
+disabling it on Apple Silicon, but the actual retained CI entry has not yet
+been observed and its cleanup contract is not reclassified without that evidence.
+
 The `6f62f22` Windows 2022 run processed 663 ordinary COFF objects, preserved
 five short import records and passed the complete DLL/import/static producer
 path scan. It then rejected the Windows CBOM invocation's nonexistent

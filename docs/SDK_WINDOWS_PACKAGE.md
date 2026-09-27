@@ -74,9 +74,12 @@ The distribution static archive is a separate copy of the compiler output.
 The packager replaces only the filename bytes in COFF
 [FILE auxiliary records](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-4-files)
 with a fixed placeholder in an intermediate copy, without moving any bytes.
-It then strips debug sections from copied ordinary objects using the matching
-Rust toolchain's LLVM tools. Short DLL import records bypass stripping and must
-remain byte-identical. LLVM rebuilds the archive index, retaining member order
+It then strips debug sections only from the reviewed CodeView-bearing NASM
+layout using the matching Rust toolchain's LLVM tools. Plain objects, including
+MSVC's volatile-access metadata, and short DLL imports must remain byte-identical
+to the intermediate copy. Other CodeView layouts are also preserved and must
+pass the final path scan; no unknown linker metadata is rewritten. LLVM
+rebuilds the archive index, retaining member order
 and duplicates; archive labels are canonical basenames, never host input paths.
 This also removes upstream build paths in ring's prebuilt CodeView debug data.
 The producer retains the original archive and requires its hash and every

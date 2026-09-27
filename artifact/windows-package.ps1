@@ -407,8 +407,8 @@ function New-SdkStaticDistributionLibrary {
     $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
     $before = Get-SdkStaticSymbolEntries -Nm $Nm -Library $Source
     # Preserve the compiler archive. First normalize FILE filenames, then let
-    # LLVM strip copied ordinary objects; short imports bypass unsupported
-    # stripping and remain byte-identical when LLVM rebuilds the archive index.
+    # LLVM strip copied CodeView-bearing NASM objects. Plain objects and short
+    # imports stay byte-identical when LLVM rebuilds the archive index.
     $filenameCopy = $Destination + ".filenames"
     Invoke-PythonChecked -Arguments @(
         "artifact/windows_package.py", "create-static-distribution-copy",

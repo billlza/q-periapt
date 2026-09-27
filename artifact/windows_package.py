@@ -512,9 +512,28 @@ def _static_archive_objects(data: bytes) -> list[tuple[str, bytes]]:
     return objects
 
 
+def _is_reviewed_codeview_object(data: bytes) -> bool:
+    """Select only the reviewed CodeView-bearing NASM object layout.
+
+    Rewriting a plain MSVC object can invalidate linker metadata such as
+    .voltbl even when its external symbols are unchanged. Preserve every byte
+    of every other layout, including debug-bearing compiler objects with
+    linker metadata. The final path scan still rejects any retained private
+    path; this classification does not admit the distribution package.
+    """
+    _require(len(data) >= 20 and data[:2] == b"\x64\x86", "unsupported static object for debug stripping")
+    count = struct.unpack_from("<H", data, 2)[0]
+    optional = struct.unpack_from("<H", data, 16)[0]
+    _require(optional == 0 and 20 + count * 40 <= len(data), "invalid static COFF section headers")
+    names = {data[20 + index * 40:28 + index * 40].rstrip(b"\0") for index in range(count)}
+    return bool(names.intersection({b".debug$S", b".debug$T"})) and names <= {
+        b".debug$S", b".debug$T", b".text", b".rdata", b".pdata", b".xdata",
+    }
+
+
 def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
                                *, llvm_strip: pathlib.Path, llvm_ar: pathlib.Path) -> dict[str, object]:
-    """Strip copied COFF objects with LLVM, preserving short imports and member order."""
+    """Strip reviewed CodeView objects, preserving plain objects/imports and member order."""
     snapshot = read_regular_snapshot(source, maximum=MAX_PACKAGE_FILE_BYTES, label="static metadata archive")
     objects = _static_archive_objects(snapshot.data)
     _require(not destination.exists() and not destination.is_symlink(), "static distribution output already exists")
@@ -524,7 +543,7 @@ def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
     # Retain intermediate objects/logs on failure as well as success. Each index
     # gets its own directory, so repeated import member names never overwrite.
     work = pathlib.Path(tempfile.mkdtemp(prefix="static-debug-", dir=destination.parent)).resolve()
-    paths, ordinary, imports = [], [], {}
+    paths, debug_objects, imports, unchanged_objects = [], [], {}, {}
     for index, (name, data) in enumerate(objects):
         folder = work / str(index)
         folder.mkdir()
@@ -536,9 +555,10 @@ def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
             _require(len(data) >= 20 and struct.unpack_from("<I", data, 12)[0] == len(data) - 20,
                      "invalid AMD64 import record size")
             imports[index] = data
+        elif _is_reviewed_codeview_object(data):
+            debug_objects.append(path)
         else:
-            _require(data[:2] == b"\x64\x86", "unsupported static object for debug stripping")
-            ordinary.append(path)
+            unchanged_objects[index] = data
 
     def batches(selected: list[pathlib.Path]) -> Iterable[list[str]]:
         batch, length = [], 0
@@ -564,7 +584,7 @@ def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
         _require(completed.returncode == 0 and not completed.stdout and not completed.stderr,
                  "static archive tool failed or emitted diagnostics; attempt logs retained")
 
-    for batch in batches(ordinary):
+    for batch in batches(debug_objects):
         run([str(strip), "--strip-debug", *batch])
     candidate = work / "distribution.lib"
     for batch in batches(paths):
@@ -578,13 +598,18 @@ def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
         _require(data == object_snapshot.data, "static archive member changed during indexing")
         if index in imports:
             _require(data == imports[index], "static import record changed")
+        if index in unchanged_objects:
+            _require(data == unchanged_objects[index], "unselected static object changed")
     _require(_sha256(source) == snapshot.sha256, "static metadata source changed")
     with destination.open("xb") as stream:
         _require(stream.write(final.data) == len(final.data), "incomplete stripped static archive")
         stream.flush()
         os.fsync(stream.fileno())
     return {"source_sha256": snapshot.sha256, "sha256": final.sha256,
-            "object_members": len(ordinary), "unchanged_import_members": len(imports)}
+            "object_members": len(debug_objects) + len(unchanged_objects),
+            "stripped_codeview_members": len(debug_objects),
+            "unchanged_object_members": len(unchanged_objects),
+            "unchanged_import_members": len(imports)}
 
 
 def create_static_distribution_copy(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:

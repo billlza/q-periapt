@@ -102,6 +102,26 @@ class WindowsStaticFilenameTests(unittest.TestCase):
             with self.subTest(data=data[:16]), self.assertRaises(windows.WindowsPackageError):
                 windows._static_archive_objects(b"!<arch>\n" + data)
 
+    def test_only_reviewed_codeview_objects_are_rewritten(self):
+        def object_with_sections(*names):
+            header = struct.pack("<HHIIIHH", 0x8664, len(names), 0, 0, 0, 0, 0)
+            return header + b"".join(name.ljust(8, b"\0") + bytes(32) for name in names)
+
+        for names in ((b".text",), (b".text", b".voltbl"), (b".text", b".gfids$y")):
+            with self.subTest(plain=names):
+                self.assertFalse(windows._is_reviewed_codeview_object(object_with_sections(*names)))
+        self.assertTrue(windows._is_reviewed_codeview_object(object_with_sections(
+            b".text", b".rdata", b".pdata", b".xdata", b".debug$S", b".debug$T",
+        )))
+        for metadata in (b".voltbl", b".gfids$y", b".custom"):
+            with self.subTest(metadata=metadata):
+                self.assertFalse(windows._is_reviewed_codeview_object(
+                    object_with_sections(b".text", b".debug$S", metadata)
+                ))
+        for malformed in (b"", object_with_sections(b".text")[:-1]):
+            with self.assertRaises(windows.WindowsPackageError):
+                windows._is_reviewed_codeview_object(malformed)
+
 
 class WindowsSDKStaticLibraryTests(unittest.TestCase):
     def test_sdk_and_legacy_link_dependencies_require_the_selected_profile(self):

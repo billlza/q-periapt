@@ -2334,6 +2334,55 @@ def validate_runtime_avd_selection(
     return selection
 
 
+def _pstore_failure_summary(directory_fd: int) -> str | None:
+    """Bounded, read-only metadata for a refused SDK scratch directory.
+
+    Only the emulator's fixed pstore.bin leaf may be hashed. Unknown names,
+    links and special nodes are never followed or read, and contents are never
+    logged. None means the directory was observed empty. This diagnostic does
+    not authorize retirement of nonempty scratch.
+    """
+    records: list[dict[str, object]] = []
+    truncated = False
+    with os.scandir(directory_fd) as entries:
+        for entry in entries:
+            if len(records) == 8:
+                truncated = True
+                break
+            metadata = os.stat(entry.name, dir_fd=directory_fd, follow_symlinks=False)
+            regular = stat.S_ISREG(metadata.st_mode)
+            record = {
+                "name": "pstore.bin" if entry.name == "pstore.bin" else "unrecognized",
+                "name_sha256": hashlib.sha256(os.fsencode(entry.name)).hexdigest(),
+                "type": "regular" if regular else "other",
+                "bytes": metadata.st_size,
+                "mode": stat.S_IMODE(metadata.st_mode),
+                "current_owner": metadata.st_uid == os.geteuid(),
+                "links": metadata.st_nlink,
+            }
+            if (entry.name == "pstore.bin" and regular
+                    and metadata.st_uid == os.geteuid() and metadata.st_nlink == 1
+                    and stat.S_IMODE(metadata.st_mode) == 0o600
+                    and 0 <= metadata.st_size <= 1024 * 1024):
+                def same_private_file(observed: os.stat_result) -> None:
+                    private_file_metadata(observed)
+                    _require(all(getattr(observed, field) == getattr(metadata, field) for field in (
+                        "st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
+                        "st_size", "st_mtime_ns", "st_ctime_ns",
+                    )), "owned pstore diagnostic entry changed before reading")
+
+                snapshot = consume_regular_snapshot_at(
+                    directory_fd, "pstore.bin", display_path=pathlib.Path("pstore.bin"),
+                    maximum=1024 * 1024, label="owned emulator pstore diagnostic",
+                    validate_metadata=same_private_file,
+                )
+                record["sha256"] = snapshot.sha256
+            records.append(record)
+    if not records:
+        return None
+    return json.dumps({"entries": records, "truncated": truncated}, sort_keys=True, separators=(",", ":"))
+
+
 def restore_owned_avd_pstore_permissions(receipt: OwnedRuntimeReceipt) -> None:
     """Restore only empty SDK scratch after command-layer runtime shutdown.
 
@@ -2447,8 +2496,9 @@ def restore_owned_avd_pstore_permissions(receipt: OwnedRuntimeReceipt) -> None:
                 )
                 _reject_macos_allow_acl(descriptor, "AVD pstore")
                 bindings.append((parent, "pstore", descriptor, opened))
-                with os.scandir(descriptor) as entries:
-                    _require(next(entries, None) is None, "AVD pstore is not empty")
+                failure_summary = _pstore_failure_summary(descriptor)
+                if failure_summary is not None:
+                    raise AndroidRuntimeStateError("AVD pstore is not empty: " + failure_summary)
                 recheck_bindings()
                 if stat.S_IMODE(opened.st_mode) == 0o777:
                     os.fchmod(descriptor, 0o700)

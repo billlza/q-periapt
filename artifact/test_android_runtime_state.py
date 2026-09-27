@@ -316,6 +316,56 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         pstore.chmod(0o700)
         self.assertEqual(self.receipt().snapshot_sha256, receipt.snapshot_sha256)
 
+    def test_pstore_refusal_retains_fixed_ram_file_and_reports_only_metadata(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        path = pstore / "pstore.bin"
+        data = b"private guest bytes".ljust(65536, b"\0")
+        path.write_bytes(data)
+        path.chmod(0o600)
+        before = path.stat()
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state.os, "fchmod") as chmod,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "not empty") as raised,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        chmod.assert_not_called()
+        message = str(raised.exception)
+        self.assertNotIn("private guest bytes", message)
+        report = json.loads(message.split(": ", 1)[1])
+        self.assertFalse(report["truncated"])
+        self.assertEqual(len(report["entries"]), 1)
+        self.assertEqual(report["entries"][0]["name"], "pstore.bin")
+        self.assertEqual(report["entries"][0]["bytes"], 65536)
+        self.assertEqual(report["entries"][0]["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(path.read_bytes(), data)
+        self.assertEqual((path.stat().st_ino, path.stat().st_mode, path.stat().st_mtime_ns),
+                         (before.st_ino, before.st_mode, before.st_mtime_ns))
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+
+    def test_pstore_diagnostic_never_reads_links_or_logs_unknown_names(self) -> None:
+        receipt, pstore = self.create_sdk_pstore_fixture()
+        outside = self.root / "outside-private-data"
+        outside.write_bytes(b"outside data")
+        (pstore / "pstore.bin").symlink_to(outside)
+        for number in range(9):
+            (pstore / f"private-name-{number}").write_bytes(b"retained")
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(state, "consume_regular_snapshot_at") as consume,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "not empty") as raised,
+        ):
+            state.restore_owned_avd_pstore_permissions(receipt)
+        consume.assert_not_called()
+        message = str(raised.exception)
+        self.assertNotIn("private-name", message)
+        self.assertNotIn("outside-private-data", message)
+        report = json.loads(message.split(": ", 1)[1])
+        self.assertTrue(report["truncated"])
+        self.assertEqual(len(report["entries"]), 8)
+        self.assertEqual(outside.read_bytes(), b"outside data")
+        self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o777)
+
     def test_owned_pstore_rejects_links_special_files_and_unsafe_ancestors(
         self,
     ) -> None:
