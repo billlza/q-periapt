@@ -2,13 +2,14 @@
 import hashlib
 import os
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
+from bounded_process import capture_output
 from evidence_io import EvidenceIOError
+import sdk_connection_interop as connection
 import standard_tls_interop as interop
 from sdk_connection_interop import run_controlled_client
 
@@ -55,6 +56,33 @@ class ControlObservationTests(unittest.TestCase):
 
 
 class PeerSnapshotTests(unittest.TestCase):
+    def test_connection_copy_retains_exact_bytes_and_refuses_existing_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, destination = root / "input", root / "frozen"
+            data = b"selected connection executable or library"
+            source.write_bytes(data)
+            self.assertEqual(connection.freeze(source, destination), destination)
+            source.write_bytes(b"rebuilt source")
+            self.assertEqual(destination.read_bytes(), data)
+            with self.assertRaises(FileExistsError):
+                connection.freeze(source, destination)
+            self.assertEqual(destination.read_bytes(), data)
+            if os.name == "posix":
+                self.assertEqual(destination.stat().st_mode & 0o777, 0o500)
+
+    def test_connection_input_limit_is_enforced_before_copy_creation(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.object(connection, "MAX_IDENTITY_BYTES", 16):
+            root = Path(temporary)
+            source = root / "input"
+            source.write_bytes(b"x" * 16)
+            connection.freeze(source, root / "accepted")
+            self.assertEqual((root / "accepted").read_bytes(), b"x" * 16)
+            source.write_bytes(b"x" * 17)
+            with self.assertRaises(EvidenceIOError):
+                connection.freeze(source, root / "rejected")
+            self.assertFalse((root / "rejected").exists())
+
     def test_identity_and_sealed_copy_bind_the_bytes_and_preserve_prior_attempts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -89,20 +117,24 @@ class PeerSnapshotTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "posix", "FIFO input is specific to the Unix diagnostic")
     def test_fifo_is_rejected_without_waiting_for_a_writer(self):
         # A subprocess deadline makes a regression fail instead of hanging the
-        # test runner. Both public helper paths inspect a real FIFO, no mocks.
+        # test runner. All helper paths inspect a real FIFO, no mocks; the
+        # bounded parent also reaps the launcher and its child on regression.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fifo = root / "peer.fifo"
             os.mkfifo(fifo, 0o600)
-            for expression in ("interop.identity(source)", "interop.seal_peer(source, output)"):
+            for expression in ("interop.identity(source)", "interop.seal_peer(source, output)",
+                               "connection.freeze(source, output / 'frozen')"):
                 code = ("from pathlib import Path; import sys; import standard_tls_interop as interop; "
+                        "import sdk_connection_interop as connection; "
                         "source=Path(sys.argv[1]); output=Path(sys.argv[2]); " + expression)
-                completed = subprocess.run(
+                completed = capture_output(
                     ["sh", str(interop.ROOT / "artifact/python-run.sh"), "-c", code, str(fifo), str(root)],
-                    cwd=interop.ROOT, stdin=subprocess.DEVNULL, capture_output=True, timeout=5, check=False)
+                    timeout_seconds=5, maximum_stdout_bytes=65536, maximum_stderr_bytes=65536)
                 self.assertNotEqual(completed.returncode, 0)
                 self.assertIn(b"not a regular file", completed.stderr)
                 self.assertFalse((root / "bin").exists())
+                self.assertFalse((root / "frozen").exists())
 
 
 if __name__ == "__main__":

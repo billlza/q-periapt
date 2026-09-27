@@ -31,6 +31,23 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The shared binary-freeze helper used by connection acceptance and performance
+drivers still opened caller-selected input as an ordinary stream. A real CLI
+invocation with a FIFO blocked on the `921cada` source until its bounded parent
+terminated and reaped it after 1.026 seconds. The helper now uses the existing
+regular-file snapshot reader with the same 256 MiB input limit as the TLS
+diagnostic. The same FIFO is explicitly refused with nonzero status after
+0.276 seconds, before any peer execution or completed proof. These elapsed
+times are observations, not a general filesystem-latency guarantee.
+
+Twenty affected checks cover special-file refusal, the exact size bound,
+preserved prior output and immutable copied bytes. Twelve real Swift/Rust TCP,
+cancellation and durable-policy cases also pass with the repaired driver and
+the same hash-verified native/Swift binaries. Their product sources are
+unchanged from the retained binary checkpoint. This is driver validation on
+Darwin loopback, not a new installed-package or native-Linux run; final-source
+hosted qualification remains required.
+
 The clean `2493ffe68ad99920880a9bd4c70be79dc37c1850` snapshot passed all 2,250
 artifact tests in 482.705 seconds, without skips, and the post-test exact-source
 gate. The [persistent RAM checkpoint](../research/sdk-alpha1/evidence/20260927-sdk-owned-pstore-retirement/manifest.json)

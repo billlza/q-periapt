@@ -6,20 +6,16 @@ import re
 import json
 import os
 from pathlib import Path
-import shutil
 import time
 
-from standard_tls_interop import Peer, ROOT, identity, read_log, require, run
-from evidence_io import load_json_object_snapshot
+from standard_tls_interop import MAX_IDENTITY_BYTES, Peer, ROOT, identity, read_log, require, run
+from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
 
 def freeze(source: Path, destination: Path) -> Path:
-    with source.open("rb") as reader, destination.open("xb") as writer:
-        before = os.fstat(reader.fileno())
-        shutil.copyfileobj(reader, writer)
-        after = os.fstat(reader.fileno())
-        require((before.st_size, before.st_mtime_ns, before.st_ctime_ns) ==
-                (after.st_size, after.st_mtime_ns, after.st_ctime_ns), "binary changed while freezing")
+    snapshot = read_regular_snapshot(source, maximum=MAX_IDENTITY_BYTES, label="connection input")
+    with destination.open("xb") as writer:
+        require(writer.write(snapshot.data) == snapshot.size, "connection input copy was incomplete")
     destination.chmod(0o500)
     return destination
 
