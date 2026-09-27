@@ -21,10 +21,11 @@ import zipfile
 from typing import Any
 
 import android_runtime_state as runtime_state
-from android_agp_consumer_contract import PROFILE_TESTS
+from android_agp_consumer_contract import PROFILE_TESTS, profile_spec
 from android_elf import (
     AndroidVerificationError,
     audit_aar,
+    package_profile,
     verify_aar,
     verify_ndk_r29,
 )
@@ -308,15 +309,14 @@ class RuntimeResultProfile(str, enum.Enum):
     LEGACY_FULL = "legacy_full"
     AGP_FULL_RELEASE = "agp_full_release"
     AGP_MINIMAL_RELEASE = "agp_minimal_release"
+    AGP_SDK_FULL_RELEASE = "agp_sdk_full_release"
+    AGP_SDK_MINIMAL_RELEASE = "agp_sdk_minimal_release"
 
 
 def result_tests(profile: RuntimeResultProfile) -> list[str]:
     if profile is RuntimeResultProfile.LEGACY_FULL:
         return list(EXPECTED_TESTS)
-    if profile in (
-        RuntimeResultProfile.AGP_FULL_RELEASE,
-        RuntimeResultProfile.AGP_MINIMAL_RELEASE,
-    ):
+    if isinstance(profile, RuntimeResultProfile) and profile.value in PROFILE_TESTS:
         return list(PROFILE_TESTS[profile.value])
     raise ValueError("unknown Android result profile")
 
@@ -343,6 +343,23 @@ SOURCE_INPUTS = {
     "c_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
     "signed_policy_vectors": "bindings/signed-policy-vectors.json",
 }
+
+
+def result_package_profile(profile: RuntimeResultProfile) -> str:
+    result_tests(profile)
+    return "legacy" if profile is RuntimeResultProfile.LEGACY_FULL else profile_spec(profile.value).aar_profile
+
+
+def source_inputs(profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL) -> dict[str, str]:
+    inputs = dict(SOURCE_INPUTS)
+    if result_package_profile(profile) == "sdk-alpha1":
+        inputs.update({
+            "c_abi_contract": package_profile("sdk-alpha1").contract,
+            "sdk_abi_spec": "artifact/sdk_abi2_spec.py",
+            "android_sdk": "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java",
+            "android_agp_contract": "artifact/android_agp_consumer_contract.py",
+        })
+    return inputs
 
 REQUIRED_NATIVE_ABIS = ("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
 
@@ -1348,7 +1365,10 @@ def verify_proof_schema(proof: dict[str, Any]) -> None:
     verify_runtime_record_shape(proof)
 
 
-def verify_runtime_record_shape(proof: dict[str, Any]) -> None:
+def verify_runtime_record_shape(
+    proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
     exact_object(proof.get("device"), PROOF_DEVICE_FIELDS, "Android proof device")
     exact_object(
         proof.get("paths"), expected_proof_path_keys(proof), "Android proof path"
@@ -1371,7 +1391,7 @@ def verify_runtime_record_shape(proof: dict[str, Any]) -> None:
         )
     exact_object(
         proof.get("source_hashes"),
-        {name + "_sha256" for name in SOURCE_INPUTS},
+        {name + "_sha256" for name in source_inputs(result_profile)},
         "Android proof source hash",
     )
 
@@ -2460,13 +2480,17 @@ def validate_device_sdk(raw_value: str) -> int:
     return int(raw_value)
 
 
-def verify_source_hashes(root: pathlib.Path, proof: dict[str, Any]) -> None:
+def verify_source_hashes(
+    root: pathlib.Path, proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
+    inputs = source_inputs(result_profile)
     expected = exact_object(
         proof.get("source_hashes"),
-        {name + "_sha256" for name in SOURCE_INPUTS},
+        {name + "_sha256" for name in inputs},
         "Android proof source hash",
     )
-    for name, rel in SOURCE_INPUTS.items():
+    for name, rel in inputs.items():
         got = sha256_file(root / rel)
         require(
             expected.get(name + "_sha256") == got,
@@ -2580,7 +2604,10 @@ def verify_artifact_hashes(
     )
 
 
-def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) -> None:
+def verify_native_hashes(
+    paths: dict[str, pathlib.Path], proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
     artifacts = exact_object(
         proof.get("artifacts"), PROOF_ARTIFACT_FIELDS, "Android proof artifact"
     )
@@ -2588,7 +2615,7 @@ def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) 
         artifacts.get("native"), set(REQUIRED_NATIVE_ABIS), "Android proof native ABI"
     )
     try:
-        aar_entries, _ = audit_aar(paths["aar"])
+        aar_entries, _ = audit_aar(paths["aar"], profile=result_package_profile(result_profile))
     except AndroidVerificationError as exc:
         require(False, f"Android proof AAR audit failed: {exc}")
     for abi in REQUIRED_NATIVE_ABIS:
@@ -2607,9 +2634,12 @@ def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) 
         )
 
 
-def verify_abi_metadata(root: pathlib.Path, proof: dict[str, Any]) -> None:
+def verify_abi_metadata(
+    root: pathlib.Path, proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
     abi = exact_object(proof.get("abi"), PROOF_ABI_FIELDS, "Android proof ABI")
-    contract_relative = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+    contract_relative = package_profile(result_package_profile(result_profile)).contract
     require(abi.get("major") == 2, "Android proof ABI major is not 2")
     require(
         abi.get("contract_path") == contract_relative,
@@ -2871,11 +2901,11 @@ def verify_runtime_contents(
     )
     verify_emulator_control(proof, require_release_mode=require_release_mode)
     verify_emulator_control_evidence(proof, paths, bundled=bundled)
-    verify_source_hashes(root, proof)
-    verify_abi_metadata(root, proof)
+    verify_source_hashes(root, proof, result_profile)
+    verify_abi_metadata(root, proof, result_profile)
     verify_result_files(paths, run_id, result_profile)
     verify_artifact_hashes(paths, proof, result_profile)
-    verify_native_hashes(paths, proof)
+    verify_native_hashes(paths, proof, result_profile)
 
 
 def verify_results_manifest_projection(

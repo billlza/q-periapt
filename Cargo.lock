@@ -207,6 +207,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
+dependencies = [
+ "hybrid-array 0.4.14",
+ "zeroize",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -518,7 +528,7 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
- "block-buffer",
+ "block-buffer 0.10.4",
  "crypto-common 0.1.7",
 ]
 
@@ -528,7 +538,10 @@ version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
 dependencies = [
+ "block-buffer 0.12.1",
  "crypto-common 0.2.2",
+ "ctutils",
+ "zeroize",
 ]
 
 [[package]]
@@ -595,7 +608,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15"
 dependencies = [
  "rand_core 0.6.4",
- "sha2",
+ "sha2 0.10.9",
  "sha3",
  "zeroize",
 ]
@@ -607,7 +620,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f5626bf5534df4ebdbd2536465d7eaa8a9dc2cdeb7e036e0ecf291dcc80ffb6"
 dependencies = [
  "rand_core 0.6.4",
- "sha2",
+ "sha2 0.10.9",
  "sha3",
  "zeroize",
 ]
@@ -688,9 +701,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 6.0.0",
  "rand_core 0.10.1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -715,6 +730,24 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "hkdf"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4aaa26c720c68b866f2c96ef5c1264b3e6f473fe5d4ce61cd44bbe913e553018"
+dependencies = [
+ "hmac",
+]
+
+[[package]]
+name = "hmac"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6303bc9732ae41b04cb554b844a762b4115a61bfaa81e3e83050991eeb56863f"
+dependencies = [
+ "digest 0.11.3",
+]
 
 [[package]]
 name = "hybrid-array"
@@ -1117,7 +1150,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-backends"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "criterion",
  "fips204",
@@ -1139,27 +1172,29 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-cli"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "clap",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-policy",
+ "q-periapt-rustls",
  "q-periapt-sig",
+ "rustls",
  "serde_json",
 ]
 
 [[package]]
 name = "q-periapt-continuity-model"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 
 [[package]]
 name = "q-periapt-core"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 
 [[package]]
 name = "q-periapt-ctstats"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "cc",
  "q-periapt-backends",
@@ -1169,26 +1204,46 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-ffi"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "getrandom 0.4.3",
  "q-periapt-backends",
  "q-periapt-core",
+ "q-periapt-host-store",
  "q-periapt-kem",
  "q-periapt-policy",
+ "q-periapt-rustls",
+ "q-periapt-sdk",
  "q-periapt-sig",
+ "rcgen",
+ "tempfile",
+]
+
+[[package]]
+name = "q-periapt-host-store"
+version = "0.2.0-alpha.1"
+dependencies = [
+ "getrandom 0.4.3",
+ "q-periapt-backends",
+ "q-periapt-core",
+ "q-periapt-policy",
+ "q-periapt-sdk",
+ "q-periapt-sig",
+ "redb",
+ "rustix",
+ "tempfile",
 ]
 
 [[package]]
 name = "q-periapt-kem"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-migration"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1201,7 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-mlkem-native-sys"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "cc",
  "sha3",
@@ -1209,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-policy"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1221,13 +1276,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-policy-agent"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
  "q-periapt-backends",
  "q-periapt-core",
  "q-periapt-ffi",
+ "q-periapt-host-store",
  "q-periapt-migration",
  "q-periapt-policy",
  "q-periapt-sig",
@@ -1238,27 +1294,59 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-rustls"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
+ "q-periapt-host-store",
  "q-periapt-kem",
  "q-periapt-policy",
+ "q-periapt-sdk",
+ "q-periapt-sig",
  "rcgen",
+ "rustix",
  "rustls",
+ "sha2 0.11.0",
  "socket2",
 ]
 
 [[package]]
+name = "q-periapt-sdk"
+version = "0.2.0-alpha.1"
+dependencies = [
+ "getrandom 0.4.3",
+ "hkdf",
+ "hmac",
+ "q-periapt-backends",
+ "q-periapt-core",
+ "q-periapt-kem",
+ "q-periapt-policy",
+ "q-periapt-sig",
+ "sha2 0.11.0",
+ "zeroize",
+]
+
+[[package]]
+name = "q-periapt-sdk-wasm"
+version = "0.2.0-alpha.1"
+dependencies = [
+ "js-sys",
+ "q-periapt-core",
+ "q-periapt-policy",
+ "q-periapt-sdk",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "q-periapt-sig"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-tls-demo"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "getrandom 0.4.3",
  "q-periapt-backends",
@@ -1269,7 +1357,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-wasm"
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 dependencies = [
  "js-sys",
  "q-periapt-backends",
@@ -1480,9 +1568,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.43"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -1612,6 +1700,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.1",
+ "digest 0.11.3",
+]
+
+[[package]]
 name = "sha3"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1619,6 +1718,7 @@ checksum = "77fd7028345d415a4034cf8777cd4f8ab1851274233b45f84e3d955502d93874"
 dependencies = [
  "digest 0.10.7",
  "keccak 0.1.6",
+ "zeroize",
 ]
 
 [[package]]

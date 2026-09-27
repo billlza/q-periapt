@@ -1,5 +1,21 @@
 # q-periapt-hybrid (Kotlin)
 
+The 0.2.0-alpha.1 product entry point is now `QPeriaptRuntime.fromSignedPolicy`.
+Use `runtime.generateKey().use { key -> ... }`, `runtime.encapsulate(...)` and
+`key.decapsulate(...)`; private keys remain in native owners unless transferred
+through `QPeriaptExpert`. Public-key and
+ciphertext wrappers are immutable; secret export is explicit. ABI major remains
+2. See the [ownership contract](../../docs/SDK_OWNERSHIP.md) for close, Cleaner,
+executor cancellation, limits and trusted-state persistence requirements.
+`isEnabled()` reports whether the signed policy permits the fixed suite.
+See [expert transfer](../../docs/SDK_KEY_TRANSFER.md) and
+[policy updates](../../docs/SDK_POLICY_UPDATES.md) before integrating those APIs.
+
+The commands below run both the owner SDK tests and legacy compatibility tests.
+The `QPeriaptHybrid` byte-array interface remains available for existing consumers;
+its example below documents that compatibility API. New product code should use
+the owner entry point. No 0.2.0 package has been published yet.
+
 Kotlin face of the PQ/T hybrid suite over the `q-periapt-ffi` C ABI, via the Foreign
 Function & Memory API (Project Panama, **JDK 25+**).
 
@@ -19,6 +35,48 @@ the AAR/JNI surface under [`../android`](../android/), built by
 > encapsulation, context-bound roundtrip, legacy-state/rollback/tamper rejection,
 > and secret wipe. The minimum consumer runtime is JDK 25; consumers of the
 > earlier JDK 22 target must update their runtime. No preview features are enabled.
+
+## Installable candidate
+
+The Maven coordinate is `dev.qperiapt:q-periapt-hybrid:0.2.0-alpha.1`. The existing
+Gradle project name stays `q-periapt-hybrid`. Binary and sources JARs include
+version/ABI metadata and the project licenses. The only SDK dependency is
+Kotlin stdlib 2.4.10. See [the packaged installation instructions](PackageREADME.md)
+for classpath/module-path native access and explicit shared-library selection.
+
+`publishSdkPublicationToSdkStagingRepository` writes only to a file repository.
+It does not configure a remote registry or use Maven Central credentials.
+The complete local qualification entry point consumes a matching C SDK produced
+by `artifact/c-package.sh --profile sdk-alpha1`:
+
+```sh
+sh artifact/python-run.sh artifact/jvm_sdk_package.py \
+  --output target/sdk-jvm-package \
+  --native-archive /absolute/path/to/q-periapt-c-abi2-0.2.0-alpha.1-TARGET.tar.gz \
+  --native-sha256 "$NATIVE_ARCHIVE_SHA256" \
+  --native-manifest-sha256 "$NATIVE_MANIFEST_SHA256"
+```
+
+Select JDK 25 through `JAVA_HOME` and `PATH` for the invocation, as below. Gradle
+9.2.1 and the existing strict dependency checksum policy are required. Add
+`--offline` only when those tool/dependency artifacts are already cached. Every
+output directory must be fresh. The native archive/manifest digests must come
+from the inspected C candidate, not an unrelated package with the same name.
+
+The producer rebuilds and tests the JAR against that native package, stages its
+Maven version directory, checks bytecode/source/metadata/licenses, and installs
+the resulting archive in a temporary project outside the checkout. That project
+resolves the Maven coordinate and runs real owner/KDF/policy, cancellation and
+concurrency calls. A Java module-path probe grants native access only to the SDK
+module; six process-level negative controls cover configuration, permission and
+missing-symbol failures. Logs and the final `INSTALLED_CONSUMER.json` retain the
+actual resolved files and hashes. This is local diagnostic evidence; CI/platform
+and stable-release requirements still apply.
+
+Owner constructors are private and internal raw-handle accessors/factories are
+hidden from Java source with `@JvmSynthetic`. This closes an accidental Java
+construction/aliasing route; reflection and hostile code in the same JVM remain
+outside that misuse-resistance boundary. The legacy public API is unchanged.
 
 ## Build
 

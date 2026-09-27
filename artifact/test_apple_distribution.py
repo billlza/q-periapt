@@ -2092,7 +2092,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertNotIn('"notarized": apple_release_mode', self.builder)
         self.assertIn('"notarized": False', self.builder)
         self.assertIn("not_applicable_static_sdk_payload", self.builder)
-        self.assertIn('"schema_version": 5', self.builder)
+        self.assertIn('"schema_version": 6 if package_profile == "sdk-alpha1" else 5', self.builder)
 
     def test_release_revision_and_toolchain_are_exactly_bound(self) -> None:
         self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.5")

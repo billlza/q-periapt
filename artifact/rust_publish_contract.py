@@ -174,12 +174,15 @@ RUST_WORKSPACE_LOCAL_CRATES = frozenset(
         "q-periapt-core",
         "q-periapt-ctstats",
         "q-periapt-ffi",
+        "q-periapt-host-store",
         "q-periapt-kem",
         "q-periapt-migration",
         "q-periapt-mlkem-native-sys",
         "q-periapt-policy",
         "q-periapt-policy-agent",
         "q-periapt-rustls",
+        "q-periapt-sdk",
+        "q-periapt-sdk-wasm",
         "q-periapt-sig",
         "q-periapt-tls-demo",
         "q-periapt-wasm",
@@ -2672,6 +2675,27 @@ _EXPECTED_LOCAL_SOURCE_SHA256 = {
     "src/raw.rs": "3da32c86e71ee0769c51ec6b0b925d6457259714f143c184a84001e958f3978b",
     "src/tests.rs": "89b082a5b5dfb78b75c8f8854f8243b708106a2dc48b1f5ffab160ae6320af26",
 }
+# A source-identity profile, not native-execution, CT or release qualification.
+# The alpha review includes the opt-in dispatcher and all its CPU/OS guards;
+# the historical 0.1.5 profile above remains immutable. See SDK_X86_CANDIDATE.md.
+_ALPHA1_LOCAL_SOURCE_SHA256 = {
+    "build.rs": "423984f4ff9ce17c71087b0cb5fb7208edca6b8a5b2ba47c44fa7c74ccb3002d",
+    "src/build_support.rs": "f6da791117157994e140948e201a7f0e90b21338f79fa65f086577e890139946",
+    "src/build_support_tests.rs": "20424277b435eacc51d5302b5f3fcd893a6654f8dca3a1b02bf1e24b11eb4a40",
+    "src/lib.rs": "a242cf7ad7310b7873269e473b1156c677e637eadb7d3cc9fb5bf240887acf3a",
+    "src/mlkem_bridge.c": "8984b98849b7a11212ce41c93ea1ff83103bc5eece07195e4b1da7ce401f2120",
+    "src/mlkem_bridge.h": "15538fd5ffc04b35ac4adbd24c7cefcf3073c393484fc2ef13521712f368c390",
+    "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
+    "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
+    "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
+    "src/mlkem_bridge_x86_64.c": "fad6b11a5ec7714de5d5080516cdd148aaf51fd5b0ea4af2d30a8ccc70becca5",
+    "src/mlkem_bridge_x86_64_asm.S": "9883dd7537158f994edd05a53f5dc8f826f0b5694015d7ee6672d5ae40e7cebc",
+    "src/mlkem_config.h": "ba4ef98baaf9b1ec7579fb605a84b6341fb6a558ab2e39398aaa40b844da9902",
+    "src/mlkem_fips202_aarch64.h": "6057160bbae3ba7ce63794ac3708e6b6ce16cd018e9d3852f1e7b4f5f50dfad8",
+    "src/raw.rs": "59ce73a32c7868f5c968c7be5b887cee549d6d5672d719beffa671ebae38caf5",
+    "src/tests.rs": "6925afd0e21834fc60159875e9a7ef313b68fa120d541f8a1f4c2ea7d6ad92b3",
+    "src/x86_cpu.rs": "9cc280fd8eb685049d799ff9b8c2b6e12123e093972de58cac910cfec1acd811",
+}
 _EXPECTED_BUILD_SURFACE_FILES = (
     "build.rs",
     "src/build_support.rs",
@@ -2687,9 +2711,6 @@ _EXPECTED_BUILD_SURFACE_SHA256 = {
     name: _EXPECTED_LOCAL_SOURCE_SHA256[name]
     for name in _EXPECTED_BUILD_SURFACE_FILES
 }
-_EXPECTED_LOCAL_SOURCE_FILES = frozenset(
-    name for name in _EXPECTED_LOCAL_SOURCE_SHA256 if name.startswith("src/")
-)
 _INCLUDE_SOURCE_TOKEN = re.compile(r"(?<!\.)\binclude(?:_bytes|_str)?\b")
 _EXPECTED_INCLUDE_SOURCE_TOKEN_COUNTS = {
     "build.rs": 0,
@@ -2888,11 +2909,41 @@ class MlKemArchiveContract:
     symbol_count: int
 
 
-def validate_packaged_mlkem_native_local_sources(source_files: set[str]) -> None:
+def _mlkem_source_digests(package_version: str) -> Mapping[str, str]:
+    if package_version == "0.1.5":
+        return _EXPECTED_LOCAL_SOURCE_SHA256
+    if package_version == "0.2.0-alpha.1":
+        return _ALPHA1_LOCAL_SOURCE_SHA256
+    raise RustPublishContractError(
+        f"unsupported sys crate source profile: {package_version!r}"
+    )
+
+
+def validate_mlkem_native_manifest_features(
+    features: Mapping[str, object], *, package_version: str,
+) -> None:
+    """Require the candidate feature to remain explicit and off by default."""
+
+    _mlkem_source_digests(package_version)
+    expected = {} if package_version == "0.1.5" else {"linux-x86_64-avx2": []}
+    if features != expected:
+        raise RustPublishContractError(
+            "sys crate feature table differs from the explicit version profile: "
+            f"version={package_version} actual={features!r} expected={expected!r}"
+        )
+
+
+def validate_packaged_mlkem_native_local_sources(
+    source_files: set[str], *, package_version: str = "0.1.5",
+) -> None:
     """Reject local package files outside the reviewed sys-crate source set."""
 
-    missing = sorted(_EXPECTED_LOCAL_SOURCE_FILES - source_files)
-    extra = sorted(source_files - _EXPECTED_LOCAL_SOURCE_FILES)
+    expected = {
+        name for name in _mlkem_source_digests(package_version)
+        if name.startswith("src/")
+    }
+    missing = sorted(expected - source_files)
+    extra = sorted(source_files - expected)
     if missing or extra:
         raise RustPublishContractError(
             "sys crate packaged local source set differs from the audited allowlist: "
@@ -2901,12 +2952,13 @@ def validate_packaged_mlkem_native_local_sources(source_files: set[str]) -> None
 
 
 def validate_packaged_mlkem_native_local_source_digests(
-    source_files: Mapping[str, bytes],
+    source_files: Mapping[str, bytes], *, package_version: str = "0.1.5",
 ) -> None:
     """Require every packaged build/local-source byte to match its audited digest."""
 
+    expected_digests = _mlkem_source_digests(package_version)
     actual_names = set(source_files)
-    expected_names = set(_EXPECTED_LOCAL_SOURCE_SHA256)
+    expected_names = set(expected_digests)
     missing = sorted(expected_names - actual_names)
     extra = sorted(actual_names - expected_names)
     malformed = sorted(
@@ -2922,16 +2974,49 @@ def validate_packaged_mlkem_native_local_source_digests(
     }
     mismatches = {
         name: {
-            "expected": _EXPECTED_LOCAL_SOURCE_SHA256[name],
+            "expected": expected_digests[name],
             "actual": actual_digests[name],
         }
         for name in sorted(expected_names)
-        if actual_digests[name] != _EXPECTED_LOCAL_SOURCE_SHA256[name]
+        if actual_digests[name] != expected_digests[name]
     }
     if mismatches:
         raise RustPublishContractError(
             "packaged local source bytes differ from the audited allowlist: "
             f"{mismatches}"
+        )
+
+
+def validate_packaged_mlkem_native_source_contract(
+    source_files: Mapping[str, bytes], *, package_version: str,
+) -> None:
+    """Close the complete source graph for one explicit package version.
+
+    Both versions require every local source byte, including tests and the
+    build script. Alpha.1 binds all sixteen files, including raw dispatch and
+    CPU admission; it does not reuse the historical two-wrapper lexical model.
+    Whole-file hashes reject alternate spellings, hidden source edges and guard
+    changes. They identify the reviewed candidate, not its release eligibility.
+    """
+
+    validate_packaged_mlkem_native_local_sources(
+        {name for name in source_files if name.startswith("src/")},
+        package_version=package_version,
+    )
+    validate_packaged_mlkem_native_local_source_digests(
+        source_files, package_version=package_version,
+    )
+    if package_version == "0.1.5":
+        validate_mlkem_native_build_surface(
+            build_rs=source_files["build.rs"].decode("utf-8"),
+            build_support=source_files["src/build_support.rs"].decode("utf-8"),
+            bridge_c=source_files["src/mlkem_bridge.c"].decode("utf-8"),
+            bridge_native_c=source_files["src/mlkem_bridge_native.c"].decode("utf-8"),
+            bridge_portable_c=source_files["src/mlkem_bridge_portable.c"].decode("utf-8"),
+            bridge_asm=source_files["src/mlkem_bridge_asm.S"].decode("utf-8"),
+            bridge_h=source_files["src/mlkem_bridge.h"].decode("utf-8"),
+            local_config=source_files["src/mlkem_config.h"].decode("utf-8"),
+            aarch64_fips202=source_files["src/mlkem_fips202_aarch64.h"].decode("utf-8"),
         )
 
 

@@ -160,7 +160,7 @@ release documentation as `E`, then generate a separate 190-key initial baseline
 and install it in one commit `D2` together with the
 matching `INITIAL_RESULTS_SHA256` and the authority stated in `ARTIFACT.md`.
 The generator recomputes the retained inputs and removes only the validated pending
-leaves; do not hand-edit the installed 249-key proof map. This reopens development
+leaves; do not hand-edit the installed 254-key proof map. This reopens development
 and does not activate the 0.1.5 cohort or claim current package evidence for `D2`.
 
 Registry publication completed at `W`, followed by finalization from the clean `P`
@@ -471,7 +471,7 @@ assets; post-publication consumers re-download and verify the immutable releases
 
 While `S` still carries the frozen 190-key pre-migration manifest, main CI uses
 only the exact source-transition readiness authority described in `ARTIFACT.md`;
-it is not a generic proof skip. Once `R` installs the exact 249-key map, CI
+it is not a generic proof skip. Once `R` installs the exact 254-key map, CI
 dispatches only to the full proof-to-byte gate. Mixed states and failed readiness
 never fall through to the other mode.
 

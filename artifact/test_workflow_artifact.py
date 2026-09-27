@@ -160,6 +160,19 @@ class WorkflowArtifactTests(unittest.TestCase):
         )
         self._assert_outputs(destination, expected)
 
+    def test_sdk_android_profile_is_separate_and_extracts_only_its_fixed_members(self) -> None:
+        profile = workflow_artifact.ANDROID_SDK_AAR_PROFILE
+        expected = self._write_profile(profile)
+        destination = workflow_artifact.extract_profile(profile.name)
+        self.assertEqual(destination, self.repository / "target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1")
+        self._assert_outputs(destination, expected)
+        self.assertEqual(set(expected), {"q-periapt-android-0.2.0-alpha.1.aar", "MANIFEST.json", "SHA256SUMS"})
+
+    def test_sdk_android_intake_rejects_a_legacy_raw_artifact(self) -> None:
+        self._write_profile(workflow_artifact.ANDROID_AAR_PROFILE)
+        with self.assertRaisesRegex(workflow_artifact.WorkflowArtifactError, "raw artifact files differ"):
+            workflow_artifact.extract_profile(workflow_artifact.ANDROID_SDK_AAR_PROFILE.name)
+
     def test_platform_candidate_extracts_three_fixed_wrappers(self) -> None:
         profile = workflow_artifact.PLATFORM_CANDIDATE_PROFILE
         expected = self._write_profile(profile)

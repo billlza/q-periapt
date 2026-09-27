@@ -9,6 +9,7 @@ if (-not $IsWindows) {
 }
 
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$Profile = "legacy"
 $Python = (Get-Command python -ErrorAction Stop).Source
 $ProductionScript = Join-Path $PSScriptRoot "windows-package.ps1"
 $tokens = $null

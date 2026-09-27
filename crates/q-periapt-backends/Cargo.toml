@@ -15,17 +15,19 @@ workspace = true
 
 [features]
 default = []
+# Opt-in Linux candidate; the sys boundary checks CPU and OS AVX state at runtime.
+linux-x86_64-avx2 = ["q-periapt-mlkem-native-sys/linux-x86_64-avx2"]
 # Optional, OFF-BY-DEFAULT SLH-DSA backend. `dep:` gating keeps it out of the
 # default build while preserving the verified-green core/KEM surface.
 slh-dsa = ["dep:fips205", "dep:rand_core"]
 
 [dependencies]
-q-periapt-core = { version = "=0.1.5", path = "../q-periapt-core" }
-q-periapt-sig = { version = "=0.1.5", path = "../q-periapt-sig" }
+q-periapt-core = { version = "=0.2.0-alpha.1", path = "../q-periapt-core" }
+q-periapt-sig = { version = "=0.2.0-alpha.1", path = "../q-periapt-sig" }
 # FIPS 203 ML-KEM through the repository-vendored, target-selected mlkem-native
 # integration. The safe facade accepts explicit seed/coins, keeping randomness
 # at the product boundary; the exact internal version pins the reviewed C tree.
-q-periapt-mlkem-native-sys = { version = "=0.1.5", path = "../q-periapt-mlkem-native-sys" }
+q-periapt-mlkem-native-sys = { version = "=0.2.0-alpha.1", path = "../q-periapt-mlkem-native-sys" }
 # FIPS 204 ML-DSA. As above, q-periapt supplies key-generation and signing
 # randomness explicitly, so the default OS-RNG feature is unnecessary here.
 fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
@@ -46,7 +48,7 @@ x25519-dalek = { version = "=3.0.0", default-features = false, features = ["stat
 # latest 0.4.6) pins sha3 ^0.10.2, so 0.10.x stays in the graph either way -- the
 # result would be two sha3 major versions plus `shake`. Revisit when the SHAKE
 # split has a track record and the FIPS backends have moved.
-sha3 = { version = "=0.10.9", default-features = false }
+sha3 = { version = "=0.10.9", default-features = false, features = ["zeroize"] }
 # --- optional backends (see [features]) ---
 # SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged, KAT-able) signing by
 # default; caller-supplied addrnd selects the hedged variant.
@@ -61,7 +63,7 @@ rand_core = { version = "0.6", default-features = false, optional = true }
 
 [dev-dependencies]
 # End-to-end hybrid KEM tests exercise the real backends through q-periapt-kem.
-q-periapt-kem = { version = "=0.1.5", path = "../q-periapt-kem" }
+q-periapt-kem = { version = "=0.2.0-alpha.1", path = "../q-periapt-kem" }
 # Combiner micro-benchmark (cargo bench). `sha3` provides the faithful
 # *streaming* X-Wing combiner baseline to compare our staged path against.
 criterion = "0.8"

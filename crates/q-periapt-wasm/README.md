@@ -3,6 +3,11 @@
 WASM bindings for the PQ/T hybrid suite (ML-KEM-768 + X25519 + SHA3) via
 `wasm-bindgen` — the same one Rust core, exposed to JavaScript/TypeScript.
 
+This package retains the **expert/conformance** interface with caller randomness
+and raw secret exports. For the new product API under 0.2.0-alpha.1 development,
+use [`q-periapt-sdk-wasm`](../q-periapt-sdk-wasm/README.md): signed policy,
+platform randomness, explicit object lifetimes and no private-key getter.
+
 The WASM face is the current stateless KEM/policy API, not a prekey or ratchet
 implementation. It provides no persistent session, multi-device, recovery, or
 PQ3/Signal parity claim. See

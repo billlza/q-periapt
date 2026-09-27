@@ -10,7 +10,9 @@
 //! upstream native arithmetic with a fixed per-target FIPS 202 assembly
 //! profile: the Apple Silicon slices (arm64 macOS, arm64 iOS simulator) pin
 //! the Armv8.4-A SHA3 backends and every other AArch64 target pins the
-//! Armv8-A baseline; every non-AArch64 target uses portable C.
+//! Armv8-A baseline. The opt-in `linux-x86_64-avx2` candidate links separate
+//! portable and AVX2 units and checks CPU/OS support before selecting AVX2.
+//! Other non-AArch64 configurations use portable C.
 //!
 //! All public operations use exact-size arrays and caller-owned output
 //! buffers. Outputs are zero before entering C and are zeroed again whenever
@@ -29,6 +31,24 @@ mod raw;
 
 /// Exact implementation selected by the build for this target.
 pub const IMPLEMENTATION_ID: &str = env!("QPN_MLKEM_IMPLEMENTATION_ID");
+
+/// Implementation actually selected for this process. In the Linux x86-64
+/// candidate this distinguishes AVX2 execution from the same-algorithm portable
+/// path. It is diagnostic metadata, not a constant-time or performance proof.
+pub fn active_implementation_id() -> &'static str {
+    #[cfg(qpn_mlkem_x86_dispatch)]
+    {
+        if raw::avx2_available() {
+            "mlkem-native-1.2.0/x86_64-native-arith+fips202-avx2"
+        } else {
+            "mlkem-native-1.2.0/portable-c"
+        }
+    }
+    #[cfg(not(qpn_mlkem_x86_dispatch))]
+    {
+        IMPLEMENTATION_ID
+    }
+}
 
 /// Length in bytes of deterministic ML-KEM key-generation input (`d || z`).
 pub const KEY_GENERATION_SEED_LEN: usize = 64;

@@ -130,6 +130,24 @@ ANDROID_AAR_PROFILE = ProfileSpec(
     ),
 )
 
+ANDROID_SDK_AAR_PROFILE = ProfileSpec(
+    name="android-sdk-alpha1-aar",
+    destination=pathlib.PurePosixPath(
+        "target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1"
+    ),
+    nested_raw_containers=False,
+    containers=(
+        ContainerSpec(
+            artifact_name="abi2-android-sdk-alpha1-aar",
+            members=(
+                MemberSpec("q-periapt-android-0.2.0-alpha.1.aar", "q-periapt-android-0.2.0-alpha.1.aar", _MAX_PAYLOAD_BYTES),
+                MemberSpec("MANIFEST.json", "MANIFEST.json", _MAX_METADATA_BYTES),
+                MemberSpec("SHA256SUMS", "SHA256SUMS", _MAX_CHECKSUM_BYTES),
+            ),
+        ),
+    ),
+)
+
 _LINUX_X86_PACKAGE = (
     "q-periapt-c-abi2-0.1.5-x86_64-unknown-linux-gnu.tar.gz"
 )
@@ -179,6 +197,7 @@ PLATFORM_CANDIDATE_PROFILE = ProfileSpec(
 
 PROFILES = {
     ANDROID_AAR_PROFILE.name: ANDROID_AAR_PROFILE,
+    ANDROID_SDK_AAR_PROFILE.name: ANDROID_SDK_AAR_PROFILE,
     PLATFORM_CANDIDATE_PROFILE.name: PLATFORM_CANDIDATE_PROFILE,
 }
 

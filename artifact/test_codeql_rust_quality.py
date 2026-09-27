@@ -1399,6 +1399,15 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "crates/q-periapt-backends/src/concrete_hybrid_kems_04_vector.rs",
             tracked,
         )
+        for sdk_source in (
+            "crates/q-periapt-sdk/src/lib.rs",
+            "crates/q-periapt-sdk-wasm/src/lib.rs",
+            "crates/q-periapt-host-store/src/lib.rs",
+            "crates/q-periapt-ffi/src/sdk.rs",
+            "bindings/rust/SDKPackageConsumer/src/lib.rs",
+        ):
+            with self.subTest(source=sdk_source):
+                self.assertIn(sdk_source, tracked)
         self.assertEqual(
             len(tracked), codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT
         )

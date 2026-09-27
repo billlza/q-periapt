@@ -6,7 +6,8 @@ This crate is the single native-code and `unsafe` boundary for Q-Periapt's
 target-selected ML-KEM implementation. It vendors the `mlkem/` subtree from
 `pq-code-package/mlkem-native` v1.2.0 and exposes only safe, allocation-free,
 exact-array Rust operations for ML-KEM-512, ML-KEM-768, and ML-KEM-1024. The
-public `IMPLEMENTATION_ID` reports the exact backend selected by the build.
+public `IMPLEMENTATION_ID` reports the build configuration;
+`active_implementation_id()` reports the implementation selected in the process.
 
 Despite the `-sys` suffix, raw C declarations are private. Callers use
 `MlKem512`, `MlKem768`, or `MlKem1024` and provide all output storage in place.
@@ -15,7 +16,7 @@ An error always leaves every output filled with zeroes.
 ## Security boundary
 
 - All upstream KEM entry points and parameter-dependent helpers have static
-  linkage in one C translation unit. mlkem-native's remaining shared FIPS 202
+  linkage within each implementation's C translation unit. mlkem-native's remaining shared FIPS 202
   helpers use a unique versioned namespace and hidden visibility.
 - Rust links only versioned `qpn_mlkem_bridge_v1_2_0_*` symbols. Those symbols
   have hidden visibility and deliberately do not use the product-reserved
@@ -46,9 +47,9 @@ Armv8.4-A SHA3 x1 plus two-way x2 Keccak implementations; the remaining three
 targets force `-march=armv8-a+nosha3` and use the upstream scalar x1 plus
 Armv8-A scalar/Neon x4 Keccak implementations. Each profile is fixed at build
 time, so the resulting artifacts have no compiler-dependent backend selection
-and no runtime CPU dispatch. Every other target remains portable C, including x86,
-Windows/MSVC, Wasm, and freestanding targets. There is no Cargo feature that can
-change this mapping. Freestanding targets select the integration's fixed-loop
+and no runtime CPU dispatch. By default every other target remains portable C,
+including x86, Windows/MSVC, Wasm, and freestanding targets. The Linux x86-64
+candidate below is an explicit opt-in. Freestanding targets select the integration's fixed-loop
 memory/zeroization helpers and upstream's C value barrier, so their C object does
 not depend on target C-library headers. Windows uses its normal C runtime
 functions and upstream's `SecureZeroMemory` path. These helpers and the selected
@@ -84,7 +85,43 @@ symbols are unsupported implementation details, absent from the public header,
 and may change without ABI notice. The exact-nine claim therefore applies to all
 named exports of the `cdylib`/DLL. For a `staticlib`, only the reserved public
 `q_periapt_*` namespace is constrained to those nine names; the embedding process
-is a trusted same-address-space boundary, not a sandbox.
+is a trusted same-address-space boundary, not a sandbox. The nine-symbol count
+above is the retained 0.1.5 contract; the 0.2.0 SDK extension remains ABI 2 with
+its separate exact export allowlist.
+
+## Linux x86-64 candidate
+
+`--features linux-x86_64-avx2` is restricted to the exact
+`x86_64-unknown-linux-gnu` target. Other targets reject that explicit feature;
+their default implementation mapping is unchanged. Higher-level backends, SDK,
+FFI and CT harness crates forward the same feature. It is not enabled by default
+until native Linux qualification and performance/release gates are complete.
+
+The candidate compiles the unchanged v1.2.0 portable implementation and the
+upstream AVX2 arithmetic/four-way Keccak implementation into distinct hidden
+namespaces. C code in both units uses `-march=x86-64 -mno-avx -mno-avx2`; only the
+separate assembly unit contains AVX instructions. Rust CPU/feature overrides and
+non-baseline target features are rejected. A `no_std` dispatcher admits the
+fixed native unit only when CPUID reports SSSE3, SSE4.1, POPCNT, XSAVE, OSXSAVE,
+AVX, AVX2 and BMI2, and XGETBV(0) confirms OS preservation of XMM and YMM state.
+It never executes XGETBV before its prerequisites are established.
+
+The non-AVX requirements are load-bearing: pinned rejection sampling includes
+`pshufb`, `pblendw`, `pinsrd`/`pinsrq`, `popcntq` and `pextq`. Do not infer these
+independent feature bits from an AVX2 bit or a CPU brand. The feature cache stores
+only process-wide public CPU/OS capability, assumes uniform capabilities for the
+process, and never contains key or policy material. Capability-based portable
+selection preserves the exact ML-KEM algorithm, key/ciphertext encodings, key
+checks and implicit rejection. There is no classical KEM fallback.
+
+Build identity is `mlkem-native-1.2.0/x86_64-avx2+portable-dispatch`. Active identity
+is either `mlkem-native-1.2.0/x86_64-native-arith+fips202-avx2` or the unchanged
+portable identity. Capture the active identity inside instrumentation as well:
+an AVX2 build running the portable path is not an AVX2 CT/performance result.
+This new dispatcher and its assembly are integration TCB; upstream proofs do
+not by themselves verify this integration.
+
+See [candidate validation and open gates](../../docs/SDK_X86_CANDIDATE.md).
 
 ## Vendored source
 

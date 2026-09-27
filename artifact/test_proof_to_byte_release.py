@@ -121,8 +121,8 @@ EXPECTED_PROOF_TO_BYTE_STEP = (
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
     "            ci-source-gate \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249 declared_delta=59\"\n"
-    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249\"\n"
+    "          initial_gate=\"SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=254 declared_delta=64\"\n"
+    "          installed_gate=\"SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=254\"\n"
     "          if [ \"$source_gate\" = \"$initial_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
     "          elif [ \"$source_gate\" = \"$installed_gate\" ]; then\n"
@@ -659,8 +659,13 @@ MIGRATION_V2_PROOF_INPUTS = {
     "migration_agent_authority_transport_sha256": "services/q-periapt-policy-agent/src/authority_transport.rs",
     "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
     "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
-    "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
-    "migration_agent_macos_acl_sha256": "services/q-periapt-policy-agent/src/macos_acl.rs",
+    "migration_agent_filesystem_sha256": "crates/q-periapt-host-store/src/filesystem.rs",
+    "migration_agent_macos_acl_sha256": "crates/q-periapt-host-store/src/macos_acl.rs",
+    "migration_agent_filesystem_adapter_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
+    "host_store_manifest_sha256": "crates/q-periapt-host-store/Cargo.toml",
+    "host_store_lib_sha256": "crates/q-periapt-host-store/src/lib.rs",
+    "host_store_policy_sha256": "crates/q-periapt-host-store/src/policy.rs",
+    "host_store_policy_tests_sha256": "crates/q-periapt-host-store/src/policy/tests.rs",
     "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
     "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
     "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",
@@ -1878,14 +1883,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
         self.assertIn("    needs: bindings-android-aar\n", job)
         self.assertIn("    runs-on: ubuntu-24.04\n", job)
-        self.assertIn("    timeout-minutes: 45\n", job)
+        self.assertIn("    timeout-minutes: 60\n", job)
         download_steps = extract_action_steps(job, "actions/download-artifact")
         self.assertEqual(len(download_steps), 1)
         self.assertEqual(
             download_steps[0],
             f"      - uses: {PINNED_DOWNLOAD_ARTIFACT_ACTION}\n"
             "        with:\n"
-            "          name: abi2-android-aar\n"
+            "          name: abi2-android-sdk-alpha1-aar\n"
             "          path: target/workflow-artifact/raw\n"
             "          skip-decompress: true\n"
             "          digest-mismatch: error\n",
@@ -1900,7 +1905,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "          QPERIAPT_PYTHON: "
             "${{ steps.proof_python.outputs.python-path }}\n"
             "        run: sh artifact/python-run.sh "
-            "artifact/workflow_artifact.py android-aar\n",
+            "artifact/workflow_artifact.py android-sdk-alpha1-aar\n",
         )
         self.assertNotIn("merge-multiple:", download_steps[0])
         self.assertNotIn("          run-id:", job)
@@ -1925,6 +1930,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             'QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest"',
             'QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256"',
             'QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256"',
+            'for profile in agp_sdk_full_release agp_sdk_minimal_release; do',
+            'QPERIAPT_ANDROID_CONSUMER_PROFILE="$profile"',
             "command -v setfacl",
             "command -v lsof",
             "QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}",
@@ -2007,7 +2014,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''\n"
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n"
             "        with:\n"
-            "          name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics\n"
+            "          name: abi2-android-sdk-alpha1-runtime-api35-16k-x86_64-failure-diagnostics\n"
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
@@ -2039,11 +2046,12 @@ class BoundVerifierWiringTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, diagnostic_upload)
 
-        proof_upload = extract_named_workflow_step(job, "Upload Android runtime proof")
+        proof_upload = extract_named_workflow_step(job, "Retain Android SDK package and runtime evidence")
         self.assertIn(
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
         )
-        self.assertIn("name: abi2-android-runtime-api35-16k-x86_64\n", proof_upload)
+        self.assertIn("name: abi2-android-sdk-alpha1-runtime-api35-16k-x86_64\n", proof_upload)
+        self.assertIn("if: always() &&", proof_upload)
         self.assertNotIn("if: failure()", proof_upload)
         self.assertIn("if-no-files-found: error\n", proof_upload)
 
@@ -2318,7 +2326,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("resolved_mlkem_providers", source)
         self.assertIn('"src/build_support.rs"', source)
         self.assertIn("from rust_publish_contract import", source)
-        self.assertIn("validate_mlkem_native_build_surface", source)
+        self.assertIn("validate_packaged_mlkem_native_source_contract", source)
+        self.assertIn("validate_mlkem_native_manifest_features", source)
+        self.assertIn("package_version=version", source)
         self.assert_named_proof_input(
             "rust_publish_contract_script_sha256",
             "artifact/rust-publish-contract.sh",
@@ -5372,7 +5382,7 @@ with _temporary_release_test_directories(parents):
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
         workflows = (
-            (CI_WORKFLOW, 20, 2),
+            (CI_WORKFLOW, 22, 2),
             (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
         )
         for path, expected_count, windows_count in workflows:
@@ -5430,6 +5440,7 @@ with _temporary_release_test_directories(parents):
                     "bindings-wasm": CANONICAL_RUST_TOOLCHAIN,
                     "fuzz": "nightly",
                     "bindings-swift": CANONICAL_RUST_TOOLCHAIN,
+                    "bindings-kotlin": CANONICAL_RUST_TOOLCHAIN,
                     "bindings-android-aar": CANONICAL_RUST_TOOLCHAIN,
                     "audit": CANONICAL_RUST_TOOLCHAIN,
                     "hqc-draft-candidate": CANONICAL_RUST_TOOLCHAIN,
@@ -5465,9 +5476,19 @@ with _temporary_release_test_directories(parents):
             extract_workflow_job(ci, "cross-compiler"),
         )
         self.assertIn(
-            "cargo +1.85 build --workspace --locked",
+            "cargo +1.85.0 build --workspace --locked",
             extract_workflow_job(ci, "msrv"),
         )
+        package_job = extract_workflow_job(ci, "rust-publish-contract")
+        self.assertIn("artifact/rust_sdk_msrv.py", package_job)
+        self.assertIn('--toolchain-root "$(rustc +1.85.0 --print sysroot)"', package_job)
+        for job_name in ("msrv", "rust-publish-contract"):
+            selected = extract_workflow_job(ci, job_name)
+            self.assertEqual(selected.count("          toolchain: 1.85.0\n"), 1)
+            self.assertIn("dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88", selected)
+        self.assertIn('--report "$report" --report-sha256 "$report_sha256"', package_job)
+        self.assertIn("target/sdk-rust-msrv/consumer-Cargo.lock", package_job)
+        self.assertNotIn("continue-on-error:", package_job)
         fuzz = extract_workflow_job(ci, "fuzz")
         self.assertIn("cargo +nightly fetch", fuzz)
         self.assertIn("cargo +nightly fuzz build", fuzz)
@@ -5476,6 +5497,7 @@ with _temporary_release_test_directories(parents):
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         job = extract_workflow_job(workflow, "abi2-windows-package-2022")
         self.assertIn("    runs-on: windows-2022\n", job)
+        self.assertIn("    timeout-minutes: 90\n", job)
         self.assertIn("          fetch-depth: 0\n", job)
         self.assertIn(f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n", job)
         self.assertIn("          components: llvm-tools\n", job)
@@ -5504,16 +5526,20 @@ with _temporary_release_test_directories(parents):
             job, "Test Windows 2022 package trust boundary"
         )
         self.assertIn("test_windows_package", trust)
+        self.assertIn("test_windows_sdk_profile", trust)
         self.assertIn("./windows-toolchain-tests.ps1", trust)
+        self.assertIn("./windows-sdk-profile-tests.ps1", trust)
         build = extract_named_workflow_step(
             job, "Build, archive, extract, and consume the Windows 2022 SDK"
         )
         self.assertIn("QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}", build)
-        self.assertIn("run: artifact/windows-package.ps1", build)
+        self.assertIn("run: artifact/windows-package.ps1 -Profile sdk-alpha1", build)
         verify = extract_named_workflow_step(
             job, "Reconsume only the Windows 2022 candidate archive"
         )
         self.assertIn("-Mode VerifyArchive", verify)
+        self.assertIn("-Profile sdk-alpha1", verify)
+        self.assertIn("q-periapt-c-abi-v2-sdk-alpha1.json", verify)
         self.assertIn("-ExpectedGitCommit $gitCommit", verify)
         self.assertIn("-ExpectedGitTree $gitTree", verify)
         self.assertNotIn("SilentlyContinue", verify)
@@ -5949,7 +5975,7 @@ with _temporary_release_test_directories(parents):
             self.assertIn(f"expected {alternate_head}", spoofed.stderr)
             self.assertEqual(spoofed.stdout, "")
 
-    def test_ci_release_package_paths_use_the_current_stable_version(self) -> None:
+    def test_ci_package_paths_match_explicit_alpha_profiles(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         wrong_version_probe = (
             'if verify_archive "$archive_sha256" "$EXPECTED_TARGET" '
@@ -5960,14 +5986,23 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
         self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
         for expected in (
-            "q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc.zip",
-            "q-periapt-c-abi2-0.1.5-$EXPECTED_TARGET",
-            "q-periapt-c-abi2-0.1.5-${{ matrix.target }}.tar.gz",
-            "q-periapt-android-0.1.5.aar",
-            "q-periapt-android-0.1.5/MANIFEST.json",
+            "q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.2.0-alpha.1-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.2.0-alpha.1-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.2.0-alpha.1.aar",
+            "q-periapt-android-0.2.0-alpha.1/MANIFEST.json",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)
+        self.assertIn("sh artifact/c-package.sh --profile sdk-alpha1", extract_workflow_job(workflow, "abi2-linux-package"))
+        self.assertIn("sh artifact/android-aar.sh --profile sdk-alpha1", extract_workflow_job(workflow, "bindings-android-aar"))
+        for name in ("windows", "abi2-windows-package-2022"):
+            job = extract_workflow_job(workflow, name)
+            self.assertIn("artifact/windows-package.ps1 -Profile sdk-alpha1", job)
+            self.assertIn("artifact/windows-package.ps1 -Profile sdk-alpha1 -Mode VerifyArchive", job)
+            self.assertIn("q-periapt-c-abi-v2-sdk-alpha1.json", job)
+            self.assertIn("target/qperiapt-windows-sdk-alpha1", job)
+            self.assertNotIn("q-periapt-c-abi2-0.1.5", job)
 
     def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:
         setup_action = (

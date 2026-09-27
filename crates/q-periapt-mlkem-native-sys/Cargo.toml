@@ -34,6 +34,11 @@ include = [
 [lints]
 workspace = true
 
+[features]
+# Candidate only until Linux runtime, binary CT and performance gates qualify it.
+# Always includes the same-algorithm portable path and checks CPU/OS support.
+linux-x86_64-avx2 = []
+
 [build-dependencies]
 # Held at exactly 1.2.67 by the publication contract, not by choice here:
 # artifact/rust-publish-contract.sh refuses to package this crate unless its

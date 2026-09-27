@@ -19,10 +19,10 @@ import android_elf
 import android_runtime_state as runtime_state
 from android_agp_consumer_contract import (
     AGP_VERSION,
-    BUILD_KIND,
     GRADLE_VERSION,
     AndroidAgpConsumerError,
     require,
+    profile_spec,
 )
 from bounded_process import BoundedProcessError, capture_stdout
 
@@ -135,6 +135,7 @@ def build(args: argparse.Namespace) -> None:
     gradle_home = collector_gradle_home()
     sdk = runtime_state.registered_sdk_root(args.sdk)
     consumer._profile(args.profile)
+    spec = profile_spec(args.profile)
     require(
         not runtime.source_tree_dirty(root),
         "AGP collector requires a clean source checkout",
@@ -150,7 +151,7 @@ def build(args: argparse.Namespace) -> None:
         consumer._digest(args.aar_manifest) == args.expected_aar_manifest_sha256,
         "selected exact AAR manifest hash differs",
     )
-    entries, _ = android_elf.audit_aar(args.aar)
+    entries, _ = android_elf.audit_aar(args.aar, profile=spec.aar_profile)
     android_elf.verify_manifest(
         args.aar_manifest,
         aar_path=args.aar,
@@ -160,6 +161,7 @@ def build(args: argparse.Namespace) -> None:
         require_release=True,
         forbidden_text=[str(root)],
         source_root=root,
+        profile=spec.aar_profile,
     )
     require(
         consumer._json(args.aar_manifest)["git_commit"] == commit,
@@ -226,10 +228,10 @@ def build(args: argparse.Namespace) -> None:
     write_new(exact, consumer._bytes(args.aar, consumer.MAX_APK))
     assets = args.work / "assets"
     assets.mkdir(mode=0o700)
-    if args.profile == "agp_full_release":
+    for name in spec.fixtures:
         write_new(
-            assets / "signed-policy-vectors.json",
-            consumer._bytes(root / "bindings/signed-policy-vectors.json"),
+            assets / name,
+            consumer._bytes(root / "bindings" / name),
         )
     roots = {
         "WORK": args.work.resolve(),
@@ -262,11 +264,12 @@ def build(args: argparse.Namespace) -> None:
     selected_jvm = selected_gradle_jvm(gradle_version, java_home)
     roots["JAVA_HOME"] = pathlib.Path(selected_jvm.java_home)
     write_new(args.output / "gradle-version.txt", normalized(gradle_version, roots))
-    flavor = "Full" if args.profile == "agp_full_release" else "Minimal"
+    flavor = spec.flavor
     capture = args.work / "compilation-inputs.txt"
     jvm_capture = args.work / "build-jvm.json"
     _run(
         base
+        + (["-PqperiaptSdkWorkload=true"] if spec.aar_profile == "sdk-alpha1" else [])
         + [
             f"-PqperiaptAar={exact}",
             f"-PqperiaptSmokeRoot={smoke}",
@@ -356,7 +359,7 @@ def build(args: argparse.Namespace) -> None:
         if consumer.DEX_NAME.fullmatch(name)
     }
     inspection = consumer.inspect_apk_program(
-        apk, dexdump=tools / "dexdump", aapt2=tools / "aapt2"
+        apk, dexdump=tools / "dexdump", aapt2=tools / "aapt2", package_version=spec.version,
     )
     for name, raw, public in (
         ("dexdump.txt", inspection.raw_dexdump, inspection.dexdump),
@@ -397,7 +400,7 @@ def build(args: argparse.Namespace) -> None:
     }
     receipt = {
         "schema": 1,
-        "kind": BUILD_KIND,
+        "kind": spec.build_kind,
         "profile": args.profile,
         "status": "pass",
         "source_commit": commit,

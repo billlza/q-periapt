@@ -21,6 +21,7 @@ from collections.abc import Callable
 from typing import Any, BinaryIO, Iterable
 
 from c_abi_contract import ABI_MAJOR, PACKAGE_SEMVER, load_contract
+from sdk_abi2_spec import PACKAGE_SEMVER as SDK_PACKAGE_SEMVER
 from evidence_io import (
     EvidenceIOError,
     FileSnapshot,
@@ -28,6 +29,7 @@ from evidence_io import (
     read_regular_snapshot,
 )
 from package_bom import (
+    BomProfile,
     EXPECTED_CRYPTO_ASSETS,
     PackageBomError,
     verify as verify_package_boms,
@@ -339,6 +341,43 @@ EXPECTED_PAYLOAD_FILES = frozenset(
     }
 )
 EXPECTED_ALL_FILES = EXPECTED_PAYLOAD_FILES | {"MANIFEST.json", "SHA256SUMS"}
+PACKAGE_PROFILES = ("legacy", "sdk-alpha1")
+SDK_SCHEMA_VERSION = 4
+SDK_KIND = "qperiapt.windows_sdk_package_manifest"
+SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+SDK_RUST_LIBRARY_NOTICE = "LICENSES/Rust-1.97.0-library.html"
+SDK_UNSIGNED_REASON = (
+    "This alpha candidate is unsigned; hashes and source records do not "
+    "establish Authenticode trust or publication."
+)
+LEGACY_UNSIGNED_REASON = (
+    "No trusted Windows Authenticode credential was available; integrity "
+    "relies on GitHub immutable-release and artifact attestations."
+)
+SDK_PAYLOAD_SOURCES = {
+    "include/qperiapt/abi2/q_periapt.h": "crates/q-periapt-ffi/include/q_periapt.h",
+    "include/qperiapt/abi2/signed_policy_fixture.h": "bindings/c/signed_policy_fixture.h",
+    "include/qperiapt/abi2/sdk_policy_update_fixture.h": "bindings/c/sdk_policy_update_fixture.h",
+    "share/q-periapt/smoke.c": "bindings/c/smoke.c",
+    "share/q-periapt/sdk_smoke.c": "bindings/c/sdk_smoke.c",
+    "share/q-periapt/legacy/q_periapt.h": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
+    SDK_RUST_LIBRARY_NOTICE: SDK_RUST_LIBRARY_NOTICE,
+}
+SDK_PAYLOAD_FILES = (EXPECTED_PAYLOAD_FILES - {"share/q-periapt/abi/q-periapt-c-abi-v2.json"}) \
+    | {SDK_EMBEDDED_CONTRACT} | frozenset(SDK_PAYLOAD_SOURCES)
+SDK_SOURCE_INPUT_PATHS = {
+    **SOURCE_INPUT_PATHS,
+    "c_abi_contract": SDK_CONTRACT_PATH,
+    "sdk_abi_spec": "artifact/sdk_abi2_spec.py",
+    "sdk_smoke_consumer": "bindings/c/sdk_smoke.c",
+    "sdk_policy_fixture": "bindings/c/sdk_policy_update_fixture.h",
+    "legacy_header": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
+    "sdk_cbom_source": "crates/q-periapt-cli/src/sdk_cbom.rs",
+    "sdk_tls_inventory": "artifact/fixtures/sdk-native-alpha1-tls-inventory.json",
+    "rust_library_notice": SDK_RUST_LIBRARY_NOTICE,
+    "sdk_profile_tests": "artifact/windows-sdk-profile-tests.ps1",
+}
 
 
 class WindowsPackageError(ValueError):
@@ -348,6 +387,26 @@ class WindowsPackageError(ValueError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise WindowsPackageError(message)
+
+
+def _sdk_profile(profile: str) -> bool:
+    _require(profile in PACKAGE_PROFILES, "unknown Windows package profile")
+    return profile == "sdk-alpha1"
+
+
+def profile_source_paths(profile: str) -> dict[str, str]:
+    return dict(SDK_SOURCE_INPUT_PATHS if _sdk_profile(profile) else SOURCE_INPUT_PATHS)
+
+
+def profile_payload_files(profile: str) -> frozenset[str]:
+    return SDK_PAYLOAD_FILES if _sdk_profile(profile) else EXPECTED_PAYLOAD_FILES
+
+
+def _validate_sdk_payload_sources(root: pathlib.Path, repository: pathlib.Path | None) -> None:
+    if repository is not None:
+        for packaged, source in SDK_PAYLOAD_SOURCES.items():
+            _require(_sha256(root / packaged) == _sha256(repository / source),
+                     f"Windows SDK shipped source differs: {packaged}")
 
 
 def _validate_msvc_version(value: object, label: str) -> None:
@@ -601,34 +660,39 @@ def _third_party_rust_files(root: pathlib.Path) -> tuple[dict[str, Any], frozens
     return inventory, frozenset(paths)
 
 
-def _validate_boms(package_root: pathlib.Path, repository_root: pathlib.Path | None) -> None:
+def _validate_boms(package_root: pathlib.Path, repository_root: pathlib.Path | None,
+                   profile: str = "legacy") -> None:
     try:
         verify_package_boms(
             package_root,
             cargo_lock=(repository_root / "Cargo.lock") if repository_root else None,
+            profile=BomProfile.NATIVE_SDK_ALPHA1 if _sdk_profile(profile) else BomProfile.BACKENDS_V0_1_5,
         )
     except PackageBomError as exc:
         raise WindowsPackageError(str(exc)) from exc
 
 
-def _validate_contracts(package_root: pathlib.Path, repository_root: pathlib.Path | None) -> tuple[str, str]:
-    embedded_path = package_root / "share/q-periapt/abi/q-periapt-c-abi-v2.json"
+def _validate_contracts(package_root: pathlib.Path, repository_root: pathlib.Path | None,
+                        profile: str = "legacy") -> tuple[str, str]:
+    sdk = _sdk_profile(profile)
+    embedded_path = package_root / (SDK_EMBEDDED_CONTRACT if sdk else "share/q-periapt/abi/q-periapt-c-abi-v2.json")
     try:
         embedded = load_contract(embedded_path)
     except ValueError as exc:
         raise WindowsPackageError(f"embedded ABI contract is invalid: {exc}") from exc
-    _require(embedded.document["package"]["semver"] == PACKAGE_SEMVER, "embedded contract package version differs")
+    _require(embedded.document["package"]["semver"] == (SDK_PACKAGE_SEMVER if sdk else PACKAGE_SEMVER), "embedded contract package version differs")
     identity = embedded.document["package"]["platforms"][ABI_PLATFORM]
     _require(identity["shared_filename"] == "q_periapt_ffi_abi2.dll", "embedded Windows DLL identity differs")
     _require(identity["import_library_filename"] == "q_periapt_ffi_abi2.lib", "embedded Windows import-library identity differs")
     _require(identity["static_filename"] == "q_periapt_ffi_abi2_static.lib", "embedded Windows static-library identity differs")
     if repository_root is not None:
         source = load_contract(
-            repository_root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+            repository_root / (SDK_CONTRACT_PATH if sdk else "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
         )
         _require(source.sha256 == embedded.sha256, "embedded ABI contract differs from repository trust root")
     exports = sorted(item["name"] for item in embedded.document["abi"]["exports"])
-    _require(len(exports) == 9 and len(exports) == len(set(exports)), "ABI export set is not exactly nine unique names")
+    _require(len(exports) == (43 if sdk else 9) and len(exports) == len(set(exports)),
+             "ABI export set differs from the selected closed profile")
     exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode()).hexdigest()
     return embedded.sha256, exports_sha256
 
@@ -1853,10 +1917,10 @@ def inspect_dumpbin_dependencies(
     return parse_dumpbin_dependents(completed.stdout)
 
 
-def _source_hashes(repository_root: pathlib.Path) -> dict[str, str]:
+def _source_hashes(repository_root: pathlib.Path, profile: str = "legacy") -> dict[str, str]:
     result = {
         name: _sha256(repository_root / relative)
-        for name, relative in SOURCE_INPUT_PATHS.items()
+        for name, relative in profile_source_paths(profile).items()
     }
     result["rust_workspace_build_inputs"] = _tree_hash(
         repository_root, RUST_WORKSPACE_INPUTS
@@ -1883,17 +1947,20 @@ def create_manifest(
     cl: str,
     dependencies: Iterable[str],
     forbidden_windows_paths: Iterable[str] = (),
+    profile: str = "legacy",
 ) -> dict[str, Any]:
     """Create deterministic MANIFEST.json and SHA256SUMS after every native gate passed."""
 
     root = _validate_package_root(package_root)
+    sdk = _sdk_profile(profile)
+    package_version = SDK_PACKAGE_SEMVER if sdk else PACKAGE_SEMVER
     repository = pathlib.Path(repository_root).resolve(strict=True)
     dependency_list = list(dependencies)
     windows_path_list = list(forbidden_windows_paths)
     _require(COMMIT_RE.fullmatch(git_commit) is not None, "git commit must be 40 lowercase hexadecimal digits")
     _require(TREE_RE.fullmatch(git_tree) is not None, "git tree must be 40 to 64 lowercase hexadecimal digits")
     _require(type(source_date_epoch) is int, "source date epoch must be an integer")
-    _require(version == PACKAGE_SEMVER, f"Windows package version must be {PACKAGE_SEMVER}")
+    _require(version == package_version, f"Windows package version must be {package_version}")
     _require(package_name == f"q-periapt-c-abi2-{version}-{TARGET}", "Windows package name differs from release contract")
     _require(
         rustc == EXPECTED_RUSTC_VERSION,
@@ -1906,11 +1973,13 @@ def create_manifest(
     _validate_msvc_version(cl, "cl version")
 
     third_party, third_party_files = _third_party_rust_files(root)
-    expected_payload_files = EXPECTED_PAYLOAD_FILES | third_party_files
+    expected_payload_files = profile_payload_files(profile) | third_party_files
     inventory = _inventory(root)
     _require(set(inventory) == expected_payload_files, f"Windows payload file set differs: missing={sorted(expected_payload_files - set(inventory))} extra={sorted(set(inventory) - expected_payload_files)}")
-    _validate_boms(root, repository)
-    contract_sha256, exports_sha256 = _validate_contracts(root, repository)
+    _validate_boms(root, repository, profile)
+    contract_sha256, exports_sha256 = _validate_contracts(root, repository, profile)
+    if sdk:
+        _validate_sdk_payload_sources(root, repository)
     pe_evidence, pe_sha256, pe_size = inspect_windows_pe_evidence(
         inventory["bin/q_periapt_ffi_abi2.dll"]
     )
@@ -1942,8 +2011,8 @@ def create_manifest(
         )
 
     payload: dict[str, Any] = {
-        "schema_version": SCHEMA_VERSION,
-        "kind": KIND,
+        "schema_version": SDK_SCHEMA_VERSION if sdk else SCHEMA_VERSION,
+        "kind": SDK_KIND if sdk else KIND,
         "package": package_name,
         "version": version,
         "generated_at": _iso8601(source_date_epoch),
@@ -1958,14 +2027,14 @@ def create_manifest(
             "certificate_directory_present": pe_evidence[
                 "authenticode_certificate_directory_present"
             ],
-            "reason": "No trusted Windows Authenticode credential was available; integrity relies on GitHub immutable-release and artifact attestations.",
+            "reason": SDK_UNSIGNED_REASON if sdk else LEGACY_UNSIGNED_REASON,
         },
         "abi": {
             "major": ABI_MAJOR,
             "platform": ABI_PLATFORM,
             "contract_sha256": contract_sha256,
             "exports_sha256": exports_sha256,
-            "export_count": 9,
+            "export_count": 43 if sdk else 9,
             "shared_filename": "q_periapt_ffi_abi2.dll",
             "import_library_filename": "q_periapt_ffi_abi2.lib",
             "static_filename": "q_periapt_ffi_abi2_static.lib",
@@ -1982,9 +2051,11 @@ def create_manifest(
             "package_count": len(third_party["packages"]),
         },
         "toolchain": {"cargo": cargo, "cl": cl, "rustc": rustc},
-        "source_inputs_sha256": _source_hashes(repository),
+        "source_inputs_sha256": _source_hashes(repository, profile),
         "files": entries,
     }
+    if sdk:
+        payload.update(profile=profile, release_claim_eligible=False)
     manifest_path = root / "MANIFEST.json"
     manifest_path.write_bytes(_canonical_json(payload))
     sums_entries = [*entries, {"path": "MANIFEST.json", "sha256": _sha256(manifest_path)}]
@@ -2002,6 +2073,7 @@ def create_manifest(
         expected_git_commit=git_commit,
         expected_git_tree=git_tree,
         forbidden_windows_paths=windows_path_list,
+        profile=profile,
     )
     return payload
 
@@ -2034,13 +2106,16 @@ def verify_package(
     expected_git_commit: str | None = None,
     expected_git_tree: str | None = None,
     forbidden_windows_paths: Iterable[str] = (),
+    profile: str = "legacy",
 ) -> dict[str, Any]:
     """Verify the complete extracted package without trusting archive metadata."""
 
     root = _validate_package_root(package_root)
+    sdk = _sdk_profile(profile)
+    package_version = SDK_PACKAGE_SEMVER if sdk else PACKAGE_SEMVER
     windows_path_list = list(forbidden_windows_paths)
     third_party, third_party_files = _third_party_rust_files(root)
-    expected_payload_files = EXPECTED_PAYLOAD_FILES | third_party_files
+    expected_payload_files = profile_payload_files(profile) | third_party_files
     expected_all_files = expected_payload_files | {"MANIFEST.json", "SHA256SUMS"}
     inventory = _inventory(root)
     _require(set(inventory) == expected_all_files, f"Windows package file set differs: missing={sorted(expected_all_files - set(inventory))} extra={sorted(set(inventory) - expected_all_files)}")
@@ -2057,14 +2132,18 @@ def verify_package(
         == _canonical_json(manifest),
         "Windows manifest is not canonical JSON",
     )
-    _require(set(manifest) == MANIFEST_KEYS, "Windows manifest fields differ")
-    _require(manifest.get("schema_version") == SCHEMA_VERSION, "Windows manifest schema differs")
-    _require(manifest.get("kind") == KIND, "Windows manifest kind differs")
+    _require(set(manifest) == MANIFEST_KEYS | ({"profile", "release_claim_eligible"} if sdk else set()), "Windows manifest fields differ")
+    _require(type(manifest.get("schema_version")) is int and manifest["schema_version"] ==
+             (SDK_SCHEMA_VERSION if sdk else SCHEMA_VERSION), "Windows manifest schema differs")
+    _require(manifest.get("kind") == (SDK_KIND if sdk else KIND), "Windows manifest kind differs")
+    if sdk:
+        _require(manifest["profile"] == profile and manifest["release_claim_eligible"] is False,
+                 "Windows SDK profile or release boundary differs")
     _require(
-        manifest.get("package") == f"q-periapt-c-abi2-{PACKAGE_SEMVER}-{TARGET}",
+        manifest.get("package") == f"q-periapt-c-abi2-{package_version}-{TARGET}",
         "Windows manifest package differs",
     )
-    _require(manifest.get("version") == PACKAGE_SEMVER, "Windows manifest version differs")
+    _require(manifest.get("version") == package_version, "Windows manifest version differs")
     _require(manifest.get("target") == TARGET, "Windows manifest target differs")
     source_date_epoch = manifest.get("source_date_epoch")
     _require(type(source_date_epoch) is int, "Windows source date epoch is invalid")
@@ -2091,7 +2170,7 @@ def verify_package(
         "certificate_directory_present": pe_evidence[
             "authenticode_certificate_directory_present"
         ],
-        "reason": "No trusted Windows Authenticode credential was available; integrity relies on GitHub immutable-release and artifact attestations.",
+        "reason": SDK_UNSIGNED_REASON if sdk else LEGACY_UNSIGNED_REASON,
     }, "Windows Authenticode boundary differs")
     _require(manifest.get("hardening") == {
         **pe_evidence["hardening"],
@@ -2137,7 +2216,7 @@ def verify_package(
     source_inputs = manifest.get("source_inputs_sha256")
     _require(
         isinstance(source_inputs, dict)
-        and set(source_inputs) == set(SOURCE_INPUT_PATHS) | {"rust_workspace_build_inputs"},
+        and set(source_inputs) == set(profile_source_paths(profile)) | {"rust_workspace_build_inputs"},
         "Windows source input fields differ",
     )
     for label, digest in source_inputs.items():
@@ -2147,18 +2226,22 @@ def verify_package(
         )
     if repository is not None:
         _require(
-            source_inputs == _source_hashes(repository),
+            source_inputs == _source_hashes(repository, profile),
             "Windows source input digests differ from repository",
         )
-    contract_sha256, exports_sha256 = _validate_contracts(root, repository)
+    contract_sha256, exports_sha256 = _validate_contracts(root, repository, profile)
+    if sdk:
+        _validate_sdk_payload_sources(root, repository)
     abi = manifest.get("abi")
     _require(isinstance(abi, dict), "Windows manifest ABI object is missing")
+    _require(type(abi.get("major")) is int and type(abi.get("export_count")) is int,
+             "Windows manifest ABI integers have the wrong type")
     _require(abi == {
         "major": ABI_MAJOR,
         "platform": ABI_PLATFORM,
         "contract_sha256": contract_sha256,
         "exports_sha256": exports_sha256,
-        "export_count": 9,
+        "export_count": 43 if sdk else 9,
         "shared_filename": "q_periapt_ffi_abi2.dll",
         "import_library_filename": "q_periapt_ffi_abi2.lib",
         "static_filename": "q_periapt_ffi_abi2_static.lib",
@@ -2200,7 +2283,7 @@ def verify_package(
     sums = _parse_sums(inventory["SHA256SUMS"], expected_payload_files)
     expected_sums = {**manifest_hashes, "MANIFEST.json": _sha256(inventory["MANIFEST.json"])}
     _require(sums == expected_sums, "Windows SHA256SUMS differs from package bytes")
-    _validate_boms(root, repository)
+    _validate_boms(root, repository, profile)
     for relative in ("MANIFEST.json", "SHA256SUMS"):
         try:
             scan_release_file(
@@ -2247,6 +2330,7 @@ def _parse_args() -> argparse.Namespace:
     verify.add_argument("--expected-git-commit")
     verify.add_argument("--expected-git-tree")
     for command in (create, verify):
+        command.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
         command.add_argument(
             "--forbid-windows-path",
             action="append",
@@ -2312,6 +2396,7 @@ def main() -> int:
                 cl=args.cl,
                 dependencies=dependencies,
                 forbidden_windows_paths=args.forbid_windows_path,
+                profile=args.profile,
             )
         else:
             result = verify_package(
@@ -2321,6 +2406,7 @@ def main() -> int:
                 expected_git_commit=args.expected_git_commit,
                 expected_git_tree=args.expected_git_tree,
                 forbidden_windows_paths=args.forbid_windows_path,
+                profile=args.profile,
             )
     except (OSError, ValueError, WindowsPackageError) as exc:
         raise SystemExit(f"error: {exc}") from exc

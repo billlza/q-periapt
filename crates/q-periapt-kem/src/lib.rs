@@ -24,8 +24,8 @@
 
 use core::marker::PhantomData;
 use q_periapt_core::{
-    combine, CombineInput, Error, Kem, PreparedKem, Profile, Secret, Xof256, ZeroizingBytes,
-    SHARED_SECRET_LEN,
+    combine, combine_policy_bound, policy_bound_context_len, CombineInput, Error, Kem, PreparedKem,
+    Profile, Secret, Xof256, ZeroizingBytes, SHARED_SECRET_LEN,
 };
 
 /// Define a borrowed, role-typed wrapper over serialized decapsulation bytes.
@@ -109,6 +109,7 @@ pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
     profile: Profile,
     suite_id: &'a [u8],
     policy_version: u32,
+    policy_digest: Option<&'a [u8; SHARED_SECRET_LEN]>,
     _xof: PhantomData<X>,
 }
 
@@ -147,8 +148,41 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
             profile,
             suite_id,
             policy_version,
+            policy_digest: None,
             _xof: PhantomData,
         })
+    }
+
+    /// Construct a ContextBound KEM with the canonical signed-policy wrapper.
+    /// The caller must supply an authenticated digest; this low-level factory
+    /// does not verify a policy. Operations take the unwrapped application context.
+    pub fn new_policy_bound(
+        pq: &'a P,
+        trad: &'a T,
+        suite_id: &'a [u8],
+        policy_version: u32,
+        policy_digest: &'a [u8; SHARED_SECRET_LEN],
+    ) -> Result<Self, Error> {
+        let mut kem = Self::new(pq, trad, Profile::ContextBound, suite_id, policy_version)?;
+        kem.policy_digest = Some(policy_digest);
+        Ok(kem)
+    }
+
+    fn validate_context(&self, context: &[u8]) -> Result<(), Error> {
+        if self.policy_digest.is_some() {
+            policy_bound_context_len(context.len()).ok_or(Error::InvalidLength)?;
+            Ok(())
+        } else {
+            self.profile
+                .validate_operation_inputs(self.suite_id, self.policy_version, context)
+        }
+    }
+
+    fn combine(&self, input: &CombineInput<'_>) -> Result<Secret, Error> {
+        match self.policy_digest {
+            Some(digest) => combine_policy_bound::<X>(input, digest),
+            None => combine::<X>(self.profile, input),
+        }
     }
 
     /// The post-quantum component's algorithm id (e.g. `"ML-KEM-768"`).
@@ -180,8 +214,7 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         ct_pq: &mut [u8],
         ct_trad: &mut [u8],
     ) -> Result<Secret, Error> {
-        self.profile
-            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.validate_context(context)?;
         let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         // Drop-based ownership wipes both component secrets on success, Result
@@ -191,20 +224,17 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
             .encapsulate(pk_pq, rand_pq, ct_pq, ss_pq.as_mut_bytes())?;
         self.trad
             .encapsulate(pk_trad, rand_trad, ct_trad, ss_trad.as_mut_bytes())?;
-        combine::<X>(
-            self.profile,
-            &CombineInput {
-                suite_id: self.suite_id,
-                policy_version: self.policy_version,
-                ss_pq: ss_pq.as_bytes(),
-                ss_trad: ss_trad.as_bytes(),
-                ct_pq,
-                pk_pq,
-                ct_trad,
-                pk_trad,
-                context,
-            },
-        )
+        self.combine(&CombineInput {
+            suite_id: self.suite_id,
+            policy_version: self.policy_version,
+            ss_pq: ss_pq.as_bytes(),
+            ss_trad: ss_trad.as_bytes(),
+            ct_pq,
+            pk_pq,
+            ct_trad,
+            pk_trad,
+            context,
+        })
     }
 
     /// Decapsulate both ciphertexts and recompute the combined hybrid secret.
@@ -233,8 +263,7 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         pk_trad: TradPublicKey<'_>,
         context: &[u8],
     ) -> Result<Secret, Error> {
-        self.profile
-            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.validate_context(context)?;
         self.decapsulate_validated(
             DecapsulationInput {
                 ct_pq: ct_pq.as_bytes(),
@@ -267,20 +296,17 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         decapsulate_pq(ss_pq.as_mut_bytes())?;
         self.trad
             .decapsulate(input.sk_trad, input.ct_trad, ss_trad.as_mut_bytes())?;
-        combine::<X>(
-            self.profile,
-            &CombineInput {
-                suite_id: self.suite_id,
-                policy_version: self.policy_version,
-                ss_pq: ss_pq.as_bytes(),
-                ss_trad: ss_trad.as_bytes(),
-                ct_pq: input.ct_pq,
-                pk_pq: input.pk_pq,
-                ct_trad: input.ct_trad,
-                pk_trad: input.pk_trad,
-                context: input.context,
-            },
-        )
+        self.combine(&CombineInput {
+            suite_id: self.suite_id,
+            policy_version: self.policy_version,
+            ss_pq: ss_pq.as_bytes(),
+            ss_trad: ss_trad.as_bytes(),
+            ct_pq: input.ct_pq,
+            pk_pq: input.pk_pq,
+            ct_trad: input.ct_trad,
+            pk_trad: input.pk_trad,
+            context: input.context,
+        })
     }
 }
 
@@ -302,8 +328,7 @@ impl<'a, P: PreparedKem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         pk_trad: TradPublicKey<'_>,
         context: &[u8],
     ) -> Result<Secret, Error> {
-        self.profile
-            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.validate_context(context)?;
         let pk_pq = self.pq.prepared_encapsulation_key(prepared_pq);
         self.decapsulate_validated(
             DecapsulationInput {

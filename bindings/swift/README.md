@@ -1,5 +1,33 @@
 # QPeriaptHybrid (Swift)
 
+For unpublished 0.2.0-alpha.1 source, use the `QPeriaptSDK` package product and
+`QPeriaptRuntime` / `QPeriaptKey` owners. ABI major remains 2. The current host
+tests include [explicit expert key transfer](../../docs/SDK_KEY_TRANSFER.md) and
+[policy preparation, persistence and activation](../../docs/SDK_POLICY_UPDATES.md).
+On macOS, `QPeriaptPersistentRuntime` supplies
+[durable signed-policy storage](../../docs/SDK_HOST_STORE.md), with explicit
+provision/open/update and asynchronous cleanup. Other Apple platforms return
+`ERR_UNSUPPORTED_PLATFORM` for this storage API. `isEnabled()` distinguishes a
+valid policy that disables the fixed suite. [Ownership rules](../../docs/SDK_OWNERSHIP.md)
+cover close, concurrency, cancellation and foreign byte copies.
+
+The [standalone alpha Swift package profile](../../docs/SDK_SWIFT_PACKAGE.md)
+includes both Swift products, static XCFramework slices and notices/BOMs.
+Its unsigned alpha builder now passes all five architecture link gates and
+public API tests after extraction outside the checkout. Signing, physical-device
+and minimum-OS runtime gates remain open; the source-development `Package.swift`
+below is a separate integration path.
+
+`QPeriaptClient` / `QPeriaptConnection` now provide a standard hybrid TLS connection
+with explicit peer certificate pinning and application policy/context confirmation.
+See [the connection contract and local TCP diagnostic](../../docs/SDK_CONNECTION.md).
+Both peers now recover durable policy state in the local TCP diagnostic.
+This remains source-level integration; installed Swift/macOS-to-Rust/Linux
+qualification is pending. Cancellation can follow a successful disk commit:
+reopen with the latest requested signed policy, never infer rollback from cancellation.
+
+The following `QPeriaptHybrid` examples describe the retained compatibility API.
+
 Swift face of the PQ/T hybrid suite over the `q-periapt-ffi` C ABI.
 
 This is a stateless KEM/policy binding. It has no prekey directory, ratchet state,

@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "QPeriaptHybrid",
     products: [
-        .library(name: "QPeriaptHybrid", targets: ["QPeriaptHybrid"])
+        .library(name: "QPeriaptHybrid", targets: ["QPeriaptHybrid"]),
+        .library(name: "QPeriaptSDK", targets: ["QPeriaptSDK"])
     ],
     targets: [
         // C module exposing the cbindgen-generated header.
@@ -19,5 +20,17 @@ let package = Package(
             ]
         ),
         .testTarget(name: "QPeriaptHybridTests", dependencies: ["QPeriaptHybrid"]),
+        .target(
+            name: "QPeriaptSDK",
+            dependencies: ["CQPeriapt"],
+            linkerSettings: [
+                .unsafeFlags(["-L../../target/release", "-lq_periapt_ffi_abi2"])
+            ]
+        ),
+        .testTarget(name: "QPeriaptSDKTests", dependencies: ["QPeriaptSDK"]),
+        .executableTarget(name: "QPeriaptConnectionProbe", dependencies: ["QPeriaptSDK"],
+                          path: "Examples/ConnectionProbe"),
+        .executableTarget(name: "QPeriaptPathProbe", dependencies: ["QPeriaptHybrid", "QPeriaptSDK"],
+                          path: "Examples/PathProbe"),
     ]
 )

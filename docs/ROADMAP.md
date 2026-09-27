@@ -1,5 +1,26 @@
 # Q-Periapt — Roadmap
 
+## 0.2.0-alpha.1 implementation in progress
+
+The development SDK implements verified runtime and key ownership, explicit
+purpose derivation/import, policy transitions and the bounded ContextBound
+data path across Rust, C, Swift, Kotlin/JVM, Android and product WASM. Native
+ABI major remains **2**: the SDK profile has exactly 43 C exports and preserves
+the released nine declarations, status values and library identities. The
+opt-in GNU/Linux x86_64 AVX2 candidate is implemented; native qualification is
+still required. Standard TLS interoperability and the reference connection
+are implemented as separate paths with their own authentication/policy limits.
+
+Start with [SDK_GETTING_STARTED.md](SDK_GETTING_STARTED.md). The
+[release-readiness ledger](SDK_0_2_RELEASE_READINESS.md) tracks each current
+implementation, package and runtime result and the remaining gates.
+[SDK_0_2_ALPHA1.md](SDK_0_2_ALPHA1.md) is the historical first Rust/WASM checkpoint,
+not the current pending-work list. Exact-source hosted CI/CodeQL, native Linux
+reference execution, remaining platform/device coverage, controlled performance,
+binary CT, external security review and final release coordination remain open.
+The alpha is not release-complete; the 0.1.5 history below does not qualify it.
+Full Continuity remains a later protocol milestone.
+
 Authoritative status and forward plan for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /

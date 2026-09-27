@@ -23,14 +23,15 @@ from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
 from android_agp_consumer_contract import (
     AGP_VERSION,
-    BUILD_KIND,
     GRADLE_VERSION,
-    PROFILES,
-    PROOF_KIND,
+    ALL_PROFILES,
+    SDK_PROFILES,
     RUN_ID,
     SHA256,
     AndroidAgpConsumerError,
     require,
+    profile_spec,
+    runtime_target,
     validate_profile_projection,
 )
 
@@ -208,7 +209,7 @@ def verify_build_jvm(value: object, selected: GradleJvm, *, profile: str) -> Non
 
     _profile(profile)
     record = _object(value, BUILD_JVM_FIELDS, "actual AGP build JVM")
-    flavor = "Full" if profile == "agp_full_release" else "Minimal"
+    flavor = profile_spec(profile).flavor
     require(
         type(record["schema"]) is int
         and record["schema"] == 1
@@ -262,14 +263,14 @@ def collector_proof_path(requested: pathlib.Path) -> pathlib.Path:
 
 def compiled_sources(profile: str) -> list[str]:
     _profile(profile)
-    flavor = "full" if profile == "agp_full_release" else "minimal"
+    spec = profile_spec(profile)
     names = [
         INSTRUMENTATION_SOURCE,
         f"{SMOKE_ROOT}/common/{JAVA_PACKAGE}/QPeriaptSmokeResults.java",
-        f"{SMOKE_ROOT}/{flavor}/{JAVA_PACKAGE}/QPeriaptSmokeActivity.java",
+        f"{SMOKE_ROOT}/{spec.smoke_directory}/{JAVA_PACKAGE}/QPeriaptSmokeActivity.java",
     ]
-    if profile == "agp_full_release":
-        names.append(f"{SMOKE_ROOT}/full/{JAVA_PACKAGE}/QPeriaptSmokeWorkload.java")
+    if spec.workload is not None:
+        names.append(f"{SMOKE_ROOT}/{spec.smoke_directory}/{JAVA_PACKAGE}/{spec.workload}")
     return sorted(names)
 
 
@@ -288,8 +289,9 @@ def source_inputs(profile: str) -> list[str]:
             "artifact/bounded_process.py",
         }
     )
-    if profile == "agp_full_release":
-        names.add("bindings/signed-policy-vectors.json")
+    names.update("bindings/" + name for name in profile_spec(profile).fixtures)
+    if profile in SDK_PROFILES:
+        names.add("artifact/sdk_abi2_spec.py")
     return sorted(names)
 
 
@@ -325,8 +327,8 @@ def verify_diagnostic_log(text: str) -> None:
     )
 
 
-def verify_agp_dex_dump(text: str) -> None:
-    android_elf.verify_minimal_consumer_dump(text)
+def verify_agp_dex_dump(text: str, *, package_version: str = "0.1.5") -> None:
+    android_elf.verify_minimal_consumer_dump(text, package_version=package_version)
     classes = android_elf.parse_consumer_dex_classes(text)
     methods = classes.get(INSTRUMENTATION_DESCRIPTOR, [])
     for expected_name, expected_type in (
@@ -353,9 +355,10 @@ def verify_agp_dex_dump(text: str) -> None:
 
 
 def verify_r8_configuration(
-    text: str, *, default: str, manifest: str, aar_rules: str
+    text: str, *, default: str, manifest: str, aar_rules: str, package_version: str = "0.1.5"
 ) -> None:
     """Audit merged rule origins and their full bodies; no app-supplied Q keep is accepted."""
+    require(package_version in {"0.1.5", "0.2.0-alpha.1"}, "unsupported R8 consumer package version")
     verify_normalized_text(text)
     begin = "# The proguard configuration file for the following section is "
     end = "# End of content from "
@@ -395,7 +398,7 @@ def verify_r8_configuration(
             kind, expected = "generated", ""
         elif origin.endswith("/proguard.txt)") or origin.endswith("/proguard.txt"):
             require(
-                "q-periapt-android-0.1.5" in origin and "${GRADLE_HOME}/" in origin,
+                f"q-periapt-android-{package_version}" in origin and "${GRADLE_HOME}/" in origin,
                 "R8 consumer rule origin is not the selected AAR transform",
             )
             kind, expected = "aar", aar_rules
@@ -435,7 +438,7 @@ def _object(
 
 def _profile(value: object) -> runtime.RuntimeResultProfile:
     require(
-        isinstance(value, str) and value in PROFILES, "unknown AGP consumer profile"
+        isinstance(value, str) and value in ALL_PROFILES, "unknown AGP consumer profile"
     )
     return runtime.RuntimeResultProfile(value)
 
@@ -702,7 +705,8 @@ def run_sdk_tool(tool: pathlib.Path, arguments: list[str]) -> bytes:
 
 
 def inspect_apk_program(
-    apk: pathlib.Path, *, dexdump: pathlib.Path, aapt2: pathlib.Path
+    apk: pathlib.Path, *, dexdump: pathlib.Path, aapt2: pathlib.Path,
+    package_version: str = "0.1.5",
 ) -> ProgramInspection:
     """Reconstruct SDK dumps from the selected APK's actual DEX and manifest bytes."""
     apk_data = _bytes(apk, MAX_APK)
@@ -731,7 +735,7 @@ def inspect_apk_program(
         )
         verify_normalized_text(normal_dex.decode("utf-8"))
         verify_normalized_text(normal_manifest.decode("utf-8"))
-        verify_agp_dex_dump(normal_dex.decode("utf-8"))
+        verify_agp_dex_dump(normal_dex.decode("utf-8"), package_version=package_version)
         verify_release_manifest_dump(normal_manifest.decode("utf-8"))
         return ProgramInspection(
             raw_dex, raw_manifest, normal_dex, normal_manifest, directory
@@ -799,6 +803,7 @@ def replay_apk_evidence(
     receipt: dict[str, Any],
     *,
     sdk: pathlib.Path | None,
+    profile: str = "agp_full_release",
 ) -> None:
     tools = _sdk_tools(sdk, proof, receipt)
     data = _bytes(paths["smoke_apk"], MAX_APK)
@@ -826,7 +831,8 @@ def replay_apk_evidence(
             "independent AGP APK alignment result differs",
         )
         inspected = inspect_apk_program(
-            apk, dexdump=tools["dexdump"], aapt2=tools["aapt2"]
+            apk, dexdump=tools["dexdump"], aapt2=tools["aapt2"],
+            package_version=profile_spec(profile).version,
         )
         require(
             inspected.dexdump == _bytes(build_paths["dexdump"]),
@@ -847,11 +853,12 @@ def _verify_build(
     aar: pathlib.Path,
     signed_apk: pathlib.Path,
 ) -> None:
+    spec = profile_spec(profile)
     _object(receipt, BUILD_FIELDS, "AGP build receipt")
     require(
         type(receipt["schema"]) is int
         and receipt["schema"] == 1
-        and receipt["kind"] == BUILD_KIND
+        and receipt["kind"] == spec.build_kind
         and receipt["status"] == "pass",
         "AGP build did not pass its fixed schema",
     )
@@ -881,7 +888,7 @@ def _verify_build(
             MAX_APK if key in {"apk", "agp_apk"} else MAX_TEXT,
         )
     dump = _bytes(paths["dexdump"]).decode("utf-8")
-    verify_agp_dex_dump(dump)
+    verify_agp_dex_dump(dump, package_version=spec.version)
     verify_release_manifest_dump(_bytes(paths["manifest_dump"]).decode("utf-8"))
     verify_build_jvm(
         _json(paths["build_jvm"]),
@@ -891,7 +898,7 @@ def _verify_build(
         profile=profile,
     )
     gradle_log = _bytes(paths["gradle_log"]).decode("utf-8")
-    flavor = "Full" if profile == "agp_full_release" else "Minimal"
+    flavor = spec.flavor
     require(
         "BUILD SUCCESSFUL" in gradle_log
         and gradle_log.splitlines().count(
@@ -934,20 +941,8 @@ def _verify_build(
             isinstance(rel, str) and rel in sources,
             "AGP compiled input is outside the source inventory",
         )
-    if profile == "agp_minimal_release":
-        require(
-            all("/smoke/full/" not in path for path in compiled),
-            "full workload entered minimal R8 inputs",
-        )
-        require(
-            any("/smoke/minimal/" in path for path in compiled),
-            "minimal entrypoint was not compiled",
-        )
-    else:
-        require(
-            any(path.endswith("/QPeriaptSmokeWorkload.java") for path in compiled),
-            "full consumer did not compile the complete original workload",
-        )
+    # The exact compiled_sources equality above also forbids either full workload
+    # from entering a minimal build and requires the selected full workload.
     require(
         isinstance(receipt["tools"], dict)
         and set(receipt["tools"]) == {"dexdump", "aapt2", "gradle_wrapper"},
@@ -988,7 +983,7 @@ def _verify_build(
     require(
         dex and receipt["dex_sha256"] == dex, "AGP DEX payload hash inventory mismatch"
     )
-    aar_entries, _ = android_elf.audit_aar(aar)
+    aar_entries, _ = android_elf.audit_aar(aar, profile=spec.aar_profile)
     require(
         _digest(paths["default_proguard"]) == DEFAULT_PROGUARD_SHA256,
         "AGP optimized default rules differ from the pinned tool distribution",
@@ -998,6 +993,7 @@ def _verify_build(
         default=_bytes(paths["default_proguard"]).decode("utf-8"),
         manifest=_bytes(paths["manifest_proguard"]).decode("utf-8"),
         aar_rules=aar_entries["proguard.txt"].decode("utf-8"),
+        package_version=spec.version,
     )
     diagnostics = _object(
         receipt["diagnostics"],
@@ -1035,7 +1031,21 @@ def _verify_build(
         == expected_native,
         "AGP APK native payload differs from the exact AAR",
     )
-    if profile == "agp_full_release":
+    if profile in SDK_PROFILES:
+        require(
+            {name: data for name, data in signed.items()
+             if name.startswith("assets/") and not name.endswith("/")}
+            == {"assets/" + name: _bytes(root / "bindings" / name) for name in spec.fixtures},
+            "AGP fixture assets differ from the exact selected workload",
+        )
+        with zipfile.ZipFile(signed_apk) as archive:
+            require(all(archive.getinfo(name).compress_type == zipfile.ZIP_STORED
+                        for name in expected_native), "SDK APK native libraries must remain uncompressed")
+        extraction = re.findall(r"android:extractNativeLibs\([^)]*\)=([^\n]+)",
+                                _bytes(paths["manifest_dump"]).decode("utf-8"))
+        require(len(extraction) == 1 and extraction[0].strip() in {"false", "(type 0x12)0x0"},
+                "SDK APK must disable legacy native extraction")
+    elif profile == "agp_full_release":
         require(
             signed.get("assets/signed-policy-vectors.json")
             == _bytes(root / "bindings/signed-policy-vectors.json"),
@@ -1043,14 +1053,12 @@ def _verify_build(
         )
     else:
         require(
-            not any(
-                name.startswith("assets/") and not name.endswith("/") for name in signed
-            ),
+            not any(name.startswith("assets/") and not name.endswith("/") for name in signed),
             "full fixtures entered the minimal APK",
         )
 
 
-def _read_selection(root: pathlib.Path, proof_path: pathlib.Path) -> tuple[
+def _read_selection(root: pathlib.Path, proof_path: pathlib.Path, *, expected_profile: str | None = None) -> tuple[
     dict[str, Any],
     dict[str, pathlib.Path],
     dict[str, pathlib.Path],
@@ -1073,7 +1081,7 @@ def _read_selection(root: pathlib.Path, proof_path: pathlib.Path) -> tuple[
         / _record(consumer["instrumentation_output"], "instrumentation output")["path"]
     )
     try:
-        runtime.verify_runtime_record_shape(proof)
+        runtime.verify_runtime_record_shape(proof, _profile(expected_profile if expected_profile is not None else consumer["profile"]))
         checked = runtime.proof_paths(root, proof)
         require(checked == paths, "AGP runtime paths are not canonical target paths")
         runtime.validate_selected_run_layout(
@@ -1109,13 +1117,16 @@ def _validate(
     expected_aar_manifest_sha256: str,
     expected_source_commit: str,
     sdk: pathlib.Path | None = None,
+    expected_device_abi: str | None = None,
 ) -> dict[str, object]:
     selected = _profile(expected_profile)
+    spec = profile_spec(expected_profile)
+    target = runtime_target(expected_profile, expected_device_abi)
     _object(proof, runtime.PROOF_FIELDS | {"kind", "consumer"}, "AGP runtime proof")
     require(
         type(proof["schema"]) is int
         and proof["schema"] == 1
-        and proof["kind"] == PROOF_KIND,
+        and proof["kind"] == spec.proof_kind,
         "invalid AGP runtime proof schema",
     )
     consumer = _object(proof["consumer"], CONSUMER_FIELDS, "AGP consumer")
@@ -1145,19 +1156,28 @@ def _validate(
         "AGP build selected another AAR/manifest",
     )
     try:
-        runtime.verify_runtime_record_shape(proof)
+        runtime.verify_runtime_record_shape(proof, selected)
         runtime.verify_runtime_contents(
             root,
             proof,
             paths,
             result_profile=selected,
-            expected_device_kind="emulator",
-            expected_device_abi="arm64-v8a",
-            expected_device_sdk=35,
-            expected_page_size=16384,
+            expected_device_kind=target["kind"],
+            expected_device_abi=target["abi"],
+            expected_device_sdk=target["sdk"],
+            expected_page_size=target["page_size"],
             require_release_mode=True,
             bundled=bundled,
         )
+        if expected_profile in SDK_PROFILES:
+            entries, _ = android_elf.audit_aar(paths["aar"], profile=spec.aar_profile)
+            android_elf.verify_manifest(
+                paths["aar_manifest"], aar_path=paths["aar"], entries=entries,
+                aar_sha256=expected_aar_sha256,
+                expected_manifest_sha256=expected_aar_manifest_sha256,
+                require_release=True, forbidden_text=[str(root)], source_root=root,
+                profile=spec.aar_profile,
+            )
         _verify_build(
             root,
             receipt,
@@ -1175,7 +1195,7 @@ def _validate(
         raise AndroidAgpConsumerError(
             f"AGP evidence verification failed: {error}"
         ) from error
-    replay_apk_evidence(paths, build_paths, proof, receipt, sdk=sdk)
+    replay_apk_evidence(paths, build_paths, proof, receipt, sdk=sdk, profile=expected_profile)
     text, result = decode_instrumentation_output(
         _bytes(instrumentation_path), proof["run_id"]
     )
@@ -1198,12 +1218,15 @@ def _validate(
         "agp_version": receipt["agp_version"],
         "gradle_version": receipt["gradle_version"],
     }
+    if expected_profile in SDK_PROFILES:
+        projection["runtime_target"] = {key: proof["device"][key] for key in target}
     return validate_profile_projection(
         projection,
         expected_profile=expected_profile,
         expected_aar_sha256=expected_aar_sha256,
         expected_aar_manifest_sha256=expected_aar_manifest_sha256,
         expected_source_commit=expected_source_commit,
+        expected_device_abi=expected_device_abi,
     )
 
 
@@ -1216,10 +1239,11 @@ def validate_completed_profile(
     expected_aar_manifest_sha256: str,
     expected_source_commit: str,
     sdk: pathlib.Path | None = None,
+    expected_device_abi: str | None = None,
 ) -> dict[str, object]:
     """Validate local evidence with read-only Git/SDK replay; never run Gradle/devices."""
     proof, paths, build_paths, build_path, instrumentation = _read_selection(
-        root, proof_path
+        root, proof_path, expected_profile=expected_profile
     )
     return _validate(
         root,
@@ -1235,11 +1259,22 @@ def validate_completed_profile(
         expected_aar_manifest_sha256=expected_aar_manifest_sha256,
         expected_source_commit=expected_source_commit,
         sdk=sdk,
+        expected_device_abi=expected_device_abi,
     )
 
 
+def profile_bundle_paths(proof: dict[str, Any], profile: str) -> dict[str, str]:
+    names = runtime.bundle_file_paths(proof)
+    spec = profile_spec(profile)
+    if profile in SDK_PROFILES:
+        names["aar"] = f"artifacts/q-periapt-android-{spec.version}.aar"
+        names["aar_manifest"] = f"artifacts/q-periapt-android-{spec.version}.MANIFEST.json"
+    return names
+
+
 def profile_evidence_files(
-    root: pathlib.Path, proof_path: pathlib.Path, *, sdk: pathlib.Path | None = None
+    root: pathlib.Path, proof_path: pathlib.Path, *, sdk: pathlib.Path | None = None,
+    expected_device_abi: str | None = None,
 ) -> dict[str, pathlib.Path]:
     """Return fixed archive-relative names for a complete, portable per-profile closure."""
     proof, paths, build_paths, build_path, instrumentation = _read_selection(
@@ -1254,8 +1289,9 @@ def profile_evidence_files(
         expected_aar_manifest_sha256=proof["artifacts"]["aar_manifest_sha256"],
         expected_source_commit=proof["git_commit"],
         sdk=sdk,
+        expected_device_abi=expected_device_abi,
     )
-    names = runtime.bundle_file_paths(proof)
+    names = profile_bundle_paths(proof, consumer["profile"])
     result = {
         "proof.json": proof_path,
         "build/receipt.json": build_path,
@@ -1279,6 +1315,7 @@ def verify_exported_profile(
     expected_aar_manifest_sha256: str,
     expected_source_commit: str,
     sdk: pathlib.Path | None = None,
+    expected_device_abi: str | None = None,
 ) -> dict[str, object]:
     """Verify safely extracted evidence through the same checks, with no original run paths."""
     require(
@@ -1288,7 +1325,7 @@ def verify_exported_profile(
     proof_path = directory / "proof.json"
     proof = _json(proof_path)
     try:
-        names = runtime.bundle_file_paths(proof)
+        names = profile_bundle_paths(proof, expected_profile)
         keys = runtime.expected_proof_path_keys(proof)
     except SystemExit as error:
         raise AndroidAgpConsumerError(
@@ -1328,7 +1365,33 @@ def verify_exported_profile(
         expected_aar_manifest_sha256=expected_aar_manifest_sha256,
         expected_source_commit=expected_source_commit,
         sdk=sdk,
+        expected_device_abi=expected_device_abi,
     )
+
+
+def export_completed_profile(
+    root: pathlib.Path, proof_path: pathlib.Path, directory: pathlib.Path, *,
+    expected_profile: str, expected_aar_sha256: str,
+    expected_aar_manifest_sha256: str, expected_source_commit: str,
+    sdk: pathlib.Path | None = None, expected_device_abi: str | None = None,
+) -> dict[str, object]:
+    """Export a verified closure, then replay it independently of original run paths."""
+    expected = dict(expected_profile=expected_profile, expected_aar_sha256=expected_aar_sha256,
+                    expected_aar_manifest_sha256=expected_aar_manifest_sha256,
+                    expected_source_commit=expected_source_commit, sdk=sdk,
+                    expected_device_abi=expected_device_abi)
+    before = validate_completed_profile(root, proof_path, **expected)
+    files = profile_evidence_files(root, proof_path, sdk=sdk, expected_device_abi=expected_device_abi)
+    require(not directory.exists() and not directory.is_symlink(), "AGP export already exists")
+    directory.mkdir(mode=0o700)
+    for name, source in files.items():
+        target = directory / name
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with target.open("xb") as output:
+            output.write(_bytes(source, MAX_APK))
+    after = verify_exported_profile(root, directory, **expected)
+    require(after == before, "AGP exported evidence changed during collection")
+    return after
 
 
 def main() -> int:
@@ -1340,16 +1403,21 @@ def main() -> int:
     decode.add_argument("--text-output", type=pathlib.Path, required=True)
     decode.add_argument("--json-output", type=pathlib.Path, required=True)
     verify = commands.add_parser("verify")
-    verify.add_argument("--root", type=pathlib.Path, required=True)
     verify.add_argument("--proof", type=pathlib.Path, required=True)
-    verify.add_argument("--sdk", type=pathlib.Path)
-    for name in (
-        "profile",
-        "expected-aar-sha256",
-        "expected-aar-manifest-sha256",
-        "expected-source-commit",
-    ):
-        verify.add_argument("--" + name, required=True)
+    verify.add_argument("--export-to", type=pathlib.Path)
+    exported = commands.add_parser("verify-export")
+    exported.add_argument("--directory", type=pathlib.Path, required=True)
+    for command in (verify, exported):
+        command.add_argument("--root", type=pathlib.Path, required=True)
+        command.add_argument("--sdk", type=pathlib.Path)
+        command.add_argument("--expected-device-abi", choices=("arm64-v8a", "x86_64"))
+        for name in (
+            "profile",
+            "expected-aar-sha256",
+            "expected-aar-manifest-sha256",
+            "expected-source-commit",
+        ):
+            command.add_argument("--" + name, required=True)
     arguments = parser.parse_args()
     try:
         if arguments.command == "decode-instrumentation":
@@ -1362,23 +1430,34 @@ def main() -> int:
             ):
                 with path.open("xb") as output:
                     output.write(data)
-        elif arguments.command == "verify":
+        elif arguments.command in {"verify", "verify-export"}:
             root = runtime_state.collector_repository_root(arguments.root)
-            proof = collector_proof_path(arguments.proof)
+            if arguments.command == "verify":
+                proof = collector_proof_path(arguments.proof)
             sdk = (
                 runtime_state.registered_sdk_root(arguments.sdk)
                 if arguments.sdk is not None
                 else None
             )
-            value = validate_completed_profile(
-                root,
-                proof,
+            expected = dict(
                 expected_profile=arguments.profile,
                 expected_aar_sha256=arguments.expected_aar_sha256,
                 expected_aar_manifest_sha256=arguments.expected_aar_manifest_sha256,
                 expected_source_commit=arguments.expected_source_commit,
                 sdk=sdk,
+                expected_device_abi=arguments.expected_device_abi,
             )
+            if arguments.command == "verify-export":
+                value = verify_exported_profile(root, arguments.directory, **expected)
+            elif arguments.export_to is None:
+                value = validate_completed_profile(root, proof, **expected)
+            else:
+                destination = arguments.export_to.absolute()
+                require(destination.parent.resolve(strict=True) == destination.parent,
+                        "AGP export parent must be canonical")
+                require(destination.parent.is_relative_to(root / "target"),
+                        "AGP export must be under the executing repository target")
+                value = export_completed_profile(root, proof, destination, **expected)
             print(json.dumps(value, sort_keys=True))
             print("ANDROID_AGP_CONSUMER_VERIFY_PASS")
     except (

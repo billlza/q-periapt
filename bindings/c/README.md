@@ -1,11 +1,37 @@
 # C ABI 2 product smoke
 
+The current source version is **0.2.0-alpha.1**, unpublished. ABI major 2 and
+the `_abi2` library names are retained. The current table has exactly 43 exports:
+the original nine below plus 34 SDK functions. The closed alpha contract
+is [`q-periapt-c-abi-v2-sdk-alpha1.json`](../../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json).
+The separate historical 0.1.5 contract still accepts exactly nine.
+
+`build-and-run.sh` compiles the original consumer with the frozen 0.1.5 header
+and links it to the current library, then builds and runs `sdk_smoke.c` with the
+current header. The latter exercises runtime/key/secret ownership, quotas,
+implicit rejection, expert transfer, policy revocation/recovery and close. The Windows script defines the same
+two consumers; only actually executed platform runs are validation evidence.
+
+See [private-key transfer](../../docs/SDK_KEY_TRANSFER.md) and
+[policy transitions](../../docs/SDK_POLICY_UPDATES.md) for formats and the host's
+atomic persistence obligation. The public transition fixture is checked with
+`python3 artifact/sdk_policy_fixtures.py`; `--write` explicitly regenerates it
+from the shared version-3/version-4 signed JSON fixtures.
+
+The [alpha C package profile](../../docs/SDK_C_PACKAGE.md) adds complete
+shared/static pkg-config and CMake consumers of the owner API. Its macOS ARM64
+diagnostic has passed after extraction outside the source checkout. Linux,
+clean-source public admission and release qualification remain open. The
+historical package profile remains separate.
+The [Windows SDK profile](../../docs/SDK_WINDOWS_PACKAGE.md) supplies a separate
+MSVC producer and archive consumer; native Windows qualification is pending.
+
 This is a real C program that links the built `q-periapt-ffi` product library and
 calls its frozen ABI 2 surface. It proves the C calling convention, strict header,
 signed-policy gate, OS-random key generation, ContextBound round trip, and atomic
 failure behavior end to end. It is not only a header parse.
 
-The ABI 2 `cdylib`/DLL dynamic export table contains exactly nine
+The original ABI 2 `cdylib`/DLL dynamic export table contained exactly nine
 `q_periapt_*` symbols: five metadata functions,
 `q_periapt_decision_from_signed_policy`, `q_periapt_generate_keypair`,
 `q_periapt_encapsulate`, and `q_periapt_decapsulate`. Raw KEM, raw combiner, and
@@ -13,7 +39,7 @@ profile-selection entry points are deliberately not exported from the product AB
 their deterministic KATs remain Rust-core evidence.
 
 The static archive has a necessarily different boundary: only the reserved public
-`q_periapt_*` namespace is constrained to those nine names. It also contains hidden,
+`q_periapt_*` namespace is constrained to the version-specific closed list. It also contains hidden,
 versioned `qpn_mlkem_bridge_*` link symbols needed by the safe Rust adapter. They are
 absent from the public header, unsupported, and may change without ABI notice, but a
 same-process static consumer can deliberately declare and link them by name. Hidden
@@ -22,9 +48,11 @@ decision bytes, so both static embedding and the decision descriptor assume a tr
 same-address-space caller; this ABI is a misuse-resistance/network-downgrade boundary,
 not process isolation.
 
-The ABI remains stateless KEM/policy plumbing. It does not expose identity,
-prekeys, ratchets, persistence, multi-device state, or recovery, so a passing C
-smoke is not session-protocol evidence. Continuity has separate research and gates
+The original nine functions provide stateless KEM/policy plumbing. The SDK adds
+authenticated runtimes, macOS/Linux policy persistence and an explicit standard
+TLS connection engine. It does not supply a prekey directory, ratchet,
+multi-device state or the future Continuity recovery protocol; a passing C
+smoke alone is not session-protocol evidence. Continuity has separate research and gates
 in [`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
 
 ## What the smoke proves
@@ -124,9 +152,11 @@ by the verified release receipt; the `0.1.4` platform receipt is recorded at the
 annotated tag `v0.1.4-verified-cohort` rather than on `main`, whose
 `artifact/results.json` the `0.1.5` reopening returned to its initial baseline, so
 `main`'s trusted results record no `0.1.4` publication while the published release
-stays immutable and unaffected. This tree is the open `0.1.5` source line and has
-produced no `0.1.5` SDK archive or release, so the published `abi2-platforms-v0.1.4`
-tarballs remain the stable prebuilt C SDKs.
+stays immutable and unaffected. This tree now develops the unpublished
+`0.2.0-alpha.1` SDK. Published GNU/Linux `0.1.5` packages use
+[`abi2-platforms-v0.1.5-r4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5-r4);
+see the [installation entry](../../docs/SDK_GETTING_STARTED.md) for the distinction
+between that maintenance distribution, Apple releases and local alpha candidates.
 The separately built Windows archive remains an
 unsigned, unsupported CI diagnostic and is excluded from the stable candidate,
 manifest, attestation, receipt, and release assets. Verify formal assets with

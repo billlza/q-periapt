@@ -86,6 +86,37 @@ fn cbom_row_names() -> Vec<String> {
         .collect()
 }
 
+/// Regression: key-agree is a primitive, not a CycloneDX 1.6 cryptoFunction.
+#[test]
+fn crypto_functions_follow_the_cyclonedx_1_6_enum() {
+    let allowed = [
+        "generate",
+        "keygen",
+        "encrypt",
+        "decrypt",
+        "digest",
+        "tag",
+        "keyderive",
+        "sign",
+        "verify",
+        "encapsulate",
+        "decapsulate",
+        "other",
+        "unknown",
+    ];
+    for component in cbom()["components"].as_array().unwrap() {
+        for function in component["cryptoProperties"]["algorithmProperties"]["cryptoFunctions"]
+            .as_array()
+            .unwrap()
+        {
+            assert!(
+                allowed.contains(&function.as_str().unwrap()),
+                "invalid function: {function}"
+            );
+        }
+    }
+}
+
 /// Every asset name the CBOM this build emits, each emitted exactly once.
 ///
 /// The set comparisons below cannot see a row emitted twice — the second copy

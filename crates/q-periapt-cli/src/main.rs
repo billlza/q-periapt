@@ -21,6 +21,10 @@ struct Cli {
 enum Cmd {
     /// Emit a CycloneDX CBOM (crypto bill of materials) of the suite's assets.
     Cbom {
+        /// Catalogue the native owned SDK and configured TLS provider. Requires
+        /// a build with --features sdk-cbom; never falls back to backend-only data.
+        #[arg(long)]
+        native_sdk: bool,
         /// Write to FILE instead of stdout.
         #[arg(long)]
         out: Option<PathBuf>,
@@ -127,7 +131,29 @@ fn print_scan_errors(errors: &[ScanError]) {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.cmd {
-        Cmd::Cbom { out } => emit(&cbom(), out.as_deref()),
+        Cmd::Cbom {
+            out,
+            native_sdk: false,
+        } => emit(&cbom(), out.as_deref()),
+        Cmd::Cbom {
+            out,
+            native_sdk: true,
+        } => {
+            #[cfg(feature = "sdk-cbom")]
+            match q_periapt_cli::native_sdk_cbom() {
+                Ok(document) => emit(&document, out.as_deref()),
+                Err(error) => {
+                    eprintln!("error: cannot emit native SDK CBOM: {error}");
+                    ExitCode::FAILURE
+                }
+            }
+            #[cfg(not(feature = "sdk-cbom"))]
+            {
+                let _ = out;
+                eprintln!("error: native SDK CBOM requires --features sdk-cbom");
+                ExitCode::FAILURE
+            }
+        }
         Cmd::Sbom { lock, out } => match std::fs::read_to_string(&lock) {
             Ok(text) => emit(&sbom(&text), out.as_deref()),
             Err(e) => {

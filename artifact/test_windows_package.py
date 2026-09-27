@@ -2952,7 +2952,9 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertIn("$env:PATH =", path_binding_body)
         self.assertIn("Assert-TrustedMsvcPath", path_binding_body)
         self.assertGreaterEqual(script.count("-Cl $Cl `"), 3)
-        self.assertEqual(2, script.count("Invoke-Checked -FilePath $Cl"))
+        # Two legacy consumer links plus the SDK dynamic/static consumer loop
+        # must all use the same resolved MSVC compiler boundary.
+        self.assertEqual(3, script.count("Invoke-Checked -FilePath $Cl"))
         toolchain_test = (
             self.repository_root / "artifact/windows-toolchain-tests.ps1"
         ).read_text(encoding="utf-8")

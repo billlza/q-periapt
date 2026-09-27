@@ -252,6 +252,36 @@ THIRD_PARTY_RUST_COVERED_TARGETS = (
     "armv7-linux-androideabi",
     "i686-linux-android",
 )
+SDK_NOTICE_SOURCES = {
+    "META-INF/LICENSES/Rust-1.96.1-library.html": "LICENSES/Rust-1.96.1-library.html",
+    **{f"META-INF/LICENSES/mlkem-native/{name}": f"crates/q-periapt-mlkem-native-sys/vendor/{name}"
+       for name in ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")},
+}
+PACKAGE_PROFILES = ("legacy", "sdk-alpha1")
+
+
+@dataclass(frozen=True, slots=True)
+class AndroidPackageProfile:
+    version: str
+    schema: int
+    kind: str
+    contract: str
+    exports: frozenset[str]
+    jni_methods: dict[str, str]
+
+
+def package_profile(name: str) -> AndroidPackageProfile:
+    """Explicit closed profiles; an untrusted manifest never selects its verifier."""
+    require(name in PACKAGE_PROFILES, f"unsupported Android package profile: {name}")
+    if name == "legacy":
+        return AndroidPackageProfile("0.1.5", MANIFEST_SCHEMA_VERSION, "qperiapt.android_aar_manifest",
+            "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json", FFI_EXPORTS, dict(JNI_NATIVE_METHOD_DESCRIPTORS))
+    from sdk_abi2_spec import EXPORTS, JNI_METHODS, PACKAGE_SEMVER
+    exports = FFI_EXPORTS | frozenset(row[0] for row in EXPORTS)
+    methods = {**JNI_NATIVE_METHOD_DESCRIPTORS, **JNI_METHODS}
+    require(len(exports) == 43 and len(methods) == 26, "Android SDK closed export/registration count differs")
+    return AndroidPackageProfile(PACKAGE_SEMVER, 5, "qperiapt.android_sdk_aar_manifest",
+        "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json", exports, methods)
 
 
 class AndroidVerificationError(RuntimeError):
@@ -498,14 +528,16 @@ def verify_library(
     library: str,
     llvm_nm: pathlib.Path,
     llvm_readelf: pathlib.Path,
+    profile: str = "legacy",
 ) -> None:
+    contract = package_profile(profile)
     require(abi in ABI_SPECS, f"unsupported Android ABI: {abi}")
     require(library in {FFI_LIBRARY, JNI_LIBRARY}, f"unsupported Android library: {library}")
     require(path.name == library, f"Android native filename mismatch: {path.name}, expected {library}")
     parse_elf_header(path, abi)
     nm_output = run_tool(llvm_nm, ["-D", "--defined-only", "--format=posix"], path)
     exports = parse_nm_exports(nm_output, path)
-    expected_exports = FFI_EXPORTS if library == FFI_LIBRARY else JNI_EXPORTS
+    expected_exports = contract.exports if library == FFI_LIBRARY else JNI_EXPORTS
     require(
         exports == expected_exports,
         f"{abi} {library} exports differ from the exact allowlist: got {sorted(exports)}, expected {sorted(expected_exports)}",
@@ -521,7 +553,9 @@ def verify_native_tree(
     *,
     llvm_nm: pathlib.Path,
     llvm_readelf: pathlib.Path,
+    profile: str = "legacy",
 ) -> None:
+    package_profile(profile)
     require(root.is_dir() and not root.is_symlink(), f"Android AAR stage must be a non-symlink directory: {root}")
     jni_root = root / "jni"
     require(jni_root.is_dir() and not jni_root.is_symlink(), f"Android AAR stage lacks a safe jni directory: {jni_root}")
@@ -540,6 +574,7 @@ def verify_native_tree(
                 library=library,
                 llvm_nm=llvm_nm,
                 llvm_readelf=llvm_readelf,
+                profile=profile,
             )
 
 
@@ -892,7 +927,8 @@ def _verify_canonical_aar_structure(
         )
 
 
-def audit_classes_jar(data: bytes) -> dict[str, bytes]:
+def audit_classes_jar(data: bytes, *, profile: str = "legacy") -> dict[str, bytes]:
+    package_profile(profile)
     require(len(data) <= MAX_CLASSES_JAR_BYTES, "classes.jar exceeds the release size limit")
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -920,10 +956,20 @@ def audit_classes_jar(data: bytes) -> dict[str, bytes]:
             f"classes.jar contains a nested executable/archive: {name}",
         )
         require(entries[name].startswith(b"\xca\xfe\xba\xbe"), f"classes.jar entry is not a JVM class file: {name}")
+        if profile == "sdk-alpha1":
+            require(entries[name][:8] == b"\xca\xfe\xba\xbe\x00\x00\x00\x37",
+                    "Android SDK class must use non-preview Java 11 bytecode")
+    if profile == "sdk-alpha1":
+        for owner in ("Runtime", "Key", "PublicKey", "Ciphertext", "Secret", "DerivedKey", "Encapsulation",
+                      "KeyPurpose", "PolicyStates", "PolicyUpdate", "Expert"):
+            require(f"dev/qperiapt/android/QPeriaptSDK${owner}.class" in entries,
+                    f"Android SDK owner class is missing: {owner}")
+        require("dev/qperiapt/android/QPeriaptSDK.class" in entries, "Android SDK facade class is missing")
     return entries
 
 
-def audit_android_consumer_metadata(entries: dict[str, bytes]) -> None:
+def audit_android_consumer_metadata(entries: dict[str, bytes], *, profile: str = "legacy") -> None:
+    package_profile(profile)
     manifest = entries["AndroidManifest.xml"]
     require(
         len(manifest) <= MAX_CONSUMER_METADATA_BYTES,
@@ -942,6 +988,12 @@ def audit_android_consumer_metadata(entries: dict[str, bytes]) -> None:
         root.tag == "manifest" and root.get("package") == ANDROID_PACKAGE,
         f"Android AAR AndroidManifest.xml must declare package={ANDROID_PACKAGE}",
     )
+    if profile == "sdk-alpha1":
+        children = list(root)
+        require(root.attrib == {"package": ANDROID_PACKAGE} and len(children) == 1
+                and children[0].tag == "uses-sdk"
+                and children[0].attrib == {"{http://schemas.android.com/apk/res/android}minSdkVersion": "23"}
+                and not list(children[0]), "Android SDK manifest must declare exactly minSdkVersion=23")
     require(
         entries["proguard.txt"] == ANDROID_CONSUMER_RULES,
         "Android AAR proguard.txt differs from the exact JNI native-method/exception-callback keep contract",
@@ -969,8 +1021,16 @@ def parse_consumer_dex_classes(output: str) -> dict[str, list[tuple[str, str, st
     return classes
 
 
-def verify_minimal_consumer_dump(output: str) -> None:
+def verify_minimal_consumer_dump(output: str, *, package_version: str = "0.1.5") -> None:
     """Check SDK dexdump's class/method definitions, never disassembly strings."""
+    # Keep archived nine-method consumers strict. New source consumers opt into
+    # the separately closed SDK extension; unknown versions are never accepted.
+    from sdk_abi2_spec import JNI_METHODS, PACKAGE_SEMVER as SDK_VERSION
+
+    require(package_version in {"0.1.5", SDK_VERSION}, "unsupported JNI consumer package version")
+    expected_methods = JNI_NATIVE_METHOD_DESCRIPTORS
+    if package_version == SDK_VERSION:
+        expected_methods = {**expected_methods, **JNI_METHODS}
     classes = parse_consumer_dex_classes(output)
     facade = classes.get("Ldev/qperiapt/android/QPeriaptAndroid;", [])
     native: dict[str, str] = {}
@@ -982,7 +1042,7 @@ def verify_minimal_consumer_dump(output: str) -> None:
         require({"STATIC", "NATIVE"} <= flags, "minimal consumer changed native method access")
         native[name] = descriptor
     require(
-        native == JNI_NATIVE_METHOD_DESCRIPTORS,
+        native == expected_methods,
         "minimal consumer native names/descriptors differ from the complete JNI registration contract",
     )
     callback = classes.get("L" + JNI_EXCEPTION_CLASS.replace(".", "/") + ";", [])
@@ -994,7 +1054,9 @@ def verify_minimal_consumer_dump(output: str) -> None:
     )
 
 
-def verify_minimal_consumer_dex(path: pathlib.Path, *, dexdump: pathlib.Path) -> None:
+def verify_minimal_consumer_dex(
+    path: pathlib.Path, *, dexdump: pathlib.Path, package_version: str = "0.1.5"
+) -> None:
     """Run the existing SDK tool over a bounded snapshot of the actual R8 DEX."""
 
     snapshot = read_snapshot(path, maximum=MAX_CONSUMER_DEX_BYTES, label="minimal R8 consumer DEX")
@@ -1006,15 +1068,17 @@ def verify_minimal_consumer_dex(path: pathlib.Path, *, dexdump: pathlib.Path) ->
         except OSError as exc:
             raise AndroidVerificationError("cannot materialize minimal consumer DEX snapshot") from exc
         output = run_tool(dexdump, [], selected)
-    verify_minimal_consumer_dump(output)
+    verify_minimal_consumer_dump(output, package_version=package_version)
 
 
-def audit_third_party_license_entries(entries: dict[str, bytes]) -> dict[str, Any]:
+def audit_third_party_license_entries(entries: dict[str, bytes], *, profile: str = "legacy") -> dict[str, Any]:
+    package_profile(profile)
     actual = frozenset(entries)
-    missing = REQUIRED_AAR_ENTRIES - actual
+    required = REQUIRED_AAR_ENTRIES | (set(SDK_NOTICE_SOURCES) if profile == "sdk-alpha1" else set())
+    missing = required - actual
     unexpected = {
         name
-        for name in actual - REQUIRED_AAR_ENTRIES
+        for name in actual - required
         if not name.startswith(THIRD_PARTY_RUST_PREFIX)
     }
     require(
@@ -1055,7 +1119,8 @@ def audit_third_party_license_entries(entries: dict[str, bytes]) -> dict[str, An
     return inventory
 
 
-def audit_aar_bytes(data: bytes, *, label: str) -> tuple[dict[str, bytes], dict[str, bytes]]:
+def audit_aar_bytes(data: bytes, *, label: str, profile: str = "legacy") -> tuple[dict[str, bytes], dict[str, bytes]]:
+    package_profile(profile)
     raw_records = _verify_canonical_aar_zip_framing(data)
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -1068,9 +1133,9 @@ def audit_aar_bytes(data: bytes, *, label: str) -> tuple[dict[str, bytes], dict[
             )
     except zipfile.BadZipFile as exc:
         raise AndroidVerificationError(f"Android AAR is not a valid ZIP archive: {label}: {exc}") from exc
-    audit_third_party_license_entries(entries)
-    audit_android_consumer_metadata(entries)
-    classes = audit_classes_jar(entries["classes.jar"])
+    audit_third_party_license_entries(entries, profile=profile)
+    audit_android_consumer_metadata(entries, profile=profile)
+    classes = audit_classes_jar(entries["classes.jar"], profile=profile)
     return entries, classes
 
 
@@ -1081,9 +1146,9 @@ def read_snapshot(path: pathlib.Path, *, maximum: int, label: str) -> FileSnapsh
         raise AndroidVerificationError(str(exc)) from exc
 
 
-def audit_aar(path: pathlib.Path) -> tuple[dict[str, bytes], dict[str, bytes]]:
+def audit_aar(path: pathlib.Path, *, profile: str = "legacy") -> tuple[dict[str, bytes], dict[str, bytes]]:
     snapshot = read_snapshot(path, maximum=MAX_ARCHIVE_BYTES, label="Android AAR")
-    return audit_aar_bytes(snapshot.data, label=str(snapshot.path))
+    return audit_aar_bytes(snapshot.data, label=str(snapshot.path), profile=profile)
 
 
 def scan_release_paths(paths: Iterable[pathlib.Path], *, forbidden_text: Iterable[str]) -> None:
@@ -1218,7 +1283,9 @@ def verify_manifest(
     require_release: bool,
     forbidden_text: Iterable[str],
     source_root: pathlib.Path,
+    profile: str = "legacy",
 ) -> dict[str, Any]:
+    selected_profile = package_profile(profile)
     snapshot = read_snapshot(path, maximum=16 * 1024 * 1024, label="Android AAR manifest")
     with tempfile.TemporaryDirectory(prefix="qperiapt-android-manifest-") as temp:
         scan_path = pathlib.Path(temp) / "MANIFEST.json"
@@ -1238,14 +1305,14 @@ def verify_manifest(
         snapshot.data == canonical_json(manifest),
         "Android AAR manifest bytes are not canonical JSON",
     )
-    exact_object(manifest, MANIFEST_FIELDS, "Android AAR manifest")
+    exact_object(manifest, MANIFEST_FIELDS | ({"jni"} if profile == "sdk-alpha1" else set()), "Android AAR manifest")
     require(
-        manifest.get("schema_version") == MANIFEST_SCHEMA_VERSION,
-        f"Android AAR manifest schema must be {MANIFEST_SCHEMA_VERSION}",
+        manifest.get("schema_version") == selected_profile.schema,
+        f"Android AAR manifest schema must be {selected_profile.schema}",
     )
-    require(manifest.get("kind") == "qperiapt.android_aar_manifest", "unexpected Android AAR manifest kind")
+    require(manifest.get("kind") == selected_profile.kind, "unexpected Android AAR manifest kind")
     require(manifest.get("package") == aar_path.name, "Android AAR manifest package filename mismatch")
-    require(manifest.get("version") == "0.1.5", "Android AAR manifest version mismatch")
+    require(manifest.get("version") == selected_profile.version, "Android AAR manifest version mismatch")
     require(manifest.get("package_only") is True, "Android AAR manifest must be package_only")
     require(manifest.get("device_runtime_proof") is False, "AAR package manifest must not claim device runtime proof")
     require(
@@ -1271,7 +1338,13 @@ def verify_manifest(
         toolchain.get("cargo") == EXPECTED_CARGO_VERSION,
         "Android AAR manifest cargo version differs from the canonical release toolchain",
     )
-    inventory = audit_third_party_license_entries(entries)
+    inventory = audit_third_party_license_entries(entries, profile=profile)
+    if profile == "sdk-alpha1":
+        require(manifest["jni"] == {"extension_version": 1, "method_count": 26, "methods": selected_profile.jni_methods},
+                "Android SDK JNI registration manifest differs")
+        for name, relative in SDK_NOTICE_SOURCES.items():
+            require(entries[name] == read_snapshot(source_root / relative, maximum=16 * 1024 * 1024,
+                    label="Android SDK license").data, f"Android SDK notice differs: {name}")
     third_party = manifest.get("third_party")
     require(
         isinstance(third_party, dict) and set(third_party) == {"rust"},
@@ -1317,8 +1390,8 @@ def verify_manifest(
         manifest.get("abi"), MANIFEST_ABI_FIELDS, "Android AAR manifest ABI"
     )
     require(abi.get("major") == 2, "Android AAR manifest ABI major mismatch")
-    require(abi.get("export_count") == len(FFI_EXPORTS), "Android AAR manifest export count mismatch")
-    exports_digest = sha256_bytes(("\n".join(sorted(FFI_EXPORTS)) + "\n").encode("utf-8"))
+    require(abi.get("export_count") == len(selected_profile.exports), "Android AAR manifest export count mismatch")
+    exports_digest = sha256_bytes(("\n".join(sorted(selected_profile.exports)) + "\n").encode("utf-8"))
     require(abi.get("exports_sha256") == exports_digest, "Android AAR manifest export-set digest mismatch")
     require(abi.get("platform") == "android-aar", "Android AAR manifest ABI platform mismatch")
     require(abi.get("shared_filename") == FFI_LIBRARY, "Android AAR manifest shared filename mismatch")
@@ -1381,7 +1454,7 @@ def verify_manifest(
 
     artifacts = exact_object(
         manifest.get("artifacts"),
-        MANIFEST_ARTIFACT_FIELDS,
+        MANIFEST_ARTIFACT_FIELDS | ({"java_sdk_sha256", "sdk_spec_sha256"} if profile == "sdk-alpha1" else set()),
         "Android AAR manifest artifact",
     )
     require(
@@ -1400,10 +1473,13 @@ def verify_manifest(
         "java_facade_sha256": source_root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
         "jni_adapter_sha256": source_root / "bindings/android/jni/qperiapt_jni.c",
     }
+    if profile == "sdk-alpha1":
+        source_hashes.update(java_sdk_sha256=source_root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java",
+                             sdk_spec_sha256=source_root / "artifact/sdk_abi2_spec.py")
     for key, source_path in source_hashes.items():
         source_snapshot = read_snapshot(source_path, maximum=16 * 1024 * 1024, label=f"Android source input {key}")
         require(artifacts.get(key) == source_snapshot.sha256, f"Android AAR manifest source hash mismatch for {key}")
-    contract_path = source_root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+    contract_path = source_root / selected_profile.contract
     contract_snapshot = read_snapshot(contract_path, maximum=16 * 1024 * 1024, label="Android ABI2 contract")
     require(abi.get("contract_path") == contract_path.relative_to(source_root).as_posix(), "Android AAR manifest contract path mismatch")
     require(abi.get("contract_sha256") == contract_snapshot.sha256, "Android AAR manifest contract hash mismatch")
@@ -1438,7 +1514,9 @@ def verify_aar(
     forbidden_text: Iterable[str] = (),
     extract_to: pathlib.Path | None = None,
     source_root: pathlib.Path | None = None,
+    profile: str = "legacy",
 ) -> dict[str, Any] | None:
+    package_profile(profile)
     snapshot = read_snapshot(path, maximum=MAX_ARCHIVE_BYTES, label="Android AAR")
     if expected_aar_sha256 is not None:
         require(re.fullmatch(r"[0-9a-f]{64}", expected_aar_sha256) is not None, "invalid expected AAR SHA-256")
@@ -1448,7 +1526,7 @@ def verify_aar(
         )
     require(manifest is not None or expected_manifest_sha256 is None, "expected manifest SHA-256 requires --manifest")
     require(not require_release_manifest or manifest is not None, "release-manifest verification requires --manifest")
-    entries, class_entries = audit_aar_bytes(snapshot.data, label=str(snapshot.path))
+    entries, class_entries = audit_aar_bytes(snapshot.data, label=str(snapshot.path), profile=profile)
     with tempfile.TemporaryDirectory(prefix="qperiapt-android-elf-") as temp:
         temp_root = pathlib.Path(temp)
         selected_aar = temp_root / "selected.aar"
@@ -1483,6 +1561,7 @@ def verify_aar(
                     library=library,
                     llvm_nm=llvm_nm,
                     llvm_readelf=llvm_readelf,
+                    profile=profile,
                 )
     verified_manifest = None
     if manifest is not None:
@@ -1497,6 +1576,7 @@ def verify_aar(
             require_release=require_release_manifest,
             forbidden_text=forbidden_text,
             source_root=source_root,
+            profile=profile,
         )
     if extract_to is not None:
         extract_verified_entries(entries, extract_to)
@@ -1595,11 +1675,13 @@ def build_parser() -> argparse.ArgumentParser:
     consumer = subparsers.add_parser("verify-minimal-consumer", help="check actual R8 DEX native and callback retention")
     consumer.add_argument("--dex", required=True, type=pathlib.Path)
     consumer.add_argument("--dexdump", required=True, type=pathlib.Path)
+    consumer.add_argument("--package-version", default="0.1.5")
 
     tree = subparsers.add_parser("verify-tree", help="verify staged Android native libraries")
     tree.add_argument("--root", required=True, type=pathlib.Path)
     tree.add_argument("--llvm-nm", required=True, type=pathlib.Path)
     tree.add_argument("--llvm-readelf", required=True, type=pathlib.Path)
+    tree.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
 
     aar = subparsers.add_parser("verify-aar", help="audit an AAR and reverify its extracted ELF files")
     aar.add_argument("--aar", required=True, type=pathlib.Path)
@@ -1612,6 +1694,7 @@ def build_parser() -> argparse.ArgumentParser:
     aar.add_argument("--forbid-text", action="append", default=[])
     aar.add_argument("--extract-to", type=pathlib.Path)
     aar.add_argument("--source-root", type=pathlib.Path)
+    aar.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
 
     bound_aar = subparsers.add_parser(
         "verify-results-bound-aar",
@@ -1635,10 +1718,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         elif args.command == "find-toolchain":
             print(find_ndk_toolchain(args.ndk))
         elif args.command == "verify-minimal-consumer":
-            verify_minimal_consumer_dex(args.dex, dexdump=args.dexdump)
+            verify_minimal_consumer_dex(args.dex, dexdump=args.dexdump, package_version=args.package_version)
             print("ANDROID_MINIMAL_R8_CONSUMER_PASS")
         elif args.command == "verify-tree":
-            verify_native_tree(args.root, llvm_nm=args.llvm_nm, llvm_readelf=args.llvm_readelf)
+            verify_native_tree(args.root, llvm_nm=args.llvm_nm, llvm_readelf=args.llvm_readelf, profile=args.profile)
             print("ANDROID_ELF_TREE_VERIFY_PASS")
         elif args.command == "verify-aar":
             verify_aar(
@@ -1652,6 +1735,7 @@ def main(argv: Iterable[str] | None = None) -> int:
                 forbidden_text=args.forbid_text,
                 extract_to=args.extract_to,
                 source_root=args.source_root,
+                profile=args.profile,
             )
             print("ANDROID_AAR_ELF_VERIFY_PASS")
         else:

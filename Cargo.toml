@@ -15,6 +15,9 @@ members = [
     "crates/q-periapt-backends",
     "crates/q-periapt-ffi",
     "crates/q-periapt-wasm",
+    "crates/q-periapt-sdk",
+    "crates/q-periapt-host-store",
+    "crates/q-periapt-sdk-wasm",
     "crates/q-periapt-tls-demo",
     "crates/q-periapt-cli",
     "crates/q-periapt-rustls",
@@ -26,7 +29,7 @@ members = [
 exclude = ["research/hqc-fips207-candidate"]
 
 [workspace.package]
-version = "0.1.5"
+version = "0.2.0-alpha.1"
 edition = "2021"
 # True floor: the resolved lock pulls clap 4.6 + hashbrown 0.17, which require 1.85.
 rust-version = "1.85"

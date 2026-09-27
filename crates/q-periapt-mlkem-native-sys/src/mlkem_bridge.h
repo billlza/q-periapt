@@ -44,52 +44,63 @@ enum
 #define QPN_MLKEM_BRIDGE_API \
   QPN_MLKEM_BRIDGE_HIDDEN QPN_MLKEM_BRIDGE_MUST_CHECK
 
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_512_keypair_derand(
+/* Separate hidden namespaces allow portable and AVX2 units to coexist. The
+ * public q_periapt_* ABI is unaffected. Unsupported raw archive symbols are
+ * not a same-process security boundary. */
+#if defined(QPN_MLKEM_BUILD_NATIVE_X86_64)
+#define QPN_MLKEM_BRIDGE(name) qpn_mlkem_bridge_v1_2_0_avx2_##name
+#define QPN_MLKEM_INTERNAL(name) qpn_mlkem_internal_v1_2_0_avx2_##name
+#else
+#define QPN_MLKEM_BRIDGE(name) qpn_mlkem_bridge_v1_2_0_##name
+#define QPN_MLKEM_INTERNAL(name) qpn_mlkem_internal_v1_2_0_##name
+#endif
+
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(512_keypair_derand)(
     uint8_t public_key[QPN_MLKEM512_PUBLIC_KEY_BYTES],
     uint8_t decapsulation_key[QPN_MLKEM512_DECAPSULATION_KEY_BYTES],
     const uint8_t seed[QPN_MLKEM_KEYPAIR_SEED_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_512_encapsulate_derand(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(512_encapsulate_derand)(
     uint8_t ciphertext[QPN_MLKEM512_CIPHERTEXT_BYTES],
     uint8_t shared_secret[QPN_MLKEM_SHARED_SECRET_BYTES],
     const uint8_t public_key[QPN_MLKEM512_PUBLIC_KEY_BYTES],
     const uint8_t seed[QPN_MLKEM_ENCAPSULATION_SEED_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_512_decapsulate(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(512_decapsulate)(
     uint8_t shared_secret[QPN_MLKEM_SHARED_SECRET_BYTES],
     const uint8_t ciphertext[QPN_MLKEM512_CIPHERTEXT_BYTES],
     const uint8_t decapsulation_key[QPN_MLKEM512_DECAPSULATION_KEY_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_512_check_public_key(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(512_check_public_key)(
     const uint8_t public_key[QPN_MLKEM512_PUBLIC_KEY_BYTES]);
 
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_768_keypair_derand(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(768_keypair_derand)(
     uint8_t public_key[QPN_MLKEM768_PUBLIC_KEY_BYTES],
     uint8_t decapsulation_key[QPN_MLKEM768_DECAPSULATION_KEY_BYTES],
     const uint8_t seed[QPN_MLKEM_KEYPAIR_SEED_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_768_encapsulate_derand(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(768_encapsulate_derand)(
     uint8_t ciphertext[QPN_MLKEM768_CIPHERTEXT_BYTES],
     uint8_t shared_secret[QPN_MLKEM_SHARED_SECRET_BYTES],
     const uint8_t public_key[QPN_MLKEM768_PUBLIC_KEY_BYTES],
     const uint8_t seed[QPN_MLKEM_ENCAPSULATION_SEED_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_768_decapsulate(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(768_decapsulate)(
     uint8_t shared_secret[QPN_MLKEM_SHARED_SECRET_BYTES],
     const uint8_t ciphertext[QPN_MLKEM768_CIPHERTEXT_BYTES],
     const uint8_t decapsulation_key[QPN_MLKEM768_DECAPSULATION_KEY_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_768_check_public_key(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(768_check_public_key)(
     const uint8_t public_key[QPN_MLKEM768_PUBLIC_KEY_BYTES]);
 
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_1024_keypair_derand(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(1024_keypair_derand)(
     uint8_t public_key[QPN_MLKEM1024_PUBLIC_KEY_BYTES],
     uint8_t decapsulation_key[QPN_MLKEM1024_DECAPSULATION_KEY_BYTES],
     const uint8_t seed[QPN_MLKEM_KEYPAIR_SEED_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_1024_encapsulate_derand(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(1024_encapsulate_derand)(
     uint8_t ciphertext[QPN_MLKEM1024_CIPHERTEXT_BYTES],
     uint8_t shared_secret[QPN_MLKEM_SHARED_SECRET_BYTES],
     const uint8_t public_key[QPN_MLKEM1024_PUBLIC_KEY_BYTES],
     const uint8_t seed[QPN_MLKEM_ENCAPSULATION_SEED_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_1024_decapsulate(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(1024_decapsulate)(
     uint8_t shared_secret[QPN_MLKEM_SHARED_SECRET_BYTES],
     const uint8_t ciphertext[QPN_MLKEM1024_CIPHERTEXT_BYTES],
     const uint8_t decapsulation_key[QPN_MLKEM1024_DECAPSULATION_KEY_BYTES]);
-QPN_MLKEM_BRIDGE_API int qpn_mlkem_bridge_v1_2_0_1024_check_public_key(
+QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(1024_check_public_key)(
     const uint8_t public_key[QPN_MLKEM1024_PUBLIC_KEY_BYTES]);
 
 #endif /* QPN_MLKEM_BRIDGE_H */

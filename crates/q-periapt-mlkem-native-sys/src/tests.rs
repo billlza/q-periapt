@@ -21,7 +21,19 @@ fn implementation_identity_is_exact() {
         "mlkem-native-1.2.0/portable-c"
             | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
             | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
+            | "mlkem-native-1.2.0/x86_64-avx2+portable-dispatch"
     ));
+    #[cfg(not(qpn_mlkem_x86_dispatch))]
+    assert_eq!(active_implementation_id(), IMPLEMENTATION_ID);
+    #[cfg(qpn_mlkem_x86_dispatch)]
+    assert_eq!(
+        active_implementation_id(),
+        if raw::avx2_available() {
+            "mlkem-native-1.2.0/x86_64-native-arith+fips202-avx2"
+        } else {
+            "mlkem-native-1.2.0/portable-c"
+        }
+    );
 }
 
 macro_rules! parameter_set_test {

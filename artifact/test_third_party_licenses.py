@@ -115,6 +115,24 @@ class ThirdPartyLicenseTests(unittest.TestCase):
         ):
             self.collect(self.metadata(kind="dev"))
 
+    def test_wasm_root_is_explicit_and_does_not_change_native_default(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-sdk-wasm"
+        with (
+            mock.patch.object(third_party_licenses, "_cargo_metadata", return_value=metadata),
+            mock.patch.object(third_party_licenses, "_lock_checksums",
+                              return_value={("dep", "1.2.3", self.source): self.checksum}),
+        ):
+            inventory = third_party_licenses.collect(self.root, self.package_root,
+                "wasm32-unknown-unknown", root_package="q-periapt-sdk-wasm")
+        self.assertEqual(inventory["root_package"], "q-periapt-sdk-wasm")
+        self.assertEqual(inventory, third_party_licenses.verify(self.package_root,
+            expected_target="wasm32-unknown-unknown", root_package="q-periapt-sdk-wasm"))
+        with self.assertRaisesRegex(ValueError, "root package differs"):
+            third_party_licenses.verify(self.package_root)
+        with self.assertRaisesRegex(ValueError, "unsupported license root"):
+            third_party_licenses._production_dependency_ids(metadata, "unknown")
+
     def test_missing_or_escaping_license_fails_closed(self) -> None:
         (self.dependency_root / "LICENSE-MIT").unlink()
         with self.assertRaisesRegex(

@@ -1,0 +1,29 @@
+[package]
+name = "q-periapt-connection-package-consumer"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+q-periapt-core = "=0.2.0-alpha.1"
+q-periapt-sdk = "=0.2.0-alpha.1"
+q-periapt-host-store = "=0.2.0-alpha.1"
+q-periapt-rustls = { version = "=0.2.0-alpha.1", features = ["reference-connection"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "logging", "aws_lc_rs"] }
+rcgen = "0.14"
+
+[target.'cfg(unix)'.dependencies]
+# The shipped example becomes this crate's binary, so its direct dependencies
+# must be declared here rather than inherited from q-periapt-rustls's dev-deps.
+rustix = { version = "=1.1.4", features = ["event"] }
+
+# The diagnostic peer code comes from the shipped crate, not the checkout.
+[[bin]]
+name = "connection_peer"
+path = "packages/q-periapt-rustls-0.2.0-alpha.1/examples/connection_peer.rs"
+
+[[bin]]
+name = "standard_peer"
+path = "packages/q-periapt-rustls-0.2.0-alpha.1/examples/standard_peer.rs"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -14,7 +15,13 @@ AGP_VERSION = "9.4.0"
 GRADLE_VERSION = "9.7.1"
 PROOF_KIND = "qperiapt.android_agp_consumer_proof"
 BUILD_KIND = "qperiapt.android_agp_consumer_build"
+# The historical maintenance transaction imports PROFILES. Keep its admitted
+# profiles and projection shape frozen; only the collector dispatch uses ALL.
 PROFILES = frozenset({"agp_full_release", "agp_minimal_release"})
+SDK_PROFILES = frozenset({"agp_sdk_full_release", "agp_sdk_minimal_release"})
+ALL_PROFILES = PROFILES | SDK_PROFILES
+SDK_PROOF_KIND = "qperiapt.android_sdk_agp_consumer_proof"
+SDK_BUILD_KIND = "qperiapt.android_sdk_agp_consumer_build"
 PROJECTION_FIELDS = frozenset(
     {
         "profile",
@@ -42,12 +49,65 @@ PROFILE_TESTS = {
         "osRandomPolicyRoundtripAndWipes",
     ),
     "agp_minimal_release": ("runtimeVersionOnly",),
+    "agp_sdk_full_release": (
+        "sdkOwnersAndPurposeKeys",
+        "sdkExpertCancellationAndInputSnapshot",
+        "sdkSignedPolicyRevocationAndRecovery",
+    ),
+    "agp_sdk_minimal_release": ("runtimeVersionOnly",),
+}
+
+
+@dataclass(frozen=True)
+class ProfileSpec:
+    aar_profile: str
+    version: str
+    flavor: str
+    smoke_directory: str
+    workload: str | None
+    fixtures: tuple[str, ...]
+
+    @property
+    def proof_kind(self) -> str:
+        return SDK_PROOF_KIND if self.aar_profile == "sdk-alpha1" else PROOF_KIND
+
+    @property
+    def build_kind(self) -> str:
+        return SDK_BUILD_KIND if self.aar_profile == "sdk-alpha1" else BUILD_KIND
+
+
+PROFILE_SPECS = {
+    "agp_full_release": ProfileSpec("legacy", "0.1.5", "Full", "full",
+        "QPeriaptSmokeWorkload.java", ("signed-policy-vectors.json",)),
+    "agp_minimal_release": ProfileSpec("legacy", "0.1.5", "Minimal", "minimal", None, ()),
+    "agp_sdk_full_release": ProfileSpec("sdk-alpha1", "0.2.0-alpha.1", "Full", "sdk",
+        "QPeriaptSDKWorkload.java", ("signed-policy-vectors.json",
+            "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")),
+    "agp_sdk_minimal_release": ProfileSpec("sdk-alpha1", "0.2.0-alpha.1", "Minimal", "sdk-minimal", None, ()),
 }
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AndroidAgpConsumerError(message)
+
+
+def profile_spec(profile: str) -> ProfileSpec:
+    require(isinstance(profile, str) and profile in ALL_PROFILES, "unknown AGP consumer profile")
+    return PROFILE_SPECS[profile]
+
+
+def runtime_target(profile: str, expected_device_abi: str | None) -> dict[str, object]:
+    """SDK callers select the architecture; the proof cannot select its own scope."""
+    profile_spec(profile)
+    if profile in SDK_PROFILES:
+        require(isinstance(expected_device_abi, str) and expected_device_abi in {"arm64-v8a", "x86_64"},
+                "SDK AGP verification requires an explicit arm64-v8a or x86_64 target")
+        abi = expected_device_abi
+    else:
+        require(expected_device_abi is None or expected_device_abi == "arm64-v8a", "legacy AGP target must remain arm64-v8a")
+        abi = "arm64-v8a"
+    return {"kind": "emulator", "abi": abi, "sdk": 35, "page_size": 16384}
 
 
 def _object(
@@ -72,13 +132,20 @@ def validate_profile_projection(
     expected_aar_sha256: str,
     expected_aar_manifest_sha256: str,
     expected_source_commit: str,
+    expected_device_abi: str | None = None,
 ) -> dict[str, object]:
     """Validate the fixed public projection without filesystem, Gradle, or device access."""
     require(
-        isinstance(expected_profile, str) and expected_profile in PROFILES,
+        isinstance(expected_profile, str) and expected_profile in ALL_PROFILES,
         "unknown AGP consumer profile",
     )
-    record = _object(value, PROJECTION_FIELDS, "AGP consumer projection")
+    target = runtime_target(expected_profile, expected_device_abi)
+    sdk_profile = expected_profile in SDK_PROFILES
+    record = _object(value, PROJECTION_FIELDS | ({"runtime_target"} if sdk_profile else set()), "AGP consumer projection")
+    if sdk_profile:
+        selected_target = _object(record["runtime_target"], set(target), "SDK AGP runtime target")
+        require(type(selected_target["sdk"]) is int and type(selected_target["page_size"]) is int
+                and selected_target == target, "SDK AGP runtime target mismatch")
     require(record["profile"] == expected_profile, "AGP projection profile mismatch")
     require(
         isinstance(record["run_id"], str)

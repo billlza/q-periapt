@@ -46,7 +46,7 @@ need python3
 ANDROID_CONSUMER_PROFILE=${QPERIAPT_ANDROID_CONSUMER_PROFILE:-legacy_full}
 case "$ANDROID_CONSUMER_PROFILE" in
 	legacy_full) ;;
-	agp_full_release | agp_minimal_release)
+	agp_full_release | agp_minimal_release | agp_sdk_full_release | agp_sdk_minimal_release)
 		if [ "${QPERIAPT_ANDROID_RELEASE_MODE:-0}" != "1" ] || \
 			[ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" != "1" ] || \
 			[ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" != "emulator" ] || \
@@ -60,6 +60,20 @@ case "$ANDROID_CONSUMER_PROFILE" in
 		exit 2
 		;;
 esac
+
+ANDROID_AAR_PROFILE=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" <<'PY'
+import sys
+from android_agp_consumer_contract import AndroidAgpConsumerError, profile_spec, runtime_target
+try:
+    if sys.argv[1] == "legacy_full":
+        print("legacy")
+    else:
+        runtime_target(sys.argv[1], sys.argv[2] or None)
+        print(profile_spec(sys.argv[1]).aar_profile)
+except AndroidAgpConsumerError as error:
+    raise SystemExit(f"error: {error}") from error
+PY
+)
 
 # Hold one host/account-scoped open-file-description lock for the whole lane.
 # The stable private file serializes every checkout that can reach the same
@@ -628,8 +642,14 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
-if [ "$VERSION" != "0.1.5" ]; then
-	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.5\n' "$VERSION" >&2
+EXPECTED_VERSION=$(python3 - "$ANDROID_AAR_PROFILE" <<'PY'
+import sys
+from android_elf import package_profile
+print(package_profile(sys.argv[1]).version)
+PY
+)
+if [ "$VERSION" != "$EXPECTED_VERSION" ]; then
+	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected %s\n' "$VERSION" "$EXPECTED_VERSION" >&2
 	exit 1
 fi
 
@@ -696,6 +716,7 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 	set -- "$@" --require-release-manifest
 fi
 PYTHONPATH=artifact python3 artifact/android_elf.py verify-aar \
+	--profile "$ANDROID_AAR_PROFILE" \
 	--aar "$AAR_PATH" \
 	--llvm-nm "$LLVM_NM" \
 	--llvm-readelf "$LLVM_READELF" \
@@ -2767,8 +2788,12 @@ if current_source_tree_sha256 != source_tree_sha256:
         "error: canonical execution-input tree changed while Android runtime proof was running: "
         f"got {current_source_tree_sha256}, expected {source_tree_sha256}"
     )
-from android_device_proof import SOURCE_INPUTS
-source_paths = {name: root / path for name, path in SOURCE_INPUTS.items()}
+from android_device_proof import RuntimeResultProfile, source_inputs, result_package_profile
+from android_elf import package_profile
+consumer_profile = sys.argv[43]
+result_profile = RuntimeResultProfile(consumer_profile)
+source_paths = {name: root / path for name, path in source_inputs(result_profile).items()}
+abi_contract = package_profile(result_package_profile(result_profile)).contract
 
 def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
@@ -2854,8 +2879,8 @@ payload = {
     },
     "abi": {
         "major": 2,
-        "contract_path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
-        "contract_sha256": sha256(root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"),
+        "contract_path": abi_contract,
+        "contract_sha256": sha256(root / abi_contract),
         "runtime_library": "libq_periapt_ffi_abi2.so",
         "jni_library": "libqperiapt_jni_abi2.so",
         "legacy_library_names_present": False,
@@ -2882,19 +2907,17 @@ payload = {
     },
     "source_hashes": {name + "_sha256": sha256(path) for name, path in source_paths.items()},
 }
-consumer_profile = sys.argv[43]
 if consumer_profile != "legacy_full":
-    from android_agp_consumer_contract import PROOF_KIND, PROFILES
+    from android_agp_consumer_contract import profile_spec
     from android_agp_consumer import INSTRUMENTATION
-    if consumer_profile not in PROFILES:
-        raise SystemExit("error: unknown AGP proof profile")
+    consumer_spec = profile_spec(consumer_profile)
     build_receipt = pathlib.Path(sys.argv[44])
     instrumentation_output = pathlib.Path(sys.argv[45])
     def evidence_record(path):
         data = path.read_bytes()
         return {"path": rel(path), "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
     payload["schema"] = 1
-    payload["kind"] = PROOF_KIND
+    payload["kind"] = consumer_spec.proof_kind
     payload["consumer"] = {
         "profile": consumer_profile,
         "build_receipt": evidence_record(build_receipt),
@@ -2987,11 +3010,16 @@ PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
 	--expected-device-kind "$DEVICE_KIND" \
 	"$@"
 else
+	set --
+	if [ "$ANDROID_AAR_PROFILE" = "sdk-alpha1" ]; then
+		set -- --export-to "$DIST/agp-evidence"
+	fi
 	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py verify \
 		--root "$ROOT" --proof "$PROOF_JSON" --profile "$ANDROID_CONSUMER_PROFILE" --sdk "$ANDROID_SDK" \
 		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
 		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
-		--expected-source-commit "$AGP_SOURCE_COMMIT"
+		--expected-source-commit "$AGP_SOURCE_COMMIT" \
+		--expected-device-abi "$EXPECTED_DEVICE_ABI" "$@"
 fi
 if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
 	printf 'error: refusing to confirm Android evidence before runtime cleanup\n' >&2
