@@ -51,6 +51,9 @@ Use a fresh output directory. The input digests should come from the selected
 producer/checkpoint, rather than from untrusted candidate metadata. Loader and
 Rust compiler overrides are rejected. No command uploads a package, changes the
 host's trust store or uses production credentials.
+The resolved output destination must remain under the repository's `target`
+directory. Existing output and symbolic-link leaves are refused; parent links
+and `..` cannot redirect the attempt outside that directory.
 
 The macOS CI job runs this installed-package boundary after the Apple producer
 and a fresh Rust archive cohort. Its consumers use the two completed package

@@ -48,6 +48,16 @@ unchanged from the retained binary checkpoint. This is driver validation on
 Darwin loopback, not a new installed-package or native-Linux run; final-source
 hosted qualification remains required.
 
+The installed-connection output check also accepted two lexical paths whose
+resolved destinations escaped `target`: a `..` traversal and a parent symlink.
+Real isolated directory fixtures reproduce the old predicate's false accepts;
+the probes create no escaped output. Admission now checks the resolved path,
+retains existing-output and symlink-leaf refusals, and returns the canonical
+destination to all later writes. Twenty-two focused connection/installation/
+performance checks pass after both input-boundary repairs. This is a local
+tool-path contract, not isolation against a hostile process sharing the builder
+account; the later source needs its own complete and hosted qualification.
+
 The clean `2493ffe68ad99920880a9bd4c70be79dc37c1850` snapshot passed all 2,250
 artifact tests in 482.705 seconds, without skips, and the post-test exact-source
 gate. The [persistent RAM checkpoint](../research/sdk-alpha1/evidence/20260927-sdk-owned-pstore-retirement/manifest.json)

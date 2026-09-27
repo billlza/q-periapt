@@ -101,6 +101,15 @@ def run_command(args: list[str], output: Path, label: str, cwd: Path, environmen
     return result.stdout
 
 
+def fresh_output_path(path: Path) -> Path:
+    requested = path.absolute()
+    require(not requested.is_symlink(), "installed connection output cannot be a symlink")
+    selected = requested.resolve()
+    require(not selected.exists() and selected.is_relative_to(ROOT / "target"),
+            "installed connection output must be fresh and under target")
+    return selected
+
+
 def qualify(args: argparse.Namespace) -> dict:
     require(os.uname().sysname == "Darwin", "installed Swift connection qualification requires macOS")
     rust.validate_no_registry_credentials(os.environ)
@@ -116,9 +125,7 @@ def qualify(args: argparse.Namespace) -> dict:
             "Rust cohort did not complete its source-bound package contract")
     require(report["version"] == rust.VERSION and report["profile"] == rust.PROFILE and report["native_abi_major"] == 2
             and set(report["crates"]) == set(rust.COHORT), "Rust cohort identity differs")
-    output = args.output.absolute()
-    require(not output.exists() and not output.is_symlink() and output.is_relative_to(ROOT / "target"),
-            "installed connection output must be fresh and under target")
+    output = fresh_output_path(args.output)
     require(shutil.disk_usage(ROOT).free >= 4 * 1024**3, "installed connection build needs 4 GiB free")
     output.mkdir(parents=True, mode=0o700)
     outside = Path(tempfile.mkdtemp(prefix="qperiapt-installed-connection-")).resolve()

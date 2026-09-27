@@ -4,6 +4,7 @@ import copy
 import hashlib
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import rust_sdk_profile as rust
 import sdk_installed_connection as installed
@@ -11,6 +12,40 @@ from sdk_connection_interop import StaticClientLinkage, verify_client_load, veri
 
 
 class InstalledConnectionAdmissionTests(unittest.TestCase):
+    def test_output_admission_uses_the_actual_destination_without_creating_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            target = root / "target"
+            target.mkdir()
+            (target / "parent").mkdir()
+            expected = target / "fresh"
+            with patch.object(installed, "ROOT", root):
+                self.assertEqual(installed.fresh_output_path(expected), expected)
+                self.assertEqual(installed.fresh_output_path(target / "parent/../fresh"), expected)
+            self.assertFalse(expected.exists())
+
+    def test_output_admission_rejects_escapes_links_and_existing_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            target, outside = root / "target", root / "outside"
+            target.mkdir()
+            outside.mkdir()
+            (target / "redirect").symlink_to(outside, target_is_directory=True)
+            (target / "dangling").symlink_to(target / "missing", target_is_directory=True)
+            prior = target / "prior"
+            prior.mkdir()
+            marker = prior / "evidence"
+            marker.write_bytes(b"retained")
+            for requested in (target / "../escaped", target / "redirect/escaped",
+                              target / "dangling", prior):
+                with self.subTest(requested=requested), patch.object(installed, "ROOT", root):
+                    with self.assertRaises(ValueError):
+                        installed.fresh_output_path(requested)
+            self.assertFalse((root / "escaped").exists())
+            self.assertEqual(list(outside.iterdir()), [])
+            self.assertTrue((target / "dangling").is_symlink())
+            self.assertEqual(marker.read_bytes(), b"retained")
+
     def test_equal_versions_do_not_substitute_for_same_current_native_inputs(self):
         swift = {"rust_workspace_build_inputs": "a" * 64}
         cohort = {"version": "0.2.0-alpha.1", "source_inputs": {"rust_workspace_sha256": "a" * 64}}
