@@ -4015,6 +4015,7 @@ def _capture_emulator_diagnostics(
         "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
         "-T", _device_epoch(layout), "-s",
         "AndroidRuntime:E", "Watchdog:*", "ActivityManager:E", "SystemServer:E",
+        "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
         "Zygote:E", "lmkd:*", "libc:F", "DEBUG:*", "*:S",
     )
     primary: BaseException | None = None

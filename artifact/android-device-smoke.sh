@@ -2006,13 +2006,13 @@ for line in text.splitlines():
 PY
 }
 
-fail_instrumentation_with_logs() {
+fail_runtime_with_logs() {
 	# Keep the original failure authoritative even if its device has disappeared.
 	# Physical-device diagnostics remain restricted to the run's smoke tag.
 	if capture_app_logcat >"$DIST/logcat.txt"; then
 		:
 	else
-		printf 'error: failed Instrumentation smoke-log capture also failed\n' >&2
+		printf 'error: failed Android runtime smoke-log capture also failed\n' >&2
 	fi
 	if [ "$DEVICE_KIND" = "emulator" ]; then
 		if android_command capture-emulator-diagnostics; then
@@ -2496,21 +2496,8 @@ else
 	preinstall_observation_status=$?
 	exit "$preinstall_observation_status"
 fi
-ANDROID_APP_CLEANUP_ARMED=1
-if ! android_command install-apk >"$DIST/adb-install.log"; then
-	printf 'error: Android smoke APK installation failed\n' >&2
-	exit 1
-fi
-POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
-if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
-	:
-else
-	postinstall_ownership_status=$?
-	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
-		"$postinstall_ownership_status" >&2
-	exit "$postinstall_ownership_status"
-fi
-ANDROID_APP_INSTALL_CONFIRMED=1
+# Start the bounded diagnostic window before installation: the package may be
+# committed even when its service fails before replying to the install command.
 if android_command device-time 2>"$DIST/adb-device-time.err"; then
 	:
 else
@@ -2528,6 +2515,21 @@ value = sys.argv[1]
 if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
     raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
 PY
+ANDROID_APP_CLEANUP_ARMED=1
+if ! android_command install-apk >"$DIST/adb-install.log" 2>&1; then
+	printf 'error: Android smoke APK installation failed; see %s\n' "$DIST/adb-install.log" >&2
+	fail_runtime_with_logs 1
+fi
+POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
+if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
+	:
+else
+	postinstall_ownership_status=$?
+	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
+		"$postinstall_ownership_status" >&2
+	fail_runtime_with_logs "$postinstall_ownership_status"
+fi
+ANDROID_APP_INSTALL_CONFIRMED=1
 # This is a newly installed package: absence and exact APK ownership were
 # already established above. Its only component is this explicit activity, and
 # the result must match the fresh run ID. No pre-launch force-stop is needed.
@@ -2538,7 +2540,7 @@ else
 	start_app_status=$?
 	printf 'error: Android runtime activity start failed (exit=%s); see %s\n' \
 		"$start_app_status" "$DIST/adb-start.log" >&2
-	exit 1
+	fail_runtime_with_logs 1
 fi
 RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)
 while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 15); do
@@ -2574,7 +2576,7 @@ android_command read-result-json
 else
 	if ! android_command run-instrumentation; then
 		printf 'error: AGP Release Instrumentation command failed; see %s\n' "$DIST/adb-instrumentation.txt" >&2
-		fail_instrumentation_with_logs 1
+		fail_runtime_with_logs 1
 	fi
 	if PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
 		--input "$DIST/adb-instrumentation.txt" --run-id "$RUN_ID" \
@@ -2582,7 +2584,7 @@ else
 		:
 	else
 		instrumentation_status=$?
-		fail_instrumentation_with_logs "$instrumentation_status"
+		fail_runtime_with_logs "$instrumentation_status"
 	fi
 fi
 capture_app_logcat >"$DIST/logcat.txt"

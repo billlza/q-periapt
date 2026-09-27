@@ -199,7 +199,7 @@ class AgpProjectionTests(unittest.TestCase):
 class AgpTransportTests(unittest.TestCase):
     def test_system_crash_decode_keeps_failure_and_captures_scoped_logs(self) -> None:
         source = (ROOT / "artifact/android-device-smoke.sh").read_text()
-        function_start = source.index("fail_instrumentation_with_logs() {\n")
+        function_start = source.index("fail_runtime_with_logs() {\n")
         function_end = source.index("\n}\n", function_start) + 3
         block_start = source.index("\tif ! android_command run-instrumentation; then")
         block_end = source.index("\nfi\ncapture_app_logcat", block_start)

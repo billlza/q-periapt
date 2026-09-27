@@ -3949,7 +3949,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     self.assertEqual(argv[argv.index("logcat"):], (
                         "logcat", "-d", "-b", "main,system,crash", "-v", "threadtime",
                         "-T", "1786240000.123", "-s", "AndroidRuntime:E", "Watchdog:*",
-                        "ActivityManager:E", "SystemServer:E", "Zygote:E", "lmkd:*",
+                        "ActivityManager:E", "SystemServer:E", "PackageManager:E",
+                        "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
+                        "Zygote:E", "lmkd:*",
                         "libc:F", "DEBUG:*", "*:S",
                     ))
                     self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], 30)

@@ -1438,6 +1438,10 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
     def _run_fresh_install_runtime_steps(
         self,
         failing_operation: str | None,
+        *,
+        device_kind: str = "emulator",
+        log_status: int = 0,
+        device_epoch: str = "1786240000.123",
     ) -> tuple[subprocess.CompletedProcess[bytes], list[str], dict[str, bytes]]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
@@ -1448,6 +1452,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         # The test exercises the legacy branch through activity launch. Close
         # its explicit profile dispatch at this deliberately earlier test boundary.
         postinstall = producer[start:end] + "\nfi\n"
+        helper_start = producer.index("fail_runtime_with_logs() {\n")
+        helper_end = producer.index("\n}\n", helper_start) + 3
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -1461,7 +1467,13 @@ umask 077
 DIST={shlex.quote(str(distribution))}
 CALLS={shlex.quote(str(calls))}
 FAIL_OPERATION={shlex.quote(failing_operation or "")}
+DEVICE_KIND={shlex.quote(device_kind)}
+DEVICE_EPOCH={shlex.quote(device_epoch)}
+LOG_STATUS={log_status}
 ANDROID_CONSUMER_PROFILE=legacy_full
+ANDROID_APP_CLEANUP_ARMED=0
+ANDROID_APP_INSTALL_CONFIRMED=0
+trap 'printf "armed=%s confirmed=%s\\n" "$ANDROID_APP_CLEANUP_ARMED" "$ANDROID_APP_INSTALL_CONFIRMED" >"$DIST/cleanup-state.txt"' 0
 PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
 observe_preinstall_package_absence() {{
     printf 'preinstall\\n' >>"$CALLS"
@@ -1469,11 +1481,18 @@ observe_preinstall_package_absence() {{
 }}
 observe_owned_installed_package() {{
     printf 'postinstall\\n' >>"$CALLS"
-    [ "$FAIL_OPERATION" != postinstall ]
+    if [ "$FAIL_OPERATION" = postinstall ]; then return 31; fi
+    return 0
 }}
 monotonic_deadline() {{ printf '100\\n'; }}
 PYTHON_BIN={shlex.quote(sys.executable)}
-python3() {{ "$PYTHON_BIN" "$@"; }}
+TEST_ROOT={shlex.quote(str(pathlib.Path(__file__).resolve().parent.parent))}
+python3() {{ QPERIAPT_PYTHON="$PYTHON_BIN" sh "$TEST_ROOT/artifact/python-run.sh" "$@"; }}
+capture_app_logcat() {{
+    printf 'capture-logcat\\n' >>"$CALLS"
+    printf 'scoped smoke log\\n'
+    return "$LOG_STATUS"
+}}
 android_command() {{
     operation=$1
     printf '%s\\n' "$operation" >>"$CALLS"
@@ -1482,13 +1501,20 @@ android_command() {{
         case "$operation" in
             device-time) return 17 ;;
             start-app) return 19 ;;
+            install-apk)
+                printf 'cmd: Failure calling service package: Broken pipe (32)\\n' >&2
+                return 23 ;;
         esac
     fi
     if [ "$operation" = device-time ]; then
-        printf '1786240000.123\\n' >"$DIST/adb-device-time.txt"
+        printf '%s\\n' "$DEVICE_EPOCH" >"$DIST/adb-device-time.txt"
+    fi
+    if [ "$operation" = capture-emulator-diagnostics ]; then
+        return "$LOG_STATUS"
     fi
     return 0
 }}
+{producer[helper_start:helper_end]}
 {postinstall}
 """
             result = subprocess.run(
@@ -1524,12 +1550,13 @@ android_command() {{
 
         expectations = {
             "device-time": (
-                ["preinstall", "install-apk", "postinstall", "device-time"],
+                ["preinstall", "device-time"],
                 "Android runtime device-time capture failed",
                 "adb-device-time.err",
             ),
             "start-app": (
-                ["preinstall", "install-apk", "postinstall", "device-time", "start-app"],
+                ["preinstall", "device-time", "install-apk", "postinstall", "start-app",
+                 "capture-logcat", "capture-emulator-diagnostics"],
                 "Android runtime activity start failed",
                 "adb-start.log",
             ),
@@ -1554,7 +1581,8 @@ android_command() {{
 
         for gate, expected_calls in (
             ("preinstall", ["preinstall"]),
-            ("postinstall", ["preinstall", "install-apk", "postinstall"]),
+            ("postinstall", ["preinstall", "device-time", "install-apk", "postinstall",
+                             "capture-logcat", "capture-emulator-diagnostics"]),
         ):
             with self.subTest(failing_gate=gate):
                 result, called_operations, _files = self._run_fresh_install_runtime_steps(gate)
@@ -1566,8 +1594,51 @@ android_command() {{
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(
             called_operations,
-            ["preinstall", "install-apk", "postinstall", "device-time", "start-app"],
+            ["preinstall", "device-time", "install-apk", "postinstall", "start-app"],
         )
+
+    def test_installation_failures_capture_logs_without_retry_or_success(self) -> None:
+        for operation, status in (("install-apk", 1), ("postinstall", 31)):
+            for kind in ("emulator", "physical"):
+                for log_status in (0, 29):
+                    with self.subTest(operation=operation, kind=kind, log_status=log_status):
+                        result, calls, files = self._run_fresh_install_runtime_steps(
+                            operation, device_kind=kind, log_status=log_status,
+                        )
+                        self.assertEqual(result.returncode, status, result.stderr)
+                        expected = ["preinstall", "device-time", "install-apk"]
+                        if operation == "postinstall":
+                            expected.append("postinstall")
+                        expected.append("capture-logcat")
+                        if kind == "emulator":
+                            expected.append("capture-emulator-diagnostics")
+                        self.assertEqual(calls, expected)
+                        self.assertEqual(files["adb-device-time.txt"], b"1786240000.123\n")
+                        self.assertEqual(files["cleanup-state.txt"], b"armed=1 confirmed=0\n")
+                        self.assertEqual(files["logcat.txt"], b"scoped smoke log\n")
+                        self.assertNotIn("result.txt", files)
+                        self.assertNotIn("result.json", files)
+                        if operation == "install-apk":
+                            self.assertIn(b"Broken pipe (32)", files["adb-install.log"])
+                            self.assertIn(b"adb-install.log", result.stderr)
+                        if log_status:
+                            self.assertIn(b"smoke-log capture also failed", result.stderr)
+                            if kind == "emulator":
+                                self.assertIn(b"emulator crash-log capture also failed", result.stderr)
+
+    def test_failed_or_invalid_clock_does_not_arm_cleanup_or_install(self) -> None:
+        cases = (("device-time", "1786240000.123"), (None, ""), (None, "1786240000"),
+                 (None, "1786240000.123; injected"))
+        for operation, epoch in cases:
+            with self.subTest(operation=operation, epoch=epoch):
+                result, calls, files = self._run_fresh_install_runtime_steps(
+                    operation, device_epoch=epoch,
+                )
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(calls, ["preinstall", "device-time"])
+                self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+                self.assertNotIn("adb-install.log", files)
+                self.assertNotIn("logcat.txt", files)
 
     def _run_preinstall_observation(
         self,
@@ -2045,9 +2116,11 @@ exit "$cleanup_status"
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        phase_start = producer.index("if observe_preinstall_package_absence; then")
-        phase_end = producer.index("\nif android_command device-time", phase_start)
+        phase_start = producer.index("ANDROID_APP_CLEANUP_ARMED=1\nif ! android_command install-apk")
+        phase_end = producer.index("# This is a newly installed package:", phase_start)
         install_phase = producer[phase_start:phase_end]
+        helper_start = producer.index("fail_runtime_with_logs() {\n")
+        helper_end = producer.index("\n}\n", helper_start) + 3
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -2064,7 +2137,8 @@ CALLS={shlex.quote(str(calls))}
 CONFIRMED={shlex.quote(str(confirmed))}
 ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
-observe_preinstall_package_absence() {{ return 0; }}
+DEVICE_KIND=physical
+capture_app_logcat() {{ printf 'capture-logcat\n' >>"$CALLS"; }}
 monotonic_deadline() {{ printf '999\n'; }}
 observe_owned_installed_package() {{
     printf 'observe-owned-installed-package\n' >>"$CALLS"
@@ -2077,6 +2151,7 @@ android_command() {{
     fi
     return 0
 }}
+{producer[helper_start:helper_end]}
 {install_phase}
 test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
 : >"$CONFIRMED"
@@ -5350,7 +5425,7 @@ exit "$cleanup_status"
                 self.assertEqual(result.returncode, ownership_status)
                 self.assertEqual(
                     calls,
-                    ["install-apk", "observe-owned-installed-package"],
+                    ["install-apk", "observe-owned-installed-package", "capture-logcat"],
                 )
                 self.assertFalse(confirmed)
                 self.assertIn(b"ownership did not converge", result.stderr)
@@ -5359,7 +5434,7 @@ exit "$cleanup_status"
             0, install_status=17
         )
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(calls, ["install-apk"])
+        self.assertEqual(calls, ["install-apk", "capture-logcat"])
         self.assertFalse(confirmed)
         self.assertIn(b"APK installation failed", result.stderr)
 

@@ -2019,6 +2019,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server-start-handshake.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt\n"

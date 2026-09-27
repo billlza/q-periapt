@@ -31,6 +31,26 @@ New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
 ## Latest qualification checkpoints
 
+The `715c52b` Android run failed before the SDK workload: the APK installation
+reply reported `cmd: Failure calling service package: Broken pipe (32)`.
+Cleanup subsequently observed the installed APK twice, verified its signer,
+uninstalled it and retired the failed runtime with primary status 1. No runtime
+success proof was produced. The retained host ADB log does not show a transport
+loss before the install failure, and no guest system diagnostic was captured;
+the package-service failure's root cause is therefore still unknown.
+
+The producer previously captured its diagnostic clock only after successful
+installation and ownership confirmation. A controlled invocation of that exact
+shell phase reproduces the missing clock and logs on a failed install reply.
+The follow-up validates the clock before installation and uses the existing
+bounded failure logger for install, ownership and activity-launch failures as
+well as Instrumentation failures. Only owned-emulator diagnostics add fixed
+installer error tags, and the retained installation log includes stderr.
+Original statuses, install count, time/output limits,
+cleanup ownership checks and physical-device log scope are preserved. The
+180 focused checks pass; these control-flow and boundary tests do not establish
+a repaired native package service or a current-source Android runtime pass.
+
 The shared binary-freeze helper used by connection acceptance and performance
 drivers still opened caller-selected input as an ordinary stream. A real CLI
 invocation with a FIFO blocked on the `921cada` source until its bounded parent

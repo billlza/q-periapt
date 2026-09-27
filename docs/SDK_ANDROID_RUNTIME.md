@@ -108,6 +108,15 @@ diagnostics if a later step fails. Partial evidence does not satisfy the paired
 runtime gate. There is no SDK-to-legacy fallback or package
 rebuild in the runtime lane. The arm64 and physical-device gates remain separate.
 
+The diagnostic clock is captured and validated before installation. An install
+reply failure, post-install ownership failure or launch failure stays a failure;
+the runner collects the bounded, run-filtered smoke log without retrying the
+install. Only a currently owned emulator can additionally supply the fixed
+system/installer error tags, under the existing 30-second and 16 MiB limits.
+Diagnostic failure cannot replace the primary error. App cleanup still needs
+its fresh exact APK observations and signer check, including when an install
+may have committed before its reply failed.
+
 The current [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records which of
 these gates have actually executed. Synthetic verifier tests, an APK build,
 workflow syntax checks and historical device receipts do not establish a
