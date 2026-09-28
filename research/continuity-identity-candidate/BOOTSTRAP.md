@@ -152,7 +152,9 @@ work. They cannot be represented by caller-supplied success booleans.
 The separate [device journal](DURABILITY.md) now wraps these volatile operations
 with encrypted reservation/result/response/final commits and actual crash recovery.
 Its restore method is crate-private and only consumes authenticated local records.
-Both roles have private authenticated checkpoints. Sealed entropy, full G1 write/anchor-intent replay and the
+Both roles have private authenticated checkpoints and persist sealed KEM/signing
+reservations before execution. The prekey inventory and protected signing-owner
+files restore their required owners. Full G1 write/anchor-intent replay and the
 product ratchet/store integration remain required.
 
 Tests use two separately verified runtimes and real owned keys/signatures for

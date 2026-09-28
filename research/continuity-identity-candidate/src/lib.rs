@@ -23,7 +23,9 @@ pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
     PendingSession, ResponderOperation,
 };
-pub use crypto::{DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, PUBLIC_KEY_BYTES};
+pub use crypto::{
+    DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId, PUBLIC_KEY_BYTES,
+};
 pub use durable::{
     CommittedInitiation, DeviceJournal, DurableError, DurableStatus, InitiationId, JournalIdentity,
     JournalKey, PrekeyId, PrekeyStatus,

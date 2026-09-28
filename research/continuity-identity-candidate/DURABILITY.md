@@ -149,8 +149,10 @@ pages or backups and does not supply rollback detection.
 `respond` resumes an `Executing` record with the original selected prekeys;
 `respond_from_inventory` restores those owners from its committed local inventory.
 `resume_response` resumes a contribution or signing plan using only the original
-device signer. That signer may be a separately restored matching owner; this journal
-does not persist signing private keys. Signer-free `resume` can replay a pinned result
+device signer. That signer can be restored from a separately protected
+[signing-owner file](SIGNING_OWNERS.md); the journal checks its exact enrolled public
+identity. Signing files are provisioned before enrollment, outside this journal.
+Signer-free `resume` can replay a pinned result
 but cannot perform unfinished signing. Missing owners are explicit failures, never
 requests to generate replacement keys or coins. A wrong prekey/signer is refused;
 local/transient failure retains the selected work. A definitive MAC or invalid-share
@@ -315,7 +317,9 @@ inconsistent consumption/outbox state are rejected.
 
 Both roles now replay reserved cryptographic commands, and local inventory
 restores the selected prekeys before first responder authentication. A completed
-bootstrap is not a full session lifecycle. Cryptographic erasure, signing-owner persistence, cancellation,
+bootstrap is not a full session lifecycle. Protected signing files now restore
+matching owners for unfinished operations. Cryptographic erasure, durable identity
+rotation/revocation, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
 multi-device transactions remain implementation work. Logical replay retains the
 exact cryptographic result, but reseals an outer aggregate on a retried storage

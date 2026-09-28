@@ -17,8 +17,8 @@ the existing public-commitment model into a working cryptographic protocol.
   [sealed operation interface](../SDK_SEALED_OPERATIONS.md) reserves platform KEM
   randomness for exact policy/input-bound recovery. It has no message ratchet or
   session-secret persistence; its sealed operations now back the candidate's staged
-  initiator/responder and encrypted prekey inventory. Signing-owner persistence
-  remains required.
+  initiator/responder and encrypted prekey inventory. The candidate separately
+  persists root/device/policy signing owners before enrollment.
 - `q-periapt-rustls::connection` supplies the authenticated reference connection,
   policy confirmation, bounded request/response transport and revocation. A TLS
   connection or symmetric TLS key update does not establish continuous PQ recovery.
@@ -40,7 +40,8 @@ the existing public-commitment model into a working cryptographic protocol.
   prekeys before authentication, exposes committed public leaves and consumes
   one-time tokens with the response outbox; pending references block retirement.
   Its own lockfile and public-byte/OpenSSL verifier remain separate.
-  Signing-owner persistence, cryptographic erasure, ratchet, exact anchor-intent replay and
+  Protected signing files restore unfinished operations; durable identity lifecycle,
+  cryptographic erasure, ratchet, exact anchor-intent replay and
   rollback protection remain required work.
 
 ## Required completion evidence

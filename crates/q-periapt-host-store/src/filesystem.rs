@@ -202,6 +202,13 @@ impl OwnedPrivateDirectory {
         open_private_leaf(self, name, false)
     }
 
+    /// Sync this exact pinned directory after restoring or provisioning a leaf.
+    /// Rechecks private ownership and mode before admitting the durability barrier.
+    pub fn sync_entries(&self) -> Result<(), PrivateFileError> {
+        validate_private_directory(&self.descriptor)?;
+        rustix::fs::fsync(&self.descriptor).map_err(|_| PrivateFileError)
+    }
+
     /// Create an owner-only scratch inode and remove its name before it can hold data.
     pub fn create_anonymous_scratch(&self) -> Result<File, PrivateFileError> {
         self.create_anonymous_scratch_with(|parent, name| {
@@ -634,6 +641,24 @@ mod cleanup_boundary {
             .prefix("private-scratch-")
             .permissions(std::fs::Permissions::from_mode(0o700))
             .tempdir()
+    }
+
+    #[test]
+    fn directory_sync_rechecks_permissions_on_the_pinned_inode() -> Result<(), io::Error> {
+        let temporary = scratch_directory()?;
+        let root = temporary.path().canonicalize()?;
+        let directory = OwnedPrivateDirectory::open(&root)
+            .map_err(|_| io::Error::other("private directory open failed"))?;
+        directory
+            .sync_entries()
+            .map_err(|_| io::Error::other("initial directory sync failed"))?;
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755))?;
+        assert_eq!(directory.sync_entries(), Err(PrivateFileError));
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700))?;
+        directory
+            .sync_entries()
+            .map_err(|_| io::Error::other("restored directory sync failed"))?;
+        Ok(())
     }
 
     #[test]

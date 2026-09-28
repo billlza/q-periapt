@@ -915,10 +915,15 @@ pub(crate) mod tests {
         pub(crate) reusable: HybridKey,
         pub(crate) once: HybridKey,
     }
-    fn enrolled(seed: u8, family: [u8; 32]) -> (DeviceSigningKey, Arc<VerifiedDevice>) {
+    fn enrolled(
+        seed: u8,
+        family: [u8; 32],
+        signer: Option<DeviceSigningKey>,
+    ) -> (DeviceSigningKey, Arc<VerifiedDevice>) {
         let root = RootSigningKey::deterministic([seed; 32], [seed + 1; 32]).expect("root");
-        let signer =
-            DeviceSigningKey::deterministic([seed + 2; 32], [seed + 3; 32]).expect("device");
+        let signer = signer.unwrap_or_else(|| {
+            DeviceSigningKey::deterministic([seed + 2; 32], [seed + 3; 32]).expect("device")
+        });
         let certificate = root
             .issue_device(
                 DeviceDescription::new([seed; 16], 1, family, interval()).expect("description"),
@@ -957,14 +962,30 @@ pub(crate) mod tests {
             [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
         )>,
     ) -> Fixture {
-        fixture_with_options(quality, public_keys, q_periapt_sdk::Limits::default())
+        fixture_with_options(quality, public_keys, q_periapt_sdk::Limits::default(), None)
+    }
+    #[cfg(unix)]
+    pub(crate) fn fixture_with_signers(
+        quality: PrekeyQuality,
+        public_keys: Option<(
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+        )>,
+        signers: (DeviceSigningKey, DeviceSigningKey),
+    ) -> Fixture {
+        fixture_with_options(
+            quality,
+            public_keys,
+            q_periapt_sdk::Limits::default(),
+            Some(signers),
+        )
     }
     #[cfg(unix)]
     pub(crate) fn fixture_with_initiator_limits(
         quality: PrekeyQuality,
         limits: q_periapt_sdk::Limits,
     ) -> Fixture {
-        fixture_with_options(quality, None, limits)
+        fixture_with_options(quality, None, limits, None)
     }
     fn fixture_with_options(
         quality: PrekeyQuality,
@@ -973,6 +994,7 @@ pub(crate) mod tests {
             [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
         )>,
         limits: q_periapt_sdk::Limits,
+        signers: Option<(DeviceSigningKey, DeviceSigningKey)>,
     ) -> Fixture {
         let (_, issued, pin, runtime_r) = session_policy_fixture(&[quality]);
         let runtime_i = sdk_runtime_with_limits(limits);
@@ -984,8 +1006,12 @@ pub(crate) mod tests {
             pin.verify(issued.as_bytes(), Arc::clone(&runtime_r), 150)
                 .expect("responder policy"),
         );
-        let (signer_i, device_i) = enrolled(90, policy_r.family());
-        let (signer_r, device_r) = enrolled(94, policy_r.family());
+        let (signer_i, signer_r) = match signers {
+            Some((i, r)) => (Some(i), Some(r)),
+            None => (None, None),
+        };
+        let (signer_i, device_i) = enrolled(90, policy_r.family(), signer_i);
+        let (signer_r, device_r) = enrolled(94, policy_r.family(), signer_r);
         let reusable = runtime_r.generate_key().expect("reusable");
         let once = runtime_r.generate_key().expect("one time");
         let (public, one) = match public_keys {

@@ -91,8 +91,10 @@ recovery no longer needs the original prekeys. Its local encrypted inventory now
 restores those keys before initial authentication, publishes only committed public
 leaves, and atomically consumes one-time tokens with the response outbox. Pending
 references block key retirement. Both roles are exercised against a surviving
-actual peer, including process loss before the first authentication. Signing-owner
-persistence and cryptographic erasure remain open. This is not yet
+actual peer, including process loss before the first authentication. Account-root,
+device and policy [signing owners](SIGNING_OWNERS.md) can now be provisioned into
+encrypted immutable files before enrollment and restored for unfinished signing.
+Cryptographic erasure and the wider identity lifecycle remain open. This is not yet
 a ratchet, byte-identical anchor-intent replay
 or rollback protection; the complete 0.2.0 store contract remains required.
 

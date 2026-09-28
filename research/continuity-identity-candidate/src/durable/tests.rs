@@ -14,14 +14,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub(super) fn directory() -> tempfile::TempDir {
+pub(crate) fn directory() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("continuity-journal-")
         .permissions(fs::Permissions::from_mode(0o700))
         .tempdir()
         .expect("private directory")
 }
-pub(super) fn new_store(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
+pub(crate) fn new_store(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
     let key = JournalKey::provision(&dir.join("key")).expect("provision key");
     let store =
         DeviceJournal::provision(&dir.join("state.redb"), key, device).expect("provision store");
@@ -41,7 +41,7 @@ pub(super) fn identity(dir: &Path) -> JournalIdentity {
     )
     .expect("identity")
 }
-pub(super) fn reopen(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
+pub(crate) fn reopen(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
     DeviceJournal::open(
         &dir.join("state.redb"),
         JournalKey::open(&dir.join("key")).expect("load key"),
@@ -1053,7 +1053,7 @@ pub(super) fn after_response_effect(phase: u8, public_output: &[u8]) {
     }
 }
 
-pub(super) struct ChildGuard(pub(super) std::process::Child);
+pub(crate) struct ChildGuard(pub(crate) std::process::Child);
 impl Drop for ChildGuard {
     fn drop(&mut self) {
         match self.0.try_wait() {

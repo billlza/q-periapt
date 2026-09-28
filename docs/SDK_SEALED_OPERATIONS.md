@@ -85,8 +85,9 @@ coins and allowing the caller to choose the context afterward would permit reuse
 under different commands and is deliberately unsupported.
 
 The signing reservation is private to the candidate's authenticated journal, not
-a public SDK primitive. Immutable outer write/anchor intents, signing-owner
-persistence, cryptographic erasure and anti-rollback anchors remain required in
+a public SDK primitive. The candidate's separate protected signing-owner files
+restore matching owners for these reservations. Immutable outer write/anchor
+intents, durable identity lifecycle, cryptographic erasure and anti-rollback anchors remain required in
 the full 0.2.0 work.
 
 Tests compare exact recovered private keys and real peer decapsulation, exercise

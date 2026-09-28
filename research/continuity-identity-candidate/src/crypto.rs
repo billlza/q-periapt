@@ -12,6 +12,9 @@ use sha3::{Digest, Sha3_256};
 use std::fmt;
 use zeroize::Zeroize;
 
+mod persistence;
+pub use persistence::SigningKeyId;
+
 const CLASSIC_PUBLIC_BYTES: usize = 33;
 const CLASSIC_SIGNATURE_BYTES: usize = 64;
 /// Exact ML-DSA-65 public key followed by a compressed SEC1 P-256 public key.
@@ -150,20 +153,39 @@ struct Material {
     public: PublicKey,
 }
 
-impl Material {
+struct SigningSeed {
+    pq: ZeroizingBytes<32>,
+    classic: ZeroizingBytes<32>,
+}
+impl SigningSeed {
     fn generate() -> Result<Self, Error> {
         // Rejection sampling preserves the scalar distribution. A failed source
         // or exhausted bounded sampling attempt produces no signing owner.
         for _ in 0..8 {
             let mut classic_seed = ZeroizingBytes::<32>::zeroed();
             getrandom::fill(classic_seed.as_mut_bytes()).map_err(|_| Error::Entropy)?;
-            if let Ok(classic) = SigningKey::from_slice(classic_seed.as_bytes()) {
+            if SigningKey::from_slice(classic_seed.as_bytes()).is_ok() {
                 let mut pq_seed = ZeroizingBytes::<32>::zeroed();
                 getrandom::fill(pq_seed.as_mut_bytes()).map_err(|_| Error::Entropy)?;
-                return Self::from_seed(pq_seed, classic);
+                return Ok(Self {
+                    pq: pq_seed,
+                    classic: classic_seed,
+                });
             }
         }
         Err(Error::Provider)
+    }
+
+    fn materialize(&self) -> Result<Material, Error> {
+        let classic =
+            SigningKey::from_slice(self.classic.as_bytes()).map_err(|_| Error::Encoding)?;
+        Material::from_seed(ZeroizingBytes::from_bytes(*self.pq.as_bytes()), classic)
+    }
+}
+
+impl Material {
+    fn generate() -> Result<Self, Error> {
+        SigningSeed::generate()?.materialize()
     }
 
     fn from_seed(pq_seed: ZeroizingBytes<32>, classic: SigningKey) -> Result<Self, Error> {
@@ -314,11 +336,35 @@ impl SigningReservation {
 pub struct PolicySigningKey(Option<Material>);
 
 macro_rules! owner {
-    ($name:ident) => {
+    ($name:ident, $role:expr) => {
         impl $name {
             /// Generate fresh independent signing keys with platform randomness.
             pub fn generate() -> Result<Self, Error> {
                 Ok(Self(Some(Material::generate()?)))
+            }
+
+            /// Generate into a new encrypted private file and sync it before
+            /// returning an owner. Retain `identity` independently before calling.
+            /// Existing files are never replaced; keep the wrapping key separate.
+            pub fn provision(
+                path: &std::path::Path,
+                wrapping: &crate::JournalKey,
+                identity: SigningKeyId,
+            ) -> Result<Self, crate::DurableError> {
+                persistence::provision(path, wrapping, identity, $role)
+                    .map(|material| Self(Some(material)))
+            }
+
+            /// Authenticate an existing exact role/identity, reconstruct and check
+            /// both public components, and sync the file before returning an owner.
+            /// Missing or partial files never cause replacement key generation.
+            pub fn open(
+                path: &std::path::Path,
+                wrapping: &crate::JournalKey,
+                identity: SigningKeyId,
+            ) -> Result<Self, crate::DurableError> {
+                persistence::open(path, wrapping, identity, $role)
+                    .map(|material| Self(Some(material)))
             }
 
             /// Obtain only the public key pair of an open owner.
@@ -357,6 +403,6 @@ macro_rules! owner {
         }
     };
 }
-owner!(RootSigningKey);
-owner!(DeviceSigningKey);
-owner!(PolicySigningKey);
+owner!(RootSigningKey, 1);
+owner!(DeviceSigningKey, 2);
+owner!(PolicySigningKey, 3);
