@@ -15,6 +15,11 @@ without exporting the combined secret. Authentication, confirmation and a
 long-lived session protocol still belong to the integrating protocol.
 
 Professional plaintext key transfer is isolated in [`expert`](../../docs/SDK_KEY_TRANSFER.md).
+The optional `sealed-operations` feature adds
+[exact KEM operation recovery](../../docs/SDK_SEALED_OPERATIONS.md). Platform-generated
+coins are sealed to the policy, operation ID and complete inputs; a trusted durable
+service can replay the same operation after a crash. It is not a journal or permission
+to reuse ephemeral material for another connection. Default generation remains fresh.
 [`prepare_policy_update`](../../docs/SDK_POLICY_UPDATES.md) verifies a future policy;
 the host atomically persists its state pair before activating it. Activation
 revokes old owners and returns an independent, possibly disabled runtime.

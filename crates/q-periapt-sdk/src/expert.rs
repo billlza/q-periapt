@@ -2,8 +2,13 @@
 //! Explicit protocol integration with owned ContextBound keys.
 //! Role-typed component borrowing does not export private bytes. Expanded-key
 //! transfer is a separate, explicit plaintext operation.
-//! No encryption, storage authentication, entropy certification or permission to
-//! reuse ephemeral keys is implied. Imports bind to a separately verified runtime.
+//! Plaintext transfer supplies no storage authentication or permission to reuse
+//! ephemeral keys. The optional `replay` module separately seals exact operation
+//! reservations. Imports bind to a separately verified runtime.
+
+/// Authenticated recovery of exact KEM operations, for a trusted durable protocol.
+#[cfg(feature = "sealed-operations")]
+pub mod replay;
 
 use crate::{
     check_context, reserve, Ciphertext, Error, HybridKey, KeyLease, KeyMaterial, PublicKey,

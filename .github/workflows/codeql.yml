@@ -75,10 +75,10 @@ jobs:
           test ! -e target && test ! -L target
           RUSTFLAGS='-D warnings' \
             CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.94.0" \
-            cargo +1.94.0 check --workspace --all-targets --locked
+            cargo +1.94.0 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           RUSTFLAGS='-D warnings' \
             CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.96.1" \
-            cargo +1.96.1 check --workspace --all-targets --locked
+            cargo +1.96.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           test ! -e target && test ! -L target
 
       - name: Verify Rust CodeQL checkout before initialization

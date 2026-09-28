@@ -50,6 +50,219 @@ fn signed_update(version: u32, seed: u8, suffix: &str) -> (Vec<u8>, Vec<u8>) {
     (policy.into_bytes(), signature)
 }
 
+#[cfg(feature = "sealed-operations")]
+#[test]
+fn sealed_key_recovery_replays_after_owner_recreation_without_skipping_quota() {
+    use expert::replay::{RecoveryKey, SealedOperation};
+    let limits = Limits {
+        max_live_keys: 1,
+        max_in_flight: 1,
+    };
+    let owner = runtime(limits);
+    let recovery = RecoveryKey::from_host_key(&[47; 32]).expect("host key");
+    let id = [51; 32];
+    let sealed = recovery.reserve_key(&owner, &id).expect("reservation");
+    let key = recovery
+        .generate_key(&owner, &id, &sealed)
+        .expect("first computation");
+    let export = expert::export_expanded(&key).expect("private comparison");
+    let public = key.public_key().expect("public").to_bytes();
+    assert!(matches!(
+        recovery.generate_key(&owner, &id, &sealed),
+        Err(Error::ResourceLimit)
+    ));
+    drop(key);
+    drop(owner);
+    drop(recovery);
+    let restored = runtime(limits);
+    let recovery = RecoveryKey::from_host_key(&[47; 32]).expect("restored key");
+    let sealed = SealedOperation::from_bytes(sealed.as_bytes()).expect("retained ciphertext");
+    let key = recovery
+        .generate_key(&restored, &id, &sealed)
+        .expect("identical computation");
+    assert_eq!(key.public_key().expect("public").to_bytes(), public);
+    assert_eq!(
+        expert::export_expanded(&key)
+            .expect("restored private")
+            .as_bytes(),
+        export.as_bytes()
+    );
+    let enc = restored
+        .encapsulate(key.public_key().expect("public"), b"recovered")
+        .expect("encap");
+    let dec = key
+        .decapsulate(&enc.ciphertext, b"recovered")
+        .expect("decap");
+    assert_eq!(bytes(&enc.secret).as_bytes(), bytes(&dec).as_bytes());
+}
+
+#[cfg(feature = "sealed-operations")]
+#[test]
+fn sealed_encapsulation_binds_every_input_and_preserves_exact_contextbound_result() {
+    use expert::replay::{RecoveryKey, SealedOperation};
+    let owner = runtime(Limits::default());
+    let recovery = RecoveryKey::from_host_key(&[47; 32]).expect("host key");
+    let key = owner.generate_key().expect("peer");
+    let other = owner.generate_key().expect("other peer");
+    let peer = key.public_key().expect("public");
+    let id = [52; 32];
+    let sealed = recovery
+        .reserve_encapsulation(&owner, &id, peer, b"bound context")
+        .expect("reservation");
+    let first = recovery
+        .encapsulate(&owner, &id, peer, b"bound context", &sealed)
+        .expect("first");
+    let reopened = SealedOperation::from_bytes(sealed.as_bytes()).expect("reopen");
+    let second = recovery
+        .encapsulate(&owner, &id, peer, b"bound context", &reopened)
+        .expect("second");
+    assert_eq!(first.ciphertext.to_bytes(), second.ciphertext.to_bytes());
+    assert_eq!(
+        bytes(&first.secret).as_bytes(),
+        bytes(&second.secret).as_bytes()
+    );
+    let decoded = key
+        .decapsulate(&first.ciphertext, b"bound context")
+        .expect("actual peer");
+    assert_eq!(bytes(&first.secret).as_bytes(), bytes(&decoded).as_bytes());
+    for (scope, public, context) in [
+        ([53; 32], peer, b"bound context".as_slice()),
+        (
+            id,
+            other.public_key().expect("other"),
+            b"bound context".as_slice(),
+        ),
+        (id, peer, b"bound context\0".as_slice()),
+    ] {
+        assert!(matches!(
+            recovery.encapsulate(&owner, &scope, public, context, &sealed),
+            Err(Error::InvalidPrivateKey)
+        ));
+    }
+    assert!(matches!(
+        recovery.generate_key(&owner, &id, &sealed),
+        Err(Error::InvalidPrivateKey)
+    ));
+    let key_token = recovery.reserve_key(&owner, &id).expect("other kind");
+    assert!(matches!(
+        recovery.encapsulate(&owner, &id, peer, b"bound context", &key_token),
+        Err(Error::InvalidPrivateKey)
+    ));
+    let independent = recovery
+        .reserve_encapsulation(&owner, &[54; 32], peer, b"bound context")
+        .expect("fresh operation");
+    let fresh = recovery
+        .encapsulate(&owner, &[54; 32], peer, b"bound context", &independent)
+        .expect("fresh result");
+    assert_ne!(first.ciphertext.to_bytes(), fresh.ciphertext.to_bytes());
+}
+
+#[cfg(feature = "sealed-operations")]
+#[test]
+fn sealed_operations_authenticate_all_bytes_and_reject_truncation_and_wrong_key() {
+    use expert::replay::{RecoveryKey, SealedOperation};
+    let owner = runtime(Limits::default());
+    let recovery = RecoveryKey::from_host_key(&[47; 32]).expect("host key");
+    let wrong = RecoveryKey::from_host_key(&[48; 32]).expect("other host key");
+    let id = [55; 32];
+    let sealed = recovery.reserve_key(&owner, &id).expect("reservation");
+    assert_eq!(sealed.as_bytes().len(), 277);
+    assert!(matches!(
+        wrong.generate_key(&owner, &id, &sealed),
+        Err(Error::InvalidPrivateKey)
+    ));
+    assert!(matches!(
+        recovery.generate_key(&owner, &[56; 32], &sealed),
+        Err(Error::InvalidPrivateKey)
+    ));
+    for offset in 0..sealed.as_bytes().len() {
+        let mut changed = sealed.as_bytes().to_vec();
+        *changed.get_mut(offset).expect("existing byte") ^= 1;
+        if let Ok(token) = SealedOperation::from_bytes(&changed) {
+            assert!(
+                matches!(
+                    recovery.generate_key(&owner, &id, &token),
+                    Err(Error::InvalidPrivateKey)
+                ),
+                "offset {offset}"
+            );
+        }
+        assert!(
+            SealedOperation::from_bytes(sealed.as_bytes().get(..offset).expect("prefix")).is_err()
+        );
+    }
+    let mut extended = sealed.as_bytes().to_vec();
+    extended.push(0);
+    assert!(matches!(
+        SealedOperation::from_bytes(&extended),
+        Err(Error::InvalidLength)
+    ));
+    // Refusals must not consume a live-key slot or corrupt the valid reservation.
+    assert!(recovery.generate_key(&owner, &id, &sealed).is_ok());
+}
+
+#[cfg(feature = "sealed-operations")]
+#[test]
+fn sealed_operations_recheck_policy_revocation_and_owner_lifecycle() {
+    use expert::replay::RecoveryKey;
+    let owner = runtime(Limits::default());
+    let mut recovery = RecoveryKey::from_host_key(&[47; 32]).expect("host key");
+    let id = [57; 32];
+    let sealed = recovery.reserve_key(&owner, &id).expect("reservation");
+    let (updated, signature) = signed_update(3, 42, "");
+    let update = owner
+        .prepare_policy_update(&updated, &signature)
+        .expect("verified policy");
+    let newer = update
+        .activate_after_persist()
+        .expect("host persisted state");
+    assert!(matches!(
+        recovery.generate_key(&owner, &id, &sealed),
+        Err(Error::Closed)
+    ));
+    assert!(matches!(
+        recovery.generate_key(&newer, &id, &sealed),
+        Err(Error::InvalidPrivateKey)
+    ));
+    let (revoked, signature) = signed_update(4, 42, "");
+    let revoked = String::from_utf8(revoked)
+        .expect("policy")
+        .replace("ML-KEM-768", "ML-KEM-1024");
+    let (sk, _) = MlDsa65::generate([42; 32]);
+    let mut signature = signature;
+    MlDsa65
+        .sign(
+            &sk,
+            &policy_signature_message(revoked.as_bytes()),
+            &[0; 32],
+            &mut signature,
+        )
+        .expect("revocation signature");
+    let disabled = newer
+        .prepare_policy_update(revoked.as_bytes(), &signature)
+        .expect("revocation")
+        .activate_after_persist()
+        .expect("persisted");
+    assert!(matches!(
+        recovery.reserve_key(&disabled, &id),
+        Err(Error::PolicyDenied)
+    ));
+    let fresh_owner = runtime(Limits::default());
+    assert!(matches!(
+        recovery.reserve_key(&fresh_owner, &[0; 32]),
+        Err(Error::InvalidLength)
+    ));
+    recovery.close();
+    assert!(matches!(
+        recovery.reserve_key(&fresh_owner, &id),
+        Err(Error::Closed)
+    ));
+    assert!(matches!(
+        recovery.generate_key(&fresh_owner, &id, &sealed),
+        Err(Error::Closed)
+    ));
+}
+
 #[test]
 fn expert_transfer_checks_format_pairing_and_preserves_contextbound_roundtrips() {
     let owner = runtime(Limits {

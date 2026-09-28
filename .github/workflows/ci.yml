@@ -1645,6 +1645,13 @@ jobs:
           cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --locked -- -D warnings
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --locked
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --locked --release
+      - name: Verify sealed SDK operations with the selected compiler
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          cargo +"$CANDIDATE_TOOLCHAIN" clippy --locked -p q-periapt-sdk --features sealed-operations --all-targets -- -D warnings
+          cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations
+          cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations
       - name: Check canonical formatting and documentation
         if: matrix.toolchain == '1.96.1'
         env:

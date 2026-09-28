@@ -13,8 +13,10 @@ the existing public-commitment model into a working cryptographic protocol.
 ## Current implementation boundary
 
 - `q-periapt-sdk` owns verified policy runtimes and coupled KEM keys, with explicit
-  purpose derivation, policy transitions and bounded lifetimes. It has no message
-  ratchet or session-secret persistence.
+  purpose derivation, policy transitions and bounded lifetimes. Its optional
+  [sealed operation interface](../SDK_SEALED_OPERATIONS.md) reserves platform KEM
+  randomness for exact policy/input-bound recovery. It has no message ratchet or
+  session-secret persistence; the Continuity journal still needs staged integration.
 - `q-periapt-rustls::connection` supplies the authenticated reference connection,
   policy confirmation, bounded request/response transport and revocation. A TLS
   connection or symmetric TLS key update does not establish continuous PQ recovery.
