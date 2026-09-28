@@ -1,0 +1,55 @@
+name: Android platform reproduction
+
+on:
+  push:
+    paths:
+      - .github/workflows/android-platform-probe.yml
+      - research/android-platform-probe/**
+
+permissions:
+  contents: read
+
+jobs:
+  file-integrity-query:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        trial: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: proof_python
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          packages: platform-tools emulator system-images;android-35;google_apis_ps16k;x86_64
+      - name: Prepare this runner's KVM access
+        run: |
+          test -c /dev/kvm && test ! -L /dev/kvm
+          getfacl -p /dev/kvm
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Query the platform without installing the SDK
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh research/android-platform-probe/run.py
+      - name: Retain bounded reproduction evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android-platform-reproduction-${{ matrix.trial }}
+          path: |
+            target/android-platform-probe/observation.json
+            target/android-platform-probe/commands.log
+          if-no-files-found: error
