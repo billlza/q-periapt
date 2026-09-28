@@ -1305,7 +1305,7 @@ publication_state_root=$publication_state_parent/crates.io-v0.1.5
 # First installation only: require that the fixed executable does not exist.
 # For an existing executable, follow Registry tooling recovery above.
 # Materialize the release-pinned exact-byte uploader from the reviewed template
-# and the rust package handoff, then install it as this fixed 0700 child. The
+# and the rust package handoff for review before installation. The
 # generator derives each crate's registry metadata from the packaged .crate
 # (crates_io_registry_metadata, proven byte-identical to cargo's output), binds
 # every crate to the handoff by size and sha256, and embeds the compressed cohort
@@ -1319,9 +1319,20 @@ test ! -e "$uploader_command" && test ! -L "$uploader_command"
 cargo_version_that_packaged_the_crates=$(python3 -I -S -c \
   'import json; print(json.load(open("artifact/results.json"))["rust_publish"]["cargo_version"])')
 sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
-  "$rust_handoff_manifest" "$uploader_command" \
+  "$rust_handoff_manifest" --input-sha256 "$rust_handoff_sha256" \
   --crate-dir "$(dirname "$rust_handoff_manifest")" \
   --cargo-version "$cargo_version_that_packaged_the_crates"
+```
+
+The current builder prepares the candidate at
+`target/qperiapt-crates-io-uploaders/abi2-legacy/<handoff-SHA256>/qperiapt-crates-io-uploader`.
+It leaves the publication state untouched and refuses to replace an existing
+candidate. Its optional output argument only confirms this derived path.
+Review the materialized bytes and install the approved candidate at the fixed
+`$uploader_command` path using the lock and preservation procedure above. Only
+then continue with the publication command:
+
+```sh
 test -f "$uploader_command" && test ! -L "$uploader_command"
 
 # Only an authorized operator on the isolated publication host may run this.

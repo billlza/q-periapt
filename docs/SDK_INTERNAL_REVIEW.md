@@ -149,6 +149,24 @@ installed consumers, C contract metadata and the native CBOM profile. Its
 source/package qualification and release procedure remain required; the frozen
 0.1.5 publisher order cannot publish the twelve-crate cohort.
 
+The SDK now has a separate coordinator and receipt schema for this order.
+It shares the existing persistent lock, intent/outcome journal, exact API+sparse
+observations and explicit unknown-outcome retry mechanism. Inspection covers
+source/report/archive resampling after lock acquisition, complete source-input
+maps, exact internal dependency pins and rejection of mixed release receipts.
+Source `57334d4` passes 2,311 complete artifact tests and its real hosted package
+consumer and coordinator dry-run. No registry upload is part of that check.
+
+The uploader's directory transition has a retained real-filesystem counterexample:
+replacing the selected parent previously redirected the output. The repair pins
+the private directory descriptor, uses the shared no-replace writer and checks
+bytes plus inode before enabling execution. At `a07789f`, CLI output authority
+comes from a closed profile and the selected report digest. Its 214 affected
+tests pass, the real twelve-crate hosted uploader is materialized, and the
+Python scan removes the eleven preceding path warnings without new alerts.
+The remaining 41 IDs/rules and thirteen location-file blobs match `10de0c7`;
+these existing dispositions retain their prior scope.
+
 ## Validation and remaining review
 
 The clean source passes 2,268 artifact tests in 453.901 seconds without skips,

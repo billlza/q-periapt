@@ -64,9 +64,52 @@ are retained runtime failures; the version transition does not close them.
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
 | Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and internal review remain required |
-| Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | Not ready; no publication authorized by readiness alone |
+| Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+Source `57334d4` passes all 37
+[CI jobs](https://github.com/billlza/q-periapt/actions/runs/36372546368).
+Its Rust package job builds and consumes the real twelve-crate 0.2.0 cohort,
+materializes the uploader and runs the coordinator's dry-run against the exact
+producer commit and report digest. The received plan contains twelve packages
+in dependency order, no upload attempts and no publication receipts. Locally,
+the clean standalone source passes 2,311 artifact tests in 454.188 seconds,
+without skips, with warnings treated as errors and pre/post source gates.
+
+The subsequent uploader directory repair at `9dabb51` rejects a reproduced
+parent-directory replacement instead of writing into the replacement. It pins
+the private directory descriptor, preserves existing outputs, and checks the
+new file's bytes and inode before enabling execution. Source `a07789f` then
+derives CLI candidates from the report digest under a fixed profile directory;
+the optional output argument only confirms that derived path. Its 214 affected
+standalone tests and source gate pass. The
+[current CI](https://github.com/billlza/q-periapt/actions/runs/36375293114) and
+[CodeQL run](https://github.com/billlza/q-periapt/actions/runs/36375293123)
+keep their own completion records. The completed Python analysis removes all
+eleven path warnings activated by the preceding directory repair and adds none.
+The remaining 41 alert IDs/rules match the earlier set; all thirteen reported
+location files have the same Git blobs as `10de0c7`. No alert is dismissed or
+suppressed. The current Rust package artifact binds report digest
+`6d25c8f7bc34ae562720b747bd80e01b50e38699b51bdced5b0e9bbf657274ea`
+to merge commit `d7d2aa1`, whose tree matches `a07789f`, and includes a passing
+twelve-crate publication dry-run with no upload attempts.
+
+The full-framework Android boot repair at `10de0c7` passes all 37
+[primary CI jobs](https://github.com/billlza/q-periapt/actions/runs/36369866105)
+and a separate same-source repeat of AAR plus both runtime jobs. Full/minimal
+workloads, cleanup and export replay pass on API 23 / 4 KiB and API 35 / 16 KiB.
+The received API 23 baselines show encrypted ext4 `/data` and
+`vold.decrypt=trigger_restart_framework` for both consumers. The earlier
+temporary-framework failure remains retained with its original source scope.
+
+In the later `9dabb51` API 35 run, both SDK workloads return passing results,
+but the minimal consumer loses its ADB transport while rechecking the installed
+APK before cleanup. Both failed observations report `device offline` after
+copying; one bounded reconnect restores the transport only temporarily.
+Uninstall never begins, absence is not confirmed, and the job correctly fails.
+The retained logs locate the failure but do not establish why the transport
+dropped. This failure remains separate from the passing source-bound runs.
 
 The Android SDK lane now selects one of two closed runtime profiles:
 `api35-16k` retains the existing API 35 / 16 KiB target, and `api23-4k` adds the
@@ -75,7 +118,8 @@ existing full/minimal R8 workloads, installation checks, owned cleanup and
 independent export replay. Verification requires a caller-selected runtime
 profile; an API 23 result cannot satisfy API 35 acceptance. Crash cleanup uses
 the admitted AVD identity stored in its receipt. The legacy default remains
-API 35 / 16 KiB. The new minimum runtime still needs successful hosted execution.
+API 35 / 16 KiB. The `10de0c7` checkpoint above supplies successful hosted
+execution for both profiles; physical-device qualification remains separate.
 
 At `47e7fcc`, all 2,274 local artifact tests pass without skips in 478.096
 seconds, with warnings treated as errors and pre/post source gates. Hosted

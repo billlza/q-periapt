@@ -43,8 +43,7 @@ tip is not. `main`'s trusted results therefore record no `0.1.4` publication and
 carry `apple_v0_1_3` as the active Apple selector; this is a statement about where the
 evidence lives, not about whether `0.1.4` shipped.
 Verified stable publication is not a production-readiness claim; registry publication,
-physical-device coverage, and
-independent audit remain open (see
+physical-device coverage, and source-bound runtime qualification remain open (see
 [`../artifact/stable-release-notes.md`](../artifact/stable-release-notes.md)).
 Any recorded receipt for a portable-derived artifact remains immutable history only;
 the current target-selected source requires a fresh target-specific transaction before
@@ -88,11 +87,12 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
 - **We track standards; we do not set them.** The identical MLKEM768-X25519
   construction is now in CFRG `draft-irtf-cfrg-concrete-hybrid-kems-04`, which is
   still an Internet-Draft, not an RFC.
-- **No completed third-party audit.** This is **research-grade, not
-  production**: the target-selected `q-periapt-mlkem-native-sys` integration over
-  `mlkem-native` v1.2.0, pinned `fips204` 0.4.6, `sha3` 0.10.9,
-  x25519-dalek, and optional fips205 integrations have not been independently
-  audited as this suite or ABI. **Do not deploy.**
+- **Qualification is source-specific.** The target-selected
+  `q-periapt-mlkem-native-sys` integration over `mlkem-native` v1.2.0, pinned
+  `fips204` 0.4.6, `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations
+  require evidence for their selected versions, configuration and platform.
+  Component validation alone does not qualify every embedding. The SDK
+  candidate remains subject to the current release-readiness gates above.
 
 **Where the genuine, defensible value is** — none of it is speed:
 
@@ -463,7 +463,9 @@ are the gap between research-grade and audited/production.
    CI runs, and additional targets (signature paths, policy/TOML parsing) are
    pending.
 
-4. **Independent third-party audit.** None has been performed.
+4. **Current-source security qualification.** Bind cryptographic-boundary review,
+   KAT/differential checks, binary CT, formal results and runtime validation to
+   the selected release source and preserve the scope of each result.
 
 5. **Embedding and package distribution.** `artifact/embedding-readiness.sh` now gives
    downstream consumers one fail-closed gate over the current Rust/C/Swift/Android/Kotlin/WASM faces:
