@@ -87,10 +87,13 @@ seals key-generation, encapsulation and signing commands before execution and
 recovers identical public outputs after pre-pin crashes. It also restores reply
 state and pins replies before processing. The responder persists its admitted
 initial contribution and exact KEM/signing reservations; after that boundary,
-recovery no longer needs the original prekeys. Before it, the selected prekeys
-must be recovered. Both roles are exercised against a surviving actual peer.
-This is not yet
-prekey-secret persistence, a ratchet, byte-identical anchor-intent replay
+recovery no longer needs the original prekeys. Its local encrypted inventory now
+restores those keys before initial authentication, publishes only committed public
+leaves, and atomically consumes one-time tokens with the response outbox. Pending
+references block key retirement. Both roles are exercised against a surviving
+actual peer, including process loss before the first authentication. Signing-owner
+persistence and cryptographic erasure remain open. This is not yet
+a ratchet, byte-identical anchor-intent replay
 or rollback protection; the complete 0.2.0 store contract remains required.
 
 ## Exact candidate encoding

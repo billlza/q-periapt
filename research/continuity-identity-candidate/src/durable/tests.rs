@@ -1010,8 +1010,11 @@ pub(super) fn after_commit(image: &Image) {
     let Ok(target) = std::env::var("QPERIAPT_JOURNAL_CRASH_PHASE") else {
         return;
     };
-    let record = image.records.values().next().expect("child record");
-    if target != (record.phase as u8).to_string() {
+    if !image
+        .records
+        .values()
+        .any(|record| target == (record.phase as u8).to_string())
+    {
         return;
     }
     let directory = std::env::var_os("QPERIAPT_JOURNAL_CRASH_DIR").expect("child directory");

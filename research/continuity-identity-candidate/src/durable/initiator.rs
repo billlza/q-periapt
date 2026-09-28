@@ -168,7 +168,7 @@ impl DeviceJournal {
             if !is_plan(record.phase) {
                 return self.release_initial(&mut image, id, context, now);
             }
-        } else if image.records.len() >= MAX_RECORDS {
+        } else if image.operation_count() >= MAX_RECORDS {
             return Err(DurableError::Capacity);
         }
         InitiationPlan::check_signer(&context, signer)?;
@@ -204,6 +204,7 @@ impl DeviceJournal {
                     context: context.digest(),
                     phase: DurableStatus::InitialKeyReserved,
                     keys: Vec::new(),
+                    prekeys: Vec::new(),
                     payload: pack(request, &plan.encode()),
                 },
             );

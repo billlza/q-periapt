@@ -130,6 +130,15 @@ impl BootstrapContext {
     pub(crate) fn initiator_storage_owner(&self) -> [u8; 32] {
         storage_owner(&self.initiator)
     }
+    pub(crate) fn inventory_inputs(
+        &self,
+    ) -> (
+        &VerifiedSessionPolicy,
+        &VerifiedDevice,
+        &AuthenticatedPrekeySelection,
+    ) {
+        (&self.policy, &self.responder, &self.selection)
+    }
 
     pub(crate) fn one_time_fingerprints(&self) -> Vec<[u8; 32]> {
         use crate::PrekeyQuality;

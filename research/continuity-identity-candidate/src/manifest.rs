@@ -26,7 +26,7 @@ pub enum LeafKind {
     OneTimePq = 4,
 }
 impl LeafKind {
-    fn decode(value: u8) -> Result<Self, Error> {
+    pub(crate) fn decode(value: u8) -> Result<Self, Error> {
         match value {
             1 => Ok(Self::SignedClassical),
             2 => Ok(Self::OneTimeClassical),
@@ -41,7 +41,7 @@ impl LeafKind {
             Self::LastResortPq | Self::OneTimePq => 2,
         }
     }
-    fn key_bytes(self) -> usize {
+    pub(crate) fn key_bytes(self) -> usize {
         match self {
             Self::SignedClassical | Self::OneTimeClassical => 32,
             Self::LastResortPq | Self::OneTimePq => ML_KEM_768_PK_LEN,
@@ -58,6 +58,18 @@ pub struct PrekeyLeaf {
     validity: Validity,
 }
 impl PrekeyLeaf {
+    /// Fixed advertised primitive/use role; this is not a consumption receipt.
+    pub fn kind(&self) -> LeafKind {
+        self.kind
+    }
+    /// Public bytes for manifest publication, never secret key material.
+    pub fn public_key(&self) -> &[u8] {
+        &self.public
+    }
+    /// The key's permitted publication/use window.
+    pub fn validity(&self) -> Validity {
+        self.validity
+    }
     /// Check shape and a finite interval before admitting public bytes to a manifest.
     pub fn new(kind: LeafKind, public: &[u8], validity: Validity) -> Result<Self, Error> {
         if public.len() != kind.key_bytes() || public.iter().all(|byte| *byte == 0) {

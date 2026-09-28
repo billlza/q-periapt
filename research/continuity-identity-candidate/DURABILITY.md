@@ -31,27 +31,31 @@ unclean redb file lacking the two-phase recovery flag. Its file limit is 64 MiB 
 cache is 2 MiB. The policy store uses this same backend and retains its policy and
 commit-uncertainty behavior.
 
-The same journal now supports both local roles. Kind 1 is responder and kind 2
-is initiator; initiator records cannot claim remote prekey consumption. This
-unreleased local v4 schema rejects v1/v2/v3 tables/headers without implicit migration or
+The same journal supports both local roles and its local prekey inventory. Kind 1
+is responder, kind 2 initiator and kind 3 prekey; initiator records cannot claim
+remote prekey consumption. This unreleased local v5 schema rejects v1–v4 tables/headers without implicit migration or
 reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v4`, and one `image` row are
+Exactly one table, `continuity_device_candidate_v5`, and one `image` row are
 accepted. The image is:
 
-`QPVLT004[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT005[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG04[8] || count:u16 || records`
+`QPVIMG05[8] || count:u16 || records`
 
 Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
-fingerprints[key_count*32] || payload_length:u32 || payload`.
-There are at most 128 records, two one-time claims per record and 2 MiB of plaintext.
+fingerprints[key_count*32] || reference_count:u8 || prekeys[reference_count*32] ||
+payload_length:u32 || payload`.
+There are at most 128 session-operation records, 1024 prekey records, two one-time
+claims per responder record and 2 MiB of total plaintext. The byte limit applies
+even before either count limit is reached. Inventory-backed responders reference
+exactly two prekey record IDs, PQ first then classical; other records have none.
 Records and fingerprint lists are strictly sorted; duplicate claims fail. No
 automatic eviction or counter wrap can reactivate an old one-time key.
 
@@ -75,6 +79,57 @@ Encrypted extent, stable store/owner headers and revision remain visible; there 
 no padding/unlinkability claim. Zeroizing buffers do not erase encrypted old pages,
 backups or all compiler/provider temporary copies.
 
+## Local prekey inventory
+
+`PrekeyId` is an independently retained nonzero public provisioning-request ID.
+`generate_prekey` binds that ID to the local device owner, complete 68-byte SDK
+policy, leaf role and validity. It validates the policy/device/roster interval,
+commits `PrekeyReserved` (15) with a sealed SDK key-generation command, generates
+the actual key internally, and commits `PrekeyAvailable` (16) before returning
+the public `PrekeyLeaf`. Resuming the same ID cannot change its role, policy or
+validity. Each entry uses a complete SDK hybrid key but exposes only its selected
+component. Neither private bytes nor the recovery token cross this public API.
+Known public fingerprints must be distinct across inventory roles and states.
+
+Inventory operation IDs use `D("Q-PERIAPT-CONTINUITY-PREKEY-INVENTORY-ID/v1", request)`.
+Here `D` is the same length-prefixed digest function used for the journal operation
+ID above, with the complete literal domain supplied. The entry intent uses domain
+`Q-PERIAPT-CONTINUITY-PREKEY-INVENTORY-INTENT/v1` over `sdk[68] || kind:u8 || validity[16]`.
+The SDK generation operation uses domain
+`Q-PERIAPT-CONTINUITY-PREKEY-INVENTORY-GENERATION/v1` over
+`journal_id[32] || owner[32] || inventory_id[32] || intent[32]`.
+
+The payload is `QPPKEY01[8] || request[32] || sdk[68] || kind:u8 || validity[16] ||
+public[32 or 1184] || data`. Reserved entries have a fixed-width all-zero
+unpublished public placeholder, so publishing the real key needs no extra space.
+Reserved/available `data` is the exact 277-byte SDK token. Consumed entries
+replace it with the consuming responder operation ID[32]; retired entries remove
+it. Available/consumed public bytes must form a valid leaf. A retired reserved
+entry can retain its zero placeholder. IDs and public fingerprints are not evicted.
+
+`respond_from_inventory` resolves the authenticated selection against available
+entries with matching policy, role, fingerprint and validity. It commits the
+response reservation and both inventory references before restoring the keys.
+Restoration verifies each token's full scope and reconstructed public component.
+An invalid/substituted token closes the journal without selecting new randomness.
+This allows `Executing` recovery after process loss without an external prekey
+owner. Subsequent stages share the same responder state machine as `respond`.
+
+The response outbox transaction also changes selected one-time entries to
+`PrekeyConsumed` (17), replacing their logical tokens with the consuming ID.
+Reusable entries remain available. Image admission checks both directions of the
+reference/consumption relationship; an outbox cannot coexist with an unconsumed
+one-time reference. `retire_prekey` removes an available/reserved entry's logical
+token and commits `PrekeyRetired` (18). A pending response reference blocks
+retirement, including for reusable keys. Consumed entries keep their tombstone.
+Reusing a retired or consumed request never generates a replacement key.
+
+`prekey_status` reconciles an exact request after policy close/expiry; `prekey_leaf`
+only returns currently usable available public keys. Unknown generation or
+retirement commits require reopening/querying the retained request, just like
+response commits. Logical consumption/retirement does not erase old encrypted
+pages or backups and does not supply rollback detection.
+
 ## Responder transitions
 
 `respond` performs bounded public signature/scope admission, then:
@@ -91,7 +146,8 @@ backups or all compiler/provider temporary copies.
 6. Commit `AwaitingFinal`, consuming the claims together with the immutable outbox.
 7. Recheck policy/lifetime before returning response bytes.
 
-`respond` resumes an `Executing` record with the original selected prekeys.
+`respond` resumes an `Executing` record with the original selected prekeys;
+`respond_from_inventory` restores those owners from its committed local inventory.
 `resume_response` resumes a contribution or signing plan using only the original
 device signer. That signer may be a separately restored matching owner; this journal
 does not persist signing private keys. Signer-free `resume` can replay a pinned result
@@ -132,7 +188,7 @@ authenticated input:
 | Phase | Recovery |
 | --- | --- |
 | Absent | Reservation did not survive; no crypto crossed its acknowledgement barrier |
-| Executing | Repeat initial authentication only with the exact selected prekeys |
+| Executing | Repeat initial authentication with the exact selected prekeys, restored internally for an inventory-backed operation |
 | ResponseKemReserved | Resume the sealed contribution and signing with the original signer; prekeys are no longer needed |
 | ResponseSignatureReserved | Recompute/check the same body and sign with the saved randomness |
 | Prepared | Commit the pinned result without rerunning crypto |
@@ -215,7 +271,7 @@ private-key import or fresh KEM randomness. `FinalCommitted` is distinct from th
 responder's `Complete`: local outbox commit does not prove remote final receipt.
 Phases are 1=Executing, 2=Prepared, 3=AwaitingFinal, 4=Complete, 5=Rejected,
 6=AwaitingReply, 7=FinalCommitted, 8=FinalPrepared, 9=ProcessingReply, with the three
-initial computation plans at 10–12 and responder plans at 13–14. Absent=0
+initial computation plans at 10–12, responder plans at 13–14 and prekey states at 15–18. Absent=0
 remains query-only. The responder uses exact initial bytes for reconciliation;
 the initiator uses its retained request ID and context.
 
@@ -243,16 +299,23 @@ Eight responder process cuts cover six committed boundaries and the two
 post-computation/pre-result-pin windows. An independent initiator stays alive and
 verifies response/final MACs after recovery. The original prekeys die with the child;
 saved contributions recover without them. Pinned results replay after the signing
-owner closes too. Executing without its prekeys remains explicitly suspended. This
+owner closes too. The external-owner API remains suspended when `Executing` lacks its prekeys. This
 stronger live-peer harness replaces the earlier four-cut self-contained harness and
 retains its owner-loss/no-early-output assertions. Production builds contain no
 test-only parking or public-output capture hooks.
 
-Both roles now replay reserved cryptographic commands as described above. The
-first responder authentication still requires the selected prekeys until S0 is
-durable. Recovering those owners before this boundary remains a **prekey secret
-inventory** obligation; a completed bootstrap is not a full session lifecycle.
-Prekey secret inventory/erasure, signing-owner persistence, cancellation,
+Inventory tests cover all four selections, eight generation sync faults, twenty
+response sync faults and four retirement sync faults. Three generation process
+cuts cover the reservation, computed-key/pre-publication window and available
+commit; three response process cuts cover initial authentication admission, pinned
+result and committed outbox. The original prekeys exist only in the killed child;
+a surviving actual initiator verifies recovery, including from `Executing`.
+Token corruption/substitution fails closed, and authenticated images with
+inconsistent consumption/outbox state are rejected.
+
+Both roles now replay reserved cryptographic commands, and local inventory
+restores the selected prekeys before first responder authentication. A completed
+bootstrap is not a full session lifecycle. Cryptographic erasure, signing-owner persistence, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
 multi-device transactions remain implementation work. Logical replay retains the
 exact cryptographic result, but reseals an outer aggregate on a retried storage

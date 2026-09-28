@@ -75,15 +75,19 @@ the same public outputs when killed after computation but before result pin, and
 an independent live responder verifies the recovered handshake. The responder now
 seals its authenticated first contribution, exact encapsulation command and signing
 reservation too. A surviving initiator confirms recovery after responder crashes.
-Before the contribution commits, `Executing` still needs the original selected
-prekeys for deterministic initial authentication; their inventory is separate work.
+Before the contribution commits, `Executing` needs the original selected prekeys
+for deterministic initial authentication. The candidate's encrypted local inventory
+now restores them from committed key-generation tokens and verifies their public
+components. It consumes selected one-time tokens in the response-outbox transaction;
+pending references prevent retirement. Inventory APIs expose only public leaves.
 Each stage durably pins its complete intent before execution. Reserving generic
 coins and allowing the caller to choose the context afterward would permit reuse
 under different commands and is deliberately unsupported.
 
 The signing reservation is private to the candidate's authenticated journal, not
-a public SDK primitive. Immutable outer write/anchor intents, prekey/signing-secret
-inventory and anti-rollback anchors remain required in the full 0.2.0 work.
+a public SDK primitive. Immutable outer write/anchor intents, signing-owner
+persistence, cryptographic erasure and anti-rollback anchors remain required in
+the full 0.2.0 work.
 
 Tests compare exact recovered private keys and real peer decapsulation, exercise
 all-byte corruption and length rejection, input/policy/kind substitution, runtime

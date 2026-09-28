@@ -88,7 +88,7 @@ impl DeviceJournal {
         ResponsePlan::check_signer(&context, signer)?;
         ResponsePlan::check_prekeys(&context, pq, classical)?;
         if !image.records.contains_key(&id) {
-            if image.records.len() >= MAX_RECORDS {
+            if image.operation_count() >= MAX_RECORDS {
                 return Err(DurableError::Capacity);
             }
             let keys = context.one_time_fingerprints();
@@ -106,6 +106,7 @@ impl DeviceJournal {
                     context: context.digest(),
                     phase: DurableStatus::Executing,
                     keys,
+                    prekeys: Vec::new(),
                     payload: Zeroizing::new(initial.to_vec()),
                 },
             );
@@ -170,6 +171,7 @@ impl DeviceJournal {
         let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
         record.phase = DurableStatus::Rejected;
         record.keys.clear();
+        record.prekeys.clear();
         record.payload = Zeroizing::new(initial.to_vec());
         self.persist(image)
     }
