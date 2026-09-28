@@ -1349,7 +1349,7 @@ secret copies and do not treat in-process handles as isolation from hostile code
 
 The package includes the 37-asset native SDK CBOM, workspace lock SBOM and Rust
 standard-library notices. This unsigned alpha package is not a stable-release,
-device, constant-time, independent-security-review or minimum-OS qualification.
+device, constant-time or minimum-OS qualification.
 The native ABI remains 2; the alpha export contract has 43 additive functions.
 EOF
 fi

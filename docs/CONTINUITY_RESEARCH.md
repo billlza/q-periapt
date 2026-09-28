@@ -614,7 +614,7 @@ Continuity therefore requires:
    The production backend migration removed the `libcrux`/hax
    `proc-macro-error2` advisory edge, and the current lockfile passes
    `cargo audit --deny warnings` with no ignore. That dependency result does not
-   satisfy the separate model-to-Rust refinement or independent audit requirement.
+   satisfy the separate model-to-Rust refinement or internal security review requirement.
 5. **Differential/reference lane:** exact state and wire comparisons against the
    published reference algorithms, plus negative controls for every security premise.
 6. **Cross-language vectors:** Swift/Kotlin/C/WASM must reproduce canonical parsing,

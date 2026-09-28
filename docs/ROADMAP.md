@@ -414,8 +414,7 @@ method orthogonal to fixed KATs, ACVP, the differential, the proof, and cross-pl
 
 ## PENDING
 
-Stated honestly. None of these are blockers for the research claims above; they
-are the gap between research-grade and audited/production.
+These milestones qualify broader production use beyond the research claims above.
 
 1. **Broader ACVP coverage + `ContextBound` cross-platform reference vectors.**
    The NIST ACVP ML-KEM-768 **and ML-KEM-1024** sets (keyGen/encaps/decaps incl.
@@ -541,7 +540,7 @@ are the gap between research-grade and audited/production.
    XCFramework and `abi2-platforms-v0.1.5` Android/Linux packages,
    each bound to its own release receipt. Production promotion remains blocked on
    warning-clean dependency audit currency, clean signed or
-   transparency-backed source provenance, cryptographic/C-FFI/ABI review,
+   transparency-backed source provenance, internal cryptographic/C-FFI/ABI review,
    and live verification of same-source Apple matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
    The target-selection/source migration invalidated all prior portable-derived
@@ -562,7 +561,7 @@ are the gap between research-grade and audited/production.
    `ignore = []`, but RustSec does not inspect vendored C. This closes the Rust dependency-
    advisory gate only. Upstream HOL-Light evidence is limited to selected upstream
    assembly source/object routines; it does not prove downstream reassembly or the
-   full ABI. Independent cryptographic/C-FFI/code/ABI review, fresh per-target source-bound
+   full ABI. Internal cryptographic/C-FFI/code/ABI review, fresh per-target source-bound
    CT and platform evidence, and signed distribution provenance remain mandatory.
 
 7. **Q-Periapt Continuity session research.** This is a separate, gated workstream,

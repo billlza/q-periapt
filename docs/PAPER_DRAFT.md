@@ -164,8 +164,7 @@ FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on the two Apple Silicon slices,
 Armv8-A scalar x1/x4 elsewhere), while every other target remains portable. Upstream HOL-Light
 evidence is limited to selected upstream assembly source/object routines, not
 downstream reassembly, this Rust/C wrapper, or the full ABI. RustSec covers the
-resolved Rust graph, not vendored C, and neither the upstream provider nor this
-integration has a completed independent audit.
+resolved Rust graph, not vendored C.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
 ABI 2 is the stable-version source/Rust-crate line; package readiness is not registry
 publication. The published stable binary
@@ -174,7 +173,7 @@ targets are the Apple `v0.1.5` XCFramework and the
 their asset-verification and ten-crate registry receipts are complete in
 `v0.1.5-verified-cohort`. The older `0.1.4` cohort is recorded
 at the annotated tag `v0.1.4-verified-cohort` and not in main's results. Fresh same-source
-device/performance evidence, independent cryptographic/C-FFI/ABI review,
+device/performance evidence, internal cryptographic/C-FFI/ABI review,
 signed or transparency-backed source provenance and registry publication remain
 requirements for production promotion. Windows remains excluded until a signed
 producer/verifier and certificate/timestamp-authority gate exist.

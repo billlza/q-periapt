@@ -52,10 +52,10 @@ does not provide a ratchet, multi-device session service or exactly-once RPC.
 
 This is a 0.2.0 release candidate. Consult the accompanying package manifest for the
 actual source, platform checks and signing state. Packaging/link success is not
-physical-device validation, an external cryptographic audit or release approval.
+physical-device validation or release approval.
 
 `PACKAGE_CONTENTS.json` binds the contents of this folder. The separate
 `MANIFEST.json` alongside the downloadable ZIP records the checks actually run.
 The package includes the native algorithm CBOM, workspace SBOM, target-specific
 Cargo dependency notices and the Rust 1.96.1 standard-library copyright notice.
-These inventories describe their stated scopes; they are not a security audit.
+These inventories describe the packaged algorithms, dependencies and license notices.

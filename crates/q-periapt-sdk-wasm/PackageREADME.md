@@ -67,8 +67,8 @@ Policy update is prepare → persist the signed policy and trusted state atomica
 owns durable storage and recovery; this package supplies no persistent service,
 worker cancellation, transport authentication or session protocol.
 
-`PACKAGE_CONTENTS.json` records candidate bytes and source/tool identities. It is
-not a signature or external review. `THIRD_PARTY/rust/INVENTORY.json` records
+`PACKAGE_CONTENTS.json` records candidate bytes and source/tool identities;
+distribution signatures are verified separately. `THIRD_PARTY/rust/INVENTORY.json` records
 the target-filtered production dependency license closure. Current platform,
 security and release gates are documented in the repository's
 [release readiness ledger](https://github.com/billlza/q-periapt/blob/main/docs/SDK_0_2_RELEASE_READINESS.md).

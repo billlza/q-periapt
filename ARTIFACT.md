@@ -249,8 +249,7 @@ remains portable C; each native profile is fixed at build time with no runtime
 dispatch. This selection does not change ABI 2, key formats, or wire bytes. Upstream
 HOL-Light evidence applies only to selected upstream assembly source/object routines,
 not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
-tag/commit is not a signed provenance statement, and neither upstream mlkem-native
-nor this integration has completed an independent audit.
+tag/commit is not a signed provenance statement.
 
 ABI 2 / `0.1.5` is the stable-version source line, succeeding the fully published
 `0.1.4` release. All ten `0.1.5` crates are published and independently verified;

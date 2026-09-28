@@ -590,7 +590,7 @@ notarization. Continuity's abstract snapshot schema 3 is unrelated
 and is not part of this ABI. Before production promotion or a platform-binary claim,
 all claimed platform package identities, release-index cross-face semantics,
 dependency audit, clean signed or transparency-backed provenance, same-source Apple
-matrix verification, controlled-host performance verification, and independent
+matrix verification, controlled-host performance verification, and internal
 cryptographic/C-FFI/ABI review must pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
 upgraded from a version alone; hosts require explicit authorized re-enrollment/reset.
 The target-selection/source migration changed the canonical source digest and

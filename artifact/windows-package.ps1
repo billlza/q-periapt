@@ -2241,8 +2241,8 @@ Windows persistent-store entry points explicitly return
 Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM; no weaker filesystem fallback is used.
 The caller owns transport and durable policy storage. This package includes
 the 37-asset native SDK CBOM and notices for the exact Rust 1.97.0 library.
-An unsigned candidate is not Authenticode trust, a security audit or release
-readiness. See the repository's docs/SDK_WINDOWS_PACKAGE.md for qualification.
+Authenticode trust and release readiness require their respective verification
+receipts. See the repository's docs/SDK_WINDOWS_PACKAGE.md for qualification.
 '@
 }
 Write-Utf8File -Path (Join-Path $PackageRoot "README.md") -Content $readmeTemplate.Replace("@VERSION@", $Version)

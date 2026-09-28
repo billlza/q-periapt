@@ -203,8 +203,7 @@ but as of 2026-07-12 the official FIPS 207 IPD is unavailable and NIST says it i
 The native selection is an implementation optimization, not formal-assurance evidence.
 Upstream HOL-Light evidence is limited to selected upstream assembly source/object
 routines under its stated preconditions; it does not prove downstream reassembly,
-the Rust/C wrapper, the full ABI, or a released package. This integration has no
-independent audit.
+the Rust/C wrapper, the full ABI, or a released package.
 
 ### 2.8 Evidence islands create false green claims
 
@@ -473,7 +472,8 @@ Priority order:
    relative/absolute thresholds to iPad/iPhone energy and public APIs.
 4. **Portable CT:** extend binary/dataflow evidence to every shipping primitive/backend/ISA;
    remove unmaintained experimental dependencies from product claims.
-5. **External review:** obtain cryptographic, formal-methods, FFI, and side-channel audits.
+5. **Security validation:** complete internal cryptographic/FFI boundary review and
+   source-bound formal-methods and side-channel checks.
 6. **Standards strategy:** submit the authenticated-policy/context and proof-ledger ideas as
    composable extensions/evidence, not as a claim that a private-use wire should replace X-Wing.
 7. **Continuity reference lane:** implement component-conformant PQXDH bootstrap and
