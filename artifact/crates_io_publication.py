@@ -15,6 +15,7 @@ import argparse
 import contextlib
 import dataclasses
 import datetime as dt
+import enum
 import errno
 import hashlib
 import os
@@ -33,9 +34,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from typing import Any, ContextManager, Literal, Never, TextIO
+from typing import Any, ContextManager, Literal, Never, Protocol, TextIO
 
 import rust_package_handoff
+from rust_sdk_profile import COHORT as SDK_COHORT
 from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
 from bounded_process import (
     BOUNDED_PROCESS_ERROR_KINDS,
@@ -271,6 +273,33 @@ SourceTransitionVerifier = Callable[
 ]
 
 
+class PublicationRelease(enum.Enum):
+    """Closed account/state namespaces for independently validated cohorts."""
+
+    ABI2_V0_1_5 = "0.1.5"
+    SDK_V0_2_0 = "0.2.0"
+
+    @property
+    def state_leaf(self) -> str:
+        return f"crates.io-v{self.value}"
+
+    @property
+    def receipt_leaf(self) -> str:
+        return f"crates-io-v{self.value}-publication-receipt.json"
+
+    @property
+    def journal_leaf(self) -> str:
+        return f"crates-io-v{self.value}-upload-attempt.json"
+
+    @property
+    def lock_leaf(self) -> str:
+        return f"qperiapt-crates-io-v{self.value}.lock"
+
+    @property
+    def acknowledgement(self) -> str:
+        return f"publish-q-periapt-abi2-v{self.value}-to-crates.io-is-irreversible"
+
+
 class CratesIoPublicationError(ValueError):
     """Local evidence, registry output, or a publication transition is invalid."""
 
@@ -402,6 +431,52 @@ class LocalPublicationEvidence:
     package_contract: RustPackageContractReceipt
     package_root: pathlib.Path
     crates: tuple[LocalCrate, ...]
+
+    @property
+    def release(self) -> PublicationRelease:
+        return PublicationRelease.ABI2_V0_1_5
+
+    def source_document(self) -> dict[str, str]:
+        return _source_identity_document(self.source)
+
+    def package_contract_document(self) -> dict[str, str]:
+        return {
+            "completed_at": self.package_contract.completed_at,
+            "handoff_sha256": self.handoff_manifest_sha256,
+            "source_commit": self.package_contract.source_commit,
+            "transcript_sha256": self.transcript_sha256,
+        }
+
+    def receipt_header(self) -> dict[str, object]:
+        return {
+            "boundary": CRATES_IO_PUBLICATION_BOUNDARY,
+            "identity": {"abi_version": ABI_VERSION, "product_version": PRODUCT_VERSION,
+                         "publication_key": CRATES_IO_PUBLICATION_KEY, "registry": CRATES_IO_REGISTRY},
+            "kind": CRATES_IO_PUBLICATION_KIND,
+            "schema_version": CRATES_IO_PUBLICATION_SCHEMA_VERSION,
+        }
+
+    def validate_receipt(self, value: object) -> None:
+        validate_crates_io_publication_receipt(value)
+
+    def resample(self) -> None:
+        _resample_local_evidence(self)
+
+
+class PublicationEvidence(Protocol):
+    """Validated local inputs used by the common registry transaction engine."""
+
+    @property
+    def release(self) -> PublicationRelease: ...
+    @property
+    def handoff_manifest_sha256(self) -> str: ...
+    @property
+    def crates(self) -> tuple[LocalCrate, ...]: ...
+    def source_document(self) -> dict[str, str]: ...
+    def package_contract_document(self) -> dict[str, str]: ...
+    def receipt_header(self) -> dict[str, object]: ...
+    def validate_receipt(self, value: object) -> None: ...
+    def resample(self) -> None: ...
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -614,6 +689,8 @@ def _digest_file(
 
 def _validated_publication_state_root(
     state_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> pathlib.Path:
     _require(
         isinstance(state_root, pathlib.Path) and state_root.is_absolute(),
@@ -624,7 +701,7 @@ def _validated_publication_state_root(
         account_home
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.5"
+        / release.state_leaf
     )
     _require(
         state_root == expected_root
@@ -716,14 +793,16 @@ def _publication_account_home_path() -> pathlib.Path:
     return home
 
 
-def _expected_publication_state_root() -> pathlib.Path:
+def _expected_publication_state_root(
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
+) -> pathlib.Path:
     """Derive the sole production authority without consuming a CLI path."""
 
     return (
         _publication_account_home_path()
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.5"
+        / release.state_leaf
     )
 
 
@@ -816,12 +895,14 @@ def _registered_git_worktree_roots() -> tuple[pathlib.Path, ...]:
 @contextlib.contextmanager
 def _production_publication_lock(
     state_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> Iterator[None]:
     """Hold one persistent-inode, crash-released POSIX publication lock."""
 
     if os.name != "posix" or fcntl is None:
         _fail("production crates.io publication locking requires POSIX flock")
-    root = _validated_publication_state_root(state_root)
+    root = _validated_publication_state_root(state_root, release=release)
     try:
         root_descriptor = open_private_directory(
             root, label="shared crates.io publication state root"
@@ -840,14 +921,14 @@ def _production_publication_lock(
         )
         try:
             lock_descriptor = os.open(
-                CRATES_IO_PUBLICATION_LOCK_NAME,
+                release.lock_leaf,
                 flags,
                 PRIVATE_FILE_MODE,
                 dir_fd=root_descriptor,
             )
             metadata = os.fstat(lock_descriptor)
             named = os.stat(
-                CRATES_IO_PUBLICATION_LOCK_NAME,
+                release.lock_leaf,
                 dir_fd=root_descriptor,
                 follow_symlinks=False,
             )
@@ -884,7 +965,7 @@ def _production_publication_lock(
             ) from exc
         locked = os.fstat(lock_descriptor)
         named_locked = os.stat(
-            CRATES_IO_PUBLICATION_LOCK_NAME,
+            release.lock_leaf,
             dir_fd=root_descriptor,
             follow_symlinks=False,
         )
@@ -905,7 +986,7 @@ def _production_publication_lock(
         yield
         root_after = root.lstat()
         lock_after = os.stat(
-            CRATES_IO_PUBLICATION_LOCK_NAME,
+            release.lock_leaf,
             dir_fd=root_descriptor,
             follow_symlinks=False,
         )
@@ -948,13 +1029,15 @@ def _production_publication_lock(
 
 def production_lock_factory(
     state_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> PublicationLockFactory:
     """Return the fixed same-host/same-account cross-worktree lock callback."""
 
-    normalized = _validated_publication_state_root(state_root)
+    normalized = _validated_publication_state_root(state_root, release=release)
 
     def acquire() -> ContextManager[None]:
-        return _production_publication_lock(normalized)
+        return _production_publication_lock(normalized, release=release)
 
     return acquire
 
@@ -973,6 +1056,7 @@ def production_upload_runner(
     *,
     state_root: pathlib.Path,
     http_connect_proxy: str | None = None,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> UploadRunner:
     """Adapt the fixed state-root-owned exact-byte uploader to the bounded runner API.
 
@@ -989,7 +1073,7 @@ def production_upload_runner(
         [] if http_connect_proxy is None
         else ["--http-connect-proxy", _validated_http_connect_proxy(http_connect_proxy)]
     )
-    normalized_state_root = _validated_publication_state_root(state_root)
+    normalized_state_root = _validated_publication_state_root(state_root, release=release)
     command = _canonical_input_file(
         uploader_command, label="crates.io exact-byte uploader"
     )
@@ -2347,7 +2431,7 @@ def _sparse_path(crate_name: str) -> str:
     # Names are taken solely from the frozen topology.  Keep Cargo's canonical
     # lowercase sparse-index sharding local to the registry adapter.
     _require(
-        crate_name in CRATE_DEPENDENCIES,
+        crate_name in CRATE_DEPENDENCIES or crate_name in SDK_COHORT,
         "sparse-index crate is outside the frozen topology",
     )
     lowered = crate_name.lower()
@@ -2689,13 +2773,13 @@ def observe_remote_crate(
 
 
 def observe_remote_prefix(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     *,
     api_fetcher: HttpFetcher = _https_get,
     sparse_fetcher: HttpFetcher = _https_get,
     clock: Clock = lambda: dt.datetime.now(dt.UTC),
 ) -> tuple[RemotePublishedRecord | None, ...]:
-    """Observe all ten crates and require one exact published prefix."""
+    """Observe the selected cohort and require one exact published prefix."""
 
     observations = tuple(
         observe_remote_crate(
@@ -2718,7 +2802,7 @@ def observe_remote_prefix(
 
 
 def assemble_publication_receipt(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     observations: Sequence[RemotePublishedRecord | None],
     *,
     observed_at: str,
@@ -2727,7 +2811,7 @@ def assemble_publication_receipt(
 
     _require(
         len(observations) == len(evidence.crates),
-        "remote observation count differs from the ten local crates",
+        "remote observation count differs from the local cohort",
     )
     crate_documents: list[dict[str, object]] = []
     published_count = 0
@@ -2760,26 +2844,13 @@ def assemble_publication_receipt(
             )
         crate_documents.append(document)
     receipt: dict[str, object] = {
-        "boundary": CRATES_IO_PUBLICATION_BOUNDARY,
+        **evidence.receipt_header(),
         "crates": crate_documents,
-        "identity": {
-            "abi_version": ABI_VERSION,
-            "product_version": PRODUCT_VERSION,
-            "publication_key": CRATES_IO_PUBLICATION_KEY,
-            "registry": CRATES_IO_REGISTRY,
-        },
-        "kind": CRATES_IO_PUBLICATION_KIND,
         "observation": {
             "observed_at": observed_at,
-            "package_contract": {
-                "completed_at": evidence.package_contract.completed_at,
-                "handoff_sha256": evidence.handoff_manifest_sha256,
-                "source_commit": evidence.package_contract.source_commit,
-                "transcript_sha256": evidence.transcript_sha256,
-            },
-            "source": _source_identity_document(evidence.source),
+            "package_contract": evidence.package_contract_document(),
+            "source": evidence.source_document(),
         },
-        "schema_version": CRATES_IO_PUBLICATION_SCHEMA_VERSION,
         "status": (
             PUBLICATION_STATUS_PUBLISHED_VERIFIED
             if published_count == len(evidence.crates)
@@ -2787,7 +2858,7 @@ def assemble_publication_receipt(
         ),
     }
     try:
-        validate_crates_io_publication_receipt(receipt)
+        evidence.validate_receipt(receipt)
     except CratesIoPublicationContractError as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     return receipt
@@ -2796,26 +2867,21 @@ def assemble_publication_receipt(
 def _previous_published_count(
     previous_receipt: Mapping[str, object] | None,
     *,
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
 ) -> int:
     if previous_receipt is None:
         return 0
     try:
-        validate_crates_io_publication_receipt(previous_receipt)
+        evidence.validate_receipt(previous_receipt)
     except CratesIoPublicationContractError as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     observation = previous_receipt["observation"]
     _require(isinstance(observation, dict), "prior observation type differs")
     _require(
-        observation["source"] == _source_identity_document(evidence.source),
+        observation["source"] == evidence.source_document(),
         "prior receipt source identity differs",
     )
-    expected_package_contract = {
-        "completed_at": evidence.package_contract.completed_at,
-        "handoff_sha256": evidence.handoff_manifest_sha256,
-        "source_commit": evidence.package_contract.source_commit,
-        "transcript_sha256": evidence.transcript_sha256,
-    }
+    expected_package_contract = evidence.package_contract_document()
     _require(
         observation["package_contract"] == expected_package_contract,
         "prior receipt package contract differs",
@@ -2847,6 +2913,8 @@ def load_previous_receipt(
     path: pathlib.Path,
     *,
     safe_root: pathlib.Path = CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
+    validator: Callable[[object], None] = validate_crates_io_publication_receipt,
 ) -> dict[str, object]:
     """Read one private no-link receipt from a transaction below the fixed root."""
 
@@ -2854,7 +2922,7 @@ def load_previous_receipt(
         snapshot = read_fixed_json_snapshot(
             path,
             safe_root=safe_root,
-            expected_leaf=CRATES_IO_PUBLICATION_RECEIPT_NAME,
+            expected_leaf=release.receipt_leaf,
             label="crates.io prior publication receipt",
             parent_depth=1,
             maximum=MAX_RECEIPT_BYTES,
@@ -2862,7 +2930,7 @@ def load_previous_receipt(
             root_mode=PRIVATE_DIRECTORY_MODE,
             parent_mode=PRIVATE_DIRECTORY_MODE,
         )
-        validate_crates_io_publication_receipt(snapshot.value)
+        validator(snapshot.value)
     except (PublicationReceiptIOError, CratesIoPublicationContractError) as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     return snapshot.value
@@ -2872,15 +2940,17 @@ def write_publication_receipt(
     receipt: dict[str, object],
     *,
     receipt_root: pathlib.Path = CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
+    validator: Callable[[object], None] = validate_crates_io_publication_receipt,
 ) -> tuple[pathlib.Path, str]:
     """Write one immutable private receipt in a fresh no-replace transaction."""
 
     try:
-        validate_crates_io_publication_receipt(receipt)
+        validator(receipt)
         return create_private_transaction_json(
             safe_root=receipt_root,
             transaction_prefix="transaction.",
-            expected_leaf=CRATES_IO_PUBLICATION_RECEIPT_NAME,
+            expected_leaf=release.receipt_leaf,
             value=receipt,
             label="crates.io publication receipt",
             maximum=MAX_RECEIPT_BYTES,
@@ -2898,7 +2968,7 @@ def _journal_crate_document(package: LocalCrate) -> dict[str, str]:
 
 
 def _journal_record(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     package: LocalCrate,
     *,
     state: str,
@@ -2932,7 +3002,7 @@ def _journal_record(
         "kind": UPLOAD_JOURNAL_KIND,
         "recorded_at": recorded_at,
         "schema_version": UPLOAD_JOURNAL_SCHEMA_VERSION,
-        "source": _source_identity_document(evidence.source),
+        "source": evidence.source_document(),
         "state": state,
     }
     if state == UPLOAD_JOURNAL_INTENT:
@@ -2971,12 +3041,13 @@ def _write_upload_journal_record(
     value: dict[str, object],
     *,
     journal_root: pathlib.Path,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> tuple[pathlib.Path, str]:
     try:
         return create_private_transaction_json(
             safe_root=journal_root,
             transaction_prefix="transaction.",
-            expected_leaf=CRATES_IO_PUBLICATION_JOURNAL_NAME,
+            expected_leaf=release.journal_leaf,
             value=value,
             label="crates.io upload journal",
             maximum=256 * 1024,
@@ -2986,7 +3057,7 @@ def _write_upload_journal_record(
 
 
 def write_upload_intent(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     package: LocalCrate,
     *,
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
@@ -3009,6 +3080,7 @@ def write_upload_intent(
     path, digest = _write_upload_journal_record(
         value,
         journal_root=journal_root,
+        release=evidence.release,
     )
     return UploadIntent(
         attempt_id=attempt_id,
@@ -3021,7 +3093,7 @@ def write_upload_intent(
 
 
 def write_upload_outcome(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     package: LocalCrate,
     intent: UploadIntent,
     *,
@@ -3048,7 +3120,7 @@ def write_upload_outcome(
         recorded_at=_canonical_timestamp(clock),
         diagnostic=diagnostic,
     )
-    return _write_upload_journal_record(value, journal_root=journal_root)
+    return _write_upload_journal_record(value, journal_root=journal_root, release=evidence.release)
 
 
 def _journal_transaction_names(journal_root: pathlib.Path) -> tuple[str, ...]:
@@ -3120,6 +3192,8 @@ def _journal_transaction_names(journal_root: pathlib.Path) -> tuple[str, ...]:
 
 def _recover_incomplete_upload_journal_transactions(
     journal_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> tuple[str, ...]:
     """Remove only descriptor-proven precommit residue while the caller holds the lock."""
 
@@ -3195,13 +3269,13 @@ def _recover_incomplete_upload_journal_transactions(
                         transaction_entry.name
                         for transaction_entry in transaction_entries
                     )
-                if CRATES_IO_PUBLICATION_JOURNAL_NAME in inventory:
+                if release.journal_leaf in inventory:
                     # A visible final leaf is never recovery residue. The
                     # ordinary loader will either validate the exact singleton
                     # inventory or fail closed on any mixed transaction.
                     continue
                 pending_leaf = (
-                    f".{CRATES_IO_PUBLICATION_JOURNAL_NAME}.pending-"
+                    f".{release.journal_leaf}.pending-"
                     f"{transaction_pid}"
                 )
                 _require(
@@ -3440,7 +3514,7 @@ def _validated_journal_value(
     *,
     digest: str,
     path: pathlib.Path,
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
 ) -> UploadIntent | UploadOutcome:
     _require(
         isinstance(value, dict)
@@ -3501,7 +3575,7 @@ def _validated_journal_value(
     except CratesIoPublicationContractError as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     _require(
-        value["source"] == _source_identity_document(evidence.source),
+        value["source"] == evidence.source_document(),
         "upload journal source identity differs",
     )
     _require(
@@ -3560,7 +3634,7 @@ def _validated_journal_value(
 
 
 def load_unresolved_upload_intents(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     *,
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
     retry_authorization: UploadRetryAuthorization | None = None,
@@ -3573,13 +3647,13 @@ def load_unresolved_upload_intents(
         path = (
             journal_root
             / transaction_name
-            / CRATES_IO_PUBLICATION_JOURNAL_NAME
+            / evidence.release.journal_leaf
         )
         try:
             snapshot = read_fixed_json_snapshot(
                 path,
                 safe_root=journal_root,
-                expected_leaf=CRATES_IO_PUBLICATION_JOURNAL_NAME,
+                expected_leaf=evidence.release.journal_leaf,
                 label="crates.io upload journal record",
                 parent_depth=1,
                 maximum=256 * 1024,
@@ -3587,7 +3661,7 @@ def load_unresolved_upload_intents(
                 root_mode=PRIVATE_DIRECTORY_MODE,
                 parent_mode=PRIVATE_DIRECTORY_MODE,
                 expected_parent_entries=frozenset(
-                    {CRATES_IO_PUBLICATION_JOURNAL_NAME}
+                    {evidence.release.journal_leaf}
                 ),
             )
         except PublicationReceiptIOError as exc:
@@ -3715,10 +3789,7 @@ def load_unresolved_upload_intents(
         "upload journal has multiple unresolved intents for one crate",
     )
     order = {
-        name: index
-        for index, (name, _dependencies) in enumerate(
-            CRATE_PUBLICATION_TOPOLOGY
-        )
+        package.name: index for index, package in enumerate(evidence.crates)
     }
     return tuple(sorted(unresolved, key=lambda intent: order[intent.crate_name]))
 
@@ -3744,13 +3815,14 @@ def _validated_upload_authorization(
     credential_provider: CredentialProvider | None,
     lock_factory: PublicationLockFactory | None,
     upload_runner: UploadRunner | None,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> tuple[CredentialProvider, PublicationLockFactory, UploadRunner]:
     _require(
         execute_real_upload is True,
         "real crates.io upload requires execute_real_upload=True",
     )
     _require(
-        irreversible_acknowledgement == REAL_UPLOAD_ACKNOWLEDGEMENT,
+        irreversible_acknowledgement == release.acknowledgement,
         "real crates.io upload requires the exact irreversible acknowledgement",
     )
     _require(
@@ -3858,6 +3930,43 @@ def run_publication_transaction(
     publish metadata or create a second package-validation implementation.
     """
 
+    _validate_transaction_options(mode=mode, previous_receipt=previous_receipt,
+                                  retry_unknown_intent_sha256=retry_unknown_intent_sha256)
+    evidence = load_local_publication_evidence(
+        source,
+        handoff_manifest_path,
+        handoff_manifest_sha256,
+        handoff_root=handoff_root,
+        source_tree_resolver=source_tree_resolver,
+        source_transition_verifier=source_transition_verifier,
+    )
+    return run_prepared_publication_transaction(
+        evidence,
+        previous_receipt=previous_receipt,
+        retry_unknown_intent_sha256=retry_unknown_intent_sha256,
+        mode=mode,
+        api_fetcher=api_fetcher,
+        sparse_fetcher=sparse_fetcher,
+        clock=clock,
+        sleeper=sleeper,
+        receipt_writer=receipt_writer,
+        receipt_root=receipt_root,
+        journal_root=journal_root,
+        write_verify_receipt=write_verify_receipt,
+        execute_real_upload=execute_real_upload,
+        irreversible_acknowledgement=irreversible_acknowledgement,
+        credential_provider=credential_provider,
+        lock_factory=lock_factory,
+        upload_runner=upload_runner,
+        poll_attempts=poll_attempts,
+        poll_interval_seconds=poll_interval_seconds,
+    )
+
+
+def _validate_transaction_options(
+    *, mode: RunMode, previous_receipt: Mapping[str, object] | None,
+    retry_unknown_intent_sha256: str | None,
+) -> None:
     _require(mode in {"dry-run", "verify", "publish"}, "publication mode is invalid")
     if retry_unknown_intent_sha256 is not None:
         _require(
@@ -3869,14 +3978,33 @@ def run_publication_transaction(
             and _SHA256_RE.fullmatch(retry_unknown_intent_sha256) is not None,
             "explicit upload retry intent digest is malformed",
         )
-    evidence = load_local_publication_evidence(
-        source,
-        handoff_manifest_path,
-        handoff_manifest_sha256,
-        handoff_root=handoff_root,
-        source_tree_resolver=source_tree_resolver,
-        source_transition_verifier=source_transition_verifier,
-    )
+
+def run_prepared_publication_transaction(
+    evidence: PublicationEvidence,
+    *,
+    previous_receipt: Mapping[str, object] | None = None,
+    retry_unknown_intent_sha256: str | None = None,
+    mode: RunMode = "dry-run",
+    api_fetcher: HttpFetcher = _https_get,
+    sparse_fetcher: HttpFetcher = _https_get,
+    clock: Clock = lambda: dt.datetime.now(dt.UTC),
+    sleeper: Sleeper = time.sleep,
+    receipt_writer: ReceiptWriter | None = None,
+    receipt_root: pathlib.Path = CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+    journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
+    write_verify_receipt: bool = True,
+    execute_real_upload: bool = False,
+    irreversible_acknowledgement: str | None = None,
+    credential_provider: CredentialProvider | None = None,
+    lock_factory: PublicationLockFactory | None = None,
+    upload_runner: UploadRunner | None = None,
+    poll_attempts: int = REMOTE_POLL_ATTEMPTS,
+    poll_interval_seconds: float = REMOTE_POLL_INTERVAL_SECONDS,
+) -> PublicationRun:
+    """Use one journal, lock, reconciliation and resume mechanism for each cohort."""
+
+    _validate_transaction_options(mode=mode, previous_receipt=previous_receipt,
+                                  retry_unknown_intent_sha256=retry_unknown_intent_sha256)
     prior_published_count = _previous_published_count(
         previous_receipt, evidence=evidence
     )
@@ -3886,7 +4014,7 @@ def run_publication_transaction(
             execute_real_upload is False,
             "dry-run cannot enable real upload",
         )
-        _resample_local_evidence(evidence)
+        evidence.resample()
         return PublicationRun(
             mode=mode,
             receipt=None,
@@ -3898,14 +4026,15 @@ def run_publication_transaction(
     writer = receipt_writer
     if writer is None:
         writer = lambda value: write_publication_receipt(
-            value, receipt_root=receipt_root
+            value, receipt_root=receipt_root, release=evidence.release,
+            validator=evidence.validate_receipt,
         )
 
     def collect() -> tuple[
         tuple[RemotePublishedRecord | None, ...],
         dict[str, object],
     ]:
-        _resample_local_evidence(evidence)
+        evidence.resample()
         # The sparse index and the API can transiently disagree on presence while
         # crates.io propagates; retry the read-only composite observation with a
         # bounded backoff rather than failing the whole transaction on a momentary
@@ -3947,7 +4076,7 @@ def run_publication_transaction(
         if write_verify_receipt:
             path, digest = writer(receipt)
             written_receipts.append(WrittenReceipt(path=path, sha256=digest))
-        _resample_local_evidence(evidence)
+        evidence.resample()
         return PublicationRun(
             mode=mode,
             receipt=receipt,
@@ -3962,6 +4091,7 @@ def run_publication_transaction(
         credential_provider=credential_provider,
         lock_factory=lock_factory,
         upload_runner=upload_runner,
+        release=evidence.release,
     )
     try:
         lock_context = publication_lock()
@@ -3975,7 +4105,7 @@ def run_publication_transaction(
     )
     try:
         with lock_context:
-            _recover_incomplete_upload_journal_transactions(journal_root)
+            _recover_incomplete_upload_journal_transactions(journal_root, release=evidence.release)
             remote, receipt = collect()
             path, digest = writer(receipt)
             written_receipts.append(WrittenReceipt(path=path, sha256=digest))
@@ -4025,7 +4155,7 @@ def run_publication_transaction(
             for index, package in enumerate(evidence.crates):
                 if remote[index] is not None:
                     continue
-                _resample_local_evidence(evidence)
+                evidence.resample()
                 if token is None:
                     token = _credential(provider)
                 intent = write_upload_intent(
@@ -4108,7 +4238,7 @@ def run_publication_transaction(
                 )
                 path, digest = writer(receipt)
                 written_receipts.append(WrittenReceipt(path=path, sha256=digest))
-            _resample_local_evidence(evidence)
+            evidence.resample()
     except CratesIoUploadOutcomeUnknownError:
         raise
     except PublicationReceiptCommittedError:
