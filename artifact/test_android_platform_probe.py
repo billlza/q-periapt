@@ -152,6 +152,31 @@ class PlatformProbeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 17, result.stdout)
             self.assertIn(b"SUBSHELL_EXIT_ISOLATED\n", result.stdout)
 
+    def test_uncooperative_child_escalates_without_reporting_driver_success(self):
+        script = (PROBE / "run.sh").read_text()
+        start = script.index("cleanup() {")
+        end = script.index("trap cleanup EXIT", start) + len("trap cleanup EXIT")
+        cleanup = script[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            driver = Path(directory) / "uncooperative.sh"
+            driver.write_text("set -euo pipefail\nadb_pid=\nemulator_pid=\n"
+                              "ready=$1\nselected_status=$2\n"
+                              + cleanup + "\n"
+                              "( trap - EXIT; trap '' TERM; printf ready > \"$ready\"; "
+                              "exec /bin/sleep 30 ) &\nadb_pid=$!\n"
+                              "for attempt in {1..100}; do\n"
+                              "  if [ -f \"$ready\" ]; then break; fi\n"
+                              "  /bin/sleep 0.01\ndone\ntest -f \"$ready\"\n"
+                              "exit \"$selected_status\"\n")
+            for primary in (0, 17):
+                with self.subTest(primary=primary):
+                    ready = Path(directory) / f"ready-{primary}"
+                    result = capture_stdout(["/bin/bash", str(driver), str(ready), str(primary)],
+                                            timeout_seconds=5, maximum_bytes=4096)
+                    self.assertEqual(result.returncode, -signal.SIGKILL, result.stdout)
+                    self.assertIn(f"PLATFORM_CLEANUP_ESCALATED primary={primary}\n".encode(),
+                                  result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
