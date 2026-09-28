@@ -1,6 +1,6 @@
 # Q-Periapt — Roadmap
 
-## 0.2.0-alpha.1 implementation in progress
+## 0.2.0 release qualification
 
 The development SDK implements verified runtime and key ownership, explicit
 purpose derivation/import, policy transitions and the bounded ContextBound
@@ -18,7 +18,8 @@ implementation, package and runtime result and the remaining gates.
 not the current pending-work list. Exact-source hosted CI/CodeQL, native Linux
 reference execution, remaining platform/device coverage, controlled performance,
 binary CT and final release coordination remain open.
-The alpha is not release-complete; the 0.1.5 history below does not qualify it.
+The 0.2.0 candidate requires its own final qualification; the 0.1.5 history below
+retains the outcomes and source identities of that release.
 Full Continuity remains a later protocol milestone.
 
 Authoritative status and forward plan for **Q-Periapt**, a portable, `no_std`,

@@ -20,12 +20,12 @@ case "$CAPTURE_PROFILE" in
 		FIXED_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer
 		DEVICE_SCHEME=QPeriaptDeviceRunner
 		;;
-	sdk-alpha1)
+	sdk-020)
 		FIXED_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 		DEVICE_SCHEME=QPeriaptSDKDeviceRunner
 		;;
 	*)
-		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-alpha1\n' >&2
+		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-020\n' >&2
 		exit 2
 		;;
 esac
@@ -207,7 +207,7 @@ fi
 
 RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
 BUNDLE_ID="dev.qperiapt.DeviceRunner.run$RUN_ID"
-if [ "$CAPTURE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
 	DERIVED_DATA=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-sdk-device-$RUN_ID"}
 	RESULT_DIR=${QPERIAPT_DEVICE_RESULT_DIR:-"$ROOT/artifact/device-runs/apple-sdk-device-$RUN_ID"}
 	APP="$DERIVED_DATA/Build/Products/Debug-iphoneos/QPeriaptDeviceRunner.app"
@@ -325,7 +325,7 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
-if [ "$CAPTURE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
 	# Fresh attempt directories preserve every failure; never clear a prior run.
 	for attempt_path in "$DERIVED_DATA" "$RESULT_DIR"; do
 		if [ -e "$attempt_path" ] || [ -L "$attempt_path" ]; then
@@ -377,7 +377,7 @@ cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target"
 xcrun swift test --package-path bindings/swift -Xlinker "-L$ROOT/target/release"
 
 printf '\n=== iOS Rust staticlib ===\n'
-if [ "$CAPTURE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
 	# Match the shipped SDK floor in both rustc and cc-rs native dependencies.
 	IPHONEOS_DEPLOYMENT_TARGET=16.0 cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target" --target aarch64-apple-ios
 else
@@ -389,7 +389,7 @@ test -f "$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a" || {
 }
 
 printf '\n=== Generate Apple device project ===\n'
-if [ "$CAPTURE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
 	mkdir "$DERIVED_DATA/project"
 	xcodegen generate --spec "$PROJECT_DIR/project.yml" \
 		--project-root "$PROJECT_DIR" --project "$DERIVED_DATA/project"

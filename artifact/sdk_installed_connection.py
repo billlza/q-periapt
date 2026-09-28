@@ -61,7 +61,7 @@ def source_inputs() -> dict:
              "artifact/standard_tls_interop.py", "artifact/apple_sdk_profile.py",
              "artifact/rust_sdk_profile.py", "artifact/c_package_manifest.py",
              "artifact/deterministic_archive.py", "artifact/evidence_io.py", "artifact/bounded_process.py",
-             "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json",
+             "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
              *("bindings/" + name for name in apple.POLICIES))
     return {"rust_workspace_sha256": rust_workspace_source_digest(ROOT),
             "files": {name: snapshot(ROOT / name).sha256 for name in paths}}

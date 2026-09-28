@@ -1,6 +1,6 @@
 # q-periapt-hybrid (Kotlin)
 
-The 0.2.0-alpha.1 product entry point is now `QPeriaptRuntime.fromSignedPolicy`.
+The 0.2.0 product entry point is now `QPeriaptRuntime.fromSignedPolicy`.
 Use `runtime.generateKey().use { key -> ... }`, `runtime.encapsulate(...)` and
 `key.decapsulate(...)`; private keys remain in native owners unless transferred
 through `QPeriaptExpert`. Public-key and
@@ -38,7 +38,7 @@ the AAR/JNI surface under [`../android`](../android/), built by
 
 ## Installable candidate
 
-The Maven coordinate is `dev.qperiapt:q-periapt-hybrid:0.2.0-alpha.1`. The existing
+The Maven coordinate is `dev.qperiapt:q-periapt-hybrid:0.2.0`. The existing
 Gradle project name stays `q-periapt-hybrid`. Binary and sources JARs include
 version/ABI metadata and the project licenses. The only SDK dependency is
 Kotlin stdlib 2.4.10. See [the packaged installation instructions](PackageREADME.md)
@@ -47,12 +47,12 @@ for classpath/module-path native access and explicit shared-library selection.
 `publishSdkPublicationToSdkStagingRepository` writes only to a file repository.
 It does not configure a remote registry or use Maven Central credentials.
 The complete local qualification entry point consumes a matching C SDK produced
-by `artifact/c-package.sh --profile sdk-alpha1`:
+by `artifact/c-package.sh --profile sdk-020`:
 
 ```sh
 sh artifact/python-run.sh artifact/jvm_sdk_package.py \
   --output target/sdk-jvm-package \
-  --native-archive /absolute/path/to/q-periapt-c-abi2-0.2.0-alpha.1-TARGET.tar.gz \
+  --native-archive /absolute/path/to/q-periapt-c-abi2-0.2.0-TARGET.tar.gz \
   --native-sha256 "$NATIVE_ARCHIVE_SHA256" \
   --native-manifest-sha256 "$NATIVE_MANIFEST_SHA256"
 ```

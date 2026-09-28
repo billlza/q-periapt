@@ -1,6 +1,6 @@
 # Linux x86-64 AVX2 candidate
 
-This is an opt-in 0.2.0-alpha.1 source candidate, not a qualified native release.
+This is an opt-in 0.2.0 source candidate, not a qualified native release.
 ABI major and library names remain 2. Windows/MSVC and other x86 targets retain
 their existing default paths and require separate native-backend qualification.
 

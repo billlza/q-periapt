@@ -147,9 +147,9 @@ private fun asynchronousBoundaries() = runtime(keys = 1).use { owner ->
 fun main() {
     val actual = Path.of(QPeriaptRuntime::class.java.protectionDomain.codeSource.location.toURI()).toRealPath()
     check(Files.isSameFile(actual, Path.of(System.getProperty("sdk.expectedJar"))))
-    check(QPeriaptRuntime::class.java.`package`.implementationVersion == "0.2.0-alpha.1")
+    check(QPeriaptRuntime::class.java.`package`.implementationVersion == "0.2.0")
     check(QPeriaptHybrid.runtimeAbiVersion() == 2)
-    check(QPeriaptHybrid.runtimeVersion() == "0.2.0-alpha.1")
+    check(QPeriaptHybrid.runtimeVersion() == "0.2.0")
     ownersAndPolicy()
     println("INSTALLED_KOTLIN_OWNER_POLICY_KDF_PASS")
     asynchronousBoundaries()

@@ -13,7 +13,7 @@ class SDKABI2ContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.root = Path(__file__).resolve().parent.parent
-        cls.contract_path = cls.root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+        cls.contract_path = cls.root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
         cls.contract = abi.load_contract(cls.contract_path)
         cls.header = cls.root / "crates/q-periapt-ffi/include/q_periapt.h"
         cls.old = abi.load_contract(cls.root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
@@ -31,7 +31,8 @@ class SDKABI2ContractTests(unittest.TestCase):
         original = self.contract.document
         mutations = []
         changed = copy.deepcopy(original); changed["abi"]["major"] = 3; mutations.append(changed)
-        changed = copy.deepcopy(original); changed["package"]["semver"] = "0.2.0"; mutations.append(changed)
+        for version in ("0.2.1", "0.2.0-alpha.1"):
+            changed = copy.deepcopy(original); changed["package"]["semver"] = version; mutations.append(changed)
         changed = copy.deepcopy(original); changed["abi"]["exports"].pop(); mutations.append(changed)
         changed = copy.deepcopy(original); changed["abi"]["macros"]["Q_PERIAPT_SDK_MAX_CALLS"] = True; mutations.append(changed)
         changed = copy.deepcopy(original); changed["abi"]["native_structs"]["QPeriaptInput"] = "typedef void *QPeriaptInput;"; mutations.append(changed)

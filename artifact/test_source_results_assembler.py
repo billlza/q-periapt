@@ -849,14 +849,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         for mode, expected_marker in (
             ("initial", "SOURCE_TRANSITION_READINESS_PASS mode=initial"),
             ("installed", "SOURCE_CI_GATE_MODE mode=installed"),
-            ("sdk-alpha1", "SDK_SOURCE_READINESS_PASS profile=sdk-alpha1"),
+            ("sdk-020", "SDK_SOURCE_READINESS_PASS profile=sdk-020"),
         ):
             output = io.StringIO()
             args = mock.Mock(
                 command="ci-source-gate",
                 expected_results_sha256=RESULTS_DIGEST,
                 expected_commit=SOURCE_COMMIT,
-                profile="sdk-alpha1" if mode == "sdk-alpha1" else "legacy",
+                profile="sdk-020" if mode == "sdk-020" else "legacy",
             )
             with (
                 mock.patch.object(
@@ -870,7 +870,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             self.assertTrue(output.getvalue().startswith(expected_marker))
             if mode == "installed":
                 self.assertNotIn("READINESS_PASS", output.getvalue())
-            if mode == "sdk-alpha1":
+            if mode == "sdk-020":
                 self.assertIn("release_claim_eligible=false", output.getvalue())
                 self.assertIn("historical_proof_inputs=249", output.getvalue())
 
@@ -884,8 +884,8 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
         ):
             self.assertEqual(assembler.source_ci_gate(
-                assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT, profile="sdk-alpha1"
-            ), ("sdk-alpha1", source))
+                assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT, profile="sdk-020"
+            ), ("sdk-020", source))
             # The legacy finalizer still refuses this SDK transition's shape.
             with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "neither exact"):
                 assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT)
@@ -894,7 +894,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
                                              SOURCE_COMMIT, profile=profile)
             with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "frozen 0.1.5"):
-                assembler.source_ci_gate(RESULTS_DIGEST, SOURCE_COMMIT, profile="sdk-alpha1")
+                assembler.source_ci_gate(RESULTS_DIGEST, SOURCE_COMMIT, profile="sdk-020")
 
     def test_sdk_source_profile_rejects_contract_substitution_and_races(self) -> None:
         historical = json.loads((ROOT / "artifact/results.json").read_bytes())
@@ -923,7 +923,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 self.assertRaises(assembler.SourceResultsAssemblerError),
             ):
                 assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
-                                         SOURCE_COMMIT, profile="sdk-alpha1")
+                                         SOURCE_COMMIT, profile="sdk-020")
 
     def test_validate_baseline_pins_worktree_bytes_to_head_and_mode(self) -> None:
         for require_initial in (True, False):

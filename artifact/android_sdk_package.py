@@ -26,14 +26,14 @@ from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME = "q-periapt-android"
-VERSION = "0.2.0-alpha.1"
+VERSION = "0.2.0"
 COORDINATE = f"dev.qperiapt:{NAME}:{VERSION}"
 MAVEN_PATH = Path("dev/qperiapt") / NAME / VERSION
 PREFIX = f"{NAME}-{VERSION}"
 CONTENTS = "PACKAGE_CONTENTS.json"
 FIXTURES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
 SMOKE = ROOT / "bindings/android/smoke"
-PROFILE = "sdk-alpha1"
+PROFILE = "sdk-020"
 
 
 def require(value: bool, message: str) -> None:

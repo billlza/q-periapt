@@ -1,10 +1,10 @@
-# Q-Periapt WASM SDK — 0.2.0-alpha.1 candidate
+# Q-Periapt WASM SDK — 0.2.0 candidate
 
 The product entry verifies ML-DSA-65 signed policy, obtains fresh platform
 cryptographic randomness and keeps hybrid private keys in explicit owners.
 This is a local prerelease candidate, not a published npm release.
 
-Install the supplied archive with `npm install ./q-periapt-sdk-wasm-0.2.0-alpha.1.tgz`.
+Install the supplied archive with `npm install ./q-periapt-sdk-wasm-0.2.0.tgz`.
 It has no npm dependencies, install scripts or native compilation step.
 The Node entry requires Node 24 or newer. CommonJS and ESM share one WASM
 instance; both support the named exports shown here:

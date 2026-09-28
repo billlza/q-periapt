@@ -12,7 +12,7 @@ public final class LoaderProbe {
     public static void main(String[] args) throws Exception {
         Path root = Path.of(System.getProperty("sdk.fixtures"));
         if (QPeriaptHybrid.INSTANCE.runtimeAbiVersion() != 2) throw new AssertionError("ABI");
-        if (!QPeriaptHybrid.INSTANCE.runtimeVersion().equals("0.2.0-alpha.1")) throw new AssertionError("Native version");
+        if (!QPeriaptHybrid.INSTANCE.runtimeVersion().equals("0.2.0")) throw new AssertionError("Native version");
         if (!QPeriaptRuntime.class.getModule().getName().equals("dev.qperiapt.hybrid")) {
             throw new AssertionError("Module path identity");
         }

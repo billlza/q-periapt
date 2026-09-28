@@ -72,8 +72,8 @@ class AppleSDKProfileTests(unittest.TestCase):
 
     def test_legacy_signing_mode_and_unknown_profiles_fail_before_build(self):
         environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        for arguments, mode, expected in ((["--profile", "sdk-alpha1"], "1", "legacy receipts cannot admit it"),
-                                          (["--profile", "abi3"], "0", "accepts only --profile sdk-alpha1")):
+        for arguments, mode, expected in ((["--profile", "sdk-020"], "1", "legacy receipts cannot admit it"),
+                                          (["--profile", "abi3"], "0", "accepts only --profile sdk-020")):
             with self.subTest(arguments=arguments):
                 result = subprocess.run(["sh", str(sdk.ROOT / "artifact/swift-xcframework.sh"), *arguments],
                     env={**environment, "QPERIAPT_INTERNAL_APPLE_RELEASE_MODE": mode},

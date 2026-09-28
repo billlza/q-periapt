@@ -1,4 +1,4 @@
-# Standard TLS interoperability (0.2.0-alpha.1 development)
+# Standard TLS interoperability (0.2.0 development)
 
 `q-periapt-rustls` now has an explicit `standard-tls` feature with
 `standard::MutualTlsClient` and `MutualTlsServer`. The default private provider

@@ -53,10 +53,10 @@ release_git() {
 
 APPLE_PACKAGE_PROFILE=legacy
 if [ "$#" -ne 0 ]; then
-	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-alpha1" ]; then
-		APPLE_PACKAGE_PROFILE=sdk-alpha1
+	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
+		APPLE_PACKAGE_PROFILE=sdk-020
 	else
-		printf 'error: swift-xcframework.sh accepts only --profile sdk-alpha1 or no arguments\n' >&2
+		printf 'error: swift-xcframework.sh accepts only --profile sdk-020 or no arguments\n' >&2
 		exit 2
 	fi
 fi
@@ -66,9 +66,9 @@ EXPECTED_PRODUCT_VERSION="0.1.5"
 ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
 EXPECTED_ABI_EXPORT_COUNT=9
 EXPECTED_CONSUMER_TESTS=3
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
-	EXPECTED_PRODUCT_VERSION="0.2.0-alpha.1"
-	ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	EXPECTED_PRODUCT_VERSION="0.2.0"
+	ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 	EXPECTED_ABI_EXPORT_COUNT=43
 	EXPECTED_CONSUMER_TESTS=4
 	if [ "$APPLE_RELEASE_MODE" != "0" ]; then
@@ -420,7 +420,7 @@ fi
 
 OUT_ROOT=${QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR:-"$ROOT/target/qperiapt-swift-xcframework"}
 require_under_target "$OUT_ROOT" "QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR"
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ] && [ -e "$OUT_ROOT" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ] && [ -e "$OUT_ROOT" ]; then
 	printf 'error: SDK alpha output directory already exists; retain the attempt and choose a fresh path\n' >&2
 	exit 2
 fi
@@ -433,7 +433,7 @@ LIBS="$WORK/libs"
 XCFRAMEWORK="$DIST/CQPeriapt.xcframework"
 ZIP_PATH="$DIST/CQPeriapt.xcframework.zip"
 CONSUMER="$OUT_ROOT/consumer"
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	CONSUMER="$OUT_ROOT/sdk-layout/QPeriaptSDKConsumer"
 fi
 MANIFEST="$DIST/MANIFEST.json"
@@ -568,7 +568,7 @@ PY
 )
 CC_SHELL_ESCAPED_FLAGS=1
 export CFLAGS CC_SHELL_ESCAPED_FLAGS
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	# rustc and cc-rs otherwise choose different defaults (iOS 10 vs SDK 27).
 	# Bind every native dependency to the platforms promised by Package.swift.
 	MACOSX_DEPLOYMENT_TARGET=13.0
@@ -692,7 +692,7 @@ if [ -n "$missing_targets" ]; then
 	exit 2
 fi
 
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	mkdir "$OUT_ROOT"
 	python3 artifact/apple_sdk_profile.py snapshot >"$OUT_ROOT/SOURCE_INPUTS.before.json"
 fi
@@ -714,7 +714,7 @@ printf 'PASS: generated C header freshness\n'
 
 # BEGIN_ABI2_EXPORT_VALIDATOR
 validate_abi2_exports() {
-	if [ "${APPLE_PACKAGE_PROFILE:-legacy}" = "sdk-alpha1" ]; then
+	if [ "${APPLE_PACKAGE_PROFILE:-legacy}" = "sdk-020" ]; then
 		python3 artifact/apple_sdk_profile.py check-exports --library "$1" --llvm-nm "$LLVM_NM"
 		return
 	fi
@@ -764,7 +764,7 @@ END {
 
 printf '\n=== Build Apple static libraries ===\n'
 for target in $required_targets; do
-	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 		python3 - "$ROOT" <<'PY'
 import shutil
 import sys
@@ -772,7 +772,7 @@ if shutil.disk_usage(sys.argv[1]).free < 2 * 1024 ** 3:
     raise SystemExit("error: less than 2 GiB free for the next Apple SDK build; preserve this attempt and free space separately")
 PY
 	fi
-	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 		set +e
 		cargo rustc -p q-periapt-ffi --lib --crate-type staticlib --release --locked --target "$target" \
 			>"$OUT_ROOT/$target-build.log" 2>&1
@@ -999,7 +999,7 @@ fi
 SWIFTPM_CHECKSUM=$(swift package compute-checksum "$ZIP_PATH")
 
 printf '\n=== Generate isolated SwiftPM binary consumer ===\n'
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	mkdir "$OUT_ROOT/sdk-layout"
 	python3 artifact/apple_sdk_profile.py prepare --xcframework-zip "$ZIP_PATH" \
 		--parent "$OUT_ROOT/sdk-layout" --host-target "$RUST_HOST" >"$OUT_ROOT/sdk-layout/WRAPPER_INPUTS.json"
@@ -1084,7 +1084,7 @@ QPERIAPT_INTERNAL_APPLE_PACKAGE_PROFILE="$APPLE_PACKAGE_PROFILE" \
 sh artifact/swift-xcframework-consumer-check.sh \
 	"$CONSUMER" "$APPLE_CONSUMER_EVIDENCE" "$CONSUMER_XCFRAMEWORK"
 
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	printf '\n=== Install and test the complete Swift SDK package outside the checkout ===\n'
 	python3 artifact/apple_sdk_profile.py finish --parent "$OUT_ROOT/sdk-layout" \
 		--dist "$DIST" --source-snapshot "$OUT_ROOT/SOURCE_INPUTS.before.json" \
@@ -1224,7 +1224,7 @@ if len(export_names) != expected_exports or len(set(export_names)) != expected_e
 exports_digest = hashlib.sha256(("\n".join(export_names) + "\n").encode("utf-8")).hexdigest()
 
 manifest = {
-    "schema_version": 6 if package_profile == "sdk-alpha1" else 5,
+    "schema_version": 6 if package_profile == "sdk-020" else 5,
     "kind": "qperiapt.swift_xcframework_manifest",
     "package": "q-periapt-swift",
     "version": version,
@@ -1411,7 +1411,7 @@ if apple_release_mode:
     manifest["source_inputs"]["swift_remote_consumer_script_sha256"] = sha(
         root / "artifact/swift-xcframework-remote-consumer.sh"
     )
-if package_profile == "sdk-alpha1":
+if package_profile == "sdk-020":
     from apple_sdk_profile import FIXTURE, SDK_FILES, check_source_snapshot
     manifest["package_profile"] = package_profile
     manifest["type"] = "swiftpm-source-wrappers-and-static-xcframework"
@@ -1439,8 +1439,8 @@ assert_toolchain_snapshot
 	cd "$DIST"
 	{
 		shasum -a 256 "CQPeriapt.xcframework.zip"
-		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
-			shasum -a 256 "QPeriapt-Swift-SDK-0.2.0-alpha.1.zip"
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+			shasum -a 256 "QPeriapt-Swift-SDK-0.2.0.zip"
 		fi
 		if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 			shasum -a 256 "APPLE_DISTRIBUTION.json"
@@ -1473,7 +1473,7 @@ PY
 
 assert_release_source_snapshot
 assert_toolchain_snapshot
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	python3 artifact/apple_sdk_profile.py check-source --snapshot "$OUT_ROOT/SOURCE_INPUTS.before.json" \
 		>"$OUT_ROOT/SOURCE_INPUTS.after.json"
 fi

@@ -20,9 +20,9 @@ need xcrun
 
 CAPTURE_PROFILE=${QPERIAPT_APPLE_CAPTURE_PROFILE:-legacy}
 case "$CAPTURE_PROFILE" in
-	legacy | sdk-alpha1) ;;
+	legacy | sdk-020) ;;
 	*)
-		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-alpha1\n' >&2
+		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-020\n' >&2
 		exit 2
 		;;
 esac
@@ -95,7 +95,7 @@ if [ -z "$MATRIX_SPEC" ]; then
 	exit 2
 fi
 
-if [ "$CAPTURE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
 	for attempt_path in "$MATRIX_RESULT_DIR" "$DERIVED_BASE"; do
 		if [ -e "$attempt_path" ] || [ -L "$attempt_path" ]; then
 			printf 'error: SDK matrix capture requires a fresh directory: %s\n' "$attempt_path" >&2
@@ -188,7 +188,7 @@ for raw_entry in $MATRIX_SPEC; do
 		ipad) expected_type=iPad; expected_transport=wired ;;
 		iphone)
 			expected_type=iPhone
-			if [ "$CAPTURE_PROFILE" = "sdk-alpha1" ]; then
+			if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
 				expected_transport=wired
 			else
 				expected_transport=localNetwork

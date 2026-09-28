@@ -3069,7 +3069,7 @@ PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
 	"$@"
 else
 	set --
-	if [ "$ANDROID_AAR_PROFILE" = "sdk-alpha1" ]; then
+	if [ "$ANDROID_AAR_PROFILE" = "sdk-020" ]; then
 		set -- --export-to "$DIST/agp-evidence"
 	fi
 	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py verify \

@@ -63,7 +63,7 @@ struct DeviceRunner {
             let runID = try deviceRunID()
             #if QPERIAPT_SDK_DEVICE
             let tests = try await SDKDeviceSmoke.run()
-            let marker = "QPERIAPT_SDK_DEVICE_PASS profile=sdk-alpha1 version=\(SDKDeviceSmoke.version) " +
+            let marker = "QPERIAPT_SDK_DEVICE_PASS profile=sdk-020 version=\(SDKDeviceSmoke.version) " +
                 "abi=2 extension=1 tests=\(tests.joined(separator: ",")) run-id=\(runID)"
             #else
             try DeviceSmoke.run()

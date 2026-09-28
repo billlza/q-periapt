@@ -1,7 +1,7 @@
-# Q-Periapt Android SDK 0.2.0-alpha.1
+# Q-Periapt Android SDK 0.2.0
 
 This local candidate contains the Maven coordinate
-`dev.qperiapt:q-periapt-android:0.2.0-alpha.1`, a sources JAR, project and native
+`dev.qperiapt:q-periapt-android:0.2.0`, a sources JAR, project and native
 dependency notices, and the source-bound AAR manifest. It has not been uploaded
 to Maven Central. Native ABI major remains **2**, the owner extension is 1, and
 the two library names remain `q_periapt_ffi_abi2` and `qperiapt_jni_abi2`.
@@ -23,7 +23,7 @@ dependencyResolutionManagement {
 }
 ```
 
-Add `implementation("dev.qperiapt:q-periapt-android:0.2.0-alpha.1")` in the
+Add `implementation("dev.qperiapt:q-periapt-android:0.2.0")` in the
 application module. Use this exact version; the candidate repository does not
 provide dynamic-version metadata. The AAR has no Maven runtime dependencies.
 AGP's own built-in Kotlin support may add Kotlin stdlib to the application;

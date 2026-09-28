@@ -1,7 +1,7 @@
-# Q-Periapt JVM SDK 0.2.0-alpha.1
+# Q-Periapt JVM SDK 0.2.0
 
 This local candidate contains a Maven repository with the fixed coordinate
-`dev.qperiapt:q-periapt-hybrid:0.2.0-alpha.1` and one host-specific C SDK archive.
+`dev.qperiapt:q-periapt-hybrid:0.2.0` and one host-specific C SDK archive.
 It has not been published to Maven Central. ABI major remains **2**; the owner
 extension version is 1. Use a 64-bit **JDK 25** or later. The package producer
 qualifies JDK 25; later JVMs and other operating systems need their own runs.
@@ -21,7 +21,7 @@ repositories {
     }
     mavenCentral()
 }
-dependencies { implementation("dev.qperiapt:q-periapt-hybrid:0.2.0-alpha.1") }
+dependencies { implementation("dev.qperiapt:q-periapt-hybrid:0.2.0") }
 ```
 
 Extract the archive under `native/`, check its `MANIFEST.json` and library hashes

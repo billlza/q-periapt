@@ -91,10 +91,10 @@ SOURCE_INPUT_PATHS = {
     "qperiapt_cli_lib": "crates/q-periapt-cli/src/lib.rs",
     "qperiapt_cli_main": "crates/q-periapt-cli/src/main.rs",
 }
-C_PROFILES = ("legacy", "sdk-alpha1")
-SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
-SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
-SDK_PACKAGE_VERSION = "0.2.0-alpha.1"
+C_PROFILES = ("legacy", "sdk-020")
+SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_PACKAGE_VERSION = "0.2.0"
 SDK_SOURCE_INPUT_PATHS = {
     **SOURCE_INPUT_PATHS,
     "c_abi_contract": SDK_CONTRACT_PATH,
@@ -102,7 +102,7 @@ SDK_SOURCE_INPUT_PATHS = {
     "c_sdk_policy_fixture": "bindings/c/sdk_policy_update_fixture.h",
     "c_legacy_header": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
     "native_cbom_source": "crates/q-periapt-cli/src/sdk_cbom.rs",
-    "native_cbom_inventory": "artifact/fixtures/sdk-native-alpha1-tls-inventory.json",
+    "native_cbom_inventory": "artifact/fixtures/sdk-native-020-tls-inventory.json",
     "package_bom_verifier": "artifact/package_bom.py",
     "apple_rustc_wrapper": "artifact/apple-sdk-rustc.sh",
     "rust_library_notices": "LICENSES/Rust-1.96.1-library.html",
@@ -121,7 +121,7 @@ SDK_PAYLOAD_SOURCES = {
 
 def profile_source_paths(profile: str) -> dict[str, str]:
     require(profile in C_PROFILES, "unknown C package profile")
-    return dict(SDK_SOURCE_INPUT_PATHS if profile == "sdk-alpha1" else SOURCE_INPUT_PATHS)
+    return dict(SDK_SOURCE_INPUT_PATHS if profile == "sdk-020" else SOURCE_INPUT_PATHS)
 
 
 def source_fingerprints(repository: pathlib.Path, profile: str) -> dict[str, str]:
@@ -430,7 +430,7 @@ def _expected_files(target: str, runtime_identity: dict[str, Any], third_party: 
 def expected_profile_files(root: pathlib.Path, target: str, runtime_identity: dict[str, Any], profile: str) -> frozenset[str]:
     require(profile in C_PROFILES, "unknown C package profile")
     required = _expected_files(target, runtime_identity, _third_party_files(root, target))
-    if profile == "sdk-alpha1":
+    if profile == "sdk-020":
         required = (required - {"share/q-periapt/abi/q-periapt-c-abi-v2.json"}) | {SDK_EMBEDDED_CONTRACT} | SDK_EXTRA_FILES
     return required
 
@@ -496,7 +496,7 @@ def verify_package(
     """Verify all portable package invariants before native ELF consumer gates."""
 
     require(profile in C_PROFILES, "unknown C package profile")
-    sdk = profile == "sdk-alpha1"
+    sdk = profile == "sdk-020"
     version = SDK_PACKAGE_VERSION if sdk else PACKAGE_SEMVER
     export_count = 43 if sdk else 9
     source_paths = profile_source_paths(profile)
@@ -637,7 +637,7 @@ def verify_package(
                     f"C SDK installed source differs: {packaged}")
     try:
         verify_package_boms(root, cargo_lock=repository / "Cargo.lock",
-                            profile=BomProfile.NATIVE_SDK_ALPHA1 if sdk else BomProfile.BACKENDS_V0_1_5)
+                            profile=BomProfile.NATIVE_SDK_020 if sdk else BomProfile.BACKENDS_V0_1_5)
     except PackageBomError as exc:
         fail(f"C package BOM is invalid: {exc}")
     forbidden = [str(repository), repository.as_posix()]

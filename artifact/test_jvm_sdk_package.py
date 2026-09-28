@@ -22,7 +22,7 @@ class JvmSDKPackageTests(unittest.TestCase):
             for name in ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid")}
         self.binary["META-INF/dev.qperiapt_q-periapt-hybrid.kotlin_module"] = b"fixture"
         self.binary["META-INF/MANIFEST.MF"] = ("Manifest-Version: 1.0\r\nAutomatic-Module-Name: dev.qperiapt.hybrid\r\n"
-            "Implementation-Title: Q-Periapt Kotlin/JVM SDK\r\nImplementation-Version: 0.2.0-alpha.1\r\n"
+            "Implementation-Title: Q-Periapt Kotlin/JVM SDK\r\nImplementation-Version: 0.2.0\r\n"
             "QPeriapt-ABI: 2\r\nQPeriapt-SDK-Extension: 1\r\n\r\n").encode()
         source_root = jvm.BINDING / "src/main/kotlin"
         self.source = {path.relative_to(source_root).as_posix(): path.read_bytes() for path in source_root.rglob("*.kt")}
@@ -102,11 +102,11 @@ class JvmSDKPackageTests(unittest.TestCase):
             jvm.verify_maven(self.repository)
 
     def test_rehashed_coordinate_dependency_and_redirect_rejected(self):
-        self.pom = self.pom.replace("0.2.0-alpha.1", "0.1.5")
+        self.pom = self.pom.replace("0.2.0", "0.1.5")
         self.write_repository()
         with self.assertRaisesRegex(ValueError, "coordinate differs"):
             jvm.verify_maven(self.repository)
-        self.pom = self.pom.replace("0.1.5", "0.2.0-alpha.1")
+        self.pom = self.pom.replace("0.1.5", "0.2.0")
         self.write_repository()
         self.module["variants"][0]["dependencies"][0]["version"]["requires"] = "2.+"
         self.write_module_checksums()

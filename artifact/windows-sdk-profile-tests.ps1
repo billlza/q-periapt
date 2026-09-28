@@ -5,7 +5,7 @@ param([Parameter(Mandatory)] [string] $Python)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$Profile = "sdk-alpha1"
+$Profile = "sdk-020"
 $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile(
@@ -62,7 +62,7 @@ $symbolFunction = @($ast.FindAll({ param($node)
 }, $true))
 if ($symbolFunction.Count -ne 1) { throw "production import-library boundary is ambiguous" }
 Invoke-Expression $symbolFunction[0].Extent.Text
-$Contract = Join-Path $Root "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+$Contract = Join-Path $Root "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 $names = @((Get-Content -LiteralPath $Contract -Raw | ConvertFrom-Json).abi.exports | ForEach-Object { $_.name })
 $fixture = @("  100 __IMPORT_DESCRIPTOR_q_periapt_ffi_abi2")
 foreach ($name in $names) { $fixture += @("  200 $name", "  200 __imp_$name") }

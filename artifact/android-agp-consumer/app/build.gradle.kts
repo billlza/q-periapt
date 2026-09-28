@@ -96,7 +96,7 @@ tasks.withType<JavaCompile>().configureEach {
 dependencies {
     if (sdkMaven) {
         check(!providers.gradleProperty("qperiaptAar").isPresent) { "Maven consumer cannot also select a file AAR" }
-        implementation("dev.qperiapt:q-periapt-android:0.2.0-alpha.1")
+        implementation("dev.qperiapt:q-periapt-android:0.2.0")
     } else {
         implementation(files(exactAar))
     }
@@ -110,13 +110,13 @@ if (sdkMaven) {
             val artifacts = configurations.getByName("${variant}ReleaseRuntimeClasspath").resolvedConfiguration.resolvedArtifacts
             // AGP 9.4's built-in Kotlin adds stdlib even to this Java-only app.
             // Keep that observed tool dependency distinct from the AAR's empty POM dependency list.
-            val expected = setOf("dev.qperiapt:q-periapt-android:0.2.0-alpha.1",
+            val expected = setOf("dev.qperiapt:q-periapt-android:0.2.0",
                 "org.jetbrains.kotlin:kotlin-stdlib:2.2.10", "org.jetbrains:annotations:13.0")
             check(artifacts.map { it.moduleVersion.id.toString() }.toSet() == expected && artifacts.size == expected.size) {
                 "Android SDK consumer runtime dependency closure differs"
             }
             val selected = artifacts.single { it.moduleVersion.id.group == "dev.qperiapt" }
-            check(selected.moduleVersion.id.toString() == "dev.qperiapt:q-periapt-android:0.2.0-alpha.1")
+            check(selected.moduleVersion.id.toString() == "dev.qperiapt:q-periapt-android:0.2.0")
             check(selected.extension == "aar")
             val digest = MessageDigest.getInstance("SHA-256").digest(selected.file.readBytes()).joinToString("") { "%02x".format(it) }
             val capture = file(providers.gradleProperty("qperiaptResolutionCapture").get())

@@ -11,7 +11,7 @@ migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
 
-The explicit sdk-alpha1 CI profile validates current source and ABI contracts
+The explicit sdk-020 CI profile validates current source and ABI contracts
 while preserving the 0.1.5 results bytes as history. It grants no release claim.
 """
 
@@ -581,9 +581,9 @@ def source_ci_gate(
         and COMMIT_RE.fullmatch(expected_commit) is not None,
         "expected CI source commit is malformed",
     )
-    _require(isinstance(profile, str) and profile in {"legacy", "sdk-alpha1"}, "unsupported source CI profile")
-    if profile == "sdk-alpha1":
-        return "sdk-alpha1", _sdk_source_ci_gate(expected_results_sha256, expected_commit)
+    _require(isinstance(profile, str) and profile in {"legacy", "sdk-020"}, "unsupported source CI profile")
+    if profile == "sdk-020":
+        return "sdk-020", _sdk_source_ci_gate(expected_results_sha256, expected_commit)
     baseline = _load_pinned_baseline(expected_results_sha256)
     baseline_inputs = _object(
         baseline.get("proof_to_byte_inputs"),
@@ -672,11 +672,11 @@ def _sdk_source_ci_gate(expected_results_sha256: str, expected_commit: str) -> S
         workspace = _object(document.get("workspace"), "SDK workspace")
         package = _object(workspace.get("package"), "SDK workspace package")
         _require(
-            package.get("version") == "0.2.0-alpha.1",
+            package.get("version") == "0.2.0",
             "SDK source gate requires the exact alpha workspace version",
         )
         for contract_path, header_path, count in (
-            ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json",
+            ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
              "crates/q-periapt-ffi/include/q_periapt.h", 43),
             ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
              "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h", 9),
@@ -2381,7 +2381,7 @@ def _parser() -> argparse.ArgumentParser:
     ci_gate = commands.add_parser("ci-source-gate")
     ci_gate.add_argument("expected_results_sha256")
     ci_gate.add_argument("expected_commit")
-    ci_gate.add_argument("--profile", choices=("legacy", "sdk-alpha1"), default="legacy")
+    ci_gate.add_argument("--profile", choices=("legacy", "sdk-020"), default="legacy")
     reopen = commands.add_parser("reopen-source")
     reopen.add_argument("expected_results_sha256")
     return parser
@@ -2394,9 +2394,9 @@ def run(args: argparse.Namespace) -> None:
             args.expected_commit,
             profile=args.profile,
         )
-        if mode == "sdk-alpha1":
+        if mode == "sdk-020":
             print(
-                "SDK_SOURCE_READINESS_PASS profile=sdk-alpha1 "
+                "SDK_SOURCE_READINESS_PASS profile=sdk-020 "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
                 "current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
             )

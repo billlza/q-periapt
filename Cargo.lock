@@ -1150,7 +1150,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-backends"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "criterion",
  "fips204",
@@ -1172,7 +1172,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-cli"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "clap",
  "q-periapt-backends",
@@ -1186,15 +1186,15 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-continuity-model"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 
 [[package]]
 name = "q-periapt-core"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 
 [[package]]
 name = "q-periapt-ctstats"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "cc",
  "q-periapt-backends",
@@ -1204,7 +1204,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-ffi"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "getrandom 0.4.3",
  "q-periapt-backends",
@@ -1221,7 +1221,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-host-store"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "getrandom 0.4.3",
  "q-periapt-backends",
@@ -1236,14 +1236,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-kem"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-migration"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1256,7 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-mlkem-native-sys"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "cc",
  "sha3",
@@ -1264,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-policy"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1276,7 +1276,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-policy-agent"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -1294,7 +1294,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-rustls"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "q-periapt-backends",
  "q-periapt-core",
@@ -1312,7 +1312,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-sdk"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "getrandom 0.4.3",
  "hkdf",
@@ -1328,7 +1328,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-sdk-wasm"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "js-sys",
  "q-periapt-core",
@@ -1339,14 +1339,14 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-sig"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "q-periapt-core",
 ]
 
 [[package]]
 name = "q-periapt-tls-demo"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "getrandom 0.4.3",
  "q-periapt-backends",
@@ -1357,7 +1357,7 @@ dependencies = [
 
 [[package]]
 name = "q-periapt-wasm"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 dependencies = [
  "js-sys",
  "q-periapt-backends",

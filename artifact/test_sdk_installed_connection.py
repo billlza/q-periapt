@@ -48,7 +48,7 @@ class InstalledConnectionAdmissionTests(unittest.TestCase):
 
     def test_equal_versions_do_not_substitute_for_same_current_native_inputs(self):
         swift = {"rust_workspace_build_inputs": "a" * 64}
-        cohort = {"version": "0.2.0-alpha.1", "source_inputs": {"rust_workspace_sha256": "a" * 64}}
+        cohort = {"version": "0.2.0", "source_inputs": {"rust_workspace_sha256": "a" * 64}}
         installed.same_native_sources(swift, cohort, "a" * 64)
         for source, report, current in (
             ({"rust_workspace_build_inputs": "b" * 64}, cohort, "a" * 64),

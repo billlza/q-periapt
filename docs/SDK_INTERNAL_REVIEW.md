@@ -143,10 +143,11 @@ The SDK package producer already has the required dependency-safe order:
 11. `q-periapt-wasm`
 12. `q-periapt-cli`
 
-The active SDK producers and consumers still select `0.2.0-alpha.1` and
-`sdk-alpha1`. A coordinated 0.2.0 version/package transition and its release
-procedure remain work to complete; changing only the root Cargo version or
-reusing the old publication order would be incomplete.
+The active SDK producers and consumers now select `0.2.0` and `sdk-020`.
+This coordinated transition includes exact internal dependencies, archive names,
+installed consumers, C contract metadata and the native CBOM profile. Its
+source/package qualification and release procedure remain required; the frozen
+0.1.5 publisher order cannot publish the twelve-crate cohort.
 
 ## Validation and remaining review
 

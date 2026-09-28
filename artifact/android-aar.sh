@@ -16,10 +16,10 @@ cd "$ROOT" || exit 2
 
 PACKAGE_PROFILE=legacy
 if [ "$#" -ne 0 ]; then
-	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-alpha1" ]; then
-		PACKAGE_PROFILE=sdk-alpha1
+	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
+		PACKAGE_PROFILE=sdk-020
 	else
-		printf 'error: android-aar.sh accepts only --profile sdk-alpha1 or no arguments\n' >&2
+		printf 'error: android-aar.sh accepts only --profile sdk-020 or no arguments\n' >&2
 		exit 2
 	fi
 fi
@@ -268,7 +268,7 @@ fi
 
 OUT_ROOT=${QPERIAPT_ANDROID_AAR_OUT_DIR:-"$ROOT/target/qperiapt-android-aar"}
 require_under_target "$OUT_ROOT" "QPERIAPT_ANDROID_AAR_OUT_DIR"
-if [ "$PACKAGE_PROFILE" = "sdk-alpha1" ] && { [ -e "$OUT_ROOT" ] || [ -L "$OUT_ROOT" ]; }; then
+if [ "$PACKAGE_PROFILE" = "sdk-020" ] && { [ -e "$OUT_ROOT" ] || [ -L "$OUT_ROOT" ]; }; then
 	printf 'error: Android SDK output must be a fresh directory: %s\n' "$OUT_ROOT" >&2
 	exit 2
 fi
@@ -423,7 +423,7 @@ cp LICENSE "$STAGE/META-INF/LICENSE"
 # compiler notices live in LICENSES too; SDK-specific notices follow below.
 mkdir -p "$STAGE/META-INF/LICENSES"
 cp LICENSES/Apache-2.0.txt LICENSES/MIT.txt "$STAGE/META-INF/LICENSES/"
-if [ "$PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$PACKAGE_PROFILE" = "sdk-020" ]; then
 	python3 - "$ROOT" "$STAGE" <<'PY'
 import pathlib
 import shutil
@@ -815,7 +815,7 @@ payload = {
         "native": native,
     },
 }
-if profile_name == "sdk-alpha1":
+if profile_name == "sdk-020":
     payload["jni"] = {"extension_version": 1, "method_count": len(profile.jni_methods), "methods": profile.jni_methods}
     payload["artifacts"].update(
         java_sdk_sha256=sha256(root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java"),

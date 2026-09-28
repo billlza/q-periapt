@@ -1,10 +1,10 @@
-"""Closed, reviewed 0.2.0-alpha.1 extension to the retained C ABI major 2.
+"""Closed, reviewed 0.2.0 extension to the retained C ABI major 2.
 
 This does not replace the immutable 0.1.5 nine-symbol contract. Changes to these
 declarations/layouts and their machine-readable snapshot require explicit review.
 """
 
-PACKAGE_SEMVER = "0.2.0-alpha.1"
+PACKAGE_SEMVER = "0.2.0"
 JNI_METHODS = {
     "sdkExtensionVersionNative": "()I",
     "sdkRuntimeNewNative": "([B[B[B[BII)J",

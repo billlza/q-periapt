@@ -35,7 +35,7 @@ final class QPeriaptSDKBinaryConsumerTests: XCTestCase {
 
     func testInstalledMetadataOwnersDerivationAndRevocation() throws {
         XCTAssertEqual(QPeriaptHybrid.runtimeAbiVersion, 2)
-        XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.2.0-alpha.1")
+        XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.2.0")
         let runtime = try runtime()
         let key = try runtime.generateKey()
         let context: [UInt8] = [1, 2, 3]

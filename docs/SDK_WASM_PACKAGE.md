@@ -1,7 +1,7 @@
 # Product WASM package candidate
 
 `artifact/wasm_sdk_package.py` builds a single `q-periapt-sdk-wasm` npm archive
-for 0.2.0-alpha.1. C remains ABI 2; WASM package entry points do not change the
+for 0.2.0. C remains ABI 2; WASM package entry points do not change the
 native ABI, its symbol identities or its existing status codes.
 
 The default Node CommonJS and ESM imports share the same instance and classes.

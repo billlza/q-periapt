@@ -164,9 +164,9 @@ class WorkflowArtifactTests(unittest.TestCase):
         profile = workflow_artifact.ANDROID_SDK_AAR_PROFILE
         expected = self._write_profile(profile)
         destination = workflow_artifact.extract_profile(profile.name)
-        self.assertEqual(destination, self.repository / "target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1")
+        self.assertEqual(destination, self.repository / "target/qperiapt-android-aar/q-periapt-android-0.2.0")
         self._assert_outputs(destination, expected)
-        self.assertEqual(set(expected), {"q-periapt-android-0.2.0-alpha.1.aar", "MANIFEST.json", "SHA256SUMS"})
+        self.assertEqual(set(expected), {"q-periapt-android-0.2.0.aar", "MANIFEST.json", "SHA256SUMS"})
 
     def test_sdk_android_intake_rejects_a_legacy_raw_artifact(self) -> None:
         self._write_profile(workflow_artifact.ANDROID_AAR_PROFILE)

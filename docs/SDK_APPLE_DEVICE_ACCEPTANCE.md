@@ -1,8 +1,8 @@
 # Apple SDK device acceptance
 
-The `sdk-alpha1` capture profile exercises the public Swift SDK owners against
+The `sdk-020` capture profile exercises the public Swift SDK owners against
 the ABI 2 library built from the selected source. It identifies package
-`0.2.0-alpha.1`, ABI major **2**, extension revision **1**. It does not change
+`0.2.0`, ABI major **2**, extension revision **1**. It does not change
 the original nine C entry points or promote a historical 0.1.5 device proof.
 
 The workload completes these four groups before it emits a success marker:
@@ -50,7 +50,7 @@ run-owned bundle identifiers and the existing ownership-checked cleanup path.
 Automatic provisioning/profile updates remain disabled unless separately enabled.
 
 ```sh
-QPERIAPT_APPLE_CAPTURE_PROFILE=sdk-alpha1 \
+QPERIAPT_APPLE_CAPTURE_PROFILE=sdk-020 \
 QPERIAPT_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 QPERIAPT_IOS_DEVICE_MATRIX="ipad:$IPAD_ID,iphone:$IPHONE_ID" \
 DEVELOPMENT_TEAM="$TEAM_ID" \
@@ -78,7 +78,7 @@ The legacy profile retains its distinct Xcode-27.0.app / Apple System contract.
 
 SDK device and matrix proofs use schema 1 with distinct kinds
 `qperiapt.apple_sdk_device_proof` and `qperiapt.apple_sdk_matrix_proof`. Verification
-must explicitly request `--capture-profile sdk-alpha1`; it never selects the
+must explicitly request `--capture-profile sdk-020`; it never selects the
 profile from proof-controlled fields. The device marker binds version, ABI,
 extension, all four completed groups and a fresh run nonce. Missing groups,
 wrong versions, mixed profiles, duplicate markers and legacy markers are refused.

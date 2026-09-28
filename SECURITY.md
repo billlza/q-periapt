@@ -2,9 +2,9 @@
 
 ## Development SDK candidates
 
-The `0.2.0-alpha.1` owned-key SDK in this development tree is a preview, not a
-stable security-qualified publication. ABI major 2 compatibility does not make
-an alpha wrapper compatible with the released nine-export library: the new
+The `0.2.0` owned-key SDK in this development tree is a release candidate
+under qualification. ABI major 2 compatibility does not make
+an SDK wrapper compatible with the released nine-export library: the new
 SDK wrappers require the matching 43-export SDK profile and package version.
 
 Use the [integration guide](docs/SDK_GETTING_STARTED.md) for package selection

@@ -22,8 +22,8 @@ case "$APPLE_PACKAGE_PROFILE" in
 	legacy)
 		CONTRACT_RELATIVE=crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json
 		EXPECTED_EXPORT_COUNT=9 ;;
-	sdk-alpha1)
-		CONTRACT_RELATIVE=crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json
+	sdk-020)
+		CONTRACT_RELATIVE=crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json
 		EXPECTED_EXPORT_COUNT=43 ;;
 	*) printf 'error: unknown Apple consumer package profile\n' >&2; exit 2 ;;
 esac
@@ -167,7 +167,7 @@ run_macos_link_gate() (
 		log="$EVIDENCE_DIR/$gate-$arch.log"
 		link_map="$EVIDENCE_DIR/$gate-$arch.linkmap"
 		set --
-		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 			# SwiftPM's default engine can omit copy/link progress text. Retain
 			# the actual linker input map in addition to checking final bytes.
 			set -- -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors \
@@ -206,7 +206,7 @@ run_macos_link_gate() (
 			exit 1
 		fi
 		product="$scratch/${arch}-apple-macosx/debug"
-		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 			product=$(swift build "$@" --package-path "$PACKAGE_DIR" --scratch-path "$scratch" \
 				--triple "$triple" --show-bin-path)
 		fi
@@ -217,7 +217,7 @@ run_macos_link_gate() (
 			exit 1
 		fi
 		probe="$product/QPeriaptLinkProbe"
-		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 			python3 artifact/apple_sdk_profile.py check-link-map --map "$link_map" \
 				--library "$selected" --probe "$probe" --architecture "$arch"
 		fi
@@ -258,7 +258,7 @@ run_ios_link_gate() (
 	derived="$EVIDENCE_DIR/$gate-derived"
 	log="$EVIDENCE_DIR/$gate.log"
 	set --
-	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 		# Xcode 26 suppresses warnings in package dependencies by default. Keep
 		# their diagnostics visible as well as fatal in this SDK qualification.
 		set -- SWIFT_STRICT_CONCURRENCY=complete SWIFT_SUPPRESS_WARNINGS=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
@@ -369,7 +369,7 @@ run_ios_link_gate() (
 
 run_macos_link_gate
 IOS_SCHEME=QPeriaptLinkProbe
-if [ "$APPLE_PACKAGE_PROFILE" = "sdk-alpha1" ]; then
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	if [ "$MODE" = "build" ]; then
 		(cd "$PACKAGE_DIR" && xcodebuild -list -json) \
 			>"$EVIDENCE_DIR/SCHEMES.json" 2>"$EVIDENCE_DIR/SCHEMES.log"

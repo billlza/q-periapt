@@ -355,7 +355,7 @@ pub fn native_sdk_cbom() -> Result<Value, CbomError> {
         .ok_or_else(|| failure("missing CBOM component"))?
         .insert("version".to_owned(), json!(env!("CARGO_PKG_VERSION")));
     metadata.insert("properties".to_owned(), json!([
-        {"name": "qperiapt:cbom-profile", "value": "native-sdk-alpha1"},
+        {"name": "qperiapt:cbom-profile", "value": "native-sdk-020"},
         {"name": "qperiapt:configured-tls-provider", "value": snapshot.to_string()},
         {"name": "qperiapt:inventory-scope", "value": "product algorithms and backend catalogue; not a census of transitive provider internals or OS RNG; not a negotiated-session or security-validation claim"}
     ]));

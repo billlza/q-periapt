@@ -1,9 +1,11 @@
-# Native alpha.1 configured TLS inventory
+# Native SDK 0.2.0 configured TLS inventory
 
-`sdk-native-alpha1-tls-inventory.json` is the complete public algorithm-choice
+`sdk-native-020-tls-inventory.json` is the complete public algorithm-choice
 snapshot from `q-periapt-rustls::standard::algorithm_inventory()` on the pinned
 rustls 0.23.45 AWS-LC provider, after the product factory's TLS 1.3 / single
 `X25519MLKEM768` restrictions. It was captured from actual CLI output, not a mock.
+The algorithm-choice bytes are retained unchanged from the alpha.1 capture;
+the 0.2.0 package metadata and CBOM profile are validated separately.
 SHA-256: `d7ba7c197ae2820495a63b230a007536351c0745dfee050897bd53d494ba0bed`.
 
 The three cipher suites, one group, thirteen advertised signature schemes and

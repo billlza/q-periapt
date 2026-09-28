@@ -71,21 +71,21 @@ class ProfileSpec:
 
     @property
     def proof_kind(self) -> str:
-        return SDK_PROOF_KIND if self.aar_profile == "sdk-alpha1" else PROOF_KIND
+        return SDK_PROOF_KIND if self.aar_profile == "sdk-020" else PROOF_KIND
 
     @property
     def build_kind(self) -> str:
-        return SDK_BUILD_KIND if self.aar_profile == "sdk-alpha1" else BUILD_KIND
+        return SDK_BUILD_KIND if self.aar_profile == "sdk-020" else BUILD_KIND
 
 
 PROFILE_SPECS = {
     "agp_full_release": ProfileSpec("legacy", "0.1.5", "Full", "full",
         "QPeriaptSmokeWorkload.java", ("signed-policy-vectors.json",)),
     "agp_minimal_release": ProfileSpec("legacy", "0.1.5", "Minimal", "minimal", None, ()),
-    "agp_sdk_full_release": ProfileSpec("sdk-alpha1", "0.2.0-alpha.1", "Full", "sdk",
+    "agp_sdk_full_release": ProfileSpec("sdk-020", "0.2.0", "Full", "sdk",
         "QPeriaptSDKWorkload.java", ("signed-policy-vectors.json",
             "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")),
-    "agp_sdk_minimal_release": ProfileSpec("sdk-alpha1", "0.2.0-alpha.1", "Minimal", "sdk-minimal", None, ()),
+    "agp_sdk_minimal_release": ProfileSpec("sdk-020", "0.2.0", "Minimal", "sdk-minimal", None, ()),
 }
 
 

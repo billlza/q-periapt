@@ -29,9 +29,9 @@ from package_bom import BomProfile, verify as verify_boms
 from third_party_licenses import collect as collect_licenses, verify as verify_licenses
 
 ROOT = Path(__file__).resolve().parent.parent
-PROFILE = "sdk-alpha1"
-VERSION = "0.2.0-alpha.1"
-CONTRACT = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+PROFILE = "sdk-020"
+VERSION = "0.2.0"
+CONTRACT = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 SDK_FILES = (
     "ConnectionEngine.swift", "NetworkTransport.swift", "QPeriaptConnection.swift",
     "QPeriaptPersistentRuntime.swift", "QPeriaptSDK.swift",
@@ -42,7 +42,7 @@ TARGETS = ("aarch64-apple-darwin", "x86_64-apple-darwin", "aarch64-apple-ios",
 SLICES = ("macos-arm64_x86_64", "ios-arm64", "ios-arm64_x86_64-simulator")
 POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
 CONTENTS = "PACKAGE_CONTENTS.json"
-ARCHIVE_NAME = "QPeriapt-Swift-SDK-0.2.0-alpha.1.zip"
+ARCHIVE_NAME = "QPeriapt-Swift-SDK-0.2.0.zip"
 MTIME = 946684800
 LIMITS = ArchiveLimits(maximum_archive_bytes=512 * 1024 * 1024,
                        maximum_total_bytes=384 * 1024 * 1024)
@@ -192,7 +192,7 @@ def source_identity() -> dict:
     paths.update((ROOT / "artifact").glob("*.py"))
     paths.update((ROOT / "artifact").glob("*.sh"))
     paths.add(ROOT / CONTRACT)
-    paths.add(ROOT / "artifact/fixtures/sdk-native-alpha1-tls-inventory.json")
+    paths.add(ROOT / "artifact/fixtures/sdk-native-020-tls-inventory.json")
     paths.add(ROOT / "bindings/swift/Sources/CQPeriapt/q_periapt.h")
     return {"rust_workspace_build_inputs": rust_workspace_source_digest(ROOT),
             "files": {p.relative_to(ROOT).as_posix(): read_regular_snapshot(
@@ -255,7 +255,7 @@ def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
                                     stderr=log.fileno(), output_sink=output.write)
         if result.returncode:
             raise ValueError(f"SDK {name} generation failed; retained {name}-build.log")
-    verify_boms(package, cargo_lock=ROOT / "Cargo.lock", profile=BomProfile.NATIVE_SDK_ALPHA1)
+    verify_boms(package, cargo_lock=ROOT / "Cargo.lock", profile=BomProfile.NATIVE_SDK_020)
     for target in TARGETS:
         target_notices = package / "Notices" / target
         target_notices.mkdir(parents=True)
@@ -337,7 +337,7 @@ def verify_package(package: Path, expected_source: dict, *, cargo_lock: Path | N
     contract = load_contract(ROOT / CONTRACT)
     for slice_name in SLICES:
         verify_header(contract, package / "Binaries/CQPeriapt.xcframework" / slice_name / "Headers/q_periapt.h")
-    verify_boms(package, cargo_lock=cargo_lock, profile=BomProfile.NATIVE_SDK_ALPHA1)
+    verify_boms(package, cargo_lock=cargo_lock, profile=BomProfile.NATIVE_SDK_020)
     return manifest
 
 

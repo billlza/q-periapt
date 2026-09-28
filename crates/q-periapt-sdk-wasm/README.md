@@ -1,4 +1,4 @@
-# Q-Periapt product WASM SDK (0.2.0-alpha.1 development)
+# Q-Periapt product WASM SDK (0.2.0 development)
 
 This separate entry point uses the owned Rust SDK. Its default build verifies
 ML-DSA-65 policy signatures and uses platform cryptographic randomness. The

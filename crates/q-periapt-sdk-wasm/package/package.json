@@ -1,6 +1,6 @@
 {
   "name": "q-periapt-sdk-wasm",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0",
   "description": "Signed-policy hybrid KEM SDK with platform randomness and owned keys",
   "license": "Apache-2.0 OR MIT",
   "repository": { "type": "git", "url": "https://github.com/billlza/q-periapt" },

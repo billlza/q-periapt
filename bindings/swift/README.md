@@ -1,6 +1,6 @@
 # QPeriaptHybrid (Swift)
 
-For unpublished 0.2.0-alpha.1 source, use the `QPeriaptSDK` package product and
+For unpublished 0.2.0 source, use the `QPeriaptSDK` package product and
 `QPeriaptRuntime` / `QPeriaptKey` owners. ABI major remains 2. The current host
 tests include [explicit expert key transfer](../../docs/SDK_KEY_TRANSFER.md) and
 [policy preparation, persistence and activation](../../docs/SDK_POLICY_UPDATES.md).
@@ -11,9 +11,9 @@ provision/open/update and asynchronous cleanup. Other Apple platforms return
 valid policy that disables the fixed suite. [Ownership rules](../../docs/SDK_OWNERSHIP.md)
 cover close, concurrency, cancellation and foreign byte copies.
 
-The [standalone alpha Swift package profile](../../docs/SDK_SWIFT_PACKAGE.md)
+The [standalone Swift SDK package profile](../../docs/SDK_SWIFT_PACKAGE.md)
 includes both Swift products, static XCFramework slices and notices/BOMs.
-Its unsigned alpha builder now passes all five architecture link gates and
+Its unsigned alpha.1 builder passed all five architecture link gates and
 public API tests after extraction outside the checkout. Signing, physical-device
 and minimum-OS runtime gates remain open; the source-development `Package.swift`
 below is a separate integration path.

@@ -2,7 +2,7 @@
 """Verify the frozen Q-Periapt C ABI 2 header and packaged runtime identity.
 
 For a dynamic library the contract compares every named, defined export against
-the closed version-specific allowlist (nine for 0.1.5, 43 for alpha.1).
+the closed version-specific allowlist (nine for 0.1.5, 43 for 0.2.0).
 Toolchain support or internal bridge symbols are not
 permitted to escape merely because they use another namespace. For a static
 archive, the reserved public ``q_periapt_*`` namespace must contain exactly the
@@ -1451,7 +1451,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--contract",
         type=pathlib.Path,
-        default=root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json",
+        default=root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
     )
     parser.add_argument(
         "--header",

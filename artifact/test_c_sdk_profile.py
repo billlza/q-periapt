@@ -25,7 +25,7 @@ class CSDKProfileTests(unittest.TestCase):
         fixture = package_fixture.CPackageManifestTests()
         fixture.repository = self.repository
         old = fixture._package(self.folder)
-        self.package = self.folder / "q-periapt-c-abi2-0.2.0-alpha.1-x86_64-unknown-linux-gnu"
+        self.package = self.folder / "q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu"
         old.rename(self.package)
         self.manifest = json.loads((self.package / "MANIFEST.json").read_text())
         self.manifest.update(schema_version=3, package=self.package.name, version=cpm.SDK_PACKAGE_VERSION)
@@ -37,7 +37,7 @@ class CSDKProfileTests(unittest.TestCase):
                    contract_sha256=contract.sha256, export_count=43,
                    exports_sha256=hashlib.sha256(("\n".join(sorted(contract.export_names)) + "\n").encode()).hexdigest())
         self.manifest["source_inputs_sha256"] = {
-            **cpm.source_fingerprints(self.repository, "sdk-alpha1"),
+            **cpm.source_fingerprints(self.repository, "sdk-020"),
             "third_party_rust_license_inventory": self.manifest["source_inputs_sha256"]["third_party_rust_license_inventory"],
         }
         for packaged, source in cpm.SDK_PAYLOAD_SOURCES.items():
@@ -71,13 +71,13 @@ class CSDKProfileTests(unittest.TestCase):
                                   **kwargs)
 
     def test_exact_alpha_profile_and_explicit_diagnostic_boundary(self):
-        self.assertEqual(self.verify(profile="sdk-alpha1")["abi"]["export_count"], 43)
+        self.assertEqual(self.verify(profile="sdk-020")["abi"]["export_count"], 43)
         with self.assertRaises(cpm.CPackageManifestError): self.verify()
         self.manifest.update(git_dirty=True, diagnostic_only=True)
         self.seal()
         with self.assertRaisesRegex(cpm.CPackageManifestError, "not clean release"):
-            self.verify(profile="sdk-alpha1")
-        self.assertTrue(self.verify(profile="sdk-alpha1", allow_diagnostic=True)["diagnostic_only"])
+            self.verify(profile="sdk-020")
+        self.assertTrue(self.verify(profile="sdk-020", allow_diagnostic=True)["diagnostic_only"])
         with self.assertRaises(cpm.CPackageManifestError): self.verify(profile="legacy", allow_diagnostic=True)
 
     def test_altered_contract_inventory_or_payload_cannot_be_rehashed_into_acceptance(self):
@@ -88,36 +88,36 @@ class CSDKProfileTests(unittest.TestCase):
             self.manifest["abi"][key] = value
             self.seal()
             with self.subTest(field=key), self.assertRaises(cpm.CPackageManifestError):
-                self.verify(profile="sdk-alpha1")
+                self.verify(profile="sdk-020")
         self.manifest = original
         fixture = self.package / "include/qperiapt/abi2/sdk_policy_update_fixture.h"
         fixture.write_bytes(fixture.read_bytes() + b"\n/* changed fixture */\n")
         self.seal()
         with self.assertRaisesRegex(cpm.CPackageManifestError, "installed source differs"):
-            self.verify(profile="sdk-alpha1")
+            self.verify(profile="sdk-020")
 
     def test_missing_owner_consumer_extra_files_and_legacy_bom_fail(self):
         owner = self.package / "share/q-periapt/sdk_smoke.c"
         data = owner.read_bytes()
         owner.unlink(); self.seal()
         with self.assertRaisesRegex(cpm.CPackageManifestError, "file set differs"):
-            self.verify(profile="sdk-alpha1")
+            self.verify(profile="sdk-020")
         owner.write_bytes(data)
         extra = self.package / "extra.txt"; extra.write_text("unreviewed payload"); self.seal()
         with self.assertRaisesRegex(cpm.CPackageManifestError, "file set differs"):
-            self.verify(profile="sdk-alpha1")
+            self.verify(profile="sdk-020")
         extra.unlink()
         fixture = package_fixture.CPackageManifestTests(); fixture.repository = self.repository
         fixture._write_boms(self.package); self.seal()
         with self.assertRaisesRegex(cpm.CPackageManifestError, "BOM is invalid"):
-            self.verify(profile="sdk-alpha1")
+            self.verify(profile="sdk-020")
 
     def test_unknown_profile_is_rejected_before_archive_access(self):
         env = {**os.environ, "QPERIAPT_C_PACKAGE_VERIFY_ARCHIVE": "/not-opened/archive.tar.gz"}
         result = subprocess.run(["sh", str(self.repository / "artifact/c-package.sh"), "--profile", "abi3"],
                                 env=env, capture_output=True, text=True, timeout=30, check=False)
         self.assertEqual(result.returncode, 2)
-        self.assertIn("accepts only --profile sdk-alpha1", result.stderr)
+        self.assertIn("accepts only --profile sdk-020", result.stderr)
 
     def test_final_byte_check_uses_the_manifest_pinned_before_installation(self):
         manifest = self.package / "MANIFEST.json"

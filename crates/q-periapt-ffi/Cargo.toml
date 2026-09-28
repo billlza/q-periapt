@@ -22,18 +22,18 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 linux-x86_64-avx2 = ["q-periapt-backends/linux-x86_64-avx2"]
 
 [dependencies]
-q-periapt-sdk = { version = "=0.2.0-alpha.1", path = "../q-periapt-sdk" }
-q-periapt-rustls = { version = "=0.2.0-alpha.1", path = "../q-periapt-rustls", features = ["reference-connection"] }
-q-periapt-core = { version = "=0.2.0-alpha.1", path = "../q-periapt-core" }
-q-periapt-kem = { version = "=0.2.0-alpha.1", path = "../q-periapt-kem" }
-q-periapt-backends = { version = "=0.2.0-alpha.1", path = "../q-periapt-backends" }
-q-periapt-policy = { version = "=0.2.0-alpha.1", path = "../q-periapt-policy" }
+q-periapt-sdk = { version = "=0.2.0", path = "../q-periapt-sdk" }
+q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"] }
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-kem = { version = "=0.2.0", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
 getrandom = "0.4"
 
 [target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
-q-periapt-host-store = { version = "=0.2.0-alpha.1", path = "../q-periapt-host-store" }
+q-periapt-host-store = { version = "=0.2.0", path = "../q-periapt-host-store" }
 
 [dev-dependencies]
 rcgen = "0.14"
 tempfile = "=3.27.0"
-q-periapt-sig = { version = "=0.2.0-alpha.1", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" } # Signer trait, to sign a policy in the policy-entry test

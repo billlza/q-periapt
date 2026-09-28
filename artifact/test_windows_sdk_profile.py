@@ -129,19 +129,19 @@ class WindowsSDKStaticLibraryTests(unittest.TestCase):
                "ws2_32.lib", "dbghelp.lib", "/defaultlib:msvcrt")
         self.assertEqual(windows.SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS, sdk)
         output = legacy_fixture._native_static_libraries_output(*sdk)
-        self.assertEqual(windows.parse_rustc_native_static_libraries(output, profile="sdk-alpha1"),
+        self.assertEqual(windows.parse_rustc_native_static_libraries(output, profile="sdk-020"),
                          [*sdk[:-1], "msvcrt.lib"])
         with self.assertRaises(windows.WindowsPackageError):
             windows.parse_rustc_native_static_libraries(output)
         legacy = legacy_fixture._native_static_libraries_output(
             *windows.EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS)
         with self.assertRaises(windows.WindowsPackageError):
-            windows.parse_rustc_native_static_libraries(legacy, profile="sdk-alpha1")
+            windows.parse_rustc_native_static_libraries(legacy, profile="sdk-020")
         for changed in (sdk[:-1], (*sdk, "extra.lib"), (sdk[1], sdk[0], *sdk[2:]),
                         (*sdk[:-1], "/defaultlib:libcmt"), (*sdk[:-1], "@extra.rsp")):
             with self.subTest(tokens=changed), self.assertRaises(windows.WindowsPackageError):
                 windows.parse_rustc_native_static_libraries(
-                    legacy_fixture._native_static_libraries_output(*changed), profile="sdk-alpha1")
+                    legacy_fixture._native_static_libraries_output(*changed), profile="sdk-020")
         with self.assertRaisesRegex(windows.WindowsPackageError, "unknown.*profile"):
             windows.parse_rustc_native_static_libraries(output, profile="unknown")
 
@@ -168,14 +168,14 @@ class WindowsSDKProfileTests(unittest.TestCase):
         self.addCleanup(cbom.doCleanups)
         (self.package / "share/q-periapt/bom/cbom.cdx.json").write_bytes(windows._canonical_json(cbom.document))
 
-    def create(self, profile="sdk-alpha1"):
+    def create(self, profile="sdk-020"):
         return windows.create_manifest(
             self.package, self.repository, package_name=self.package.name, version=windows.SDK_PACKAGE_SEMVER,
             git_commit="a" * 40, git_tree="b" * 40, source_date_epoch=1_700_000_000,
             rustc=windows.EXPECTED_RUSTC_VERSION, cargo=windows.EXPECTED_CARGO_VERSION,
             cl="MSVC 19.44.35222.0", dependencies=["KERNEL32.dll", "bcrypt.dll"], profile=profile)
 
-    def verify(self, profile="sdk-alpha1"):
+    def verify(self, profile="sdk-020"):
         return windows.verify_package(self.package, repository_root=self.repository, profile=profile)
 
     def reseal(self, manifest):
@@ -255,7 +255,7 @@ class WindowsSDKProfileTests(unittest.TestCase):
 
     def test_sdk_producer_and_archive_verifier_select_profile_and_same_library_names(self):
         script = (self.repository / "artifact/windows-package.ps1").read_text()
-        for required in ('[ValidateSet("legacy", "sdk-alpha1")]', '$Version = "0.2.0-alpha.1"',
+        for required in ('[ValidateSet("legacy", "sdk-020")]', '$Version = "0.2.0"',
                          '"--profile", $Profile', '"--native-sdk"',
                          '"--features", "sdk-cbom"', '"share/q-periapt/legacy/q_periapt.h"',
                          '"share/q-periapt/sdk_smoke.c"', '"LICENSES/Rust-1.97.0-library.html"',

@@ -18,10 +18,10 @@ workspace = true
 linux-x86_64-avx2 = ["q-periapt-backends/linux-x86_64-avx2"]
 
 [dependencies]
-q-periapt-core = { version = "=0.2.0-alpha.1", path = "../q-periapt-core" }
-q-periapt-kem = { version = "=0.2.0-alpha.1", path = "../q-periapt-kem" }
-q-periapt-backends = { version = "=0.2.0-alpha.1", path = "../q-periapt-backends" }
-q-periapt-policy = { version = "=0.2.0-alpha.1", path = "../q-periapt-policy" }
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-kem = { version = "=0.2.0", path = "../q-periapt-kem" }
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
 getrandom = "0.4"
 # HKDF is a separate application-key layer, not a replacement ContextBound
 # combiner. Enable state/buffer erasure in its HMAC and SHA-256 dependencies.
@@ -34,4 +34,4 @@ zeroize = "1"
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
-q-periapt-sig = { version = "=0.2.0-alpha.1", path = "../q-periapt-sig" }
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }

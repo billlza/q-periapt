@@ -4,9 +4,9 @@ from __future__ import annotations
 import re
 
 LEGACY_PROFILE = "legacy"
-SDK_PROFILE = "sdk-alpha1"
+SDK_PROFILE = "sdk-020"
 CAPTURE_PROFILES = (LEGACY_PROFILE, SDK_PROFILE)
-SDK_VERSION = "0.2.0-alpha.1"
+SDK_VERSION = "0.2.0"
 SDK_DEVICE_SCHEMA = 1
 SDK_MATRIX_SCHEMA = 1
 SDK_DEVICE_KIND = "qperiapt.apple_sdk_device_proof"
@@ -23,7 +23,7 @@ SDK_SOURCE_INPUTS = {
     "swift_sdk_binding": "bindings/swift/Sources/QPeriaptSDK/QPeriaptSDK.swift",
     "sdk_revocation_vector": "bindings/sdk-policy-revocation-vectors.json",
     "sdk_update_vector": "bindings/sdk-policy-update-vectors.json",
-    "sdk_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json",
+    "sdk_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
     "swift_c_modulemap": "bindings/swift/Sources/CQPeriapt/module.modulemap",
 }
 

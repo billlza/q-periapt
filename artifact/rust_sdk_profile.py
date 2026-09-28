@@ -32,8 +32,8 @@ from rust_publish_contract import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.2.0-alpha.1"
-PROFILE = "sdk-alpha1"
+VERSION = "0.2.0"
+PROFILE = "sdk-020"
 # Normal, optional and target-specific production edges must point backwards.
 COHORT = (
     "q-periapt-mlkem-native-sys", "q-periapt-core", "q-periapt-kem", "q-periapt-sig",

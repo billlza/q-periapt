@@ -1,6 +1,6 @@
 # Native SDK cryptographic inventory
 
-The alpha native SDK has an explicit 37-asset CBOM profile. It includes the
+The native SDK has an explicit 37-asset CBOM profile. It includes the
 retained backend catalogue, the existing ContextBound combiner, owned SDK
 SHA-256/HMAC/HKDF use, and the standard TLS
 configuration's AEAD, hash/key-schedule, hybrid group and certificate algorithms.
@@ -24,7 +24,7 @@ but is not a function value in the official
 [CycloneDX 1.6 schema](https://raw.githubusercontent.com/CycloneDX/specification/1.6/schema/bom-1.6.schema.json).
 Previously captured/published BOM bytes have not been rewritten.
 
-`package_bom.verify(..., profile=BomProfile.NATIVE_SDK_ALPHA1)` checks the new
+`package_bom.verify(..., profile=BomProfile.NATIVE_SDK_020)` checks the new
 closed inventory. Its historical default remains `BACKENDS_V0_1_5`, retaining
 the old nine-asset acceptance scope. Neither profile can accept the other's
 document. The native profile checks exact algorithm names, primitives, function
@@ -39,7 +39,7 @@ It reports three TLS 1.3 cipher suites, one standard hybrid group, thirteen
 advertised signature schemes, and twenty-two complete certificate verifier DER
 identifier pairs. A TLS SignatureScheme alone does not enumerate all accepted
 certificate-chain combinations. Unknown configured identifiers fail emission.
-The [pinned snapshot](../artifact/fixtures/sdk-native-alpha1-tls-inventory.md)
+The [pinned snapshot](../artifact/fixtures/sdk-native-020-tls-inventory.md)
 requires a separate package-profile review when these choices change.
 
 The SDK's SHA-256/HMAC/HKDF labels are reviewed source declarations for its

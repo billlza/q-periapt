@@ -1,4 +1,4 @@
-# Owned SDK contract for 0.2.0-alpha.1
+# Owned SDK contract for 0.2.0
 
 This is the current, unpublished source API. Native library identity and ABI
 major remain **2**. The original nine C entry points are unchanged; SDK extension

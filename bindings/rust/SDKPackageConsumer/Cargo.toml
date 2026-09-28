@@ -8,10 +8,10 @@ publish = false
 [workspace]
 
 [dependencies]
-q-periapt-core = "=0.2.0-alpha.1"
-q-periapt-sdk = "=0.2.0-alpha.1"
-q-periapt-host-store = "=0.2.0-alpha.1"
-q-periapt-rustls = { version = "=0.2.0-alpha.1", features = ["reference-connection"] }
+q-periapt-core = "=0.2.0"
+q-periapt-sdk = "=0.2.0"
+q-periapt-host-store = "=0.2.0"
+q-periapt-rustls = { version = "=0.2.0", features = ["reference-connection"] }
 
 [dev-dependencies]
 tempfile = "=3.27.0"

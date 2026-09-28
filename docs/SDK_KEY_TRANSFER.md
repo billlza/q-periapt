@@ -1,4 +1,4 @@
-# Explicit expanded-key transfer (unpublished 0.2.0-alpha.1)
+# Explicit expanded-key transfer (unpublished 0.2.0)
 
 The default path generates an owned hybrid key with platform randomness and
 returns only its public key. Professional transfer is a separately named API:

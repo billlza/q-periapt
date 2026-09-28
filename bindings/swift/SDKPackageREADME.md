@@ -1,4 +1,4 @@
-# QPeriapt Swift SDK 0.2.0-alpha.1
+# QPeriapt Swift SDK 0.2.0
 
 This package provides `QPeriaptSDK` (owned runtime, keys and standard hybrid TLS
 connections) and the retained byte-oriented `QPeriaptHybrid` compatibility API.
@@ -50,7 +50,7 @@ policy/context confirmation. It has no classic fallback or automatic request
 replay. TLS certificate authentication need not use PQ signatures. This SDK
 does not provide a ratchet, multi-device session service or exactly-once RPC.
 
-This is an alpha candidate. Consult the accompanying package manifest for the
+This is a 0.2.0 release candidate. Consult the accompanying package manifest for the
 actual source, platform checks and signing state. Packaging/link success is not
 physical-device validation, an external cryptographic audit or release approval.
 

@@ -1,4 +1,4 @@
-# Authenticated SDK connection (0.2.0-alpha.1 development)
+# Authenticated SDK connection (0.2.0 development)
 
 The `q-periapt-rustls/reference-connection` feature supplies one bounded TLS and
 message engine. C exposes it through additive **ABI 2** functions. Swift's

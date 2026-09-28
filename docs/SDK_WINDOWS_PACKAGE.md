@@ -1,23 +1,22 @@
 # Windows SDK package profile
 
-The Windows producer and verifier have an explicit `sdk-alpha1` profile for
-**0.2.0-alpha.1**, with ABI major **2** and exactly 43 C exports. The original
+The Windows producer and verifier have an explicit `sdk-020` profile for
+**0.2.0**, with ABI major **2** and exactly 43 C exports. The original
 nine declarations, status values and library filenames remain compatible.
 The default `legacy` profile still describes 0.1.5 with nine exports; it cannot
-admit an alpha archive. Use the explicit profile in both build and verify modes.
+admit a 0.2.0 archive. Use the explicit profile in both build and verify modes.
 
-This profile is implemented but **native Windows qualification is pending**.
-Hosted MSVC builds have reached the package boundary; the first native attempts
-exposed SDK-specific static dependencies and nine unintended jitterentropy DLL
-exports from AWS-LC 0.45.0. The fixes still require a complete native build,
-archive verification and installed consumer run on both Windows runners.
-Neither a Windows alpha ZIP nor an Authenticode signature has been qualified.
+The 0.2.0 archives require fresh native builds, archive verification and
+installed-consumer execution on both Windows runners. Earlier alpha.1 runs
+complete those package checks; the readiness ledger retains their source
+identities and the preceding static-link/export failures and repairs. Signing
+requires its own release transaction.
 The candidate manifest explicitly records
 `release_claim_eligible: false`; it does not claim publication or attestation.
 
 ## Build from frozen source
 
-Run in a clean standalone Windows x64 checkout containing the matching alpha
+Run in a clean standalone Windows x64 checkout containing the matching 0.2.0
 source. Use PowerShell 7, Git, CPython 3.11 or newer, CMake/CTest, Visual Studio's
 x64 MSVC tools and Windows SDK, cbindgen 0.29.4, and Rust **1.97.0** with its
 `llvm-tools` component. The producer verifies the exact Rust version and x64
@@ -25,11 +24,11 @@ host, and resolves MSVC tools from a single trusted Visual Studio installation.
 The existing ambient Cargo/build configuration guards remain enforced.
 
 ```powershell
-artifact/windows-package.ps1 -Profile sdk-alpha1
+artifact/windows-package.ps1 -Profile sdk-020
 ```
 
 The default archive is
-`target/qperiapt-windows-sdk-alpha1/q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc.zip`.
+`target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip`.
 If an attempt already exists, keep it and select a fresh `-OutputRoot` below
 this checkout's `target` directory. There is no dirty-source bypass. This is a
 source-freeze requirement, not an instruction to commit other work or erase
@@ -113,8 +112,8 @@ cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0091 NEW)
 project(SdkConsumer C)
 find_package(QPeriaptABI2 2.0.0 EXACT CONFIG REQUIRED)
-if(NOT QPeriaptABI2_RELEASE_VERSION STREQUAL "0.2.0-alpha.1")
-  message(FATAL_ERROR "A matching alpha SDK is required")
+if(NOT QPeriaptABI2_RELEASE_VERSION STREQUAL "0.2.0")
+  message(FATAL_ERROR "A matching 0.2.0 SDK is required")
 endif()
 add_executable(sdk-consumer sdk_smoke.c)
 target_compile_features(sdk-consumer PRIVATE c_std_11)
@@ -133,7 +132,7 @@ select `QPeriaptABI2::qperiapt_static` and omit the DLL copy command. The static
 library still uses the dynamic MSVC runtime (`/MD` / `MultiThreadedDLL`), and its
 imported target supplies the required native libraries. `/MT` and `/MTd` are
 incompatible. CMake ABI compatibility version `2.0.0` is distinct from the
-library/package version `0.2.0-alpha.1`.
+library/package version `0.2.0`.
 
 Owner operations use platform randomness and verified policy input. The shipped
 policies and roots are public test material. Applications must provision their
@@ -149,7 +148,7 @@ Use digests and source identities obtained through a trusted producer record,
 not values selected by an untrusted archive itself:
 
 ```powershell
-artifact/windows-package.ps1 -Profile sdk-alpha1 -Mode VerifyArchive `
+artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
   -Archive $archive `
   -ExpectedSha256 $trustedArchiveSha256 `
   -ExpectedManifestSha256 $trustedManifestSha256 `

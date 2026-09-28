@@ -1,6 +1,6 @@
 # C SDK package profile
 
-The shared C packager has a `sdk-alpha1` profile for 0.2.0-alpha.1. ABI major
+The shared C packager has a `sdk-020` profile for 0.2.0. ABI major
 remains **2**, including the original nine declarations/status values and native
 library identities. Its separate schema-3 package manifest requires the exact
 43-export SDK contract and the native 37-asset CBOM. Historical schema-2 / 0.1.5
@@ -8,7 +8,7 @@ packages retain their own profile and cannot substitute for this SDK.
 Windows uses a [separate MSVC producer and manifest](SDK_WINDOWS_PACKAGE.md).
 
 ```sh
-sh artifact/c-package.sh --profile sdk-alpha1
+sh artifact/c-package.sh --profile sdk-020
 ```
 
 The producer supports native macOS and GNU Linux targets. The observed local
@@ -22,7 +22,7 @@ checkout and recorded the dirty state; no commit or publication was performed.
 The archive installs headers under `include/qperiapt/abi2`, shared/static
 libraries under `lib`, `qperiapt-abi2` and `qperiapt-abi2-static` pkg-config
 modules, and `QPeriaptABI2` CMake targets. ABI compatibility version `2.0.0`
-is distinct from package version `0.2.0-alpha.1`; the latter is available as
+is distinct from package version `0.2.0`; the latter is available as
 `QPeriaptABI2_RELEASE_VERSION`. Both versions are checked by the consumers.
 The package supplies required native static link flags, without source-checkout
 library paths. The macOS library's install name is `@rpath/libq_periapt_ffi.2.dylib`;
@@ -62,7 +62,7 @@ standard-library notices are included. The closed payload has 166 files plus its
 manifest/checksum file. The workspace SBOM is not an exact per-target code census;
 the inventory boundaries in [SDK_CBOM.md](SDK_CBOM.md) apply.
 
-Public archive revalidation uses the same `--profile sdk-alpha1` argument with
+Public archive revalidation uses the same `--profile sdk-020` argument with
 `QPERIAPT_C_PACKAGE_VERIFY_ARCHIVE` and explicit expected archive, manifest,
 contract, target and version values. It rejects a dirty diagnostic source image
 even when all supplied digests match. Local negative controls observe rejection

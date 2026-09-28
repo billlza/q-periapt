@@ -1,10 +1,10 @@
-# Rust SDK alpha package gate
+# Rust SDK 0.2.0 package gate
 
-Run the alpha profile from a standalone Git checkout using Rust 1.96.1 and
+Run the SDK profile from a standalone Git checkout using Rust 1.96.1 and
 cargo-audit 0.22.2:
 
 ```sh
-sh artifact/rust-publish-contract.sh --profile sdk-alpha1 --output target/sdk-rust-package
+sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
 ```
 
 The output directory must not exist. A dirty development image requires explicit
@@ -22,12 +22,12 @@ The twelve-crate cohort, in production-dependency order, is:
 The six research/application/npm-producer crates remain non-publishable.
 `q-periapt-sdk` and `q-periapt-host-store` are now explicitly registry-eligible
 members; that metadata alone does not authorize publication or satisfy release
-gates. Every internal dependency remains exactly `=0.2.0-alpha.1`. Native ABI
+gates. Every internal dependency remains exactly `=0.2.0`. Native ABI
 major and library identities remain 2.
 
 Cargo packages the cohort together, preparing its temporary registry from the
 actual new `.crate` files and rebuilding every package. This avoids resolving
-unpublished alpha dependencies from the public index or source-path patches
+unpublished 0.2.0 dependencies from the public index or source-path patches
 during package verification. The reference-connection and native CLI CBOM
 features are enabled explicitly; the opt-in AVX2 candidate remains off.
 Each archive must match Cargo's package file list, source bytes, normalized

@@ -1,7 +1,7 @@
 # Android SDK runtime qualification
 
-The alpha SDK retains **ABI major 2**, `libq_periapt_ffi_abi2.so` and
-`libqperiapt_jni_abi2.so`. Its package version is `0.2.0-alpha.1`. The original
+The SDK retains **ABI major 2**, `libq_periapt_ffi_abi2.so` and
+`libqperiapt_jni_abi2.so`. Its package version is `0.2.0`. The original
 nine C functions retain their signatures; the SDK package has a separate closed
 allowlist of 43 C exports and 26 JNI methods.
 
@@ -35,7 +35,7 @@ not choose the expected package or architecture from the submitted proof.
 
 Start from a clean standalone Git checkout of the selected source commit. The
 linked-worktree and dirty-source guards remain active. Build the AAR with
-`sh artifact/android-aar.sh --profile sdk-alpha1`, then retain its AAR and
+`sh artifact/android-aar.sh --profile sdk-020`, then retain its AAR and
 manifest digests. Select the registered SDK/NDK tools and JDK 21. Gradle and its
 AGP dependencies must already be cached; the formal collector builds offline.
 The installed Maven qualification helper can populate that cache while
@@ -100,7 +100,7 @@ These expected values come from the independently selected build, not from
 untrusted fields in the proof being checked. `runtime_target` in the validated
 projection binds device kind, architecture, API level and page size.
 
-CI uses the distinct `android-sdk-alpha1-aar` raw-artifact intake contract,
+CI uses the distinct `android-sdk-020-aar` raw-artifact intake contract,
 checks the downloaded artifact digest and source identity, qualifies the Maven
 consumer, and runs both SDK profiles against the same AAR on x86_64. It uploads
 both complete runtime closures on success and retains available package/closure

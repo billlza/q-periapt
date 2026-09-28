@@ -1,10 +1,10 @@
-# Host policy persistence (0.2.0-alpha.1 development)
+# Host policy persistence (0.2.0 development)
 
 `q-periapt-host-store::PolicyStore` supplies the SDK's persist-before-activate
 sequence on macOS/Linux. Rust, three additive C functions and Swift's
 `QPeriaptPersistentRuntime` share that implementation. Both peers in the local
 connection diagnostic recover persisted state before use. Installed packages
-and native Linux execution remain unfinished. **C ABI major stays 2; the alpha
+and native Linux execution remain unfinished. **C ABI major stays 2; the SDK
 table now has 43 exports.** This crate is unpublished.
 
 ## Accepted state and ownership

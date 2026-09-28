@@ -359,7 +359,7 @@ def verify_r8_configuration(
     text: str, *, default: str, manifest: str, aar_rules: str, package_version: str = "0.1.5"
 ) -> None:
     """Audit merged rule origins and their full bodies; no app-supplied Q keep is accepted."""
-    require(package_version in {"0.1.5", "0.2.0-alpha.1"}, "unsupported R8 consumer package version")
+    require(package_version in {"0.1.5", "0.2.0"}, "unsupported R8 consumer package version")
     verify_normalized_text(text)
     begin = "# The proguard configuration file for the following section is "
     end = "# End of content from "

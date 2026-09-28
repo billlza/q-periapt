@@ -4,7 +4,7 @@ import QPeriaptHybrid
 import QPeriaptSDK
 
 precondition(QPeriaptHybrid.runtimeAbiVersion == 2)
-precondition(QPeriaptHybrid.runtimeVersion == "0.2.0-alpha.1")
+precondition(QPeriaptHybrid.runtimeVersion == "0.2.0")
 
 // Keep the public owner/connection entry points in this real consumer's link
 // graph without making a network connection during a link-only platform gate.

@@ -44,7 +44,7 @@ class BomProfile(Enum):
     """Closed reviewed inventories; new native packages cannot reuse the old nine."""
 
     BACKENDS_V0_1_5 = "backends-v0.1.5"
-    NATIVE_SDK_ALPHA1 = "native-sdk-alpha1"
+    NATIVE_SDK_020 = "native-sdk-020"
 
 
 def _native_sdk_algorithms() -> dict[str, tuple[str, frozenset[str], int | None]]:
@@ -176,7 +176,7 @@ def _cargo_lock_components(cargo_lock: pathlib.Path) -> set[tuple[str, str, str]
 
 def _verify_native_sdk_cbom(document: dict, components: list[dict]) -> None:
     metadata = document["metadata"]
-    _require(metadata["component"].get("version") == "0.2.0-alpha.1", "SDK CBOM version differs")
+    _require(metadata["component"].get("version") == "0.2.0", "SDK CBOM version differs")
     properties = metadata.get("properties")
     _require(isinstance(properties, list) and len(properties) == 3, "SDK CBOM profile metadata differs")
     facts = {}
@@ -186,10 +186,10 @@ def _verify_native_sdk_cbom(document: dict, components: list[dict]) -> None:
         _require(item["name"] not in facts, "duplicate SDK CBOM property")
         facts[item["name"]] = item["value"]
     _require(set(facts) == {"qperiapt:cbom-profile", "qperiapt:configured-tls-provider", "qperiapt:inventory-scope"}, "SDK CBOM property names differ")
-    _require(facts["qperiapt:cbom-profile"] == BomProfile.NATIVE_SDK_ALPHA1.value, "SDK CBOM profile differs")
+    _require(facts["qperiapt:cbom-profile"] == BomProfile.NATIVE_SDK_020.value, "SDK CBOM profile differs")
     _require(facts["qperiapt:inventory-scope"] == NATIVE_INVENTORY_SCOPE, "SDK CBOM scope differs")
     try:
-        reference = read_regular_snapshot(pathlib.Path(__file__).parent / "fixtures/sdk-native-alpha1-tls-inventory.json",
+        reference = read_regular_snapshot(pathlib.Path(__file__).parent / "fixtures/sdk-native-020-tls-inventory.json",
                                           maximum=65536, label="reviewed SDK TLS inventory")
         _require(reference.sha256 == NATIVE_TLS_SNAPSHOT_SHA256, "reviewed TLS inventory identity differs")
         expected = parse_strict_json_bytes(reference.data, label="reviewed SDK TLS inventory")
@@ -253,7 +253,7 @@ def verify(package_root: pathlib.Path, *, cargo_lock: pathlib.Path | None,
         _require(isinstance(algorithm.get("cryptoFunctions"), list) and algorithm["cryptoFunctions"], f"CBOM functions are missing for {name}")
         if profile is BomProfile.BACKENDS_V0_1_5:
             _require(type(algorithm.get("nistQuantumSecurityLevel")) is int, f"CBOM NIST level is missing for {name}")
-    if profile is BomProfile.NATIVE_SDK_ALPHA1:
+    if profile is BomProfile.NATIVE_SDK_020:
         _verify_native_sdk_cbom(cbom, cbom_components)
     else:
         _require(seen_crypto == EXPECTED_CRYPTO_ASSETS, "CBOM cryptographic asset inventory differs")

@@ -269,7 +269,7 @@ def build(args: argparse.Namespace) -> None:
     jvm_capture = args.work / "build-jvm.json"
     _run(
         base
-        + (["-PqperiaptSdkWorkload=true"] if spec.aar_profile == "sdk-alpha1" else [])
+        + (["-PqperiaptSdkWorkload=true"] if spec.aar_profile == "sdk-020" else [])
         + [
             f"-PqperiaptAar={exact}",
             f"-PqperiaptSmokeRoot={smoke}",

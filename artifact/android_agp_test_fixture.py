@@ -40,7 +40,7 @@ METHODS = (
 DEX_DUMP = complete_dump() + class_dump(0, consumer.INSTRUMENTATION_DESCRIPTOR, METHODS)
 SDK_MANIFEST_DUMP = MANIFEST_DUMP.replace("  E: application (line=2)\n", "  E: application (line=2)\n    A: android:extractNativeLibs(0x010104ea)=false\n")
 SDK_DEX_DUMP = (class_dump(0, FACADE, tuple((name, descriptor, "PRIVATE STATIC NATIVE")
-    for name, descriptor in android_elf.package_profile("sdk-alpha1").jni_methods.items()))
+    for name, descriptor in android_elf.package_profile("sdk-020").jni_methods.items()))
     + class_dump(1, EXCEPTION, CALLBACK) + class_dump(2, consumer.INSTRUMENTATION_DESCRIPTOR, METHODS))
 SIGNER = b"fixture SDK signer certificate result\n"
 ALIGNMENT = b"fixture SDK 16384-byte native alignment result\n"
@@ -161,7 +161,7 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
     original.root = root
     _, aar, manifest, _, _, manifest_value = original.manifest_release_fixture()
     selected_profiles = ("agp_sdk_full_release", "agp_sdk_minimal_release") if sdk_profile else ("agp_full_release", "agp_minimal_release")
-    package = android_elf.package_profile("sdk-alpha1" if sdk_profile else "legacy")
+    package = android_elf.package_profile("sdk-020" if sdk_profile else "legacy")
     names = set()
     for profile in selected_profiles:
         contract.runtime_target(profile, device_abi, expected_runtime_profile)
@@ -226,7 +226,7 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
             java_sdk_sha256=digest(root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java"),
             sdk_spec_sha256=digest(root / "artifact/sdk_abi2_spec.py"))
     write(manifest, android_elf.canonical_json(manifest_value))
-    aar_entries, _ = android_elf.audit_aar(aar, profile="sdk-alpha1" if sdk_profile else "legacy")
+    aar_entries, _ = android_elf.audit_aar(aar, profile="sdk-020" if sdk_profile else "legacy")
     sdk = root / "target/sdk"
     for tool in ("apksigner", "zipalign", "dexdump", "aapt2"):
         path = sdk / "build-tools/36.0.0" / tool

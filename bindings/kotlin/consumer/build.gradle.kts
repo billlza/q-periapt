@@ -10,7 +10,7 @@ repositories {
     }
     mavenCentral()
 }
-dependencies { implementation("dev.qperiapt:q-periapt-hybrid:0.2.0-alpha.1") }
+dependencies { implementation("dev.qperiapt:q-periapt-hybrid:0.2.0") }
 kotlin.compilerOptions {
     jvmTarget.set(JvmTarget.JVM_25)
     freeCompilerArgs.add("-Xjdk-release=25")

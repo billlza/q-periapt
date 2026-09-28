@@ -131,16 +131,16 @@ ANDROID_AAR_PROFILE = ProfileSpec(
 )
 
 ANDROID_SDK_AAR_PROFILE = ProfileSpec(
-    name="android-sdk-alpha1-aar",
+    name="android-sdk-020-aar",
     destination=pathlib.PurePosixPath(
-        "target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1"
+        "target/qperiapt-android-aar/q-periapt-android-0.2.0"
     ),
     nested_raw_containers=False,
     containers=(
         ContainerSpec(
-            artifact_name="abi2-android-sdk-alpha1-aar",
+            artifact_name="abi2-android-sdk-020-aar",
             members=(
-                MemberSpec("q-periapt-android-0.2.0-alpha.1.aar", "q-periapt-android-0.2.0-alpha.1.aar", _MAX_PAYLOAD_BYTES),
+                MemberSpec("q-periapt-android-0.2.0.aar", "q-periapt-android-0.2.0.aar", _MAX_PAYLOAD_BYTES),
                 MemberSpec("MANIFEST.json", "MANIFEST.json", _MAX_METADATA_BYTES),
                 MemberSpec("SHA256SUMS", "SHA256SUMS", _MAX_CHECKSUM_BYTES),
             ),

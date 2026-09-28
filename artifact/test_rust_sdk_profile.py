@@ -69,16 +69,16 @@ class RustSDKProfileTests(unittest.TestCase):
     def test_optional_and_target_dependencies_also_constrain_publication_order(self):
         original = metadata()
         for dependency in (
-            {"name": "q-periapt-core", "req": "^0.2.0-alpha.1", "kind": None},
-            {"name": "q-periapt-policy-agent", "req": "=0.2.0-alpha.1", "kind": None},
-            {"name": "q-periapt-ffi", "req": "=0.2.0-alpha.1", "kind": None, "optional": True},
+            {"name": "q-periapt-core", "req": "^0.2.0", "kind": None},
+            {"name": "q-periapt-policy-agent", "req": "=0.2.0", "kind": None},
+            {"name": "q-periapt-ffi", "req": "=0.2.0", "kind": None, "optional": True},
         ):
             changed = copy.deepcopy(original)
             changed["packages"][0]["dependencies"] = [dependency]
             with self.subTest(dependency=dependency), self.assertRaises(ValueError):
                 sdk.classify(changed)
         changed = copy.deepcopy(original)
-        changed["packages"][0]["dependencies"] = [{"name": "q-periapt-ffi", "req": "=0.2.0-alpha.1", "kind": "dev"}]
+        changed["packages"][0]["dependencies"] = [{"name": "q-periapt-ffi", "req": "=0.2.0", "kind": "dev"}]
         sdk.classify(changed)  # Dev cycles do not define registry upload order.
 
     def test_archive_closed_tree_and_integrity_boundaries(self):
@@ -173,7 +173,7 @@ class RustSDKProfileTests(unittest.TestCase):
                 with self.subTest(key=key), self.assertRaises(ValueError):
                     sdk.extract_recorded_crates(root / f"rejected-{index}", output, altered)
             wrong = output / "crates" / records[first]["file"]
-            wrong.write_bytes(archive(name=first, manifest=b'[package]\nname="other"\nversion="0.2.0-alpha.1"\n'))
+            wrong.write_bytes(archive(name=first, manifest=b'[package]\nname="other"\nversion="0.2.0"\n'))
             records[first]["sha256"] = sdk.snapshot(wrong).sha256
             with self.assertRaisesRegex(ValueError, "identity differs"):
                 sdk.extract_recorded_crates(root / "rejected-identity", output, records)

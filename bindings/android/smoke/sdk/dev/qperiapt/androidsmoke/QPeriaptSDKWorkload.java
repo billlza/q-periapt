@@ -65,7 +65,7 @@ final class QPeriaptSDKWorkload {
         void run() { Runnable task = pending; require(task != null, "queue empty"); pending = null; task.run(); }
     }
     static void run(AssetManager assets, List<String> passed) throws Exception {
-        require(QPeriaptAndroid.runtimeAbiVersion() == 2 && "0.2.0-alpha.1".equals(QPeriaptAndroid.runtimeVersion()), "runtime identity");
+        require(QPeriaptAndroid.runtimeAbiVersion() == 2 && "0.2.0".equals(QPeriaptAndroid.runtimeVersion()), "runtime identity");
         Policy policy = new Policy(assets, "signed-policy-vectors.json");
         Policy revoked = new Policy(assets, "sdk-policy-revocation-vectors.json");
         Policy allowed = new Policy(assets, "sdk-policy-update-vectors.json");

@@ -6,7 +6,7 @@ import Foundation
 /// Actual public Swift/ABI 2 owner calls. Policy-update storage in this suite is
 /// a test-only in-memory slot; it does not qualify durable rollback protection.
 enum SDKDeviceSmoke {
-    static let version = "0.2.0-alpha.1"
+    static let version = "0.2.0"
 
     private struct Policy: Sendable {
         let bytes: [UInt8]

@@ -257,7 +257,7 @@ SDK_NOTICE_SOURCES = {
     **{f"META-INF/LICENSES/mlkem-native/{name}": f"crates/q-periapt-mlkem-native-sys/vendor/{name}"
        for name in ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")},
 }
-PACKAGE_PROFILES = ("legacy", "sdk-alpha1")
+PACKAGE_PROFILES = ("legacy", "sdk-020")
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,7 +281,7 @@ def package_profile(name: str) -> AndroidPackageProfile:
     methods = {**JNI_NATIVE_METHOD_DESCRIPTORS, **JNI_METHODS}
     require(len(exports) == 43 and len(methods) == 26, "Android SDK closed export/registration count differs")
     return AndroidPackageProfile(PACKAGE_SEMVER, 5, "qperiapt.android_sdk_aar_manifest",
-        "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json", exports, methods)
+        "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json", exports, methods)
 
 
 class AndroidVerificationError(RuntimeError):
@@ -956,10 +956,10 @@ def audit_classes_jar(data: bytes, *, profile: str = "legacy") -> dict[str, byte
             f"classes.jar contains a nested executable/archive: {name}",
         )
         require(entries[name].startswith(b"\xca\xfe\xba\xbe"), f"classes.jar entry is not a JVM class file: {name}")
-        if profile == "sdk-alpha1":
+        if profile == "sdk-020":
             require(entries[name][:8] == b"\xca\xfe\xba\xbe\x00\x00\x00\x37",
                     "Android SDK class must use non-preview Java 11 bytecode")
-    if profile == "sdk-alpha1":
+    if profile == "sdk-020":
         for owner in ("Runtime", "Key", "PublicKey", "Ciphertext", "Secret", "DerivedKey", "Encapsulation",
                       "KeyPurpose", "PolicyStates", "PolicyUpdate", "Expert"):
             require(f"dev/qperiapt/android/QPeriaptSDK${owner}.class" in entries,
@@ -988,7 +988,7 @@ def audit_android_consumer_metadata(entries: dict[str, bytes], *, profile: str =
         root.tag == "manifest" and root.get("package") == ANDROID_PACKAGE,
         f"Android AAR AndroidManifest.xml must declare package={ANDROID_PACKAGE}",
     )
-    if profile == "sdk-alpha1":
+    if profile == "sdk-020":
         children = list(root)
         require(root.attrib == {"package": ANDROID_PACKAGE} and len(children) == 1
                 and children[0].tag == "uses-sdk"
@@ -1074,7 +1074,7 @@ def verify_minimal_consumer_dex(
 def audit_third_party_license_entries(entries: dict[str, bytes], *, profile: str = "legacy") -> dict[str, Any]:
     package_profile(profile)
     actual = frozenset(entries)
-    required = REQUIRED_AAR_ENTRIES | (set(SDK_NOTICE_SOURCES) if profile == "sdk-alpha1" else set())
+    required = REQUIRED_AAR_ENTRIES | (set(SDK_NOTICE_SOURCES) if profile == "sdk-020" else set())
     missing = required - actual
     unexpected = {
         name
@@ -1305,7 +1305,7 @@ def verify_manifest(
         snapshot.data == canonical_json(manifest),
         "Android AAR manifest bytes are not canonical JSON",
     )
-    exact_object(manifest, MANIFEST_FIELDS | ({"jni"} if profile == "sdk-alpha1" else set()), "Android AAR manifest")
+    exact_object(manifest, MANIFEST_FIELDS | ({"jni"} if profile == "sdk-020" else set()), "Android AAR manifest")
     require(
         manifest.get("schema_version") == selected_profile.schema,
         f"Android AAR manifest schema must be {selected_profile.schema}",
@@ -1339,7 +1339,7 @@ def verify_manifest(
         "Android AAR manifest cargo version differs from the canonical release toolchain",
     )
     inventory = audit_third_party_license_entries(entries, profile=profile)
-    if profile == "sdk-alpha1":
+    if profile == "sdk-020":
         require(manifest["jni"] == {"extension_version": 1, "method_count": 26, "methods": selected_profile.jni_methods},
                 "Android SDK JNI registration manifest differs")
         for name, relative in SDK_NOTICE_SOURCES.items():
@@ -1454,7 +1454,7 @@ def verify_manifest(
 
     artifacts = exact_object(
         manifest.get("artifacts"),
-        MANIFEST_ARTIFACT_FIELDS | ({"java_sdk_sha256", "sdk_spec_sha256"} if profile == "sdk-alpha1" else set()),
+        MANIFEST_ARTIFACT_FIELDS | ({"java_sdk_sha256", "sdk_spec_sha256"} if profile == "sdk-020" else set()),
         "Android AAR manifest artifact",
     )
     require(
@@ -1473,7 +1473,7 @@ def verify_manifest(
         "java_facade_sha256": source_root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
         "jni_adapter_sha256": source_root / "bindings/android/jni/qperiapt_jni.c",
     }
-    if profile == "sdk-alpha1":
+    if profile == "sdk-020":
         source_hashes.update(java_sdk_sha256=source_root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java",
                              sdk_spec_sha256=source_root / "artifact/sdk_abi2_spec.py")
     for key, source_path in source_hashes.items():

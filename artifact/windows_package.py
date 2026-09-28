@@ -352,11 +352,11 @@ EXPECTED_PAYLOAD_FILES = frozenset(
     }
 )
 EXPECTED_ALL_FILES = EXPECTED_PAYLOAD_FILES | {"MANIFEST.json", "SHA256SUMS"}
-PACKAGE_PROFILES = ("legacy", "sdk-alpha1")
+PACKAGE_PROFILES = ("legacy", "sdk-020")
 SDK_SCHEMA_VERSION = 4
 SDK_KIND = "qperiapt.windows_sdk_package_manifest"
-SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
-SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-alpha1.json"
+SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
 SDK_RUST_LIBRARY_NOTICE = "LICENSES/Rust-1.97.0-library.html"
 SDK_UNSIGNED_REASON = (
     "This alpha candidate is unsigned; hashes and source records do not "
@@ -385,7 +385,7 @@ SDK_SOURCE_INPUT_PATHS = {
     "sdk_policy_fixture": "bindings/c/sdk_policy_update_fixture.h",
     "legacy_header": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
     "sdk_cbom_source": "crates/q-periapt-cli/src/sdk_cbom.rs",
-    "sdk_tls_inventory": "artifact/fixtures/sdk-native-alpha1-tls-inventory.json",
+    "sdk_tls_inventory": "artifact/fixtures/sdk-native-020-tls-inventory.json",
     "rust_library_notice": SDK_RUST_LIBRARY_NOTICE,
     "sdk_profile_tests": "artifact/windows-sdk-profile-tests.ps1",
 }
@@ -625,7 +625,7 @@ def create_static_distribution_copy(source: pathlib.Path, destination: pathlib.P
 
 def _sdk_profile(profile: str) -> bool:
     _require(profile in PACKAGE_PROFILES, "unknown Windows package profile")
-    return profile == "sdk-alpha1"
+    return profile == "sdk-020"
 
 
 def profile_source_paths(profile: str) -> dict[str, str]:
@@ -900,7 +900,7 @@ def _validate_boms(package_root: pathlib.Path, repository_root: pathlib.Path | N
         verify_package_boms(
             package_root,
             cargo_lock=(repository_root / "Cargo.lock") if repository_root else None,
-            profile=BomProfile.NATIVE_SDK_ALPHA1 if _sdk_profile(profile) else BomProfile.BACKENDS_V0_1_5,
+            profile=BomProfile.NATIVE_SDK_020 if _sdk_profile(profile) else BomProfile.BACKENDS_V0_1_5,
         )
     except PackageBomError as exc:
         raise WindowsPackageError(str(exc)) from exc
@@ -1004,9 +1004,9 @@ def parse_rustc_native_static_libraries(output: bytes, *, profile: str = "legacy
     """Parse and freeze rustc's ordered Windows static-link contract."""
 
     _require(profile in PACKAGE_PROFILES, "unknown Windows native static library profile")
-    expected = (SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS if profile == "sdk-alpha1"
+    expected = (SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS if profile == "sdk-020"
                 else EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS)
-    canonical = (SDK_WINDOWS_NATIVE_STATIC_LIBRARIES if profile == "sdk-alpha1"
+    canonical = (SDK_WINDOWS_NATIVE_STATIC_LIBRARIES if profile == "sdk-020"
                  else CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
     _require(isinstance(output, bytes), "rustc native-static-libs output must be bytes")
     _require(

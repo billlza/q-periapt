@@ -1,9 +1,9 @@
 # C ABI 2 product smoke
 
-The current source version is **0.2.0-alpha.1**, unpublished. ABI major 2 and
+The current source version is **0.2.0**, unpublished. ABI major 2 and
 the `_abi2` library names are retained. The current table has exactly 43 exports:
-the original nine below plus 34 SDK functions. The closed alpha contract
-is [`q-periapt-c-abi-v2-sdk-alpha1.json`](../../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json).
+the original nine below plus 34 SDK functions. The closed 0.2.0 contract
+is [`q-periapt-c-abi-v2-sdk-020.json`](../../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json).
 The separate historical 0.1.5 contract still accepts exactly nine.
 
 `build-and-run.sh` compiles the original consumer with the frozen 0.1.5 header
@@ -18,7 +18,7 @@ atomic persistence obligation. The public transition fixture is checked with
 `python3 artifact/sdk_policy_fixtures.py`; `--write` explicitly regenerates it
 from the shared version-3/version-4 signed JSON fixtures.
 
-The [alpha C package profile](../../docs/SDK_C_PACKAGE.md) adds complete
+The [0.2.0 C package profile](../../docs/SDK_C_PACKAGE.md) adds complete
 shared/static pkg-config and CMake consumers of the owner API. Its macOS ARM64
 diagnostic has passed after extraction outside the source checkout. Linux,
 clean-source public admission and release qualification remain open. The
@@ -153,10 +153,10 @@ annotated tag `v0.1.4-verified-cohort` rather than on `main`, whose
 `artifact/results.json` the `0.1.5` reopening returned to its initial baseline, so
 `main`'s trusted results record no `0.1.4` publication while the published release
 stays immutable and unaffected. This tree now develops the unpublished
-`0.2.0-alpha.1` SDK. Published GNU/Linux `0.1.5` packages use
+`0.2.0` SDK. Published GNU/Linux `0.1.5` packages use
 [`abi2-platforms-v0.1.5-r4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5-r4);
 see the [installation entry](../../docs/SDK_GETTING_STARTED.md) for the distinction
-between that maintenance distribution, Apple releases and local alpha candidates.
+between that maintenance distribution, Apple releases and local SDK candidates.
 The separately built Windows archive remains an
 unsigned, unsupported CI diagnostic and is excluded from the stable candidate,
 manifest, attestation, receipt, and release assets. Verify formal assets with

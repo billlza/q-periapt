@@ -13,12 +13,12 @@ cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
 if [ "$#" -gt 0 ]; then
-	if [ "$#" -ge 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-alpha1" ]; then
+	if [ "$#" -ge 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
 		shift 2
 		python3 "$ROOT/artifact/rust_sdk_profile.py" "$@"
 		exit $?
 	fi
-	printf 'error: supported explicit Rust package profile is --profile sdk-alpha1 --output DIR\n' >&2
+	printf 'error: supported explicit Rust package profile is --profile sdk-020 --output DIR\n' >&2
 	exit 2
 fi
 

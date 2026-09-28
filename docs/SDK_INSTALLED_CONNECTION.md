@@ -23,7 +23,7 @@ The helper verifies the complete Swift payload against the pinned native ZIP,
 then extracts nine exact Rust package archives into the external application.
 Cargo uses only those product path patches and a selected offline registry cache
 without configuration or credential overrides. Its actual metadata must resolve
-every product to the extracted path and exact alpha version. External dependency
+every product to the extracted path and exact SDK version. External dependency
 versions, registry origins and checksums must match the locked workspace.
 This is consumption of packaged crates, not public-registry installation.
 

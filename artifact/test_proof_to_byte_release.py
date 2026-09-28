@@ -120,9 +120,9 @@ EXPECTED_SDK_SOURCE_STEP = (
     "        run: |\n"
     "          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)\n"
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
-    "            ci-source-gate --profile sdk-alpha1 \\\n"
+    "            ci-source-gate --profile sdk-020 \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          expected_gate=\"SDK_SOURCE_READINESS_PASS profile=sdk-alpha1 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false\"\n"
+    "          expected_gate=\"SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false\"\n"
     "          if [ \"$source_gate\" = \"$expected_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
     "          else\n"
@@ -1930,7 +1930,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             download_steps[0],
             f"      - uses: {PINNED_DOWNLOAD_ARTIFACT_ACTION}\n"
             "        with:\n"
-            "          name: abi2-android-sdk-alpha1-aar\n"
+            "          name: abi2-android-sdk-020-aar\n"
             "          path: target/workflow-artifact/raw\n"
             "          skip-decompress: true\n"
             "          digest-mismatch: error\n",
@@ -1945,7 +1945,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "          QPERIAPT_PYTHON: "
             "${{ steps.proof_python.outputs.python-path }}\n"
             "        run: sh artifact/python-run.sh "
-            "artifact/workflow_artifact.py android-sdk-alpha1-aar\n",
+            "artifact/workflow_artifact.py android-sdk-020-aar\n",
         )
         self.assertNotIn("merge-multiple:", download_steps[0])
         self.assertNotIn("          run-id:", job)
@@ -2081,7 +2081,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''\n"
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n"
             "        with:\n"
-            "          name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics\n"
+            "          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics\n"
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
@@ -2122,7 +2122,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn(
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
         )
-        self.assertIn("name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64\n", proof_upload)
+        self.assertIn("name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64\n", proof_upload)
         self.assertIn("if: always() &&", proof_upload)
         self.assertNotIn("if: failure()", proof_upload)
         self.assertIn("if-no-files-found: error\n", proof_upload)
@@ -5586,13 +5586,13 @@ with _temporary_release_test_directories(parents):
             job, "Build, archive, extract, and consume the Windows 2022 SDK"
         )
         self.assertIn("QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}", build)
-        self.assertIn("run: artifact/windows-package.ps1 -Profile sdk-alpha1", build)
+        self.assertIn("run: artifact/windows-package.ps1 -Profile sdk-020", build)
         verify = extract_named_workflow_step(
             job, "Reconsume only the Windows 2022 candidate archive"
         )
         self.assertIn("-Mode VerifyArchive", verify)
-        self.assertIn("-Profile sdk-alpha1", verify)
-        self.assertIn("q-periapt-c-abi-v2-sdk-alpha1.json", verify)
+        self.assertIn("-Profile sdk-020", verify)
+        self.assertIn("q-periapt-c-abi-v2-sdk-020.json", verify)
         self.assertIn("-ExpectedGitCommit $gitCommit", verify)
         self.assertIn("-ExpectedGitTree $gitTree", verify)
         self.assertNotIn("SilentlyContinue", verify)
@@ -6031,22 +6031,22 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
         self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
         for expected in (
-            "q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc.zip",
-            "q-periapt-c-abi2-0.2.0-alpha.1-$EXPECTED_TARGET",
-            "q-periapt-c-abi2-0.2.0-alpha.1-${{ matrix.target }}.tar.gz",
-            "q-periapt-android-0.2.0-alpha.1.aar",
-            "q-periapt-android-0.2.0-alpha.1/MANIFEST.json",
+            "q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.2.0-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.2.0-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.2.0.aar",
+            "q-periapt-android-0.2.0/MANIFEST.json",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)
-        self.assertIn("sh artifact/c-package.sh --profile sdk-alpha1", extract_workflow_job(workflow, "abi2-linux-package"))
-        self.assertIn("sh artifact/android-aar.sh --profile sdk-alpha1", extract_workflow_job(workflow, "bindings-android-aar"))
+        self.assertIn("sh artifact/c-package.sh --profile sdk-020", extract_workflow_job(workflow, "abi2-linux-package"))
+        self.assertIn("sh artifact/android-aar.sh --profile sdk-020", extract_workflow_job(workflow, "bindings-android-aar"))
         for name in ("windows", "abi2-windows-package-2022"):
             job = extract_workflow_job(workflow, name)
-            self.assertIn("artifact/windows-package.ps1 -Profile sdk-alpha1", job)
-            self.assertIn("artifact/windows-package.ps1 -Profile sdk-alpha1 -Mode VerifyArchive", job)
-            self.assertIn("q-periapt-c-abi-v2-sdk-alpha1.json", job)
-            self.assertIn("target/qperiapt-windows-sdk-alpha1", job)
+            self.assertIn("artifact/windows-package.ps1 -Profile sdk-020", job)
+            self.assertIn("artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive", job)
+            self.assertIn("q-periapt-c-abi-v2-sdk-020.json", job)
+            self.assertIn("target/qperiapt-windows-sdk-020", job)
             self.assertNotIn("q-periapt-c-abi2-0.1.5", job)
 
     def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:

@@ -2678,7 +2678,7 @@ _EXPECTED_LOCAL_SOURCE_SHA256 = {
 # A source-identity profile, not native-execution, CT or release qualification.
 # The alpha review includes the opt-in dispatcher and all its CPU/OS guards;
 # the historical 0.1.5 profile above remains immutable. See SDK_X86_CANDIDATE.md.
-_ALPHA1_LOCAL_SOURCE_SHA256 = {
+_SDK_020_LOCAL_SOURCE_SHA256 = {
     "build.rs": "423984f4ff9ce17c71087b0cb5fb7208edca6b8a5b2ba47c44fa7c74ccb3002d",
     "src/build_support.rs": "f6da791117157994e140948e201a7f0e90b21338f79fa65f086577e890139946",
     "src/build_support_tests.rs": "20424277b435eacc51d5302b5f3fcd893a6654f8dca3a1b02bf1e24b11eb4a40",
@@ -2912,8 +2912,8 @@ class MlKemArchiveContract:
 def _mlkem_source_digests(package_version: str) -> Mapping[str, str]:
     if package_version == "0.1.5":
         return _EXPECTED_LOCAL_SOURCE_SHA256
-    if package_version == "0.2.0-alpha.1":
-        return _ALPHA1_LOCAL_SOURCE_SHA256
+    if package_version == "0.2.0":
+        return _SDK_020_LOCAL_SOURCE_SHA256
     raise RustPublishContractError(
         f"unsupported sys crate source profile: {package_version!r}"
     )

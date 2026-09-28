@@ -1,6 +1,6 @@
 # Owned application-key derivation, version 1
 
-The unpublished 0.2.0-alpha.1 SDK can derive a 32-byte application key from an
+The unpublished 0.2.0 SDK can derive a 32-byte application key from an
 owned ContextBound shared secret without first exporting that secret. This is
 an additional application-key layer. Existing ContextBound and CompatXWing
 combiner bytes are unchanged, and this is not the TLS key schedule.

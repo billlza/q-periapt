@@ -2,13 +2,14 @@
 
 [![CI](https://github.com/billlza/q-periapt/actions/workflows/ci.yml/badge.svg)](https://github.com/billlza/q-periapt/actions/workflows/ci.yml)
 
-**0.2.0-alpha.1 development:** all workspace packages now use the alpha version.
+**0.2.0 release candidate:** workspace packages and language distributions use
+the coordinated 0.2.0 version and `sdk-020` build profile.
 Start with the [installation and language guide](docs/SDK_GETTING_STARTED.md)
 to select a package, see its support status and run its first example.
 The [current readiness ledger](docs/SDK_0_2_RELEASE_READINESS.md) covers owned
 Rust/C/Swift/Kotlin/Android/WASM APIs, verified runtime objects, platform randomness,
 streaming ContextBound, and the opt-in Linux AVX2 candidate. ABI major 2 and the
-existing library identities are retained; alpha has an exact 43-export contract,
+existing library identities are retained; the SDK has an exact 43-export contract,
 including the original nine unchanged declarations. This source is unpublished;
 the release and evidence statements below refer to the historical 0.1.5 cohort.
 
@@ -19,9 +20,9 @@ explicit expert transfer is a separate import. See the
 [build and installed-consumer checks](docs/SDK_WASM_PACKAGE.md).
 
 The [Rust SDK package gate](docs/SDK_RUST_PACKAGE.md) prepares the twelve-crate
-alpha cohort, including `q-periapt-sdk` and `q-periapt-host-store`, and tests an
+0.2.0 cohort, including `q-periapt-sdk` and `q-periapt-host-store`, and tests an
 external consumer of the exact archives. Registry-eligible metadata does not
-mean the alpha packages have been published.
+mean these candidate packages have been published.
 
 The opt-in [standard TLS entry point](docs/SDK_STANDARD_TLS.md) uses the maintained
 RFC 10024 group with mutual certificate authentication. It has local independent
@@ -49,7 +50,7 @@ installed cross-platform reference applications are not yet qualified.
 > That record binds the seven assets and the retained canonical/AGP runtime
 > evidence. Library SemVer remains 0.1.5 and native ABI remains 2. This platform
 > revision does not replace Apple or crates.io 0.1.5 and does not contain the
-> new alpha owned-key SDK.
+> new owned-key SDK.
 > Development uses a separate initial proof baseline; its historical selectors do
 > not replace that published record. Releases 0.1.3 and 0.1.4 are superseded and
 > should not be selected for new downstream builds.

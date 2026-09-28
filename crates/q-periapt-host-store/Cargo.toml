@@ -15,10 +15,10 @@ publish = ["crates-io"]
 workspace = true
 
 [dependencies]
-q-periapt-core = { version = "=0.2.0-alpha.1", path = "../q-periapt-core" }
-q-periapt-sdk = { version = "=0.2.0-alpha.1", path = "../q-periapt-sdk" }
-q-periapt-policy = { version = "=0.2.0-alpha.1", path = "../q-periapt-policy" }
-q-periapt-backends = { version = "=0.2.0-alpha.1", path = "../q-periapt-backends" }
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-sdk = { version = "=0.2.0", path = "../q-periapt-sdk" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
 # Reuse the workspace's pinned storage implementation and reviewed file format.
 redb = "=2.6.3"
 getrandom = "0.4"
@@ -28,4 +28,4 @@ rustix = { version = "=1.1.4", features = ["fs", "process"] }
 
 [dev-dependencies]
 tempfile = "=3.27.0"
-q-periapt-sig = { version = "=0.2.0-alpha.1", path = "../q-periapt-sig" }
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }

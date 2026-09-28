@@ -15,7 +15,7 @@ public final class QPeriaptSmokeActivity extends Activity {
         List<String> passed = new ArrayList<>();
         try {
             if (runId == null || !runId.matches("[0-9a-f]{32}")) throw new IllegalArgumentException("invalid run id");
-            if (!"0.2.0-alpha.1".equals(dev.qperiapt.android.QPeriaptAndroid.runtimeVersion())) {
+            if (!"0.2.0".equals(dev.qperiapt.android.QPeriaptAndroid.runtimeVersion())) {
                 throw new AssertionError("version mismatch");
             }
             passed.add("runtimeVersionOnly");

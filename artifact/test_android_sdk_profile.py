@@ -14,7 +14,7 @@ class AndroidSDKProfileTests(unittest.TestCase):
         self.fixture = fixtures.AndroidElfVerifierTests()
         self.fixture.setUp()
         self.addCleanup(self.fixture.tearDown)
-        self.profile = android.package_profile("sdk-alpha1")
+        self.profile = android.package_profile("sdk-020")
 
     def sdk_entries(self):
         entries = self.fixture.aar_entries()
@@ -33,7 +33,7 @@ class AndroidSDKProfileTests(unittest.TestCase):
         legacy = android.package_profile("legacy")
         self.assertEqual((legacy.version, legacy.schema, len(legacy.exports), len(legacy.jni_methods)), ("0.1.5", 4, 9, 9))
         self.assertEqual((self.profile.version, self.profile.schema, len(self.profile.exports), len(self.profile.jni_methods)),
-                         ("0.2.0-alpha.1", 5, 43, 26))
+                         ("0.2.0", 5, 43, 26))
         self.assertLess(legacy.exports, self.profile.exports)
         self.assertEqual({name: self.profile.jni_methods[name] for name in legacy.jni_methods}, legacy.jni_methods)
         for name in ("latest", "sdk", "0.2.0", ""):
@@ -42,11 +42,11 @@ class AndroidSDKProfileTests(unittest.TestCase):
 
     def test_alpha_and_legacy_archives_are_not_interchangeable(self):
         entries, _ = self.sdk_entries()
-        android.audit_aar_bytes(fixtures.zip_bytes(entries), label="alpha fixture", profile="sdk-alpha1")
+        android.audit_aar_bytes(fixtures.zip_bytes(entries), label="alpha fixture", profile="sdk-020")
         with self.assertRaisesRegex(android.AndroidVerificationError, "file set mismatch"):
             android.audit_aar_bytes(fixtures.zip_bytes(entries), label="alpha cannot be legacy")
         with self.assertRaisesRegex(android.AndroidVerificationError, "file set mismatch"):
-            android.audit_aar_bytes(fixtures.zip_bytes(self.fixture.aar_entries()), label="legacy cannot be alpha", profile="sdk-alpha1")
+            android.audit_aar_bytes(fixtures.zip_bytes(self.fixture.aar_entries()), label="legacy cannot be alpha", profile="sdk-020")
 
     def test_each_owner_class_and_java11_bytecode_are_required(self):
         entries, classes = self.sdk_entries()
@@ -57,24 +57,24 @@ class AndroidSDKProfileTests(unittest.TestCase):
             del changed[name]
             entries["classes.jar"] = fixtures.zip_bytes(changed)
             with self.subTest(missing=name), self.assertRaisesRegex(android.AndroidVerificationError, "class is missing"):
-                android.audit_aar_bytes(fixtures.zip_bytes(entries), label="missing owner", profile="sdk-alpha1")
+                android.audit_aar_bytes(fixtures.zip_bytes(entries), label="missing owner", profile="sdk-020")
         changed = dict(classes)
         changed["dev/qperiapt/android/QPeriaptSDK.class"] = b"\xca\xfe\xba\xbe\x00\x00\x00\x3d"
         entries["classes.jar"] = fixtures.zip_bytes(changed)
         with self.assertRaisesRegex(android.AndroidVerificationError, "non-preview Java 11"):
-            android.audit_aar_bytes(fixtures.zip_bytes(entries), label="wrong bytecode", profile="sdk-alpha1")
+            android.audit_aar_bytes(fixtures.zip_bytes(entries), label="wrong bytecode", profile="sdk-020")
 
     def test_alpha_still_requires_exact_callback_keep_rules_and_notices(self):
         entries, _ = self.sdk_entries()
         entries["proguard.txt"] += b"-dontwarn **\n"
         with self.assertRaisesRegex(android.AndroidVerificationError, "exact JNI"):
-            android.audit_aar_bytes(fixtures.zip_bytes(entries), label="changed rules", profile="sdk-alpha1")
+            android.audit_aar_bytes(fixtures.zip_bytes(entries), label="changed rules", profile="sdk-020")
         entries["proguard.txt"] = android.ANDROID_CONSUMER_RULES
         for name in android.SDK_NOTICE_SOURCES:
             changed = dict(entries)
             del changed[name]
             with self.subTest(missing=name), self.assertRaisesRegex(android.AndroidVerificationError, "file set mismatch"):
-                android.audit_aar_bytes(fixtures.zip_bytes(changed), label="missing notice", profile="sdk-alpha1")
+                android.audit_aar_bytes(fixtures.zip_bytes(changed), label="missing notice", profile="sdk-020")
 
     def test_producer_stages_only_the_selected_profiles_notices(self):
         source = Path(__file__).resolve().parent.parent
@@ -93,7 +93,7 @@ class AndroidSDKProfileTests(unittest.TestCase):
             # must not expand either profile's closed Android payload.
             (fixture / "LICENSES/Rust-1.97.0-library.html").write_bytes(b"other platform compiler notice\n")
             (fixture / "LICENSES/future-notice.txt").write_bytes(b"unrelated repository notice\n")
-            for profile in ("legacy", "sdk-alpha1"):
+            for profile in ("legacy", "sdk-020"):
                 with self.subTest(profile=profile):
                     stage = fixture / ("stage-" + profile)
                     environment = dict(os.environ, QPERIAPT_TEST_SOURCE=str(source),
@@ -106,7 +106,7 @@ class AndroidSDKProfileTests(unittest.TestCase):
                         capture_output=True, timeout=30, check=False)
                     self.assertEqual(result.returncode, 0, result.stderr.decode())
                     expected = dict(base)
-                    if profile == "sdk-alpha1":
+                    if profile == "sdk-020":
                         expected.update(android.SDK_NOTICE_SOURCES)
                     actual = {path.relative_to(stage).as_posix(): path.read_bytes()
                               for path in stage.rglob("*") if path.is_file()}
@@ -118,24 +118,24 @@ class AndroidSDKProfileTests(unittest.TestCase):
         entries, _ = self.sdk_entries()
         entries["AndroidManifest.xml"] = entries["AndroidManifest.xml"].replace(b'minSdkVersion="23"', b'minSdkVersion="1"')
         with self.assertRaisesRegex(android.AndroidVerificationError, "exactly minSdkVersion=23"):
-            android.audit_aar_bytes(fixtures.zip_bytes(entries), label="incorrect SDK floor", profile="sdk-alpha1")
+            android.audit_aar_bytes(fixtures.zip_bytes(entries), label="incorrect SDK floor", profile="sdk-020")
 
     def test_exact_native_export_table_required_for_the_selected_profile(self):
         library = self.fixture.write_library("arm64-v8a", android.FFI_LIBRARY)
         nm, readelf = self.fixture.fake_tools()
         with self.assertRaisesRegex(android.AndroidVerificationError, "exact allowlist"):
             android.verify_library(library, abi="arm64-v8a", library=android.FFI_LIBRARY,
-                                   llvm_nm=nm, llvm_readelf=readelf, profile="sdk-alpha1")
+                                   llvm_nm=nm, llvm_readelf=readelf, profile="sdk-020")
         nm = self.fixture.write_tool("sdk-nm", "\n".join(f"print({(name + ' T 100 8')!r})" for name in sorted(self.profile.exports)))
         android.verify_library(library, abi="arm64-v8a", library=android.FFI_LIBRARY,
-                               llvm_nm=nm, llvm_readelf=readelf, profile="sdk-alpha1")
+                               llvm_nm=nm, llvm_readelf=readelf, profile="sdk-020")
         with self.assertRaisesRegex(android.AndroidVerificationError, "exact allowlist"):
             android.verify_library(library, abi="arm64-v8a", library=android.FFI_LIBRARY, llvm_nm=nm, llvm_readelf=readelf)
         with nm.open("a") as stream:
             stream.write("\nprint('debug_private_export T 100 8')\n")
         with self.assertRaisesRegex(android.AndroidVerificationError, "exact allowlist"):
             android.verify_library(library, abi="arm64-v8a", library=android.FFI_LIBRARY,
-                                   llvm_nm=nm, llvm_readelf=readelf, profile="sdk-alpha1")
+                                   llvm_nm=nm, llvm_readelf=readelf, profile="sdk-020")
 
 
 if __name__ == "__main__":

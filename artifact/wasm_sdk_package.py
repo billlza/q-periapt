@@ -21,7 +21,7 @@ from third_party_licenses import collect as collect_licenses, verify as verify_l
 ROOT = Path(__file__).resolve().parent.parent
 CRATE = ROOT / "crates/q-periapt-sdk-wasm"
 NAME = "q-periapt-sdk-wasm"
-VERSION = "0.2.0-alpha.1"
+VERSION = "0.2.0"
 TARGET = "wasm32-unknown-unknown"
 CONTENTS = "PACKAGE_CONTENTS.json"
 MTIME = 946684800

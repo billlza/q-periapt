@@ -1,6 +1,6 @@
 # Choose and integrate Q-Periapt
 
-Use **0.2.0-alpha.1** to evaluate the owned-key SDK in this source tree. It is
+Use **0.2.0** to evaluate the owned-key SDK in this source tree. It is
 unpublished; obtain a locally built candidate from the matching package guide
 below. Do not request this version from a public registry yet.
 
@@ -14,15 +14,16 @@ crates.io `0.1.5` packages remain the existing releases; r4 does not replace the
 
 | Version field | Meaning |
 | --- | --- |
-| Library/package `0.2.0-alpha.1` | Current development SDK with runtime, key and secret owners. |
+| Library/package `0.2.0` | Current development SDK with runtime, key and secret owners. |
 | Native ABI **2** | Calling conventions, original nine declarations, existing status values and library identities remain compatible. |
-| SDK export profile | Alpha packages contain exactly 43 C exports. The released 0.1.5 profile contains nine. New wrappers require the alpha SDK exports. |
+| SDK export profile | The `sdk-020` packages contain exactly 43 C exports. The released 0.1.5 profile contains nine. New wrappers require the SDK exports. |
 | Platform revision `r4` | Packaging/runtime maintenance for library 0.1.5; it is neither ABI 4 nor library 0.2.0. |
 
 ## Choose your language
 
-These are local alpha candidates. The verification column describes execution
-already observed, rather than treating a declared deployment target as tested.
+The package names and commands below target the local 0.2.0 candidate.
+Observations tied to earlier commits and checkpoints retain their alpha.1
+source scope. The 0.2.0 packages require fresh installation and runtime checks.
 Named checkpoints retain their own source scope; later changes require their
 own qualification, as recorded in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
 
@@ -30,14 +31,14 @@ own qualification, as recorded in the [readiness ledger](SDK_0_2_RELEASE_READINE
 | --- | --- | --- |
 | Rust | [Rust package guide](SDK_RUST_PACKAGE.md); [public API consumer](../bindings/rust/SDKPackageConsumer/src/lib.rs). Use source path dependencies for development, or the exact supplied `.crate` cohort with the guide's external-consumer setup. | macOS ARM64 public APIs run on Rust 1.85.0 and 1.96.1. Full repository development uses 1.96.1. Other minimum-toolchain targets remain open. |
 | C | Extract the [C SDK archive](SDK_C_PACKAGE.md), then link `qperiapt-abi2` through pkg-config or `QPeriaptABI2` through CMake. Windows uses its [separate SDK profile](SDK_WINDOWS_PACKAGE.md). Start from the shipped `sdk_smoke.c`. | Installed shared/static macOS ARM64 consumers run. Hosted `2493ffe` and `921cada` also pass native GNU/Linux x86_64/ARM64 and Windows package consumers; both Windows toolchains cover extracted direct/CMake calls and archive-only reconsumption. Minimum-OS/device coverage remains open. |
-| Swift | Extract `QPeriapt-Swift-SDK-0.2.0-alpha.1.zip`, add its `QPeriapt` folder as a local Swift package, and select `QPeriaptSDK`. See the [Swift guide](SDK_SWIFT_PACKAGE.md). | Installed macOS ARM64 calls and TCP connection run. macOS 13/iOS 16 are build floors; minimum-OS and physical-device execution remain open. |
-| Kotlin/JVM | Add the supplied local Maven repository and `dev.qperiapt:q-periapt-hybrid:0.2.0-alpha.1`; supply its matching ABI 2 native library. See [JVM installation](../bindings/kotlin/PackageREADME.md). | JDK 25 installed Maven consumer runs on macOS ARM64. Other native platforms remain open. |
-| Android | Use the supplied AAR or local Maven coordinate `dev.qperiapt:q-periapt-android:0.2.0-alpha.1`. See [Android installation](../bindings/android/PackageREADME.md). | Four native ABIs packaged. Full/minimal R8 consumers complete ART, cleanup and export replay on the hosted API 35 / 16 KiB / x86_64 emulator at `2493ffe` and `921cada`. API 23, ARM64 runtime and physical-device execution remain open. |
-| JavaScript/TypeScript | `npm install ./q-periapt-sdk-wasm-0.2.0-alpha.1.tgz`; use the [Node/browser quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md). | Node 24.0.0/26.3.0 and Chrome 153/Firefox 156 have installed-package execution on macOS ARM64, including browser windows and dedicated module Workers. [Browser evidence and limits](SDK_BROWSER_RUNTIME.md) include Firefox host diagnostics and Safari's disabled automation setting. Other hosts, mobile/minimum browsers, bundlers and other Worker types remain open. |
+| Swift | Extract `QPeriapt-Swift-SDK-0.2.0.zip`, add its `QPeriapt` folder as a local Swift package, and select `QPeriaptSDK`. See the [Swift guide](SDK_SWIFT_PACKAGE.md). | Installed macOS ARM64 calls and TCP connection run. macOS 13/iOS 16 are build floors; minimum-OS and physical-device execution remain open. |
+| Kotlin/JVM | Add the supplied local Maven repository and `dev.qperiapt:q-periapt-hybrid:0.2.0`; supply its matching ABI 2 native library. See [JVM installation](../bindings/kotlin/PackageREADME.md). | JDK 25 installed Maven consumer runs on macOS ARM64. Other native platforms remain open. |
+| Android | Use the supplied AAR or local Maven coordinate `dev.qperiapt:q-periapt-android:0.2.0`. See [Android installation](../bindings/android/PackageREADME.md). | Four native ABIs packaged. Full/minimal R8 consumers complete ART, cleanup and export replay on the hosted API 35 / 16 KiB / x86_64 emulator at `2493ffe` and `921cada`. API 23, ARM64 runtime and physical-device execution remain open. |
+| JavaScript/TypeScript | `npm install ./q-periapt-sdk-wasm-0.2.0.tgz`; use the [Node/browser quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md). | Node 24.0.0/26.3.0 and Chrome 153/Firefox 156 have installed-package execution on macOS ARM64, including browser windows and dedicated module Workers. [Browser evidence and limits](SDK_BROWSER_RUNTIME.md) include Firefox host diagnostics and Safari's disabled automation setting. Other hosts, mobile/minimum browsers, bundlers and other Worker types remain open. |
 
 The older `QPeriaptHybrid` compatibility API and deterministic WASM test surface
 remain available. Start new owned-key integrations with the product entries
-above. Do not combine an alpha wrapper with a nine-export 0.1.5 native library
+above. Do not combine a 0.2.0 wrapper with a nine-export 0.1.5 native library
 merely because both say ABI 2.
 
 ## First integration

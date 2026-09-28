@@ -3,7 +3,7 @@ import java.security.MessageDigest
 plugins { `maven-publish` }
 
 group = "dev.qperiapt"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 layout.buildDirectory.set(file(providers.gradleProperty("qperiaptBuildDirectory").get()))
 
 val candidate = providers.gradleProperty("qperiaptAar").map(::file)

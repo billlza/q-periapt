@@ -26,7 +26,7 @@ from third_party_licenses import INVENTORY_RELATIVE
 
 ROOT = Path(__file__).resolve().parent.parent
 BINDING = ROOT / "bindings/kotlin"
-VERSION = "0.2.0-alpha.1"
+VERSION = "0.2.0"
 GROUP = "dev.qperiapt"
 NAME = "q-periapt-hybrid"
 KOTLIN = "2.4.10"
@@ -85,7 +85,7 @@ def sources() -> dict:
     paths.extend(NOTICE_PATHS.values())
     paths.extend(ROOT / "artifact" / name for name in ("jvm_sdk_package.py", "bounded_process.py",
         "evidence_io.py", "deterministic_archive.py"))
-    return {"native": source_fingerprints(ROOT, "sdk-alpha1"),
+    return {"native": source_fingerprints(ROOT, "sdk-020"),
             "jvm": {path.relative_to(ROOT).as_posix(): snapshot(path).sha256 for path in sorted(paths)}}
 
 
@@ -214,7 +214,7 @@ def verify_native(root: Path, manifest_sha: str, host: str) -> dict:
     manifest = verify_sealed_payload(root, manifest_sha)
     require(manifest["schema_version"] == 3 and manifest["version"] == VERSION and manifest["host"] == host,
             "native SDK identity differs")
-    expected_sources = {**source_fingerprints(ROOT, "sdk-alpha1"),
+    expected_sources = {**source_fingerprints(ROOT, "sdk-020"),
                         "third_party_rust_license_inventory": snapshot(root / INVENTORY_RELATIVE).sha256}
     require(manifest["source_inputs_sha256"] == expected_sources,
             "native SDK source inputs differ from the current checkout")
@@ -230,7 +230,7 @@ def verify_native(root: Path, manifest_sha: str, host: str) -> dict:
             "native ABI 2 contract differs")
     require(snapshot(root / SDK_EMBEDDED_CONTRACT).data == snapshot(ROOT / SDK_CONTRACT_PATH).data,
             "embedded native contract differs")
-    required = expected_profile_files(root, host, identity, "sdk-alpha1") | {"MANIFEST.json", "SHA256SUMS"}
+    required = expected_profile_files(root, host, identity, "sdk-020") | {"MANIFEST.json", "SHA256SUMS"}
     require(set(entries(root)) == required, "native SDK file inventory differs")
     verify_header(contract, root / "include/qperiapt/abi2/q_periapt.h")
     verify_dynamic_library(contract, root / "lib" / identity["shared_filename"], platform)

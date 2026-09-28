@@ -35,13 +35,13 @@ path = "src/main.rs"
 # ordinary edges carrying the same exact `=` requirement as
 # every other internal dependency in the workspace, so the published crate
 # resolves them from crates.io and must be uploaded after all four.
-q-periapt-core = { version = "=0.2.0-alpha.1", path = "../q-periapt-core" }
-q-periapt-sig = { version = "=0.2.0-alpha.1", path = "../q-periapt-sig" }
-q-periapt-policy = { version = "=0.2.0-alpha.1", path = "../q-periapt-policy" }
-q-periapt-backends = { version = "=0.2.0-alpha.1", path = "../q-periapt-backends" }
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
-q-periapt-rustls = { version = "=0.2.0-alpha.1", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
+q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
 rustls = { version = "0.23.45", default-features = false, optional = true }
 
 [features]

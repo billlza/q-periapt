@@ -354,9 +354,9 @@ def result_package_profile(profile: RuntimeResultProfile) -> str:
 
 def source_inputs(profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL) -> dict[str, str]:
     inputs = dict(SOURCE_INPUTS)
-    if result_package_profile(profile) == "sdk-alpha1":
+    if result_package_profile(profile) == "sdk-020":
         inputs.update({
-            "c_abi_contract": package_profile("sdk-alpha1").contract,
+            "c_abi_contract": package_profile("sdk-020").contract,
             "sdk_abi_spec": "artifact/sdk_abi2_spec.py",
             "android_sdk": "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java",
             "android_agp_contract": "artifact/android_agp_consumer_contract.py",
@@ -2883,7 +2883,7 @@ def verify_runtime_contents(
 ) -> None:
     require(
         expected_runtime_profile == DEFAULT_RUNTIME_PROFILE
-        or result_package_profile(result_profile) == "sdk-alpha1",
+        or result_package_profile(result_profile) == "sdk-020",
         "legacy Android verification must retain its runtime profile",
     )
     require(

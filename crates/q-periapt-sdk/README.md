@@ -1,4 +1,4 @@
-# Q-Periapt owned SDK (0.2.0-alpha.1 development)
+# Q-Periapt owned SDK (0.2.0 development)
 
 Create `Runtime::from_signed_policy(policy, signature, pinned_root,
 last_trusted_state, Limits::default())`, atomically persist its `trusted_state()`,
@@ -33,6 +33,5 @@ same-process code. Quotas bound live keys and in-flight KEM work, not process OO
 number of runtimes, host inputs or externally retained results. Policy parsing
 and initial owner allocations still use Rust's ordinary allocator.
 
-This crate is part of the alpha Rust package cohort. Packaging is separate from
-publication: no alpha registry release or stable security qualification is
-claimed. See [current readiness](../../docs/SDK_0_2_RELEASE_READINESS.md).
+This crate is part of the 0.2.0 Rust package cohort. Its source and package
+qualification precede the release transaction. See [current readiness](../../docs/SDK_0_2_RELEASE_READINESS.md).

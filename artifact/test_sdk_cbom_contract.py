@@ -16,11 +16,11 @@ class SDKCBOMContractTests(unittest.TestCase):
         self.boms = self.root / "share/q-periapt/bom"
         self.boms.mkdir(parents=True)
         self.common = {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
-                       "metadata": {"component": {"name": "q-periapt-hybrid-suite", "version": "0.2.0-alpha.1"}}}
+                       "metadata": {"component": {"name": "q-periapt-hybrid-suite", "version": "0.2.0"}}}
         self.document = copy.deepcopy(self.common)
-        fixture = Path(bom.__file__).parent / "fixtures/sdk-native-alpha1-tls-inventory.json"
+        fixture = Path(bom.__file__).parent / "fixtures/sdk-native-020-tls-inventory.json"
         self.document["metadata"]["properties"] = [
-            {"name": "qperiapt:cbom-profile", "value": "native-sdk-alpha1"},
+            {"name": "qperiapt:cbom-profile", "value": "native-sdk-020"},
             {"name": "qperiapt:inventory-scope", "value": bom.NATIVE_INVENTORY_SCOPE},
             {"name": "qperiapt:configured-tls-provider", "value": fixture.read_text()},
         ]
@@ -39,7 +39,7 @@ class SDKCBOMContractTests(unittest.TestCase):
     def write(self, kind, value):
         (self.boms / f"{kind}.cdx.json").write_text(json.dumps(value, sort_keys=True) + "\n")
 
-    def verify(self, document, profile=bom.BomProfile.NATIVE_SDK_ALPHA1):
+    def verify(self, document, profile=bom.BomProfile.NATIVE_SDK_020):
         self.write("cbom", document)
         return bom.verify(self.root, cargo_lock=None, profile=profile)
 
@@ -67,7 +67,7 @@ class SDKCBOMContractTests(unittest.TestCase):
                 with self.assertRaises(bom.PackageBomError): self.verify(altered)
 
     def test_changed_tls_groups_certificate_parameters_or_scope_fail(self):
-        for change in ("groups", "certificate_algorithms", "scope", "profile", "version", "boolean-level"):
+        for change in ("groups", "certificate_algorithms", "scope", "profile", "version", "alpha-version", "boolean-level"):
             altered = copy.deepcopy(self.document)
             facts = {p["name"]: p for p in altered["metadata"]["properties"]}
             if change in ("groups", "certificate_algorithms"):
@@ -77,7 +77,8 @@ class SDKCBOMContractTests(unittest.TestCase):
                 facts["qperiapt:configured-tls-provider"]["value"] = json.dumps(snapshot)
             elif change == "scope": facts["qperiapt:inventory-scope"]["value"] = "complete security proof"
             elif change == "profile": facts["qperiapt:cbom-profile"]["value"] = "stable"
-            elif change == "version": altered["metadata"]["component"]["version"] = "0.2.0"
+            elif change == "version": altered["metadata"]["component"]["version"] = "0.2.1"
+            elif change == "alpha-version": altered["metadata"]["component"]["version"] = "0.2.0-alpha.1"
             else:
                 next(c for c in altered["components"] if c["name"] == "ML-KEM-512")["cryptoProperties"]["algorithmProperties"]["nistQuantumSecurityLevel"] = True
             with self.subTest(change=change):

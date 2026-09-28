@@ -1,12 +1,12 @@
 # Swift SDK package profile
 
-The shared Apple builder has an explicit `sdk-alpha1` profile. It packages both
+The shared Apple builder has an explicit `sdk-020` profile. It packages both
 the owned `QPeriaptSDK` and retained `QPeriaptHybrid` Swift products with static
-XCFramework slices. The C ABI remains **2**, with the closed 43-function alpha
+XCFramework slices. The C ABI remains **2**, with the closed 43-function SDK
 table and the original nine declarations/status values/library names retained.
 
 ```sh
-sh artifact/swift-xcframework.sh --profile sdk-alpha1
+sh artifact/swift-xcframework.sh --profile sdk-020
 ```
 
 The producer requires the pinned Rust/Cargo version, all five Apple Rust
@@ -16,10 +16,10 @@ local uncommitted implementation checks can explicitly select diagnostic mode:
 ```sh
 QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=1 \
 QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR="$PWD/target/sdk-apple-new-attempt" \
-sh artifact/swift-xcframework.sh --profile sdk-alpha1
+sh artifact/swift-xcframework.sh --profile sdk-020
 ```
 
-The alpha output directory must be fresh. Failed attempts are retained. Source
+The SDK output directory must be fresh. Failed attempts are retained. Source
 digests before and after construction cover Rust build inputs, Swift wrappers,
 consumer fixtures, package tools, ABI definitions and shipped notices. An
 observed change fails construction; a dirty HEAD alone cannot identify these
@@ -34,7 +34,7 @@ pool, despite a valid ad-hoc signature. Host/target separation passes the same
 fresh-build check; it does not patch the external linker or weaken the SDK floor.
 
 The output directory contains `CQPeriapt.xcframework.zip` and the complete
-`QPeriapt-Swift-SDK-0.2.0-alpha.1.zip`. Extract the latter and add `QPeriapt` as a
+`QPeriapt-Swift-SDK-0.2.0.zip`. Extract the latter and add `QPeriapt` as a
 local Swift package dependency. Select `QPeriaptSDK`, or `QPeriaptHybrid` for the
 compatibility API. The package declares its system `iconv` linkage; consumers
 need neither a Rust installation nor source-checkout library search paths.
@@ -77,7 +77,7 @@ it repeats the runtime tests, verifies the selected archive and rejects source
 paths in its build output. This is local host installation evidence, not the
 Swift/macOS-to-Rust/Linux reference-connection acceptance gate.
 
-The profile is an unsigned alpha candidate. The historical signed Apple release
+The profile produces an unsigned 0.2.0 candidate. The historical signed Apple release
 schema and receipts remain separate and cannot admit it. Source-local success
 does not claim hosted CI, minimum-OS runtime testing, device coverage, signing
 or readiness for 0.2.0 publication. See the

@@ -21,6 +21,34 @@ explicit version-specific export allowlist. The historical 0.1.5 nine-symbol
 contract is retained; 0.2.0 must not claim its expanded table is still nine.
 New bindings require the 0.2.0 SDK surface; old clients remain ABI-compatible.
 
+The working release candidate now uses package version **0.2.0**, producer
+profile **`sdk-020`** and native CBOM profile **`native-sdk-020`**. This transition
+coordinates Cargo workspace/dependency versions, Maven/npm metadata, package
+filenames, installed consumers, CI intake paths and the C contract snapshot.
+ABI major 2, extension revision 1, all 43 C declarations and all 26 JNI
+registrations are unchanged. The 0.1.5 contracts and historical results retain
+their original bytes. Earlier alpha.1 observations below remain tied to their
+recorded commits; the 0.2.0 candidate requires fresh source and package checks.
+
+The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
+in 457.660 seconds without skips, with warnings treated as errors and passing
+pre/post source gates. The 387 affected Android tests also pass. Its
+[hosted CI](https://github.com/billlza/q-periapt/actions/runs/36361978517) and
+[CodeQL](https://github.com/billlza/q-periapt/actions/runs/36361978526) remain
+separate from the new version transition. The retained checkpoint includes the
+old query failure, the corrected child-process cases, integrated fixture
+failures and repairs, and the earlier primary/repeat runtime outcomes.
+
+In that alpha.1 hosted run, the guest exit records work on API 23: an unavailable
+Package Manager returns guest status 1 while host ADB reports zero, and the
+observer requires subsequent complete successful replies before accepting
+absence. Its full SDK Instrumentation workload passes all three groups. The
+minimal run fails earlier in Android's `am` command VM: retained ART logs show
+boot-image relocation failure, `com.android.commands.am.Am` class loading
+failure and SIGABRT. API 35's full/minimal workloads also return their passing
+results, but the minimal run loses its device transport during cleanup. These
+are retained runtime failures; the version transition does not close them.
+
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
 | Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. Physical Android evidence remains open; JVM Java-source owner construction is closed |

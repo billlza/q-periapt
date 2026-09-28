@@ -87,9 +87,9 @@ jobs:
         run: |
           results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)
           source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
-            ci-source-gate --profile sdk-alpha1 \
+            ci-source-gate --profile sdk-020 \
             "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
-          expected_gate="SDK_SOURCE_READINESS_PASS profile=sdk-alpha1 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
+          expected_gate="SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
           if [ "$source_gate" = "$expected_gate" ]; then
             printf '%s\n' "$source_gate"
           else
@@ -109,7 +109,7 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
       # C-ABI distribution smoke: archive, extract, pkg-config consumer, and CMake consumer.
-      - run: sh artifact/c-package.sh --profile sdk-alpha1
+      - run: sh artifact/c-package.sh --profile sdk-020
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
 
@@ -131,7 +131,7 @@ jobs:
         with:
           toolchain: 1.96.1
       - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
-      - run: sh artifact/rust-publish-contract.sh --profile sdk-alpha1 --output target/sdk-rust-package
+      - run: sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # explicit minimum
         with:
           toolchain: 1.85.0
@@ -197,20 +197,20 @@ jobs:
         run: bindings\c\build-and-run.bat
       - name: Build, archive, extract, and consume the Windows ABI2 SDK
         shell: pwsh
-        run: artifact/windows-package.ps1 -Profile sdk-alpha1
+        run: artifact/windows-package.ps1 -Profile sdk-020
       - name: Reconsume only the Windows candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-sdk-alpha1/q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-sdk-alpha1/q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
-          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
           $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
           foreach ($path in @(
-            "target/qperiapt-windows-sdk-alpha1/native-dynamic",
-            "target/qperiapt-windows-sdk-alpha1/native-static",
+            "target/qperiapt-windows-sdk-020/native-dynamic",
+            "target/qperiapt-windows-sdk-020/native-static",
             $packageRoot
           )) {
             if (Test-Path -LiteralPath $path) {
@@ -226,7 +226,7 @@ jobs:
           )) {
             $rejected = $false
             try {
-              artifact/windows-package.ps1 -Profile sdk-alpha1 -Mode VerifyArchive `
+              artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
                 -Archive $archive `
                 -ExpectedSha256 $wrongArguments[0] `
                 -ExpectedManifestSha256 $wrongArguments[1] `
@@ -238,7 +238,7 @@ jobs:
             }
             if (-not $rejected) { throw "Windows archive verifier accepted an incorrect trusted digest" }
           }
-          artifact/windows-package.ps1 -Profile sdk-alpha1 -Mode VerifyArchive `
+          artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
             -Archive $archive `
             -ExpectedSha256 $archiveSha256 `
             -ExpectedManifestSha256 $manifestSha256 `
@@ -248,7 +248,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-windows-x86_64-msvc
-          path: target/qperiapt-windows-sdk-alpha1/q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc.zip
+          path: target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip
           if-no-files-found: error
 
   # Pre-tag package gate on the same Windows generation used by the immutable
@@ -297,27 +297,27 @@ jobs:
         shell: pwsh
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
-        run: artifact/windows-package.ps1 -Profile sdk-alpha1
+        run: artifact/windows-package.ps1 -Profile sdk-020
       - name: Reconsume only the Windows 2022 candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-sdk-alpha1/q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-sdk-alpha1/q-periapt-c-abi2-0.2.0-alpha.1-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
-          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
           $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
           foreach ($path in @(
-            "target/qperiapt-windows-sdk-alpha1/native-dynamic",
-            "target/qperiapt-windows-sdk-alpha1/native-static",
+            "target/qperiapt-windows-sdk-020/native-dynamic",
+            "target/qperiapt-windows-sdk-020/native-static",
             $packageRoot
           )) {
             if (Test-Path -LiteralPath $path) {
               Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
             }
           }
-          artifact/windows-package.ps1 -Profile sdk-alpha1 -Mode VerifyArchive `
+          artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
             -Archive $archive `
             -ExpectedSha256 $archiveSha256 `
             -ExpectedManifestSha256 $manifestSha256 `
@@ -378,17 +378,17 @@ jobs:
       - name: Build, archive, extract, and consume the native Linux ABI2 SDK
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/c-package.sh --profile sdk-alpha1
+        run: sh artifact/c-package.sh --profile sdk-020
       - name: Verify the archive through the isolated public-consumer path
         env:
           EXPECTED_TARGET: ${{ matrix.target }}
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          package="q-periapt-c-abi2-0.2.0-alpha.1-$EXPECTED_TARGET"
+          package="q-periapt-c-abi2-0.2.0-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
           archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
-          contract_sha256=$(sha256sum crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-alpha1.json | cut -d' ' -f1)
+          contract_sha256=$(sha256sum crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json | cut -d' ' -f1)
           case "$EXPECTED_TARGET" in
             x86_64-unknown-linux-gnu) wrong_target=aarch64-unknown-linux-gnu ;;
             aarch64-unknown-linux-gnu) wrong_target=x86_64-unknown-linux-gnu ;;
@@ -405,22 +405,22 @@ jobs:
             QPERIAPT_C_PACKAGE_EXPECTED_VERSION="$3" \
             QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256="$4" \
             QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$5" \
-              sh artifact/c-package.sh --profile sdk-alpha1
+              sh artifact/c-package.sh --profile sdk-020
           }
-          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.2.0-alpha.1" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$wrong_target" "0.2.0-alpha.1" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$wrong_target" "0.2.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0-alpha.1" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0-alpha.1" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
           rm -rf \
             "target/$EXPECTED_TARGET/release" \
             "target/qperiapt-c-abi2/$package" \
             "target/qperiapt-c-abi2/verify-$package"
-          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0-alpha.1" "$manifest_sha256" "$contract_sha256"
+          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$contract_sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-linux-${{ matrix.target }}
-          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.2.0-alpha.1-${{ matrix.target }}.tar.gz
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.2.0-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
   # no_std build of the auditable core for an embedded target (must not pull std).
@@ -811,7 +811,7 @@ jobs:
           digests=$(sh artifact/python-run.sh -c 'from pathlib import Path; from evidence_io import load_json_object_snapshot; import re; record=load_json_object_snapshot(Path("target/sdk-wasm-package/INSTALLED_CONSUMER.json"), label="WASM producer receipt").value; values=[record["sha256"],record["manifest_sha256"]]; assert all(isinstance(value,str) and re.fullmatch(r"[0-9a-f]{64}",value) for value in values); print(" ".join(values))')
           read -r archive_sha manifest_sha <<< "$digests"
           sh artifact/python-run.sh artifact/wasm_sdk_package.py \
-            --archive target/sdk-wasm-package/q-periapt-sdk-wasm-0.2.0-alpha.1.tgz \
+            --archive target/sdk-wasm-package/q-periapt-sdk-wasm-0.2.0.tgz \
             --archive-sha256 "$archive_sha" --manifest-sha256 "$manifest_sha" \
             --node "$(command -v node)" --npm-cli "$(readlink -f "$(command -v npm)")" \
             --expected-node-version v24.0.0 --output target/sdk-wasm-node24-minimum
@@ -962,12 +962,12 @@ jobs:
       - name: Build deterministic Apple XCFramework
         run: |
           unset RUSTFLAGS CARGO_INCREMENTAL
-          sh artifact/swift-xcframework.sh --profile sdk-alpha1
+          sh artifact/swift-xcframework.sh --profile sdk-020
       - name: Retain Apple SDK packages and failed-attempt diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: apple-sdk-alpha1
+          name: apple-sdk-020
           path: |
             target/qperiapt-swift-xcframework/*.log
             target/qperiapt-swift-xcframework/SOURCE_INPUTS.*.json
@@ -986,20 +986,20 @@ jobs:
       - name: Build the Rust SDK archives for the packaged connection
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/rust-publish-contract.sh --profile sdk-alpha1 --output target/sdk-connection-rust-package
+        run: sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-connection-rust-package
       - name: Actual installed Swift and Rust package connection
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           unset RUSTFLAGS CARGO_INCREMENTAL
-          sdk_dir=target/qperiapt-swift-xcframework/q-periapt-swift-0.2.0-alpha.1
+          sdk_dir=target/qperiapt-swift-xcframework/q-periapt-swift-0.2.0
           report=target/sdk-connection-rust-package/RUST_SDK_PACKAGE.json
-          swift_sha256=$(shasum -a 256 "$sdk_dir/QPeriapt-Swift-SDK-0.2.0-alpha.1.zip" | cut -d' ' -f1)
+          swift_sha256=$(shasum -a 256 "$sdk_dir/QPeriapt-Swift-SDK-0.2.0.zip" | cut -d' ' -f1)
           native_sha256=$(shasum -a 256 "$sdk_dir/CQPeriapt.xcframework.zip" | cut -d' ' -f1)
           report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
           sh artifact/python-run.sh artifact/sdk_installed_connection.py \
             --output target/sdk-installed-connection \
-            --swift-zip "$sdk_dir/QPeriapt-Swift-SDK-0.2.0-alpha.1.zip" --swift-sha256 "$swift_sha256" \
+            --swift-zip "$sdk_dir/QPeriapt-Swift-SDK-0.2.0.zip" --swift-sha256 "$swift_sha256" \
             --swift-native-zip "$sdk_dir/CQPeriapt.xcframework.zip" --swift-native-sha256 "$native_sha256" \
             --rust-report "$report" --rust-report-sha256 "$report_sha256" \
             --cargo-home target/sdk-connection-rust-package/cargo-home
@@ -1087,13 +1087,13 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.jvm_python.outputs.python-path }}
           QPERIAPT_C_PACKAGE_OUT_DIR: ${{ github.workspace }}/target/sdk-jvm-native
-        run: sh artifact/c-package.sh --profile sdk-alpha1
+        run: sh artifact/c-package.sh --profile sdk-020
       - name: Install Maven candidate in an independent JVM project
         env:
           QPERIAPT_PYTHON: ${{ steps.jvm_python.outputs.python-path }}
         run: |
           native_target=$(rustc -vV | sed -n 's/^host: //p')
-          native_name="q-periapt-c-abi2-0.2.0-alpha.1-$native_target"
+          native_name="q-periapt-c-abi2-0.2.0-$native_target"
           native_archive="target/sdk-jvm-native/$native_name.tar.gz"
           native_manifest="target/sdk-jvm-native/$native_name/MANIFEST.json"
           native_sha256=$(shasum -a 256 "$native_archive" | cut -d ' ' -f 1)
@@ -1179,14 +1179,14 @@ jobs:
           QPERIAPT_ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" \
           QPERIAPT_ANDROID_PLATFORM="$ANDROID_HOME/platforms/android-35" \
           QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
-          sh artifact/android-aar.sh --profile sdk-alpha1
+          sh artifact/android-aar.sh --profile sdk-020
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-sdk-alpha1-aar
+          name: abi2-android-sdk-020-aar
           path: |
-            target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/q-periapt-android-0.2.0-alpha.1.aar
-            target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/MANIFEST.json
-            target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/SHA256SUMS
+            target/qperiapt-android-aar/q-periapt-android-0.2.0/q-periapt-android-0.2.0.aar
+            target/qperiapt-android-aar/q-periapt-android-0.2.0/MANIFEST.json
+            target/qperiapt-android-aar/q-periapt-android-0.2.0/SHA256SUMS
           if-no-files-found: error
 
   # Execute the same four-ABI AAR at the API 23 floor and on API 35 / 16 KiB.
@@ -1269,14 +1269,14 @@ jobs:
           packages: platform-tools
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: abi2-android-sdk-alpha1-aar
+          name: abi2-android-sdk-020-aar
           path: target/workflow-artifact/raw
           skip-decompress: true
           digest-mismatch: error
       - name: Strictly extract the same-run Android AAR artifact
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/python-run.sh artifact/workflow_artifact.py android-sdk-alpha1-aar
+        run: sh artifact/python-run.sh artifact/workflow_artifact.py android-sdk-020-aar
       - name: Install the selected Android emulator runtime
         run: |
           command -v setfacl
@@ -1300,8 +1300,8 @@ jobs:
           canonical_java_home=$(realpath -e "$JAVA_HOME")
           export JAVA_HOME="$canonical_java_home"
           export PATH="$JAVA_HOME/bin:$PATH"
-          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/q-periapt-android-0.2.0-alpha.1.aar"
-          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/MANIFEST.json"
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/q-periapt-android-0.2.0.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/MANIFEST.json"
           wrapper="$GITHUB_WORKSPACE/artifact/android-agp-consumer/gradlew"
           "$wrapper" --version
           sh artifact/python-run.sh artifact/android_sdk_package.py \
@@ -1414,8 +1414,8 @@ jobs:
           canonical_java_home=$(realpath -e "$JAVA_HOME")
           export JAVA_HOME="$canonical_java_home"
           export PATH="$JAVA_HOME/bin:$PATH"
-          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/q-periapt-android-0.2.0-alpha.1.aar"
-          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0-alpha.1/MANIFEST.json"
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/q-periapt-android-0.2.0.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/MANIFEST.json"
           test -f "$aar" && test -f "$manifest"
           aar_sha256=$(sha256sum "$aar" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "$manifest" | cut -d' ' -f1)
@@ -1446,7 +1446,7 @@ jobs:
         if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics
+          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log
@@ -1473,7 +1473,7 @@ jobs:
         if: always() && (hashFiles('target/sdk-android-package/*.stdout') != '' || hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/proof.json') != '')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-sdk-alpha1-runtime-${{ matrix.profile }}-x86_64
+          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
             target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/
@@ -1481,7 +1481,7 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err
             target/sdk-android-package/INSTALLED_CONSUMERS.json
-            target/sdk-android-package/q-periapt-android-sdk-0.2.0-alpha.1.tar.gz
+            target/sdk-android-package/q-periapt-android-sdk-0.2.0.tar.gz
             target/sdk-android-package/*.stdout
             target/sdk-android-package/*.stderr
             target/sdk-android-package/*.json
@@ -1528,7 +1528,7 @@ jobs:
           cargo run --locked -p q-periapt-cli --features sdk-cbom -- cbom --native-sdk \
             --out target/sdk-bom-profile/share/q-periapt/bom/cbom.cdx.json
           cp sbom.cdx.json target/sdk-bom-profile/share/q-periapt/bom/sbom.cdx.json
-          sh artifact/python-run.sh -c 'from pathlib import Path; from package_bom import verify, BomProfile; print(verify(Path("target/sdk-bom-profile"), cargo_lock=Path("Cargo.lock"), profile=BomProfile.NATIVE_SDK_ALPHA1))'
+          sh artifact/python-run.sh -c 'from pathlib import Path; from package_bom import verify, BomProfile; print(verify(Path("target/sdk-bom-profile"), cargo_lock=Path("Cargo.lock"), profile=BomProfile.NATIVE_SDK_020))'
       - name: Retain native SDK inventory
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
