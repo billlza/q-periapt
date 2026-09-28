@@ -1054,7 +1054,12 @@ mod tests {
     #[test]
     fn key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors() {
         fn hex(bytes: &[u8]) -> String {
-            bytes.iter().map(|b| format!("{b:02x}")).collect()
+            use std::fmt::Write;
+            let mut text = String::with_capacity(bytes.len() * 2);
+            for byte in bytes {
+                write!(&mut text, "{byte:02x}").expect("format into String");
+            }
+            text
         }
         // Public synthetic inputs, independently calculated using Python's
         // hashlib/hmac (extract and the first expand block), not live secrets.
