@@ -369,6 +369,20 @@ impl VerifiedDevice {
     }
 }
 impl VerifiedManifest {
+    pub(crate) fn selection_identity(&self) -> Result<crate::selection::SelectionIdentity, Error> {
+        const IDENTITY_BYTES: usize = 32 + 16 + 8 + 32;
+        let identity = self.scope.get(..IDENTITY_BYTES).ok_or(Error::Encoding)?;
+        let mut decoder = Decoder::new(identity);
+        let result = crate::selection::SelectionIdentity {
+            account: decoder.array()?,
+            device: decoder.array()?,
+            generation: decoder.u64()?,
+            credential: decoder.array()?,
+        };
+        decoder.finish()?;
+        Ok(result)
+    }
+
     /// Signed metadata to compare against the service's separately resolved policy/directory state.
     pub fn context(&self) -> ManifestContext {
         self.context
@@ -415,6 +429,11 @@ pub struct AuthenticatedLeaf {
     authority: [u8; 32],
 }
 impl AuthenticatedLeaf {
+    /// Signed leaf interval, bounded by its authenticated manifest interval.
+    pub fn validity(&self) -> Validity {
+        self.leaf.validity
+    }
+
     /// Complete scope-bound leaf commitment.
     pub fn id(&self) -> [u8; 32] {
         self.id

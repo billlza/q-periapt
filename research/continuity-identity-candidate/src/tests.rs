@@ -508,3 +508,278 @@ fn issuer_and_authenticated_parser_enforce_resource_limits() {
     let maximum = vec![1; crate::crypto::MAX_SIGNED_BODY_BYTES + 1];
     fail(f.root.sign(Purpose::Credential, &maximum), Error::Capacity);
 }
+
+fn proof_for_kind(
+    issued: &IssuedManifest,
+    manifest: &VerifiedManifest,
+    kind: LeafKind,
+) -> LeafProof {
+    let index = (0..issued.leaf_count())
+        .find(|index| {
+            let proof = issued.proof(*index).expect("proof");
+            manifest.verify_leaf(&proof, 150).expect("member").kind() == kind
+        })
+        .expect("required kind");
+    issued.proof(index).expect("selected proof")
+}
+
+#[test]
+fn all_selection_modes_derive_ids_quality_and_public_keys_from_real_members() {
+    let f = fixture();
+    let device = device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, context(3), &leaves())
+        .expect("manifest");
+    let manifest = device
+        .verify_manifest(issued.as_bytes(), 150)
+        .expect("verified");
+    let signed = proof_for_kind(&issued, &manifest, LeafKind::SignedClassical);
+    let last = proof_for_kind(&issued, &manifest, LeafKind::LastResortPq);
+    let once_c = proof_for_kind(&issued, &manifest, LeafKind::OneTimeClassical);
+    let once_p = proof_for_kind(&issued, &manifest, LeafKind::OneTimePq);
+    let mut digests = std::collections::BTreeSet::new();
+    for (classical, pq, expected) in [
+        (
+            ClassicalChoice::OneTime(&once_c),
+            PqChoice::OneTime(&once_p),
+            PrekeyQuality::OneTimeBoth,
+        ),
+        (
+            ClassicalChoice::SignedOnly,
+            PqChoice::LastResort,
+            PrekeyQuality::ReusableBoth,
+        ),
+        (
+            ClassicalChoice::SignedOnly,
+            PqChoice::OneTime(&once_p),
+            PrekeyQuality::SignedClassicalOneTimePq,
+        ),
+        (
+            ClassicalChoice::OneTime(&once_c),
+            PqChoice::LastResort,
+            PrekeyQuality::OneTimeClassicalLastResortPq,
+        ),
+    ] {
+        let selection = manifest
+            .select_prekeys(&signed, &last, classical, pq, 150)
+            .expect("selection");
+        assert_eq!(selection.quality(), expected);
+        assert_eq!(selection.authority_binding(), device.authority_binding());
+        assert_eq!(selection.manifest_digest(), manifest.digest());
+        assert!(digests.insert(selection.digest()));
+        let mut decoder = crate::codec::Decoder::new(selection.as_bytes());
+        let mut fields = Vec::new();
+        for length in [40, 2, 32, 32, 16, 8, 32, 8, 32, 32, 1, 32, 32, 1, 32, 32] {
+            assert_eq!(decoder.u64().expect("LP8 length"), length as u64);
+            fields.push(decoder.take(length).expect("field"));
+        }
+        decoder.finish().expect("exact record");
+        assert_eq!(
+            fields.first().expect("domain"),
+            &b"Q-PERIAPT-CONTINUITY-PREKEY-SELECTION/v1".as_slice()
+        );
+        assert_eq!(
+            fields.get(3).expect("account"),
+            &f.root.account_id().expect("account").as_slice()
+        );
+        assert_eq!(fields.get(4).expect("device"), &[5; 16].as_slice());
+        assert_eq!(
+            fields.get(7).expect("epoch"),
+            &3u64.to_be_bytes().as_slice()
+        );
+        assert_eq!(
+            fields.get(9).expect("manifest"),
+            &manifest.digest().as_slice()
+        );
+        assert_eq!(
+            fields.get(12).expect("classical id"),
+            &selection.classical().id().as_slice()
+        );
+        assert_eq!(
+            fields.get(15).expect("pq id"),
+            &selection.post_quantum().id().as_slice()
+        );
+        assert_eq!(selection.classical().public_key().len(), 32);
+        assert_eq!(
+            selection.post_quantum().public_key().len(),
+            ML_KEM_768_PK_LEN
+        );
+    }
+}
+
+#[test]
+fn selection_rejects_wrong_roles_cross_manifest_proofs_and_expiry() {
+    let f = fixture();
+    let device = device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, context(1), &leaves())
+        .expect("manifest");
+    let manifest = device
+        .verify_manifest(issued.as_bytes(), 150)
+        .expect("verified");
+    let signed = proof_for_kind(&issued, &manifest, LeafKind::SignedClassical);
+    let last = proof_for_kind(&issued, &manifest, LeafKind::LastResortPq);
+    let once = proof_for_kind(&issued, &manifest, LeafKind::OneTimeClassical);
+    for (c, p, chosen) in [
+        (&once, &last, ClassicalChoice::SignedOnly),
+        (&last, &signed, ClassicalChoice::SignedOnly),
+        (&signed, &last, ClassicalChoice::OneTime(&signed)),
+    ] {
+        fail(
+            manifest.select_prekeys(c, p, chosen, PqChoice::LastResort, 150),
+            Error::Scope,
+        );
+    }
+    fail(
+        manifest.select_prekeys(
+            &signed,
+            &last,
+            ClassicalChoice::SignedOnly,
+            PqChoice::OneTime(&last),
+            150,
+        ),
+        Error::Scope,
+    );
+    fail(
+        manifest.select_prekeys(
+            &signed,
+            &last,
+            ClassicalChoice::SignedOnly,
+            PqChoice::LastResort,
+            200,
+        ),
+        Error::Validity,
+    );
+    let other = f
+        .signer
+        .issue_manifest(&device, context(2), &leaves())
+        .expect("other");
+    let other_manifest = device
+        .verify_manifest(other.as_bytes(), 150)
+        .expect("other verified");
+    let graft = proof_for_kind(&other, &other_manifest, LeafKind::OneTimeClassical);
+    fail(
+        manifest.select_prekeys(
+            &signed,
+            &last,
+            ClassicalChoice::OneTime(&graft),
+            PqChoice::LastResort,
+            150,
+        ),
+        Error::Authentication,
+    );
+}
+
+#[test]
+fn retained_selection_cannot_outlive_a_referenced_reusable_baseline() {
+    let f = fixture();
+    let device = device(&f);
+    let mut entries = leaves();
+    *entries.first_mut().expect("signed baseline") = PrekeyLeaf::new(
+        LeafKind::SignedClassical,
+        &[11; 32],
+        Validity::new(140, 160).expect("narrow interval"),
+    )
+    .expect("baseline");
+    let issued = f
+        .signer
+        .issue_manifest(&device, context(1), &entries)
+        .expect("manifest");
+    let manifest = device
+        .verify_manifest(issued.as_bytes(), 150)
+        .expect("verified");
+    let signed = proof_for_kind(&issued, &manifest, LeafKind::SignedClassical);
+    let last = proof_for_kind(&issued, &manifest, LeafKind::LastResortPq);
+    let once_c = proof_for_kind(&issued, &manifest, LeafKind::OneTimeClassical);
+    let once_p = proof_for_kind(&issued, &manifest, LeafKind::OneTimePq);
+    let selection = manifest
+        .select_prekeys(
+            &signed,
+            &last,
+            ClassicalChoice::OneTime(&once_c),
+            PqChoice::OneTime(&once_p),
+            150,
+        )
+        .expect("selection");
+    assert_eq!(selection.classical().validity(), interval());
+    assert_eq!(
+        selection.validity(),
+        Validity::new(140, 160).expect("intersection")
+    );
+    assert!(selection.check_time(140).is_ok());
+    assert!(selection.check_time(159).is_ok());
+    fail(selection.check_time(139), Error::Validity);
+    fail(selection.check_time(160), Error::Validity);
+}
+
+#[test]
+fn malicious_signer_cannot_relabel_a_reusable_public_key_as_one_time_in_selection() {
+    let f = fixture();
+    let device = device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, context(1), &leaves())
+        .expect("manifest");
+    let (body, _) = open_envelope(issued.as_bytes()).expect("body");
+    let scope = body.get(8..256).expect("scope");
+    let mut records = Vec::new();
+    // Bypass the honest issuer's duplicate check by constructing a genuinely
+    // signed tree whose classical roles have distinct IDs but identical keys.
+    for index in 0..issued.leaf_count() {
+        let wire = issued.proof(index).expect("proof").encode().expect("wire");
+        let mut decoder = crate::codec::Decoder::new(&wire);
+        decoder.u16().expect("index");
+        let size = usize::from(decoder.u16().expect("size"));
+        let mut leaf = decoder.take(size).expect("leaf").to_vec();
+        if leaf.get(8) == Some(&(LeafKind::OneTimeClassical as u8)) {
+            leaf.get_mut(25..).expect("public").fill(11);
+        }
+        let mut committed = scope.to_vec();
+        committed.extend_from_slice(&leaf);
+        let id =
+            crate::crypto::digest(b"Q-PERIAPT-CONTINUITY-PREKEY-LEAF-CANDIDATE/v1", &committed);
+        records.push((id, leaf));
+    }
+    records.sort_by_key(|(id, _)| *id);
+    let ids: Vec<_> = records.iter().map(|(id, _)| *id).collect();
+    let mut malicious_body = body.to_vec();
+    malicious_body
+        .get_mut(258..)
+        .expect("root")
+        .copy_from_slice(&crate::merkle::root(&ids).expect("root"));
+    let wire = envelope(
+        &malicious_body,
+        &f.signer
+            .sign(Purpose::Manifest, &malicious_body)
+            .expect("sign"),
+    )
+    .expect("envelope");
+    let manifest = device.verify_manifest(&wire, 150).expect("real signature");
+    let mut proofs = Vec::new();
+    for (index, (_, leaf)) in records.iter().enumerate() {
+        let siblings = crate::merkle::proof(&ids, index).expect("siblings");
+        let mut encoded = (index as u16).to_be_bytes().to_vec();
+        encoded.extend_from_slice(&(leaf.len() as u16).to_be_bytes());
+        encoded.extend_from_slice(leaf);
+        encoded.push(siblings.len() as u8);
+        for sibling in siblings {
+            encoded.extend_from_slice(&sibling);
+        }
+        let proof = LeafProof::decode(&encoded).expect("proof");
+        let member = manifest.verify_leaf(&proof, 150).expect("authentic member");
+        proofs.push((member.kind(), proof));
+    }
+    let by_kind = |kind| &proofs.iter().find(|(k, _)| *k == kind).expect("kind").1;
+    fail(
+        manifest.select_prekeys(
+            by_kind(LeafKind::SignedClassical),
+            by_kind(LeafKind::LastResortPq),
+            ClassicalChoice::OneTime(by_kind(LeafKind::OneTimeClassical)),
+            PqChoice::LastResort,
+            150,
+        ),
+        Error::Scope,
+    );
+}

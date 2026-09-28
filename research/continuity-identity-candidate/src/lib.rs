@@ -12,6 +12,7 @@ mod crypto;
 mod identity;
 mod manifest;
 mod merkle;
+mod selection;
 #[cfg(test)]
 mod tests;
 
@@ -23,6 +24,9 @@ pub use identity::{
 pub use manifest::{
     AuthenticatedLeaf, IssuedManifest, LeafKind, LeafProof, ManifestContext, PrekeyLeaf,
     VerifiedManifest, MAX_PREKEYS,
+};
+pub use selection::{
+    AuthenticatedPrekeySelection, ClassicalChoice, PqChoice, PrekeyQuality, PREKEY_SELECTION_BYTES,
 };
 
 use std::fmt;

@@ -2,8 +2,8 @@
 //! Emit public-only, freshly generated fixtures for an independent verifier.
 use q_periapt_backends::{MlKem768, X25519};
 use q_periapt_continuity_identity_candidate::{
-    AccountPin, DeviceDescription, DeviceSigningKey, LeafKind, ManifestContext, PrekeyLeaf,
-    RootSigningKey, Validity,
+    AccountPin, ClassicalChoice, DeviceDescription, DeviceSigningKey, LeafKind, ManifestContext,
+    PqChoice, PrekeyLeaf, RootSigningKey, Validity,
 };
 use q_periapt_core::ZeroizingBytes;
 use std::{error::Error, fs, io::Write, path::Path};
@@ -104,6 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &format!("manifest-{count}.digest"),
             &verified.digest(),
         )?;
+        let mut by_kind = std::collections::BTreeMap::new();
         for index in 0..count {
             let proof = issued.proof(index)?;
             let leaf = verified.verify_leaf(&proof, 150)?;
@@ -118,6 +119,37 @@ fn main() -> Result<(), Box<dyn Error>> {
                 &format!("proof-{count}-{index}.fingerprint"),
                 &leaf.key_fingerprint(),
             )?;
+            by_kind.entry(leaf.kind() as u8).or_insert(proof);
+        }
+        if count >= 5 {
+            let signed = by_kind.get(&1).ok_or("missing signed classical")?;
+            let once_c = by_kind.get(&2).ok_or("missing one-time classical")?;
+            let last = by_kind.get(&3).ok_or("missing last-resort PQ")?;
+            let once_p = by_kind.get(&4).ok_or("missing one-time PQ")?;
+            for (classical, pq) in [
+                (ClassicalChoice::OneTime(once_c), PqChoice::OneTime(once_p)),
+                (ClassicalChoice::SignedOnly, PqChoice::LastResort),
+                (ClassicalChoice::SignedOnly, PqChoice::OneTime(once_p)),
+                (ClassicalChoice::OneTime(once_c), PqChoice::LastResort),
+            ] {
+                let selection = verified.select_prekeys(signed, last, classical, pq, 150)?;
+                let quality = selection.quality() as u8;
+                save(
+                    directory,
+                    &format!("selection-{count}-{quality}.record"),
+                    selection.as_bytes(),
+                )?;
+                save(
+                    directory,
+                    &format!("selection-{count}-{quality}.digest"),
+                    &selection.digest(),
+                )?;
+                save(
+                    directory,
+                    &format!("selection-{count}-{quality}.quality"),
+                    &[quality],
+                )?;
+            }
         }
     }
     signer.close();

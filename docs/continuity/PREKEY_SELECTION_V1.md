@@ -122,7 +122,31 @@ protocol authentication, or a proof that formal terms refine Rust bytes. The Rus
 Python full-byte correspondence is executable evidence, not a verified compiler or
 formal model-to-code refinement.
 
-## 5. Next stateful gates
+## 5. Actual-signature candidate adapter
+
+The separate [identity candidate](../../research/continuity-identity-candidate)
+now derives this unchanged record from real, signature-verified manifest members.
+Its `VerifiedManifest::select_prekeys` verifies reusable baseline and selected
+leaf proofs under one manifest, enforces signed roles and exact-public-byte
+separation from reusable baselines, and computes all sixteen fields, the digest
+and the lossless quality code together. No public decoder or raw-digest
+constructor can mint `AuthenticatedPrekeySelection` from network bytes.
+
+The retained selection includes the common interval of all referenced leaves,
+including the reusable baselines when one-time keys are selected. Its time check
+does not establish current roster authority or consumption permission. Mode
+authorization, directory consistency, primitive canonical admission and the
+durable prekey/session/deduplication transaction remain separate requirements.
+The candidate neither depends on the model nor changes the model's trusted
+adapter boundary. Matching canonical bytes alone cannot promote a model record
+into authenticated input.
+
+Independent Python checks reconstruct four mode combinations for both a 5-leaf
+and a 17-leaf signed manifest and match the Rust record, digest and quality.
+Counterexamples include wrong roles, cross-manifest grafts, expiry, and a genuinely
+signed tree that assigns different role-bound IDs to the same reusable public key.
+
+## 6. Next stateful gates
 
 The candidate codec is allocation-free in Rust: it uses fixed 492- and 555-byte
 stack buffers and performs one digest-adapter call during bootstrap, never on the

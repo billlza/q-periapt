@@ -43,6 +43,21 @@ mathematical equivalence of differently encoded keys. Cross-manifest uniqueness,
 provider canonical admission, one-time use and durable tombstones remain storage
 and bootstrap obligations.
 
+`VerifiedManifest::select_prekeys` requires authenticated reusable classical and
+last-resort PQ baseline proofs plus an explicit choice for each leg. Every proof
+is checked against this same signed manifest and supplied trusted time. The method
+derives an `AuthenticatedPrekeySelection`; callers cannot supply its IDs, quality
+code, record or digest, and there is no public decoder that promotes network
+bytes into this type. The one-time choice requires both a distinct leaf ID and
+distinct exact public bytes relative to its reusable baseline, even if a malicious
+signer constructed a tree that bypassed the honest issuer's duplicate check.
+
+The selection retains the intersection of **all referenced** leaf intervals,
+including reusable baselines when one-time keys are selected. `check_time` checks
+only that interval. A service still needs current authority, mode-policy,
+directory and primitive-key checks and atomic consumption. Explicitly selecting
+a reusable role never grants policy permission or proves exhaustion.
+
 ## Exact candidate encoding
 
 All integers are unsigned, big-endian, with no implicit padding. No trailing
@@ -75,6 +90,7 @@ Body digests exclude randomized signatures.
 | Manifest (290 bytes) | `QPMANF01[8]`, scope[248], count:u16, Merkle root[32] |
 | Leaf (57 or 1,209 bytes) | `QPLEAF01[8]`, kind:u8, interval[16], exact public key[32 or 1184] |
 | Membership proof | index:u16, leaf_length:u16, leaf, depth:u8, siblings[depth*32] |
+| Authenticated selection (492 bytes) | The unchanged sixteen LP8 fields in [PrekeySelectionV1](../../docs/continuity/PREKEY_SELECTION_V1.md), derived from this manifest and the referenced members |
 
 Account ID is `D("ACCOUNT", root public key)`. Credential and roster digests are
 `D("CREDENTIAL", credential body)` and `D("ROSTER", roster body)`.
@@ -106,6 +122,13 @@ Manifest intervals must be contained in both credential and roster
 intervals; leaf intervals must be contained in the manifest interval. Time is
 rechecked during device, manifest and leaf verification.
 
+The selection reuses the existing model codec's record and digest domains without
+adding a candidate suffix. Its digest is SHA3-256 over the existing 555-byte
+`LP8(selection digest domain) || LP8(record)` preimage. Its four quality codes
+retain both legs: 1=one-time/one-time, 2=signed-only/last-resort,
+3=signed-only/one-time, 4=one-time/last-resort. Both baseline IDs are always bound.
+The actual implementation has no dependency on the lifecycle model.
+
 ## Reproduce verification
 
 Run from the repository root with the locked toolchain. Each output directory
@@ -133,7 +156,10 @@ example generates fresh signing and actual X25519/ML-KEM public keys, emits only
 public records, and discards secret owners. Python independently reconstructs
 canonical bodies, seven body/signature bindings and 28 membership proofs across
 tree sizes 1, 2, 3, 5 and 17. OpenSSL verifies both signature components and rejects
-35 altered-body, purpose or ML-DSA-context controls. The report records fixture
+35 altered-body, purpose or ML-DSA-context controls. The independent existing
+PrekeySelectionV1 codec also reconstructs eight authenticated selection records
+(four role combinations for each of the 5- and 17-leaf trees), their digests and
+quality codes from the verified leaf set. The schema-2 report records fixture
 hashes, OpenSSL identity, command arguments and return codes; separate bounded
 stdout/stderr logs preserve failures. This is component verification, not a
 network protocol or session-recovery test.

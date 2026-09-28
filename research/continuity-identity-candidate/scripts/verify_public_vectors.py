@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "artifact"))
 from bounded_process import capture_output
+from prekey_selection import decode_record, encode_input
 
 CONTEXT = b"Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1"
 ORDER = int("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551", 16)
@@ -191,6 +192,7 @@ def verify(oracle: Oracle) -> dict:
     authority = digest("AUTHORITY", account + revision + roster_digest + family)
     require(authority == oracle.read("authority.bin", 32), "authority binding differs")
     proof_total = 0
+    selection_total = 0
     for count in (1, 2, 3, 5, 17):
         name = "manifest-" + str(count)
         body = oracle.envelope(name, 3, device_key)
@@ -200,6 +202,7 @@ def verify(oracle: Oracle) -> dict:
                 "manifest grammar or scope differs")
         require(digest("MANIFEST", body) == oracle.read(name + ".digest", 32), "manifest digest differs")
         ids, paths, fingerprints = [], [], set()
+        by_kind = {}
         for index in range(count):
             stem = f"proof-{count}-{index}"
             reader = Reader(oracle.read(stem + ".bin"))
@@ -220,6 +223,7 @@ def verify(oracle: Oracle) -> dict:
             leaf_id = digest("PREKEY-LEAF", scope + leaf)
             require(leaf_id == oracle.read(stem + ".id", 32), "leaf commitment differs")
             ids.append(leaf_id)
+            by_kind.setdefault(kind, leaf_id)
             depth = reader.integer(1)
             require(depth <= 10, "proof depth bound")
             paths.append([reader.take(32) for _ in range(depth)])
@@ -229,8 +233,36 @@ def verify(oracle: Oracle) -> dict:
         for index, path in enumerate(paths):
             require(path == expected_path(ids, index), "independent membership path differs")
         proof_total += count
-    return {"schema": 1, "status": "passed", "scope": "public candidate fixture cross-check",
+        if count >= 5:
+            for quality, classical_mode, pq_mode, classical_kind, pq_kind in (
+                (1, "one_time", "one_time", 2, 4),
+                (2, "signed_only", "last_resort", 1, 3),
+                (3, "signed_only", "one_time", 1, 4),
+                (4, "one_time", "last_resort", 2, 3),
+            ):
+                expected = {
+                    "suite_digest": (bytes([8]) * 32).hex(),
+                    "responder": {"account_id": account.hex(), "device_id": device_id.hex(),
+                                  "device_epoch": 1, "identity_credential_digest": certificate_digest.hex()},
+                    "bundle_epoch": count, "directory_checkpoint_digest": (bytes([9]) * 32).hex(),
+                    "signed_prekey_manifest_digest": digest("MANIFEST", body).hex(),
+                    "classical": {"mode": classical_mode, "signed_prekey_id": by_kind[1].hex(),
+                                  "selected_prekey_id": by_kind[classical_kind].hex()},
+                    "post_quantum": {"mode": pq_mode, "last_resort_prekey_id": by_kind[3].hex(),
+                                     "selected_prekey_id": by_kind[pq_kind].hex()},
+                }
+                stem = f"selection-{count}-{quality}"
+                record = oracle.read(stem + ".record", 492)
+                require(decode_record(record) == expected, "selection fields differ from authenticated members")
+                encoded = encode_input(expected)
+                require(encoded["record"] == record, "independent selection encoding differs")
+                require(encoded["selection_digest"] == oracle.read(stem + ".digest", 32), "selection digest differs")
+                require(encoded["quality_code"] == quality and oracle.read(stem + ".quality", 1) == bytes([quality]),
+                        "selection quality differs")
+                selection_total += 1
+    return {"schema": 2, "status": "passed", "scope": "public candidate fixture cross-check",
             "openssl": version, "signed_envelopes": 7, "membership_proofs": proof_total,
+            "authenticated_selections": selection_total,
             "fixture_sha256": oracle.inputs, "commands": oracle.commands}
 
 
@@ -244,7 +276,7 @@ def main() -> None:
     oracle = Oracle(args.fixtures, args.output, args.openssl)
     report = verify(oracle)
     save(args.output / "result.json", (json.dumps(report, indent=2) + "\n").encode())
-    print("CANDIDATE_PUBLIC_VECTORS_PASS envelopes=7 proofs=28 signature_negative_controls=35")
+    print("CANDIDATE_PUBLIC_VECTORS_PASS envelopes=7 proofs=28 selections=8 signature_negative_controls=35")
 
 
 if __name__ == "__main__":
