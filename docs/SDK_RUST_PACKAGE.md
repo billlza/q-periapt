@@ -75,6 +75,11 @@ Optional, build and target-specific edges count; dev-only edges do not determine
 the upload order. All internal requirements must remain exactly `=0.2.0`.
 The generated uploader embeds the report digest and each archive's exact bytes
 identity and registry metadata. Existing output files are never replaced.
+The output parent must be an existing, canonically spelled, account-owned
+mode-0700 directory. The package producer creates its output with that mode.
+The generator pins the directory descriptor, commits bytes without replacement,
+checks their identity before making the file executable, and rejects a changed
+directory. It does not change the permissions of an existing output directory.
 CI prepares it from the same archives used by the current and minimum compiler
 consumers. The default input profile remains the ten-crate legacy handoff.
 Generating this executable makes no registry request and grants no publication

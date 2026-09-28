@@ -30,13 +30,14 @@ import lzma
 import os
 import pathlib
 import re
+import stat
 import sys
-import tempfile
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 import crates_io_registry_metadata as registry_metadata
 import evidence_io
+from publication_receipt_io import normalize_safe_root, open_private_directory, write_private_bytes_noreplace_at
 from rust_publish_contract import RUST_PUBLISHABLE_CRATES
 import rust_sdk_profile as sdk
 
@@ -86,7 +87,9 @@ def _safe_relative_name(value: object, label: str) -> str:
         and pathlib.PurePosixPath(value).name == value,
         f"{label} is not a bare filename: {value!r}",
     )
-    return value
+    # Retain the refusal above: basename is a canonical leaf, not a repair of
+    # traversal input. The returned value cannot address a sibling directory.
+    return os.path.basename(value)
 
 
 def _sub1(pattern: str, replacement: str, text: str, *, flags: int = 0) -> str:
@@ -193,7 +196,6 @@ def build_contracts(
         if profile == sdk.PROFILE:
             _require(crate_file == f"{name}-{sdk.VERSION}.crate", f"{name}: SDK archive name differs")
         crate_path = crate_dir / crate_file
-        _require(crate_path.is_file(), f"packaged crate is missing: {crate_path}")
         maximum = MAX_CRATE_BYTES if profile == LEGACY_PROFILE else sdk.MAX_ARCHIVE
         _require(type(entry.get("crate_size")) is int and 0 < entry["crate_size"] <= maximum
                  and isinstance(entry.get("crate_sha256"), str)
@@ -307,19 +309,65 @@ def materialize(
 
 
 def _write_uploader(path: pathlib.Path, text: str) -> None:
-    # Own a unique temporary file and install it without replacing an existing
-    # release input/output. A failure never removes someone else's staging file.
-    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    temporary = pathlib.Path(temporary_name)
+    # Grant one existing private directory, then address only a validated leaf
+    # through its descriptor. Reuse the same durable no-replace writer as the
+    # publication receipts instead of reopening mutable pathname ancestors.
+    parent = normalize_safe_root(path.parent.absolute(), label="uploader output directory", required_mode=0o700)
+    leaf = _safe_relative_name(path.name, "uploader output leaf")
+    payload = text.encode("utf-8")
+    directory = open_private_directory(parent, label="uploader output directory")
+    descriptor = -1
+    primary: BaseException | None = None
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            os.fchmod(handle.fileno(), UPLOADER_MODE)
-            handle.write(text)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.link(temporary, path, follow_symlinks=False)
+        digest = write_private_bytes_noreplace_at(directory, leaf, payload, label="exact-byte uploader", maximum=MAX_INPUT_BYTES)
+        descriptor = os.open(leaf, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
+        opened = os.fstat(descriptor)
+        _require(stat.S_ISREG(opened.st_mode) and opened.st_uid == os.geteuid()
+                 and opened.st_nlink == 1 and stat.S_IMODE(opened.st_mode) == 0o600,
+                 "new uploader file identity differs")
+        def same_file(metadata: os.stat_result, mode: int) -> None:
+            _require((metadata.st_dev, metadata.st_ino) == (opened.st_dev, opened.st_ino)
+                     and stat.S_ISREG(metadata.st_mode) and metadata.st_uid == os.geteuid()
+                     and metadata.st_nlink == 1 and stat.S_IMODE(metadata.st_mode) == mode,
+                     "new uploader executable identity differs")
+
+        before = evidence_io.consume_regular_snapshot_at(
+            directory, leaf, display_path=pathlib.Path(leaf), maximum=MAX_INPUT_BYTES,
+            label="new uploader bytes before executable mode", consume=lambda _chunk: None,
+            validate_metadata=lambda metadata: same_file(metadata, 0o600))
+        _require(before.sha256 == digest and before.size == len(payload), "new uploader bytes changed before executable mode")
+        os.fchmod(descriptor, UPLOADER_MODE)
+        os.fsync(descriptor)
+        final = evidence_io.consume_regular_snapshot_at(
+            directory, leaf, display_path=pathlib.Path(leaf), maximum=MAX_INPUT_BYTES,
+            label="new uploader executable", consume=lambda _chunk: None,
+            validate_metadata=lambda metadata: same_file(metadata, UPLOADER_MODE))
+        _require(final.sha256 == digest and final.size == len(payload), "new uploader bytes changed")
+        check_directory = open_private_directory(parent, label="uploader output directory after publication")
+        try:
+            current, held = os.fstat(check_directory), os.fstat(directory)
+            _require((current.st_dev, current.st_ino) == (held.st_dev, held.st_ino),
+                     "uploader output directory changed during publication")
+        finally:
+            os.close(check_directory)
+        os.fsync(directory)
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        temporary.unlink()
+        cleanup_errors = []
+        for owned in (descriptor, directory):
+            if owned >= 0:
+                try:
+                    os.close(owned)
+                except OSError as error:
+                    cleanup_errors.append(error)
+        if cleanup_errors:
+            if primary is not None:
+                for error in cleanup_errors:
+                    primary.add_note(f"uploader descriptor close also failed: {error}")
+            else:
+                raise cleanup_errors[0]
 
 
 def build(
@@ -365,7 +413,8 @@ def build(
         handoff_sha256=handoff_sha256,
     )
     # Refuse a moving input set before exposing the generated uploader.
-    input_files = {entry["name"]: entry["crate_file"] for entry in _cohort_entries(handoff, profile)}
+    input_files = {entry["name"]: _safe_relative_name(entry["crate_file"], "final archive leaf")
+                   for entry in _cohort_entries(handoff, profile)}
     for name, contract in contracts.items():
         current = evidence_io.read_regular_snapshot(
             resolved_crate_dir / input_files[name], maximum=MAX_CRATE_BYTES,

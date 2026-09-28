@@ -380,7 +380,7 @@ def build(output: Path) -> dict:
     commit, dirty = inspect_package_source(ROOT, allow_dirty=dirty_option == "1")
     require(not output.exists(), "Rust SDK output must be a fresh directory")
     require(shutil.disk_usage(ROOT).free >= 4 * 1024 ** 3, "Rust SDK packaging needs at least 4 GiB free")
-    output.mkdir(parents=True)
+    output.mkdir(parents=True, mode=0o700)
     before = source_identity()
     write_json(output / "sources-before.json", before)
     cargo_home = output / "cargo-home"

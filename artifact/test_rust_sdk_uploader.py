@@ -18,6 +18,7 @@ from unittest import mock
 import crates_io_uploader_build as build
 import rust_sdk_profile as sdk
 from evidence_io import EvidenceIOError
+from publication_receipt_io import PublicationReceiptIOError
 from test_crates_io_uploader_build import _write_cohort
 
 TEMPLATE = pathlib.Path(build.__file__).with_name("crates_io_uploader_template.py.in")
@@ -58,7 +59,7 @@ class SdkUploaderTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = pathlib.Path(self.temporary.name)
+        self.root = pathlib.Path(self.temporary.name).resolve()
         self.report = write_candidate(self.root)
         self.manifest = self.root / "RUST_SDK_PACKAGE.json"
         self.output = self.root / "uploader"
@@ -210,11 +211,51 @@ class SdkUploaderTests(unittest.TestCase):
         self.output.write_bytes(b"existing release input")
         staging = self.output.with_name(self.output.name + ".materializing")
         staging.write_bytes(b"another process owns this")
-        with self.assertRaises(FileExistsError):
+        with self.assertRaises(PublicationReceiptIOError):
             self.prepare()
         self.assertEqual(self.output.read_bytes(), b"existing release input")
         self.assertEqual(staging.read_bytes(), b"another process owns this")
         self.assertEqual(list(self.root.glob(".uploader.*")), [])
+
+    def test_output_directory_must_be_private_and_not_a_symlink(self):
+        self.root.chmod(0o755)
+        with self.assertRaises(PublicationReceiptIOError):
+            self.prepare()
+        self.assertFalse(self.output.exists())
+        self.root.chmod(0o700)
+        alias = self.root / "alias"
+        alias.symlink_to(self.root, target_is_directory=True)
+        self.output = alias / "uploader"
+        with self.assertRaises(PublicationReceiptIOError):
+            self.prepare()
+        self.assertFalse((self.root / "uploader").exists())
+
+    def test_directory_replacement_cannot_redirect_output_after_admission(self):
+        admitted = self.root / "output"
+        admitted.mkdir(mode=0o700)
+        displaced = self.root / "displaced-output"
+        self.output = admitted / "uploader"
+        real = build.write_private_bytes_noreplace_at
+        def replace_directory(directory, leaf, payload, **kwargs):
+            admitted.rename(displaced)
+            admitted.mkdir(mode=0o700)
+            return real(directory, leaf, payload, **kwargs)
+        with mock.patch.object(build, "write_private_bytes_noreplace_at", side_effect=replace_directory):
+            with self.assertRaisesRegex(build.UploaderBuildError, "directory changed"):
+                self.prepare()
+        self.assertFalse(self.output.exists())
+        self.assertTrue((displaced / "uploader").is_file())
+
+    def test_replaced_bytes_are_not_given_executable_permission(self):
+        real = build.write_private_bytes_noreplace_at
+        def change_bytes(directory, leaf, payload, **kwargs):
+            digest = real(directory, leaf, payload, **kwargs)
+            self.output.write_bytes(b"different file contents")
+            return digest
+        with mock.patch.object(build, "write_private_bytes_noreplace_at", side_effect=change_bytes):
+            with self.assertRaisesRegex(build.UploaderBuildError, "before executable mode"):
+                self.prepare()
+        self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":
