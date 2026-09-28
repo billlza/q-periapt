@@ -57,6 +57,30 @@ publication/observation, the complete MSRV and platform matrix, Linux/network/de
 qualification, CT/performance and signed distributions remain
 independent gates.
 
+The shared uploader generator accepts these twelve archives through an explicit
+SDK input profile. Pin the completed report before preparing a fresh output:
+
+```sh
+sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
+  target/sdk-rust-package/RUST_SDK_PACKAGE.json \
+  target/sdk-rust-package/qperiapt-crates-io-uploader \
+  --profile sdk-020 --input-sha256 <SHA256-of-that-report> --cargo-version 1.96.1
+```
+
+Preparation reads only the selected report, template and archives. It rejects
+dirty/diagnostic inputs, missing or extra packages, changed archive bytes or file
+inventories, mismatched Cargo source commits, mixed versions, private internal
+dependencies and production edges pointing forward in the publication order.
+Optional, build and target-specific edges count; dev-only edges do not determine
+the upload order. All internal requirements must remain exactly `=0.2.0`.
+The generated uploader embeds the report digest and each archive's exact bytes
+identity and registry metadata. Existing output files are never replaced.
+CI prepares it from the same archives used by the current and minimum compiler
+consumers. The default input profile remains the ten-crate legacy handoff.
+Generating this executable makes no registry request and grants no publication
+authorization. The 0.2.0 coordinator, source transition and versioned remote
+receipt still need to be integrated before this uploader can be used for release.
+
 Cargo's multi-package behavior is documented in the primary
 [Cargo package reference](https://doc.rust-lang.org/cargo/commands/cargo-package.html).
 

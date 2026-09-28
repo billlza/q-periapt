@@ -7,8 +7,8 @@ cohort's total dependency count and a handoff-manifest digest. Producing that
 uploader for a new release used to be a manual reconstruction; this module makes
 it deterministic and reviewable.
 
-Given a rust package handoff and the ten packaged ``.crate`` files it pins, this
-tool derives each crate's registry metadata with
+Given a legacy Rust package handoff or an explicitly selected SDK package report
+and the exact ``.crate`` files it pins, this tool derives registry metadata with
 :mod:`crates_io_registry_metadata` (proven byte-identical to cargo's output),
 binds every crate to the handoff by size and sha256, compresses the cohort
 contract table, and substitutes the template's placeholders. The result is a
@@ -30,18 +30,24 @@ import lzma
 import os
 import pathlib
 import re
-import stat
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
-from types import MappingProxyType
 from typing import Any
 
 import crates_io_registry_metadata as registry_metadata
 import evidence_io
 from rust_publish_contract import RUST_PUBLISHABLE_CRATES
+import rust_sdk_profile as sdk
 
 HANDOFF_KIND = "qperiapt.rust_package_handoff"
 UPLOADER_MODE = 0o700
+LEGACY_PROFILE = "abi2-legacy"
+PROFILES = (LEGACY_PROFILE, sdk.PROFILE)
+MAX_INPUT_BYTES = 16 * 1024 * 1024
+MAX_CRATE_BYTES = 128 * 1024 * 1024
+MAX_TOTAL_CRATE_BYTES = 512 * 1024 * 1024
+_SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 _PLACEHOLDER_RE = re.compile(r"@[A-Z0-9_]+@")
 # A version token is embedded into a Python string literal in the emitted
 # uploader; restrict it to the characters a semver/cargo version can contain so
@@ -106,40 +112,108 @@ def _identities_block(contracts: Mapping[str, Mapping[str, Any]]) -> str:
     return "".join(lines)
 
 
-def build_contracts(
-    handoff: Mapping[str, Any], crate_dir: pathlib.Path
-) -> tuple[dict[str, dict[str, Any]], str, int]:
-    """Return (contracts, product_version, dependency_count)."""
-
-    _require(handoff.get("kind") == HANDOFF_KIND, "handoff kind is not a rust package handoff")
-    crates = handoff.get("crates")
+def _cohort_entries(handoff: Mapping[str, Any], profile: str) -> list:
+    _require(profile in PROFILES, "unknown publication input profile")
+    if profile == LEGACY_PROFILE:
+        _require(handoff.get("kind") == HANDOFF_KIND, "handoff kind is not a rust package handoff")
+        crates = handoff.get("crates")
+    else:
+        _require(type(handoff.get("schema_version")) is int and handoff["schema_version"] == 1
+                 and handoff.get("profile") == sdk.PROFILE and handoff.get("version") == sdk.VERSION
+                 and type(handoff.get("native_abi_major")) is int and handoff["native_abi_major"] == 2,
+                 "SDK package report identity differs")
+        _require(all(handoff.get(key) is False for key in
+                     ("git_dirty", "diagnostic_only", "publication_performed", "release_claim_eligible"))
+                 and handoff.get("sources_unchanged") is True
+                 and handoff.get("cargo_home_isolated") is True,
+                 "SDK package report must describe a complete clean no-upload candidate")
+        source = handoff.get("base_commit")
+        _require(isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source) is not None,
+                 "SDK package source commit is malformed")
+        records = handoff.get("crates")
+        _require(isinstance(records, Mapping) and set(records) == set(sdk.COHORT),
+                 "SDK package cohort differs from the canonical publishable crate set")
+        crates = []
+        for name in sdk.COHORT:
+            record = records[name]
+            _require(isinstance(record, Mapping), f"{name}: SDK archive record is not a table")
+            crates.append({"name": name, "version": sdk.VERSION, "crate_file": record.get("file"),
+                           "crate_size": record.get("bytes"), "crate_sha256": record.get("sha256")})
     _require(isinstance(crates, list) and crates, "handoff has no crates")
+    return crates
+
+
+def _validate_sdk_archive(files: Mapping[str, bytes], name: str, report: Mapping, metadata: Mapping) -> None:
+    record = report["crates"][name]
+    _require(type(record.get("members")) is int and record["members"] == len(files)
+             and record.get("files") == sorted(files), f"{name}: SDK archive inventory differs")
+    _require(metadata["vers"] == sdk.VERSION, f"{name}: SDK packaged version differs")
+    _require(".cargo_vcs_info.json" in files, f"{name}: SDK archive has no Cargo source identity")
+    vcs = evidence_io.parse_strict_json_bytes(files[".cargo_vcs_info.json"], label=f"{name} Cargo source identity")
+    _require(isinstance(vcs, Mapping) and isinstance(vcs.get("git"), Mapping)
+             and vcs["git"].get("sha1") == report["base_commit"] and vcs["git"].get("dirty", False) is False,
+             f"{name}: SDK archive source identity differs")
+    for dependency in metadata["deps"]:
+        other = dependency["name"]
+        if not other.startswith("q-periapt"):
+            continue
+        _require(other in sdk.COHORT and dependency["version_req"] == f"={sdk.VERSION}",
+                 f"{name}: SDK internal dependency differs: {other}")
+        if dependency["kind"] != "dev":
+            _require(sdk.COHORT.index(other) < sdk.COHORT.index(name),
+                     f"{name}: SDK production dependency is not earlier in the cohort: {other}")
+
+
+def build_contracts(
+    handoff: Mapping[str, Any], crate_dir: pathlib.Path, *, profile: str = LEGACY_PROFILE,
+) -> tuple[dict[str, dict[str, Any]], str, int]:
+    """Return exact contracts for the explicitly selected input profile."""
+
+    crates = _cohort_entries(handoff, profile)
+    cohort = RUST_PUBLISHABLE_CRATES if profile == LEGACY_PROFILE else sdk.COHORT
     handoff_by_name = {}
     for entry in crates:
         _require(isinstance(entry, Mapping), "handoff crate entry is not a table")
-        handoff_by_name[entry["name"]] = entry
+        name = entry.get("name")
+        _require(isinstance(name, str) and name in cohort, "handoff crate name is outside the cohort")
+        _require(name not in handoff_by_name, "handoff has a duplicate crate record")
+        handoff_by_name[name] = entry
     _require(
-        set(handoff_by_name) == set(RUST_PUBLISHABLE_CRATES),
+        set(handoff_by_name) == set(cohort),
         "handoff cohort differs from the canonical publishable crate set",
     )
 
     versions: set[str] = set()
     contracts: dict[str, dict[str, Any]] = {}
     dependency_count = 0
-    for name in RUST_PUBLISHABLE_CRATES:
+    total_size = 0
+    for name in cohort:
         entry = handoff_by_name[name]
-        crate_file = _safe_relative_name(entry["crate_file"], f"{name} crate_file")
+        crate_file = _safe_relative_name(entry.get("crate_file"), f"{name} crate_file")
+        if profile == sdk.PROFILE:
+            _require(crate_file == f"{name}-{sdk.VERSION}.crate", f"{name}: SDK archive name differs")
         crate_path = crate_dir / crate_file
         _require(crate_path.is_file(), f"packaged crate is missing: {crate_path}")
-        crate_bytes = crate_path.read_bytes()
-        size = len(crate_bytes)
-        sha256 = hashlib.sha256(crate_bytes).hexdigest()
+        maximum = MAX_CRATE_BYTES if profile == LEGACY_PROFILE else sdk.MAX_ARCHIVE
+        _require(type(entry.get("crate_size")) is int and 0 < entry["crate_size"] <= maximum
+                 and isinstance(entry.get("crate_sha256"), str)
+                 and _SHA256_RE.fullmatch(entry["crate_sha256"]) is not None,
+                 f"{name}: archive size/digest is invalid")
+        snapshot = evidence_io.read_regular_snapshot(crate_path, maximum=maximum, label=f"{name} archive")
+        crate_bytes, size, sha256 = snapshot.data, snapshot.size, snapshot.sha256
+        total_size += size
+        _require(total_size <= MAX_TOTAL_CRATE_BYTES, "aggregate crate size exceeds its bound")
         _require(
             size == entry["crate_size"] and sha256 == entry["crate_sha256"],
             f"{name}: packaged bytes differ from the handoff (size/sha256)",
         )
+        # Apply the SDK's bounded archive parser before metadata reconstruction,
+        # which expects an already-validated Cargo archive.
+        sdk_files = sdk.archive_files(crate_bytes, name) if profile == sdk.PROFILE else None
         metadata = registry_metadata.registry_metadata(crate_bytes)
         _require(metadata["name"] == name, f"{name}: crate manifest name differs")
+        if sdk_files is not None:
+            _validate_sdk_archive(sdk_files, name, handoff, metadata)
         versions.add(metadata["vers"])
         metadata_json = registry_metadata.serialize_metadata(metadata)
         contracts[name] = {
@@ -157,7 +231,7 @@ def build_contracts(
         f"packaged version is not a safe version token: {product_version!r}",
     )
     _require(
-        all(entry["version"] == product_version for entry in handoff_by_name.values()),
+        all(entry.get("version") == product_version for entry in handoff_by_name.values()),
         "handoff version differs from packaged version",
     )
     return contracts, product_version, dependency_count
@@ -233,18 +307,19 @@ def materialize(
 
 
 def _write_uploader(path: pathlib.Path, text: str) -> None:
-    temporary = path.with_name(path.name + ".materializing")
-    if temporary.exists():
-        temporary.unlink()
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, UPLOADER_MODE)
+    # Own a unique temporary file and install it without replacing an existing
+    # release input/output. A failure never removes someone else's staging file.
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = pathlib.Path(temporary_name)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            os.fchmod(handle.fileno(), UPLOADER_MODE)
             handle.write(text)
-        os.replace(temporary, path)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, path, follow_symlinks=False)
     finally:
-        if temporary.exists():
-            temporary.unlink()
-    os.chmod(path, UPLOADER_MODE)
+        temporary.unlink()
 
 
 def build(
@@ -254,18 +329,33 @@ def build(
     *,
     crate_dir: pathlib.Path | None,
     cargo_version: str,
+    profile: str = LEGACY_PROFILE,
+    input_sha256: str | None = None,
 ) -> dict[str, Any]:
-    handoff_bytes = handoff_path.read_bytes()
-    handoff_sha256 = hashlib.sha256(handoff_bytes).hexdigest()
+    _require(profile in PROFILES, "unknown publication input profile")
+    if profile == sdk.PROFILE or input_sha256 is not None:
+        _require(isinstance(input_sha256, str) and _SHA256_RE.fullmatch(input_sha256) is not None,
+                 "input manifest SHA-256 must be explicitly pinned")
+    handoff_snapshot = evidence_io.read_regular_snapshot(
+        handoff_path, maximum=MAX_INPUT_BYTES, label="publication input manifest")
+    handoff_bytes, handoff_sha256 = handoff_snapshot.data, handoff_snapshot.sha256
+    _require(input_sha256 is None or input_sha256 == handoff_sha256, "input manifest SHA-256 differs")
     handoff = evidence_io.parse_strict_json_bytes(
         handoff_bytes, label="rust package handoff"
     )
     _require(isinstance(handoff, Mapping), "handoff is not a JSON object")
-    resolved_crate_dir = crate_dir if crate_dir is not None else handoff_path.parent
+    resolved_crate_dir = crate_dir if crate_dir is not None else (
+        handoff_path.parent if profile == LEGACY_PROFILE else handoff_path.parent / "crates")
     contracts, product_version, dependency_count = build_contracts(
-        handoff, resolved_crate_dir
+        handoff, resolved_crate_dir, profile=profile,
     )
-    template = template_path.read_text(encoding="utf-8")
+    if profile == sdk.PROFILE:
+        _require(isinstance(handoff.get("cargo"), str)
+                 and re.fullmatch(r"cargo " + re.escape(cargo_version) + r" \([^\r\n]+\)", handoff["cargo"]) is not None,
+                 "SDK packaging Cargo version differs")
+    template_snapshot = evidence_io.read_regular_snapshot(
+        template_path, maximum=MAX_INPUT_BYTES, label="uploader template")
+    template = template_snapshot.data.decode("utf-8")
     materialized = materialize(
         template,
         contracts,
@@ -274,6 +364,17 @@ def build(
         cargo_version=cargo_version,
         handoff_sha256=handoff_sha256,
     )
+    # Refuse a moving input set before exposing the generated uploader.
+    input_files = {entry["name"]: entry["crate_file"] for entry in _cohort_entries(handoff, profile)}
+    for name, contract in contracts.items():
+        current = evidence_io.read_regular_snapshot(
+            resolved_crate_dir / input_files[name], maximum=MAX_CRATE_BYTES,
+            label=f"{name} final archive")
+        _require((current.size, current.sha256) == (contract["size"], contract["sha256"]),
+                 f"{name}: archive changed during materialization")
+    for prior in (handoff_snapshot, template_snapshot):
+        current = evidence_io.read_regular_snapshot(prior.path, maximum=MAX_INPUT_BYTES, label="final materialization input")
+        _require(current.sha256 == prior.sha256, "materialization input changed")
     _write_uploader(output_path, materialized)
     return {
         "product_version": product_version,
@@ -281,6 +382,7 @@ def build(
         "handoff_sha256": handoff_sha256,
         "crates": len(contracts),
         "output": str(output_path),
+        "profile": profile,
     }
 
 
@@ -290,6 +392,8 @@ def main(argv: Sequence[str]) -> int:
     )
     parser.add_argument("handoff_manifest", type=pathlib.Path)
     parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("--profile", choices=PROFILES, default=LEGACY_PROFILE)
+    parser.add_argument("--input-sha256", help="explicit input digest (required for sdk-020)")
     parser.add_argument(
         "--template",
         type=pathlib.Path,
@@ -315,8 +419,11 @@ def main(argv: Sequence[str]) -> int:
             namespace.output,
             crate_dir=namespace.crate_dir,
             cargo_version=namespace.cargo_version,
+            profile=namespace.profile,
+            input_sha256=namespace.input_sha256,
         )
-    except (UploaderBuildError, registry_metadata.RegistryMetadataError) as error:
+    except (UploaderBuildError, registry_metadata.RegistryMetadataError, evidence_io.EvidenceIOError,
+            OSError, ValueError) as error:
         sys.stderr.write(f"error: uploader materialization failed: {error}\n")
         return 1
     sys.stdout.write(
