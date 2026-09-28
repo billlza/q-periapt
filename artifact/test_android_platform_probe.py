@@ -5,11 +5,12 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import signal
 import tempfile
 import unittest
 from unittest import mock
 
-from bounded_process import BoundedResult, capture_stdout
+from bounded_process import BoundedProcessError, BoundedResult, capture_stdout
 
 ROOT = Path(__file__).resolve().parents[1]
 PROBE = ROOT / "research/android-platform-probe"
@@ -88,7 +89,33 @@ class PlatformProbeTests(unittest.TestCase):
                               "/bin/sleep 30 &\nadb_pid=$!\n"
                               "/bin/sleep 30 &\nemulator_pid=$!\n"
                               "printf '%s %s\\n' \"$adb_pid\" \"$emulator_pid\"\nexit 17\n")
-            result = capture_stdout(["/bin/bash", str(driver)], timeout_seconds=5, maximum_bytes=4096)
+            diagnostic = {"parent_signal_mask": sorted(int(value) for value in
+                          signal.pthread_sigmask(signal.SIG_BLOCK, set()))}
+            captured = bytearray()
+            def observe_children(chunk):
+                captured.extend(chunk)
+                if "children" in diagnostic or b"\n" not in captured:
+                    return
+                diagnostic["children"] = {}
+                for value in bytes(captured).splitlines()[0].split():
+                    pid = int(value)
+                    status_path = Path(f"/proc/{pid}/status")
+                    if not Path("/proc").is_dir():
+                        continue
+                    try:
+                        with status_path.open() as stream:
+                            status = stream.read(8192)
+                    except OSError as error:
+                        diagnostic["children"][pid] = type(error).__name__
+                    else:
+                        diagnostic["children"][pid] = [line for line in status.splitlines()
+                            if line.startswith(("Name:", "State:", "PPid:", "NSpgid:", "SigBlk:", "SigIgn:", "SigCgt:"))]
+            try:
+                result = capture_stdout(["/bin/bash", str(driver)], timeout_seconds=5,
+                                        maximum_bytes=4096, output_sink=observe_children)
+            except BoundedProcessError as error:
+                error.add_note("cleanup control context: " + json.dumps(diagnostic, sort_keys=True))
+                raise
             self.assertEqual(result.returncode, 17, result.stdout)
             pids = [int(value) for value in result.stdout.splitlines()[0].split()]
             self.assertEqual(len(pids), 2)

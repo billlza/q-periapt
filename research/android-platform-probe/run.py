@@ -39,6 +39,7 @@ def main() -> int:
     environment.update({"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"})
     record = {"kind": "qperiapt.android_platform_reproduction", "schema_version": 1,
               "source_commit": commit, "sdk_installation_attempted": False,
+              "routing": "private_unix_adb_with_emulator_registration",
               "status": "not_completed",
               "release_claim_eligible": False, "timeout_seconds": 360,
               "output_limit_bytes": 2 * 1024 * 1024,

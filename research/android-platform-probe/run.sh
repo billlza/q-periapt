@@ -28,7 +28,8 @@ export ADB_VENDOR_KEYS=$ANDROID_USER_HOME/adbkey
 export ADB_MDNS=0 ADB_MDNS_AUTO_CONNECT=0 ADB_USB=0 ADB_EMU=0
 export ADB_LOCAL_TRANSPORT_MAX_PORT=5585
 socket=localfilesystem:$work/adb.sock
-serial=127.0.0.1:5585
+export ADB_SERVER_SOCKET="$socket"
+serial='emulator-5584'
 for port in 5584 5585 5586; do
     listeners=$(ss -H -ltn "sport = :$port")
     test -z "$listeners"
@@ -87,7 +88,7 @@ confirm_no_sdk_package() {
 ready=0
 deadline=$((SECONDS + 120))
 while [ "$SECONDS" -lt "$deadline" ]; do
-    if adb_call connect "$serial" &&
+    if adb_call connect emu:5584,5585 &&
        boot=$(guest getprop sys.boot_completed) &&
        decrypt=$(guest getprop vold.decrypt); then
         if [[ "$boot" = 1 && ( -z "$decrypt" || "$decrypt" = trigger_restart_framework ) ]]; then

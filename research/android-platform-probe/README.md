@@ -18,5 +18,7 @@ Run only through the dedicated GitHub-hosted workflow. The Python supervisor
 rejects local hosts, pins the checked-out commit, limits execution to 360 seconds
 and combined output to 2 MiB, and uses the existing bounded-process owner for
 cleanup. A fresh private AVD and private ADB socket exclude USB and global ADB.
+The emulator transport uses the SDK lane's `emu:5584,5585` registration. Its
+internal ADB subprocesses inherit the same private socket and emulator serial.
 Only the observation JSON and bounded log are uploaded; keys and emulator state
 remain in the disposable runner. No existing package gate is changed.
