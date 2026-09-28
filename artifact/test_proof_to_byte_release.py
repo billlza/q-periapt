@@ -5439,7 +5439,7 @@ with _temporary_release_test_directories(parents):
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
         workflows = (
-            (CI_WORKFLOW, 22, 2),
+            (CI_WORKFLOW, 23, 2),
             (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
         )
         for path, expected_count, windows_count in workflows:
@@ -5502,6 +5502,7 @@ with _temporary_release_test_directories(parents):
                     "bindings-android-aar": (CANONICAL_RUST_TOOLCHAIN,),
                     "audit": (CANONICAL_RUST_TOOLCHAIN,),
                     "hqc-draft-candidate": (CANONICAL_RUST_TOOLCHAIN,),
+                    "continuity-identity-candidate": (CANONICAL_RUST_TOOLCHAIN,),
                 },
             ),
             (
@@ -5536,6 +5537,13 @@ with _temporary_release_test_directories(parents):
             "cargo +1.85.0 build --workspace --locked",
             extract_workflow_job(ci, "msrv"),
         )
+        identity_job = extract_workflow_job(ci, "continuity-identity-candidate")
+        for selection in ("if: matrix.toolchain == '1.96.1'", "if: matrix.toolchain == '1.85.0'"):
+            self.assertIn(selection, identity_job)
+        self.assertEqual(identity_job.count("          toolchain: 1.85.0\n"), 1)
+        self.assertIn("CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}", identity_job)
+        for command in ("clippy", "test"):
+            self.assertIn(f'cargo +"$CANDIDATE_TOOLCHAIN" {command} --manifest-path', identity_job)
         package_job = extract_workflow_job(ci, "rust-publish-contract")
         self.assertIn("artifact/rust_sdk_msrv.py", package_job)
         self.assertIn('--toolchain-root "$(rustc +1.85.0 --print sysroot)"', package_job)
