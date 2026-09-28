@@ -199,8 +199,8 @@ class AgpProjectionTests(unittest.TestCase):
 class AgpTransportTests(unittest.TestCase):
     def test_system_crash_decode_keeps_failure_and_captures_scoped_logs(self) -> None:
         source = (ROOT / "artifact/android-device-smoke.sh").read_text()
-        function_start = source.index("fail_runtime_with_logs() {\n")
-        function_end = source.index("\n}\n", function_start) + 3
+        function_start = source.index("capture_emulator_failure_logs() {\n")
+        function_end = source.index("\nselect_serial_or_empty()", function_start)
         block_start = source.index("\tif ! android_command run-instrumentation; then")
         block_end = source.index("\nfi\ncapture_app_logcat", block_start)
         script = r'''
@@ -255,6 +255,46 @@ python3() {
                     self.assertFalse((folder / "result.json").exists())
                     if log_status:
                         self.assertIn("smoke-log capture also failed", result.stderr)
+
+    def test_cleanup_failure_captures_owned_system_logs_and_preserves_workload(self) -> None:
+        source = (ROOT / "artifact/android-device-smoke.sh").read_text()
+        helper_start = source.index("capture_emulator_failure_logs() {\n")
+        helper_end = source.index("\n}\n", helper_start) + 3
+        block_start = source.index("if cleanup_android_app; then\n", source.index("capture_app_logcat()"))
+        block_end = source.index("\nfi\n", block_start) + 4
+        script = r'''
+set -eu
+DIST=$1
+DEVICE_KIND=$2
+log_status=$3
+cleanup_android_app() { return 23; }
+capture_app_logcat() { printf 'unexpected replacement\n'; return 0; }
+android_command() {
+    test "$1" = capture-emulator-diagnostics || return 99
+    printf '%s\n' "$1" >> "$DIST/calls.txt"
+    return "$log_status"
+}
+'''
+        script += source[helper_start:helper_end] + source[block_start:block_end]
+        script += "\nprintf 'incorrect continuation\\n'\n"
+        for kind in ("emulator", "physical"):
+            for log_status in (0, 29):
+                with self.subTest(kind=kind, log_status=log_status), tempfile.TemporaryDirectory() as temporary:
+                    folder = pathlib.Path(temporary)
+                    (folder / "logcat.txt").write_text("completed workload log\n")
+                    (folder / "calls.txt").write_text("")
+                    result = subprocess.run(
+                        ["sh", "-c", script, "cleanup-failure", str(folder), kind, str(log_status)],
+                        cwd=ROOT, capture_output=True, text=True, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 23, result.stderr)
+                    self.assertIn("run-owned Android smoke app cleanup failed", result.stderr)
+                    self.assertNotIn("incorrect continuation", result.stdout)
+                    self.assertEqual((folder / "logcat.txt").read_text(), "completed workload log\n")
+                    expected = ["capture-emulator-diagnostics"] if kind == "emulator" else []
+                    self.assertEqual((folder / "calls.txt").read_text().splitlines(), expected)
+                    if kind == "emulator" and log_status:
+                        self.assertIn("crash-log capture also failed", result.stderr)
 
     def test_one_successful_nonce_bound_bundle_decodes_exact_bytes(self) -> None:
         self.assertEqual(

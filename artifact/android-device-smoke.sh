@@ -2027,6 +2027,16 @@ for line in text.splitlines():
 PY
 }
 
+capture_emulator_failure_logs() {
+	if [ "$DEVICE_KIND" = "emulator" ]; then
+		if android_command capture-emulator-diagnostics; then
+			:
+		else
+			printf 'error: owned emulator crash-log capture also failed\n' >&2
+		fi
+	fi
+}
+
 fail_runtime_with_logs() {
 	# Keep the original failure authoritative even if its device has disappeared.
 	# Physical-device diagnostics remain restricted to the run's smoke tag.
@@ -2035,13 +2045,7 @@ fail_runtime_with_logs() {
 	else
 		printf 'error: failed Android runtime smoke-log capture also failed\n' >&2
 	fi
-	if [ "$DEVICE_KIND" = "emulator" ]; then
-		if android_command capture-emulator-diagnostics; then
-			:
-		else
-			printf 'error: owned emulator crash-log capture also failed\n' >&2
-		fi
-	fi
+	capture_emulator_failure_logs
 	exit "$1"
 }
 
@@ -2621,6 +2625,9 @@ if cleanup_android_app; then
 else
 	app_cleanup_status=$?
 	printf 'error: run-owned Android smoke app cleanup failed\n' >&2
+	# Preserve the completed workload's app log; collect the system failure
+	# before the EXIT trap retries cleanup and retires the owned emulator.
+	capture_emulator_failure_logs
 	exit "$app_cleanup_status"
 fi
 

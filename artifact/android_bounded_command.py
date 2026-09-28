@@ -14,6 +14,7 @@ import os
 import pathlib
 import re
 import resource
+import shlex
 import signal
 import socket
 import stat
@@ -551,6 +552,23 @@ def _device(
     return _adb(capability, "-s", capability.expected_serial, *arguments)
 
 
+def _package_state_argv(
+    capability: runtime_state.AndroidCommandCapability,
+) -> tuple[str, ...]:
+    # Legacy adb shell omits the guest exit code. The final record proves that
+    # this fixed query returned; a disconnected/aborted command cannot supply
+    # an empty successful package observation merely because adb exits zero.
+    program = (
+        f"pm list packages {PACKAGE}; "
+        "qperiapt_query_status=$?; "
+        f"printf '\\nQPERIAPT_PACKAGE_QUERY_EXIT:{capability.run_id}:%d\\n' "
+        '"$qperiapt_query_status"; exit "$qperiapt_query_status"'
+    )
+    # adb joins shell arguments before guest parsing, so sh -c needs one
+    # explicitly quoted, fixed program. The run ID is capability-validated.
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
 def _owned_emulator_ports(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[int, int]:
@@ -759,9 +777,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             None,
-            lambda cap: _device(
-                cap, "shell", "pm", "list", "packages", PACKAGE
-            ),
+            _package_state_argv,
             requires_private_server=True,
             stderr_to_stdout=True,
         ),
@@ -3377,6 +3393,7 @@ def _report_package_command_failure(
     stage: Literal["before-copy", "after-copy", "observation"],
     failure: Literal["timeout", "unavailable", "malformed"],
     result: BoundedResult | None,
+    remote_returncode: int | None = None,
 ) -> None:
     # The producer already retains this operation's stderr per attempt. Keep
     # its typed stdout unchanged. Both queries have a 64 KiB combined-output bound;
@@ -3386,6 +3403,8 @@ def _report_package_command_failure(
         "stage": stage,
         "failure": failure,
     }
+    if remote_returncode is not None:
+        diagnostic["remote_returncode"] = remote_returncode
     if result is not None:
         diagnostic.update(
             returncode=result.returncode,
@@ -3660,6 +3679,33 @@ def _observe_exact_device_state(
     return True
 
 
+def _parse_package_query_completion(output: bytes, run_id: str) -> tuple[int, bytes]:
+    parts = output.rsplit(b"\n", 2)
+    _require(
+        len(parts) == 3 and parts[2] == b"",
+        "Android package-state output is malformed: incomplete query",
+    )
+    payload, completion, _ = parts
+    # Remove only the framing newline. Keep the package bytes unchanged for
+    # their exact LF/CRLF check, including any embedded or repeated controls.
+    if completion.endswith(b"\r"):
+        _require(
+            payload.endswith(b"\r"),
+            "Android package-state output is malformed: mixed completion framing",
+        )
+        payload, completion = payload[:-1], completion[:-1]
+    matched = re.fullmatch(
+        b"QPERIAPT_PACKAGE_QUERY_EXIT:" + run_id.encode("ascii")
+        + rb":(0|[1-9][0-9]{0,2})",
+        completion,
+    )
+    _require(
+        matched is not None and int(matched[1]) <= 255,
+        "Android package-state output is malformed: invalid query completion",
+    )
+    return int(matched[1]), payload
+
+
 def _observe_package_state(
     capability: runtime_state.AndroidCommandCapability,
     spec: OperationSpec,
@@ -3703,12 +3749,28 @@ def _observe_package_state(
                     f"{PackageState.DEVICE_UNAVAILABLE.value}\n".encode("ascii"),
                 )
         return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
+    try:
+        remote_status, payload = _parse_package_query_completion(
+            raw.stdout, capability.run_id
+        )
+    except AndroidCommandError:
+        _report_package_command_failure(
+            capability, operation="package-state", stage="observation",
+            failure="malformed", result=raw,
+        )
+        raise
+    if remote_status != 0:
+        _report_package_command_failure(
+            capability, operation="package-state", stage="observation",
+            failure="unavailable", result=raw, remote_returncode=remote_status,
+        )
+        return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
     # API 23 adbd uses a PTY for shell commands, which maps the final LF to
     # CRLF. Accept exactly these two complete lines, without stripping controls
     # or whitespace that could conceal extra packages or command diagnostics.
-    if raw.stdout == b"":
+    if payload == b"":
         state = PackageState.ABSENT
-    elif raw.stdout in (
+    elif payload in (
         f"package:{PACKAGE}\n".encode("ascii"),
         f"package:{PACKAGE}\r\n".encode("ascii"),
     ):

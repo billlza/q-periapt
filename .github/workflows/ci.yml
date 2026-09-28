@@ -1477,6 +1477,9 @@ jobs:
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
             target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err
             target/sdk-android-package/INSTALLED_CONSUMERS.json
             target/sdk-android-package/q-periapt-android-sdk-0.2.0-alpha.1.tar.gz
             target/sdk-android-package/*.stdout

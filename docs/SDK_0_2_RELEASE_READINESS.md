@@ -92,6 +92,38 @@ retain escaped response bytes only for the disposable emulator; physical
 responses retain size/hash metadata. Malformed responses still fail, and no
 uninstall or successful runtime result is inferred from these diagnostics.
 
+The `deb29ef` candidate passes all 2,277 local artifact tests in 464.964 seconds
+without skips, all 37 jobs in [PR CI](https://github.com/billlza/q-periapt/actions/runs/36357747122),
+and all six CodeQL analyses. API 23 completes both full/minimal SDK consumers,
+owned cleanup and exported-evidence replay. The received runtime ZIP is bound
+by SHA-256 `20abaec4eb541ad1b3448f8cc5d8e2c60f7836ad0e3e5a455bd120de7729e0db`.
+Local reception checks its source, runtime/result, AAR and build records; the
+SDK-tool replay is the recorded Linux CI execution, not a new macOS tool replay.
+
+An independent run of the same commit reuses the cancelled push run's unused
+Android artifact namespace. Only its AAR job and dependent runtime jobs are
+rerun; the prior results are retained. AAR and API 35 pass again. API 23's three
+full SDK workload groups pass, but package cleanup fails: after one empty
+response, `pm` reports that the Package Manager is unavailable, while the host
+ADB exit code is zero. This counterexample prevents treating the first green
+run as evidence that the earlier service/VM failures were resolved.
+
+The [API 23 package client](https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android-6.0.1_r81/cmds/pm/src/com/android/commands/pm/Pm.java)
+returns status 1 for that missing service; legacy ADB shell does not transmit
+the guest exit code. The package observer now requires a complete, run-bound
+exit record from a fixed quoted guest command before interpreting empty output
+as package absence. A real failing child plus simulated legacy exit-code loss
+reproduces the old false-absence result; the corrected observer preserves the
+nonzero result within its existing bounded query-retry policy. Missing,
+truncated, mismatched or malformed completion records fail. Exact package
+syntax, APK ownership and uninstall rules remain required.
+
+Cleanup failure also captures owned-emulator system logs while preserving the
+completed workload's app log and primary exit status. CI retains package-query
+journals and errors on successful runs too, so recovered query failures remain
+observable. The guest service/VM failure still requires causal diagnosis;
+these changes repair query-result interpretation and diagnostic coverage.
+
 The first complete local run at `99fb979` executes 2,271 tests and identifies two
 integration failures: the isolated remote-consumer source list omits the new
 runtime-profile module, and the workflow contract test still expects a single

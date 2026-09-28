@@ -1510,18 +1510,28 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(write_arguments["maximum_bytes"], 65536)
             self.assertEqual(write_arguments["timeout_seconds"], 15)
 
+    def package_query_reply(
+        self, payload: bytes, status: int = 0, line_ending: bytes = b"\n",
+    ) -> bytes:
+        completion = (
+            "QPERIAPT_PACKAGE_QUERY_EXIT:" + self.layout.run_id + ":" + str(status)
+        ).encode("ascii")
+        return payload + line_ending + completion + line_ending
+
     def test_package_state_maps_exact_absent_present_and_nonzero_results(self) -> None:
         cases = (
-            (BoundedResult(0, b""), b"absent\n"),
+            (BoundedResult(0, self.package_query_reply(b"")), b"absent\n"),
             (
                 BoundedResult(
-                    0, b"package:dev.qperiapt.androidsmoke\n"
+                    0, self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")
                 ),
                 b"present\n",
             ),
             (
                 BoundedResult(
-                    0, b"package:dev.qperiapt.androidsmoke\r\n"
+                    0, self.package_query_reply(
+                        b"package:dev.qperiapt.androidsmoke\r\n", line_ending=b"\r\n"
+                    )
                 ),
                 b"present\n",
             ),
@@ -1535,14 +1545,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ),
         )
         capability = self.load_capability()
-        expected_argv = commands._device(
-            capability,
-            "shell",
-            "pm",
-            "list",
-            "packages",
-            commands.PACKAGE,
-        )
+        expected_argv = commands._package_state_argv(capability)
         self.assertNotIn("-u", expected_argv)
         for raw, expected in cases:
             with (
@@ -1567,6 +1570,76 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands._client_environment(capability),
             )
 
+    def test_package_query_remote_failure_cannot_be_reported_absent(self) -> None:
+        # Legacy adb shell reports local success even when its guest command
+        # exits nonzero. Execute the real fixed guest command through a shell,
+        # with a failing local pm fixture, and model only that lost exit code.
+        directory = self.root / "guest-bin"
+        directory.mkdir()
+        pm = directory / "pm"
+        exits = []
+
+        def legacy_shell(argv: tuple[str, ...], **kwargs: object) -> BoundedResult:
+            program = " ".join(argv[argv.index("shell") + 1:])
+            guest = subprocess.run(
+                ["/bin/sh", "-c", program],
+                env={"PATH": str(directory) + ":/usr/bin:/bin"},
+                stdin=subprocess.DEVNULL, capture_output=True, timeout=5,
+                check=False,
+            )
+            exits.append(guest.returncode)
+            return BoundedResult(0, guest.stdout + guest.stderr)
+
+        cases = (
+            ("exit 7\n", b"retryable:query-nonzero\n"),
+            ("exit 0\n", b"absent\n"),
+            ("printf 'package:dev.qperiapt.androidsmoke\\n'\nexit 0\n", b"present\n"),
+            ("printf 'package:dev.qperiapt.androidsmoke\\n'\nexit 9\n", b"retryable:query-nonzero\n"),
+        )
+        for body, expected in cases:
+            pm.write_text(
+                '#!/bin/sh\n[ "$#" -eq 3 ] && [ "$1" = list ] '
+                '&& [ "$2" = packages ] && [ "$3" = dev.qperiapt.androidsmoke ] '
+                '|| exit 99\n' + body, encoding="ascii",
+            )
+            pm.chmod(0o700)
+            with (
+                self.subTest(body=body),
+                mock.patch.object(commands, "capture_stdout", side_effect=legacy_shell),
+            ):
+                self.assertEqual(
+                    self.invoke(commands.AndroidOperation.PACKAGE_STATE),
+                    BoundedResult(0, expected),
+                )
+        self.assertEqual(exits, [7, 0, 0, 9])
+
+    def test_package_query_requires_matching_complete_exit_record(self) -> None:
+        valid = b"\nQPERIAPT_PACKAGE_QUERY_EXIT:" + self.run_id.encode() + b":0\n"
+        malformed = (
+            b"", valid[:-1], valid.replace(self.run_id.encode(), b"b" * 32),
+            valid.replace(b":0\n", b":00\n"),
+            valid.replace(b":0\n", b":256\n"),
+            valid.replace(b":0\n", b":-1\n"),
+            valid + b"late diagnostic\n", valid + valid,
+            valid.replace(b":0\n", b":0\r\n"),
+        )
+        for reply in malformed:
+            with (
+                self.subTest(reply=reply),
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, reply)),
+                self.assertRaises(commands.AndroidCommandError),
+            ):
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+        for reply in (valid, valid.replace(b"\n", b"\r\n")):
+            with (
+                self.subTest(reply=reply),
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, reply)),
+            ):
+                self.assertEqual(
+                    self.invoke(commands.AndroidOperation.PACKAGE_STATE),
+                    BoundedResult(0, b"absent\n"),
+                )
+
     def test_package_state_accepts_one_complete_line_from_legacy_pty(self) -> None:
         # API 23 adbd sends shell output through a PTY. Exercise the actual
         # terminal newline transformation, then feed its bytes to the observer.
@@ -1575,7 +1648,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             attributes = termios.tcgetattr(slave)
             attributes[1] |= termios.OPOST | termios.ONLCR
             termios.tcsetattr(slave, termios.TCSANOW, attributes)
-            line = b"package:dev.qperiapt.androidsmoke\n"
+            line = self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")
             self.assertEqual(os.write(slave, line), len(line))
             readable, _, _ = select.select([master], [], [], 5)
             self.assertEqual(readable, [master])
@@ -1583,7 +1656,10 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         finally:
             os.close(slave)
             os.close(master)
-        self.assertEqual(output, b"package:dev.qperiapt.androidsmoke\r\n")
+        self.assertEqual(
+            output,
+            self.package_query_reply(b"package:dev.qperiapt.androidsmoke\r\n", line_ending=b"\r\n"),
+        )
         with mock.patch.object(
             commands, "capture_stdout", return_value=BoundedResult(0, output)
         ):
@@ -2227,7 +2303,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 mock.patch.object(
                     commands,
                     "capture_stdout",
-                    return_value=BoundedResult(0, output),
+                    return_value=BoundedResult(0, self.package_query_reply(output)),
                 ),
                 self.assertRaises(
                     (commands.AndroidCommandError, state.AndroidRuntimeStateError)
@@ -2237,8 +2313,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_package_state_always_postchecks_owned_server(self) -> None:
         for raw in (
-            BoundedResult(0, b""),
-            BoundedResult(0, b"package:dev.qperiapt.androidsmoke\n"),
+            BoundedResult(0, self.package_query_reply(b"")),
+            BoundedResult(0, self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")),
             BoundedResult(9, b"raw diagnostic\n"),
         ):
             with (
@@ -2258,7 +2334,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(guard.call_count, 2)
 
     def test_malformed_package_state_diagnostic_keeps_physical_output_private(self) -> None:
-        reply = b"package:dev.qperiapt.androidsmoke\r\r\n\x1b[31m\xff"
+        reply = self.package_query_reply(b"package:dev.qperiapt.androidsmoke\r\r\n\x1b[31m\xff")
         for kind, serial in (("physical", "SERIAL123"), ("emulator", "emulator-5584")):
             self.create_capability(device_kind=kind, expected_serial=serial)
             diagnostic = io.StringIO()
@@ -2316,7 +2392,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands,
                 "capture_stdout",
                 return_value=BoundedResult(
-                    0, b"package:dev.qperiapt.androidsmoke\n"
+                    0, self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")
                 ),
             ) as capture,
         ):
