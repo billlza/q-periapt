@@ -408,9 +408,7 @@ retain their published C scope. Upstream HOL-Light evidence covers only the sele
 upstream assembly source/object routines under its stated preconditions; it does not
 cover this integration's downstream reassembly, Rust/C wrapper, full ABI, or final
 package. Neither upstream evidence nor constant-time testing proves arbitrary
-downstream compiler output. Neither the
-upstream provider nor this integration has completed an independent audit. RustSec
-does not inspect vendored C.
+downstream compiler output. RustSec does not inspect vendored C.
 
 Hidden bridge visibility limits dynamic-library export surfaces; it is not an
 access-control boundary for static linking. A `q-periapt-ffi` static consumer can

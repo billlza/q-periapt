@@ -42,8 +42,8 @@
 > runtime dispatch, and ABI 2/key/wire contracts are unchanged. Both migrations
 > changed the canonical source digest. Every portable-derived package/device/
 > performance/binary-CT result below is historical evidence, not current ABI2
-> production-promotion evidence. Fresh per-target source-bound capture and independent
-> cryptographic/ABI review remain pending.
+> production-promotion evidence. Fresh per-target source-bound capture and
+> release-source contract validation remain required.
 
 ---
 
@@ -466,7 +466,7 @@ producer/verifier and certificate/timestamp-authority gate exist.
   the superseded `fips203` run is historical failure evidence; riscv64/wasm32 have no
   current binary-CT or inherited source-CT claim.
 - Conformance ≠ certification (ACVP byte-identity is not CMVP).
-- No independent third-party audit; research-grade, do-not-deploy.
+- Research-grade artifact; this paper does not establish production deployment readiness.
 - Upstream HOL-Light evidence is scoped to the selected upstream AArch64 assembly
   source/object routines. It is not a proof of downstream reassembly, the Rust/C
   integration, the full ABI, or the final package.

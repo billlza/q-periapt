@@ -8,7 +8,8 @@
 > in [`../artifact/claim-ledger.json`](../artifact/claim-ledger.json).
 > External rows are scoped to the linked standard, specification, vendor documentation,
 > or project repository—the primary source for what that baseline publicly claims.
-> They are not independent audits, an exhaustive market survey, or an aggregate ranking.
+> The comparison covers those named baselines and linked capabilities; it does not
+> provide an exhaustive market survey or an aggregate ranking.
 
 ## Executive answer
 
