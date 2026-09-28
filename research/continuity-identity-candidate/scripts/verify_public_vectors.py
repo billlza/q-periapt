@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 from pathlib import Path
 import sys
@@ -260,10 +261,110 @@ def verify(oracle: Oracle) -> dict:
                 require(encoded["quality_code"] == quality and oracle.read(stem + ".quality", 1) == bytes([quality]),
                         "selection quality differs")
                 selection_total += 1
-    return {"schema": 2, "status": "passed", "scope": "public candidate fixture cross-check",
-            "openssl": version, "signed_envelopes": 7, "membership_proofs": proof_total,
-            "authenticated_selections": selection_total,
+    bootstrap = verify_bootstrap(oracle)
+    return {"schema": 3, "status": "passed", "scope": "public candidate fixture cross-check",
+            "openssl": version, "signed_envelopes": 15, "membership_proofs": proof_total + 2,
+            "authenticated_selections": selection_total + 1, "bootstrap": bootstrap,
             "fixture_sha256": oracle.inputs, "commands": oracle.commands}
+
+
+def bootstrap_hash(label: bytes, body: bytes) -> bytes:
+    domain = b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/" + label
+    return hashlib.sha3_256(len(domain).to_bytes(8, "big") + domain
+                           + len(body).to_bytes(8, "big") + body).digest()
+
+
+def verify_bootstrap(oracle: Oracle) -> dict:
+    document = oracle.read("bootstrap-sdk-policy.toml")
+    sdk_root = oracle.read("bootstrap-sdk-root.pub", 1952)
+    signature = save(oracle.output / "sdk-policy.sig", oracle.read("bootstrap-sdk-policy.sig", 3309))
+    message = save(oracle.output / "sdk-policy.message", b"Q-PERIAPT-SIGNED-POLICY/v1"
+                   + len(document).to_bytes(8, "big") + document)
+    public = save(oracle.output / "sdk-policy.der", tlv(48, tlv(48, bytes.fromhex("0609608648016503040312"))
+                  + tlv(3, b"\0" + sdk_root)))
+    oracle.command("sdk-policy", ["pkeyutl", "-verify", "-pubin", "-keyform", "DER", "-inkey", str(public),
+                                 "-sigfile", str(signature), "-in", str(message)], 0)
+    policy_digest = hashlib.sha3_256(document).digest()
+    sdk_binding = hashlib.sha256(sdk_root).digest() + (1).to_bytes(4, "big") + policy_digest
+    policy_key = oracle.read("bootstrap-policy.pub", 1985)
+    family = digest("POLICY-AUTHORITY", policy_key)
+    suite = digest("BOOTSTRAP-SUITE", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;HKDF-SHA-256;HMAC-SHA-256")
+    revision = (1).to_bytes(8, "big")
+    interval = (100).to_bytes(8, "big") + (200).to_bytes(8, "big")
+    policy = oracle.envelope("bootstrap-policy", 4, policy_key)
+    require(policy == b"QPSESP01" + family + revision + interval + suite + sdk_binding + b"\x02",
+            "session policy does not authorize the exact reusable mode and SDK")
+    identities = []
+    for role, device_id in (("i", bytes([1]) * 16), ("r", bytes([2]) * 16)):
+        root = oracle.read(f"bootstrap-{role}-root.pub", 1985)
+        device = oracle.read(f"bootstrap-{role}-device.pub", 1985)
+        account = digest("ACCOUNT", root)
+        credential = oracle.envelope(f"bootstrap-{role}-credential", 1, root)
+        require(credential == b"QPCERT01" + account + device_id + revision + interval + family + device,
+                "bootstrap credential grammar or role differs")
+        cert_digest = digest("CREDENTIAL", credential)
+        roster = oracle.envelope(f"bootstrap-{role}-roster", 2, root)
+        require(roster == b"QPROST01" + account + revision + interval + b"\0\1" + device_id + revision + cert_digest,
+                "bootstrap roster membership differs")
+        roster_digest = digest("ROSTER", roster)
+        identity = account + device_id + revision + cert_digest
+        authority = digest("AUTHORITY", account + revision + roster_digest + family)
+        identities.append((device, identity, authority, roster_digest))
+    (key_i, identity_i, authority_i, _), (key_r, identity_r, authority_r, roster_r) = identities
+    directory = bytes([99]) * 32
+    scope = identity_r + revision + roster_r + revision + policy_digest + suite + directory + interval
+    manifest = oracle.envelope("bootstrap-manifest", 3, key_r)
+    require(len(manifest) == 290 and manifest[:258] == b"QPMANF01" + scope + b"\0\2", "bootstrap manifest differs")
+    members, ids, paths = {}, [], []
+    for index in range(2):
+        proof = Reader(oracle.read(f"bootstrap-proof-{index}.bin"))
+        require(proof.integer(2) == index, "proof index differs")
+        leaf = proof.take(proof.integer(2))
+        kind = leaf[8]
+        require(kind in (1, 3) and kind not in members and leaf[:8] == b"QPLEAF01" and leaf[9:25] == interval,
+                "bootstrap reusable role differs")
+        require(len(leaf) == (57 if kind == 1 else 1209), "bootstrap leaf width")
+        leaf_id = digest("PREKEY-LEAF", scope + leaf)
+        members[kind] = leaf_id
+        ids.append(leaf_id)
+        require(proof.integer(1) == 1, "bootstrap proof depth")
+        paths.append(proof.take(32))
+        proof.finish()
+    require(ids == sorted(set(ids)) and tree(ids) == manifest[258:], "bootstrap tree root differs")
+    require(paths == [ids[1], ids[0]], "bootstrap membership paths differ")
+    expected_selection = {
+        "suite_digest": suite.hex(),
+        "responder": {"account_id": identity_r[:32].hex(), "device_id": identity_r[32:48].hex(),
+                      "device_epoch": 1, "identity_credential_digest": identity_r[56:].hex()},
+        "bundle_epoch": 1, "directory_checkpoint_digest": directory.hex(),
+        "signed_prekey_manifest_digest": digest("MANIFEST", manifest).hex(),
+        "classical": {"mode": "signed_only", "signed_prekey_id": members[1].hex(), "selected_prekey_id": members[1].hex()},
+        "post_quantum": {"mode": "last_resort", "last_resort_prekey_id": members[3].hex(), "selected_prekey_id": members[3].hex()},
+    }
+    selection = oracle.read("bootstrap-selection.record", 492)
+    require(encode_input(expected_selection)["record"] == selection, "bootstrap selection differs")
+    context = bootstrap_hash(b"context", suite + family + revision + digest("SESSION-POLICY", policy) + sdk_binding
+                             + identity_i + authority_i + identity_r + authority_r + selection + directory)
+    require(context == oracle.read("bootstrap-context.digest", 32), "role-ordered bootstrap context differs")
+    initial = oracle.envelope("bootstrap-initial", 5, key_i)
+    require(len(initial) == 2440 and initial[:40] == b"QPBSI001" + context, "initial grammar/context differs")
+    initial_wire = oracle.read("bootstrap-initial.bin", 5817)
+    h0 = bootstrap_hash(b"initial-wire", initial_wire)
+    reply = oracle.envelope("bootstrap-reply", 6, key_r)
+    require(len(reply) == 1256 and reply[:72] == b"QPBSR001" + context + h0, "reply grammar/context/initial differs")
+    h1 = bootstrap_hash(b"reply-wire", oracle.read("bootstrap-reply.bin", 4633))
+    final_prefix = b"QPBSF001" + context + h0 + h1
+    final = oracle.read("bootstrap-final.bin", 136)
+    require(final[:104] == final_prefix, "final transcript binding differs")
+    require(bootstrap_hash(b"session-id", final_prefix) == oracle.read("bootstrap-session.id", 32), "session identity differs")
+    # Synthetic public KAT inputs; no live KEM or session secrets are exported.
+    def derive(ikm: bytes, salt: bytes, label: bytes) -> bytes:
+        prk = hmac.digest(salt, ikm, "sha256")
+        return hmac.digest(prk, b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-KDF-CANDIDATE/v1/" + label + b"\x01", "sha256")
+    kat = derive(bytes([1]) * 32 + bytes([2]) * 32, bytes([3]) * 32, b"handshake-seed")
+    require(kat.hex() == "e2c777bf03f765fe3b3ac4a6391e577e4dde8f0882a68830eed7b9dc26cd54f7", "independent HKDF KAT differs")
+    return {"signed_policy_and_flights": "verified", "transcript_binding": "verified",
+            "synthetic_hkdf_kat": "passed", "secret_confirmation": "covered by Rust peer tests, not this public-only oracle"}
 
 
 def main() -> None:
@@ -276,7 +377,7 @@ def main() -> None:
     oracle = Oracle(args.fixtures, args.output, args.openssl)
     report = verify(oracle)
     save(args.output / "result.json", (json.dumps(report, indent=2) + "\n").encode())
-    print("CANDIDATE_PUBLIC_VECTORS_PASS envelopes=7 proofs=28 selections=8 signature_negative_controls=35")
+    print("CANDIDATE_PUBLIC_VECTORS_PASS envelopes=15 proofs=30 selections=9 signature_negative_controls=75 bootstrap=passed")
 
 
 if __name__ == "__main__":

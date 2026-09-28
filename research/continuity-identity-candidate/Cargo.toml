@@ -15,10 +15,18 @@ members = ["."]
 [dependencies]
 q-periapt-core = { path = "../../crates/q-periapt-core" }
 q-periapt-backends = { path = "../../crates/q-periapt-backends" }
+q-periapt-sdk = { path = "../../crates/q-periapt-sdk" }
 p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa", "std"] }
 sha3 = { version = "=0.10.9", default-features = false }
 getrandom = "0.4"
 zeroize = "1"
+hkdf = "=0.13.0"
+hmac = { version = "=0.13.0", features = ["zeroize"] }
+sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
+
+[dev-dependencies]
+q-periapt-policy = { path = "../../crates/q-periapt-policy" }
+q-periapt-sig = { path = "../../crates/q-periapt-sig" }
 
 [lints.rust]
 unsafe_code = "forbid"

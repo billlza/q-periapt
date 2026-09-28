@@ -124,6 +124,179 @@ fn expert_transfer_checks_format_pairing_and_preserves_contextbound_roundtrips()
 }
 
 #[test]
+fn owned_component_operations_cover_all_pairings_with_one_operation_slot() {
+    use expert::{component_public_key, decapsulate_components, PqKeySource, TraditionalKeySource};
+    let owner = runtime(Limits {
+        max_live_keys: 2,
+        max_in_flight: 1,
+    });
+    let first = owner.generate_with(coins(11)).expect("first owner");
+    let second = owner.generate_with(coins(21)).expect("second owner");
+    for (pq, traditional) in [
+        (&first, &first),
+        (&first, &second),
+        (&second, &first),
+        (&second, &second),
+    ] {
+        let public = component_public_key(
+            &owner,
+            PqKeySource::from_key(pq),
+            TraditionalKeySource::from_key(traditional),
+        )
+        .expect("public components");
+        let encapsulated = owner
+            .encapsulate_with(&public, b"component-test/v1", coins(31))
+            .expect("encapsulation");
+        let decapsulated = decapsulate_components(
+            &owner,
+            PqKeySource::from_key(pq),
+            TraditionalKeySource::from_key(traditional),
+            &encapsulated.ciphertext,
+            b"component-test/v1",
+        )
+        .expect("component decapsulation");
+        assert_eq!(
+            bytes(&encapsulated.secret).as_bytes(),
+            bytes(&decapsulated).as_bytes()
+        );
+        assert_eq!(owner.state.keys.load(Ordering::Acquire), 2);
+        assert_eq!(owner.state.operations.load(Ordering::Acquire), 0);
+        let wrong_context = decapsulate_components(
+            &owner,
+            PqKeySource::from_key(pq),
+            TraditionalKeySource::from_key(traditional),
+            &encapsulated.ciphertext,
+            b"component-test/v2",
+        )
+        .expect("different context");
+        assert_ne!(
+            bytes(&wrong_context).as_bytes(),
+            bytes(&encapsulated.secret).as_bytes()
+        );
+        if !std::ptr::eq(pq, traditional) {
+            let wrong_pair = pq
+                .decapsulate(&encapsulated.ciphertext, b"component-test/v1")
+                .expect("other pair");
+            assert_ne!(
+                bytes(&wrong_pair).as_bytes(),
+                bytes(&encapsulated.secret).as_bytes()
+            );
+        }
+    }
+}
+
+#[test]
+fn owned_components_reject_other_runtimes_and_retain_revocation_and_implicit_rejection() {
+    use expert::{component_public_key, decapsulate_components, PqKeySource, TraditionalKeySource};
+    let owner = runtime(Limits::default());
+    let other = runtime(Limits::default());
+    let first = owner.generate_with(coins(11)).expect("first owner");
+    let mut second = owner.generate_with(coins(21)).expect("second owner");
+    let foreign = other
+        .generate_with(coins(31))
+        .expect("same-policy foreign runtime");
+    assert_eq!(
+        owner.policy_binding().expect("binding"),
+        other.policy_binding().expect("binding")
+    );
+    assert!(matches!(
+        component_public_key(
+            &owner,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&foreign)
+        ),
+        Err(Error::PolicyDenied)
+    ));
+    let public = component_public_key(
+        &owner,
+        PqKeySource::from_key(&first),
+        TraditionalKeySource::from_key(&second),
+    )
+    .expect("components");
+    // Both component owners agree with each other, but not with the explicit
+    // runtime. Equal signed policy bytes must not join revocation authorities.
+    assert!(matches!(
+        component_public_key(
+            &other,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&second)
+        ),
+        Err(Error::PolicyDenied)
+    ));
+    let mut encapsulated = owner
+        .encapsulate_with(&public, b"component-test/v1", coins(41))
+        .expect("encapsulation");
+    assert!(matches!(
+        decapsulate_components(
+            &other,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&second),
+            &encapsulated.ciphertext,
+            b"component-test/v1"
+        ),
+        Err(Error::PolicyDenied)
+    ));
+    assert!(matches!(
+        decapsulate_components(
+            &owner,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&foreign),
+            &encapsulated.ciphertext,
+            b"component-test/v1"
+        ),
+        Err(Error::PolicyDenied)
+    ));
+    *encapsulated
+        .ciphertext
+        .pq
+        .first_mut()
+        .expect("PQ ciphertext") ^= 1;
+    let rejected = decapsulate_components(
+        &owner,
+        PqKeySource::from_key(&first),
+        TraditionalKeySource::from_key(&second),
+        &encapsulated.ciphertext,
+        b"component-test/v1",
+    )
+    .expect("implicit rejection secret");
+    assert_ne!(
+        bytes(&rejected).as_bytes(),
+        bytes(&encapsulated.secret).as_bytes()
+    );
+    encapsulated.ciphertext.traditional.fill(0);
+    assert!(matches!(
+        decapsulate_components(
+            &owner,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&second),
+            &encapsulated.ciphertext,
+            b"component-test/v1"
+        ),
+        Err(Error::InvalidKeyShare)
+    ));
+    second.close();
+    assert!(matches!(
+        component_public_key(
+            &owner,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&second)
+        ),
+        Err(Error::Closed)
+    ));
+    owner.close();
+    assert!(matches!(rejected.export_for_protocol(), Err(Error::Closed)));
+    assert!(matches!(
+        component_public_key(
+            &owner,
+            PqKeySource::from_key(&first),
+            TraditionalKeySource::from_key(&first)
+        ),
+        Err(Error::Closed)
+    ));
+    assert_eq!(owner.state.operations.load(Ordering::Acquire), 0);
+}
+
+#[test]
 fn policy_preparation_pins_root_is_monotonic_and_abandonment_leaves_old_live() {
     let owner = runtime(Limits::default());
     for (version, seed, suffix) in [(1, 42, ""), (2, 42, ""), (2, 42, "\n"), (3, 43, "")] {

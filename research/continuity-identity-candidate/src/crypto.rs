@@ -25,6 +25,9 @@ pub(crate) enum Purpose {
     Credential = 1,
     Roster = 2,
     Manifest = 3,
+    SessionPolicy = 4,
+    BootstrapInitiator = 5,
+    BootstrapResponder = 6,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.
@@ -222,6 +225,9 @@ pub struct RootSigningKey(Option<Material>);
 /// Owned device signer, distinct from the authority allowed to enroll devices.
 pub struct DeviceSigningKey(Option<Material>);
 
+/// Owned application protocol-policy signer, distinct from account and device roles.
+pub struct PolicySigningKey(Option<Material>);
+
 macro_rules! owner {
     ($name:ident) => {
         impl $name {
@@ -268,3 +274,4 @@ macro_rules! owner {
 }
 owner!(RootSigningKey);
 owner!(DeviceSigningKey);
+owner!(PolicySigningKey);

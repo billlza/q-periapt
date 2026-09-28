@@ -51,6 +51,16 @@ not supply authentication, key confirmation or a session protocol. The separate
 without exporting the KEM secret, returning a distinct application-key owner.
 The application owns and must erase every exported copy.
 
+Rust protocol integrations can explicitly borrow independently selected owned
+components through `expert::PqKeySource` and `expert::TraditionalKeySource`.
+`expert::component_public_key` and `expert::decapsulate_components` require both
+owners to belong to the specified `Runtime`, even when another runtime verifies
+identical policy bytes. The decapsulation uses one operation slot, retains that
+runtime's revocation authority and preserves ContextBound and implicit rejection.
+Borrowing copies no private key bytes and changes no C/JNI export. It grants no
+permission to reuse ephemeral keys or consume a one-time key; a protocol must
+authenticate the selected components and perform its own atomic state transition.
+
 | Action | Contract |
 | --- | --- |
 | Close a key/secret | Reject subsequent use, erase owned storage when active borrows finish, release quota |

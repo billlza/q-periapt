@@ -2,6 +2,7 @@
 use super::*;
 use crate::crypto::{envelope, open_envelope, Purpose};
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_KEM_768_PK_LEN};
+use std::sync::Arc;
 
 struct Fixture {
     root: RootSigningKey,
@@ -11,7 +12,7 @@ struct Fixture {
     pin: AccountPin,
 }
 
-fn interval() -> Validity {
+pub(super) fn interval() -> Validity {
     Validity::new(100, 200).expect("interval")
 }
 fn fixture() -> Fixture {
@@ -712,6 +713,246 @@ fn retained_selection_cannot_outlive_a_referenced_reusable_baseline() {
     assert!(selection.check_time(159).is_ok());
     fail(selection.check_time(139), Error::Validity);
     fail(selection.check_time(160), Error::Validity);
+}
+
+pub(super) fn sdk_runtime() -> Arc<q_periapt_sdk::Runtime> {
+    use q_periapt_sig::Signer;
+    use zeroize::Zeroize;
+    let policy = b"schema_version=1\npolicy_version=1\nmin_nist_level=3\ndefault_profile=\"ContextBound\"\nallowed_kems=[\"ML-KEM-768\",\"X25519\"]\nallowed_sigs=[\"ML-DSA-65\"]\ndeprecated=[]\n";
+    let (mut secret, public) = q_periapt_backends::MlDsa65::generate([80; 32]);
+    let mut signature = vec![0; ML_DSA_65_SIG_LEN];
+    let result = q_periapt_backends::MlDsa65.sign(
+        &secret,
+        &q_periapt_policy::policy_signature_message(policy),
+        &[81; 32],
+        &mut signature,
+    );
+    secret.zeroize();
+    result.expect("algorithm policy signature");
+    Arc::new(
+        q_periapt_sdk::Runtime::from_signed_policy(
+            policy,
+            &signature,
+            &public,
+            None,
+            q_periapt_sdk::Limits::default(),
+        )
+        .expect("algorithm policy"),
+    )
+}
+
+pub(super) fn session_policy_fixture(
+    modes: &[PrekeyQuality],
+) -> (
+    PolicySigningKey,
+    IssuedSessionPolicy,
+    PolicyPin,
+    Arc<q_periapt_sdk::Runtime>,
+) {
+    let signer = PolicySigningKey::deterministic([82; 32], [83; 32]).expect("policy signer");
+    let runtime = sdk_runtime();
+    let issued = signer
+        .issue_session_policy(
+            &runtime,
+            SessionPolicyParameters::new(
+                1,
+                interval(),
+                AllowedPrekeyModes::new(modes).expect("explicit modes"),
+            )
+            .expect("parameters"),
+        )
+        .expect("policy");
+    let pin = PolicyPin::new(
+        signer.policy_family().expect("family"),
+        signer.public_key().expect("public"),
+        issued.checkpoint(),
+    )
+    .expect("pin");
+    (signer, issued, pin, runtime)
+}
+
+#[test]
+fn protocol_policy_binds_real_sdk_runtime_and_explicit_mode_permissions() {
+    let (_signer, issued, pin, runtime) = session_policy_fixture(&[
+        PrekeyQuality::OneTimeBoth,
+        PrekeyQuality::SignedClassicalOneTimePq,
+    ]);
+    let policy = pin
+        .verify(issued.as_bytes(), Arc::clone(&runtime), 150)
+        .expect("verified policy");
+    assert_eq!(
+        policy.sdk_binding(),
+        runtime.policy_binding().expect("binding")
+    );
+    assert_eq!(policy.checkpoint(), issued.checkpoint());
+    for mode in [
+        PrekeyQuality::OneTimeBoth,
+        PrekeyQuality::SignedClassicalOneTimePq,
+    ] {
+        assert!(policy.check_mode(mode, 150).is_ok());
+    }
+    for mode in [
+        PrekeyQuality::ReusableBoth,
+        PrekeyQuality::OneTimeClassicalLastResortPq,
+    ] {
+        fail(policy.check_mode(mode, 150), Error::PolicyDenied);
+    }
+    fail(
+        policy.check_mode(PrekeyQuality::OneTimeBoth, 200),
+        Error::Validity,
+    );
+    policy.close();
+    fail(
+        policy.check_mode(PrekeyQuality::OneTimeBoth, 150),
+        Error::Closed,
+    );
+    assert!(runtime
+        .is_enabled()
+        .expect("SDK not closed by protocol close"));
+    let policy = pin
+        .verify(issued.as_bytes(), Arc::clone(&runtime), 150)
+        .expect("independently loaded instance");
+    runtime.close();
+    fail(
+        policy.check_mode(PrekeyQuality::OneTimeBoth, 150),
+        Error::Runtime(q_periapt_sdk::Error::Closed),
+    );
+    let (_signer, disabled, pin, runtime) = session_policy_fixture(&[]);
+    let disabled = pin
+        .verify(disabled.as_bytes(), runtime, 150)
+        .expect("authenticated disabled policy");
+    fail(
+        disabled.check_mode(PrekeyQuality::OneTimeBoth, 150),
+        Error::PolicyDenied,
+    );
+    fail(
+        AllowedPrekeyModes::new(&[PrekeyQuality::OneTimeBoth, PrekeyQuality::OneTimeBoth]),
+        Error::Encoding,
+    );
+}
+
+#[test]
+fn protocol_policy_rejects_signature_and_checkpoint_substitution() {
+    let (signer, issued, pin, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let (body, signature) = open_envelope(issued.as_bytes()).expect("body");
+    for offset in [0, ML_DSA_65_SIG_LEN + 63] {
+        let mut corrupt = signature.to_vec();
+        *corrupt.get_mut(offset).expect("signature byte") ^= 1;
+        let wire = envelope(body, &corrupt).expect("wire");
+        fail(
+            pin.verify(&wire, Arc::clone(&runtime), 150),
+            Error::Authentication,
+        );
+    }
+    let wrong = envelope(
+        body,
+        &signer.sign(Purpose::Manifest, body).expect("other purpose"),
+    )
+    .expect("wire");
+    fail(
+        pin.verify(&wrong, Arc::clone(&runtime), 150),
+        Error::Authentication,
+    );
+    let other = signer
+        .issue_session_policy(
+            &runtime,
+            SessionPolicyParameters::new(
+                1,
+                interval(),
+                AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth]).expect("modes"),
+            )
+            .expect("parameters"),
+        )
+        .expect("other body same version");
+    fail(
+        pin.verify(other.as_bytes(), Arc::clone(&runtime), 150),
+        Error::Checkpoint,
+    );
+    let future_pin = PolicyPin::new(
+        signer.policy_family().expect("family"),
+        signer.public_key().expect("public"),
+        PolicyCheckpoint::from_trusted_state(2, issued.checkpoint().digest()).expect("newer pin"),
+    )
+    .expect("pin");
+    fail(
+        future_pin.verify(issued.as_bytes(), runtime, 150),
+        Error::Checkpoint,
+    );
+}
+
+#[test]
+fn correctly_resigned_protocol_policy_cannot_override_profile_family_or_sdk_binding() {
+    let (signer, issued, _, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let (body, _) = open_envelope(issued.as_bytes()).expect("body");
+    assert_eq!(body.len(), 165);
+    for (offset, expected) in [
+        (8, Error::Scope),
+        (64, Error::Scope),
+        (96, Error::Scope),
+        (164, Error::Encoding),
+    ] {
+        let mut changed = body.to_vec();
+        *changed.get_mut(offset).expect("field") ^= 0x80;
+        let checkpoint = PolicyCheckpoint::from_trusted_state(
+            1,
+            crate::crypto::digest(
+                b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1",
+                &changed,
+            ),
+        )
+        .expect("checkpoint");
+        let pin = PolicyPin::new(
+            signer.policy_family().expect("family"),
+            signer.public_key().expect("public"),
+            checkpoint,
+        )
+        .expect("pin");
+        let wire = envelope(
+            &changed,
+            &signer
+                .sign(Purpose::SessionPolicy, &changed)
+                .expect("real signature"),
+        )
+        .expect("wire");
+        fail(pin.verify(&wire, Arc::clone(&runtime), 150), expected);
+    }
+}
+
+#[test]
+fn protocol_authority_components_cannot_be_reused_as_active_device_identity() {
+    let (_, issued, pin, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let policy = pin.verify(issued.as_bytes(), runtime, 150).expect("policy");
+    let root = RootSigningKey::deterministic([110; 32], [111; 32]).expect("account");
+    // Reuse either protocol-policy component or the algorithm-policy ML-DSA
+    // root. Each device is otherwise genuinely enrolled by its own account.
+    for (pq, classic, family) in [
+        (82, 112, policy.family()),
+        (112, 83, policy.family()),
+        (80, 112, policy.family()),
+        (112, 113, [6; 32]),
+    ] {
+        let signer = DeviceSigningKey::deterministic([pq; 32], [classic; 32]).expect("device");
+        let cert = root
+            .issue_device(
+                DeviceDescription::new([114; 16], 1, family, interval()).expect("description"),
+                signer.public_key().expect("public"),
+            )
+            .expect("credential");
+        let roster = root
+            .issue_roster(1, interval(), &[root.roster_entry(&cert).expect("entry")])
+            .expect("roster");
+        let account = AccountPin::new(
+            root.account_id().expect("account"),
+            root.public_key().expect("public"),
+            roster.checkpoint(),
+            family,
+        )
+        .expect("pin");
+        let device = account
+            .verify_device(&cert, roster.as_bytes(), 150)
+            .expect("real chain");
+        fail(policy.check_device(&device, 150), Error::Scope);
+    }
 }
 
 #[test]

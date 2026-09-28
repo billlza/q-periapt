@@ -1,4 +1,4 @@
-# Continuity identity and prekey-manifest candidate
+# Continuity identity, prekey selection and bootstrap candidate
 
 This unpublished, isolated implementation exercises the accountable identity
 chain proposed for [Continuity in 0.2.0](../../docs/continuity/RELEASE_0_2_SCOPE.md).
@@ -10,13 +10,15 @@ The existing ABI major remains **2**.
 
 The candidate supplies actual signatures and byte validation. The lifecycle model
 remains a separate test artifact, and supplies no authority to this implementation.
-Product admission still needs the complete protocol, policy/capability schema,
-bootstrap confirmations, ratchet and durable transaction contracts. Candidate
+The candidate also verifies a signed session policy and performs a three-flight
+bootstrap with two fresh hybrid KEM contributions and mutual key confirmation.
+Product admission still needs the complete protocol, capability schema,
+ratchet and durable transaction contracts. Candidate
 identifiers and encodings are not frozen product wire formats.
 
 ## Authority and ownership
 
-`RootSigningKey` and `DeviceSigningKey` have distinct public issuance APIs, no raw
+`RootSigningKey`, `PolicySigningKey` and `DeviceSigningKey` have distinct public issuance APIs, no raw
 secret export, no clone, and explicit idempotent close. Closing drops zeroizing
 secret owners. ML-DSA expanded material returned by the low-level provider is
 explicitly cleared after transfer to the heap owner. This owner-level guarantee
@@ -58,6 +60,23 @@ only that interval. A service still needs current authority, mode-policy,
 directory and primitive-key checks and atomic consumption. Explicitly selecting
 a reusable role never grants policy permission or proves exhaustion.
 
+`VerifiedSessionPolicy` binds a distinct hybrid-signature authority, exact
+protocol-policy checkpoint, fixed candidate suite, actual verified SDK policy
+binding, finite validity and an explicit four-mode permission set. It rejects
+device reuse of either protocol-authority component or the SDK policy's ML-DSA
+root. Empty permissions disable bootstrap. Closing this policy instance revokes
+future admission through it; durable updates and other instances require host
+coordination. The SDK's algorithm-only policy schema remains unchanged.
+
+The [bootstrap specification](BOOTSTRAP.md) defines the role-ordered context,
+three flights, separate confirmation keys and root derivation. Its responder
+borrows the selected owned PQ and classical components through role-typed SDK
+expert APIs. Both component owners must belong to the **specified runtime**;
+equivalent signed policy bytes do not join independent runtime lifetimes. One
+SDK operation slot covers a decapsulation, with the existing ContextBound
+implementation and implicit rejection behavior. No private-key export or
+re-import is needed. These additive Rust APIs change no C or JNI entry point.
+
 ## Exact candidate encoding
 
 All integers are unsigned, big-endian, with no implicit padding. No trailing
@@ -74,7 +93,8 @@ ECDSA uses SHA-256 and fixed-width unsigned r/s; the verifier rejects high S.
 Let `C = ASCII("Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1")`.
 Both algorithms sign `C || purpose:u8 || body_length:u32 || body`.
 ML-DSA additionally uses `C` as its external context, with the ordinary ML-DSA
-message encoding. Purposes are credential=1, roster=2, manifest=3.
+message encoding. Purposes are credential=1, roster=2, manifest=3,
+session policy=4, bootstrap initiator=5 and bootstrap responder=6.
 The envelope is `body_length:u32 || body || signature[3373]` and admits at most
 16,384 body bytes. ECDSA and ML-DSA are both required; neither is a fallback.
 
@@ -154,12 +174,16 @@ The last command requires OpenSSL with ML-DSA and external-context support
 (OpenSSL 3.5 or later). It fails when the required provider is unavailable. The
 example generates fresh signing and actual X25519/ML-KEM public keys, emits only
 public records, and discards secret owners. Python independently reconstructs
-canonical bodies, seven body/signature bindings and 28 membership proofs across
+canonical bodies, 15 body/signature bindings and 30 membership proofs across
 tree sizes 1, 2, 3, 5 and 17. OpenSSL verifies both signature components and rejects
-35 altered-body, purpose or ML-DSA-context controls. The independent existing
-PrekeySelectionV1 codec also reconstructs eight authenticated selection records
-(four role combinations for each of the 5- and 17-leaf trees), their digests and
-quality codes from the verified leaf set. The schema-2 report records fixture
+75 altered-body, purpose or ML-DSA-context controls. The independent existing
+PrekeySelectionV1 codec also reconstructs nine authenticated selection records
+(four role combinations for each of the 5- and 17-leaf trees, plus the two-leaf
+bootstrap manifest), their digests and quality codes from the verified leaf set.
+The bootstrap fixture additionally verifies the signed SDK and protocol policies,
+role-ordered context, both signed flights and final transcript/session identity.
+It exports no live shared secret; secret confirmation and root agreement are
+covered by real peer tests, separately from this public oracle. The schema-3 report records fixture
 hashes, OpenSSL identity, command arguments and return codes; separate bounded
 stdout/stderr logs preserve failures. This is component verification, not a
 network protocol or session-recovery test.

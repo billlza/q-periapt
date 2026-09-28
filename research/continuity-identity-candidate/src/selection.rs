@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use crate::{
-    codec::nonzero, crypto::digest, AuthenticatedLeaf, Error, LeafKind, LeafProof, Validity,
-    VerifiedManifest,
+    codec::nonzero, crypto::digest, AuthenticatedLeaf, Error, LeafKind, LeafProof, ManifestContext,
+    Validity, VerifiedDevice, VerifiedManifest,
 };
 
 /// Exact canonical PrekeySelectionV1 record size, including sixteen LP8 prefixes.
@@ -9,6 +9,7 @@ pub const PREKEY_SELECTION_BYTES: usize = 492;
 const RECORD_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-PREKEY-SELECTION/v1";
 const DIGEST_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-PREKEY-SELECTION-DIGEST/v1";
 
+#[derive(Clone, Copy)]
 pub(crate) struct SelectionIdentity {
     pub(crate) account: [u8; 32],
     pub(crate) device: [u8; 16],
@@ -57,11 +58,25 @@ pub struct AuthenticatedPrekeySelection {
     digest: [u8; 32],
     quality: PrekeyQuality,
     validity: Validity,
+    context: ManifestContext,
+    responder: SelectionIdentity,
     classical: AuthenticatedLeaf,
     pq: AuthenticatedLeaf,
 }
 
 impl AuthenticatedPrekeySelection {
+    /// Signed manifest context; its policy and directory still require separate admission.
+    pub fn manifest_context(&self) -> ManifestContext {
+        self.context
+    }
+
+    pub(crate) fn matches_device(&self, device: &VerifiedDevice) -> bool {
+        self.responder.account == device.account_id()
+            && self.responder.device == device.device_id()
+            && self.responder.generation == device.generation()
+            && self.responder.credential == device.credential_digest()
+            && self.authority_binding() == device.authority_binding()
+    }
     /// All sixteen canonical fields; the caller cannot substitute their values.
     pub fn as_bytes(&self) -> &[u8; PREKEY_SELECTION_BYTES] {
         &self.encoded
@@ -201,6 +216,8 @@ impl VerifiedManifest {
             digest,
             quality,
             validity,
+            context,
+            responder: identity,
             classical,
             pq,
         })
