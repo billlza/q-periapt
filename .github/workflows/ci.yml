@@ -1684,6 +1684,24 @@ jobs:
             --first "$evidence/chunk64-first" --repeated "$evidence/chunk64-repeated" \
             --baseline "$evidence/first" --binary "$CARGO_TARGET_DIR/release/q-periapt-spqr-reference" \
             --fixtures "$evidence/chunk64-regenerated-fixtures" > "$evidence/chunk64-verification.json"
+      - name: Replay authenticated whole-KEM periodic controls
+        env:
+          QPERIAPT_PYTHON: ${{ steps.reference_python.outputs.python-path }}
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-whole-kem-build
+        run: |
+          set -eu
+          manifest=research/continuity-whole-kem-reference/Cargo.toml
+          evidence=target/continuity-spqr-evidence
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo clippy --manifest-path "$manifest" --locked --all-targets -- -D warnings
+          cargo test --manifest-path "$manifest" --locked > "$evidence/whole-kem-tests.log" 2>&1
+          cargo run --manifest-path "$manifest" --locked --release -- "$evidence/whole-kem-first"
+          cargo run --manifest-path "$manifest" --locked --release -- "$evidence/whole-kem-repeated"
+          sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_whole_kem_reference"],warnings="error")'
+          sh artifact/python-run.sh artifact/whole_kem_reference.py "$evidence/whole-kem-first" \
+            --compare "$evidence/whole-kem-repeated" \
+            --baseline "$evidence/first" --chunk64 "$evidence/chunk64-first" \
+            --binary "$CARGO_TARGET_DIR/release/q-periapt-whole-kem-reference" > "$evidence/whole-kem-verification.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

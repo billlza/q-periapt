@@ -14,7 +14,7 @@ The pinned SPQR implementation now has an
 It retains the original 32-byte chunks, dependency versions and source commit,
 compares actual send/receive message keys, and locks seven public traffic corpora.
 This supplies a component execution baseline. Full PQXDH/Triple Ratchet/manager
-composition, matched whole-KEM measurements and deployment interoperability remain open.
+composition, controlled latency/energy measurements and deployment interoperability remain open.
 Its [passive state-snapshot experiment](../../research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md)
 now derives actual exposed message keys from 84 captured endpoint states and the
 public transcript. Pending decapsulation keys expose an additional epoch in the
@@ -24,6 +24,12 @@ The [64-byte experiment](../../research/continuity-spqr-reference/variants/READM
 adds a separately identified source patch and matched traffic/snapshot corpus.
 It advances epochs faster under duplex delivery at a higher per-message byte cost;
 one-way traffic still does not advance. It is not a component-conformant result.
+An [authenticated whole-KEM control](../../research/continuity-whole-kem-reference/README.md)
+now executes full ML-KEM-768 exchanges at three fixed intervals under the same
+traffic schedules and snapshot cuts. It binds all three confirmation flights,
+preserves exact pending material and bounds skipped keys. Its different
+authentication and retention rules are explicit; the finite comparison does not
+select the product construction or establish a recovery theorem.
 
 | Component | Selected public revision | Role | Boundary |
 |---|---|---|---|

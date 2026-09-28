@@ -37,6 +37,12 @@ the existing public-commitment model into a working cryptographic protocol.
   Its passive snapshot experiment now reproduces exposed message keys, including
   a pending KEM key's next-epoch contribution, across 84 actual state disclosures.
   The finite experiment does not close the continuous-recovery proof obligation.
+- `research/continuity-whole-kem-reference` supplies an isolated full ML-KEM-768
+  periodic control with authenticated proposal/ciphertext/confirmation, immutable
+  pending material, bounded skipped keys and actual message-key agreement. Three
+  fixed intervals run the same traffic schedules and 252 passive snapshots. This
+  is a comparison construction, without a product dependency, durable store or
+  full hybrid security claim; profile selection remains open.
 - `research/continuity-identity-candidate` implements an isolated actual-signature
   root/credential/roster/manifest chain, Merkle membership verification and a
   canonical selection derived from the actual authenticated members. It also

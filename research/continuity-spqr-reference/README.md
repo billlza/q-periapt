@@ -54,8 +54,7 @@ agreement outcomes; it does not independently derive the secret keys.
 These are component bytes, not complete application or Continuity traffic. Timings
 cover the actual SPQR send/receive call, including its state decoding/encoding;
 they exclude application AEAD, transport, durable storage and energy. Raw samples
-are retained without a performance pass threshold. A matched whole-KEM comparison,
-controlled energy measurements and full compromise
+are retained without a performance pass threshold. Controlled energy measurements and full compromise
 analysis remain required before choosing the product ratchet profile. The
 [passive snapshot experiment](COMPROMISE_EXPERIMENT.md) now checks 84 actual state
 disclosures against sender message keys, including the additional epoch exposed
@@ -64,6 +63,10 @@ does not equate failed prediction with proven recovery.
 An [isolated 64-byte experiment](variants/README.md) now measures the chunk-width
 tradeoff under the same schedules and snapshot cases. Its modified source, format
 and assurance scope remain separate from this pinned 32-byte baseline.
+The [whole-KEM periodic control](../continuity-whole-kem-reference/README.md) adds
+three fixed intervals with real full ML-KEM exchanges and explicit confirmation.
+The paired reports retain each construction's different authentication, peak-frame
+and skipped-key behavior; they do not claim a universal performance/security ranking.
 
 ## Integration findings
 

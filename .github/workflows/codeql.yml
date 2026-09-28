@@ -81,7 +81,7 @@ jobs:
             cargo +1.96.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           test ! -e target && test ! -L target
 
-      - name: Compile isolated SPQR reference with both analysis toolchains
+      - name: Compile isolated ratchet references with both analysis toolchains
         if: matrix.language == 'rust'
         run: |
           sudo apt-get update
@@ -90,6 +90,9 @@ jobs:
             RUSTFLAGS='-D warnings' \
               CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-spqr-check-${reference_toolchain}" \
               cargo +"$reference_toolchain" check --manifest-path research/continuity-spqr-reference/Cargo.toml --all-targets --locked
+            RUSTFLAGS='-D warnings' \
+              CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-whole-kem-check-${reference_toolchain}" \
+              cargo +"$reference_toolchain" check --manifest-path research/continuity-whole-kem-reference/Cargo.toml --all-targets --locked
           done
           test ! -e target && test ! -L target
 
