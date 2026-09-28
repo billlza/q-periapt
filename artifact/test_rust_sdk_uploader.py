@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import contextlib
 import gzip
 import hashlib
 import importlib.util
@@ -256,6 +257,42 @@ class SdkUploaderTests(unittest.TestCase):
             with self.assertRaisesRegex(build.UploaderBuildError, "before executable mode"):
                 self.prepare()
         self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
+
+    def cli_arguments(self):
+        self.manifest.write_text(json.dumps(self.report))
+        selected = hashlib.sha256(self.manifest.read_bytes()).hexdigest()
+        return [str(self.manifest), "--profile", sdk.PROFILE, "--input-sha256", selected, "--cargo-version", "1.96.1"], selected
+
+    def test_cli_derives_separate_private_outputs_from_report_bytes(self):
+        candidate_root = self.root / "candidates"
+        with mock.patch.object(build, "CANDIDATE_ROOT", candidate_root):
+            outputs = []
+            for candidate in ("first", "second"):
+                self.report["scope"] = candidate
+                arguments, selected = self.cli_arguments()
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(build.main(arguments), 0)
+                output = build.candidate_output(selected, sdk.PROFILE)
+                self.assertTrue(output.is_file())
+                self.assertEqual(output.parent.name, selected)
+                self.assertEqual(output.parent.stat().st_mode & 0o777, 0o700)
+                outputs.append(output)
+            self.assertNotEqual(outputs[0], outputs[1])
+            self.assertTrue(all(path.is_file() for path in outputs))
+
+    def test_cli_output_is_confirmation_and_does_not_grant_another_path(self):
+        candidate_root = self.root / "candidates"
+        with mock.patch.object(build, "CANDIDATE_ROOT", candidate_root):
+            arguments, selected = self.cli_arguments()
+            outside = self.root / "operator-supplied-output"
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(build.main([arguments[0], str(outside), *arguments[1:]]), 1)
+            self.assertFalse(candidate_root.exists())
+            self.assertFalse(outside.exists())
+            authority = build.candidate_output(selected, sdk.PROFILE)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(build.main([arguments[0], str(authority), *arguments[1:]]), 0)
+            self.assertTrue(authority.is_file())
 
 
 if __name__ == "__main__":

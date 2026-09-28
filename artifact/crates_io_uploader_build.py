@@ -37,7 +37,7 @@ from typing import Any
 
 import crates_io_registry_metadata as registry_metadata
 import evidence_io
-from publication_receipt_io import normalize_safe_root, open_private_directory, write_private_bytes_noreplace_at
+from publication_receipt_io import ensure_private_safe_root, normalize_safe_root, open_private_directory, write_private_bytes_noreplace_at
 from rust_publish_contract import RUST_PUBLISHABLE_CRATES
 import rust_sdk_profile as sdk
 
@@ -45,6 +45,8 @@ HANDOFF_KIND = "qperiapt.rust_package_handoff"
 UPLOADER_MODE = 0o700
 LEGACY_PROFILE = "abi2-legacy"
 PROFILES = (LEGACY_PROFILE, sdk.PROFILE)
+CANDIDATE_ROOT = pathlib.Path(__file__).resolve().parent.parent / "target/qperiapt-crates-io-uploaders"
+UPLOADER_LEAF = "qperiapt-crates-io-uploader"
 MAX_INPUT_BYTES = 16 * 1024 * 1024
 MAX_CRATE_BYTES = 128 * 1024 * 1024
 MAX_TOTAL_CRATE_BYTES = 512 * 1024 * 1024
@@ -435,12 +437,24 @@ def build(
     }
 
 
+def candidate_output(manifest_sha256: str, profile: str) -> pathlib.Path:
+    """Derive a write authority from a closed profile and content identity."""
+    _require(profile in PROFILES, "unknown publication input profile")
+    _require(isinstance(manifest_sha256, str) and _SHA256_RE.fullmatch(manifest_sha256) is not None,
+             "candidate manifest digest is malformed")
+    # Construct a hexadecimal identifier, never an operator-supplied path.
+    identifier = f"{int(manifest_sha256, 16):064x}"
+    profile_roots = {LEGACY_PROFILE: CANDIDATE_ROOT / "abi2-legacy", sdk.PROFILE: CANDIDATE_ROOT / "sdk-020"}
+    return profile_roots[profile] / identifier / UPLOADER_LEAF
+
+
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         description="Materialize the release-pinned crates.io exact-byte uploader."
     )
     parser.add_argument("handoff_manifest", type=pathlib.Path)
-    parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("output", type=pathlib.Path, nargs="?",
+                        help="optional confirmation of the derived candidate path; cannot select another write location")
     parser.add_argument("--profile", choices=PROFILES, default=LEGACY_PROFILE)
     parser.add_argument("--input-sha256", help="explicit input digest (required for sdk-020)")
     parser.add_argument(
@@ -462,14 +476,28 @@ def main(argv: Sequence[str]) -> int:
     )
     namespace = parser.parse_args(argv)
     try:
+        if namespace.profile == sdk.PROFILE or namespace.input_sha256 is not None:
+            _require(isinstance(namespace.input_sha256, str)
+                     and _SHA256_RE.fullmatch(namespace.input_sha256) is not None,
+                     "input manifest SHA-256 must be explicitly pinned")
+        selected = evidence_io.read_regular_snapshot(namespace.handoff_manifest, maximum=MAX_INPUT_BYTES,
+                                                     label="selected publication input manifest")
+        _require(namespace.input_sha256 is None or namespace.input_sha256 == selected.sha256,
+                 "input manifest SHA-256 differs")
+        authority = candidate_output(selected.sha256, namespace.profile)
+        if namespace.output is not None:
+            _require(namespace.output.absolute() == authority,
+                     f"output must confirm the derived candidate path: {authority}")
+        for directory in (CANDIDATE_ROOT, authority.parent.parent, authority.parent):
+            ensure_private_safe_root(directory, label="uploader candidate directory")
         summary = build(
             namespace.handoff_manifest,
             namespace.template,
-            namespace.output,
+            authority,
             crate_dir=namespace.crate_dir,
             cargo_version=namespace.cargo_version,
             profile=namespace.profile,
-            input_sha256=namespace.input_sha256,
+            input_sha256=selected.sha256,
         )
     except (UploaderBuildError, registry_metadata.RegistryMetadataError, evidence_io.EvidenceIOError,
             OSError, ValueError) as error:

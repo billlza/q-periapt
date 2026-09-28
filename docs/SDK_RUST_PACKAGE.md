@@ -63,7 +63,6 @@ SDK input profile. Pin the completed report before preparing a fresh output:
 ```sh
 sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
   target/sdk-rust-package/RUST_SDK_PACKAGE.json \
-  target/sdk-rust-package/qperiapt-crates-io-uploader \
   --profile sdk-020 --input-sha256 <SHA256-of-that-report> --cargo-version 1.96.1
 ```
 
@@ -74,9 +73,13 @@ dependencies and production edges pointing forward in the publication order.
 Optional, build and target-specific edges count; dev-only edges do not determine
 the upload order. All internal requirements must remain exactly `=0.2.0`.
 The generated uploader embeds the report digest and each archive's exact bytes
-identity and registry metadata. Existing output files are never replaced.
-The output parent must be an existing, canonically spelled, account-owned
-mode-0700 directory. The package producer creates its output with that mode.
+identity and registry metadata. The CLI derives its output from the selected
+report's hash at
+`target/qperiapt-crates-io-uploaders/sdk-020/<report-SHA256>/qperiapt-crates-io-uploader`.
+The legacy profile uses its own `abi2-legacy` directory. Different candidates can
+coexist; existing output files are never replaced. An optional output argument
+only confirms that derived path. It cannot grant another write location.
+The CLI creates and verifies its owned mode-0700 candidate directories.
 The generator pins the directory descriptor, commits bytes without replacement,
 checks their identity before making the file executable, and rejects a changed
 directory. It does not change the permissions of an existing output directory.
@@ -118,7 +121,8 @@ The `publish` mode additionally requires `--execute-real-upload` and
 canonical home followed by `.q-periapt/publication-state/crates.io-v0.2.0`, outside
 all registered Git worktrees. These real, account-owned directories must already
 have mode 0700. The prepared exact-byte uploader must be the mode-0700,
-single-link child named `qperiapt-crates-io-uploader`. Publication receipts and
+single-link child named `qperiapt-crates-io-uploader`. Install the reviewed
+candidate at that fixed path before selecting publish mode. Publication receipts and
 journals live in that state's `receipts` and `journal` directories. The token is
 read from `CARGO_REGISTRY_TOKEN` only when the first upload is necessary; it is
 never placed in arguments or emitted in diagnostics.
