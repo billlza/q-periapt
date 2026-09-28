@@ -11,13 +11,16 @@ class WholeKemTests(unittest.TestCase):
     def test_exact_wire_shapes_and_closed_profiles(self):
         for profile in whole.PROFILES:
             for kind,size in ((0,0),(1,1216),(2,1152),(3,64)):
-                data=bytes([0xd1,profile,0,1,0,kind])+(b"\x01"+bytes(size) if kind else b"")
+                data=bytes([0xd1,profile,1 if kind == 3 else 0,1,0,kind])+(b"\x01"+bytes(size) if kind else b"")
                 parsed=whole.wire(data)
                 self.assertEqual((parsed["profile"],parsed["index"],parsed["kind"]),(profile,1,kind))
                 self.assertEqual(len(parsed["body"]),size)
                 with self.assertRaises(ref.ReferenceError): whole.wire(data+b"\x00")
                 if kind:
                     with self.assertRaises(ref.ReferenceError): whole.wire(data[:-1])
+                    altered=bytearray(data)
+                    altered[2]=0 if kind == 3 else 1
+                    with self.assertRaises(ref.ReferenceError): whole.wire(bytes(altered))
 
     def test_malformed_integer_profile_and_type_are_rejected(self):
         for data in (b"",bytes([1,1,0,1,0,0]),bytes([0xd1,0,0,1,0,0]),bytes([0xd1,2,0,1,0,0]),

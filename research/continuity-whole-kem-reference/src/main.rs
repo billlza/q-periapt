@@ -476,6 +476,15 @@ impl Packet {
             _ => return Err(Fault::Invalid),
         };
         require(
+            match kind {
+                0 => true,
+                1 | 2 => message_epoch.checked_add(1) == Some(epoch),
+                3 => message_epoch == epoch,
+                _ => false,
+            },
+            Fault::Invalid,
+        )?;
+        require(
             rest.len() == expected && (kind == 0 || epoch > 0),
             Fault::Invalid,
         )?;
@@ -1215,6 +1224,22 @@ mod tests {
         let mut state = State::initial(0, 1)?;
         state.extend_from_slice(&[0xa0, 0x06, 1]);
         assert!(State::read(&state).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn control_key_epochs_have_no_alternate_header_interpretation() -> Result<()> {
+        let mut rng = StdRng::seed_from_u64(SEED);
+        let (a, offer, _) = send(&State::initial(0, 1)?, &mut rng)?;
+        let (b, _) = receive(&State::initial(1, 1)?, &offer)?;
+        let (_, cipher, _) = send(&b, &mut rng)?;
+        let (a, _) = receive(&a, &cipher)?;
+        let (_, ack, _) = send(&a, &mut rng)?;
+        for wire in [&offer, &cipher, &ack] {
+            let mut packet = Packet::read(wire)?;
+            packet.message_epoch = if packet.kind == 3 { 0 } else { packet.epoch };
+            assert!(Packet::read(&packet.encode()?).is_err());
+        }
         Ok(())
     }
 }

@@ -38,6 +38,7 @@ def wire(data: bytes) -> dict:
     epoch = varint((1<<64)-1) if kind else 0
     body = data[at:]
     ref.require(len(body) == {0:0,1:1216,2:1152,3:64}[kind] and (kind == 0 or epoch > 0), "whole-KEM body shape")
+    ref.require(kind == 0 or message_epoch == (epoch if kind == 3 else epoch-1), "whole-KEM control/key epoch")
     return {"profile":data[1],"message_epoch":message_epoch,"index":index,"previous":previous,"kind":kind,"epoch":epoch,"body":body}
 
 
@@ -85,7 +86,6 @@ def trace(path: Path, name: str, profile: int) -> tuple[dict,str,dict,dict,dict]
             if kind:
                 proposer = (epoch-1)%2
                 ref.require(sender == (1-proposer if kind == 2 else proposer), "whole-KEM control role")
-                ref.require(packet["message_epoch"] == (epoch if kind == 3 else epoch-1), "whole-KEM control/key epoch")
                 control_id = sender,kind,epoch
                 ref.require(control_id not in public_controls or public_controls[control_id] == body, "whole-KEM changed pending material")
                 public_controls[control_id] = body

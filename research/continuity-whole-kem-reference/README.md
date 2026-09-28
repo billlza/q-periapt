@@ -68,6 +68,8 @@ Kinds 1–3 append a canonical target-epoch varint and these fixed bodies:
 
 Canonical bounded varints, exact body lengths and a 1,250-byte maximum frame are
 required. Unknown profiles, kinds, extra bytes and integer aliases fail. This
+parser also requires proposal/ciphertext message keys to belong to the preceding
+epoch, and confirmation message keys to belong to the confirmed epoch. This
 component returns provisional message keys. Outer application authentication must
 cover the complete header and payload **before** candidate receive state is
 committed; authenticated control alone does not authenticate ordinary data or its
