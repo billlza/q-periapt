@@ -20,5 +20,8 @@ and combined output to 2 MiB, and uses the existing bounded-process owner for
 cleanup. A fresh private AVD and private ADB socket exclude USB and global ADB.
 The emulator transport uses the SDK lane's `emu:5584,5585` registration. Its
 internal ADB subprocesses inherit the same private socket and emulator serial.
+The hosted shell requires `BASHPID` and admits cleanup only in its original
+session leader. An inherited child EXIT handler cannot signal the parent's group
+or wait on its child table; the outer supervisor retains the same hard deadline.
 Only the observation JSON and bounded log are uploaded; keys and emulator state
 remain in the disposable runner. No existing package gate is changed.

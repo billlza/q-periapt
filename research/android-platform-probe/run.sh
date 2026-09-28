@@ -7,6 +7,9 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)
 output=$root/target/android-platform-probe
 test -f "$output/commands.log"
 test "$(uname -s)" = Linux
+# The hosted driver requires Bash's actual process ID, which differs from $$ in
+# a forked child. Reject an unsupported shell before creating background state.
+test "${BASHPID-unavailable}" = "$$"
 sdk=/usr/local/lib/android/sdk
 adb=$sdk/platform-tools/adb
 emulator=$sdk/emulator/emulator
@@ -43,6 +46,15 @@ adb_pid=
 emulator_pid=
 cleanup() {
     local primary=$?
+    # A pre-exec child can receive TERM while the inherited EXIT trap is still
+    # installed. $$ continues to name the parent in that child. Only this actual
+    # session leader may signal the group or wait on the parent's child table.
+    # BASH_SUBSHELL also guards explicit helper subshells on Bash 3 test hosts;
+    # the hosted entry point above always requires a real BASHPID.
+    if [ "$BASH_SUBSHELL" -ne 0 ] || [ "${BASHPID-$$}" != "$$" ]; then
+        printf 'PLATFORM_CLEANUP_NONOWNER subshell=%s\n' "$BASH_SUBSHELL"
+        return "$primary"
+    fi
     trap - EXIT
     trap '' TERM
     set +e

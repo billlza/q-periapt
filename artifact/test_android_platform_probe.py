@@ -86,11 +86,7 @@ class PlatformProbeTests(unittest.TestCase):
         cleanup = script[start:end]
         with tempfile.TemporaryDirectory() as directory:
             driver = Path(directory) / "driver.sh"
-            driver.write_text("set -euo pipefail\nadb_pid=\nemulator_pid=\n"
-                              "kill() { local status=0; builtin kill \"$@\" || status=$?; "
-                              "printf 'KILL_RESULT bash=%s status=%s args=%s\\n' "
-                              "\"$BASH_VERSION\" \"$status\" \"$*\"; return \"$status\"; }\n"
-                              + cleanup + "\n"
+            driver.write_text("set -euo pipefail\nadb_pid=\nemulator_pid=\n" + cleanup + "\n"
                               "/bin/sleep 30 &\nadb_pid=$!\n"
                               "/bin/sleep 30 &\nemulator_pid=$!\n"
                               "printf '%s %s\\n' \"$adb_pid\" \"$emulator_pid\"\nexit 17\n")
@@ -128,11 +124,33 @@ class PlatformProbeTests(unittest.TestCase):
                 error.add_note("cleanup control context: " + json.dumps(diagnostic, sort_keys=True))
                 raise
             self.assertEqual(result.returncode, 17, result.stdout)
+            guarded_children = result.stdout.count(b"PLATFORM_CLEANUP_NONOWNER ")
+            if guarded_children:
+                print(f"cleanup ownership control: guarded_children={guarded_children}", flush=True)
             pids = [int(value) for value in result.stdout.splitlines()[0].split()]
             self.assertEqual(len(pids), 2)
             for pid in pids:
                 with self.assertRaises(ProcessLookupError):
                     os.kill(pid, 0)
+
+    def test_subshell_exit_does_not_run_the_parent_cleanup(self):
+        script = (PROBE / "run.sh").read_text()
+        start = script.index("cleanup() {")
+        end = script.index("trap cleanup EXIT", start) + len("trap cleanup EXIT")
+        cleanup = script[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            driver = Path(directory) / "subshell.sh"
+            driver.write_text("set -euo pipefail\nadb_pid=\nemulator_pid=\n" + cleanup + "\n"
+                              "/bin/sleep 30 &\nadb_pid=$!\n"
+                              "( trap cleanup EXIT; exit 19 ) &\nhelper_pid=$!\n"
+                              "if wait \"$helper_pid\"; then child_status=0; else child_status=$?; fi\n"
+                              "test \"$child_status\" -eq 19\n"
+                              "kill -0 \"$adb_pid\"\n"
+                              "printf 'SUBSHELL_EXIT_ISOLATED\\n'\nexit 17\n")
+            result = capture_stdout(["/bin/bash", str(driver)], timeout_seconds=5,
+                                    maximum_bytes=4096)
+            self.assertEqual(result.returncode, 17, result.stdout)
+            self.assertIn(b"SUBSHELL_EXIT_ISOLATED\n", result.stdout)
 
 
 if __name__ == "__main__":
