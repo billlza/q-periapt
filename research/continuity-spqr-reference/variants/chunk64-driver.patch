@@ -1,0 +1,33 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 4d5b782..bd04d15 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -816 +815,0 @@ version = "1.5.1"
+-source = "git+https://github.com/signalapp/SparsePostQuantumRatchet?rev=f2589fef855c10f39d72634dab3d14654dd410bf#f2589fef855c10f39d72634dab3d14654dd410bf"
+diff --git a/Cargo.toml b/Cargo.toml
+index eaf6b83..d86bd4d 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -14 +14 @@ members = ["."]
+-spqr = { git = "https://github.com/signalapp/SparsePostQuantumRatchet", rev = "f2589fef855c10f39d72634dab3d14654dd410bf", features = ["test-utils"] }
++spqr = { path = "../upstream", features = ["test-utils"] }
+diff --git a/src/compromise.rs b/src/compromise.rs
+index 4349d82..456c581 100644
+--- a/src/compromise.rs
++++ b/src/compromise.rs
+@@ -59 +59 @@ impl PublicPacket {
+-            sender < 2 && (4..=52).contains(&wire.len()),
++            sender < 2 && (4..=84).contains(&wire.len()),
+diff --git a/src/main.rs b/src/main.rs
+index 3eeb70c..af921ed 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -180 +180 @@ fn scenario(output: &Path, name: &str) -> Result<Value> {
+-        "max_jump":25000,"max_out_of_order":2000,"chunk_bytes":32}),
++        "max_jump":25000,"max_out_of_order":2000,"chunk_bytes":64}),
+@@ -334 +334 @@ fn main() -> Result<()> {
+-    let report = json!({"schema":1,"upstream_revision":REVISION,"driver":"public_api_v1",
++    let report = json!({"schema":1,"upstream_revision":REVISION,"driver":"experimental_chunk64",
+@@ -342 +342 @@ fn main() -> Result<()> {
+-        "SPQR_REFERENCE_PASS scenarios=7 sends={} minimum_version=1",
++        "SPQR_CHUNK64_EXPERIMENT_PASS scenarios=7 sends={} minimum_version=1",

@@ -20,6 +20,10 @@ now derives actual exposed message keys from 84 captured endpoint states and the
 public transcript. Pending decapsulation keys expose an additional epoch in the
 duplex traces; all subsequent one-way keys remain derivable. Uncomputed keys are
 not labeled secure, and active/repeated compromise analysis remains open.
+The [64-byte experiment](../../research/continuity-spqr-reference/variants/README.md)
+adds a separately identified source patch and matched traffic/snapshot corpus.
+It advances epochs faster under duplex delivery at a higher per-message byte cost;
+one-way traffic still does not advance. It is not a component-conformant result.
 
 | Component | Selected public revision | Role | Boundary |
 |---|---|---|---|

@@ -55,12 +55,15 @@ These are component bytes, not complete application or Continuity traffic. Timin
 cover the actual SPQR send/receive call, including its state decoding/encoding;
 they exclude application AEAD, transport, durable storage and energy. Raw samples
 are retained without a performance pass threshold. A matched whole-KEM comparison,
-64-byte construction variant, controlled energy measurements and full compromise
+controlled energy measurements and full compromise
 analysis remain required before choosing the product ratchet profile. The
 [passive snapshot experiment](COMPROMISE_EXPERIMENT.md) now checks 84 actual state
 disclosures against sender message keys, including the additional epoch exposed
 by a stolen pending decapsulation key. It preserves the original wire corpus and
 does not equate failed prediction with proven recovery.
+An [isolated 64-byte experiment](variants/README.md) now measures the chunk-width
+tradeoff under the same schedules and snapshot cases. Its modified source, format
+and assurance scope remain separate from this pinned 32-byte baseline.
 
 ## Integration findings
 

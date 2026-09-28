@@ -55,8 +55,9 @@ def decode_json(data):
         raise ReferenceError(str(exc)) from exc
 
 
-def wire_fields(wire: bytes) -> tuple[int, int, int, int | None]:
-    require(4 <= len(wire) <= 52 and wire[0] == 1, "wrong wire size/version")
+def wire_fields(wire: bytes, *, chunk_bytes: int = 32) -> tuple[int, int, int, int | None]:
+    require(type(chunk_bytes) is int and chunk_bytes in (32, 64), "unsupported reference chunk profile")
+    require(4 <= len(wire) <= chunk_bytes + 20 and wire[0] == 1, "wrong wire size/version")
     at = 1
 
     def varint(maximum: int) -> int:
@@ -84,12 +85,12 @@ def wire_fields(wire: bytes) -> tuple[int, int, int, int | None]:
         require(at == len(wire), "unexpected payload")
     else:
         chunk_index = varint(65535)
-        require(len(wire) - at == 32, "wrong chunk length")
+        require(len(wire) - at == chunk_bytes, "wrong chunk length")
     return epoch, index, kind, chunk_index
 
 
-def wire_header(wire: bytes) -> tuple[int, int, int]:
-    epoch, index, kind, _ = wire_fields(wire)
+def wire_header(wire: bytes, *, chunk_bytes: int = 32) -> tuple[int, int, int]:
+    epoch, index, kind, _ = wire_fields(wire, chunk_bytes=chunk_bytes)
     return epoch, index, kind
 
 
@@ -134,12 +135,13 @@ def schedule(name: str) -> list[tuple[str, int]]:
     return result
 
 
-def verify_trace(path: Path, name: str) -> tuple[dict, str]:
+def verify_trace(path: Path, name: str, *, chunk_bytes: int = 32) -> tuple[dict, str]:
+    require(type(chunk_bytes) is int and chunk_bytes in (32, 64), "unsupported reference chunk profile")
     data = snapshot(path, 4 * 1024 * 1024)
     rows = [decode_json(line) for line in data.splitlines()]
     config = {"event": "configuration", "schema": 1, "upstream": REVISION, "scenario": name,
               "seed": SEED, "messages": MESSAGES, "version": 1, "minimum_version": 1,
-              "max_jump": 25000, "max_out_of_order": 2000, "chunk_bytes": 32}
+              "max_jump": 25000, "max_out_of_order": 2000, "chunk_bytes": chunk_bytes}
     require(rows and identical(rows[0], config), "configuration differs")
     require([(row.get("event"), row.get("sequence")) for row in rows[1:-1]] == schedule(name), "transport schedule differs")
     packets, statuses, indices = {}, {}, {}
@@ -152,9 +154,9 @@ def verify_trace(path: Path, name: str) -> tuple[dict, str]:
             sender = (0 if name == "one_way" or (name == "offline_then_exchange" and sequence < 256)
                       else int(sequence % 10 == 9) if name == "asymmetric" else sequence % 2)
             require(integer(row["sender"], 0, 1, "sender") == sender and sequence not in packets, "sender/sequence differs")
-            require(isinstance(row["wire"], str) and re.fullmatch(r"[0-9a-f]{8,104}", row["wire"]) is not None, "wire hex")
+            require(isinstance(row["wire"], str) and re.fullmatch(rf"[0-9a-f]{{8,{2*(chunk_bytes+20)}}}", row["wire"]) is not None, "wire hex")
             wire = bytes.fromhex(row["wire"])
-            epoch, index, _ = wire_header(wire)
+            epoch, index, _ = wire_header(wire, chunk_bytes=chunk_bytes)
             expected = indices.get((sender, epoch), 0) + 1
             require(index == expected, "message index skipped or reused")
             indices[(sender, epoch)] = index
@@ -201,8 +203,9 @@ def verify_trace(path: Path, name: str) -> tuple[dict, str]:
     return expected, hashlib.sha256(data).hexdigest()
 
 
-def verify_compromise(data: bytes, trace: bytes, name: str) -> dict:
+def verify_compromise(data: bytes, trace: bytes, name: str, *, chunk_bytes: int = 32) -> dict:
     """Check the public projection, never turn absent derivation into a security proof."""
+    require(type(chunk_bytes) is int and chunk_bytes in (32, 64), "unsupported reference chunk profile")
     report = decode_json(data)
     require(isinstance(report, dict) and set(report) == {"schema", "scenario", "upstream_revision", "public_test_entropy", "threat", "interpretation", "cases"}, "snapshot report fields")
     require(type(report["schema"]) is int and report["schema"] == 1 and report["scenario"] == name
@@ -216,12 +219,12 @@ def verify_compromise(data: bytes, trace: bytes, name: str) -> dict:
             sequence, sender = row["sequence"], row["sender"]
             if sequence in CUTS:
                 at_cut[sequence] = tuple(states)
-            epoch, _, kind, chunk_index = wire_fields(bytes.fromhex(row["wire"]))
+            epoch, _, kind, chunk_index = wire_fields(bytes.fromhex(row["wire"]), chunk_bytes=chunk_bytes)
             packets[sequence] = (sender, epoch - 1)
             if kind in (5, 6):
                 parts = ciphertext.setdefault((sender, epoch), {5: set(), 6: set()})
                 parts[kind].add(chunk_index)
-                if len(parts[5]) >= 30 and len(parts[6]) >= 5:
+                if len(parts[5]) >= (960+chunk_bytes-1)//chunk_bytes and len(parts[6]) >= (160+chunk_bytes-1)//chunk_bytes:
                     complete.setdefault((sender, epoch), sequence)
             states[sender] = row["state"]["epoch"]
         elif event == "receive":
@@ -258,17 +261,20 @@ def verify_compromise(data: bytes, trace: bytes, name: str) -> dict:
     return {"scenario": name, "sha256": hashlib.sha256(data).hexdigest(), "cases": summaries}
 
 
-def verify(directory: Path) -> dict:
+def verify(directory: Path, *, chunk_bytes: int = 32) -> dict:
+    require(type(chunk_bytes) is int and chunk_bytes in (32, 64), "unsupported reference chunk profile")
+    driver = "public_api_v1" if chunk_bytes == 32 else "experimental_chunk64"
+    provisional = (96+chunk_bytes-1)//chunk_bytes - 1
     report = decode_json(snapshot(directory / "report.json", 4 * 1024 * 1024))
     require(integer(report["schema"], 1, 1, "schema") == 1 and report["upstream_revision"] == REVISION
-            and report["driver"] == "public_api_v1" and report["production_claim_eligible"] is False, "report identity/claim differs")
+            and report["driver"] == driver and report["production_claim_eligible"] is False, "report identity/claim differs")
     require(identical(report["controls"], {"downgrade":"MinimumVersion", "unknown_version":"ignored_without_key_or_state_change",
-            "wrong_auth_provisional_key_mismatches":2, "wrong_auth_mac_rejected_at":2,
+            "wrong_auth_provisional_key_mismatches":provisional, "wrong_auth_mac_rejected_at":provisional,
             "outer_message_authentication_required_before_state_commit":True}), "negative controls differ")
     require(len(report["runs"]) == len(SCENARIOS), "scenario count")
     results, compromises = [], []
     for name, recorded in zip(SCENARIOS, report["runs"], strict=True):
-        summary, digest = verify_trace(directory / f"{name}.jsonl", name)
+        summary, digest = verify_trace(directory / f"{name}.jsonl", name, chunk_bytes=chunk_bytes)
         require(identical(recorded["summary"], summary) and recorded["trace_sha256"] == digest, "report/raw trace mismatch")
         for operation, count in (("send", MESSAGES), ("receive", summary["delivered"])):
             timing = recorded[operation]
@@ -283,7 +289,7 @@ def verify(directory: Path) -> dict:
         results.append({"scenario":name,"trace_sha256":digest,"summary":summary})
         trace = snapshot(directory / f"{name}.jsonl", 4 * 1024 * 1024)
         require(hashlib.sha256(trace).hexdigest() == digest, "trace changed before snapshot validation")
-        compromises.append(verify_compromise(snapshot(directory / f"{name}.compromise.json", 4 * 1024 * 1024), trace, name))
+        compromises.append(verify_compromise(snapshot(directory / f"{name}.compromise.json", 4 * 1024 * 1024), trace, name, chunk_bytes=chunk_bytes))
     return {"schema":1,"upstream_revision":REVISION,"verified_public_traces":results,
             "verified_snapshot_experiments":compromises,
             "key_agreement_evidence":"upstream outputs compared inside the pinned driver",

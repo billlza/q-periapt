@@ -18,6 +18,15 @@ class ReferenceTests(unittest.TestCase):
         for kind in (1,2,3,5,6):
             self.assertEqual(ref.wire_header(bytes([1,1,1,kind,0]) + bytes(32)), (1,1,kind))
 
+    def test_chunk64_requires_its_explicit_experiment_profile(self):
+        wire = bytes([1,1,1,1,0]) + bytes(64)
+        self.assertEqual(ref.wire_header(wire, chunk_bytes=64), (1,1,1))
+        with self.assertRaises(ref.ReferenceError): ref.wire_header(wire)
+        with self.assertRaises(ref.ReferenceError): ref.wire_header(wire[:-32], chunk_bytes=64)
+        for value in (True, 0, 16, 128, "64"):
+            with self.subTest(profile=value), self.assertRaises(ref.ReferenceError):
+                ref.wire_header(wire, chunk_bytes=value)
+
     def test_wire_rejects_overflow_aliases_unknown_types_and_trailing_data(self):
         malformed = [b"", bytes.fromhex("01000100"), bytes.fromhex("01010000"),
                      bytes.fromhex("0181000100"), bytes.fromhex("01010107"),

@@ -1662,6 +1662,28 @@ jobs:
           sh artifact/python-run.sh artifact/spqr_reference.py target/continuity-spqr-evidence/first \
             --compare target/continuity-spqr-evidence/repeated \
             --binary "$CARGO_TARGET_DIR/release/q-periapt-spqr-reference" > target/continuity-spqr-evidence/verification.json
+      - name: Compare isolated 64-byte experiment
+        env:
+          QPERIAPT_PYTHON: ${{ steps.reference_python.outputs.python-path }}
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-spqr-chunk64-build
+        run: |
+          set -eu
+          evidence=target/continuity-spqr-evidence
+          source="$evidence/chunk64-source"
+          sh artifact/python-run.sh artifact/spqr_chunk64.py prepare "$source" > "$evidence/chunk64-preparation.json"
+          cargo test --manifest-path "$source/upstream/Cargo.toml" --locked > "$evidence/chunk64-upstream-tests.log" 2>&1
+          cargo clippy --manifest-path "$source/driver/Cargo.toml" --locked --all-targets -- -D warnings
+          cargo test --manifest-path "$source/driver/Cargo.toml" --locked > "$evidence/chunk64-driver-tests.log" 2>&1
+          mkdir "$evidence/chunk64-regenerated-fixtures"
+          cargo run --manifest-path "$source/upstream/Cargo.toml" --locked --features test-utils \
+            --example chunk64_regression_fixture -- "$evidence/chunk64-regenerated-fixtures"
+          cargo run --manifest-path "$source/driver/Cargo.toml" --locked --release -- "$evidence/chunk64-first"
+          cargo run --manifest-path "$source/driver/Cargo.toml" --locked --release -- "$evidence/chunk64-repeated"
+          sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_spqr_chunk64"],warnings="error")'
+          sh artifact/python-run.sh artifact/spqr_chunk64.py verify --directory "$source" \
+            --first "$evidence/chunk64-first" --repeated "$evidence/chunk64-repeated" \
+            --baseline "$evidence/first" --binary "$CARGO_TARGET_DIR/release/q-periapt-spqr-reference" \
+            --fixtures "$evidence/chunk64-regenerated-fixtures" > "$evidence/chunk64-verification.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

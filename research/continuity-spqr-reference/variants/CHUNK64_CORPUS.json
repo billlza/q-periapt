@@ -1,0 +1,825 @@
+{
+  "profile": "experimental_chunk64",
+  "result": {
+    "schema": 1,
+    "upstream_revision": "f2589fef855c10f39d72634dab3d14654dd410bf",
+    "verified_public_traces": [
+      {
+        "scenario": "ping_pong",
+        "trace_sha256": "5dd9cb90976c89524861838a266918b2f566324842452ca8003d31e67bcf80ad",
+        "summary": {
+          "event": "summary",
+          "scenario": "ping_pong",
+          "sent": 2048,
+          "delivered": 2048,
+          "dropped": 0,
+          "duplicates_rejected": 0,
+          "unique_message_keys": 2048,
+          "wire_bytes": 120772,
+          "peak_wire_bytes": 69,
+          "peak_serialized_state_bytes": 6327,
+          "final_a": {
+            "bytes": 5813,
+            "epoch": 46,
+            "send_epoch": 45
+          },
+          "final_b": {
+            "bytes": 5224,
+            "epoch": 45,
+            "send_epoch": 45
+          }
+        }
+      },
+      {
+        "scenario": "lossy",
+        "trace_sha256": "bacee82c332e23a4aa72c1fc565d420198fbd40fa8b6a809a578217adedb4627",
+        "summary": {
+          "event": "summary",
+          "scenario": "lossy",
+          "sent": 2048,
+          "delivered": 1843,
+          "dropped": 205,
+          "duplicates_rejected": 0,
+          "unique_message_keys": 2048,
+          "wire_bytes": 119472,
+          "peak_wire_bytes": 69,
+          "peak_serialized_state_bytes": 6709,
+          "final_a": {
+            "bytes": 6197,
+            "epoch": 40,
+            "send_epoch": 39
+          },
+          "final_b": {
+            "bytes": 5557,
+            "epoch": 39,
+            "send_epoch": 39
+          }
+        }
+      },
+      {
+        "scenario": "reordered",
+        "trace_sha256": "b33394d951c133d26550615abeaccce4ea6f0b2e337d7f2c2c5cbc0a2e593aef",
+        "summary": {
+          "event": "summary",
+          "scenario": "reordered",
+          "sent": 2048,
+          "delivered": 2048,
+          "dropped": 0,
+          "duplicates_rejected": 0,
+          "unique_message_keys": 2048,
+          "wire_bytes": 126557,
+          "peak_wire_bytes": 69,
+          "peak_serialized_state_bytes": 6327,
+          "final_a": {
+            "bytes": 5606,
+            "epoch": 32,
+            "send_epoch": 32
+          },
+          "final_b": {
+            "bytes": 5687,
+            "epoch": 33,
+            "send_epoch": 32
+          }
+        }
+      },
+      {
+        "scenario": "duplicates",
+        "trace_sha256": "069e4f2cb27a66f7ace6655f526bb37aeb82691e2101fcdb7697401aed93703a",
+        "summary": {
+          "event": "summary",
+          "scenario": "duplicates",
+          "sent": 2048,
+          "delivered": 2048,
+          "dropped": 0,
+          "duplicates_rejected": 158,
+          "unique_message_keys": 2048,
+          "wire_bytes": 120772,
+          "peak_wire_bytes": 69,
+          "peak_serialized_state_bytes": 6327,
+          "final_a": {
+            "bytes": 5813,
+            "epoch": 46,
+            "send_epoch": 45
+          },
+          "final_b": {
+            "bytes": 5224,
+            "epoch": 45,
+            "send_epoch": 45
+          }
+        }
+      },
+      {
+        "scenario": "asymmetric",
+        "trace_sha256": "0f7421fefa14b0adeeef53f1f905a448d2f80921b5122da16f8f6af797701528",
+        "summary": {
+          "event": "summary",
+          "scenario": "asymmetric",
+          "sent": 2048,
+          "delivered": 2048,
+          "dropped": 0,
+          "duplicates_rejected": 0,
+          "unique_message_keys": 2048,
+          "wire_bytes": 83007,
+          "peak_wire_bytes": 71,
+          "peak_serialized_state_bytes": 6712,
+          "final_a": {
+            "bytes": 5095,
+            "epoch": 10,
+            "send_epoch": 10
+          },
+          "final_b": {
+            "bytes": 5553,
+            "epoch": 11,
+            "send_epoch": 10
+          }
+        }
+      },
+      {
+        "scenario": "offline_then_exchange",
+        "trace_sha256": "8f43804f202f491abf6a04c596585f63b73677c63050c2063e88c70d61ec35c5",
+        "summary": {
+          "event": "summary",
+          "scenario": "offline_then_exchange",
+          "sent": 2048,
+          "delivered": 2048,
+          "dropped": 0,
+          "duplicates_rejected": 0,
+          "unique_message_keys": 2048,
+          "wire_bytes": 123651,
+          "peak_wire_bytes": 71,
+          "peak_serialized_state_bytes": 6327,
+          "final_a": {
+            "bytes": 546,
+            "epoch": 40,
+            "send_epoch": 39
+          },
+          "final_b": {
+            "bytes": 4835,
+            "epoch": 39,
+            "send_epoch": 39
+          }
+        }
+      },
+      {
+        "scenario": "one_way",
+        "trace_sha256": "4a292b64f18f2f65e69abc8bb98fc7d22a16e818ddcf4d9dc74028dd12df8d6e",
+        "summary": {
+          "event": "summary",
+          "scenario": "one_way",
+          "sent": 2048,
+          "delivered": 2048,
+          "dropped": 0,
+          "duplicates_rejected": 0,
+          "unique_message_keys": 2048,
+          "wire_bytes": 145153,
+          "peak_wire_bytes": 71,
+          "peak_serialized_state_bytes": 3960,
+          "final_a": {
+            "bytes": 3960,
+            "epoch": 0,
+            "send_epoch": 0
+          },
+          "final_b": {
+            "bytes": 335,
+            "epoch": 0,
+            "send_epoch": 0
+          }
+        }
+      }
+    ],
+    "verified_snapshot_experiments": [
+      {
+        "scenario": "ping_pong",
+        "sha256": "86c6cd912eb495d1128880cd5f89cec9d700d57872f778989bea25c1b54aa42e",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 44,
+            "not_derived": 2004,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 44,
+            "not_derived": 2004,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 88,
+            "not_derived": 1959,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 43,
+            "not_derived": 2004,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 82,
+            "not_derived": 1959,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 82,
+            "not_derived": 1959,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 71,
+            "not_derived": 1914,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 71,
+            "not_derived": 1914,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 59,
+            "not_derived": 1734,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 59,
+            "not_derived": 1734,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 56,
+            "not_derived": 969,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 56,
+            "not_derived": 969,
+            "predicted_from_pending_epoch": 0
+          }
+        ]
+      },
+      {
+        "scenario": "lossy",
+        "sha256": "73ad35a1dd42942dfb989323febca4dffcfa973514185fa6425f18b84a44d89b",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 55,
+            "not_derived": 1993,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 55,
+            "not_derived": 1993,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 102,
+            "not_derived": 1945,
+            "predicted_from_pending_epoch": 48
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 54,
+            "not_derived": 1993,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 96,
+            "not_derived": 1945,
+            "predicted_from_pending_epoch": 48
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 96,
+            "not_derived": 1945,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 95,
+            "not_derived": 1890,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 95,
+            "not_derived": 1890,
+            "predicted_from_pending_epoch": 55
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 54,
+            "not_derived": 1739,
+            "predicted_from_pending_epoch": 47
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 54,
+            "not_derived": 1739,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 65,
+            "not_derived": 960,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 65,
+            "not_derived": 960,
+            "predicted_from_pending_epoch": 55
+          }
+        ]
+      },
+      {
+        "scenario": "reordered",
+        "sha256": "d82ff3fd3580dc0ddaf4f1862524bda450034c9a93cb7bc26a0d2e86766d7b6b",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 59,
+            "not_derived": 1989,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 59,
+            "not_derived": 1989,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 121,
+            "not_derived": 1926,
+            "predicted_from_pending_epoch": 63
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 58,
+            "not_derived": 1989,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 115,
+            "not_derived": 1926,
+            "predicted_from_pending_epoch": 63
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 52,
+            "not_derived": 1989,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 59,
+            "not_derived": 1926,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 59,
+            "not_derived": 1926,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 119,
+            "not_derived": 1674,
+            "predicted_from_pending_epoch": 63
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 56,
+            "not_derived": 1737,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 107,
+            "not_derived": 918,
+            "predicted_from_pending_epoch": 63
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 107,
+            "not_derived": 918,
+            "predicted_from_pending_epoch": 0
+          }
+        ]
+      },
+      {
+        "scenario": "duplicates",
+        "sha256": "e96f1de35e75536473dd966f372f955d1f9a16c46ada8662408c12753d3ce7d6",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 44,
+            "not_derived": 2004,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 44,
+            "not_derived": 2004,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 88,
+            "not_derived": 1959,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 43,
+            "not_derived": 2004,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 82,
+            "not_derived": 1959,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 82,
+            "not_derived": 1959,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 71,
+            "not_derived": 1914,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 71,
+            "not_derived": 1914,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 59,
+            "not_derived": 1734,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 59,
+            "not_derived": 1734,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 56,
+            "not_derived": 969,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 56,
+            "not_derived": 969,
+            "predicted_from_pending_epoch": 0
+          }
+        ]
+      },
+      {
+        "scenario": "asymmetric",
+        "sha256": "838bb6f20102a24eefb6fd0f5754c7463a2450b3346c599cdbbcef120c6395f9",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 180,
+            "not_derived": 1868,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 180,
+            "not_derived": 1868,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 388,
+            "not_derived": 1659,
+            "predicted_from_pending_epoch": 209
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 179,
+            "not_derived": 1868,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 382,
+            "not_derived": 1659,
+            "predicted_from_pending_epoch": 209
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 173,
+            "not_derived": 1868,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 326,
+            "not_derived": 1659,
+            "predicted_from_pending_epoch": 209
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 326,
+            "not_derived": 1659,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 315,
+            "not_derived": 1478,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 315,
+            "not_derived": 1478,
+            "predicted_from_pending_epoch": 181
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 327,
+            "not_derived": 698,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 327,
+            "not_derived": 698,
+            "predicted_from_pending_epoch": 181
+          }
+        ]
+      },
+      {
+        "scenario": "offline_then_exchange",
+        "sha256": "426247929e44861abb47558bd213c408ba55702405e61ea65aace6cac0ab9003",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 298,
+            "not_derived": 1750,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 298,
+            "not_derived": 1750,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 342,
+            "not_derived": 1705,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 297,
+            "not_derived": 1750,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 336,
+            "not_derived": 1705,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 291,
+            "not_derived": 1750,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 280,
+            "not_derived": 1705,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 235,
+            "not_derived": 1750,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 88,
+            "not_derived": 1705,
+            "predicted_from_pending_epoch": 45
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 43,
+            "not_derived": 1750,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 85,
+            "not_derived": 940,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 85,
+            "not_derived": 940,
+            "predicted_from_pending_epoch": 45
+          }
+        ]
+      },
+      {
+        "scenario": "one_way",
+        "sha256": "d51ea29e75fba2fb0554b08c7ca3477cf1458c1af89300861cf725911359f6ba",
+        "cases": [
+          {
+            "cut_before_send": 0,
+            "owner": 0,
+            "predicted": 2048,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 0,
+            "owner": 1,
+            "predicted": 2048,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 0,
+            "predicted": 2047,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1,
+            "owner": 1,
+            "predicted": 2047,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 0,
+            "predicted": 2041,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 7,
+            "owner": 1,
+            "predicted": 2041,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 0,
+            "predicted": 1985,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 63,
+            "owner": 1,
+            "predicted": 1985,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 0,
+            "predicted": 1793,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 255,
+            "owner": 1,
+            "predicted": 1793,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 0,
+            "predicted": 1025,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          },
+          {
+            "cut_before_send": 1023,
+            "owner": 1,
+            "predicted": 1025,
+            "not_derived": 0,
+            "predicted_from_pending_epoch": 0
+          }
+        ]
+      }
+    ],
+    "key_agreement_evidence": "upstream outputs compared inside the pinned driver",
+    "production_claim_eligible": false
+  }
+}
