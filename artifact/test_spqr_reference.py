@@ -27,7 +27,7 @@ class ReferenceTests(unittest.TestCase):
                 ref.wire_header(wire)
 
     def test_json_and_integer_admission_reject_ambiguous_values(self):
-        for data in ('{"schema":1,"schema":2}', '{"number":NaN}', '{"number":Infinity}'):
+        for data in ('{"schema":1,"schema":2}', '{"number":NaN}', '{"number":Infinity}', '{"number":1e999}', b'{"text":"\xff"}'):
             with self.assertRaises(ref.ReferenceError): ref.decode_json(data)
         for value in (True,False,1.0,"1",None):
             with self.assertRaises(ref.ReferenceError): ref.integer(value,0,5,"test")
@@ -52,6 +52,20 @@ class ReferenceTests(unittest.TestCase):
             link = Path(folder)/"link.jsonl"
             link.symlink_to(path)
             with self.assertRaises(ref.ReferenceError): ref.snapshot(link,1024)
+
+    def test_snapshot_rejects_ancestor_link_parent_traversal_and_oversized_input(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            real = root/"real"
+            real.mkdir()
+            data = real/"input"
+            data.write_bytes(b"evidence")
+            alias = root/"alias"
+            alias.symlink_to(real, target_is_directory=True)
+            for path, maximum in ((alias/"input",1024),(real/".."/"real"/"input",1024),(data,2)):
+                with self.subTest(path=path,maximum=maximum), self.assertRaises(ref.ReferenceError):
+                    ref.snapshot(path,maximum)
+            self.assertEqual(ref.snapshot(data,1024),b"evidence")
 
     def test_reference_stays_separate_from_sdk_graph(self):
         manifest = ROOT/"research/continuity-spqr-reference/Cargo.toml"

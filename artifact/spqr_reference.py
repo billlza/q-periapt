@@ -13,6 +13,7 @@ import re
 import tomllib
 import platform
 from artifact.bounded_process import capture_output
+from artifact.evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
 
 REVISION = "f2589fef855c10f39d72634dab3d14654dd410bf"
 TREE = "7286f31638620152a770f6c4d2e86ac6862a0319"
@@ -42,15 +43,13 @@ def identical(first, second) -> bool:
 
 
 def decode_json(data):
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            require(key not in result, "duplicate JSON field")
-            result[key] = value
-        return result
-    def constant(_):
-        raise ReferenceError("non-finite JSON value")
-    return json.loads(data, object_pairs_hook=pairs, parse_constant=constant)
+    try:
+        return parse_strict_json_bytes(
+            data.encode("utf-8") if isinstance(data, str) else data,
+            label="SPQR reference JSON",
+        )
+    except EvidenceIOError as exc:
+        raise ReferenceError(str(exc)) from exc
 
 
 def wire_header(wire: bytes) -> tuple[int, int, int]:
@@ -94,13 +93,11 @@ def metadata(value: dict) -> dict:
 
 
 def snapshot(path: Path, maximum: int) -> bytes:
-    require(path.is_file() and not path.is_symlink(), "missing or symlink evidence file")
-    before = path.stat()
-    require(0 < before.st_size <= maximum, "evidence size bound")
-    data = path.read_bytes()
-    after = path.stat()
-    require((before.st_ino, before.st_size, before.st_mtime_ns) ==
-            (after.st_ino, after.st_size, after.st_mtime_ns), "evidence changed during read")
+    try:
+        data = read_regular_snapshot(path, maximum=maximum, label="SPQR reference evidence").data
+    except EvidenceIOError as exc:
+        raise ReferenceError(str(exc)) from exc
+    require(bool(data), "empty SPQR reference evidence")
     return data
 
 
