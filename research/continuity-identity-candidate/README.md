@@ -96,15 +96,16 @@ device and policy [signing owners](SIGNING_OWNERS.md) can now be provisioned int
 encrypted immutable files before enrollment and restored for unfinished signing.
 The journal's [write intents](WRITE_INTENTS.md) also preserve exact sealed target
 bytes across interrupted state commits. Cryptographic erasure and the wider
-identity lifecycle remain open. This is not yet
-a ratchet, byte-identical anchor-intent replay
-or rollback protection; the complete 0.2.0 store contract remains required.
+identity lifecycle remain open. This is not yet a ratchet; the complete 0.2.0
+store contract remains required.
 
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
 trusted enrollment from journal genesis, durable full-head/fence comparison and
 unknown-outcome recovery. Fresh challenges and one-result-per-attempt admission
-reject stale or cancelled replies. It is not yet connected to journal state/release
-gates or a signed required-anchor policy. Its independent storage trust and explicit
+reject stale or cancelled replies. The [required-anchor profile](REQUIRED_ANCHOR.md)
+binds its identity into the signed policy and the encrypted journal, gates state
+application and output, and reconciles exact saved commands after unknown outcomes.
+Its independent storage trust and explicit
 whole-witness rollback counterexample remain part of the acceptance boundary.
 
 ## Exact candidate encoding

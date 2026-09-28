@@ -24,17 +24,19 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v6");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v7");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
 const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
+mod anchoring;
 mod initiator;
 mod prekeys;
 mod responder;
 mod write_intent;
+use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
@@ -79,6 +81,10 @@ pub enum DurableError {
     Capacity,
     /// This stage requires its original signing/prekey owner before it can resume.
     Suspended,
+    /// This journal or policy requires an attached authenticated witness.
+    AnchorRequired,
+    /// Fresh witness evidence is unavailable or conflicts with the saved state.
+    Anchor(Box<crate::AnchorClientError>),
     /// This exact input already has a durable definitive-failure record.
     Rejected,
     /// Original cryptographic, policy, expiry or runtime failure.
@@ -102,6 +108,8 @@ impl fmt::Display for DurableError {
             Self::KeyRetired => "prekey inventory entry is retired",
             Self::Capacity => "journal capacity exhausted",
             Self::Suspended => "reserved computation requires reconciliation",
+            Self::AnchorRequired => "authenticated witness is required",
+            Self::Anchor(_) => "journal witness admission failed",
             Self::Rejected => "operation has a durable failure record",
             Self::Protocol(_) => "authenticated bootstrap failed",
         })
@@ -114,6 +122,7 @@ impl std::error::Error for DurableError {
             Self::Io(e) => Some(e),
             Self::Storage(e) => Some(e),
             Self::CommitUncertain(e) => Some(e),
+            Self::Anchor(e) => Some(e.as_ref()),
             Self::Protocol(e) | Self::InvalidCheckpoint(e) => Some(e),
             _ => None,
         }
@@ -122,6 +131,11 @@ impl std::error::Error for DurableError {
 impl From<Error> for DurableError {
     fn from(e: Error) -> Self {
         Self::Protocol(e)
+    }
+}
+impl From<crate::AnchorClientError> for DurableError {
+    fn from(error: crate::AnchorClientError) -> Self {
+        Self::Anchor(Box::new(error))
     }
 }
 impl From<io::Error> for DurableError {
@@ -331,6 +345,7 @@ struct Image {
     owner: [u8; 32],
     revision: u64,
     digest: [u8; 32],
+    protection: Protection,
     records: BTreeMap<[u8; 32], Record>,
 }
 impl Image {
@@ -346,12 +361,15 @@ struct Active {
     key: JournalKey,
     owner: [u8; 32],
     id: [u8; 32],
+    protection: Protection,
+    anchor: Option<AttachedAnchor>,
 }
 
 /// Owned, encrypted macOS/Linux device journal with an exclusive database
 /// lifetime lock. Every successful response is persisted before bytes are returned.
-/// It enforces local commit ordering and claims across all contexts for one device;
-/// it does not establish freshness after restoring an entire older database.
+/// It enforces commit ordering and claims across all contexts for one device.
+/// Required-anchor policies also require fresh evidence from their pinned witness;
+/// local-only policies do not detect restoration of an entire older database.
 pub struct DeviceJournal {
     active: Option<Active>,
 }
@@ -362,6 +380,14 @@ impl DeviceJournal {
         key: JournalKey,
         device: &VerifiedDevice,
     ) -> Result<Self, DurableError> {
+        Self::provision_with_protection(path, key, device, Protection::Local)
+    }
+    fn provision_with_protection(
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        protection: Protection,
+    ) -> Result<Self, DurableError> {
         let owner = bootstrap::storage_owner(device);
         let mut id = [0u8; 32];
         getrandom::fill(&mut id).map_err(|_| Error::Entropy)?;
@@ -371,6 +397,7 @@ impl DeviceJournal {
             owner,
             revision: 1,
             digest: [0; 32],
+            protection,
             records: BTreeMap::new(),
         };
         let sealed = seal(&key, &image)?;
@@ -387,7 +414,14 @@ impl DeviceJournal {
                 .commit()
                 .map_err(DurableError::CommitUncertain)?;
             Ok(Self {
-                active: Some(Active { db, key, owner, id }),
+                active: Some(Active {
+                    db,
+                    key,
+                    owner,
+                    id,
+                    protection,
+                    anchor: None,
+                }),
             })
         })
     }
@@ -407,6 +441,8 @@ impl DeviceJournal {
                 key,
                 owner,
                 id: image.id,
+                protection: image.protection,
+                anchor: None,
             }),
         })
     }
@@ -428,8 +464,12 @@ impl DeviceJournal {
         device: &VerifiedDevice,
         policy: &crate::VerifiedSessionPolicy,
     ) -> Result<crate::AnchorGenesis, DurableError> {
-        let image = self.image()?;
+        self.check_policy(policy)?;
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let image = load(&active.db, &active.key, active.owner)?;
         if image.owner != bootstrap::storage_owner(device)
+            || image.id != active.id
+            || image.protection != active.protection
             || image.revision != 1
             || !image.records.is_empty()
         {
@@ -444,9 +484,10 @@ impl DeviceJournal {
     }
 
     fn image(&mut self) -> Result<Image, DurableError> {
-        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let active = self.active.as_mut().ok_or(DurableError::Closed)?;
         let result = load(&active.db, &active.key, active.owner).and_then(|image| {
-            if image.id == active.id {
+            if image.id == active.id && image.protection == active.protection {
+                active.check_current(&image)?;
                 Ok(image)
             } else {
                 Err(DurableError::Conflict)
@@ -460,7 +501,10 @@ impl DeviceJournal {
     fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
         let result = (|| {
             prekeys::validate_image(image)?;
-            let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+            if image.protection != active.protection || image.id != active.id {
+                return Err(DurableError::Conflict);
+            }
             image.revision = image
                 .revision
                 .checked_add(1)
@@ -469,6 +513,7 @@ impl DeviceJournal {
             let sealed = seal(&active.key, image)?;
             write_intent::commit(active, image, &sealed)?;
             image.digest = image_hash(&sealed);
+            active.check_current(image)?;
             #[cfg(all(test, unix))]
             tests::after_commit(image);
             Ok(())
@@ -492,6 +537,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         initial: &[u8],
     ) -> Result<[u8; 32], DurableError> {
+        self.check_policy(context.policy())?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         if context.storage_owner() != active.owner {
             return Err(DurableError::Conflict);
@@ -546,6 +592,7 @@ impl DeviceJournal {
             self.persist(image)?;
         }
         context.check(now)?;
+        self.check_release(image)?;
         Ok(reply)
     }
     fn restore_record(
@@ -603,6 +650,7 @@ impl DeviceJournal {
             self.persist(&mut image)?;
         }
         context.check(now)?;
+        self.check_release(&image)?;
         Ok(session)
     }
 }
@@ -648,7 +696,8 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG06".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG07".to_vec());
+    image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
@@ -672,7 +721,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT006".to_vec();
+    let mut wire = b"QPVLT007".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -695,11 +744,11 @@ fn unseal(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image, Durab
     }
 }
 fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image, DurableError> {
-    if !(HEADER + 16 + 10..=HEADER + 16 + MAX_IMAGE).contains(&wire.len()) {
+    if !(HEADER + 16 + 83..=HEADER + 16 + MAX_IMAGE).contains(&wire.len()) {
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT006" {
+    if outer.array::<8>()? != *b"QPVLT007" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -725,9 +774,10 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG06" {
+    if inner.array::<8>()? != *b"QPVIMG07" {
         return Err(DurableError::Corrupt);
     }
+    let protection = Protection::decode(&mut inner)?;
     let count = usize::from(inner.u16()?);
     if count > MAX_RECORDS + prekeys::MAX_PREKEY_RECORDS {
         return Err(DurableError::Capacity);
@@ -798,6 +848,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         owner,
         revision,
         digest: image_hash(wire),
+        protection,
         records,
     };
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;

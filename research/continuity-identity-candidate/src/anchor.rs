@@ -11,6 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 mod store;
 pub use store::AnchorStore;
+mod transport;
+pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};
 
 /// Independently provisioned identity of one witness instance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -440,6 +440,8 @@ pub(super) fn fault_store(
                 key,
                 owner,
                 id: image.id,
+                protection: image.protection,
+                anchor: None,
             }),
         },
         remaining,

@@ -17,6 +17,7 @@ pub(super) struct PendingWrite {
     next_digest: [u8; 32],
     target: Vec<u8>,
     wire: Vec<u8>,
+    protection: Protection,
 }
 impl PendingWrite {
     fn new(active: &Active, image: &Image, target: &[u8]) -> Result<Self, DurableError> {
@@ -53,7 +54,7 @@ impl PendingWrite {
         id: [u8; 32],
         wire: &[u8],
     ) -> Result<Self, DurableError> {
-        if !(INTENT_HEADER + HEADER + 16 + 10 + 32..=INTENT_HEADER + MAX_TARGET + 32)
+        if !(INTENT_HEADER + HEADER + 16 + 83 + 32..=INTENT_HEADER + MAX_TARGET + 32)
             .contains(&wire.len())
         {
             return Err(DurableError::Corrupt);
@@ -98,10 +99,14 @@ impl PendingWrite {
             next_digest,
             target,
             wire: wire.to_vec(),
+            protection: next.protection,
         })
     }
     fn check_current(&self, current: &Image) -> Result<(), DurableError> {
-        if current.revision == self.expected_revision && current.digest == self.expected_digest {
+        if current.revision == self.expected_revision
+            && current.digest == self.expected_digest
+            && current.protection == self.protection
+        {
             Ok(())
         } else {
             Err(DurableError::Conflict)
@@ -175,12 +180,28 @@ fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
     tx.commit().map_err(DurableError::CommitUncertain)
 }
 
-pub(super) fn commit(active: &Active, image: &Image, target: &[u8]) -> Result<(), DurableError> {
+pub(super) fn commit(
+    active: &mut Active,
+    image: &Image,
+    target: &[u8],
+) -> Result<(), DurableError> {
     let pending = PendingWrite::new(active, image, target)?;
     reserve(active, &pending)?;
     #[cfg(all(test, unix))]
     tests::after_intent(&pending, image);
-    apply(&active.db, &pending)
+    reconcile(active, &pending)
+}
+
+pub(super) fn reconcile(active: &mut Active, pending: &PendingWrite) -> Result<(), DurableError> {
+    if pending.protection != active.protection {
+        return Err(DurableError::Conflict);
+    }
+    active.advance_anchor(
+        pending.expected_revision,
+        pending.expected_digest,
+        pending.next_digest,
+    )?;
+    apply(&active.db, pending)
 }
 
 fn reserve(active: &Active, pending: &PendingWrite) -> Result<(), DurableError> {
@@ -214,6 +235,9 @@ pub(super) fn recover(
     let (image, pending) = load_snapshot(db, key, owner)?;
     if image.id != expected_id.0 {
         return Err(DurableError::Conflict);
+    }
+    if image.protection != Protection::Local {
+        return Err(DurableError::AnchorRequired);
     }
     if let Some(pending) = pending {
         apply(db, &pending)?;

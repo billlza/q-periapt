@@ -21,8 +21,9 @@ mod session_policy;
 mod tests;
 
 pub use anchor::{
-    AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
-    AnchorPin, AnchorReply, AnchorRequest, AnchorStore, AnchorSubject,
+    AnchorClient, AnchorClientError, AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity,
+    AnchorOperation, AnchorOutcome, AnchorPin, AnchorReply, AnchorRequest, AnchorStore,
+    AnchorSubject, AnchorTcpTransport, AnchorTransport,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
@@ -48,8 +49,8 @@ pub use selection::{
     AuthenticatedPrekeySelection, ClassicalChoice, PqChoice, PrekeyQuality, PREKEY_SELECTION_BYTES,
 };
 pub use session_policy::{
-    bootstrap_suite_digest, AllowedPrekeyModes, IssuedSessionPolicy, PolicyCheckpoint, PolicyPin,
-    SessionPolicyParameters, VerifiedSessionPolicy,
+    bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, IssuedSessionPolicy,
+    PolicyCheckpoint, PolicyPin, SessionPolicyParameters, VerifiedSessionPolicy,
 };
 
 use std::fmt;

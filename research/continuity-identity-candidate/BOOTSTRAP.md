@@ -16,9 +16,16 @@ those trusted expectations. Policy and roster replacement still need the service
 durable transaction fence.
 
 The protocol policy uses both ML-DSA-65 and P-256/SHA-256 signatures, purpose **4**
-under the identity candidate's envelope. Its 165-byte body is:
+under the identity candidate's envelope. Its 198-byte version-2 body is:
 
-`QPSESP01[8] || family[32] || version:u64 || interval[16] || suite[32] || sdk[68] || modes:u8`
+`QPSESP02[8] || family[32] || version:u64 || interval[16] || suite[32] || sdk[68] || modes:u8 || anchor_mode:u8 || witness_binding[32]`
+
+`anchor_mode=0` explicitly selects local persistence and requires a zero witness
+binding. `anchor_mode=1` requires the exact nonzero `AnchorPin::binding()`; unknown
+modes and inconsistent encodings fail. Version-1 bodies are rejected. The witness
+requirement is signed and part of the exact policy digest, hence the bootstrap
+context. Required policies reject the public volatile start/respond APIs and local
+journals; they use the [anchored journal](REQUIRED_ANCHOR.md).
 
 `family = D("POLICY-AUTHORITY", policy public pair)` and the exact policy checkpoint
 is `(version, D("SESSION-POLICY", body))`, where `D` is defined in [README](README.md).

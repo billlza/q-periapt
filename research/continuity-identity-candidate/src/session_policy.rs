@@ -11,7 +11,7 @@ use std::sync::{
     Arc,
 };
 
-const POLICY_TAG: &[u8; 8] = b"QPSESP01";
+const POLICY_TAG: &[u8; 8] = b"QPSESP02";
 const POLICY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1";
 const FAMILY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1";
 
@@ -52,20 +52,61 @@ impl AllowedPrekeyModes {
     }
 }
 
-/// Issuer-selected version, time window and explicit bootstrap permissions.
+/// Explicit signed local-persistence or pinned-witness requirement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AnchorRequirement(Option<[u8; 32]>);
+impl AnchorRequirement {
+    /// Explicit commit-order-only profile, with no rollback-anchor assurance.
+    pub fn local_only() -> Self {
+        Self(None)
+    }
+    /// Require this exact independently pinned witness instance and key.
+    pub fn required(pin: &crate::AnchorPin) -> Self {
+        Self(Some(pin.binding()))
+    }
+    /// Signed witness binding, or the explicitly selected local-only profile.
+    pub fn binding(self) -> Option<[u8; 32]> {
+        self.0
+    }
+    fn encode(self, out: &mut Vec<u8>) {
+        out.push(u8::from(self.0.is_some()));
+        out.extend_from_slice(&self.0.unwrap_or([0; 32]));
+    }
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
+        let [mode] = d.array()?;
+        let binding = d.array()?;
+        match mode {
+            0 if binding == [0; 32] => Ok(Self(None)),
+            1 => {
+                nonzero(&binding)?;
+                Ok(Self(Some(binding)))
+            }
+            _ => Err(Error::Encoding),
+        }
+    }
+}
+
+/// Issuer-selected version, time window, bootstrap modes and anchor requirement.
 pub struct SessionPolicyParameters {
     version: u64,
     validity: Validity,
     modes: AllowedPrekeyModes,
+    anchor: AnchorRequirement,
 }
 impl SessionPolicyParameters {
     /// Validate the content revision. Its durable monotonic issuance is a host duty.
-    pub fn new(version: u64, validity: Validity, modes: AllowedPrekeyModes) -> Result<Self, Error> {
+    pub fn new(
+        version: u64,
+        validity: Validity,
+        modes: AllowedPrekeyModes,
+        anchor: AnchorRequirement,
+    ) -> Result<Self, Error> {
         generation(version)?;
         Ok(Self {
             version,
             validity,
             modes,
+            anchor,
         })
     }
 }
@@ -126,7 +167,7 @@ impl PolicySigningKey {
         if parameters.modes.0 != 0 && !runtime.is_enabled()? {
             return Err(Error::PolicyDenied);
         }
-        let mut body = Vec::with_capacity(165);
+        let mut body = Vec::with_capacity(198);
         body.extend_from_slice(POLICY_TAG);
         body.extend_from_slice(&self.policy_family()?);
         body.extend_from_slice(&parameters.version.to_be_bytes());
@@ -134,6 +175,7 @@ impl PolicySigningKey {
         body.extend_from_slice(&bootstrap_suite_digest());
         body.extend_from_slice(&sdk);
         body.push(parameters.modes.0);
+        parameters.anchor.encode(&mut body);
         let checkpoint =
             PolicyCheckpoint::from_trusted_state(parameters.version, digest(POLICY_DOMAIN, &body))?;
         let wire = envelope(&body, &self.sign(Purpose::SessionPolicy, &body)?)?;
@@ -195,6 +237,7 @@ impl PolicyPin {
         }
         let [modes] = decoder.array()?;
         let modes = AllowedPrekeyModes::decode(modes)?;
+        let anchor = AnchorRequirement::decode(&mut decoder)?;
         decoder.finish()?;
         if modes.0 != 0 && !runtime.is_enabled()? {
             return Err(Error::PolicyDenied);
@@ -205,6 +248,7 @@ impl PolicyPin {
             checkpoint,
             validity,
             modes,
+            anchor,
             sdk,
             closed: AtomicBool::new(false),
             signer: self.root.clone(),
@@ -219,11 +263,16 @@ pub struct VerifiedSessionPolicy {
     checkpoint: PolicyCheckpoint,
     validity: Validity,
     modes: AllowedPrekeyModes,
+    anchor: AnchorRequirement,
     sdk: [u8; 68],
     closed: AtomicBool,
     signer: PublicKey,
 }
 impl VerifiedSessionPolicy {
+    /// Exact signed requirement. Reading it does not refresh policy authority or time.
+    pub fn anchor_requirement(&self) -> AnchorRequirement {
+        self.anchor
+    }
     pub(crate) fn check_device(&self, device: &VerifiedDevice, now: u64) -> Result<(), Error> {
         if device.description.family != self.family {
             return Err(Error::Scope);

@@ -38,18 +38,25 @@ reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v6`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v7`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT006[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT007[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG06[8] || count:u16 || records`
+`QPVIMG07[8] || protection[73] || count:u16 || records`
+
+`protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
+Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and
+witness digests and a fence in `1..u64::MAX`. Provisioning starts at fence 1;
+ordinary recovery cannot replace it. The [required-anchor contract](REQUIRED_ANCHOR.md)
+checks this metadata before applying any pending intent. Old tables/images are
+rejected; this candidate provides no implicit migration.
 
 Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
 fingerprints[key_count*32] || reference_count:u8 || prekeys[reference_count*32] ||
@@ -327,10 +334,13 @@ matching owners for unfinished operations. Cryptographic erasure, durable identi
 rotation/revocation, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
 multi-device transactions remain implementation work. Local write intents now retain
-the exact outer encrypted aggregate across state-write retries. The external anchor
-plan and the rest of G1's complete effect lifecycle remain required.
+the exact outer encrypted aggregate across state-write retries. Required-anchor
+journals derive their immutable witness command from that intent and verify fresh
+evidence at open, state application and result release. The rest of G1's complete
+effect lifecycle remains required.
 
-Store identity does not detect an older snapshot of the same journal. Old encrypted
-pages remain decryptable with the wrapping key. The external monotonic checkpoint,
-anchor reconciliation, backup/erasure model and complete wire/state/budget lock
-remain required in **0.2.0** before product promotion.
+Store identity alone does not detect an older snapshot of the same journal. The
+required-anchor profile rejects it while the independent witness retains its newer
+head. Old encrypted pages remain decryptable with the wrapping key. Witness
+deployment, backup/erasure model and complete wire/state/budget lock remain required
+in **0.2.0** before product promotion.

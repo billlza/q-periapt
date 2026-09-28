@@ -216,6 +216,7 @@ fn bootstrap_vectors(directory: &Path, anchors: bool) -> Result<(), Box<dyn Erro
             1,
             validity,
             AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth])?,
+            q_periapt_continuity_identity_candidate::AnchorRequirement::local_only(),
         )?,
     )?;
     save(

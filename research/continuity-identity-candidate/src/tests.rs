@@ -748,6 +748,17 @@ pub(super) fn session_policy_fixture(
     PolicyPin,
     Arc<q_periapt_sdk::Runtime>,
 ) {
+    session_policy_fixture_with_anchor(modes, AnchorRequirement::local_only())
+}
+pub(crate) fn session_policy_fixture_with_anchor(
+    modes: &[PrekeyQuality],
+    anchor: AnchorRequirement,
+) -> (
+    PolicySigningKey,
+    IssuedSessionPolicy,
+    PolicyPin,
+    Arc<q_periapt_sdk::Runtime>,
+) {
     let signer = PolicySigningKey::deterministic([82; 32], [83; 32]).expect("policy signer");
     let runtime = sdk_runtime();
     let issued = signer
@@ -757,6 +768,7 @@ pub(super) fn session_policy_fixture(
                 1,
                 interval(),
                 AllowedPrekeyModes::new(modes).expect("explicit modes"),
+                anchor,
             )
             .expect("parameters"),
         )
@@ -859,6 +871,7 @@ fn protocol_policy_rejects_signature_and_checkpoint_substitution() {
                 1,
                 interval(),
                 AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth]).expect("modes"),
+                AnchorRequirement::local_only(),
             )
             .expect("parameters"),
         )
@@ -883,12 +896,14 @@ fn protocol_policy_rejects_signature_and_checkpoint_substitution() {
 fn correctly_resigned_protocol_policy_cannot_override_profile_family_or_sdk_binding() {
     let (signer, issued, _, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
     let (body, _) = open_envelope(issued.as_bytes()).expect("body");
-    assert_eq!(body.len(), 165);
+    assert_eq!(body.len(), 198);
     for (offset, expected) in [
         (8, Error::Scope),
         (64, Error::Scope),
         (96, Error::Scope),
         (164, Error::Encoding),
+        (165, Error::Encoding),
+        (166, Error::Encoding),
     ] {
         let mut changed = body.to_vec();
         *changed.get_mut(offset).expect("field") ^= 0x80;

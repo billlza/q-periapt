@@ -43,8 +43,11 @@ the existing public-commitment model into a working cryptographic protocol.
   Protected signing files restore unfinished operations, and local write intents
   preserve exact sealed target bytes across state-write retries. A separate witness
   provider now signs fresh, command-bound receipts after real state/fence commits;
-  journal release integration and signed required-anchor policy remain open. Durable identity lifecycle,
-  cryptographic erasure, ratchet, exact anchor-intent replay and
+  signed required-anchor policy and journal admission/application/release gates now
+  reconcile the exact command derived from each durable write intent. Restored
+  client snapshots fail against a newer witness head; witness storage remains an
+  independent trust boundary. Durable identity lifecycle,
+  cryptographic erasure, ratchet and
   rollback protection remain required work.
 
 ## Required completion evidence

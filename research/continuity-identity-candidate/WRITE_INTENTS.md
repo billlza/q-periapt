@@ -60,7 +60,7 @@ advance.
 
 ## Encoding and bounds
 
-The single table `continuity_device_candidate_v6` accepts exactly the `image` row
+The single table `continuity_device_candidate_v7` accepts exactly the `image` row
 and, while a write is pending, one `pending` row. The current image uses the
 [v6 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
 rows are rejected.
@@ -101,9 +101,10 @@ cover every sync in both transactions, retaining real confirmation and atomic
 consumption assertions. Byte mutations, valid-MAC malformed records, stale/forked
 prior digests, wrong expected identity and exact duplicate application are checked.
 
-This implements local write-intent ordering and recovery. An external rollback
-anchor, durable fencing across an external provider, complete policy/roster fences,
+This implements local write-intent ordering and recovery. The
+[required-anchor profile](REQUIRED_ANCHOR.md) also derives the same full-head
+advance from the saved intent, verifies the witness before local application, and
+requires fresh queries before usable output. Complete policy/roster fences,
 suspension records, release acknowledgements, cancellation and multi-device atomicity
-remain part of the full 0.2.0 contract. Restoring an older complete database can
-still restore its old valid image and intents; store identity alone is not a
-monotonic anchor. No anchored assurance is emitted by this candidate.
+remain part of the full 0.2.0 contract. Local-only mode can still restore an older
+valid image; store identity alone is not a monotonic anchor.

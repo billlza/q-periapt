@@ -48,6 +48,40 @@ fn disk_image(db: &Database) -> Vec<u8> {
 }
 
 #[test]
+fn authenticated_intent_cannot_change_journal_protection_metadata() {
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let dir = directory();
+    let path = dir.path().canonicalize().expect("path");
+    let (store, pending) = proposal(&path, &f);
+    let active = store.active.as_ref().expect("active");
+    let original = disk_image(&active.db);
+    let mut changed = unseal(&active.key, active.owner, &pending.target).expect("valid target");
+    changed.digest = pending.expected_digest;
+    changed.protection = Protection::Required {
+        policy: [12; 32],
+        witness: [13; 32],
+        fence: 1,
+    };
+    let target = seal(&active.key, &changed).expect("authenticated target with changed profile");
+    let intent = PendingWrite::new(active, &changed, &target).expect("valid intent MAC");
+    reserve(active, &intent).expect("persist adversarial authenticated fixture");
+    assert!(matches!(
+        load_snapshot(&active.db, &active.key, active.owner),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        recover(
+            &active.db,
+            &active.key,
+            active.owner,
+            JournalIdentity(active.id)
+        ),
+        Err(DurableError::Conflict)
+    ));
+    assert_eq!(disk_image(&active.db), original);
+}
+
+#[test]
 fn pending_ciphertext_is_applied_exactly_once_and_reopening_checks_identity_first() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let dir = directory();

@@ -2,9 +2,9 @@
 
 `AnchorStore` is a real persistent compare-and-advance provider with authenticated
 device requests and ML-DSA-65 **and** P-256 witness replies. It provides the witness
-side of the rollback-anchor contract. **It is not yet connected to the device
-journal's state-application or release gates.** Signed anchor requirements in the
-session policy, durable client-side anchor plans, network deadlines and the complete
+side of the rollback-anchor contract. The [required-anchor journal](REQUIRED_ANCHOR.md)
+now connects signed witness requirements, exact durable commands and bounded TCP
+exchanges to state-application and release gates. Deployment and the complete
 rollback recovery workflow remain required in 0.2.0. The SDK ABI stays **2**.
 
 ## Authority and enrollment
@@ -143,5 +143,6 @@ A retained counterexample restores the witness database itself and obtains an ol
 valid head: this software provider does not supply hardware anti-rollback or protect
 its own authority from whole-store restoration. The process test does not establish
 separate-host deployment or Byzantine consistency. Those deployment assumptions,
-journal admission/release integration, signed anchor policy, transport cancellation/
-deadlines, account-level coordination and the wider 0.2.0 lifecycle remain required.
+transport cancellation, account-level coordination and the wider 0.2.0 lifecycle
+remain required. Required-anchor journals retain their original writer fence;
+they reject externally changed fences rather than adopting a new writer authority.

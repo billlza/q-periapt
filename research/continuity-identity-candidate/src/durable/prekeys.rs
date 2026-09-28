@@ -218,6 +218,7 @@ impl DeviceJournal {
         policy: &VerifiedSessionPolicy,
         device: &VerifiedDevice,
     ) -> Result<(), DurableError> {
+        self.check_policy(policy)?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         if active.owner != bootstrap::storage_owner(device)
             || policy.family() != device.description.family
@@ -342,7 +343,10 @@ impl DeviceJournal {
             entry
         };
         match image.records.get(&op).ok_or(DurableError::Absent)?.phase {
-            DurableStatus::PrekeyAvailable => return entry.leaf(),
+            DurableStatus::PrekeyAvailable => {
+                self.check_release(&image)?;
+                return entry.leaf();
+            }
             DurableStatus::PrekeyConsumed => return Err(DurableError::PrekeyClaimed),
             DurableStatus::PrekeyRetired => return Err(DurableError::KeyRetired),
             DurableStatus::PrekeyReserved => {}
@@ -376,6 +380,7 @@ impl DeviceJournal {
         record.phase = DurableStatus::PrekeyAvailable;
         record.payload = entry.encode();
         self.persist(&mut image)?;
+        self.check_release(&image)?;
         Ok(leaf)
     }
     /// Retrieve only a currently usable committed public leaf. Reserved, consumed
@@ -398,7 +403,10 @@ impl DeviceJournal {
             .ok_or(DurableError::Absent)?
             .phase
         {
-            DurableStatus::PrekeyAvailable => entry.leaf(),
+            DurableStatus::PrekeyAvailable => {
+                self.check_release(&image)?;
+                entry.leaf()
+            }
             DurableStatus::PrekeyReserved => Err(DurableError::Suspended),
             DurableStatus::PrekeyConsumed => Err(DurableError::PrekeyClaimed),
             DurableStatus::PrekeyRetired => Err(DurableError::KeyRetired),

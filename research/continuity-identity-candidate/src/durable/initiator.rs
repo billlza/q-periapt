@@ -129,6 +129,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         request: InitiationId,
     ) -> Result<[u8; 32], DurableError> {
+        self.check_policy(context.policy())?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         if context.initiator_storage_owner() != active.owner {
             return Err(DurableError::Conflict);
@@ -301,6 +302,7 @@ impl DeviceJournal {
             self.persist(image)?;
         }
         context.check(now)?;
+        self.check_release(image)?;
         Ok(wire)
     }
     /// Replay a pinned/committed initial without key import, signing or new KEM
@@ -416,6 +418,7 @@ impl DeviceJournal {
             self.persist(&mut image)?;
         }
         context.check(now)?;
+        self.check_release(&image)?;
         Ok(result)
     }
     /// Continue the already-selected reply/result, with no caller replacement input.

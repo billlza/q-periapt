@@ -139,6 +139,13 @@ impl AnchorStore {
             return Err(Error::Scope.into());
         }
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        if policy
+            .anchor_requirement()
+            .binding()
+            .is_some_and(|binding| binding != active.pin.binding())
+        {
+            return Err(Error::Scope.into());
+        }
         if active.pin.key.shares_component(&device.key)
             || active.pin.key.shares_component(&device.authority_key)
         {
@@ -218,15 +225,18 @@ impl AnchorStore {
         let outcome = match request.operation.0 {
             Command::Query => AnchorOutcome::Current,
             Command::Advance(expected, next) | Command::Fence(expected, next) => {
-                entry.validity.check(now)?;
                 if entry.head == next && entry.last == Some(request.command) {
+                    // Exact last-command confirmation is read-only after expiry too.
                     AnchorOutcome::AlreadyAppliedExact
-                } else if entry.head != expected {
-                    AnchorOutcome::Conflict
                 } else {
-                    entry.head = next;
-                    entry.last = Some(request.command);
-                    AnchorOutcome::Advanced
+                    entry.validity.check(now)?;
+                    if entry.head != expected {
+                        AnchorOutcome::Conflict
+                    } else {
+                        entry.head = next;
+                        entry.last = Some(request.command);
+                        AnchorOutcome::Advanced
+                    }
                 }
             }
         };

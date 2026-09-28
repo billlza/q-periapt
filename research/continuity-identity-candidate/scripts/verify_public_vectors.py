@@ -292,7 +292,7 @@ def verify_bootstrap(oracle: Oracle) -> dict:
     revision = (1).to_bytes(8, "big")
     interval = (100).to_bytes(8, "big") + (200).to_bytes(8, "big")
     policy = oracle.envelope("bootstrap-policy", 4, policy_key)
-    require(policy == b"QPSESP01" + family + revision + interval + suite + sdk_binding + b"\x02",
+    require(policy == b"QPSESP02" + family + revision + interval + suite + sdk_binding + b"\x02" + bytes(33),
             "session policy does not authorize the exact reusable mode and SDK")
     identities = []
     for role, device_id in (("i", bytes([1]) * 16), ("r", bytes([2]) * 16)):

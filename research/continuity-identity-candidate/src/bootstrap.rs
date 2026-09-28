@@ -123,6 +123,9 @@ impl BootstrapContext {
         self.policy.check_device(&self.initiator, now)?;
         self.policy.check_device(&self.responder, now)
     }
+    pub(crate) fn policy(&self) -> &VerifiedSessionPolicy {
+        &self.policy
+    }
 
     pub(crate) fn storage_owner(&self) -> [u8; 32] {
         storage_owner(&self.responder)
@@ -274,6 +277,9 @@ impl InitiatorOperation {
         signer: &DeviceSigningKey,
         trusted_time: u64,
     ) -> Result<Self, Error> {
+        if context.policy.anchor_requirement().binding().is_some() {
+            return Err(Error::PolicyDenied);
+        }
         context.check(trusted_time)?;
         if signer.public_key()? != context.initiator.key {
             return Err(Error::Scope);
@@ -483,6 +489,9 @@ impl ResponderOperation {
         classical: TraditionalKeySource<'_>,
         trusted_time: u64,
     ) -> Result<&[u8], Error> {
+        if self.context.policy.anchor_requirement().binding().is_some() {
+            return Err(Error::PolicyDenied);
+        }
         self.context.check(trusted_time)?;
         match &self.state {
             ResponderState::Closed => return Err(Error::Closed),
@@ -903,7 +912,7 @@ fn finish_initiator(
 pub(crate) mod tests {
     use super::*;
     use crate::{
-        tests::{interval, sdk_runtime_with_limits, session_policy_fixture},
+        tests::{interval, sdk_runtime_with_limits, session_policy_fixture_with_anchor},
         *,
     };
 
@@ -962,7 +971,13 @@ pub(crate) mod tests {
             [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
         )>,
     ) -> Fixture {
-        fixture_with_options(quality, public_keys, q_periapt_sdk::Limits::default(), None)
+        fixture_with_options(
+            quality,
+            public_keys,
+            q_periapt_sdk::Limits::default(),
+            None,
+            AnchorRequirement::local_only(),
+        )
     }
     #[cfg(unix)]
     pub(crate) fn fixture_with_signers(
@@ -978,6 +993,7 @@ pub(crate) mod tests {
             public_keys,
             q_periapt_sdk::Limits::default(),
             Some(signers),
+            AnchorRequirement::local_only(),
         )
     }
     #[cfg(unix)]
@@ -985,7 +1001,19 @@ pub(crate) mod tests {
         quality: PrekeyQuality,
         limits: q_periapt_sdk::Limits,
     ) -> Fixture {
-        fixture_with_options(quality, None, limits, None)
+        fixture_with_options(quality, None, limits, None, AnchorRequirement::local_only())
+    }
+    pub(crate) fn fixture_with_anchor(
+        quality: PrekeyQuality,
+        anchor: AnchorRequirement,
+    ) -> Fixture {
+        fixture_with_options(
+            quality,
+            None,
+            q_periapt_sdk::Limits::default(),
+            None,
+            anchor,
+        )
     }
     fn fixture_with_options(
         quality: PrekeyQuality,
@@ -995,8 +1023,9 @@ pub(crate) mod tests {
         )>,
         limits: q_periapt_sdk::Limits,
         signers: Option<(DeviceSigningKey, DeviceSigningKey)>,
+        anchor: AnchorRequirement,
     ) -> Fixture {
-        let (_, issued, pin, runtime_r) = session_policy_fixture(&[quality]);
+        let (_, issued, pin, runtime_r) = session_policy_fixture_with_anchor(&[quality], anchor);
         let runtime_i = sdk_runtime_with_limits(limits);
         let policy_i = Arc::new(
             pin.verify(issued.as_bytes(), runtime_i, 150)
