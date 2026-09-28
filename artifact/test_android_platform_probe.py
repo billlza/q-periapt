@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import signal
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -85,7 +86,11 @@ class PlatformProbeTests(unittest.TestCase):
         cleanup = script[start:end]
         with tempfile.TemporaryDirectory() as directory:
             driver = Path(directory) / "driver.sh"
-            driver.write_text("set -euo pipefail\nadb_pid=\nemulator_pid=\n" + cleanup + "\n"
+            driver.write_text("set -euo pipefail\nadb_pid=\nemulator_pid=\n"
+                              "kill() { local status=0; builtin kill \"$@\" || status=$?; "
+                              "printf 'KILL_RESULT bash=%s status=%s args=%s\\n' "
+                              "\"$BASH_VERSION\" \"$status\" \"$*\"; return \"$status\"; }\n"
+                              + cleanup + "\n"
                               "/bin/sleep 30 &\nadb_pid=$!\n"
                               "/bin/sleep 30 &\nemulator_pid=$!\n"
                               "printf '%s %s\\n' \"$adb_pid\" \"$emulator_pid\"\nexit 17\n")
@@ -96,24 +101,30 @@ class PlatformProbeTests(unittest.TestCase):
                 captured.extend(chunk)
                 if "children" in diagnostic or b"\n" not in captured:
                     return
-                diagnostic["children"] = {}
-                for value in bytes(captured).splitlines()[0].split():
-                    pid = int(value)
-                    status_path = Path(f"/proc/{pid}/status")
-                    if not Path("/proc").is_dir():
-                        continue
-                    try:
-                        with status_path.open() as stream:
-                            status = stream.read(8192)
-                    except OSError as error:
-                        diagnostic["children"][pid] = type(error).__name__
-                    else:
-                        diagnostic["children"][pid] = [line for line in status.splitlines()
-                            if line.startswith(("Name:", "State:", "PPid:", "NSpgid:", "SigBlk:", "SigIgn:", "SigCgt:"))]
+                diagnostic["children"] = []
+                if not Path("/proc").is_dir():
+                    return
+                pids = [int(value) for value in bytes(captured).splitlines()[0].split()]
+                for delay in (0, 0.05, 0.2):
+                    time.sleep(delay)
+                    sample = {}
+                    for pid in pids:
+                        status_path = Path(f"/proc/{pid}/status")
+                        try:
+                            with status_path.open() as stream:
+                                status = stream.read(8192)
+                        except OSError as error:
+                            sample[pid] = type(error).__name__
+                        else:
+                            sample[pid] = [line for line in status.splitlines()
+                                if line.startswith(("Name:", "State:", "PPid:", "NSpgid:",
+                                                    "SigPnd:", "ShdPnd:", "SigBlk:", "SigIgn:", "SigCgt:"))]
+                    diagnostic["children"].append(sample)
             try:
                 result = capture_stdout(["/bin/bash", str(driver)], timeout_seconds=5,
                                         maximum_bytes=4096, output_sink=observe_children)
             except BoundedProcessError as error:
+                diagnostic["driver_output"] = bytes(captured).decode("utf-8", errors="replace")
                 error.add_note("cleanup control context: " + json.dumps(diagnostic, sort_keys=True))
                 raise
             self.assertEqual(result.returncode, 17, result.stdout)

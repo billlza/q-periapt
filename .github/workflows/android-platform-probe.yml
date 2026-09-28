@@ -27,6 +27,10 @@ jobs:
           python-version: "3.13.14"
           check-latest: false
           update-environment: false
+      - name: Check fresh-process supervision controls
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest -v artifact/test_android_platform_probe.py
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
         with:
           distribution: temurin
@@ -34,10 +38,6 @@ jobs:
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
         with:
           packages: platform-tools emulator system-images;android-35;google_apis_ps16k;x86_64
-      - name: Check fresh-process supervision controls
-        env:
-          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/python-run.sh -m unittest -v artifact/test_android_platform_probe.py
       - name: Prepare this runner's KVM access
         run: |
           test -c /dev/kvm
