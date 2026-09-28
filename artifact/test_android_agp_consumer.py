@@ -221,7 +221,7 @@ android_command() {
     printf '%s\n' "$1" >> "$DIST/calls.txt"
     case "$1" in
         run-instrumentation) return 0 ;;
-        capture-emulator-diagnostics) return "$log_status" ;;
+        capture-emulator-diagnostics|capture-emulator-failure-state) return "$log_status" ;;
         *) return 99 ;;
     esac
 }
@@ -249,7 +249,7 @@ python3() {
                     self.assertEqual((folder / "logcat.txt").read_text(), "scoped smoke log\n")
                     expected = ["run-instrumentation"]
                     if kind == "emulator":
-                        expected.append("capture-emulator-diagnostics")
+                        expected.extend(("capture-emulator-failure-state", "capture-emulator-diagnostics"))
                     self.assertEqual((folder / "calls.txt").read_text().splitlines(), expected)
                     self.assertFalse((folder / "result.txt").exists())
                     self.assertFalse((folder / "result.json").exists())
@@ -270,7 +270,7 @@ log_status=$3
 cleanup_android_app() { return 23; }
 capture_app_logcat() { printf 'unexpected replacement\n'; return 0; }
 android_command() {
-    test "$1" = capture-emulator-diagnostics || return 99
+    case "$1" in capture-emulator-diagnostics|capture-emulator-failure-state) ;; *) return 99 ;; esac
     printf '%s\n' "$1" >> "$DIST/calls.txt"
     return "$log_status"
 }
@@ -291,7 +291,7 @@ android_command() {
                     self.assertIn("run-owned Android smoke app cleanup failed", result.stderr)
                     self.assertNotIn("incorrect continuation", result.stdout)
                     self.assertEqual((folder / "logcat.txt").read_text(), "completed workload log\n")
-                    expected = ["capture-emulator-diagnostics"] if kind == "emulator" else []
+                    expected = ["capture-emulator-failure-state", "capture-emulator-diagnostics"] if kind == "emulator" else []
                     self.assertEqual((folder / "calls.txt").read_text().splitlines(), expected)
                     if kind == "emulator" and log_status:
                         self.assertIn("crash-log capture also failed", result.stderr)

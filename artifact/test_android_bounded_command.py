@@ -4111,13 +4111,18 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         for kind, error_type, expected in cases:
             if kind == "emulator":
                 self.create_capability(device_kind=kind, expected_serial="emulator-5584")
-            with (
-                self.subTest(kind=kind),
-                mock.patch.object(commands, "write_stdout_at") as write,
-                self.assertRaisesRegex(error_type, expected),
+            for operation in (
+                commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
+                commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE,
             ):
-                self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS)
-            write.assert_not_called()
+                with (
+                    self.subTest(kind=kind, operation=operation),
+                    mock.patch.object(commands, "write_stdout_at") as write,
+                    self.assertRaisesRegex(error_type, expected),
+                ):
+                    self.invoke(operation)
+                write.assert_not_called()
 
     def test_emulator_crash_logs_are_bounded_and_recheck_the_same_live_owner(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
@@ -4158,7 +4163,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     self.assertEqual(argv[argv.index("logcat"):], (
                         "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
                         "-v", "threadtime",
-                        "-T", "1786240000.123", "-s", "AndroidRuntime:E", "art:E",
+                        "-T", "1786240000.123", "-s", "AndroidRuntime:E", "art:W",
                         "dalvikvm:E", "debuggerd:E", "Watchdog:*",
                         "ActivityManager:I", "SystemServer:E", "PackageManager:E",
                         "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
@@ -4170,6 +4175,90 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     self.assertEqual(write.call_args.kwargs["output_name"], "emulator-crash-logcat.txt")
                     self.assertEqual(listeners.call_count, 2)
                 self.assertEqual(write.call_count, 0 if phase == "replaced-before-read" else 1)
+
+    def test_emulator_state_probes_preserve_native_arguments_and_first_failure(self) -> None:
+        guest_bin = self.root / "state-native-bin"
+        guest_bin.mkdir()
+        calls = self.root / "state-native-calls.txt"
+        script = r'''#!/bin/sh
+tool=${0##*/}
+printf '%s %s\n' "$tool" "$*" >>"$QPERIAPT_TEST_CALLS"
+printf 'native fixture %s\n' "$*"
+case "$tool" in
+    df) exit "$QPERIAPT_TEST_DF_STATUS" ;;
+    ps) exit "$QPERIAPT_TEST_PS_STATUS" ;;
+esac
+'''
+        for name in ("cat", "df", "getprop", "ps"):
+            path = guest_bin / name
+            path.write_text(script)
+            path.chmod(0o700)
+        argv = commands._emulator_state_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        for df_status, ps_status, expected in ((0, 0, 0), (7, 9, 7)):
+            calls.write_text("")
+            result = subprocess.run(
+                ["/bin/sh", "-c", program], capture_output=True, timeout=5,
+                env={"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                     "QPERIAPT_TEST_DF_STATUS": str(df_status), "QPERIAPT_TEST_PS_STATUS": str(ps_status)},
+            )
+            self.assertEqual(result.returncode, expected, result.stderr)
+            status, payload = commands._parse_guest_completion(result.stdout, self.run_id, "emulator-state")
+            self.assertEqual(status, expected)
+            self.assertEqual(payload.count(b"QPERIAPT_STATE_STATUS:"), 8)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:data-space:{df_status}".encode(), payload)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:processes:{ps_status}".encode(), payload)
+            self.assertEqual(calls.read_text().splitlines(), [
+                "cat /proc/sys/kernel/random/boot_id", "cat /proc/uptime", "cat /proc/meminfo",
+                "df /data", "getprop ro.zygote", "getprop init.svc.zygote",
+                "getprop init.svc.zygote_secondary", "ps ",
+            ])
+
+    def test_emulator_state_capture_requires_completion_and_keeps_distinct_files(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout, capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path, backend=receipt.backend_path, current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        for operation, leaf in (
+            (commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE, "emulator-state-before.txt"),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE, "emulator-state-failure.txt"),
+        ):
+            for remote_status, crlf in ((0, False), (0, True), (7, False), (None, False)):
+                raw = b"native diagnostic body\n"
+                if remote_status is not None:
+                    raw += f"\nQPERIAPT_EMULATOR_STATE_EXIT:{self.run_id}:{remote_status}\n".encode()
+                if crlf:
+                    raw = raw.replace(b"\n", b"\r\n")
+
+                def write_fixture(*args, **kwargs):
+                    path = self.proof / kwargs["output_name"]
+                    path.write_bytes(raw)
+                    path.chmod(0o600)
+                    # Simulate only legacy adb's loss of the guest exit code.
+                    return BoundedResult(0)
+
+                with (
+                    self.subTest(operation=operation, remote_status=remote_status, crlf=crlf),
+                    mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+                    mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+                    mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+                    mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture) as write,
+                ):
+                    if remote_status is None:
+                        with self.assertRaisesRegex(commands.AndroidCommandError, "emulator-state output is malformed"):
+                            self.invoke(operation)
+                    else:
+                        self.assertEqual(self.invoke(operation), BoundedResult(remote_status))
+                    self.assertEqual(write.call_args.kwargs["output_name"], leaf)
+                    self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], 15)
+                    self.assertEqual(write.call_args.kwargs["maximum_bytes"], 65536)
+                    self.assertEqual(write.call_args.kwargs["stderr"], subprocess.STDOUT)
+                    self.assertEqual(listeners.call_count, 2)
 
     def test_parser_rejects_unknown_operation_and_extra_arguments(self) -> None:
         diagnostics = io.StringIO()

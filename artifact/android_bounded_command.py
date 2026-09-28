@@ -199,6 +199,8 @@ class AndroidOperation(str, enum.Enum):
     READ_RESULT_JSON = "read-result-json"
     CAPTURE_LOGCAT = "capture-logcat"
     CAPTURE_EMULATOR_DIAGNOSTICS = "capture-emulator-diagnostics"
+    CAPTURE_EMULATOR_BASELINE = "capture-emulator-baseline"
+    CAPTURE_EMULATOR_FAILURE_STATE = "capture-emulator-failure-state"
 
 
 class OutputRoot(str, enum.Enum):
@@ -569,6 +571,42 @@ def _package_state_argv(
     return _device(capability, "shell", "sh", "-c", shlex.quote(program))
 
 
+def _emulator_state_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # These native commands do not launch ART or modify the guest. Each result
+    # keeps its exit status; a later successful probe cannot hide an earlier
+    # failure, including on legacy adb transports that lose the guest status.
+    probes = (
+        ("boot-id", ("cat", "/proc/sys/kernel/random/boot_id")),
+        ("uptime", ("cat", "/proc/uptime")),
+        ("memory", ("cat", "/proc/meminfo")),
+        ("data-space", ("df", "/data")),
+        ("zygote-mode", ("getprop", "ro.zygote")),
+        ("zygote-primary", ("getprop", "init.svc.zygote")),
+        ("zygote-secondary", ("getprop", "init.svc.zygote_secondary")),
+        ("processes", ("ps",)),
+    )
+    program = (
+        "qperiapt_state_status=0; "
+        "qperiapt_state_probe() { "
+        "qperiapt_probe_name=$1; shift; "
+        "printf '\\nQPERIAPT_STATE_PROBE:%s\\n' \"$qperiapt_probe_name\"; "
+        '"$@"; qperiapt_probe_status=$?; '
+        "printf '\\nQPERIAPT_STATE_STATUS:%s:%d\\n' "
+        '"$qperiapt_probe_name" "$qperiapt_probe_status"; '
+        'if [ "$qperiapt_state_status" -eq 0 ]; then '
+        'qperiapt_state_status=$qperiapt_probe_status; fi; }; '
+        "printf 'QPERIAPT_EMULATOR_STATE_VERSION=1\\n'; "
+    )
+    program += "; ".join(shlex.join(("qperiapt_state_probe", label, *argv)) for label, argv in probes)
+    program += (
+        f"; printf '\\nQPERIAPT_EMULATOR_STATE_EXIT:{capability.run_id}:%d\\n' "
+        '"$qperiapt_state_status"; exit "$qperiapt_state_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
 def _owned_emulator_ports(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[int, int]:
@@ -892,6 +930,16 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             30,
             OutputSpec(proof, "emulator-crash-logcat.txt", 16777216),
             lambda cap: (),
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_BASELINE: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-state-before.txt", 65536),
+            _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-state-failure.txt", 65536),
+            _emulator_state_argv, stderr_to_stdout=True,
         ),
     }
     return MappingProxyType(specs)
@@ -3679,29 +3727,35 @@ def _observe_exact_device_state(
     return True
 
 
-def _parse_package_query_completion(output: bytes, run_id: str) -> tuple[int, bytes]:
+def _parse_guest_completion(
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state"],
+) -> tuple[int, bytes]:
+    marker = {
+        "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
+        "emulator-state": b"QPERIAPT_EMULATOR_STATE_EXIT:",
+    }[kind]
     parts = output.rsplit(b"\n", 2)
     _require(
         len(parts) == 3 and parts[2] == b"",
-        "Android package-state output is malformed: incomplete query",
+        f"Android {kind} output is malformed: incomplete query",
     )
     payload, completion, _ = parts
-    # Remove only the framing newline. Keep the package bytes unchanged for
-    # their exact LF/CRLF check, including any embedded or repeated controls.
+    # Remove only the framing newline. Keep the payload unchanged; the package
+    # observer still requires one exact LF/CRLF line without extra controls.
     if completion.endswith(b"\r"):
         _require(
             payload.endswith(b"\r"),
-            "Android package-state output is malformed: mixed completion framing",
+            f"Android {kind} output is malformed: mixed completion framing",
         )
         payload, completion = payload[:-1], completion[:-1]
     matched = re.fullmatch(
-        b"QPERIAPT_PACKAGE_QUERY_EXIT:" + run_id.encode("ascii")
+        marker + run_id.encode("ascii")
         + rb":(0|[1-9][0-9]{0,2})",
         completion,
     )
     _require(
         matched is not None and int(matched[1]) <= 255,
-        "Android package-state output is malformed: invalid query completion",
+        f"Android {kind} output is malformed: invalid query completion",
     )
     return int(matched[1]), payload
 
@@ -3750,8 +3804,8 @@ def _observe_package_state(
                 )
         return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
     try:
-        remote_status, payload = _parse_package_query_completion(
-            raw.stdout, capability.run_id
+        remote_status, payload = _parse_guest_completion(
+            raw.stdout, capability.run_id, "package-state",
         )
     except AndroidCommandError:
         _report_package_command_failure(
@@ -4101,9 +4155,10 @@ def _capture_emulator_diagnostics(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidCommandCapability,
     *,
+    operation: AndroidOperation,
     timeout_seconds: int,
 ) -> BoundedResult:
-    """Read bounded system-crash tags only from this run's live owned emulator."""
+    """Read bounded diagnostic data only from this run's live owned emulator."""
     _require(
         capability.device_kind == "emulator",
         "system diagnostics require an owned emulator",
@@ -4137,25 +4192,36 @@ def _capture_emulator_diagnostics(
     )
     remaining = _remaining_observation_timeout(deadline)
     _require(remaining is not None, "system diagnostic deadline expired")
-    argv = _device(
+    spec = OPERATION_SPECS[operation]
+    state_capture = operation is not AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS
+    argv = spec.build_argv(capability) if state_capture else _device(
         capability,
         "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
         "-v", "threadtime",
         "-T", _device_logcat_start_time(layout), "-s",
-        "AndroidRuntime:E", "art:E", "dalvikvm:E", "debuggerd:E",
+        "AndroidRuntime:E", "art:W", "dalvikvm:E", "debuggerd:E",
         "Watchdog:*", "ActivityManager:I", "SystemServer:E",
         "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
         "Zygote:E", "lmkd:*", "libc:F", "DEBUG:*", "*:S",
     )
     primary: BaseException | None = None
     try:
-        return _write_operation(
+        result = _write_operation(
             layout,
             capability,
-            OPERATION_SPECS[AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS],
+            spec,
             argv,
             remaining,
         )
+        if state_capture and result.returncode == 0:
+            _require(spec.output is not None, "emulator state output is missing")
+            raw = read_regular_snapshot(
+                layout.proof / spec.output.leaf,
+                maximum=spec.output.maximum_bytes, label="owned emulator state",
+            ).data
+            status, _ = _parse_guest_completion(raw, capability.run_id, "emulator-state")
+            return BoundedResult(status)
+        return result
     except BaseException as exc:
         primary = exc
         raise
@@ -4189,7 +4255,7 @@ def invoke_operation(
         )
     if spec.mode == "emulator-diagnostics":
         return _capture_emulator_diagnostics(
-            layout, capability, timeout_seconds=timeout
+            layout, capability, operation=operation, timeout_seconds=timeout
         )
     if spec.mode == "package-state":
         return _invoke_package_state(

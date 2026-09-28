@@ -117,6 +117,18 @@ Diagnostic failure cannot replace the primary error. App cleanup still needs
 its fresh exact APK observations and signer check, including when an install
 may have committed before its reply failed.
 
+Owned emulator runs also record `emulator-state-before.txt` before installation
+and attempt `emulator-state-failure.txt` when a later operation fails. These
+15-second, 64 KiB captures use native commands for boot identity, uptime, memory,
+data-partition space, zygote properties and the process table. They do not launch
+ART. Each probe keeps its exit status, and a run-bound completion record restores
+the guest status on legacy ADB. A failed or incomplete baseline stops before
+installation; a failed error-path capture preserves the original error. The two
+files remain distinct, and physical runs cannot invoke either operation.
+Read these snapshots together with the runtime result and system log when
+distinguishing kernel reboot, framework restart and resource pressure. CI keeps
+the baseline on successful runs as well as the available failure diagnostics.
+
 The current [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records which of
 these gates have actually executed. Synthetic verifier tests, an APK build,
 workflow syntax checks and historical device receipts do not establish a

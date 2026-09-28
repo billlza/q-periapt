@@ -2029,6 +2029,11 @@ PY
 
 capture_emulator_failure_logs() {
 	if [ "$DEVICE_KIND" = "emulator" ]; then
+		if android_command capture-emulator-failure-state 2>"$DIST/emulator-state-failure.err"; then
+			:
+		else
+			printf 'error: owned emulator state capture also failed\n' >&2
+		fi
 		if android_command capture-emulator-diagnostics; then
 			:
 		else
@@ -2543,6 +2548,17 @@ try:
 except (AndroidCommandError, AndroidRuntimeStateError) as error:
     raise SystemExit(f"error: Android device returned an invalid logcat start time: {error}") from error
 PY
+if [ "$DEVICE_KIND" = "emulator" ]; then
+	if android_command capture-emulator-baseline 2>"$DIST/emulator-state-before.err"; then
+		:
+	else
+		emulator_baseline_status=$?
+		printf 'error: owned emulator baseline capture failed (exit=%s); see %s\n' \
+			"$emulator_baseline_status" "$DIST/emulator-state-before.err" >&2
+		capture_emulator_failure_logs
+		exit "$emulator_baseline_status"
+	fi
+fi
 ANDROID_APP_CLEANUP_ARMED=1
 if ! android_command install-apk >"$DIST/adb-install.log" 2>&1; then
 	printf 'error: Android smoke APK installation failed; see %s\n' "$DIST/adb-install.log" >&2
