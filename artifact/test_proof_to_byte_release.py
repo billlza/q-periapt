@@ -5540,7 +5540,7 @@ with _temporary_release_test_directories(parents):
         identity_job = extract_workflow_job(ci, "continuity-identity-candidate")
         for selection in ("if: matrix.toolchain == '1.96.1'", "if: matrix.toolchain == '1.85.0'"):
             self.assertIn(selection, identity_job)
-        self.assertEqual(identity_job.count("          toolchain: 1.85.0\n"), 1)
+        self.assertEqual(identity_job.splitlines().count("          toolchain: 1.85.0"), 1)
         self.assertIn("CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}", identity_job)
         for command in ("clippy", "test"):
             self.assertIn(f'cargo +"$CANDIDATE_TOOLCHAIN" {command} --manifest-path', identity_job)

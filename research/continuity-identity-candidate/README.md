@@ -110,8 +110,13 @@ rechecked during device, manifest and leaf verification.
 
 Run from the repository root with the locked toolchain. Each output directory
 below must be new; evidence is never overwritten.
+Keep build output in the repository's designated `target` tree (or outside the
+checkout), so the source-provenance gate can distinguish generated build files
+from untracked source. The subshell below keeps the target setting local.
 
 ```sh
+(
+export CARGO_TARGET_DIR="$PWD/target/continuity-identity-build"
 cargo fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check
 cargo clippy --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --all-targets -- -D warnings
 cargo test --manifest-path research/continuity-identity-candidate/Cargo.toml --locked
@@ -119,6 +124,7 @@ cargo test --manifest-path research/continuity-identity-candidate/Cargo.toml --l
 cargo audit --file research/continuity-identity-candidate/Cargo.lock --deny warnings
 cargo run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors
 sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py --fixtures target/continuity-public-vectors --output target/continuity-public-verification --openssl /absolute/path/to/openssl
+)
 ```
 
 The last command requires OpenSSL with ML-DSA and external-context support

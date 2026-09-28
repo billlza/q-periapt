@@ -1607,6 +1607,8 @@ jobs:
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/continuity-identity-build
     strategy:
       fail-fast: false
       matrix:
