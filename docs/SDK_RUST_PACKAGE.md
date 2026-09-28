@@ -78,8 +78,59 @@ identity and registry metadata. Existing output files are never replaced.
 CI prepares it from the same archives used by the current and minimum compiler
 consumers. The default input profile remains the ten-crate legacy handoff.
 Generating this executable makes no registry request and grants no publication
-authorization. The 0.2.0 coordinator, source transition and versioned remote
-receipt still need to be integrated before this uploader can be used for release.
+authorization.
+
+## Coordinated registry transaction
+
+Use the SDK coordinator with the report digest and its exact producer commit:
+
+```sh
+sh artifact/python-run.sh artifact/rust_sdk_publication.py dry-run \
+  --report target/sdk-rust-package/RUST_SDK_PACKAGE.json \
+  --report-sha256 <SHA256-of-that-report> --source-commit <producer-commit>
+```
+
+The coordinator requires a standalone, clean checkout of that commit. It checks
+the producer's complete source-input map, the twelve archive hashes and Cargo
+source identities, and the closed production-dependency graph. New package
+reports record their actual completion time; reports without `completed_at`
+must be regenerated. Inputs are rechecked before observations and uploads,
+including after acquiring the publication lock. `dry-run` performs no registry
+request and reads no credential. CI runs it against the freshly produced cohort
+and retains `publication-dry-run.json`.
+
+`verify` uses the same command arguments and additionally checks both the
+official crates.io API and sparse index. Its immutable receipt is written below
+`target/qperiapt-sdk-020-publication-receipts`. Only an exact non-yanked checksum
+reported by both observers counts as published. Published packages must form
+one prefix of the documented dependency order. The SDK receipt uses its own
+`qperiapt.sdk_crates_io_publication_receipt` schema and `crates_io_v0_2_0` key;
+legacy receipt validators reject it.
+
+The `publish` mode additionally requires `--execute-real-upload` and
+`--acknowledge-irreversible-publish`, plus explicit `--state-root` and
+`--uploader-command` confirmations. Its sole state root is the POSIX account's
+canonical home followed by `.q-periapt/publication-state/crates.io-v0.2.0`, outside
+all registered Git worktrees. These real, account-owned directories must already
+have mode 0700. The prepared exact-byte uploader must be the mode-0700,
+single-link child named `qperiapt-crates-io-uploader`. Publication receipts and
+journals live in that state's `receipts` and `journal` directories. The token is
+read from `CARGO_REGISTRY_TOKEN` only when the first upload is necessary; it is
+never placed in arguments or emitted in diagnostics.
+
+The shared transaction engine holds a persistent-inode account lock, records
+an immutable intent before each upload, and reconciles the remote checksum
+before moving to the next package. A failed or interrupted upload with unknown
+effect stops the transaction. Retain the report, exact archives, state directory
+and emitted receipt paths. Resume using `--previous-receipt` from the publication
+state. Remote visibility can resolve an earlier unknown intent without another
+upload. If both observers still report absence, retry additionally requires
+`--retry-unknown-intent <intent-SHA256>` and records the new absence receipt.
+Never regenerate or replace the selected cohort to resume a partial publication.
+
+These commands qualify and publish the Rust cohort only. The final supported
+platform, signing, installation and release requirements still apply to the
+complete SDK distribution.
 
 Cargo's multi-package behavior is documented in the primary
 [Cargo package reference](https://doc.rust-lang.org/cargo/commands/cargo-package.html).

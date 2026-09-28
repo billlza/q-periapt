@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import datetime as dt
 import gzip
 import hashlib
 import io
@@ -439,6 +440,7 @@ def build(output: Path) -> dict:
     for record in records.values():
         require(snapshot(output / "crates" / record["file"]).sha256 == record["sha256"], "crate changed during consumption")
     report = {"schema_version": 1, "profile": PROFILE, "version": VERSION, "native_abi_major": 2,
+        "completed_at": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "base_commit": commit, "git_dirty": dirty, "diagnostic_only": dirty_option == "1", "crates": records,
         "source_inputs": before, "sources_unchanged": True, "rustc": version, "consumer": consumer,
         "dependency_audits": audits,
