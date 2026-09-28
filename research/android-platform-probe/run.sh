@@ -62,18 +62,21 @@ cleanup() {
     # terminated. No process-name search, global kill-server or borrowed PID.
     # A successful group signal is not an exit acknowledgement: a Bash 5.1
     # pre-exec child can survive the first TERM. Check this shell's job table
-    # and repeat only while its children are still running/stopped. Both the
-    # two-second grace and 40-signal limit apply; an unconfirmed cleanup kills
-    # the owned group and reports failure, even if the diagnostic itself passed.
-    local running stopped attempt complete=0 deadline=$((SECONDS + 2))
-    for attempt in {0..40}; do
+    # and allow one startup retry while its children remain running/stopped.
+    # The emulator itself permits 20 seconds for graceful shutdown. Observe
+    # without further signals, with a 25-second/500-poll bound, before escalation.
+    # An unconfirmed cleanup fails even if the diagnostic itself passed.
+    local running stopped attempt complete=0 deadline=$((SECONDS + 25))
+    for attempt in {0..500}; do
         if ! running=$(jobs -pr) || ! stopped=$(jobs -ps); then break; fi
         if [ -z "$running" ] && [ -z "$stopped" ]; then
             complete=1
             break
         fi
-        if [ "$attempt" -eq 40 ] || [ "$SECONDS" -ge "$deadline" ]; then break; fi
-        if ! kill -TERM -- "-$$"; then break; fi
+        if [ "$attempt" -eq 500 ] || [ "$SECONDS" -ge "$deadline" ]; then break; fi
+        if [ "$attempt" -lt 2 ]; then
+            if ! kill -TERM -- "-$$"; then break; fi
+        fi
         if ! /bin/sleep 0.05; then break; fi
     done
     if [ "$complete" -ne 1 ]; then

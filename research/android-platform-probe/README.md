@@ -23,8 +23,12 @@ internal ADB subprocesses inherit the same private socket and emulator serial.
 The hosted shell requires `BASHPID` and admits cleanup only in its original
 session leader. An inherited child EXIT handler cannot signal the parent's group
 or wait on its child table; the outer supervisor retains the same hard deadline.
-Cleanup confirms child exit through the owning shell's job table. TERM may be
-reissued only while owned children remain, for at most two seconds and 40 signals.
+Cleanup confirms child exit through the owning shell's job table. TERM has one
+startup retry while owned children remain; subsequent observations do not resend
+it. The emulator advertises a 20-second graceful-exit window, so cleanup waits at
+most 25 seconds and 500 polls before escalation. The ordinary-child regression
+retains its five-second deadline; the uncooperative-child regression exercises the
+real 25-second escalation bound for both successful and failed drivers.
 An unconfirmed shutdown emits its original driver status and kills the entire
 owned group; successful queries cannot turn that cleanup failure into success.
 Only the observation JSON and bounded log are uploaded; keys and emulator state

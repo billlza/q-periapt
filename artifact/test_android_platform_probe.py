@@ -172,7 +172,7 @@ class PlatformProbeTests(unittest.TestCase):
                 with self.subTest(primary=primary):
                     ready = Path(directory) / f"ready-{primary}"
                     result = capture_stdout(["/bin/bash", str(driver), str(ready), str(primary)],
-                                            timeout_seconds=5, maximum_bytes=4096)
+                                            timeout_seconds=30, maximum_bytes=4096)
                     self.assertEqual(result.returncode, -signal.SIGKILL, result.stdout)
                     self.assertIn(f"PLATFORM_CLEANUP_ESCALATED primary={primary}\n".encode(),
                                   result.stdout)
