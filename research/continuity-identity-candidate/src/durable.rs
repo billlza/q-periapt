@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v7");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v8");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -33,11 +33,13 @@ const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
 mod anchoring;
 mod initiator;
+mod messages;
 mod prekeys;
 mod responder;
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
+pub use messages::{CommittedPlaintext, MessageId, MessageStatus};
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -46,6 +48,7 @@ enum RecordKind {
     Responder = 1,
     Initiator = 2,
     Prekey = 3,
+    Messages = 4,
 }
 
 /// Explicit local persistence failures. No storage error is reported as absence.
@@ -281,6 +284,8 @@ pub enum DurableStatus {
     PrekeyConsumed = 17,
     /// Explicitly retired key; its logical recovery token is absent.
     PrekeyRetired = 18,
+    /// Bootstrap root transferred to the paired durable message state.
+    Messages = 19,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -303,6 +308,7 @@ impl DurableStatus {
             16 => Ok(Self::PrekeyAvailable),
             17 => Ok(Self::PrekeyConsumed),
             18 => Ok(Self::PrekeyRetired),
+            19 => Ok(Self::Messages),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -501,6 +507,7 @@ impl DeviceJournal {
     fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
         let result = (|| {
             prekeys::validate_image(image)?;
+            messages::validate_image(image)?;
             let active = self.active.as_mut().ok_or(DurableError::Closed)?;
             if image.protection != active.protection || image.id != active.id {
                 return Err(DurableError::Conflict);
@@ -638,13 +645,13 @@ impl DeviceJournal {
         record.check_request(&context, initial)?;
         if !matches!(
             record.phase,
-            DurableStatus::AwaitingFinal | DurableStatus::Complete
+            DurableStatus::AwaitingFinal | DurableStatus::Complete | DurableStatus::Messages
         ) {
             return Err(DurableError::Suspended);
         }
         let mut operation = self.restore_record(Arc::clone(&context), &record.payload)?;
         let session = operation.finish(final_wire, now)?.id();
-        if record.phase != DurableStatus::Complete {
+        if record.phase == DurableStatus::AwaitingFinal {
             record.payload = operation.checkpoint()?;
             record.phase = DurableStatus::Complete;
             self.persist(&mut image)?;
@@ -696,7 +703,7 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG07".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG08".to_vec());
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
@@ -721,7 +728,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT007".to_vec();
+    let mut wire = b"QPVLT008".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -748,7 +755,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT007" {
+    if outer.array::<8>()? != *b"QPVLT008" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -774,7 +781,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG07" {
+    if inner.array::<8>()? != *b"QPVIMG08" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
@@ -797,6 +804,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
             1 => RecordKind::Responder,
             2 => RecordKind::Initiator,
             3 => RecordKind::Prekey,
+            4 => RecordKind::Messages,
             _ => return Err(DurableError::Corrupt),
         };
         let phase = DurableStatus::decode(phase)?;
@@ -852,6 +860,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         records,
     };
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
+    messages::validate_image(&image)?;
     Ok(image)
 }
 

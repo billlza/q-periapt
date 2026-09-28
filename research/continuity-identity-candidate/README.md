@@ -96,8 +96,14 @@ device and policy [signing owners](SIGNING_OWNERS.md) can now be provisioned int
 encrypted immutable files before enrollment and restored for unfinished signing.
 The journal's [write intents](WRITE_INTENTS.md) also preserve exact sealed target
 bytes across interrupted state commits. Cryptographic erasure and the wider
-identity lifecycle remain open. This is not yet a ratchet; the complete 0.2.0
-store contract remains required.
+identity lifecycle remain open.
+
+The [durable message layer](MESSAGES.md) transfers each completed bootstrap root
+into separate send/receive chains in the same journal. It reserves exact plaintext
+input before encryption and commits chain/outbox or chain/inbox together before
+release. It supports bounded reordered delivery, exact replay and owned plaintext
+results. This initial epoch has no fresh DH/PQ input; the full ratchet, revocation,
+retention and multi-device contracts remain required within 0.2.0.
 
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
 trusted enrollment from journal genesis, durable full-head/fence comparison and

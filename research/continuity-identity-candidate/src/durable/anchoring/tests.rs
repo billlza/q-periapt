@@ -274,6 +274,66 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .final_message(),
         result.final_message()
     );
+    let session = result.session_id();
+    assert_eq!(
+        c.journal
+            .activate_initiator_messages(Arc::clone(&c.peer.initiator), request_id(), 150)
+            .expect("message chains"),
+        session
+    );
+    assert_eq!(
+        responder
+            .activate_responder_messages(Arc::clone(&c.peer.responder), &initial, 150)
+            .expect("peer chains"),
+        session
+    );
+    let id = crate::MessageId::from_trusted_state([67; 32]).expect("message id");
+    let wire = c
+        .journal
+        .send_message(
+            &c.peer.initiator,
+            session,
+            id,
+            b"anchored message",
+            b"application",
+            150,
+        )
+        .expect("anchored send");
+    assert_eq!(
+        responder
+            .receive_message(&c.peer.responder, session, &wire, b"application", 150)
+            .expect("anchored receive")
+            .as_bytes(),
+        b"anchored message"
+    );
+    // Cached output still needs a fresh release query, after image admission.
+    {
+        let mut server = c.server.lock().expect("server");
+        server.fail = Some((server.requests.len() + 2, false));
+    }
+    assert!(matches!(
+        c.journal
+            .resume_message(&c.peer.initiator, session, id, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover current witness head");
+    assert_eq!(
+        c.journal
+            .resume_message(&c.peer.initiator, session, id, 150)
+            .expect("same committed outbox"),
+        wire
+    );
+    {
+        let mut server = c.server.lock().expect("server");
+        server.fail = Some((server.requests.len() + 2, false));
+    }
+    assert!(matches!(
+        responder.receive_message(&c.peer.responder, session, &wire, b"application", 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
 }
 
 #[test]

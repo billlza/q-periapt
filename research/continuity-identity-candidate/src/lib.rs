@@ -34,8 +34,8 @@ pub use crypto::{
     PUBLIC_KEY_BYTES,
 };
 pub use durable::{
-    CommittedInitiation, DeviceJournal, DurableError, DurableStatus, InitiationId, JournalIdentity,
-    JournalKey, PrekeyId, PrekeyStatus,
+    CommittedInitiation, CommittedPlaintext, DeviceJournal, DurableError, DurableStatus,
+    InitiationId, JournalIdentity, JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,

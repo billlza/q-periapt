@@ -434,7 +434,9 @@ impl DeviceJournal {
             r.prekeys.contains(&op)
                 && !matches!(
                     r.phase,
-                    DurableStatus::AwaitingFinal | DurableStatus::Complete
+                    DurableStatus::AwaitingFinal
+                        | DurableStatus::Complete
+                        | DurableStatus::Messages
                 )
         }) {
             return Err(DurableError::PrekeyClaimed);
@@ -644,7 +646,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             }
             let committed = matches!(
                 record.phase,
-                DurableStatus::AwaitingFinal | DurableStatus::Complete
+                DurableStatus::AwaitingFinal | DurableStatus::Complete | DurableStatus::Messages
             );
             if one_time(entry.kind) {
                 claims.push(entry.leaf()?.key_fingerprint());
@@ -677,7 +679,9 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             if record.kind != RecordKind::Responder
                 || !matches!(
                     record.phase,
-                    DurableStatus::AwaitingFinal | DurableStatus::Complete
+                    DurableStatus::AwaitingFinal
+                        | DurableStatus::Complete
+                        | DurableStatus::Messages
                 )
                 || !record.prekeys.contains(&id)
             {

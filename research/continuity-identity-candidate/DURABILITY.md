@@ -32,24 +32,24 @@ cache is 2 MiB. The policy store uses this same backend and retains its policy a
 commit-uncertainty behavior.
 
 The same journal supports both local roles and its local prekey inventory. Kind 1
-is responder, kind 2 initiator and kind 3 prekey; initiator records cannot claim
-remote prekey consumption. This unreleased local v6 schema rejects v1–v5 tables/headers without implicit migration or
-reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
+is responder, kind 2 initiator, kind 3 prekey and kind 4 message state; initiator
+records cannot claim remote prekey consumption. This unreleased local v8 schema
+rejects v1–v7 tables/headers without implicit migration or reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v7`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v8`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT007[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT008[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG07[8] || protection[73] || count:u16 || records`
+`QPVIMG08[8] || protection[73] || count:u16 || records`
 
 `protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
 Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and
@@ -78,7 +78,10 @@ Executing/rejected responder records retain the initial wire. Responder plans us
 the encoding below. Prepared/awaiting-final/complete records hold a private
 checkpoint: `QPRCHK01[8] || context[32] || initial[5817] || reply[4633] || root[32] ||
 state:u8 || tail`. State 1 has a 32-byte initiator-confirmation key; state 2 has the
-exact accepted final[136] and no confirmation key. The crate-private restore path
+exact accepted final[136] and no confirmation key. State 3 has that same final
+with a zero root placeholder after the atomic transfer to linked message chains.
+The [message contract](MESSAGES.md) defines phase 19 and its one-to-one image
+checks. The crate-private restore path
 is used only after image authentication and rechecks both signature components,
 lengths, context and transcript relationships. Network input cannot mint this
 checkpoint. The public journal returns response bytes or a **public session ID**,

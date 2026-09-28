@@ -60,9 +60,13 @@ the existing public-commitment model into a working cryptographic protocol.
   signed required-anchor policy and journal admission/application/release gates now
   reconcile the exact command derived from each durable write intent. Restored
   client snapshots fail against a newer witness head; witness storage remains an
-  independent trust boundary. Durable identity lifecycle,
-  cryptographic erasure, ratchet and
-  rollback protection remain required work.
+  independent trust boundary. Its [initial-epoch message layer](../../research/continuity-identity-candidate/MESSAGES.md)
+  now transfers confirmed roots into directional chains and atomically commits
+  immutable ciphertext outboxes or authenticated plaintext inboxes before release.
+  Exact input reservations, bounded skipped keys and retained receipts support
+  restart, reordering and duplicate reconciliation. Durable identity lifecycle,
+  cryptographic erasure, fresh DH/PQ ratcheting and full rollback recovery remain
+  required work.
 
 ## Required completion evidence
 

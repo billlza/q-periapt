@@ -41,8 +41,16 @@ pub(super) fn validate_record(
             ResponsePlan::decode(context, &scope(journal, context, op), phase as u8, payload)
                 .map_err(|_| DurableError::Corrupt)?;
         }
-        DurableStatus::Prepared | DurableStatus::AwaitingFinal | DurableStatus::Complete => {
-            let (length, marker) = if phase == DurableStatus::Complete {
+        DurableStatus::Prepared
+        | DurableStatus::AwaitingFinal
+        | DurableStatus::Complete
+        | DurableStatus::Messages => {
+            let (length, marker) = if phase == DurableStatus::Messages {
+                if payload.get(40 + 5817 + 4633..40 + 5817 + 4633 + 32) != Some(&[0; 32]) {
+                    return Err(DurableError::Corrupt);
+                }
+                (COMPLETE_CHECKPOINT, 3)
+            } else if phase == DurableStatus::Complete {
                 (COMPLETE_CHECKPOINT, 2)
             } else {
                 (PENDING_CHECKPOINT, 1)

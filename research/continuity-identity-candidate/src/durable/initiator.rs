@@ -46,18 +46,20 @@ impl CommittedInitiation {
     }
 }
 
-fn operation_id(request: InitiationId) -> [u8; 32] {
+pub(super) fn operation_id(request: InitiationId) -> [u8; 32] {
     digest(
         b"Q-PERIAPT-CONTINUITY-VAULT-INITIATION-CANDIDATE/v1",
         &request.0,
     )
 }
-fn checkpoint(record: &Record) -> Result<&[u8], DurableError> {
+pub(super) fn checkpoint(record: &Record) -> Result<&[u8], DurableError> {
     let length = match record.phase {
         DurableStatus::Prepared | DurableStatus::AwaitingReply | DurableStatus::ProcessingReply => {
             WAITING
         }
-        DurableStatus::FinalPrepared | DurableStatus::FinalCommitted => FINISHED,
+        DurableStatus::FinalPrepared | DurableStatus::FinalCommitted | DurableStatus::Messages => {
+            FINISHED
+        }
         DurableStatus::Executing
         | DurableStatus::InitialKeyReserved
         | DurableStatus::InitialKemReserved
@@ -78,14 +80,14 @@ fn initial(record: &Record) -> Result<&[u8], DurableError> {
 fn selected_reply(record: &Record) -> Result<&[u8], DurableError> {
     match record.phase {
         DurableStatus::ProcessingReply => record.payload.get(32 + WAITING..),
-        DurableStatus::FinalPrepared | DurableStatus::FinalCommitted => {
+        DurableStatus::FinalPrepared | DurableStatus::FinalCommitted | DurableStatus::Messages => {
             checkpoint(record)?.get(PREFIX + 1..PREFIX + 1 + 4633)
         }
         _ => None,
     }
     .ok_or(DurableError::Corrupt)
 }
-fn check_request(
+pub(super) fn check_request(
     record: &Record,
     context: &BootstrapContext,
     request: InitiationId,
@@ -99,7 +101,7 @@ fn check_request(
     }
     Ok(())
 }
-fn pack(request: InitiationId, private: &[u8]) -> Zeroizing<Vec<u8>> {
+pub(super) fn pack(request: InitiationId, private: &[u8]) -> Zeroizing<Vec<u8>> {
     let mut bytes = Zeroizing::new(Vec::with_capacity(32 + private.len()));
     bytes.extend_from_slice(&request.0);
     bytes.extend_from_slice(private);
@@ -124,7 +126,7 @@ fn is_plan(phase: DurableStatus) -> bool {
 }
 
 impl DeviceJournal {
-    fn initiation_query(
+    pub(super) fn initiation_query(
         &self,
         context: &BootstrapContext,
         request: InitiationId,
@@ -320,7 +322,7 @@ impl DeviceJournal {
         check_request(record, &context, request)?;
         self.release_initial(&mut image, id, context, now)
     }
-    fn restore_initiator(
+    pub(super) fn restore_initiator(
         &mut self,
         context: Arc<BootstrapContext>,
         bytes: &[u8],
@@ -363,7 +365,8 @@ impl DeviceJournal {
             }
             DurableStatus::ProcessingReply
             | DurableStatus::FinalPrepared
-            | DurableStatus::FinalCommitted => {
+            | DurableStatus::FinalCommitted
+            | DurableStatus::Messages => {
                 if selected_reply(record)? != reply {
                     return Err(DurableError::Conflict);
                 }
@@ -438,6 +441,7 @@ impl DeviceJournal {
             DurableStatus::ProcessingReply
                 | DurableStatus::FinalPrepared
                 | DurableStatus::FinalCommitted
+                | DurableStatus::Messages
         ) {
             return Err(DurableError::Suspended);
         }
@@ -485,8 +489,14 @@ pub(super) fn validate_record(
         DurableStatus::Prepared | DurableStatus::AwaitingReply => (WAITING, 1),
         DurableStatus::ProcessingReply => (WAITING + 4633, 1),
         DurableStatus::FinalPrepared | DurableStatus::FinalCommitted => (FINISHED, 2),
+        DurableStatus::Messages => (FINISHED, 3),
         _ => return Err(DurableError::Corrupt),
     };
+    if phase == DurableStatus::Messages
+        && payload.get(32 + PREFIX + 1 + 4633..32 + PREFIX + 1 + 4633 + 32) != Some(&[0; 32])
+    {
+        return Err(DurableError::Corrupt);
+    }
     if payload.len() != 32 + length
         || payload.get(32..40) != Some(b"QPICHK01")
         || payload.get(40..72) != Some(context.as_slice())

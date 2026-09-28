@@ -123,6 +123,13 @@ impl BootstrapContext {
         self.policy.check_device(&self.initiator, now)?;
         self.policy.check_device(&self.responder, now)
     }
+    pub(crate) fn check_session(&self, now: u64) -> Result<(), Error> {
+        // Admitted sessions retain their selected prekey identity, but prekey
+        // advertisement expiry must not become their application lifetime.
+        self.policy.check_mode(self.selection.quality(), now)?;
+        self.policy.check_device(&self.initiator, now)?;
+        self.policy.check_device(&self.responder, now)
+    }
     pub(crate) fn policy(&self) -> &VerifiedSessionPolicy {
         &self.policy
     }
@@ -225,6 +232,9 @@ impl PendingSession {
     /// Global role for subsequent directional key scheduling.
     pub fn role(&self) -> BootstrapRole {
         self.role
+    }
+    pub(crate) fn take_root(&mut self) -> Result<ZeroizingBytes<32>, Error> {
+        self.root.take().ok_or(Error::State)
     }
     /// Erase the owned root immediately. Public transcript identity remains.
     pub fn close(&mut self) {
@@ -353,6 +363,15 @@ impl InitiatorOperation {
         self.state = InitiatorState::Closed;
     }
 
+    pub(crate) fn retire_session_root(&mut self) -> Result<([u8; 32], ZeroizingBytes<32>), Error> {
+        match &mut self.state {
+            InitiatorState::Finished { outcome, .. } => {
+                Ok((outcome.session.id, outcome.session.take_root()?))
+            }
+            _ => Err(Error::State),
+        }
+    }
+
     pub(crate) fn checkpoint(&self) -> Result<zeroize::Zeroizing<Vec<u8>>, Error> {
         let mut bytes = zeroize::Zeroizing::new(Vec::with_capacity(11000));
         bytes.extend_from_slice(b"QPICHK01");
@@ -366,15 +385,14 @@ impl InitiatorOperation {
                 bytes.extend_from_slice(key.as_bytes());
             }
             InitiatorState::Finished { reply, outcome } => {
-                bytes.push(2);
+                bytes.push(if outcome.session.root.is_some() { 2 } else { 3 });
                 bytes.extend_from_slice(reply);
                 bytes.extend_from_slice(
                     outcome
                         .session
                         .root
                         .as_ref()
-                        .ok_or(Error::Closed)?
-                        .as_bytes(),
+                        .map_or(&[0; 32], |r| r.as_bytes()),
                 );
                 bytes.extend_from_slice(&outcome.final_wire);
             }
@@ -415,7 +433,7 @@ impl InitiatorOperation {
                     first_secret,
                 }))
             }
-            2 => {
+            marker @ (2 | 3) => {
                 let reply = decoder.take(4633)?.to_vec();
                 context.validate_reply_signature(&initial, &reply)?;
                 let mut root = ZeroizingBytes::zeroed();
@@ -425,8 +443,11 @@ impl InitiatorOperation {
                 if final_wire.get(..FINAL_PREFIX) != Some(prefix.as_slice()) {
                     return Err(Error::Scope);
                 }
+                if marker == 3 && root.as_bytes() != &[0; 32] {
+                    return Err(Error::Encoding);
+                }
                 let session = PendingSession {
-                    root: Some(root),
+                    root: (marker == 2).then_some(root),
                     id: hash(b"session-id", &prefix),
                     role: BootstrapRole::Initiator,
                 };
@@ -567,14 +588,20 @@ impl ResponderOperation {
         bytes.extend_from_slice(&self.context.digest);
         bytes.extend_from_slice(&ready.initial);
         bytes.extend_from_slice(&ready.reply);
-        bytes.extend_from_slice(ready.session.root.as_ref().ok_or(Error::Closed)?.as_bytes());
+        bytes.extend_from_slice(
+            ready
+                .session
+                .root
+                .as_ref()
+                .map_or(&[0; 32], |r| r.as_bytes()),
+        );
         match (&ready.confirmation, &ready.accepted_final) {
             (Some(key), None) => {
                 bytes.push(1);
                 bytes.extend_from_slice(key.as_bytes());
             }
             (None, Some(final_wire)) => {
-                bytes.push(2);
+                bytes.push(if ready.session.root.is_some() { 2 } else { 3 });
                 bytes.extend_from_slice(final_wire);
             }
             _ => return Err(Error::State),
@@ -612,7 +639,10 @@ impl ResponderOperation {
                 key.as_mut_bytes().copy_from_slice(decoder.take(32)?);
                 (Some(key), None)
             }
-            2 => {
+            2 | 3 => {
+                if state == 3 && root.as_bytes() != &[0; 32] {
+                    return Err(Error::Encoding);
+                }
                 let final_wire = decoder.take(136)?.to_vec();
                 if final_wire.get(..FINAL_PREFIX)
                     != Some(final_prefix(&context.digest, &initial, &reply).as_slice())
@@ -632,7 +662,7 @@ impl ResponderOperation {
             initial,
             reply,
             session: PendingSession {
-                root: Some(root),
+                root: (state != 3).then_some(root),
                 id,
                 role: BootstrapRole::Responder,
             },
@@ -643,6 +673,15 @@ impl ResponderOperation {
             context,
             state: ResponderState::Prepared(Box::new(ready)),
         })
+    }
+
+    pub(crate) fn retire_session_root(&mut self) -> Result<([u8; 32], ZeroizingBytes<32>), Error> {
+        match &mut self.state {
+            ResponderState::Prepared(ready) if ready.accepted_final.is_some() => {
+                Ok((ready.session.id, ready.session.take_root()?))
+            }
+            _ => Err(Error::State),
+        }
     }
 
     pub(crate) fn stored_reply(&self) -> Result<&[u8], Error> {
