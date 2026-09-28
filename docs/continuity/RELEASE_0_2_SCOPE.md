@@ -34,6 +34,9 @@ the existing public-commitment model into a working cryptographic protocol.
   corpora and checks actual message-key agreement. Its one-way trace has no fresh
   PQ epoch progression. It remains a separate reference workspace; product ratchet
   selection still requires the matched alternatives and compromise analysis.
+  Its passive snapshot experiment now reproduces exposed message keys, including
+  a pending KEM key's next-epoch contribution, across 84 actual state disclosures.
+  The finite experiment does not close the continuous-recovery proof obligation.
 - `research/continuity-identity-candidate` implements an isolated actual-signature
   root/credential/roster/manifest chain, Merkle membership verification and a
   canonical selection derived from the actual authenticated members. It also

@@ -1653,6 +1653,7 @@ jobs:
           manifest=research/continuity-spqr-reference/Cargo.toml
           cargo fmt --manifest-path "$manifest" -- --check
           cargo clippy --manifest-path "$manifest" --locked --all-targets -- -D warnings
+          cargo test --manifest-path "$manifest" --locked > target/continuity-spqr-evidence/driver-tests.log 2>&1
           upstream_manifest=$(sh artifact/python-run.sh -c 'from artifact.spqr_reference import upstream_manifest; print(upstream_manifest())')
           cargo test --manifest-path "$upstream_manifest" --locked > target/continuity-spqr-evidence/upstream-tests.log 2>&1
           cargo run --manifest-path "$manifest" --locked --release -- target/continuity-spqr-evidence/first

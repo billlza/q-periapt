@@ -21,6 +21,9 @@ UPSTREAM_LOCK = "e130211d61c7875cf5d94e606487a1da51845446e118633b6099e1f2d030368
 SCENARIOS = ("ping_pong", "lossy", "reordered", "duplicates", "asymmetric", "offline_then_exchange", "one_way")
 MESSAGES = 2048
 SEED = 0x5143505153524546
+CUTS = (0, 1, 7, 63, 255, 1023)
+SNAPSHOT_THREAT = "one endpoint state snapshot; passive full public transcript; no future private state or RNG"
+SNAPSHOT_INTERPRETATION = "retrospective key derivation, not a security proof or recovery claim"
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -52,7 +55,7 @@ def decode_json(data):
         raise ReferenceError(str(exc)) from exc
 
 
-def wire_header(wire: bytes) -> tuple[int, int, int]:
+def wire_fields(wire: bytes) -> tuple[int, int, int, int | None]:
     require(4 <= len(wire) <= 52 and wire[0] == 1, "wrong wire size/version")
     at = 1
 
@@ -76,11 +79,17 @@ def wire_header(wire: bytes) -> tuple[int, int, int]:
     kind = wire[at]
     at += 1
     require(kind in range(7), "unknown message type")
+    chunk_index = None
     if kind in (0, 4):
         require(at == len(wire), "unexpected payload")
     else:
-        varint(65535)
+        chunk_index = varint(65535)
         require(len(wire) - at == 32, "wrong chunk length")
+    return epoch, index, kind, chunk_index
+
+
+def wire_header(wire: bytes) -> tuple[int, int, int]:
+    epoch, index, kind, _ = wire_fields(wire)
     return epoch, index, kind
 
 
@@ -192,6 +201,63 @@ def verify_trace(path: Path, name: str) -> tuple[dict, str]:
     return expected, hashlib.sha256(data).hexdigest()
 
 
+def verify_compromise(data: bytes, trace: bytes, name: str) -> dict:
+    """Check the public projection, never turn absent derivation into a security proof."""
+    report = decode_json(data)
+    require(isinstance(report, dict) and set(report) == {"schema", "scenario", "upstream_revision", "public_test_entropy", "threat", "interpretation", "cases"}, "snapshot report fields")
+    require(type(report["schema"]) is int and report["schema"] == 1 and report["scenario"] == name
+            and report["upstream_revision"] == REVISION and report["threat"] == SNAPSHOT_THREAT
+            and report["interpretation"] == SNAPSHOT_INTERPRETATION and report["public_test_entropy"] is True, "snapshot identity or interpretation")
+    states = [0, 0]
+    at_cut, packets, ciphertext, complete = {}, {}, {}, {}
+    for row in (decode_json(line) for line in trace.splitlines()):
+        event = row["event"]
+        if event == "send":
+            sequence, sender = row["sequence"], row["sender"]
+            if sequence in CUTS:
+                at_cut[sequence] = tuple(states)
+            epoch, _, kind, chunk_index = wire_fields(bytes.fromhex(row["wire"]))
+            packets[sequence] = (sender, epoch - 1)
+            if kind in (5, 6):
+                parts = ciphertext.setdefault((sender, epoch), {5: set(), 6: set()})
+                parts[kind].add(chunk_index)
+                if len(parts[5]) >= 30 and len(parts[6]) >= 5:
+                    complete.setdefault((sender, epoch), sequence)
+            states[sender] = row["state"]["epoch"]
+        elif event == "receive":
+            states[row["receiver"]] = row["state"]["epoch"]
+    require(set(packets) == set(range(MESSAGES)) and set(at_cut) == set(CUTS), "snapshot trace coverage")
+    require(isinstance(report["cases"], list) and len(report["cases"]) == len(CUTS)*2, "snapshot case coverage")
+    kinds = {"KeysUnsampled", "KeysSampled", "HeaderSent", "Ct1Received", "EkSentCt1Received",
+             "NoHeaderReceived", "HeaderReceived", "Ct1Sampled", "EkReceivedCt1Sampled", "Ct1Acknowledged", "Ct2Sampled"}
+    dk_kinds = {"KeysSampled", "HeaderSent", "Ct1Received", "EkSentCt1Received"}
+    summaries = []
+    for case, (cut, owner) in zip(report["cases"], ((cut, owner) for cut in CUTS for owner in (0, 1)), strict=True):
+        require(isinstance(case, dict) and set(case) == {"cut_before_send", "owner", "snapshot_chain_epoch", "snapshot_braid_state",
+                "stolen_pending_dk_epoch", "recovered_pending_epoch", "predicted_sequences", "not_derived_sequences", "wrong_key_control_mismatch_at"}, "snapshot case fields")
+        require(integer(case["cut_before_send"], 0, MESSAGES-1, "snapshot cut") == cut
+                and integer(case["owner"], 0, 1, "snapshot owner") == owner, "snapshot case order")
+        current = integer(case["snapshot_chain_epoch"], 0, MESSAGES, "snapshot epoch")
+        require(current == at_cut[cut][owner] and case["snapshot_braid_state"] in kinds, "snapshot public state projection")
+        pending = current + 1 if case["snapshot_braid_state"] in dk_kinds else None
+        require(identical(case["stolen_pending_dk_epoch"], pending), "snapshot pending KEM classification")
+        recovered = ({"epoch": pending, "public_ciphertext_complete_at": complete[(1-owner, pending)]}
+                     if pending is not None and (1-owner, pending) in complete else None)
+        require(identical(case["recovered_pending_epoch"], recovered), "snapshot public ciphertext completion")
+        known = pending if recovered is not None else current
+        predicted = [sequence for sequence, (_, epoch) in packets.items() if sequence >= cut and epoch <= known]
+        unknown = [sequence for sequence, (_, epoch) in packets.items() if sequence >= cut and epoch > known]
+        require(predicted and identical(case["predicted_sequences"], predicted)
+                and identical(case["not_derived_sequences"], unknown), "snapshot key derivation coverage")
+        require(integer(case["wrong_key_control_mismatch_at"], cut, MESSAGES-1, "wrong key control") == predicted[0], "snapshot negative control")
+        require(not unknown if name == "one_way" else bool(unknown), "snapshot one-way/duplex boundary")
+        future_predictions = sum(packets[sequence][1] > current for sequence in predicted)
+        require(future_predictions > 0 if recovered is not None else future_predictions == 0, "pending secret contribution")
+        summaries.append({"cut_before_send": cut, "owner": owner, "predicted": len(predicted),
+                          "not_derived": len(unknown), "predicted_from_pending_epoch": future_predictions})
+    return {"scenario": name, "sha256": hashlib.sha256(data).hexdigest(), "cases": summaries}
+
+
 def verify(directory: Path) -> dict:
     report = decode_json(snapshot(directory / "report.json", 4 * 1024 * 1024))
     require(integer(report["schema"], 1, 1, "schema") == 1 and report["upstream_revision"] == REVISION
@@ -200,7 +266,7 @@ def verify(directory: Path) -> dict:
             "wrong_auth_provisional_key_mismatches":2, "wrong_auth_mac_rejected_at":2,
             "outer_message_authentication_required_before_state_commit":True}), "negative controls differ")
     require(len(report["runs"]) == len(SCENARIOS), "scenario count")
-    results = []
+    results, compromises = [], []
     for name, recorded in zip(SCENARIOS, report["runs"], strict=True):
         summary, digest = verify_trace(directory / f"{name}.jsonl", name)
         require(identical(recorded["summary"], summary) and recorded["trace_sha256"] == digest, "report/raw trace mismatch")
@@ -215,7 +281,11 @@ def verify(directory: Path) -> dict:
                 require(timing[field] == ordered[((count - 1) * quantile) // 100], "timing quantile differs")
             require(timing["max_ns"] == ordered[-1], "timing maximum differs")
         results.append({"scenario":name,"trace_sha256":digest,"summary":summary})
+        trace = snapshot(directory / f"{name}.jsonl", 4 * 1024 * 1024)
+        require(hashlib.sha256(trace).hexdigest() == digest, "trace changed before snapshot validation")
+        compromises.append(verify_compromise(snapshot(directory / f"{name}.compromise.json", 4 * 1024 * 1024), trace, name))
     return {"schema":1,"upstream_revision":REVISION,"verified_public_traces":results,
+            "verified_snapshot_experiments":compromises,
             "key_agreement_evidence":"upstream outputs compared inside the pinned driver",
             "production_claim_eligible":False}
 
@@ -280,6 +350,8 @@ def main() -> None:
     result = verify(args.directory)
     corpus = decode_json(snapshot(ROOT/"research/continuity-spqr-reference/TRACE_CORPUS.json",1024*1024))
     require(corpus["upstream_revision"] == REVISION and identical(corpus["traces"],result["verified_public_traces"]), "locked corpus differs")
+    compromise = decode_json(snapshot(ROOT/"research/continuity-spqr-reference/COMPROMISE_CORPUS.json",1024*1024))
+    require(compromise["upstream_revision"] == REVISION and identical(compromise["traces"],result["verified_snapshot_experiments"]), "locked snapshot corpus differs")
     result["dependencies"] = check_lock(args.upstream_lock or upstream_manifest().with_name("Cargo.lock"), args.reference_lock)
     if args.compare:
         require(verify(args.compare) == verify(args.directory), "repeated public trace differs")

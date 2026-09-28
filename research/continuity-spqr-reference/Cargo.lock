@@ -613,6 +613,8 @@ dependencies = [
 name = "q-periapt-spqr-reference"
 version = "0.0.0"
 dependencies = [
+ "hkdf",
+ "libcrux-ml-kem",
  "prost",
  "rand",
  "serde_json",

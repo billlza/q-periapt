@@ -15,6 +15,11 @@ It retains the original 32-byte chunks, dependency versions and source commit,
 compares actual send/receive message keys, and locks seven public traffic corpora.
 This supplies a component execution baseline. Full PQXDH/Triple Ratchet/manager
 composition, matched whole-KEM measurements and deployment interoperability remain open.
+Its [passive state-snapshot experiment](../../research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md)
+now derives actual exposed message keys from 84 captured endpoint states and the
+public transcript. Pending decapsulation keys expose an additional epoch in the
+duplex traces; all subsequent one-way keys remain derivable. Uncomputed keys are
+not labeled secure, and active/repeated compromise analysis remains open.
 
 | Component | Selected public revision | Role | Boundary |
 |---|---|---|---|

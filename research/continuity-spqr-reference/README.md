@@ -55,8 +55,12 @@ These are component bytes, not complete application or Continuity traffic. Timin
 cover the actual SPQR send/receive call, including its state decoding/encoding;
 they exclude application AEAD, transport, durable storage and energy. Raw samples
 are retained without a performance pass threshold. A matched whole-KEM comparison,
-64-byte construction variant, controlled energy measurements and compromise-schedule
-analysis remain required before choosing the product ratchet profile.
+64-byte construction variant, controlled energy measurements and full compromise
+analysis remain required before choosing the product ratchet profile. The
+[passive snapshot experiment](COMPROMISE_EXPERIMENT.md) now checks 84 actual state
+disclosures against sender message keys, including the additional epoch exposed
+by a stolen pending decapsulation key. It preserves the original wire corpus and
+does not equate failed prediction with proven recovery.
 
 ## Integration findings
 
@@ -85,6 +89,7 @@ With Rust 1.96.1 and an existing `protoc` on PATH, from the repository root:
 
 ```sh
 cargo clippy --manifest-path research/continuity-spqr-reference/Cargo.toml --locked --all-targets -- -D warnings
+cargo test --manifest-path research/continuity-spqr-reference/Cargo.toml --locked
 cargo run --manifest-path research/continuity-spqr-reference/Cargo.toml --locked --release -- target/spqr-first
 cargo run --manifest-path research/continuity-spqr-reference/Cargo.toml --locked --release -- target/spqr-repeated
 sh artifact/python-run.sh artifact/spqr_reference.py target/spqr-first --compare target/spqr-repeated
@@ -95,4 +100,7 @@ also pass `--binary` with the actual release binary path. That receipt verifies
 the upstream Git commit/tree, unchanged tracked sources, both dependency locks,
 license bytes, compiler/protobuf identity and executable hash. CI runs the original
 upstream tests plus two corpus executions on Linux and macOS, then checks the same
-locked public bytes. Hosted results remain evidence for their exact source commit.
+locked public bytes and snapshot experiments. Hosted results remain evidence for
+their exact source commit. The two added direct oracle dependencies, HKDF and
+incremental ML-KEM, were already in the pinned upstream dependency closure; no
+registry package version or checksum changes.

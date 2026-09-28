@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Reference-only driver. Public deterministic test seeds; no production key inputs.
+mod compromise;
 use prost::Message;
 use rand::{rngs::StdRng, SeedableRng};
 use serde_json::{json, Value};
@@ -67,6 +68,7 @@ struct Run {
     bytes: usize,
     peak_wire: usize,
     peak_state: usize,
+    compromise: compromise::Experiment,
 }
 impl Run {
     fn send(&mut self, sequence: usize, sender: usize, rng: &mut StdRng) -> Result<Packet> {
@@ -93,6 +95,7 @@ impl Run {
             &json!({"event":"send","sequence":sequence,"sender":sender,
             "wire":hex(&result.msg),"state":metadata(state)?}),
         )?;
+        self.compromise.sent(sequence, sender, &result.msg, &key)?;
         Ok(Packet {
             sequence,
             sender,
@@ -168,6 +171,7 @@ fn scenario(output: &Path, name: &str) -> Result<Value> {
         bytes: 0,
         peak_wire: 0,
         peak_state: 0,
+        compromise: compromise::Experiment::default(),
     };
     event(
         &mut run.writer,
@@ -178,6 +182,7 @@ fn scenario(output: &Path, name: &str) -> Result<Value> {
     let mut rng = StdRng::seed_from_u64(SEED);
     let mut queue = Vec::new();
     for sequence in 0..MESSAGES {
+        run.compromise.capture(sequence, &run.states)?;
         let sender = match name {
             "one_way" => 0,
             "asymmetric" => usize::from(sequence % 10 == 9),
@@ -250,6 +255,11 @@ fn scenario(output: &Path, name: &str) -> Result<Value> {
     event(&mut run.writer, &summary)?;
     run.writer.flush()?;
     run.writer.get_ref().sync_all()?;
+    let compromise = run.compromise.report(name)?;
+    let mut compromise_file = File::create_new(output.join(format!("{name}.compromise.json")))?;
+    serde_json::to_writer(&mut compromise_file, &compromise)?;
+    compromise_file.write_all(b"\n")?;
+    compromise_file.sync_all()?;
     Ok(
         json!({"summary":summary,"trace_sha256":hex(&Sha256::digest(fs::read(trace_path)?)),
         "send":timings(&run.send_ns),"receive":timings(&run.receive_ns)}),

@@ -1,5 +1,6 @@
 """Negative controls for reference byte/accounting evidence and dependency isolation."""
 from pathlib import Path
+import copy
 import json
 import tempfile
 import tomllib
@@ -82,6 +83,59 @@ class ReferenceTests(unittest.TestCase):
             self.assertTrue(all(d["name"] not in ("spqr","q-periapt-spqr-reference") for d in package["dependencies"]))
         names = {p["name"] for p in tomllib.loads((ROOT/"Cargo.lock").read_text())["package"]}
         self.assertTrue(names.isdisjoint({"spqr","q-periapt-spqr-reference"}))
+
+
+class SnapshotProjectionTests(unittest.TestCase):
+    def fixture(self):
+        def varint(value):
+            out = bytearray()
+            while value >= 128:
+                out.append((value & 127) | 128)
+                value >>= 7
+            out.append(value)
+            return bytes(out)
+        rows = []
+        for sequence in range(ref.MESSAGES):
+            wire = b"\x01\x01" + varint(sequence + 1) + b"\x00"
+            rows.append({"event":"send", "sequence":sequence, "sender":0, "wire":wire.hex(), "state":{"epoch":0}})
+            rows.append({"event":"receive", "sequence":sequence, "receiver":1, "state":{"epoch":0}})
+        report = {"schema":1, "scenario":"one_way", "upstream_revision":ref.REVISION, "public_test_entropy":True,
+                  "threat":ref.SNAPSHOT_THREAT, "interpretation":ref.SNAPSHOT_INTERPRETATION, "cases":[]}
+        for cut in ref.CUTS:
+            for owner in (0,1):
+                report["cases"].append({"cut_before_send":cut, "owner":owner, "snapshot_chain_epoch":0,
+                    "snapshot_braid_state":"KeysUnsampled" if owner == 0 else "NoHeaderReceived",
+                    "stolen_pending_dk_epoch":None, "recovered_pending_epoch":None,
+                    "predicted_sequences":list(range(cut,ref.MESSAGES)), "not_derived_sequences":[],
+                    "wrong_key_control_mismatch_at":cut})
+        return report, b"\n".join(json.dumps(row).encode() for row in rows)
+
+    def test_projection_covers_each_cut_owner_and_future_message(self):
+        report, trace = self.fixture()
+        result = ref.verify_compromise(json.dumps(report).encode(), trace, "one_way")
+        self.assertEqual(len(result["cases"]),12)
+        self.assertTrue(all(case["predicted"] == ref.MESSAGES-case["cut_before_send"] and case["not_derived"] == 0 for case in result["cases"]))
+
+    def test_projection_rejects_changed_scope_private_fields_and_missing_cases(self):
+        report, trace = self.fixture()
+        for field, value in (("interpretation","secure after recovery"),("public_test_entropy",False),
+                             ("schema",True),("private_root","00"*32),("cases",report["cases"][:-1])):
+            altered = copy.deepcopy(report)
+            altered[field] = value
+            with self.subTest(field=field), self.assertRaises(ref.ReferenceError):
+                ref.verify_compromise(json.dumps(altered).encode(), trace, "one_way")
+
+    def test_projection_rejects_wrong_epoch_completion_and_key_accounting(self):
+        report, trace = self.fixture()
+        for field, value in (("owner",1),("cut_before_send",True),("snapshot_chain_epoch",1),
+                             ("stolen_pending_dk_epoch",1),
+                             ("recovered_pending_epoch",{"epoch":1,"public_ciphertext_complete_at":100}),
+                             ("predicted_sequences",list(range(1,ref.MESSAGES))),
+                             ("not_derived_sequences",[0]),("wrong_key_control_mismatch_at",1)):
+            altered = copy.deepcopy(report)
+            altered["cases"][0][field] = value
+            with self.subTest(field=field), self.assertRaises(ref.ReferenceError):
+                ref.verify_compromise(json.dumps(altered).encode(), trace, "one_way")
 
 
 if __name__ == "__main__":
