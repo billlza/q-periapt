@@ -27,6 +27,8 @@ const REPLY_PREFIX: usize = 8 + 32 + 32 + 32;
 const REPLY_CORE: usize = REPLY_PREFIX + CIPHERTEXT_LEN;
 const FINAL_PREFIX: usize = 8 + 32 + 32 + 32;
 
+pub(crate) mod staged;
+
 fn hash(label: &[u8], bytes: &[u8]) -> [u8; 32] {
     let mut domain = b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/".to_vec();
     domain.extend_from_slice(label);
@@ -267,24 +269,30 @@ impl InitiatorOperation {
             return Err(Error::Scope);
         }
         let reply_key = context.policy.runtime.generate_key()?;
-        let mut body = prefix(INITIAL_TAG, &context.digest);
-        body.extend_from_slice(&nonce()?);
-        body.extend_from_slice(&reply_key.public_key()?.to_bytes());
+        let body = initial_prefix(&context, &reply_key, &nonce()?)?;
         let result = context
             .policy
             .runtime
             .encapsulate(&context.peer, &hash(b"kem-initial", &body))?;
-        body.extend_from_slice(&result.ciphertext.to_bytes());
-        let core_hash = hash(b"initial-core", &body);
-        let key = initial_key(&result.secret, &core_hash)?;
-        body.extend_from_slice(&mac(key.as_bytes(), &core_hash)?);
-        let initial = envelope(&body, &signer.sign(Purpose::BootstrapInitiator, &body)?)?;
+        let (body, first_secret) = initial_body(body, result)?;
+        let signature = signer.sign(Purpose::BootstrapInitiator, &body)?;
+        Self::from_initial(context, reply_key, body, first_secret, &signature)
+    }
+
+    fn from_initial(
+        context: Arc<BootstrapContext>,
+        reply_key: HybridKey,
+        body: Vec<u8>,
+        first_secret: ZeroizingBytes<32>,
+        signature: &[u8],
+    ) -> Result<Self, Error> {
+        let initial = envelope(&body, signature)?;
         Ok(Self {
             context,
             initial,
             state: InitiatorState::Waiting(Box::new(WaitingInitiator {
                 reply_key,
-                first_secret: result.secret.export_for_protocol()?,
+                first_secret,
             })),
         })
     }
@@ -630,6 +638,28 @@ fn prefix(tag: &[u8; 8], context: &[u8; 32]) -> Vec<u8> {
     let mut bytes = tag.to_vec();
     bytes.extend_from_slice(context);
     bytes
+}
+
+fn initial_prefix(
+    context: &BootstrapContext,
+    key: &HybridKey,
+    nonce: &[u8; 32],
+) -> Result<Vec<u8>, Error> {
+    let mut body = prefix(INITIAL_TAG, &context.digest);
+    body.extend_from_slice(nonce);
+    body.extend_from_slice(&key.public_key()?.to_bytes());
+    Ok(body)
+}
+
+fn initial_body(
+    mut body: Vec<u8>,
+    result: q_periapt_sdk::Encapsulation,
+) -> Result<(Vec<u8>, ZeroizingBytes<32>), Error> {
+    body.extend_from_slice(&result.ciphertext.to_bytes());
+    let core = hash(b"initial-core", &body);
+    let key = initial_key(&result.secret, &core)?;
+    body.extend_from_slice(&mac(key.as_bytes(), &core)?);
+    Ok((body, result.secret.export_for_protocol()?))
 }
 fn nonce() -> Result<[u8; 32], Error> {
     let mut value = [0; 32];

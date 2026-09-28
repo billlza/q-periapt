@@ -310,7 +310,7 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     }
 }
 
-impl<'a, P: PreparedKem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
+impl<P: PreparedKem, T: Kem, X: Xof256> HybridKem<'_, P, T, X> {
     /// Decapsulate with a process-local prepared PQ key and the serialized
     /// traditional key.
     ///

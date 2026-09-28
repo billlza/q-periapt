@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+use crate::bootstrap::staged::InitiationPlan;
 use crate::InitiatorOperation;
+use q_periapt_sdk::expert::replay::RecoveryKey;
 
 const PREFIX: usize = 40 + 5817;
 const WAITING: usize = PREFIX + 1 + 32 + q_periapt_sdk::expert::EXPANDED_KEY_LEN;
@@ -56,7 +58,10 @@ fn checkpoint(record: &Record) -> Result<&[u8], DurableError> {
             WAITING
         }
         DurableStatus::FinalPrepared | DurableStatus::FinalCommitted => FINISHED,
-        DurableStatus::Executing => return Err(DurableError::Suspended),
+        DurableStatus::Executing
+        | DurableStatus::InitialKeyReserved
+        | DurableStatus::InitialKemReserved
+        | DurableStatus::InitialSignatureReserved => return Err(DurableError::Suspended),
         DurableStatus::Rejected => return Err(DurableError::Rejected),
         _ => return Err(DurableError::Corrupt),
     };
@@ -101,6 +106,23 @@ fn pack(request: InitiationId, private: &[u8]) -> Zeroizing<Vec<u8>> {
     bytes
 }
 
+fn plan_scope(journal: &[u8; 32], context: &[u8; 32], operation: &[u8; 32]) -> [u8; 32] {
+    let mut bytes = Vec::with_capacity(96);
+    bytes.extend_from_slice(journal);
+    bytes.extend_from_slice(context);
+    bytes.extend_from_slice(operation);
+    digest(b"Q-PERIAPT-CONTINUITY-INITIATION-PLAN/v1", &bytes)
+}
+
+fn is_plan(phase: DurableStatus) -> bool {
+    matches!(
+        phase,
+        DurableStatus::InitialKeyReserved
+            | DurableStatus::InitialKemReserved
+            | DurableStatus::InitialSignatureReserved
+    )
+}
+
 impl DeviceJournal {
     fn initiation_query(
         &self,
@@ -143,40 +165,117 @@ impl DeviceJournal {
         let mut image = self.image()?;
         if let Some(record) = image.records.get(&id) {
             check_request(record, &context, request)?;
-            return self.release_initial(&mut image, id, context, now);
-        }
-        if image.records.len() >= MAX_RECORDS {
+            if !is_plan(record.phase) {
+                return self.release_initial(&mut image, id, context, now);
+            }
+        } else if image.records.len() >= MAX_RECORDS {
             return Err(DurableError::Capacity);
         }
-        image.records.insert(
-            id,
-            Record {
-                kind: RecordKind::Initiator,
-                context: context.digest(),
-                phase: DurableStatus::Executing,
-                keys: Vec::new(),
-                payload: Zeroizing::new(request.0.to_vec()),
-            },
-        );
-        self.persist(&mut image)?;
-        let operation = match InitiatorOperation::start(Arc::clone(&context), signer, now) {
-            Ok(operation) => operation,
-            Err(error) => {
-                image
-                    .records
-                    .get_mut(&id)
-                    .ok_or(DurableError::Corrupt)?
-                    .phase = DurableStatus::Rejected;
-                self.persist(&mut image)?;
-                return Err(DurableError::Protocol(error));
+        InitiationPlan::check_signer(&context, signer)?;
+        let scope = plan_scope(&image.id, &context.digest(), &id);
+        let recovery = RecoveryKey::from_host_key(
+            self.active
+                .as_ref()
+                .ok_or(DurableError::Closed)?
+                .key
+                .0
+                .as_bytes(),
+        )
+        .map_err(Error::from)?;
+        let mut plan = if let Some(record) = image.records.get(&id) {
+            match InitiationPlan::decode(
+                &context.digest(),
+                &scope,
+                record.phase as u8,
+                record.payload.get(32..).ok_or(DurableError::Corrupt)?,
+            ) {
+                Ok(plan) => plan,
+                Err(error) => {
+                    self.close();
+                    return Err(DurableError::InvalidCheckpoint(error));
+                }
             }
+        } else {
+            let plan = InitiationPlan::reserve(&context, scope, &recovery)?;
+            image.records.insert(
+                id,
+                Record {
+                    kind: RecordKind::Initiator,
+                    context: context.digest(),
+                    phase: DurableStatus::InitialKeyReserved,
+                    keys: Vec::new(),
+                    payload: pack(request, &plan.encode()),
+                },
+            );
+            self.persist(&mut image)?;
+            plan
         };
-        let private = operation.checkpoint()?;
+        // There are exactly two unsigned stages. Each next command's randomness
+        // and complete inputs are durable before that command can execute.
+        for _ in 0..2 {
+            if plan.phase() == bootstrap::staged::SIGNATURE_RESERVED {
+                break;
+            }
+            context.check(now)?;
+            #[cfg(all(test, unix))]
+            let effect = plan.phase();
+            plan = match plan.advance(&context, &scope, &recovery) {
+                Ok(plan) => plan,
+                Err(error) => return self.initial_failure(&mut image, id, request, error),
+            };
+            #[cfg(all(test, unix))]
+            tests::after_effect(effect, &plan.public_effect()?);
+            let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
+            record.phase = DurableStatus::decode(plan.phase())?;
+            record.payload = pack(request, &plan.encode());
+            self.persist(&mut image)?;
+        }
+        context.check(now)?;
+        let operation = match plan.complete(Arc::clone(&context), &scope, &recovery, signer) {
+            Ok(operation) => operation,
+            Err(error) => return self.initial_failure(&mut image, id, request, error),
+        };
+        #[cfg(all(test, unix))]
+        tests::after_effect(
+            bootstrap::staged::SIGNATURE_RESERVED,
+            operation.initial_message(now)?,
+        );
+        let private = match operation.checkpoint() {
+            Ok(private) => private,
+            Err(error) => return self.initial_failure(&mut image, id, request, error),
+        };
+        context.check(now)?;
         let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
         record.payload = pack(request, &private);
         record.phase = DurableStatus::Prepared;
         self.persist(&mut image)?;
         self.release_initial(&mut image, id, context, now)
+    }
+    fn initial_failure(
+        &mut self,
+        image: &mut Image,
+        id: [u8; 32],
+        request: InitiationId,
+        error: Error,
+    ) -> Result<Vec<u8>, DurableError> {
+        if error == Error::Runtime(q_periapt_sdk::Error::InvalidKeyShare) {
+            let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
+            record.payload = Zeroizing::new(request.0.to_vec());
+            record.phase = DurableStatus::Rejected;
+            self.persist(image)?;
+        } else if matches!(
+            error,
+            Error::Encoding
+                | Error::Scope
+                | Error::State
+                | Error::Conflict
+                | Error::Runtime(q_periapt_sdk::Error::InvalidPrivateKey)
+        ) {
+            self.close();
+            return Err(DurableError::InvalidCheckpoint(error));
+        }
+        // Local/transient failure preserves the selected, sealed computation.
+        Err(DurableError::Protocol(error))
     }
     fn release_initial(
         &mut self,
@@ -345,6 +444,7 @@ impl DeviceJournal {
 }
 
 pub(super) fn validate_record(
+    journal: &[u8; 32],
     op: &[u8; 32],
     context: &[u8; 32],
     phase: DurableStatus,
@@ -360,8 +460,18 @@ pub(super) fn validate_record(
     if operation_id(request) != *op {
         return Err(DurableError::Corrupt);
     }
+    if is_plan(phase) {
+        InitiationPlan::decode(
+            context,
+            &plan_scope(journal, context, op),
+            phase as u8,
+            payload.get(32..).ok_or(DurableError::Corrupt)?,
+        )
+        .map_err(|_| DurableError::Corrupt)?;
+        return Ok(());
+    }
     let (length, marker) = match phase {
-        DurableStatus::Executing | DurableStatus::Rejected => {
+        DurableStatus::Rejected => {
             return if payload.len() == 32 {
                 Ok(())
             } else {

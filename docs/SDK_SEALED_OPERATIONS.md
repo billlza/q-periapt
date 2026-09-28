@@ -68,17 +68,19 @@ format migration or fresh-generation fallback exists.
 
 ## Continuity integration boundary
 
-The current Continuity device journal still uses the non-repeatable bootstrap path.
-Its `Executing` state stays suspended after a crash. Integration requires staged
-reservations: first a reply-key reservation, then an encapsulation reservation
-once its exact public context is known, then a purpose/body-bound signing reservation.
-Each stage must durably pin its complete intent before execution. Reserving generic
+The Continuity candidate's initiator journal now uses staged reservations: first
+a reply-key reservation, then an encapsulation reservation once its exact public
+context is known, then a private purpose/body-bound signing reservation. It recovers
+the same public outputs when killed after computation but before result pin, and
+an independent live responder verifies the recovered handshake. Its responder
+`Executing` state still uses the non-repeatable path and remains suspended on restart.
+Each stage durably pins its complete intent before execution. Reserving generic
 coins and allowing the caller to choose the context afterward would permit reuse
 under different commands and is deliberately unsupported.
 
-The sealed KEM interface does not yet provide the signing stage, immutable outer
-write/anchor intents, prekey-secret inventory or anti-rollback anchor. Those remain
-required in the full 0.2.0 Continuity work.
+The signing reservation is private to the candidate's authenticated journal, not
+a public SDK primitive. Responder integration, immutable outer write/anchor intents,
+prekey-secret inventory and anti-rollback anchors remain required in the full 0.2.0 work.
 
 Tests compare exact recovered private keys and real peer decapsulation, exercise
 all-byte corruption and length rejection, input/policy/kind substitution, runtime

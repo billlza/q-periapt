@@ -1333,6 +1333,9 @@ class RustPublishContractTests(unittest.TestCase):
         # The alpha purpose-key schedule adds block-buffer 0.12.1, hkdf/hmac
         # 0.13.0 and sha2 0.11.0 (227 -> 231). rustls 0.23.45 replaces 0.23.43;
         # the new host-store is local and reuses already pinned redb/rustix.
+        # Opt-in sealed SDK operations add exactly seven registry packages:
+        # aead, chacha20, chacha20poly1305, cipher, inout, poly1305 and universal-hash
+        # (231 -> 238). Existing registry versions/checksums are unchanged.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1342,7 +1345,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            231,
+            238,
         )
         self.assertEqual(
             len(

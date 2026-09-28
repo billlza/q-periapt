@@ -66,7 +66,9 @@ same policy is still a different local revocation/admission authority.
 
 ## Three flights
 
-Every nonce and encapsulation uses OS randomness. The initiator's reply key is a
+Every new nonce, key and encapsulation uses OS randomness. The durable initiator
+seals and replays this exact material after a crash; restart is not a new operation.
+The initiator's reply key is a
 fresh owned hybrid key; it is not an account or manifest signing key. Both signature
 components are required, with the identity candidate's purpose separation and
 low-S requirement. The first two flights use its u32-length signed envelope.

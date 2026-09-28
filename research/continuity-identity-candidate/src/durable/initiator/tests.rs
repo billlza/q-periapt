@@ -8,10 +8,79 @@ use crate::{
 };
 use std::{
     fs,
+    io::Write,
     process::{Command, Stdio},
     sync::atomic::Ordering,
     time::{Duration, Instant},
 };
+
+pub(super) fn after_effect(phase: u8, public_output: &[u8]) {
+    let Ok(target) = std::env::var("QPERIAPT_JOURNAL_CRASH_EFFECT") else {
+        return;
+    };
+    if target != phase.to_string() {
+        return;
+    }
+    let path = std::env::var_os("QPERIAPT_JOURNAL_CRASH_DIR").expect("owned directory");
+    let path = Path::new(&path);
+    fs::write(path.join("computed-public-output"), public_output).expect("public result");
+    let mut ready = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path.join("ready"))
+        .expect("marker");
+    ready.write_all(b"computed\n").expect("marker data");
+    ready.sync_all().expect("marker sync");
+    loop {
+        std::thread::park();
+    }
+}
+
+fn public_effect_from_initial(phase: DurableStatus, wire: &[u8]) -> Vec<u8> {
+    let (body, _) = open_envelope(wire).expect("initial envelope");
+    match phase {
+        DurableStatus::InitialKeyReserved => body
+            .get(72..72 + q_periapt_sdk::PUBLIC_KEY_LEN)
+            .expect("reply public key")
+            .to_vec(),
+        DurableStatus::InitialKemReserved => body.to_vec(),
+        DurableStatus::InitialSignatureReserved => wire.to_vec(),
+        _ => unreachable!("not a reserved computation"),
+    }
+}
+
+fn retained_public_effect(
+    journal: &mut DeviceJournal,
+    context: &Arc<BootstrapContext>,
+    request: InitiationId,
+    signer: &DeviceSigningKey,
+) -> Vec<u8> {
+    let image = journal.image().expect("image");
+    let id = operation_id(request);
+    let record = image.records.get(&id).expect("record");
+    let scope = plan_scope(&image.id, &context.digest(), &id);
+    let key = RecoveryKey::from_host_key(journal.active.as_ref().expect("active").key.0.as_bytes())
+        .expect("recovery owner");
+    let plan = InitiationPlan::decode(
+        &context.digest(),
+        &scope,
+        record.phase as u8,
+        record.payload.get(32..).expect("plan"),
+    )
+    .expect("plan decode");
+    if record.phase == DurableStatus::InitialSignatureReserved {
+        plan.complete(Arc::clone(context), &scope, &key, signer)
+            .expect("complete exact plan")
+            .initial_message(150)
+            .expect("public initial")
+            .to_vec()
+    } else {
+        plan.advance(context, &scope, &key)
+            .expect("exact effect")
+            .public_effect()
+            .expect("public output")
+    }
+}
 
 #[test]
 fn both_journals_reopen_and_agree_for_every_mode_with_no_signing_owner() {
@@ -244,7 +313,7 @@ fn each_initial_sync_failure_is_reconciled_without_new_initial_randomness() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let mut states = BTreeSet::new();
     for after_sync in [false, true] {
-        for cut in 1..=6 {
+        for cut in 1..=10 {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
             drop(new_store(&path, f.initiator_device()));
@@ -268,10 +337,22 @@ fn each_initial_sync_failure_is_reconciled_without_new_initial_randomness() {
                     recovered.resume_initial(Arc::clone(&f.initiator), request, 150),
                     Err(DurableError::Absent)
                 )),
-                DurableStatus::Executing => assert!(matches!(
-                    recovered.resume_initial(Arc::clone(&f.initiator), request, 150),
-                    Err(DurableError::Suspended)
-                )),
+                p if is_plan(p) => {
+                    assert!(matches!(
+                        recovered.resume_initial(Arc::clone(&f.initiator), request, 150),
+                        Err(DurableError::Suspended)
+                    ));
+                    let expected =
+                        retained_public_effect(&mut recovered, &f.initiator, request, &f.signer_i);
+                    let initial = recovered
+                        .initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150)
+                        .expect("resume exact sealed stage");
+                    assert_eq!(public_effect_from_initial(p, &initial), expected);
+                    let (pq, classic) = f.sources();
+                    let mut peer = ResponderOperation::new(Arc::clone(&f.responder));
+                    peer.respond(&initial, &f.signer_r, pq, classic, 150)
+                        .expect("real peer authenticates recovered initial");
+                }
                 DurableStatus::Prepared | DurableStatus::AwaitingReply => {
                     let image = recovered.image().expect("image");
                     let record = image.records.values().next().expect("record");
@@ -287,11 +368,13 @@ fn each_initial_sync_failure_is_reconciled_without_new_initial_randomness() {
         }
     }
     assert!(
-        states.contains(&(DurableStatus::Executing as u8))
+        states.contains(&(DurableStatus::InitialKeyReserved as u8))
+            && states.contains(&(DurableStatus::InitialKemReserved as u8))
+            && states.contains(&(DurableStatus::InitialSignatureReserved as u8))
             && states.contains(&(DurableStatus::Prepared as u8))
             && states.contains(&(DurableStatus::AwaitingReply as u8))
     );
-    eprintln!("initiator initial faults: cases=12 recovered={states:?}");
+    eprintln!("initiator initial faults: cases=20 recovered={states:?}");
 }
 
 #[test]
@@ -407,19 +490,29 @@ fn initiator_crash_child() {
 }
 
 #[test]
-fn process_kill_at_six_initiator_boundaries_recovers_pinned_work_only() {
-    for phase in [
-        DurableStatus::Executing,
+fn process_kill_at_eleven_initiator_cuts_recovers_exact_reserved_work() {
+    let boundaries = [
+        DurableStatus::InitialKeyReserved,
+        DurableStatus::InitialKemReserved,
+        DurableStatus::InitialSignatureReserved,
         DurableStatus::Prepared,
         DurableStatus::AwaitingReply,
         DurableStatus::ProcessingReply,
         DurableStatus::FinalPrepared,
         DurableStatus::FinalCommitted,
-    ] {
+    ];
+    let cuts = boundaries.into_iter().map(|phase| (phase, false)).chain([
+        (DurableStatus::InitialKeyReserved, true),
+        (DurableStatus::InitialKemReserved, true),
+        (DurableStatus::InitialSignatureReserved, true),
+    ]);
+    for (phase, after_effect) in cuts {
         let dir = directory();
         let path = dir.path().canonicalize().expect("path");
         let mut f = fixture(PrekeyQuality::OneTimeBoth);
-        f.signer_i.close(); // The surviving peer cannot recreate the initiator proof.
+        if !is_plan(phase) {
+            f.signer_i.close(); // Pinned results do not need the original signing owner.
+        }
         fs::write(
             path.join("public-keys"),
             [
@@ -440,7 +533,14 @@ fn process_kill_at_six_initiator_boundaries_recovers_pinned_work_only() {
             ])
             .env("QPERIAPT_INITIATOR_CRASH_DIR", &path)
             .env("QPERIAPT_JOURNAL_CRASH_DIR", &path)
-            .env("QPERIAPT_JOURNAL_CRASH_PHASE", (phase as u8).to_string())
+            .env(
+                if after_effect {
+                    "QPERIAPT_JOURNAL_CRASH_EFFECT"
+                } else {
+                    "QPERIAPT_JOURNAL_CRASH_PHASE"
+                },
+                (phase as u8).to_string(),
+            )
             .stdout(Stdio::from(log.try_clone().expect("log clone")))
             .stderr(Stdio::from(log))
             .spawn()
@@ -477,7 +577,11 @@ fn process_kill_at_six_initiator_boundaries_recovers_pinned_work_only() {
         );
         if matches!(
             phase,
-            DurableStatus::Executing | DurableStatus::Prepared | DurableStatus::AwaitingReply
+            DurableStatus::InitialKeyReserved
+                | DurableStatus::InitialKemReserved
+                | DurableStatus::InitialSignatureReserved
+                | DurableStatus::Prepared
+                | DurableStatus::AwaitingReply
         ) {
             assert!(
                 !path.join("returned-initial").exists(),
@@ -500,52 +604,62 @@ fn process_kill_at_six_initiator_boundaries_recovers_pinned_work_only() {
                 .expect("recovered phase"),
             phase
         );
-        if phase == DurableStatus::Executing {
-            assert!(matches!(
-                journal.resume_initial(Arc::clone(&f.initiator), request, 150),
-                Err(DurableError::Suspended)
-            ));
+        let image = journal.image().expect("image");
+        let record = image.records.values().next().expect("record");
+        let recovered_initial = if is_plan(phase) {
+            journal
+                .initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150)
+                .expect("replay sealed computation")
         } else {
-            let image = journal.image().expect("image");
-            let record = image.records.values().next().expect("record");
-            let recovered_initial = journal
+            let initial = journal
                 .resume_initial(Arc::clone(&f.initiator), request, 150)
                 .expect("same initial");
-            assert_eq!(recovered_initial, initial(record).expect("pinned initial"));
-            let outcome = if matches!(
-                phase,
-                DurableStatus::Prepared | DurableStatus::AwaitingReply
-            ) {
-                let reply = peer
-                    .respond(&recovered_initial, &f.signer_r, pq, classic, 150)
-                    .expect("peer survived the initiator crash");
-                journal
-                    .accept_reply(Arc::clone(&f.initiator), request, reply, 150)
-                    .expect("restored private reply key")
-            } else {
-                journal
-                    .resume_reply(Arc::clone(&f.initiator), request, 150)
-                    .expect("same persisted reply")
-            };
+            assert_eq!(initial, super::initial(record).expect("pinned initial"));
+            initial
+        };
+        if after_effect {
             assert_eq!(
-                peer.finish(outcome.final_message(), 150)
-                    .expect("real final MAC at surviving peer")
-                    .id(),
-                outcome.session_id()
-            );
-            assert_eq!(
-                journal
-                    .resume_reply(Arc::clone(&f.initiator), request, 150)
-                    .expect("final replay")
-                    .final_message(),
-                outcome.final_message()
+                public_effect_from_initial(phase, &recovered_initial),
+                fs::read(path.join("computed-public-output")).expect("pre-crash public output")
             );
         }
+        let outcome = if matches!(
+            phase,
+            DurableStatus::InitialKeyReserved
+                | DurableStatus::InitialKemReserved
+                | DurableStatus::InitialSignatureReserved
+                | DurableStatus::Prepared
+                | DurableStatus::AwaitingReply
+        ) {
+            let reply = peer
+                .respond(&recovered_initial, &f.signer_r, pq, classic, 150)
+                .expect("peer survived the initiator crash");
+            journal
+                .accept_reply(Arc::clone(&f.initiator), request, reply, 150)
+                .expect("restored private reply key")
+        } else {
+            journal
+                .resume_reply(Arc::clone(&f.initiator), request, 150)
+                .expect("same persisted reply")
+        };
+        assert_eq!(
+            peer.finish(outcome.final_message(), 150)
+                .expect("real final MAC at surviving peer")
+                .id(),
+            outcome.session_id()
+        );
+        assert_eq!(
+            journal
+                .resume_reply(Arc::clone(&f.initiator), request, 150)
+                .expect("final replay")
+                .final_message(),
+            outcome.final_message()
+        );
     }
 }
 
 #[test]
-fn v1_header_and_role_substitution_are_refused() {
+fn old_headers_and_role_substitution_are_refused() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let dir = directory();
     let path = dir.path().canonicalize().expect("path");
@@ -556,14 +670,14 @@ fn v1_header_and_role_substitution_are_refused() {
         .expect("initial");
     let mut image = journal.image().expect("image");
     let active = journal.active.as_ref().expect("active");
-    let mut old = seal(&active.key, &image).expect("sealed");
-    old.get_mut(..8)
-        .expect("header")
-        .copy_from_slice(b"QPVLT001");
-    assert!(matches!(
-        unseal(&active.key, active.owner, &old),
-        Err(DurableError::Corrupt)
-    ));
+    for header in [b"QPVLT001", b"QPVLT002"] {
+        let mut old = seal(&active.key, &image).expect("sealed");
+        old.get_mut(..8).expect("header").copy_from_slice(header);
+        assert!(matches!(
+            unseal(&active.key, active.owner, &old),
+            Err(DurableError::Corrupt)
+        ));
+    }
     image.records.values_mut().next().expect("record").kind = RecordKind::Responder;
     let sealed = seal(&active.key, &image).expect("authenticated wrong role");
     assert!(matches!(
@@ -613,5 +727,183 @@ fn restored_private_key_must_be_valid_and_match_the_signed_reply_public_key() {
             matches!(journal.accept_reply(Arc::clone(&f.initiator), request, &reply, 150), Err(DurableError::InvalidCheckpoint(error)) if error == expected)
         );
         assert!(journal.active.is_none());
+    }
+}
+
+#[test]
+fn sealed_initial_plan_survives_quota_and_missing_signer_without_replacement() {
+    let mut f = fixture_with_initiator_limits(
+        PrekeyQuality::ReusableBoth,
+        q_periapt_sdk::Limits {
+            max_live_keys: 1,
+            max_in_flight: 1,
+        },
+    );
+    let directory = directory();
+    let path = directory.path().canonicalize().expect("path");
+    let mut journal = new_store(&path, f.initiator_device());
+    let request = InitiationId::generate().expect("request");
+    let held = f.occupy_initiator_slot();
+    assert!(matches!(
+        journal.initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150),
+        Err(DurableError::Protocol(Error::Runtime(
+            q_periapt_sdk::Error::ResourceLimit
+        )))
+    ));
+    assert_eq!(
+        journal
+            .initiation_status(&f.initiator, request)
+            .expect("query"),
+        DurableStatus::InitialKeyReserved
+    );
+    let before = journal.image().expect("image");
+    let original = before
+        .records
+        .get(&operation_id(request))
+        .expect("record")
+        .payload
+        .as_slice();
+    assert!(matches!(
+        journal.initiate(Arc::clone(&f.initiator), request, &f.signer_r, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    f.signer_i.close();
+    assert!(matches!(
+        journal.initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150),
+        Err(DurableError::Protocol(Error::Closed))
+    ));
+    let after = journal.image().expect("retained image");
+    assert_eq!(before.revision, after.revision);
+    assert_eq!(
+        after
+            .records
+            .get(&operation_id(request))
+            .expect("retained record")
+            .payload
+            .as_slice(),
+        original
+    );
+    drop(held);
+    drop(journal);
+    let mut journal = reopen(&path, f.initiator_device());
+    // The test restores the same deterministic signing fixture. Production
+    // recovery still needs the original protected signer or its stable handle.
+    let restored_signer = fixture(PrekeyQuality::ReusableBoth).signer_i;
+    let expected = retained_public_effect(&mut journal, &f.initiator, request, &restored_signer);
+    let wire = journal
+        .initiate(Arc::clone(&f.initiator), request, &restored_signer, 150)
+        .expect("recover same plan");
+    assert_eq!(
+        public_effect_from_initial(DurableStatus::InitialKeyReserved, &wire),
+        expected
+    );
+    let (pq, classic) = f.sources();
+    let mut peer = ResponderOperation::new(Arc::clone(&f.responder));
+    peer.respond(&wire, &f.signer_r, pq, classic, 150)
+        .expect("real authenticated peer");
+}
+
+#[test]
+fn malformed_sealed_initial_plan_closes_without_regenerating_its_key() {
+    let f = fixture_with_initiator_limits(
+        PrekeyQuality::OneTimeBoth,
+        q_periapt_sdk::Limits {
+            max_live_keys: 1,
+            max_in_flight: 1,
+        },
+    );
+    let directory = directory();
+    let path = directory.path().canonicalize().expect("path");
+    let mut journal = new_store(&path, f.initiator_device());
+    let request = InitiationId::generate().expect("request");
+    let held = f.occupy_initiator_slot();
+    assert!(matches!(
+        journal.initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150),
+        Err(DurableError::Protocol(Error::Runtime(
+            q_periapt_sdk::Error::ResourceLimit
+        )))
+    ));
+    drop(held);
+    let mut image = journal.image().expect("image");
+    *image
+        .records
+        .get_mut(&operation_id(request))
+        .expect("record")
+        .payload
+        .last_mut()
+        .expect("sealed key tag") ^= 1;
+    journal
+        .persist(&mut image)
+        .expect("authenticated outer writer defect");
+    assert!(matches!(
+        journal.initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150),
+        Err(DurableError::InvalidCheckpoint(Error::Runtime(
+            q_periapt_sdk::Error::InvalidPrivateKey
+        )))
+    ));
+    assert!(journal.active.is_none());
+}
+
+#[test]
+fn signing_reservation_replays_both_signatures_and_binds_the_complete_command() {
+    use crate::crypto::SigningReservation;
+    let f = fixture(PrekeyQuality::ReusableBoth);
+    let scope = [41; 32];
+    let body = b"reserved initial signature";
+    let reservation = SigningReservation::reserve(
+        &f.signer_i.public_key().expect("key"),
+        &scope,
+        Purpose::BootstrapInitiator,
+        body,
+    )
+    .expect("platform signing randomness");
+    let first = reservation
+        .sign(&f.signer_i, &scope, Purpose::BootstrapInitiator, body)
+        .expect("sign");
+    let mut serialized = Zeroizing::new(Vec::new());
+    reservation.encode(&mut serialized);
+    let restored =
+        SigningReservation::decode(&serialized).expect("authenticated journal representation");
+    assert_eq!(
+        restored
+            .sign(&f.signer_i, &scope, Purpose::BootstrapInitiator, body)
+            .expect("replay"),
+        first
+    );
+    f.signer_i
+        .public_key()
+        .expect("public")
+        .verify(Purpose::BootstrapInitiator, body, &first)
+        .expect("both required signatures");
+    for (key, operation, purpose, message) in [
+        (
+            &f.signer_r,
+            scope,
+            Purpose::BootstrapInitiator,
+            body.as_slice(),
+        ),
+        (
+            &f.signer_i,
+            [42; 32],
+            Purpose::BootstrapInitiator,
+            body.as_slice(),
+        ),
+        (
+            &f.signer_i,
+            scope,
+            Purpose::BootstrapResponder,
+            body.as_slice(),
+        ),
+        (
+            &f.signer_i,
+            scope,
+            Purpose::BootstrapInitiator,
+            b"reserved initial signature changed".as_slice(),
+        ),
+    ] {
+        assert!(matches!(
+            restored.sign(key, &operation, purpose, message),
+            Err(Error::Scope)
+        ));
     }
 }

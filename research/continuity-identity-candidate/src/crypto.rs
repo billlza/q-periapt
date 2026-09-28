@@ -191,11 +191,29 @@ impl Material {
         let message = signed_message(purpose, body)?;
         let mut randomness = ZeroizingBytes::<ML_DSA_65_SIGN_RAND_LEN>::zeroed();
         getrandom::fill(randomness.as_mut_bytes()).map_err(|_| Error::Entropy)?;
+        self.sign_message(&message, &randomness)
+    }
+
+    fn sign_with(
+        &self,
+        purpose: Purpose,
+        body: &[u8],
+        randomness: &ZeroizingBytes<ML_DSA_65_SIGN_RAND_LEN>,
+    ) -> Result<Vec<u8>, Error> {
+        let message = signed_message(purpose, body)?;
+        self.sign_message(&message, randomness)
+    }
+
+    fn sign_message(
+        &self,
+        message: &[u8],
+        randomness: &ZeroizingBytes<ML_DSA_65_SIGN_RAND_LEN>,
+    ) -> Result<Vec<u8>, Error> {
         let mut pq_signature = [0u8; ML_DSA_65_SIG_LEN];
         let written = MlDsa65
             .sign_ctx(
                 self.pq.as_bytes(),
-                &message,
+                message,
                 SIGNATURE_CONTEXT,
                 randomness.as_bytes(),
                 &mut pq_signature,
@@ -206,7 +224,7 @@ impl Material {
         }
         let signature: Signature = self
             .classic
-            .try_sign(&message)
+            .try_sign(message)
             .map_err(|_| Error::Provider)?;
         let canonical = match signature.normalize_s() {
             Some(normalized) => normalized,
@@ -224,6 +242,73 @@ pub struct RootSigningKey(Option<Material>);
 
 /// Owned device signer, distinct from the authority allowed to enroll devices.
 pub struct DeviceSigningKey(Option<Material>);
+
+// Private authenticated-journal representation, never a public raw-coin API.
+// Its binding covers the signer, operation, purpose and complete signed message.
+pub(crate) struct SigningReservation {
+    binding: [u8; 32],
+    randomness: ZeroizingBytes<ML_DSA_65_SIGN_RAND_LEN>,
+}
+impl SigningReservation {
+    fn binding(
+        key: &PublicKey,
+        operation: &[u8; 32],
+        purpose: Purpose,
+        body: &[u8],
+    ) -> Result<[u8; 32], Error> {
+        let mut bytes = key.encode();
+        bytes.extend_from_slice(operation);
+        bytes.extend_from_slice(&signed_message(purpose, body)?);
+        Ok(digest(
+            b"Q-PERIAPT-CONTINUITY-SIGNING-RESERVATION/v1",
+            &bytes,
+        ))
+    }
+    pub(crate) fn reserve(
+        key: &PublicKey,
+        operation: &[u8; 32],
+        purpose: Purpose,
+        body: &[u8],
+    ) -> Result<Self, Error> {
+        let binding = Self::binding(key, operation, purpose, body)?;
+        let mut randomness = ZeroizingBytes::zeroed();
+        getrandom::fill(randomness.as_mut_bytes()).map_err(|_| Error::Entropy)?;
+        Ok(Self {
+            binding,
+            randomness,
+        })
+    }
+    pub(crate) fn encode(&self, out: &mut zeroize::Zeroizing<Vec<u8>>) {
+        out.extend_from_slice(&self.binding);
+        out.extend_from_slice(self.randomness.as_bytes());
+    }
+    pub(crate) fn decode(bytes: &[u8]) -> Result<Self, Error> {
+        let mut d = Decoder::new(bytes);
+        let binding = d.array()?;
+        let mut randomness = ZeroizingBytes::zeroed();
+        randomness
+            .as_mut_bytes()
+            .copy_from_slice(d.take(ML_DSA_65_SIGN_RAND_LEN)?);
+        d.finish()?;
+        Ok(Self {
+            binding,
+            randomness,
+        })
+    }
+    pub(crate) fn sign(
+        &self,
+        key: &DeviceSigningKey,
+        operation: &[u8; 32],
+        purpose: Purpose,
+        body: &[u8],
+    ) -> Result<Vec<u8>, Error> {
+        let material = key.0.as_ref().ok_or(Error::Closed)?;
+        if self.binding != Self::binding(&material.public, operation, purpose, body)? {
+            return Err(Error::Scope);
+        }
+        material.sign_with(purpose, body, &self.randomness)
+    }
+}
 
 /// Owned application protocol-policy signer, distinct from account and device roles.
 pub struct PolicySigningKey(Option<Material>);

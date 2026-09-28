@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v2");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v3");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -211,6 +211,12 @@ pub enum DurableStatus {
     FinalPrepared = 8,
     /// One exact signed reply is reserved for deterministic confirmation processing.
     ProcessingReply = 9,
+    /// Initiator key-generation coins and nonce are durably reserved.
+    InitialKeyReserved = 10,
+    /// Initiator encapsulation coins bind the exact key and application context.
+    InitialKemReserved = 11,
+    /// Complete initial body and purpose-bound signing randomness are durable.
+    InitialSignatureReserved = 12,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -224,6 +230,9 @@ impl DurableStatus {
             7 => Ok(Self::FinalCommitted),
             8 => Ok(Self::FinalPrepared),
             9 => Ok(Self::ProcessingReply),
+            10 => Ok(Self::InitialKeyReserved),
+            11 => Ok(Self::InitialKemReserved),
+            12 => Ok(Self::InitialSignatureReserved),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -628,7 +637,7 @@ fn load(db: &Database, key: &JournalKey, owner: [u8; 32]) -> Result<Image, Durab
     unseal(key, owner, value.value())
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG02".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG03".to_vec());
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
@@ -645,7 +654,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.records.len() > MAX_RECORDS || plaintext.len() > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT002".to_vec();
+    let mut wire = b"QPVLT003".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -672,7 +681,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT002" {
+    if outer.array::<8>()? != *b"QPVLT003" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -698,7 +707,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG02" {
+    if inner.array::<8>()? != *b"QPVIMG03" {
         return Err(DurableError::Corrupt);
     }
     let count = usize::from(inner.u16()?);
@@ -738,7 +747,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         let length = u32::from_be_bytes(inner.array()?) as usize;
         let payload = Zeroizing::new(inner.take(length)?.to_vec());
         if kind == RecordKind::Initiator {
-            initiator::validate_record(&op, &context, phase, &payload)?;
+            initiator::validate_record(&id, &op, &context, phase, &payload)?;
         } else {
             let initial = match phase {
                 DurableStatus::Executing | DurableStatus::Rejected if payload.len() == 5817 => {

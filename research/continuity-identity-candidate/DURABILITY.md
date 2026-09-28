@@ -33,21 +33,21 @@ commit-uncertainty behavior.
 
 The same journal now supports both local roles. Kind 1 is responder and kind 2
 is initiator; initiator records cannot claim remote prekey consumption. This
-unreleased local v2 schema rejects v1 tables/headers without implicit migration or
+unreleased local v3 schema rejects v1/v2 tables/headers without implicit migration or
 reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v2`, and one `image` row are
+Exactly one table, `continuity_device_candidate_v3`, and one `image` row are
 accepted. The image is:
 
-`QPVLT002[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT003[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG02[8] || count:u16 || records`
+`QPVIMG03[8] || count:u16 || records`
 
 Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
 fingerprints[key_count*32] || payload_length:u32 || payload`.
@@ -121,10 +121,45 @@ the length-prefixed digest of that ID under
 so reusing an ID with another context conflicts instead of creating a second
 operation. The ID is correlation data, never KEM entropy or an authorization.
 
-`initiate` commits `Executing` before key generation/encapsulation/signing, pins
-`Prepared` with private state, then commits `AwaitingReply` with the exact initial
-outbox before returning bytes. An unpinned reservation remains suspended. Initial
-replay verifies its saved signature and needs no signer or private-key import slot.
+`initiate` now persists three closed computation plans before executing them:
+
+1. `InitialKeyReserved` (10): platform-generated nonce and SDK sealed key-generation coins.
+2. `InitialKemReserved` (11): the exact reply public key/context is known; SDK
+   sealed encapsulation coins bind that complete command.
+3. `InitialSignatureReserved` (12): the complete initial body and purpose/body-bound
+   signing randomness are committed before either signature is computed.
+
+It then pins `Prepared` with private state and commits `AwaitingReply` with the
+immutable initial outbox before returning bytes. Retrying `initiate` with the same
+request/context and original signing owner continues the exact saved plan. Key quota,
+temporary entropy/provider failure and unavailable signer retain the pending stage.
+The signer or its protected recovery handle must still be available before the
+signed result is pinned. It is not stored in this journal. Wrong signer/context
+cannot replace the command; invalid stored KEM material closes the journal.
+
+The operation scope is `D("Q-PERIAPT-CONTINUITY-INITIATION-PLAN/v1",
+journal_id[32] || context[32] || record_operation_id[32])`. Bootstrap `H` labels
+`durable-initial-key`, `durable-initial-kem` and `durable-initial-sign` derive distinct
+stage IDs from this scope. Thus a plan cannot move to another journal or context.
+The SDK recovery owner derives its separate sealing key from the protected journal
+key using the [sealed-operation contract](../../docs/SDK_SEALED_OPERATIONS.md).
+
+Plan bytes, after the request ID prefix, are:
+`QPIPLN01[8] || phase:u8 || context[32] || scope[32] || nonce[32] || key_token[277]`.
+Phase 11 appends `kem_token[245]`; phase 12 additionally appends
+`initial_body[2440] || signing_binding[32] || signing_randomness[32]`.
+Plan lengths are 382, 627 and 3131 bytes. The signing binding is the candidate `D`
+under `Q-PERIAPT-CONTINUITY-SIGNING-RESERVATION/v1` over the full signing public key,
+sign-stage ID and exact purpose-prefixed signed message. These private fields stay
+inside the authenticated encrypted image. There is no public raw-signing-coin API.
+
+Normal execution retains owned keys/contributions across acknowledged transitions.
+These volatile caches are never needed for correctness. Restart recomputes from the
+sealed KEM commands; a saved signing body must exactly match this recomputation.
+Both signatures replay byte-for-byte, including the deterministic P-256 component.
+No new crypto entropy is chosen for a command whose reservation already committed.
+The signer-free `resume_initial` cannot execute a plan; after result pin,
+it verifies the saved signature and needs no signer or private-key import slot.
 
 The private checkpoint is `QPICHK01[8] || context[32] || initial[5817] || state:u8 || tail`.
 State 1 contains first KEM contribution[32] and the SDK expanded reply key[2440].
@@ -148,17 +183,20 @@ checkpoint contains neither S0 nor the private reply key. Final replay needs no
 private-key import or fresh KEM randomness. `FinalCommitted` is distinct from the
 responder's `Complete`: local outbox commit does not prove remote final receipt.
 Phases are 1=Executing, 2=Prepared, 3=AwaitingFinal, 4=Complete, 5=Rejected,
-6=AwaitingReply, 7=FinalCommitted, 8=FinalPrepared, 9=ProcessingReply. Absent=0
+6=AwaitingReply, 7=FinalCommitted, 8=FinalPrepared, 9=ProcessingReply, with the three
+initial computation plans at 10–12. Absent=0
 remains query-only. The responder uses exact initial bytes for reconciliation;
 the initiator uses its retained request ID and context.
 
 Both journals reopen and preserve equal roots for all four modes. An additional
-24 before/after-sync faults cover the six initial and six reply-processing sync
-points. Six initiator processes are killed at reservation, initial pin/commit,
-reply selection, final pin and final commit while an independent responder remains
-alive. The restarted initiator imports its saved key and completes a real final
-MAC at that peer. Other tests exercise quota-held import, reply/context substitution,
-old schema/role rejection, and invalid or mismatched stored private keys.
+32 before/after-sync faults cover ten initial and six reply-processing sync points.
+Eleven initiator processes are killed at eight durable boundaries and after each
+of the three reserved computations but before its result is pinned. Public outputs
+from those interrupted computations are compared byte-for-byte after restart, and
+an independent live responder verifies the final MAC. Other tests exercise held
+key quota, unavailable/wrong signing owners, reply/context substitution, old schema/
+role rejection, and invalid stored keys/tokens. Recovered signing reservations also
+reject a different key, purpose, operation ID or body.
 
 ## Verification and required follow-through
 
@@ -176,9 +214,11 @@ contexts reconstructed from public fixtures. Saved results replay without the
 original signing/prekey owners; `Executing` remains suspended. Production builds
 contain no test-only post-commit parking hook.
 
-The effect is currently **non-repeatable**: entropy is not yet sealed before
-execution. A crash before result pin therefore sacrifices liveness rather than
-recomputing. Prekey **secret** inventory/erasure, cancellation,
+The responder effect remains **non-repeatable**: its entropy is not yet sealed
+before execution. Its crash before result pin therefore sacrifices liveness
+rather than recomputing. Initiator plans are now replayable as described above;
+this does not promote the responder or the whole session lifecycle. Prekey
+**secret** inventory/erasure, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
 multi-device transactions remain implementation work. Logical replay retains the
 exact cryptographic result, but reseals an outer aggregate on a retried storage
