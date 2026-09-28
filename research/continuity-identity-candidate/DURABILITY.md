@@ -33,23 +33,23 @@ commit-uncertainty behavior.
 
 The same journal supports both local roles and its local prekey inventory. Kind 1
 is responder, kind 2 initiator, kind 3 prekey and kind 4 message state; initiator
-records cannot claim remote prekey consumption. This unreleased local v8 schema
-rejects v1–v7 tables/headers without implicit migration or reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
+records cannot claim remote prekey consumption. This unreleased local v9 schema
+rejects v1–v8 tables/headers without implicit migration or reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v8`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v9`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT008[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT009[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG08[8] || protection[73] || count:u16 || records`
+`QPVIMG09[8] || protection[73] || count:u16 || records`
 
 `protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
 Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and

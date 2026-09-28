@@ -64,7 +64,9 @@ the existing public-commitment model into a working cryptographic protocol.
   now transfers confirmed roots into directional chains and atomically commits
   immutable ciphertext outboxes or authenticated plaintext inboxes before release.
   Exact input reservations, bounded skipped keys and retained receipts support
-  restart, reordering and duplicate reconciliation. Durable identity lifecycle,
+  restart, reordering and duplicate reconciliation. Authenticated contiguous
+  consumption acknowledgements now bound outstanding records while monotonic
+  sequence IDs prevent retired requests from becoming new sends. Durable identity lifecycle,
   cryptographic erasure, fresh DH/PQ ratcheting and full rollback recovery remain
   required work.
 

@@ -60,7 +60,7 @@ advance.
 
 ## Encoding and bounds
 
-The single table `continuity_device_candidate_v8` accepts exactly the `image` row
+The single table `continuity_device_candidate_v9` accepts exactly the `image` row
 and, while a write is pending, one `pending` row. The current image uses the
 [v6 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
 rows are rejected.

@@ -78,6 +78,8 @@ pub enum Error {
     Runtime(q_periapt_sdk::Error),
     /// A per-record or per-operation resource bound was exceeded.
     Capacity,
+    /// This message lies below the retained acknowledgement/delivery boundary.
+    Retired,
     /// The signing owner, policy or operation has been closed.
     Closed,
     /// The operating-system CSPRNG failed.
@@ -99,6 +101,7 @@ impl fmt::Display for Error {
             Self::State => "candidate operation phase does not permit this action",
             Self::Runtime(_) => "candidate SDK runtime operation failed",
             Self::Capacity => "candidate resource limit",
+            Self::Retired => "candidate message has been retired",
             Self::Closed => "candidate owner is closed",
             Self::Entropy => "platform entropy unavailable",
             Self::Provider => "candidate signing provider failed",

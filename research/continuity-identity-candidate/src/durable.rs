@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v8");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v9");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -703,7 +703,7 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG08".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG09".to_vec());
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
@@ -728,7 +728,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT008".to_vec();
+    let mut wire = b"QPVLT009".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -755,7 +755,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT008" {
+    if outer.array::<8>()? != *b"QPVLT009" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -781,7 +781,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG08" {
+    if inner.array::<8>()? != *b"QPVIMG09" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;

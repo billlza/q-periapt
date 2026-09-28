@@ -102,8 +102,10 @@ The [durable message layer](MESSAGES.md) transfers each completed bootstrap root
 into separate send/receive chains in the same journal. It reserves exact plaintext
 input before encryption and commits chain/outbox or chain/inbox together before
 release. It supports bounded reordered delivery, exact replay and owned plaintext
-results. This initial epoch has no fresh DH/PQ input; the full ratchet, revocation,
-retention and multi-device contracts remain required within 0.2.0.
+results. [Consumption acknowledgements](RETENTION.md) now reclaim inbox/outbox
+records using authenticated monotonic floors and session-issued sequence IDs.
+This initial epoch has no fresh DH/PQ input; the full ratchet, revocation, expiry
+and multi-device contracts remain required within 0.2.0.
 
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
 trusted enrollment from journal genesis, durable full-head/fence comparison and

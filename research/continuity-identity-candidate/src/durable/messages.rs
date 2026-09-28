@@ -5,24 +5,56 @@ use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use hkdf::Hkdf;
 use sha2::Sha256;
 
+mod acknowledgement;
+
 const MAX_PLAINTEXT: usize = 16 * 1024;
 const MAX_AD: usize = 1024;
 const MAX_SKIPPED: usize = 128;
 const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
-const MESSAGE_TAG: &[u8; 8] = b"QPCMSG01";
-const STATE_TAG: &[u8; 8] = b"QPMST001";
-const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v1/";
+const MESSAGE_TAG: &[u8; 8] = b"QPCMSG02";
+const STATE_TAG: &[u8; 8] = b"QPMST002";
+const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
-/// Host-retained correlation ID. Reusing an ID with different input fails.
+/// Journal-issued session/direction/sequence ID, retained by the host for retries.
+/// Reusing an active ID with different input fails; retired IDs cannot be reused.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MessageId([u8; 32]);
 impl MessageId {
-    /// Generate an ID before a send; retain it to reconcile uncertain outcomes.
-    pub fn generate() -> Result<Self, Error> {
+    fn for_index(session: &[u8; 32], role: u8, index: u64) -> Result<Self, Error> {
+        if !matches!(role, 1 | 2) || index == u64::MAX {
+            return Err(Error::Capacity);
+        }
+        let mut bound = session.to_vec();
+        bound.push(role);
+        bound.extend_from_slice(&index.to_be_bytes());
+        let binding = digest(&label(b"message-id"), &bound);
         let mut bytes = [0; 32];
-        getrandom::fill(&mut bytes).map_err(|_| Error::Entropy)?;
-        Self::from_trusted_state(bytes)
+        bytes
+            .get_mut(..8)
+            .ok_or(Error::Encoding)?
+            .copy_from_slice(&index.to_be_bytes());
+        bytes
+            .get_mut(8..)
+            .ok_or(Error::Encoding)?
+            .copy_from_slice(binding.get(..24).ok_or(Error::Encoding)?);
+        Ok(Self(bytes))
+    }
+    fn index(self) -> Result<u64, Error> {
+        Ok(u64::from_be_bytes(
+            self.0
+                .get(..8)
+                .ok_or(Error::Encoding)?
+                .try_into()
+                .map_err(|_| Error::Encoding)?,
+        ))
+    }
+    fn check(self, session: &[u8; 32], role: u8) -> Result<u64, Error> {
+        let index = self.index()?;
+        if self != Self::for_index(session, role, index)? {
+            return Err(Error::Scope);
+        }
+        Ok(index)
     }
     /// Recover an application's retained ID, not an authorization capability.
     pub fn from_trusted_state(bytes: [u8; 32]) -> Result<Self, Error> {
@@ -44,11 +76,13 @@ pub enum MessageStatus {
     Reserved,
     /// Exact ciphertext and its chain advancement are durably committed.
     Committed,
+    /// The peer authenticated application consumption; its outbox was retired.
+    Acknowledged,
 }
 
 /// Authenticated plaintext returned only after the inbox and chain commit.
-/// Repeated receipt of the exact message returns this same retained delivery;
-/// the application must deduplicate its own external side effects by message ID.
+/// Exact duplicates return the retained delivery until consumption; afterwards
+/// they return `Retired`. External application effects need separate deduplication.
 pub struct CommittedPlaintext {
     id: MessageId,
     bytes: Zeroizing<Vec<u8>>,
@@ -77,6 +111,7 @@ struct Incoming {
     index: u64,
     intent: [u8; 32],
     plaintext: Zeroizing<Vec<u8>>,
+    consumed: bool,
 }
 struct State {
     source: [u8; 32],
@@ -85,6 +120,10 @@ struct State {
     rekey: ZeroizingBytes<32>,
     send: ZeroizingBytes<32>,
     receive: ZeroizingBytes<32>,
+    send_ack: ZeroizingBytes<32>,
+    receive_ack: ZeroizingBytes<32>,
+    send_floor: u64,
+    receive_floor: u64,
     sent: u64,
     received: u64,
     skipped: BTreeMap<u64, ZeroizingBytes<32>>,
@@ -164,6 +203,9 @@ impl Header {
             return Err(Error::Capacity);
         }
         let id = MessageId::from_trusted_state(d.array()?)?;
+        if id.check(&session, role)? != index {
+            return Err(Error::Encoding);
+        }
         let length = u32::from_be_bytes(d.array()?) as usize;
         d.finish()?;
         if length > MAX_PLAINTEXT || length + MESSAGE_HEADER + 16 != wire.len() {
@@ -198,13 +240,20 @@ impl State {
     ) -> Result<Self, Error> {
         let mut info = label(b"initial/HKDF-SHA256/ChaCha20Poly1305");
         info.extend_from_slice(context);
-        let mut output = ZeroizingBytes::<96>::zeroed();
+        let mut output = ZeroizingBytes::<160>::zeroed();
         Hkdf::<Sha256>::new(Some(&session), root.as_bytes())
             .expand(&info, output.as_mut_bytes())
             .map_err(|_| Error::Provider)?;
         let rekey = key(output.as_bytes().get(..32).ok_or(Error::Encoding)?)?;
         let a = key(output.as_bytes().get(32..64).ok_or(Error::Encoding)?)?;
-        let b = key(output.as_bytes().get(64..).ok_or(Error::Encoding)?)?;
+        let b = key(output.as_bytes().get(64..96).ok_or(Error::Encoding)?)?;
+        let ack_a = key(output.as_bytes().get(96..128).ok_or(Error::Encoding)?)?;
+        let ack_b = key(output.as_bytes().get(128..).ok_or(Error::Encoding)?)?;
+        let (send_ack, receive_ack) = if role == 1 {
+            (ack_a, ack_b)
+        } else {
+            (ack_b, ack_a)
+        };
         let (send, receive) = if role == 1 { (a, b) } else { (b, a) };
         Ok(Self {
             source,
@@ -213,6 +262,10 @@ impl State {
             rekey,
             send,
             receive,
+            send_ack,
+            receive_ack,
+            send_floor: 0,
+            receive_floor: 0,
             sent: 0,
             received: 0,
             skipped: BTreeMap::new(),
@@ -226,9 +279,17 @@ impl State {
         bytes.extend_from_slice(&self.source);
         bytes.extend_from_slice(&self.session);
         bytes.push(self.role);
-        for k in [&self.rekey, &self.send, &self.receive] {
+        for k in [
+            &self.rekey,
+            &self.send,
+            &self.receive,
+            &self.send_ack,
+            &self.receive_ack,
+        ] {
             bytes.extend_from_slice(k.as_bytes());
         }
+        bytes.extend_from_slice(&self.send_floor.to_be_bytes());
+        bytes.extend_from_slice(&self.receive_floor.to_be_bytes());
         bytes.extend_from_slice(&self.sent.to_be_bytes());
         bytes.extend_from_slice(&self.received.to_be_bytes());
         bytes.extend_from_slice(&(self.skipped.len() as u16).to_be_bytes());
@@ -256,6 +317,7 @@ impl State {
             bytes.extend_from_slice(&id.0);
             bytes.extend_from_slice(&saved.index.to_be_bytes());
             bytes.extend_from_slice(&saved.intent);
+            bytes.push(u8::from(saved.consumed));
             bytes.extend_from_slice(&(saved.plaintext.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&saved.plaintext);
         }
@@ -278,6 +340,10 @@ impl State {
         let rekey = key(d.take(32)?)?;
         let send = key(d.take(32)?)?;
         let receive = key(d.take(32)?)?;
+        let send_ack = key(d.take(32)?)?;
+        let receive_ack = key(d.take(32)?)?;
+        let send_floor = d.u64()?;
+        let receive_floor = d.u64()?;
         let sent = d.u64()?;
         let received = d.u64()?;
         let mut skipped = BTreeMap::new();
@@ -287,7 +353,8 @@ impl State {
         }
         for _ in 0..count {
             let index = d.u64()?;
-            if index >= received
+            if index < receive_floor
+                || index >= received
                 || skipped
                     .last_key_value()
                     .is_some_and(|(last, _)| *last >= index)
@@ -320,7 +387,7 @@ impl State {
         let mut outgoing = BTreeMap::new();
         let mut send_indices = BTreeSet::new();
         let count = usize::from(d.u16()?);
-        if count > MAX_RECEIPTS || sent != count as u64 {
+        if count > MAX_RECEIPTS || sent.checked_sub(send_floor) != Some(count as u64) {
             return Err(Error::Capacity);
         }
         for _ in 0..count {
@@ -335,6 +402,7 @@ impl State {
             if header.id != id
                 || header.session != session
                 || header.role != role
+                || header.index < send_floor
                 || header.index >= sent
                 || !send_indices.insert(header.index)
                 || outgoing
@@ -345,24 +413,37 @@ impl State {
             }
             outgoing.insert(id, Outgoing { intent, wire });
         }
-        if pending
-            .as_ref()
-            .is_some_and(|p| outgoing.contains_key(&p.id) || outgoing.len() >= MAX_RECEIPTS)
-        {
+        if pending.as_ref().is_some_and(|p| {
+            p.id.check(&session, role) != Ok(sent)
+                || outgoing.contains_key(&p.id)
+                || outgoing.len() >= MAX_RECEIPTS
+        }) {
             return Err(Error::Encoding);
         }
         let mut incoming = BTreeMap::new();
         let mut receive_indices = BTreeSet::new();
         let count = usize::from(d.u16()?);
-        if count > MAX_RECEIPTS || received != (count + skipped.len()) as u64 {
+        if count > MAX_RECEIPTS
+            || received.checked_sub(receive_floor) != Some((count + skipped.len()) as u64)
+        {
             return Err(Error::Capacity);
         }
         for _ in 0..count {
             let id = MessageId::from_trusted_state(d.array()?)?;
             let index = d.u64()?;
+            if id.check(&session, 3 - role)? != index {
+                return Err(Error::Encoding);
+            }
             let intent = d.array()?;
+            let consumed = match d.array::<1>()? {
+                [0] => false,
+                [1] => true,
+                _ => return Err(Error::Encoding),
+            };
             let length = u32::from_be_bytes(d.array()?) as usize;
             if length > MAX_PLAINTEXT
+                || (consumed && (length != 0 || index == receive_floor))
+                || index < receive_floor
                 || index >= received
                 || skipped.contains_key(&index)
                 || !receive_indices.insert(index)
@@ -379,6 +460,7 @@ impl State {
                     index,
                     intent,
                     plaintext,
+                    consumed,
                 },
             );
         }
@@ -390,6 +472,10 @@ impl State {
             rekey,
             send,
             receive,
+            send_ack,
+            receive_ack,
+            send_floor,
+            receive_floor,
             sent,
             received,
             skipped,
@@ -402,6 +488,10 @@ impl State {
         if plaintext.len() > MAX_PLAINTEXT || ad.len() > MAX_AD {
             return Err(Error::Capacity);
         }
+        let index = id.check(&self.session, self.role)?;
+        if index < self.send_floor {
+            return Err(Error::Retired);
+        }
         let intent = intent(b"send-intent", plaintext, ad);
         if let Some(saved) = self.outgoing.get(&id) {
             return if saved.intent == intent {
@@ -409,6 +499,9 @@ impl State {
             } else {
                 Err(Error::Conflict)
             };
+        }
+        if index != self.sent {
+            return Err(Error::Conflict);
         }
         if self.outgoing.len() >= MAX_RECEIPTS {
             return Err(Error::Capacity);
@@ -458,9 +551,15 @@ impl State {
         if header.session != self.session || header.role == self.role {
             return Err(Error::Scope);
         }
+        if header.index < self.receive_floor {
+            return Err(Error::Retired);
+        }
         let intent = intent(b"receive-intent", wire, ad);
         if let Some(saved) = self.incoming.get(&header.id) {
             return if saved.intent == intent {
+                if saved.consumed {
+                    return Err(Error::Retired);
+                }
                 Ok(CommittedPlaintext {
                     id: header.id,
                     bytes: saved.plaintext.clone(),
@@ -523,6 +622,7 @@ impl State {
                 index: header.index,
                 intent,
                 plaintext: plaintext.clone(),
+                consumed: false,
             },
         );
         Ok(CommittedPlaintext {
@@ -667,6 +767,21 @@ impl DeviceJournal {
         }
         Ok(state)
     }
+    /// Read the current send slot before submitting input. Retain this ID across
+    /// retries. Concurrent readers may see the same slot; differing inputs conflict.
+    pub fn next_message_id(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        now: u64,
+    ) -> Result<MessageId, DurableError> {
+        let image = self.image()?;
+        let state = self.message_state(&image, context, &session, now)?;
+        let id = MessageId::for_index(&session, state.role, state.sent)?;
+        context.check_session(now)?;
+        self.check_release(&image)?;
+        Ok(id)
+    }
     /// Commit the next chain state and exact ciphertext outbox together before
     /// returning dispatchable bytes. An exact repeated ID/input replays its outbox.
     pub fn send_message(
@@ -683,7 +798,14 @@ impl DeviceJournal {
         if plaintext.len() > MAX_PLAINTEXT || associated_data.len() > MAX_AD {
             return Err(DurableError::Capacity);
         }
+        let index = id.check(&session, state.role)?;
+        if index < state.send_floor {
+            return Err(Error::Retired.into());
+        }
         let already = state.outgoing.contains_key(&id);
+        if !already && index != state.sent {
+            return Err(Error::Conflict.into());
+        }
         if !already {
             if let Some(plan) = &state.pending {
                 if plan.id != id
@@ -753,7 +875,10 @@ impl DeviceJournal {
         if image.owner != owner {
             return Err(DurableError::Conflict);
         }
-        Ok(if state.outgoing.contains_key(&id) {
+        let index = id.check(&session, state.role)?;
+        Ok(if index < state.send_floor {
+            MessageStatus::Acknowledged
+        } else if state.outgoing.contains_key(&id) {
             MessageStatus::Committed
         } else if state.pending.as_ref().is_some_and(|p| p.id == id) {
             MessageStatus::Reserved
@@ -772,6 +897,9 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         let image = self.image()?;
         let mut state = self.message_state(&image, context, &session, now)?;
+        if id.check(&session, state.role)? < state.send_floor {
+            return Err(Error::Retired.into());
+        }
         if let Some(saved) = state.outgoing.get(&id) {
             context.check_session(now)?;
             self.check_release(&image)?;

@@ -110,8 +110,8 @@ impl Pair {
             .expect("receive")
     }
 }
-fn id(byte: u8) -> MessageId {
-    MessageId::from_trusted_state([byte; 32]).expect("id")
+fn id(session: [u8; 32], role: u8, ordinal: u64) -> MessageId {
+    MessageId::for_index(&session, role, ordinal - 1).expect("id")
 }
 fn state(journal: &mut DeviceJournal, session: &[u8; 32]) -> State {
     State::decode(
@@ -174,17 +174,17 @@ fn confirmed_roots_transfer_atomically_and_both_directions_survive_reopen() {
         p.session
     );
     let message = b"private application plaintext; never store this in a public outbox";
-    let first = p.send(id(1), message);
+    let first = p.send(id(p.session, 1, 1), message);
     assert_eq!(p.receive(&first).as_bytes(), message);
     let before = p.jr.image().expect("image").digest;
-    assert_eq!(p.receive(&first).message_id(), id(1));
+    assert_eq!(p.receive(&first).message_id(), id(p.session, 1, 1));
     assert_eq!(p.jr.image().expect("same image").digest, before);
-    assert_eq!(p.send(id(1), message), first);
+    assert_eq!(p.send(id(p.session, 1, 1), message), first);
     assert!(matches!(
         p.ji.send_message(
             &p.f.initiator,
             p.session,
-            id(1),
+            id(p.session, 1, 1),
             b"replacement",
             b"application",
             150
@@ -195,7 +195,7 @@ fn confirmed_roots_transfer_atomically_and_both_directions_survive_reopen() {
         p.jr.send_message(
             &p.f.responder,
             p.session,
-            id(1),
+            id(p.session, 2, 1),
             message,
             b"application",
             150,
@@ -216,9 +216,9 @@ fn confirmed_roots_transfer_atomically_and_both_directions_survive_reopen() {
     }
     p.ji = reopen(&p.pi, p.f.initiator_device());
     p.jr = reopen(&p.pr, p.f.local_device());
-    assert_eq!(p.send(id(1), message), first);
+    assert_eq!(p.send(id(p.session, 1, 1), message), first);
     assert_eq!(p.receive(&first).as_bytes(), message);
-    let second = p.send(id(2), message);
+    let second = p.send(id(p.session, 1, 2), message);
     assert_ne!(first, second);
     assert_eq!(p.receive(&second).as_bytes(), message);
     assert_eq!(state(&mut p.ji, &p.session).sent, 2);
@@ -229,8 +229,8 @@ fn confirmed_roots_transfer_atomically_and_both_directions_survive_reopen() {
 fn forged_header_ciphertext_tag_and_ad_leave_persisted_chains_unchanged() {
     let mut p = Pair::new();
     p.activate();
-    let first = p.send(id(1), b"first");
-    let second = p.send(id(2), b"second");
+    let first = p.send(id(p.session, 1, 1), b"first");
+    let second = p.send(id(p.session, 1, 2), b"second");
     assert_eq!(p.receive(&second).as_bytes(), b"second");
     let original = p.jr.image().expect("image").digest;
     for position in 0..first.len() {
@@ -267,7 +267,7 @@ fn forged_header_ciphertext_tag_and_ad_leave_persisted_chains_unchanged() {
 fn authenticated_image_rejects_missing_or_grafted_session_and_consumed_key_state() {
     let mut p = Pair::new();
     p.activate();
-    let wire = p.send(id(1), b"payload");
+    let wire = p.send(id(p.session, 1, 1), b"payload");
     p.receive(&wire);
     let mut image = p.jr.image().expect("image");
     let saved = image.records.remove(&record_id(&p.session)).expect("saved");
@@ -297,14 +297,14 @@ fn out_of_order_receipts_and_resource_admission_preserve_exact_outputs() {
     p.activate();
     let mut wires = Vec::new();
     for n in 1..=MAX_RECEIPTS {
-        wires.push(p.send(id(n as u8), &[n as u8]));
+        wires.push(p.send(id(p.session, 1, n as u64), &[n as u8]));
     }
     let before = p.ji.image().expect("image").digest;
     assert!(matches!(
         p.ji.send_message(
             &p.f.initiator,
             p.session,
-            id(99),
+            id(p.session, 1, 65),
             b"overflow",
             b"application",
             150
@@ -316,7 +316,10 @@ fn out_of_order_receipts_and_resource_admission_preserve_exact_outputs() {
         assert_eq!(p.receive(wire).as_bytes(), &[n as u8 + 1]);
     }
     assert!(state(&mut p.jr, &p.session).skipped.is_empty());
-    assert_eq!(p.send(id(1), &[1]), *wires.first().expect("first"));
+    assert_eq!(
+        p.send(id(p.session, 1, 1), &[1]),
+        *wires.first().expect("first")
+    );
 }
 
 #[test]
@@ -330,7 +333,7 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
                     p.activate();
                 }
                 let wire = if operation == "receive" {
-                    Some(p.send(id(1), b"persist before release"))
+                    Some(p.send(id(p.session, 1, 1), b"persist before release"))
                 } else {
                     None
                 };
@@ -354,7 +357,7 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
                         .send_message(
                             &p.f.initiator,
                             p.session,
-                            id(1),
+                            id(p.session, 1, 1),
                             b"persist before release",
                             b"application",
                             150,
@@ -377,12 +380,13 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
                 *journal = reopen(path, device);
                 if operation == "send" {
                     let saved = state(journal, &p.session);
-                    if saved.pending.is_some() || saved.outgoing.contains_key(&id(1)) {
+                    if saved.pending.is_some() || saved.outgoing.contains_key(&id(p.session, 1, 1))
+                    {
                         assert!(journal
                             .send_message(
                                 &p.f.initiator,
                                 p.session,
-                                id(1),
+                                id(p.session, 1, 1),
                                 b"replacement",
                                 b"application",
                                 150
@@ -391,7 +395,7 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
                     }
                 }
                 p.activate();
-                let actual = p.send(id(1), b"persist before release");
+                let actual = p.send(id(p.session, 1, 1), b"persist before release");
                 if let Some(wire) = wire {
                     assert_eq!(actual, wire);
                 }
@@ -407,14 +411,14 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
 fn closed_or_expired_authority_cannot_release_cached_messages() {
     let mut p = Pair::new();
     p.activate();
-    let wire = p.send(id(1), b"payload");
+    let wire = p.send(id(p.session, 1, 1), b"payload");
     p.receive(&wire);
     assert!(p
         .ji
         .send_message(
             &p.f.initiator,
             p.session,
-            id(1),
+            id(p.session, 1, 1),
             b"payload",
             b"application",
             1000
@@ -426,13 +430,13 @@ fn closed_or_expired_authority_cannot_release_cached_messages() {
         .is_err());
     p.f.initiator.policy().close();
     assert_eq!(
-        p.ji.message_status(&p.f.initiator, p.session, id(1))
+        p.ji.message_status(&p.f.initiator, p.session, id(p.session, 1, 1))
             .expect("read-only status"),
         MessageStatus::Committed
     );
     assert!(p
         .ji
-        .resume_message(&p.f.initiator, p.session, id(1), 150)
+        .resume_message(&p.f.initiator, p.session, id(p.session, 1, 1), 150)
         .is_err());
     p.f.responder.policy().close();
     assert!(p
@@ -446,10 +450,12 @@ fn initial_and_chain_keys_match_independent_hmac_sha256_vectors() {
     let s =
         State::new([8; 32], [9; 32], 1, key(&[7; 32]).expect("root"), &[11; 32]).expect("state");
     let hex = |bytes: &[u8]| {
-        bytes
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>()
+        let mut output = String::with_capacity(bytes.len() * 2);
+        for byte in bytes {
+            std::fmt::Write::write_fmt(&mut output, format_args!("{byte:02x}"))
+                .expect("hex formatting");
+        }
+        output
     };
     let initial = format!(
         "{}{}{}",
@@ -457,16 +463,18 @@ fn initial_and_chain_keys_match_independent_hmac_sha256_vectors() {
         hex(s.send.as_bytes()),
         hex(s.receive.as_bytes())
     );
-    assert_eq!(initial, "83440d219ed5a8f03798c04c0fd23e33faf24ba646bcd1e0f92c78cb7b82863fb9e8cdf88287e2f4172dc49ec376c2df8e54a318966942858ac5c0c6e0eb6e22348d898526ce239a94446521d3ee403dcb4364cf349dae14edd6abe23a5ed212");
+    assert_eq!(initial, "c94afb4355b05a32f9cf8682a7231596c40e5d5fd8a6b9328d13109a5cd6e33e99fda0772b0f13582050c1f206a8ba3dfd8ec32ec2b35f6d86ff647e4bef6aa4f588f6ad682062e0df2c21e474aaa8b77ca58f3ca5e37e4e42c0acb0374d95e1");
     let (next, message) = step(&s.send, 0).expect("first step");
-    assert_eq!(format!("{}{}", hex(next.as_bytes()), hex(message.as_bytes())), "248894a8d4fe9a4748155ca9487d8a6e319d38d4559b88a5066145ac0d60678c43293582aca112761be2abbfb54d0e108b957b758da48bcc28d6b0c8f99806a5");
+    assert_eq!(format!("{}{}", hex(next.as_bytes()), hex(message.as_bytes())), "5d88de809323126e111f0b711a1ba04bff9f3864ed4781191d6be635ad4f287eef0229693f35b1952dfde7d459cabcb337dd9f83b570c4ce08a83dbef5b0189f");
     let (next, message) = step(&next, 1).expect("second step");
-    assert_eq!(format!("{}{}", hex(next.as_bytes()), hex(message.as_bytes())), "3caa15fec531b998786552abd3d9f2a7b3c60b9abbaa9601cf5f7c38f73bd314dffad6ca7c7b740337a2be73ae449d33d6269c11c12f998377b0c38e62458ed2");
+    assert_eq!(format!("{}{}", hex(next.as_bytes()), hex(message.as_bytes())), "51e5a3a82942e7790bd6706ba7316ff05246b47da9a2ef4f5064155c5bbe040f5f7d6c48d6dc918f54c0e8e0ef934fee0140ad80146e2b567085309570957771");
     let reverse = State::new([8; 32], [9; 32], 2, key(&[7; 32]).expect("root"), &[11; 32])
         .expect("responder state");
     assert_eq!(s.send.as_bytes(), reverse.receive.as_bytes());
     assert_eq!(s.receive.as_bytes(), reverse.send.as_bytes());
     assert_ne!(s.send.as_bytes(), s.receive.as_bytes());
+    assert_eq!(s.send_ack.as_bytes(), reverse.receive_ack.as_bytes());
+    assert_eq!(hex(&s.acknowledgement().expect("known acknowledgement")), "5150434d41434b310909090909090909090909090909090909090909090909090909090909090909020000000000000000d7011dd0974bf86048eedd1cdb1aafe537a48ef6c0f08e3145b960fc11efa172");
     let bytes = s.encode();
     assert_eq!(
         State::decode(&bytes).expect("decode").encode().as_slice(),
@@ -513,7 +521,10 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         )),
     );
     let operation = fs::read_to_string(path.join("operation")).expect("operation");
-    let is_i = matches!(operation.as_str(), "activate_i" | "reserved" | "sent");
+    let is_i = matches!(
+        operation.as_str(),
+        "activate_i" | "reserved" | "sent" | "acknowledged"
+    );
     let mut journal = reopen(
         path,
         if is_i {
@@ -553,7 +564,7 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
                 .send_message(
                     &f.initiator,
                     session,
-                    id(1),
+                    id(session, 1, 1),
                     b"process message",
                     b"application",
                     150,
@@ -570,6 +581,21 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
                     150,
                 )
                 .expect("receive");
+        }
+        "consumed" => {
+            journal
+                .consume_message(&f.responder, session, id(session, 1, 1), 150)
+                .expect("consumption");
+        }
+        "acknowledged" => {
+            journal
+                .accept_message_acknowledgement(
+                    &f.initiator,
+                    session,
+                    &fs::read(path.join("ack")).expect("ack"),
+                    150,
+                )
+                .expect("acknowledgement");
         }
         _ => {
             return Err(
@@ -588,17 +614,41 @@ fn killed_process_recovers_each_root_transfer_and_message_release_boundary() {
         process::{Command, Stdio},
         time::{Duration, Instant},
     };
-    for operation in ["activate_i", "activate_r", "reserved", "sent", "received"] {
+    for operation in [
+        "activate_i",
+        "activate_r",
+        "reserved",
+        "sent",
+        "received",
+        "consumed",
+        "acknowledged",
+    ] {
         let mut p = Pair::new();
         if !operation.starts_with("activate") {
             p.activate();
         }
-        let wire = if operation == "received" {
-            Some(p.send(id(1), b"process message"))
+        let wire = if matches!(operation, "received" | "consumed" | "acknowledged") {
+            Some(p.send(id(p.session, 1, 1), b"process message"))
         } else {
             None
         };
-        let is_i = matches!(operation, "activate_i" | "reserved" | "sent");
+        if matches!(operation, "consumed" | "acknowledged") {
+            p.receive(wire.as_ref().expect("message"));
+        }
+        let ack = if operation == "acknowledged" {
+            p.jr.consume_message(&p.f.responder, p.session, id(p.session, 1, 1), 150)
+                .expect("consume before acknowledgement");
+            Some(
+                p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                    .expect("acknowledgement"),
+            )
+        } else {
+            None
+        };
+        let is_i = matches!(
+            operation,
+            "activate_i" | "reserved" | "sent" | "acknowledged"
+        );
         let path = if is_i {
             p.ji.close();
             p.pi.clone()
@@ -620,6 +670,9 @@ fn killed_process_recovers_each_root_transfer_and_message_release_boundary() {
         fs::write(path.join("initial"), &p.initial).expect("initial");
         if let Some(wire) = &wire {
             fs::write(path.join("wire"), wire).expect("wire");
+        }
+        if let Some(ack) = &ack {
+            fs::write(path.join("ack"), ack).expect("ack fixture");
         }
         let log = fs::File::create(path.join("child.log")).expect("log");
         let child = Command::new(std::env::current_exe().expect("executable"))
@@ -660,9 +713,35 @@ fn killed_process_recovers_each_root_transfer_and_message_release_boundary() {
             p.jr = reopen(&path, p.f.local_device());
         }
         p.activate();
+        if matches!(operation, "consumed" | "acknowledged") {
+            let ack =
+                p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                    .expect("recovered consumption");
+            assert_eq!(
+                p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+                    .expect("reconcile same floor"),
+                1
+            );
+            assert_eq!(
+                p.ji.message_status(&p.f.initiator, p.session, id(p.session, 1, 1))
+                    .expect("retired"),
+                MessageStatus::Acknowledged
+            );
+            assert!(matches!(
+                p.jr.receive_message(
+                    &p.f.responder,
+                    p.session,
+                    wire.as_ref().expect("old message"),
+                    b"application",
+                    150
+                ),
+                Err(DurableError::Protocol(Error::Retired))
+            ));
+            continue;
+        }
         if operation == "reserved" {
             assert_eq!(
-                p.ji.message_status(&p.f.initiator, p.session, id(1))
+                p.ji.message_status(&p.f.initiator, p.session, id(p.session, 1, 1))
                     .expect("status"),
                 MessageStatus::Reserved
             );
@@ -671,7 +750,7 @@ fn killed_process_recovers_each_root_transfer_and_message_release_boundary() {
                 .send_message(
                     &p.f.initiator,
                     p.session,
-                    id(1),
+                    id(p.session, 1, 1),
                     b"replacement",
                     b"application",
                     150
@@ -679,17 +758,17 @@ fn killed_process_recovers_each_root_transfer_and_message_release_boundary() {
                 .is_err());
         }
         let recovered = if matches!(operation, "reserved" | "sent") {
-            p.ji.resume_message(&p.f.initiator, p.session, id(1), 150)
+            p.ji.resume_message(&p.f.initiator, p.session, id(p.session, 1, 1), 150)
                 .expect("resume sealed input")
         } else {
-            p.send(id(1), b"process message")
+            p.send(id(p.session, 1, 1), b"process message")
         };
         if let Some(wire) = wire {
             assert_eq!(recovered, wire);
         }
         assert_eq!(p.receive(&recovered).as_bytes(), b"process message");
         assert_eq!(
-            p.ji.message_status(&p.f.initiator, p.session, id(1))
+            p.ji.message_status(&p.f.initiator, p.session, id(p.session, 1, 1))
                 .expect("committed"),
             MessageStatus::Committed
         );
@@ -704,7 +783,7 @@ fn frame_length_is_bounded_before_arithmetic_and_future_epochs_are_rejected() {
         session: [9; 32],
         role: 1,
         index: 0,
-        id: id(1),
+        id: id([9; 32], 1, 1),
         length: 0,
     }
     .encode();
@@ -731,4 +810,374 @@ fn frame_length_is_bounded_before_arithmetic_and_future_epochs_are_rejected() {
     wire.push(0);
     assert!(matches!(Header::decode(&wire), Err(Error::Encoding)));
     assert!(matches!(key(&[0; 31]), Err(Error::Encoding)));
+}
+
+#[test]
+fn acknowledged_sessions_pass_the_old_capacity_without_retaining_history_or_reusing_ids() {
+    let mut p = Pair::new();
+    p.activate();
+    let first_id =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("slot");
+    let initial_size = state(&mut p.ji, &p.session).encode().len();
+    let mut first_wire = None;
+    let mut first_ack = None;
+    for index in 0..130 {
+        let id =
+            p.ji.next_message_id(&p.f.initiator, p.session, 150)
+                .expect("retained slot");
+        assert_eq!(id.index().expect("index"), index);
+        let wire = p.send(id, b"long session application data");
+        let value = p.receive(&wire);
+        assert_eq!(value.message_id(), id);
+        assert_eq!(value.as_bytes(), b"long session application data");
+        assert_eq!(
+            p.jr.consume_message(&p.f.responder, p.session, id, 150)
+                .expect("consumption"),
+            index + 1
+        );
+        let ack =
+            p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                .expect("ack");
+        assert_eq!(
+            p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+                .expect("peer consumption"),
+            index + 1
+        );
+        assert_eq!(
+            p.ji.message_status(&p.f.initiator, p.session, id)
+                .expect("status"),
+            MessageStatus::Acknowledged
+        );
+        let send = state(&mut p.ji, &p.session);
+        let receive = state(&mut p.jr, &p.session);
+        assert!(
+            send.outgoing.is_empty() && receive.incoming.is_empty() && receive.skipped.is_empty()
+        );
+        assert_eq!(send.encode().len(), initial_size);
+        if index == 0 {
+            first_wire = Some(wire);
+            first_ack = Some(ack);
+        }
+    }
+    assert!(matches!(
+        p.ji.send_message(
+            &p.f.initiator,
+            p.session,
+            first_id,
+            b"new plaintext in old slot",
+            b"application",
+            150
+        ),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    assert!(matches!(
+        p.ji.resume_message(&p.f.initiator, p.session, first_id, 150),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    assert!(matches!(
+        p.jr.receive_message(
+            &p.f.responder,
+            p.session,
+            first_wire.as_ref().expect("old wire"),
+            b"application",
+            150
+        ),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    let before = p.ji.image().expect("image").digest;
+    assert_eq!(
+        p.ji.accept_message_acknowledgement(
+            &p.f.initiator,
+            p.session,
+            first_ack.as_ref().expect("stale ack"),
+            150
+        )
+        .expect("stale ack"),
+        130
+    );
+    assert_eq!(p.ji.image().expect("same image").digest, before);
+    p.ji.close();
+    p.jr.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    p.jr = reopen(&p.pr, p.f.local_device());
+    assert_eq!(
+        p.ji.message_status(&p.f.initiator, p.session, first_id)
+            .expect("retained status"),
+        MessageStatus::Acknowledged
+    );
+    assert_eq!(
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("next slot")
+            .index()
+            .expect("index"),
+        130
+    );
+}
+
+#[test]
+fn consumption_waits_for_gaps_and_authenticated_acknowledgements_cannot_regress_or_forge_progress()
+{
+    let mut p = Pair::new();
+    p.activate();
+    let a = id(p.session, 1, 1);
+    let b = id(p.session, 1, 2);
+    let first = p.send(a, b"first");
+    let second = p.send(b, b"second");
+    p.receive(&second);
+    assert_eq!(
+        p.jr.consume_message(&p.f.responder, p.session, b, 150)
+            .expect("out of order consumption"),
+        0
+    );
+    let consumed = state(&mut p.jr, &p.session);
+    assert!(consumed
+        .incoming
+        .get(&b)
+        .expect("retained marker")
+        .plaintext
+        .is_empty());
+    assert_eq!(consumed.skipped.len(), 1);
+    let ack0 =
+        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+            .expect("zero contiguous progress");
+    assert_eq!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack0, 150)
+            .expect("no retirement"),
+        0
+    );
+    assert_eq!(state(&mut p.ji, &p.session).outgoing.len(), 2);
+    assert!(matches!(
+        p.jr.receive_message(&p.f.responder, p.session, &second, b"application", 150),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    p.receive(&first);
+    assert_eq!(
+        p.jr.consume_message(&p.f.responder, p.session, a, 150)
+            .expect("close gap"),
+        2
+    );
+    let ack =
+        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+            .expect("cumulative ack");
+    let before = p.ji.image().expect("image").digest;
+    for n in 0..ack.len() {
+        let mut modified = ack.clone();
+        *modified.get_mut(n).expect("byte") ^= 1;
+        assert!(
+            p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &modified, 150)
+                .is_err(),
+            "byte {n}"
+        );
+        assert_eq!(p.ji.image().expect("unchanged").digest, before);
+    }
+    assert!(p
+        .jr
+        .accept_message_acknowledgement(&p.f.responder, p.session, &ack, 150)
+        .is_err());
+    let mut dishonest = state(&mut p.jr, &p.session);
+    dishonest.receive_floor = 3;
+    let future = dishonest
+        .acknowledgement()
+        .expect("authenticated impossible peer claim");
+    assert!(p
+        .ji
+        .accept_message_acknowledgement(&p.f.initiator, p.session, &future, 150)
+        .is_err());
+    assert_eq!(
+        p.ji.image().expect("unchanged after future ack").digest,
+        before
+    );
+    p.jr.close();
+    p.jr = reopen(&p.pr, p.f.local_device());
+    assert_eq!(
+        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+            .expect("lost ack recovery"),
+        ack
+    );
+    assert_eq!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+            .expect("retire"),
+        2
+    );
+    assert_eq!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack0, 150)
+            .expect("older cumulative ack"),
+        2
+    );
+    assert!(state(&mut p.ji, &p.session).outgoing.is_empty());
+    let reverse_id =
+        p.jr.next_message_id(&p.f.responder, p.session, 150)
+            .expect("reverse slot");
+    let reverse_wire =
+        p.jr.send_message(
+            &p.f.responder,
+            p.session,
+            reverse_id,
+            b"reverse direction",
+            b"application",
+            150,
+        )
+        .expect("reverse send");
+    assert_eq!(
+        p.ji.receive_message(
+            &p.f.initiator,
+            p.session,
+            &reverse_wire,
+            b"application",
+            150
+        )
+        .expect("reverse receive")
+        .as_bytes(),
+        b"reverse direction"
+    );
+    assert_eq!(
+        p.ji.consume_message(&p.f.initiator, p.session, reverse_id, 150)
+            .expect("reverse consume"),
+        1
+    );
+    let reverse_ack =
+        p.ji.message_acknowledgement(&p.f.initiator, p.session, 150)
+            .expect("reverse ack");
+    assert_eq!(
+        p.jr.accept_message_acknowledgement(&p.f.responder, p.session, &reverse_ack, 150)
+            .expect("reverse confirmation"),
+        1
+    );
+    assert_eq!(
+        p.jr.message_status(&p.f.responder, p.session, reverse_id)
+            .expect("reverse status"),
+        MessageStatus::Acknowledged
+    );
+}
+
+#[test]
+fn every_retention_commit_fault_preserves_a_monotonic_consumption_boundary() {
+    for operation in ["consume", "ack"] {
+        for after in [false, true] {
+            for cut in 1..=4 {
+                let mut p = Pair::new();
+                p.activate();
+                let id = id(p.session, 1, 1);
+                let wire = p.send(id, b"consumable payload");
+                p.receive(&wire);
+                let ack = if operation == "ack" {
+                    p.jr.consume_message(&p.f.responder, p.session, id, 150)
+                        .expect("consume");
+                    Some(
+                        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                            .expect("ack"),
+                    )
+                } else {
+                    None
+                };
+                let (journal, path, device) = if operation == "ack" {
+                    (&mut p.ji, &p.pi, p.f.initiator_device())
+                } else {
+                    (&mut p.jr, &p.pr, p.f.local_device())
+                };
+                journal.close();
+                let (mut failed, remaining, _, _) = fault_store(path, device, after);
+                remaining.store(cut, Ordering::SeqCst);
+                let result = if let Some(ack) = &ack {
+                    failed.accept_message_acknowledgement(&p.f.initiator, p.session, ack, 150)
+                } else {
+                    failed.consume_message(&p.f.responder, p.session, id, 150)
+                };
+                assert!(result.is_err(), "{operation} cut={cut} after={after}");
+                assert!(failed.active.is_none());
+                drop(failed);
+                *journal = reopen(path, device);
+                assert_eq!(
+                    p.jr.consume_message(&p.f.responder, p.session, id, 150)
+                        .expect("reconcile original consumption"),
+                    1
+                );
+                let ack =
+                    p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                        .expect("committed prefix");
+                assert_eq!(
+                    p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+                        .expect("reconcile acknowledgement"),
+                    1
+                );
+                assert_eq!(
+                    p.ji.message_status(&p.f.initiator, p.session, id)
+                        .expect("acknowledged"),
+                    MessageStatus::Acknowledged
+                );
+                assert!(matches!(
+                    p.ji.send_message(
+                        &p.f.initiator,
+                        p.session,
+                        id,
+                        b"replacement",
+                        b"application",
+                        150
+                    ),
+                    Err(DurableError::Protocol(Error::Retired))
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn retired_boundaries_are_canonical_and_counter_exhaustion_cannot_recreate_a_slot() {
+    let mut s =
+        State::new([8; 32], [9; 32], 1, key(&[7; 32]).expect("root"), &[11; 32]).expect("state");
+    s.sent = u64::MAX;
+    s.send_floor = u64::MAX;
+    s.received = u64::MAX;
+    s.receive_floor = u64::MAX;
+    assert_eq!(
+        State::decode(&s.encode())
+            .expect("terminal counters")
+            .encode()
+            .as_slice(),
+        s.encode().as_slice()
+    );
+    assert!(MessageId::for_index(&s.session, s.role, u64::MAX).is_err());
+    let retired = MessageId::for_index(&s.session, s.role, u64::MAX - 1).expect("last old slot");
+    assert!(matches!(
+        s.send(retired, b"replacement", b""),
+        Err(Error::Retired)
+    ));
+    s.sent -= 1;
+    assert!(State::decode(&s.encode()).is_err(), "floor exceeds counter");
+    let mut p = Pair::new();
+    p.activate();
+    let expected =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("slot");
+    let before = p.ji.image().expect("image").digest;
+    let random = MessageId::from_trusted_state([1; 32]).expect("untrusted bytes");
+    assert!(p
+        .ji
+        .send_message(
+            &p.f.initiator,
+            p.session,
+            random,
+            b"payload",
+            b"application",
+            150
+        )
+        .is_err());
+    assert!(p
+        .ji
+        .send_message(
+            &p.f.initiator,
+            p.session,
+            id(p.session, 1, 2),
+            b"future slot",
+            b"application",
+            150
+        )
+        .is_err());
+    assert_eq!(p.ji.image().expect("unchanged").digest, before);
+    assert_eq!(
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("same slot"),
+        expected
+    );
 }

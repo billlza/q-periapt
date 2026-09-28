@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Cumulative application-consumption acknowledgements and bounded retention.
+use super::*;
+use hmac::{Hmac, Mac};
+
+const ACK_TAG: &[u8; 8] = b"QPCMACK1";
+const ACK_PREFIX: usize = 8 + 32 + 1 + 8;
+const ACK_LENGTH: usize = ACK_PREFIX + 32;
+
+impl State {
+    fn consume(&mut self, id: MessageId) -> Result<bool, Error> {
+        let index = id.check(&self.session, 3 - self.role)?;
+        if index < self.receive_floor {
+            return Ok(false);
+        }
+        let saved = self.incoming.get_mut(&id).ok_or(Error::State)?;
+        if saved.consumed {
+            return Ok(false);
+        }
+        // Drop the Zeroizing allocation while its original length is intact.
+        saved.plaintext = Zeroizing::new(Vec::new());
+        saved.consumed = true;
+        while self.receive_floor < self.received {
+            let next = MessageId::for_index(&self.session, 3 - self.role, self.receive_floor)?;
+            if !self.incoming.get(&next).is_some_and(|saved| saved.consumed) {
+                break;
+            }
+            self.incoming.remove(&next);
+            self.receive_floor += 1;
+        }
+        Ok(true)
+    }
+    pub(super) fn acknowledgement(&self) -> Result<Vec<u8>, Error> {
+        let mut wire = ACK_TAG.to_vec();
+        wire.extend_from_slice(&self.session);
+        wire.push(3 - self.role);
+        wire.extend_from_slice(&self.receive_floor.to_be_bytes());
+        let mut mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(self.receive_ack.as_bytes())
+            .map_err(|_| Error::Provider)?;
+        mac.update(&label(b"acknowledgement"));
+        mac.update(&wire);
+        wire.extend_from_slice(&mac.finalize().into_bytes());
+        Ok(wire)
+    }
+    fn accept_acknowledgement(&mut self, wire: &[u8]) -> Result<bool, Error> {
+        if wire.len() != ACK_LENGTH {
+            return Err(Error::Encoding);
+        }
+        let mut d = Decoder::new(wire);
+        if d.array::<8>()? != *ACK_TAG {
+            return Err(Error::Encoding);
+        }
+        let session = d.array::<32>()?;
+        let [role] = d.array()?;
+        let floor = d.u64()?;
+        let tag = d.take(32)?;
+        d.finish()?;
+        if session != self.session || role != self.role {
+            return Err(Error::Scope);
+        }
+        let mut mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(self.send_ack.as_bytes())
+            .map_err(|_| Error::Provider)?;
+        mac.update(&label(b"acknowledgement"));
+        mac.update(wire.get(..ACK_PREFIX).ok_or(Error::Encoding)?);
+        mac.verify_slice(tag).map_err(|_| Error::Authentication)?;
+        if floor > self.sent {
+            return Err(Error::Authentication);
+        }
+        if floor <= self.send_floor {
+            return Ok(false);
+        }
+        let mut retired = Vec::new();
+        for id in self.outgoing.keys() {
+            if id.index()? < floor {
+                retired.push(*id);
+            }
+        }
+        for id in retired {
+            self.outgoing.remove(&id);
+        }
+        self.send_floor = floor;
+        Ok(true)
+    }
+}
+
+impl DeviceJournal {
+    /// Commit the application's consumption of an authenticated inbox delivery.
+    /// This erases its retained plaintext and advances only the contiguous consumed
+    /// prefix. External application effects must be durably deduplicated separately.
+    pub fn consume_message(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        id: MessageId,
+        now: u64,
+    ) -> Result<u64, DurableError> {
+        let mut image = self.image()?;
+        let mut state = self.message_state(&image, context, &session, now)?;
+        if state.consume(id)? {
+            image
+                .records
+                .get_mut(&record_id(&session))
+                .ok_or(DurableError::Corrupt)?
+                .payload = state.encode();
+            self.persist(&mut image)?;
+            #[cfg(all(test, unix))]
+            super::tests::after_stage("consumed");
+        }
+        context.check_session(now)?;
+        self.check_release(&image)?;
+        Ok(state.receive_floor)
+    }
+    /// Return a MAC of the currently committed contiguous application-consumed
+    /// prefix. Recompute after loss/restart; no message key or nonce is consumed.
+    pub fn message_acknowledgement(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        now: u64,
+    ) -> Result<Vec<u8>, DurableError> {
+        let image = self.image()?;
+        let state = self.message_state(&image, context, &session, now)?;
+        let wire = state.acknowledgement()?;
+        context.check_session(now)?;
+        self.check_release(&image)?;
+        Ok(wire)
+    }
+    /// Verify the peer's cumulative application-consumption acknowledgement and
+    /// atomically retire corresponding outboxes. Old acknowledgements cannot
+    /// regress the floor; retired message IDs never become new send requests.
+    pub fn accept_message_acknowledgement(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        wire: &[u8],
+        now: u64,
+    ) -> Result<u64, DurableError> {
+        let mut image = self.image()?;
+        let mut state = self.message_state(&image, context, &session, now)?;
+        if state.accept_acknowledgement(wire)? {
+            image
+                .records
+                .get_mut(&record_id(&session))
+                .ok_or(DurableError::Corrupt)?
+                .payload = state.encode();
+            self.persist(&mut image)?;
+            #[cfg(all(test, unix))]
+            super::tests::after_stage("acknowledged");
+        }
+        context.check_session(now)?;
+        self.check_release(&image)?;
+        Ok(state.send_floor)
+    }
+}

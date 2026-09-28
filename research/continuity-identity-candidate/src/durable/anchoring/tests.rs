@@ -229,6 +229,7 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
         DeviceJournal::provision_anchored(&c.path.join("responder.redb"), key, device, policy, 150)
             .expect("responder");
     let genesis = responder.anchor_genesis(device, policy).expect("genesis");
+    let responder_identity = responder.identity().expect("independent identity");
     c.server
         .lock()
         .expect("server")
@@ -287,7 +288,10 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .expect("peer chains"),
         session
     );
-    let id = crate::MessageId::from_trusted_state([67; 32]).expect("message id");
+    let id = c
+        .journal
+        .next_message_id(&c.peer.initiator, session, 150)
+        .expect("message id");
     let wire = c
         .journal
         .send_message(
@@ -334,6 +338,57 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
         Err(DurableError::Anchor(_))
     ));
     assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    let open_responder = || {
+        DeviceJournal::open_anchored(
+            &c.path.join("responder.redb"),
+            JournalKey::open(&c.path.join("responder-key")).expect("key"),
+            c.peer.local_device(),
+            c.peer.responder.policy(),
+            responder_identity,
+            client(&c.pin, &c.server, false),
+        )
+        .expect("reopen anchored responder")
+    };
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .consume_message(&c.peer.responder, session, id, 150)
+            .expect("consume"),
+        1
+    );
+    let ack = responder
+        .message_acknowledgement(&c.peer.responder, session, 150)
+        .expect("ack");
+    {
+        let mut server = c.server.lock().expect("server");
+        server.fail = Some((server.requests.len() + 2, false));
+    }
+    assert!(matches!(
+        responder.message_acknowledgement(&c.peer.responder, session, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .message_acknowledgement(&c.peer.responder, session, 150)
+            .expect("same committed prefix"),
+        ack
+    );
+    assert_eq!(
+        c.journal
+            .accept_message_acknowledgement(&c.peer.initiator, session, &ack, 150)
+            .expect("anchored retirement"),
+        1
+    );
+    assert_eq!(
+        c.journal
+            .message_status(&c.peer.initiator, session, id)
+            .expect("retired status"),
+        crate::MessageStatus::Acknowledged
+    );
 }
 
 #[test]
