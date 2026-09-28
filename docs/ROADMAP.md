@@ -20,7 +20,10 @@ reference execution, remaining platform/device coverage, controlled performance,
 binary CT and final release coordination remain open.
 The 0.2.0 candidate requires its own final qualification; the 0.1.5 history below
 retains the outcomes and source identities of that release.
-Full Continuity remains a later protocol milestone.
+Persistent Continuity sessions, ongoing PQ recovery and multi-device lifecycle
+are now required in 0.2.0 under the
+[expanded release scope](continuity/RELEASE_0_2_SCOPE.md). Their implementation
+and protocol-specific verification remain open.
 
 Authoritative status and forward plan for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
@@ -538,7 +541,7 @@ are the gap between research-grade and audited/production.
    XCFramework and `abi2-platforms-v0.1.5` Android/Linux packages,
    each bound to its own release receipt. Production promotion remains blocked on
    warning-clean dependency audit currency, clean signed or
-   transparency-backed source provenance, independent cryptographic/C-FFI/ABI review,
+   transparency-backed source provenance, cryptographic/C-FFI/ABI review,
    and live verification of same-source Apple matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
    The target-selection/source migration invalidated all prior portable-derived
@@ -589,7 +592,7 @@ are the gap between research-grade and audited/production.
      freedom; provenance hashes alone do not meet Signal's reported baseline.
    - G5: close same-source physical iPad, iPhone, macOS, and physical Android
      latency/wire/energy/thermal/storage/healing budgets.
-   - G6: obtain independent review and pilot fault/scale telemetry before deployment.
+   - G6: complete protocol/implementation review and pilot fault/scale telemetry before deployment.
 
    The complete gates, candidate performance budgets, and forbidden claims are in
    [`docs/CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md). G0 documentation baseline

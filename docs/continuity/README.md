@@ -1,5 +1,10 @@
 # Q-Periapt Continuity specification workspace
 
+The [0.2.0 scope decision](RELEASE_0_2_SCOPE.md) now includes the full persistent
+session, ongoing PQ recovery and multi-device work in this release. The historical
+checkpoint below describes the existing model; it does not mark the newly
+required product protocol complete.
+
 > **Status on 2026-07-12: G0 complete; G1 partially started.** The only
 > executable artifact is a non-normative, public-commitment lifecycle model.
 > There is no Continuity wire protocol, identity/prekey protocol, ratchet,
@@ -15,6 +20,7 @@ empty.
 
 | Artifact | Status | What it establishes |
 |---|---|---|
+| [`PROTOCOL_V1.md`](PROTOCOL_V1.md) | candidate identity/authority and lifecycle decisions; open-decision register retained | Accountable bootstrap/control target, stage-specific delivery boundaries, exact retransmission, revocation and account transaction obligations; not a frozen handshake or ratchet |
 | [`REFERENCE_BASELINE.md`](REFERENCE_BASELINE.md), [`reference-baseline.json`](reference-baseline.json), and the [`reference_baseline.py`](../../artifact/reference_baseline.py) verifier | selected revisions/reproducible content hashes; partial byte lock; integration profile open | Immutable IETF archives and pinned Git commit plus tested versioned raw/normalized drift hashes for mutable publisher pages; not archival completeness or interoperability |
 | [`G1_EFFECT_LIFECYCLE.md`](G1_EFFECT_LIFECYCLE.md) | candidate contract, exercised by a test-only model | Reservation/effect/result/anchor-plan/commit/idempotent-release-ack ordering and fail-closed unknown outcomes |
 | [`LIFECYCLE_CONTEXT_V1.md`](LIFECYCLE_CONTEXT_V1.md) | candidate canonical model metadata | Exact Bootstrap/RootTransition LP8 bodies, signed-policy K-CTX wrapper and digest preimage; not identity authentication, wire interoperability or ratchet security |
@@ -24,10 +30,10 @@ empty.
 
 ## Required before G1 can close
 
-The following authoritative artifacts do not yet exist and must not be inferred from
-the lifecycle model:
+The following authoritative artifacts must be complete and frozen; the current
+protocol candidate and lifecycle model do not supply missing definitions:
 
-1. `PROTOCOL_V1.md`: chosen accountable-versus-deniable profile, identity trust chain,
+1. `PROTOCOL_V1.md` (candidate exists): chosen accountable-versus-deniable profile, identity trust chain,
    trusted genesis/migration rules, zero-RTT and confirmation
    permissions, prekey lifecycle, ratchet selection, policy and migration semantics.
 2. `WIRE_V1.md`: protocol ID, exact canonical grammar, field limits, padding and

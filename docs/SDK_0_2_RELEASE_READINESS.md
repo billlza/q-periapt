@@ -1,7 +1,7 @@
 # Q-Periapt 0.2.0 release-readiness ledger
 
-Goal: finish alpha.1, then the beta/0.2.0 product requirements in the supplied
-2026-09-25 review, including quality and maintainability review before delivery.
+Goal: finish the complete 0.2.0 product requirements, including the expanded
+Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
@@ -13,6 +13,12 @@ source identities and observed outcomes; their release-gate references follow
 the current requirements. The
 [internal implementation review](SDK_INTERNAL_REVIEW.md) records inspected
 contracts, validation and remaining code-review boundaries.
+
+The 2026-09-28 scope update also requires persistent Continuity sessions,
+fresh-PQ rekeying, disconnect recovery, revocation, continuous PQ recovery and
+multi-device lifecycle in **0.2.0**. The
+[expanded scope and completion evidence](continuity/RELEASE_0_2_SCOPE.md)
+govern these additional requirements. Existing KEM/TLS checks do not close them.
 
 The original nine entry points keep their signatures, layouts, existing status
 codes and library identity. Package-version metadata reflects the new package;
@@ -659,15 +665,16 @@ has no `ubuntu-26.04` entry. GitHub has
 The complete before/after diagnostic is retained without a label alias or
 disabled check. A locally passing job subset is not a full-workflow lint pass.
 
-Continuity's full persistent session, ongoing PQ recovery and multi-device
-protocol are explicitly later milestones in the supplied roadmap. They will
-not be falsely presented as part of 0.2.0. Its future research claims are not
-inherited from a KEM or TLS test.
+Continuity's persistent session, ongoing PQ recovery and multi-device protocol
+are now part of the 0.2.0 release requirements. Their protocol, implementation,
+storage, binding and performance evidence must be completed in this release;
+the existing KEM or TLS results do not establish those properties.
 
 Implementation order: native ABI 2 ownership and cross-language adapters;
 purpose derivation/import/lifecycle completion; native x86 candidate; reference
-connection and standard interop; package/device/performance gates; final quality
-and requirement-by-requirement release audit. External gates remain visible
+connection and standard interop; the Continuity protocol, persistence, recovery
+and multi-device service; package/device/performance gates; final quality
+and requirement-by-requirement release audit. Remaining verification stays visible
 while independent implementation work continues.
 
 The current [ownership contract](SDK_OWNERSHIP.md) and
