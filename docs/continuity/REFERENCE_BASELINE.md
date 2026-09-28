@@ -9,6 +9,13 @@
 The reference lane must reproduce public components before Q-Periapt research deltas
 are compared. The following revisions are the selected comparison baseline:
 
+The pinned SPQR implementation now has an
+[isolated execution driver](../../research/continuity-spqr-reference/README.md).
+It retains the original 32-byte chunks, dependency versions and source commit,
+compares actual send/receive message keys, and locks seven public traffic corpora.
+This supplies a component execution baseline. Full PQXDH/Triple Ratchet/manager
+composition, matched whole-KEM measurements and deployment interoperability remain open.
+
 | Component | Selected public revision | Role | Boundary |
 |---|---|---|---|
 | [PQXDH](https://signal.org/docs/specifications/pqxdh/) | Revision 3, 2023-05-24; last updated 2024-01-23 | asynchronous initial key agreement | Classical mutual authentication in this revision; not active-PQ authentication |

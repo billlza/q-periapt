@@ -29,6 +29,11 @@ the existing public-commitment model into a working cryptographic protocol.
   commitments and trusted adapter outcomes. It contains neither cryptographic
   payloads nor a real storage/provider adapter. Its lifecycle counterexamples and
   canonical-context tests are useful design inputs, not product execution.
+- `research/continuity-spqr-reference` executes the fixed upstream SPQR component
+  under seven loss/reorder/directionality schedules, retains exact public wire
+  corpora and checks actual message-key agreement. Its one-way trace has no fresh
+  PQ epoch progression. It remains a separate reference workspace; product ratchet
+  selection still requires the matched alternatives and compromise analysis.
 - `research/continuity-identity-candidate` implements an isolated actual-signature
   root/credential/roster/manifest chain, Merkle membership verification and a
   canonical selection derived from the actual authenticated members. It also

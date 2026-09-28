@@ -1603,6 +1603,64 @@ jobs:
       - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
       - run: bash research/hqc-fips207-candidate/scripts/verify.sh
 
+  # Pinned third-party reference; no SDK crate links this comparison executable.
+  continuity-spqr-reference:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-spqr-reference-build
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.96.1
+          components: clippy,rustfmt
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: reference_python
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Install reference protobuf compiler on Linux runner
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+      - name: Select reference protobuf compiler on macOS runner
+        if: runner.os == 'macOS'
+        run: |
+          if ! command -v protoc; then brew install protobuf; fi
+          protoc --version
+      - name: Check and replay pinned reference corpus
+        env:
+          QPERIAPT_PYTHON: ${{ steps.reference_python.outputs.python-path }}
+        run: |
+          set -eu
+          mkdir -p target/continuity-spqr-evidence
+          manifest=research/continuity-spqr-reference/Cargo.toml
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo clippy --manifest-path "$manifest" --locked --all-targets -- -D warnings
+          upstream_manifest=$(sh artifact/python-run.sh -c 'from artifact.spqr_reference import upstream_manifest; print(upstream_manifest())')
+          cargo test --manifest-path "$upstream_manifest" --locked > target/continuity-spqr-evidence/upstream-tests.log 2>&1
+          cargo run --manifest-path "$manifest" --locked --release -- target/continuity-spqr-evidence/first
+          cargo run --manifest-path "$manifest" --locked --release -- target/continuity-spqr-evidence/repeated
+          sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_spqr_reference"],warnings="error")'
+          sh artifact/python-run.sh artifact/spqr_reference.py target/continuity-spqr-evidence/first \
+            --compare target/continuity-spqr-evidence/repeated \
+            --binary "$CARGO_TARGET_DIR/release/q-periapt-spqr-reference" > target/continuity-spqr-evidence/verification.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: continuity-spqr-reference-${{ matrix.os }}
+          path: target/continuity-spqr-evidence
+          if-no-files-found: error
+
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}

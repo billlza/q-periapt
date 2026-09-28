@@ -81,6 +81,18 @@ jobs:
             cargo +1.96.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           test ! -e target && test ! -L target
 
+      - name: Compile isolated SPQR reference with both analysis toolchains
+        if: matrix.language == 'rust'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          for reference_toolchain in 1.94.0 1.96.1; do
+            RUSTFLAGS='-D warnings' \
+              CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-spqr-check-${reference_toolchain}" \
+              cargo +"$reference_toolchain" check --manifest-path research/continuity-spqr-reference/Cargo.toml --all-targets --locked
+          done
+          test ! -e target && test ! -L target
+
       - name: Verify Rust CodeQL checkout before initialization
         if: matrix.language == 'rust'
         env:
