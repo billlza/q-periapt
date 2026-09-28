@@ -10,7 +10,8 @@ test "$(uname -s)" = Linux
 sdk=/usr/local/lib/android/sdk
 adb=$sdk/platform-tools/adb
 emulator=$sdk/emulator/emulator
-test -x "$adb" && test -x "$emulator"
+test -x "$adb"
+test -x "$emulator"
 avdmanager=$(command -v avdmanager)
 case "$avdmanager" in "$sdk"/cmdline-tools/*/bin/avdmanager) ;; *) exit 2 ;; esac
 
@@ -29,7 +30,8 @@ export ADB_LOCAL_TRANSPORT_MAX_PORT=5585
 socket=localfilesystem:$work/adb.sock
 serial=127.0.0.1:5585
 for port in 5584 5585 5586; do
-    test -z "$(ss -H -ltn "sport = :$port")"
+    listeners=$(ss -H -ltn "sport = :$port")
+    test -z "$listeners"
 done
 "$adb" keygen "$ADB_VENDOR_KEYS"
 "$avdmanager" create avd --name PlatformProbe35 \
@@ -74,6 +76,14 @@ adb_call() {
 guest() {
     adb_call -s "$serial" shell "$@"
 }
+confirm_no_sdk_package() {
+    local packages
+    if packages=$(guest pm list packages dev.qperiapt); then
+        if [ -z "$packages" ]; then return 0; fi
+    fi
+    printf 'PLATFORM_PACKAGE_ABSENCE_UNCONFIRMED\n'
+    return 1
+}
 ready=0
 deadline=$((SECONDS + 120))
 while [ "$SECONDS" -lt "$deadline" ]; do
@@ -88,11 +98,13 @@ while [ "$SECONDS" -lt "$deadline" ]; do
     sleep 1
 done
 test "$ready" -eq 1
-test "$(guest getprop ro.build.version.sdk)" = 35
-test "$(guest getconf PAGE_SIZE)" = 16384
+observed_api=$(guest getprop ro.build.version.sdk)
+observed_page_size=$(guest getconf PAGE_SIZE)
+test "$observed_api" = 35
+test "$observed_page_size" = 16384
 fingerprint=$(guest getprop ro.build.fingerprint)
 test "$fingerprint" = 'google/sdk_gphone16k_x86_64/emu64xa16k:15/AE3A.240806.043/12960925:userdebug/dev-keys'
-test -z "$(guest pm list packages dev.qperiapt)"
+confirm_no_sdk_package
 boot_id=$(guest cat /proc/sys/kernel/random/boot_id)
 server=$(guest pidof system_server)
 [[ "$boot_id" =~ ^[0-9a-f-]{36}$ && "$server" =~ ^[1-9][0-9]*$ ]]
@@ -133,5 +145,5 @@ for sample in {1..60}; do
     fi
     sleep 1
 done
-test -z "$(guest pm list packages dev.qperiapt)"
+confirm_no_sdk_package
 printf 'PLATFORM_OBSERVATIONS_COMPLETED samples=60 sdk_installed=false\n'

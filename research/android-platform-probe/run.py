@@ -34,7 +34,7 @@ def main() -> int:
     if clean.returncode != 0:
         raise RuntimeError("platform reproduction requires unchanged tracked sources")
     os.umask(0o077)
-    OUTPUT.mkdir(mode=0o700)
+    OUTPUT.mkdir(mode=0o700, parents=True)
     environment = {key: os.environ[key] for key in ("PATH", "HOME", "JAVA_HOME")}
     environment.update({"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"})
     record = {"kind": "qperiapt.android_platform_reproduction", "schema_version": 1,

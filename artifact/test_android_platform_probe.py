@@ -2,19 +2,70 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest import mock
 
-from bounded_process import capture_stdout
+from bounded_process import BoundedResult, capture_stdout
 
 ROOT = Path(__file__).resolve().parents[1]
 PROBE = ROOT / "research/android-platform-probe"
 
 
 class PlatformProbeTests(unittest.TestCase):
+    def test_fresh_checkout_records_a_failed_driver_without_a_target_directory(self):
+        spec = importlib.util.spec_from_file_location("android_platform_probe_fresh", PROBE / "run.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "target" / "android-platform-probe"
+            def command(argv, **options):
+                if argv[-1] == "HEAD" and "rev-parse" in argv:
+                    return BoundedResult(0, b"a" * 40 + b"\n")
+                if "diff" in argv:
+                    return BoundedResult(0)
+                self.assertEqual(argv[0], "/bin/bash")
+                options["output_sink"](b"controlled driver failure\n")
+                return BoundedResult(7)
+            old_umask = os.umask(0o077)
+            try:
+                with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_OS": "Linux",
+                                                   "GITHUB_SHA": "a" * 40, "JAVA_HOME": directory}), \
+                     mock.patch.object(module.sys, "platform", "linux"), \
+                     mock.patch.object(module, "OUTPUT", destination), \
+                     mock.patch.object(module, "capture_stdout", side_effect=command):
+                    self.assertEqual(module.main(), 1)
+            finally:
+                os.umask(old_umask)
+            observation = json.loads((destination / "observation.json").read_text())
+            self.assertEqual(observation["status"], "observation_failed")
+            self.assertEqual(observation["driver_exit_status"], 7)
+            self.assertFalse(observation["sdk_installation_attempted"])
+            self.assertEqual((destination / "commands.log").read_bytes(), b"controlled driver failure\n")
+
+    def test_absence_requires_a_completed_empty_package_query(self):
+        script = (PROBE / "run.sh").read_text()
+        start = script.index("confirm_no_sdk_package() {")
+        end = script.index("\n}\n", start) + 3
+        guard = script[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            driver = Path(directory) / "guard.sh"
+            reply = Path(directory) / "reply"
+            driver.write_text("set -euo pipefail\nfixture=$1\nquery_status=$2\n"
+                              "guest() { /bin/cat \"$fixture\"; return \"$query_status\"; }\n"
+                              + guard + "\nconfirm_no_sdk_package\n")
+            for payload, query_status, expected in ((b"", 0, 0), (b"", 17, 1),
+                                                    (b"package:dev.qperiapt.androidsmoke\n", 0, 1),
+                                                    (b"service unavailable\n", 1, 1)):
+                reply.write_bytes(payload)
+                with self.subTest(payload=payload, query_status=query_status):
+                    result = capture_stdout(["/bin/bash", str(driver), str(reply), str(query_status)],
+                                            timeout_seconds=5, maximum_bytes=4096)
+                    self.assertEqual(result.returncode, expected, result.stdout)
+
     def test_local_invocation_refuses_before_creating_state(self):
         spec = importlib.util.spec_from_file_location("android_platform_probe", PROBE / "run.py")
         module = importlib.util.module_from_spec(spec)

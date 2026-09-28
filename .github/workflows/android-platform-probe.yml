@@ -36,10 +36,12 @@ jobs:
           packages: platform-tools emulator system-images;android-35;google_apis_ps16k;x86_64
       - name: Prepare this runner's KVM access
         run: |
-          test -c /dev/kvm && test ! -L /dev/kvm
+          test -c /dev/kvm
+          test ! -L /dev/kvm
           getfacl -p /dev/kvm
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
       - name: Query the platform without installing the SDK
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
