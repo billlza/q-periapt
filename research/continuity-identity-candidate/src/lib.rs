@@ -24,7 +24,10 @@ pub use bootstrap::{
     PendingSession, ResponderOperation,
 };
 pub use crypto::{DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, PUBLIC_KEY_BYTES};
-pub use durable::{DurableError, DurableStatus, JournalIdentity, JournalKey, ResponderJournal};
+pub use durable::{
+    CommittedInitiation, DeviceJournal, DurableError, DurableStatus, InitiationId, JournalIdentity,
+    JournalKey,
+};
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,
     VerifiedDevice, MAX_DEVICES,

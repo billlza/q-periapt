@@ -6,7 +6,7 @@ checkpoint below does not mark the required product protocol complete.
 
 > **Status on 2026-09-28: G0 complete; G1 partially started.** Executable artifacts
 > include the public-commitment lifecycle model and an isolated actual-signature
-> identity/manifest/bootstrap candidate with an encrypted responder journal. The complete wire protocol, ratchet and production
+> identity/manifest/bootstrap candidate with an encrypted device journal. The complete wire protocol, ratchet and production
 > session store remain implementation requirements.
 
 This directory separates candidate specification text from the high-level research
@@ -19,7 +19,7 @@ empty.
 
 | Artifact | Status | What it establishes |
 |---|---|---|
-| [`../../research/continuity-identity-candidate`](../../research/continuity-identity-candidate) | unpublished implementation candidate with its own workspace and lockfile | Required hybrid signatures, independently pinned identity/roster/policy, authenticated selection and three-flight confirmation; encrypted responder reservation/result/response/final commits with real crash tests. No product ratchet, directory consistency, prekey secret inventory, anchor-intent replay or rollback protection |
+| [`../../research/continuity-identity-candidate`](../../research/continuity-identity-candidate) | unpublished implementation candidate with its own workspace and lockfile | Required hybrid signatures, independently pinned identity/roster/policy, authenticated selection and three-flight confirmation; encrypted initiator and responder reservation/result/outbox/final commits with real crash tests. No product ratchet, directory consistency, prekey secret inventory, anchor-intent replay or rollback protection |
 | [`PROTOCOL_V1.md`](PROTOCOL_V1.md) | candidate identity/authority and lifecycle decisions; open-decision register retained | Accountable bootstrap/control target, stage-specific delivery boundaries, exact retransmission, revocation and account transaction obligations; not a frozen handshake or ratchet |
 | [`REFERENCE_BASELINE.md`](REFERENCE_BASELINE.md), [`reference-baseline.json`](reference-baseline.json), and the [`reference_baseline.py`](../../artifact/reference_baseline.py) verifier | selected revisions/reproducible content hashes; partial byte lock; integration profile open | Immutable IETF archives and pinned Git commit plus tested versioned raw/normalized drift hashes for mutable publisher pages; not archival completeness or interoperability |
 | [`G1_EFFECT_LIFECYCLE.md`](G1_EFFECT_LIFECYCLE.md) | candidate contract, exercised by a test-only model | Reservation/effect/result/anchor-plan/commit/idempotent-release-ack ordering and fail-closed unknown outcomes |

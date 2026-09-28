@@ -29,9 +29,10 @@ the existing public-commitment model into a working cryptographic protocol.
   root/credential/roster/manifest chain, Merkle membership verification and a
   canonical selection derived from the actual authenticated members. It also
   supplies a signed session policy, three-flight confirmed bootstrap and an
-  encrypted responder journal with real reservation/result/response/final commits.
-  Its own lockfile and public-byte/OpenSSL verifier remain separate. Initiator
-  persistence, prekey secret inventory, ratchet, exact anchor-intent replay and
+  encrypted device journal with real initiator/responder reservation/result/outbox
+  commits and restart from saved private state.
+  Its own lockfile and public-byte/OpenSSL verifier remain separate.
+  Prekey secret inventory, ratchet, exact anchor-intent replay and
   rollback protection remain required work.
 
 ## Required completion evidence

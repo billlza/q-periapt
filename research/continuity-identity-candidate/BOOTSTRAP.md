@@ -147,10 +147,10 @@ work. They cannot be represented by caller-supplied success booleans.
 
 ## Validation and limits of the evidence
 
-The separate [responder journal](DURABILITY.md) now wraps these volatile operations
+The separate [device journal](DURABILITY.md) now wraps these volatile operations
 with encrypted reservation/result/response/final commits and actual crash recovery.
 Its restore method is crate-private and only consumes authenticated local records.
-Initiator persistence, sealed entropy, full G1 write/anchor-intent replay and the
+Both roles have private authenticated checkpoints. Sealed entropy, full G1 write/anchor-intent replay and the
 product ratchet/store integration remain required.
 
 Tests use two separately verified runtimes and real owned keys/signatures for

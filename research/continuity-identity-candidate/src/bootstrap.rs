@@ -124,6 +124,9 @@ impl BootstrapContext {
     pub(crate) fn storage_owner(&self) -> [u8; 32] {
         storage_owner(&self.responder)
     }
+    pub(crate) fn initiator_storage_owner(&self) -> [u8; 32] {
+        storage_owner(&self.initiator)
+    }
 
     pub(crate) fn one_time_fingerprints(&self) -> Vec<[u8; 32]> {
         use crate::PrekeyQuality;
@@ -155,6 +158,23 @@ impl BootstrapContext {
         self.initiator
             .key
             .verify(Purpose::BootstrapInitiator, body, signature)
+    }
+    pub(crate) fn validate_reply_signature(
+        &self,
+        initial: &[u8],
+        wire: &[u8],
+    ) -> Result<(), Error> {
+        let (body, signature) = open_envelope(wire)?;
+        if body.len() != REPLY_CORE + 32
+            || body.get(..8) != Some(REPLY_TAG)
+            || body.get(8..40) != Some(self.digest.as_slice())
+            || body.get(40..72) != Some(hash(b"initial-wire", initial).as_slice())
+        {
+            return Err(Error::Scope);
+        }
+        self.responder
+            .key
+            .verify(Purpose::BootstrapResponder, body, signature)
     }
 }
 
@@ -216,7 +236,8 @@ impl InitiatorOutcome {
 
 struct WaitingInitiator {
     reply_key: HybridKey,
-    first_secret: SharedSecret,
+    // Explicit protocol ownership; never a public SDK shared-secret constructor.
+    first_secret: ZeroizingBytes<32>,
 }
 enum InitiatorState {
     Waiting(Box<WaitingInitiator>),
@@ -263,7 +284,7 @@ impl InitiatorOperation {
             initial,
             state: InitiatorState::Waiting(Box::new(WaitingInitiator {
                 reply_key,
-                first_secret: result.secret,
+                first_secret: result.secret.export_for_protocol()?,
             })),
         })
     }
@@ -306,6 +327,101 @@ impl InitiatorOperation {
     /// Erase all retained reply-key and session secrets. Repeated close is valid.
     pub fn close(&mut self) {
         self.state = InitiatorState::Closed;
+    }
+
+    pub(crate) fn checkpoint(&self) -> Result<zeroize::Zeroizing<Vec<u8>>, Error> {
+        let mut bytes = zeroize::Zeroizing::new(Vec::with_capacity(11000));
+        bytes.extend_from_slice(b"QPICHK01");
+        bytes.extend_from_slice(&self.context.digest);
+        bytes.extend_from_slice(&self.initial);
+        match &self.state {
+            InitiatorState::Waiting(waiting) => {
+                bytes.push(1);
+                bytes.extend_from_slice(waiting.first_secret.as_bytes());
+                let key = expert::export_expanded(&waiting.reply_key)?;
+                bytes.extend_from_slice(key.as_bytes());
+            }
+            InitiatorState::Finished { reply, outcome } => {
+                bytes.push(2);
+                bytes.extend_from_slice(reply);
+                bytes.extend_from_slice(
+                    outcome
+                        .session
+                        .root
+                        .as_ref()
+                        .ok_or(Error::Closed)?
+                        .as_bytes(),
+                );
+                bytes.extend_from_slice(&outcome.final_wire);
+            }
+            InitiatorState::Closed => return Err(Error::Closed),
+        }
+        Ok(bytes)
+    }
+
+    // Only authenticated local storage can reach this private restore boundary.
+    pub(crate) fn restore_checkpoint(
+        context: Arc<BootstrapContext>,
+        bytes: &[u8],
+    ) -> Result<Self, Error> {
+        let mut decoder = Decoder::new(bytes);
+        if decoder.array::<8>()? != *b"QPICHK01" || decoder.array::<32>()? != context.digest {
+            return Err(Error::Scope);
+        }
+        let initial = decoder.take(5817)?.to_vec();
+        context.validate_initial_signature(&initial)?;
+        let [state] = decoder.array()?;
+        let state = match state {
+            1 => {
+                let mut first_secret = ZeroizingBytes::zeroed();
+                first_secret
+                    .as_mut_bytes()
+                    .copy_from_slice(decoder.take(32)?);
+                let reply_key = expert::import_expanded(
+                    &context.policy.runtime,
+                    decoder.take(expert::EXPANDED_KEY_LEN)?,
+                )?;
+                if initial.get(4 + 72..4 + 72 + PUBLIC_KEY_LEN)
+                    != Some(reply_key.public_key()?.to_bytes().as_slice())
+                {
+                    return Err(Error::Scope);
+                }
+                InitiatorState::Waiting(Box::new(WaitingInitiator {
+                    reply_key,
+                    first_secret,
+                }))
+            }
+            2 => {
+                let reply = decoder.take(4633)?.to_vec();
+                context.validate_reply_signature(&initial, &reply)?;
+                let mut root = ZeroizingBytes::zeroed();
+                root.as_mut_bytes().copy_from_slice(decoder.take(32)?);
+                let final_wire = decoder.take(136)?.to_vec();
+                let prefix = final_prefix(&context.digest, &initial, &reply);
+                if final_wire.get(..FINAL_PREFIX) != Some(prefix.as_slice()) {
+                    return Err(Error::Scope);
+                }
+                let session = PendingSession {
+                    root: Some(root),
+                    id: hash(b"session-id", &prefix),
+                    role: BootstrapRole::Initiator,
+                };
+                InitiatorState::Finished {
+                    reply,
+                    outcome: Box::new(InitiatorOutcome {
+                        final_wire,
+                        session,
+                    }),
+                }
+            }
+            _ => return Err(Error::Encoding),
+        };
+        decoder.finish()?;
+        Ok(Self {
+            context,
+            initial,
+            state,
+        })
     }
 }
 
@@ -595,11 +711,10 @@ fn derive(ikm: &[u8], salt: &[u8; 32], label: &[u8]) -> Result<ZeroizingBytes<32
     Ok(out)
 }
 fn schedule(
-    first: &SharedSecret,
+    first: &ZeroizingBytes<32>,
     second: &SharedSecret,
     core: &[u8; 32],
 ) -> Result<Schedule, Error> {
-    let first = first.export_for_protocol()?;
     let second = second.export_for_protocol()?;
     let mut ikm = ZeroizingBytes::<64>::zeroed();
     let (left, right) = ikm.as_mut_bytes().split_at_mut(32);
@@ -651,7 +766,7 @@ fn prepare_response(
         .encapsulate(&peer, &hash(b"kem-reply", &body))?;
     body.extend_from_slice(&result.ciphertext.to_bytes());
     let core = hash(b"reply-core", &body);
-    let keys = schedule(&first, &result.secret, &core)?;
+    let keys = schedule(&first.export_for_protocol()?, &result.secret, &core)?;
     body.extend_from_slice(&mac(keys.responder.as_bytes(), &core)?);
     let reply = envelope(&body, &signer.sign(Purpose::BootstrapResponder, &body)?)?;
     let session = pending(
@@ -723,7 +838,7 @@ fn finish_initiator(
 pub(crate) mod tests {
     use super::*;
     use crate::{
-        tests::{interval, sdk_runtime, session_policy_fixture},
+        tests::{interval, sdk_runtime_with_limits, session_policy_fixture},
         *,
     };
 
@@ -777,8 +892,25 @@ pub(crate) mod tests {
             [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
         )>,
     ) -> Fixture {
+        fixture_with_options(quality, public_keys, q_periapt_sdk::Limits::default())
+    }
+    #[cfg(unix)]
+    pub(crate) fn fixture_with_initiator_limits(
+        quality: PrekeyQuality,
+        limits: q_periapt_sdk::Limits,
+    ) -> Fixture {
+        fixture_with_options(quality, None, limits)
+    }
+    fn fixture_with_options(
+        quality: PrekeyQuality,
+        public_keys: Option<(
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+        )>,
+        limits: q_periapt_sdk::Limits,
+    ) -> Fixture {
         let (_, issued, pin, runtime_r) = session_policy_fixture(&[quality]);
-        let runtime_i = sdk_runtime();
+        let runtime_i = sdk_runtime_with_limits(limits);
         let policy_i = Arc::new(
             pin.verify(issued.as_bytes(), runtime_i, 150)
                 .expect("initiator policy"),
@@ -884,6 +1016,22 @@ pub(crate) mod tests {
         }
     }
     impl Fixture {
+        #[cfg(unix)]
+        pub(crate) fn initiator_device(&self) -> &VerifiedDevice {
+            &self.initiator.initiator
+        }
+        #[cfg(unix)]
+        pub(crate) fn close_initiator_policy(&self) {
+            self.initiator.policy.close();
+        }
+        #[cfg(unix)]
+        pub(crate) fn occupy_initiator_slot(&self) -> HybridKey {
+            self.initiator
+                .policy
+                .runtime
+                .generate_key()
+                .expect("occupy slot")
+        }
         #[cfg(unix)]
         pub(crate) fn local_device(&self) -> &VerifiedDevice {
             &self.responder.responder

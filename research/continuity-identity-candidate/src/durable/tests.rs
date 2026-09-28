@@ -14,17 +14,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn directory() -> tempfile::TempDir {
+pub(super) fn directory() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("continuity-journal-")
         .permissions(fs::Permissions::from_mode(0o700))
         .tempdir()
         .expect("private directory")
 }
-fn new_store(dir: &Path, device: &VerifiedDevice) -> ResponderJournal {
+pub(super) fn new_store(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
     let key = JournalKey::provision(&dir.join("key")).expect("provision key");
     let store =
-        ResponderJournal::provision(&dir.join("state.redb"), key, device).expect("provision store");
+        DeviceJournal::provision(&dir.join("state.redb"), key, device).expect("provision store");
     fs::write(
         dir.join("store-id"),
         store.identity().expect("identity").as_bytes(),
@@ -32,7 +32,7 @@ fn new_store(dir: &Path, device: &VerifiedDevice) -> ResponderJournal {
     .expect("independent identity configuration");
     store
 }
-fn identity(dir: &Path) -> JournalIdentity {
+pub(super) fn identity(dir: &Path) -> JournalIdentity {
     JournalIdentity::from_trusted_state(
         fs::read(dir.join("store-id"))
             .expect("independent identity")
@@ -41,8 +41,8 @@ fn identity(dir: &Path) -> JournalIdentity {
     )
     .expect("identity")
 }
-fn reopen(dir: &Path, device: &VerifiedDevice) -> ResponderJournal {
-    ResponderJournal::open(
+pub(super) fn reopen(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
+    DeviceJournal::open(
         &dir.join("state.redb"),
         JournalKey::open(&dir.join("key")).expect("load key"),
         device,
@@ -273,7 +273,7 @@ fn protected_file_key_and_ciphertext_failures_are_not_implicit_genesis() {
     assert!(JournalKey::open(&dir.join("key")).is_err());
     let store = new_store(&dir, f.local_device());
     assert!(matches!(
-        ResponderJournal::open(
+        DeviceJournal::open(
             &dir.join("state.redb"),
             JournalKey::open(&dir.join("key")).expect("key"),
             f.local_device(),
@@ -285,7 +285,7 @@ fn protected_file_key_and_ciphertext_failures_are_not_implicit_genesis() {
     drop(store);
     let wrong = JournalKey::provision(&dir.join("wrong-key")).expect("other key");
     assert!(matches!(
-        ResponderJournal::open(
+        DeviceJournal::open(
             &dir.join("state.redb"),
             wrong,
             f.local_device(),
@@ -294,7 +294,7 @@ fn protected_file_key_and_ciphertext_failures_are_not_implicit_genesis() {
         Err(DurableError::Authentication)
     ));
     std::os::unix::fs::symlink(dir.join("state.redb"), dir.join("alias")).expect("symlink");
-    assert!(ResponderJournal::open(
+    assert!(DeviceJournal::open(
         &dir.join("alias"),
         JournalKey::open(&dir.join("key")).expect("key"),
         f.local_device(),
@@ -302,7 +302,7 @@ fn protected_file_key_and_ciphertext_failures_are_not_implicit_genesis() {
     )
     .is_err());
     assert!(matches!(
-        ResponderJournal::open(
+        DeviceJournal::open(
             &dir.join("state.redb"),
             JournalKey::open(&dir.join("key")).expect("key"),
             f.local_device(),
@@ -419,12 +419,12 @@ impl StorageBackend for FaultBackend {
         }
     }
 }
-fn fault_store(
+pub(super) fn fault_store(
     dir: &Path,
     device: &VerifiedDevice,
     after_sync: bool,
 ) -> (
-    ResponderJournal,
+    DeviceJournal,
     Arc<AtomicUsize>,
     Arc<AtomicUsize>,
     Arc<std::sync::atomic::AtomicBool>,
@@ -447,7 +447,7 @@ fn fault_store(
     let image = load(&db, &key, owner).expect("existing authenticated image");
     count.store(0, Ordering::SeqCst);
     (
-        ResponderJournal {
+        DeviceJournal {
             active: Some(Active {
                 db,
                 key,
@@ -712,7 +712,7 @@ fn crash_child() {
         .expect("complete");
 }
 
-struct ChildGuard(std::process::Child);
+pub(super) struct ChildGuard(pub(super) std::process::Child);
 impl Drop for ChildGuard {
     fn drop(&mut self) {
         match self.0.try_wait() {

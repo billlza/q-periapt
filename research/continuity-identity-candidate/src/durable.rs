@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Real local responder journal. Encrypted aggregate writes bind the initial
+//! Real local device journal. Encrypted aggregate writes bind the initial
 //! operation, private result, one-time claims and immutable response together.
 use crate::{
     bootstrap, codec::Decoder, crypto::digest, BootstrapContext, DeviceSigningKey, Error,
@@ -24,13 +24,22 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> =
-    TableDefinition::new("continuity_responder_candidate_v1");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v2");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
 const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
+
+mod initiator;
+pub use initiator::{CommittedInitiation, InitiationId};
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+#[repr(u8)]
+enum RecordKind {
+    Responder = 1,
+    Initiator = 2,
+}
 
 /// Explicit local persistence failures. No storage error is reported as absence.
 #[derive(Debug)]
@@ -47,7 +56,7 @@ pub enum DurableError {
     Io(io::Error),
     /// Original storage operation failure.
     Storage(Box<redb::Error>),
-    /// Commit did not acknowledge success. Reopen and query the exact initial operation.
+    /// Commit did not acknowledge success. Reopen and query the exact operation.
     CommitUncertain(redb::CommitError),
     /// Sealed image authentication failed; a wrong key is not first use.
     Authentication,
@@ -72,7 +81,7 @@ impl fmt::Display for DurableError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Absent => "exact journal operation is absent",
-            Self::Closed => "responder journal is closed",
+            Self::Closed => "device journal is closed",
             Self::PrivateFile => "private journal path or key file rejected",
             Self::Database(_) => "protected database admission failed",
             Self::Io(_) => "journal I/O failed",
@@ -194,6 +203,14 @@ pub enum DurableStatus {
     Complete = 4,
     /// A definitive failure is retained, without consuming a prekey.
     Rejected = 5,
+    /// Initiator initial wire and its private reply state are committed.
+    AwaitingReply = 6,
+    /// Initiator root/final outbox are committed; responder receipt is not implied.
+    FinalCommitted = 7,
+    /// Initiator accepted result is pinned before final outbox commit.
+    FinalPrepared = 8,
+    /// One exact signed reply is reserved for deterministic confirmation processing.
+    ProcessingReply = 9,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -203,12 +220,17 @@ impl DurableStatus {
             3 => Ok(Self::AwaitingFinal),
             4 => Ok(Self::Complete),
             5 => Ok(Self::Rejected),
+            6 => Ok(Self::AwaitingReply),
+            7 => Ok(Self::FinalCommitted),
+            8 => Ok(Self::FinalPrepared),
+            9 => Ok(Self::ProcessingReply),
             _ => Err(DurableError::Corrupt),
         }
     }
 }
 
 struct Record {
+    kind: RecordKind,
     context: [u8; 32],
     phase: DurableStatus,
     keys: Vec<[u8; 32]>,
@@ -220,6 +242,9 @@ impl Record {
         context: &BootstrapContext,
         initial: &[u8],
     ) -> Result<(), DurableError> {
+        if self.kind != RecordKind::Responder {
+            return Err(DurableError::Conflict);
+        }
         let expected_keys = if self.phase == DurableStatus::Rejected {
             Vec::new()
         } else {
@@ -258,14 +283,14 @@ struct Active {
     id: [u8; 32],
 }
 
-/// Owned, encrypted macOS/Linux responder journal with an exclusive database
+/// Owned, encrypted macOS/Linux device journal with an exclusive database
 /// lifetime lock. Every successful response is persisted before bytes are returned.
 /// It enforces local commit ordering and claims across all contexts for one device;
 /// it does not establish freshness after restoring an entire older database.
-pub struct ResponderJournal {
+pub struct DeviceJournal {
     active: Option<Active>,
 }
-impl ResponderJournal {
+impl DeviceJournal {
     /// Explicitly provision a new empty journal for the independently verified local device.
     pub fn provision(
         path: &Path,
@@ -450,6 +475,7 @@ impl ResponderJournal {
         image.records.insert(
             id,
             Record {
+                kind: RecordKind::Responder,
                 context: context.digest(),
                 phase: DurableStatus::Executing,
                 keys,
@@ -573,7 +599,7 @@ fn operation_id(context: &[u8; 32], initial: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-VAULT-OP-CANDIDATE/v1", &bytes)
 }
 fn image_hash(wire: &[u8]) -> [u8; 32] {
-    digest(b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v1", wire)
+    digest(b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v2", wire)
 }
 fn load(db: &Database, key: &JournalKey, owner: [u8; 32]) -> Result<Image, DurableError> {
     let read = db.begin_read().map_err(storage)?;
@@ -602,11 +628,12 @@ fn load(db: &Database, key: &JournalKey, owner: [u8; 32]) -> Result<Image, Durab
     unseal(key, owner, value.value())
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG01".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG02".to_vec());
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
         plaintext.extend_from_slice(&record.context);
+        plaintext.push(record.kind as u8);
         plaintext.push(record.phase as u8);
         plaintext.push(record.keys.len() as u8);
         for key in &record.keys {
@@ -618,7 +645,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.records.len() > MAX_RECORDS || plaintext.len() > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT001".to_vec();
+    let mut wire = b"QPVLT002".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -645,7 +672,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT001" {
+    if outer.array::<8>()? != *b"QPVLT002" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -671,7 +698,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG01" {
+    if inner.array::<8>()? != *b"QPVIMG02" {
         return Err(DurableError::Corrupt);
     }
     let count = usize::from(inner.u16()?);
@@ -688,9 +715,16 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         }
         previous = Some(op);
         let context = inner.array::<32>()?;
-        let [phase, count] = inner.array::<2>()?;
+        let [kind, phase, count] = inner.array::<3>()?;
+        let kind = match kind {
+            1 => RecordKind::Responder,
+            2 => RecordKind::Initiator,
+            _ => return Err(DurableError::Corrupt),
+        };
         let phase = DurableStatus::decode(phase)?;
-        if count > 2 || (phase == DurableStatus::Rejected && count != 0) {
+        if count > 2
+            || ((phase == DurableStatus::Rejected || kind == RecordKind::Initiator) && count != 0)
+        {
             return Err(DurableError::Corrupt);
         }
         let mut keys = Vec::new();
@@ -703,38 +737,45 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         }
         let length = u32::from_be_bytes(inner.array()?) as usize;
         let payload = Zeroizing::new(inner.take(length)?.to_vec());
-        let initial = match phase {
-            DurableStatus::Executing | DurableStatus::Rejected if payload.len() == 5817 => {
-                payload.as_slice()
-            }
-            DurableStatus::Prepared | DurableStatus::AwaitingFinal | DurableStatus::Complete => {
-                let expected = if phase == DurableStatus::Complete {
-                    COMPLETE_CHECKPOINT
-                } else {
-                    PENDING_CHECKPOINT
-                };
-                let marker = if phase == DurableStatus::Complete {
-                    2
-                } else {
-                    1
-                };
-                if payload.len() != expected
-                    || payload.get(..8) != Some(b"QPRCHK01")
-                    || payload.get(8..40) != Some(context.as_slice())
-                    || payload.get(PENDING_CHECKPOINT - 33) != Some(&marker)
-                {
-                    return Err(DurableError::Corrupt);
+        if kind == RecordKind::Initiator {
+            initiator::validate_record(&op, &context, phase, &payload)?;
+        } else {
+            let initial = match phase {
+                DurableStatus::Executing | DurableStatus::Rejected if payload.len() == 5817 => {
+                    payload.as_slice()
                 }
-                payload.get(40..40 + 5817).ok_or(DurableError::Corrupt)?
+                DurableStatus::Prepared
+                | DurableStatus::AwaitingFinal
+                | DurableStatus::Complete => {
+                    let expected = if phase == DurableStatus::Complete {
+                        COMPLETE_CHECKPOINT
+                    } else {
+                        PENDING_CHECKPOINT
+                    };
+                    let marker = if phase == DurableStatus::Complete {
+                        2
+                    } else {
+                        1
+                    };
+                    if payload.len() != expected
+                        || payload.get(..8) != Some(b"QPRCHK01")
+                        || payload.get(8..40) != Some(context.as_slice())
+                        || payload.get(PENDING_CHECKPOINT - 33) != Some(&marker)
+                    {
+                        return Err(DurableError::Corrupt);
+                    }
+                    payload.get(40..40 + 5817).ok_or(DurableError::Corrupt)?
+                }
+                _ => return Err(DurableError::Corrupt),
+            };
+            if operation_id(&context, initial) != op {
+                return Err(DurableError::Corrupt);
             }
-            _ => return Err(DurableError::Corrupt),
-        };
-        if operation_id(&context, initial) != op {
-            return Err(DurableError::Corrupt);
         }
         records.insert(
             op,
             Record {
+                kind,
                 context,
                 phase,
                 keys,

@@ -77,13 +77,13 @@ SDK operation slot covers a decapsulation, with the existing ContextBound
 implementation and implicit rejection behavior. No private-key export or
 re-import is needed. These additive Rust APIs change no C or JNI entry point.
 
-The [encrypted responder journal](DURABILITY.md) reserves before real computation,
+The [encrypted device journal](DURABILITY.md) reserves before real computation,
 pins the private result, commits one-time public-key claims with the exact response,
 and commits final confirmation before reporting completion. It uses the existing
 host-store private filesystem and bounded database backend. Independent expected
 journal identity, authenticated whole-image encryption, exact input reconciliation,
-real I/O faults and process-kill tests cover this local boundary. It is not yet
-initiator/prekey-secret persistence, a ratchet, byte-identical anchor-intent replay
+real I/O faults and process-kill tests cover this local boundary. It restores initiator state and pins replies before processing. It is not yet
+prekey-secret persistence, a ratchet, byte-identical anchor-intent replay
 or rollback protection; the complete 0.2.0 store contract remains required.
 
 ## Exact candidate encoding

@@ -1,6 +1,6 @@
-# Encrypted responder journal candidate
+# Encrypted device journal candidate
 
-`ResponderJournal` connects the actual [bootstrap](BOOTSTRAP.md) to redb. It can
+`DeviceJournal` connects the actual [bootstrap](BOOTSTRAP.md) to redb. It can
 recover a pinned response after its original signing/prekey owners have closed.
 This remains an unpublished candidate; it does not complete the 0.2.0 session
 store, ratchet or recovery contract.
@@ -31,26 +31,31 @@ unclean redb file lacking the two-phase recovery flag. Its file limit is 64 MiB 
 cache is 2 MiB. The policy store uses this same backend and retains its policy and
 commit-uncertainty behavior.
 
+The same journal now supports both local roles. Kind 1 is responder and kind 2
+is initiator; initiator records cannot claim remote prekey consumption. This
+unreleased local v2 schema rejects v1 tables/headers without implicit migration or
+reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
+
 ## Sealed encoding
 
-Exactly one table, `continuity_responder_candidate_v1`, and one `image` row are
+Exactly one table, `continuity_device_candidate_v2`, and one `image` row are
 accepted. The image is:
 
-`QPVLT001[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT002[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG01[8] || count:u16 || records`
+`QPVIMG02[8] || count:u16 || records`
 
-Each record is `operation_id[32] || context[32] || phase:u8 || key_count:u8 ||
+Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
 fingerprints[key_count*32] || payload_length:u32 || payload`.
 There are at most 128 records, two one-time claims per record and 2 MiB of plaintext.
 Records and fingerprint lists are strictly sorted; duplicate claims fail. No
 automatic eviction or counter wrap can reactivate an old one-time key.
 
-Operation ID uses the identity candidate's length-prefixed digest function with
+Responder operation ID uses the identity candidate's length-prefixed digest function with
 domain `Q-PERIAPT-CONTINUITY-VAULT-OP-CANDIDATE/v1` over context plus complete signed
 initial wire. Callers cannot supply an unrelated ID. Each API also checks exact
 initial bytes, context and derived claims. Claims use authenticated public-key
@@ -69,7 +74,7 @@ Encrypted extent, stable store/owner headers and revision remain visible; there 
 no padding/unlinkability claim. Zeroizing buffers do not erase encrypted old pages,
 backups or all compiler/provider temporary copies.
 
-## Durable transitions
+## Responder transitions
 
 `respond` performs bounded public signature/scope admission, then:
 
@@ -108,6 +113,53 @@ Read-only reconciliation remains available after policy close/expiry. Execution,
 dispatch and final acceptance retain their policy/time/runtime checks. A missing,
 corrupt or wrong-key database is an error, never the `Absent` result.
 
+## Initiator persistence and reply selection
+
+The host retains a public `InitiationId` before calling `initiate`. Its index is
+the length-prefixed digest of that ID under
+`Q-PERIAPT-CONTINUITY-VAULT-INITIATION-CANDIDATE/v1`. Context is checked separately,
+so reusing an ID with another context conflicts instead of creating a second
+operation. The ID is correlation data, never KEM entropy or an authorization.
+
+`initiate` commits `Executing` before key generation/encapsulation/signing, pins
+`Prepared` with private state, then commits `AwaitingReply` with the exact initial
+outbox before returning bytes. An unpinned reservation remains suspended. Initial
+replay verifies its saved signature and needs no signer or private-key import slot.
+
+The private checkpoint is `QPICHK01[8] || context[32] || initial[5817] || state:u8 || tail`.
+State 1 contains first KEM contribution[32] and the SDK expanded reply key[2440].
+State 2 instead contains reply[4633], root[32] and final[136]. Every initiator record
+payload prefixes its request ID[32]. The first contribution stays in an internal
+zeroizing owner; no public SDK raw-secret constructor is added. Restoration uses
+the checked expert key import and requires its reconstructed public bytes to equal
+the key in the signed initial. Invalid material/pairing closes the journal;
+temporary quota/entropy failure retains the exact selected work.
+
+`accept_reply` verifies the responder signature/context, then commits
+`ProcessingReply`: the waiting checkpoint plus the exact signed reply. Only then
+does deterministic confirmation processing run. Different reply bytes conflict
+while selection is pending. A definitive MAC/noncontributory-share rejection
+commits a return to `AwaitingReply`; local/transient errors retain the selection.
+An uncertain rejection write must also be reconciled before selecting another reply.
+
+Successful processing pins `FinalPrepared` with the exact reply/root/final wire,
+then commits `FinalCommitted` before returning `CommittedInitiation`. The completed
+checkpoint contains neither S0 nor the private reply key. Final replay needs no
+private-key import or fresh KEM randomness. `FinalCommitted` is distinct from the
+responder's `Complete`: local outbox commit does not prove remote final receipt.
+Phases are 1=Executing, 2=Prepared, 3=AwaitingFinal, 4=Complete, 5=Rejected,
+6=AwaitingReply, 7=FinalCommitted, 8=FinalPrepared, 9=ProcessingReply. Absent=0
+remains query-only. The responder uses exact initial bytes for reconciliation;
+the initiator uses its retained request ID and context.
+
+Both journals reopen and preserve equal roots for all four modes. An additional
+24 before/after-sync faults cover the six initial and six reply-processing sync
+points. Six initiator processes are killed at reservation, initial pin/commit,
+reply selection, final pin and final commit while an independent responder remains
+alive. The restarted initiator imports its saved key and completes a real final
+MAC at that peer. Other tests exercise quota-held import, reply/context substitution,
+old schema/role rejection, and invalid or mismatched stored private keys.
+
 ## Verification and required follow-through
 
 Real-peer tests cover all four modes, private checkpoint preservation, owner close,
@@ -126,7 +178,7 @@ contain no test-only post-commit parking hook.
 
 The effect is currently **non-repeatable**: entropy is not yet sealed before
 execution. A crash before result pin therefore sacrifices liveness rather than
-recomputing. Initiator state, prekey **secret** inventory/erasure, cancellation,
+recomputing. Prekey **secret** inventory/erasure, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
 multi-device transactions remain implementation work. Logical replay retains the
 exact cryptographic result, but reseals an outer aggregate on a retried storage

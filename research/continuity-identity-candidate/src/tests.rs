@@ -716,6 +716,11 @@ fn retained_selection_cannot_outlive_a_referenced_reusable_baseline() {
 }
 
 pub(super) fn sdk_runtime() -> Arc<q_periapt_sdk::Runtime> {
+    sdk_runtime_with_limits(q_periapt_sdk::Limits::default())
+}
+pub(super) fn sdk_runtime_with_limits(
+    limits: q_periapt_sdk::Limits,
+) -> Arc<q_periapt_sdk::Runtime> {
     use q_periapt_sig::Signer;
     use zeroize::Zeroize;
     let policy = b"schema_version=1\npolicy_version=1\nmin_nist_level=3\ndefault_profile=\"ContextBound\"\nallowed_kems=[\"ML-KEM-768\",\"X25519\"]\nallowed_sigs=[\"ML-DSA-65\"]\ndeprecated=[]\n";
@@ -730,14 +735,8 @@ pub(super) fn sdk_runtime() -> Arc<q_periapt_sdk::Runtime> {
     secret.zeroize();
     result.expect("algorithm policy signature");
     Arc::new(
-        q_periapt_sdk::Runtime::from_signed_policy(
-            policy,
-            &signature,
-            &public,
-            None,
-            q_periapt_sdk::Limits::default(),
-        )
-        .expect("algorithm policy"),
+        q_periapt_sdk::Runtime::from_signed_policy(policy, &signature, &public, None, limits)
+            .expect("algorithm policy"),
     )
 }
 
