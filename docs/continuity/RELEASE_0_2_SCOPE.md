@@ -25,6 +25,10 @@ the existing public-commitment model into a working cryptographic protocol.
   commitments and trusted adapter outcomes. It contains neither cryptographic
   payloads nor a real storage/provider adapter. Its lifecycle counterexamples and
   canonical-context tests are useful design inputs, not product execution.
+- `research/continuity-identity-candidate` implements an isolated actual-signature
+  root/credential/roster/manifest chain and Merkle membership verification. It has
+  its own lockfile and independent public-byte/OpenSSL verifier. It supplies no
+  session protocol, fresh bootstrap confirmation or durable prekey consumption.
 
 ## Required completion evidence
 

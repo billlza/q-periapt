@@ -27,6 +27,13 @@ version or a different digest at the same version. A newer roster is authenticat
 before it can authorize enrollment, fanout or revocation. The exact credential and
 roster encodings and signature composition remain an open decision.
 
+The isolated [identity candidate](../../research/continuity-identity-candidate)
+exercises a concrete ML-DSA-65 AND P-256 composition and canonical credential,
+roster and Merkle-manifest encodings. It binds account/device/generation, policy
+family and exact roster expectations. Capability/floor semantics, root migration,
+directory consistency and durable admission remain open; the candidate format is
+not the frozen product contract.
+
 The directory is an adversarial transport. Its view needs authenticated freshness
 and consistency against the selected independently retained account checkpoint.
 Repeatedly accepting an unverified new directory root is not a recovery procedure.

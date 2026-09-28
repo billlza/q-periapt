@@ -1,0 +1,37 @@
+[package]
+name = "q-periapt-continuity-identity-candidate"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+license = "Apache-2.0 OR MIT"
+description = "Isolated Continuity accountable identity and prekey-manifest candidate"
+
+# Candidate implementation, outside the published SDK graph and its lockfile.
+[workspace]
+resolver = "2"
+members = ["."]
+
+[dependencies]
+q-periapt-core = { path = "../../crates/q-periapt-core" }
+q-periapt-backends = { path = "../../crates/q-periapt-backends" }
+p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa", "std"] }
+sha3 = { version = "=0.10.9", default-features = false }
+getrandom = "0.4"
+zeroize = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+unreachable_pub = "deny"
+
+[lints.clippy]
+indexing_slicing = "deny"
+panic = "deny"
+unwrap_used = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true

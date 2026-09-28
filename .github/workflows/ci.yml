@@ -1603,6 +1603,77 @@ jobs:
       - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
       - run: bash research/hqc-fips207-candidate/scripts/verify.sh
 
+  # Actual-signature Continuity candidate, isolated from the SDK publication graph.
+  continuity-identity-candidate:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: 1.96.1
+          - os: ubuntu-24.04
+            toolchain: 1.85.0
+          - os: macos-15
+            toolchain: 1.96.1
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy,rustfmt
+      - name: Check and exercise candidate with the selected compiler
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          candidate_manifest=research/continuity-identity-candidate/Cargo.toml
+          cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --locked -- -D warnings
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --locked
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --locked --release
+      - name: Check canonical formatting and documentation
+        if: matrix.toolchain == '1.96.1'
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: |
+          cargo +1.96.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check
+          cargo +1.96.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --no-deps
+      - name: Check the separate dependency lock
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == '1.96.1'
+        run: |
+          cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
+          cargo audit --file research/continuity-identity-candidate/Cargo.lock --deny warnings
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        if: matrix.os == 'macos-15'
+        id: candidate_python
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Verify public bytes and both signatures independently
+        if: matrix.os == 'macos-15'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.candidate_python.outputs.python-path }}
+        run: |
+          mkdir -p target
+          candidate_openssl="$(brew --prefix openssl@3)/bin/openssl"
+          test -x "$candidate_openssl"
+          cargo +1.96.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors
+          sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py \
+            --fixtures target/continuity-public-vectors --output target/continuity-public-verification \
+            --openssl "$candidate_openssl"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always() && matrix.os == 'macos-15'
+        with:
+          name: continuity-public-vectors-${{ github.sha }}
+          path: |
+            target/continuity-public-vectors
+            target/continuity-public-verification
+          if-no-files-found: error
+          retention-days: 14
+
   # Cross-target feature fence for the shipping WASM face and dependency-free core.
   feature-fence:
     runs-on: ubuntu-24.04

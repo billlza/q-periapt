@@ -1,10 +1,11 @@
 # Q-Periapt Continuity — protocol research direction
 
-> **Status: G0 is complete and G1 is partially started. Only a non-normative,
-> public-commitment effect/journal lifecycle model plus a strict non-production
-> prekey-selection record is implemented; no Continuity protocol, wire format,
-> identity/prekey service, ratchet, production session crate,
-> or security claim exists. Evidence date: 2026-07-12.**
+> **Status: G0 is complete and G1 is partially started.** The non-normative
+> public-commitment lifecycle model and strict prekey-selection record are joined
+> by an [isolated identity/manifest candidate](../research/continuity-identity-candidate)
+> using actual ML-DSA-65 and P-256 signatures. Complete protocol/wire definitions,
+> the identity/prekey service, ratchet and production session store remain open.
+> Evidence date: 2026-09-28.
 > The implemented artifact remains the hybrid-KEM, signed-policy, bindings,
 > formal-handshake, and proof-to-byte work described in the repository claim ledger.
 > Continuity is scoped to two-party, pairwise, per-device sessions and their

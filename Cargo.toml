@@ -26,7 +26,7 @@ members = [
     "models/q-periapt-migration",
     "services/q-periapt-policy-agent",
 ]
-exclude = ["research/hqc-fips207-candidate"]
+exclude = ["research/hqc-fips207-candidate", "research/continuity-identity-candidate"]
 
 [workspace.package]
 version = "0.2.0"

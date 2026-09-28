@@ -1,14 +1,13 @@
 # Q-Periapt Continuity specification workspace
 
 The [0.2.0 scope decision](RELEASE_0_2_SCOPE.md) now includes the full persistent
-session, ongoing PQ recovery and multi-device work in this release. The historical
-checkpoint below describes the existing model; it does not mark the newly
-required product protocol complete.
+session, ongoing PQ recovery and multi-device work in this release. The component
+checkpoint below does not mark the required product protocol complete.
 
-> **Status on 2026-07-12: G0 complete; G1 partially started.** The only
-> executable artifact is a non-normative, public-commitment lifecycle model.
-> There is no Continuity wire protocol, identity/prekey protocol, ratchet,
-> production state crate, or security claim.
+> **Status on 2026-09-28: G0 complete; G1 partially started.** Executable artifacts
+> include the public-commitment lifecycle model and an isolated actual-signature
+> identity/manifest candidate. The complete wire protocol, ratchet and production
+> session store remain implementation requirements.
 
 This directory separates candidate specification text from the high-level research
 plan in [`../CONTINUITY_RESEARCH.md`](../CONTINUITY_RESEARCH.md). A file appearing
@@ -20,6 +19,7 @@ empty.
 
 | Artifact | Status | What it establishes |
 |---|---|---|
+| [`../../research/continuity-identity-candidate`](../../research/continuity-identity-candidate) | unpublished implementation candidate with its own workspace and lockfile | Required ML-DSA-65 plus P-256 signatures, independently pinned root/roster, device credentials, canonical prekey manifests and bounded membership proofs; independent public-byte/OpenSSL fixture verifier. No bootstrap, ratchet, directory consistency or durable prekey consumption |
 | [`PROTOCOL_V1.md`](PROTOCOL_V1.md) | candidate identity/authority and lifecycle decisions; open-decision register retained | Accountable bootstrap/control target, stage-specific delivery boundaries, exact retransmission, revocation and account transaction obligations; not a frozen handshake or ratchet |
 | [`REFERENCE_BASELINE.md`](REFERENCE_BASELINE.md), [`reference-baseline.json`](reference-baseline.json), and the [`reference_baseline.py`](../../artifact/reference_baseline.py) verifier | selected revisions/reproducible content hashes; partial byte lock; integration profile open | Immutable IETF archives and pinned Git commit plus tested versioned raw/normalized drift hashes for mutable publisher pages; not archival completeness or interoperability |
 | [`G1_EFFECT_LIFECYCLE.md`](G1_EFFECT_LIFECYCLE.md) | candidate contract, exercised by a test-only model | Reservation/effect/result/anchor-plan/commit/idempotent-release-ack ordering and fail-closed unknown outcomes |

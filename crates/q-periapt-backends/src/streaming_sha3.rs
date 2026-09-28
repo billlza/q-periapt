@@ -31,7 +31,7 @@ impl Drop for StreamingSha3_256Xof {
     fn drop(&mut self) {
         // pad_with_zeros exposes the complete initialized block, including the
         // prefix and stale bytes outside the current logical message length.
-        secure_wipe(self.buffer.pad_with_zeros().as_mut_slice());
+        secure_wipe(self.buffer.pad_with_zeros().as_mut());
         // `core`'s Sha3State is wiped by RustCrypto's feature-gated Drop next.
     }
 }
@@ -54,7 +54,7 @@ impl Xof256 for StreamingSha3_256Xof {
         let mut output = [0u8; SHARED_SECRET_LEN];
         self.core.finalize_fixed_core(
             &mut self.buffer,
-            Output::<Sha3_256Core>::from_mut_slice(&mut output),
+            <&mut Output<Sha3_256Core>>::from(&mut output),
         );
         output
     }
