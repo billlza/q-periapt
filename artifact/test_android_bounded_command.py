@@ -4029,6 +4029,60 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
         self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
 
+    def test_boot_query_waits_for_full_framework_using_real_native_property_program(self) -> None:
+        guest_bin = self.root / "boot-native-bin"
+        guest_bin.mkdir()
+        getprop = guest_bin / "getprop"
+        getprop.write_text('''#!/bin/sh
+case "$1" in
+    sys.boot_completed) printf '%s\\n' "$BOOT_VALUE"; exit "$BOOT_STATUS" ;;
+    vold.decrypt) printf '%s\\n' "$DECRYPT_VALUE"; exit "$DECRYPT_STATUS" ;;
+    *) exit 9 ;;
+esac
+''')
+        getprop.chmod(0o700)
+        capability = self.load_capability()
+        argv = commands._boot_completed_argv(capability)
+        program = " ".join(argv[argv.index("shell") + 1:])
+        environment = {"PATH": str(guest_bin) + ":/usr/bin:/bin", "BOOT_VALUE": "1", "BOOT_STATUS": "0",
+                       "DECRYPT_VALUE": "trigger_restart_min_framework", "DECRYPT_STATUS": "0"}
+        # Reproduce the old admission condition while encryption is still active.
+        old = subprocess.run([str(getprop), "sys.boot_completed"], env=environment,
+                             capture_output=True, timeout=5, check=True)
+        self.assertEqual(old.stdout, b"1\n")
+        for decrypt in ("trigger_restart_min_framework", "trigger_encryption", "trigger_default_encryption",
+                        "trigger_reset_main", "trigger_load_persist_props", "trigger_post_fs_data",
+                        "trigger_shutdown_framework", "unexpected_state", "trigger_restart_framework", ""):
+            raw = subprocess.run(["/bin/sh", "-c", program], capture_output=True, timeout=5,
+                                 env=dict(environment, DECRYPT_VALUE=decrypt), check=True)
+            with self.subTest(decrypt=decrypt), mock.patch.object(commands, "capture_stdout",
+                    return_value=BoundedResult(0, raw.stdout)) as capture:
+                result = self.invoke(commands.AndroidOperation.BOOT_COMPLETED)
+            self.assertEqual(result, BoundedResult(0, b"1\n" if decrypt in ("", "trigger_restart_framework") else b"0\n"))
+            self.assertEqual(capture.call_args.args[0], argv)
+            self.assertEqual(capture.call_args.kwargs["timeout_seconds"], 15)
+        for boot in ("", "0"):
+            raw = subprocess.run(["/bin/sh", "-c", program], capture_output=True, timeout=5,
+                                 env=dict(environment, BOOT_VALUE=boot, DECRYPT_VALUE="trigger_restart_framework"), check=True)
+            self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw.stdout), self.run_id), BoundedResult(0, b"0\n"))
+        for boot_status, decrypt_status, expected in ((7, 9, 7), (0, 9, 9)):
+            raw = subprocess.run(["/bin/sh", "-c", program], capture_output=True, timeout=5,
+                                 env=dict(environment, BOOT_STATUS=str(boot_status), DECRYPT_STATUS=str(decrypt_status)))
+            self.assertEqual(raw.returncode, expected)
+            # Legacy adb reports host success; the framed guest failure survives.
+            self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw.stdout), self.run_id), BoundedResult(expected))
+
+    def test_boot_query_refuses_incomplete_malformed_and_host_failed_results(self) -> None:
+        complete = (b"boot_completed=1\nvold_decrypt=trigger_restart_framework\n\n"
+                    + f"QPERIAPT_BOOT_QUERY_EXIT:{self.run_id}:0\n".encode())
+        for raw in (complete, complete.replace(b"\n", b"\r\n")):
+            self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw), self.run_id), BoundedResult(0, b"1\n"))
+        for raw in (b"1\n", complete[:-1], complete.replace(self.run_id.encode(), b"b" * 32),
+                    complete.replace(b"boot_completed=1", b"boot_completed=true"), complete + b"extra\n"):
+            with self.subTest(raw=raw), self.assertRaises(commands.AndroidCommandError):
+                commands._boot_readiness_result(BoundedResult(0, raw), self.run_id)
+        self.assertEqual(commands._boot_readiness_result(BoundedResult(7, b"1\n"), self.run_id), BoundedResult(7))
+
     def test_removed_force_stop_operation_is_rejected_before_execution(self) -> None:
         with (
             contextlib.redirect_stderr(io.StringIO()),
@@ -4205,12 +4259,13 @@ esac
             self.assertEqual(result.returncode, expected, result.stderr)
             status, payload = commands._parse_guest_completion(result.stdout, self.run_id, "emulator-state")
             self.assertEqual(status, expected)
-            self.assertEqual(payload.count(b"QPERIAPT_STATE_STATUS:"), 8)
+            self.assertEqual(payload.count(b"QPERIAPT_STATE_STATUS:"), 11)
             self.assertIn(f"QPERIAPT_STATE_STATUS:data-space:{df_status}".encode(), payload)
             self.assertIn(f"QPERIAPT_STATE_STATUS:processes:{ps_status}".encode(), payload)
             self.assertEqual(calls.read_text().splitlines(), [
                 "cat /proc/sys/kernel/random/boot_id", "cat /proc/uptime", "cat /proc/meminfo",
-                "df /data", "getprop ro.zygote", "getprop init.svc.zygote",
+                "df /data", "cat /proc/mounts", "getprop ro.crypto.state", "getprop vold.decrypt",
+                "getprop ro.zygote", "getprop init.svc.zygote",
                 "getprop init.svc.zygote_secondary", "ps ",
             ])
 

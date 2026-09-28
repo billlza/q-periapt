@@ -71,6 +71,19 @@ On the canonical macOS lane, select `macos-account` and `arm64-v8a` instead.
 Use the SDK's registered AVD profile for that architecture. Missing or unsupported architecture selectors are rejected before acquiring
 the runtime lane.
 
+Boot admission waits for `sys.boot_completed=1` and completion of any legacy
+full-disk-encryption framework transition. Android can finish a temporary
+encryption framework before replacing `/data` and starting its full framework;
+the boot-completed property alone is insufficient. The native, read-only query
+accepts an empty `vold.decrypt` for boot flows without that transition, or
+`trigger_restart_framework` for the completed FDE handoff. Other states remain
+pending within the existing 120-second boot deadline. Guest command failures
+and incomplete responses cannot become readiness on old ADB transports.
+This follows the [AOSP encryption startup flow](https://source.android.com/docs/security/features/encryption/full-disk)
+and [Android 6 init service transitions](https://android.googlesource.com/platform/system/core/+/android-6.0.1_r81/rootdir/init.rc).
+The emulator state snapshots retain mount and encryption properties alongside
+process identities, so qualification can check the admitted runtime.
+
 ## Portable replay and CI
 
 After runtime cleanup, the SDK collector verifies and exports the complete

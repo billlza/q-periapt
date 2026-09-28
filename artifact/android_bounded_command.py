@@ -571,6 +571,26 @@ def _package_state_argv(
     return _device(capability, "shell", "sh", "-c", shlex.quote(program))
 
 
+def _boot_completed_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # Android FDE can report sys.boot_completed from its temporary encryption
+    # framework, before /data is replaced and the real framework is started.
+    # Native property reads avoid launching ART during that transition. Keep
+    # both guest statuses because old adb shell transports discard them.
+    program = (
+        "qperiapt_boot=$(getprop sys.boot_completed); qperiapt_boot_status=$?; "
+        "qperiapt_decrypt=$(getprop vold.decrypt); qperiapt_decrypt_status=$?; "
+        'if [ "$qperiapt_boot_status" -eq 0 ]; then '
+        'qperiapt_boot_status=$qperiapt_decrypt_status; fi; '
+        "printf 'boot_completed=%s\\nvold_decrypt=%s\\n' "
+        '"$qperiapt_boot" "$qperiapt_decrypt"; '
+        f"printf '\\nQPERIAPT_BOOT_QUERY_EXIT:{capability.run_id}:%d\\n' "
+        '"$qperiapt_boot_status"; exit "$qperiapt_boot_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
 def _emulator_state_argv(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[str, ...]:
@@ -582,6 +602,9 @@ def _emulator_state_argv(
         ("uptime", ("cat", "/proc/uptime")),
         ("memory", ("cat", "/proc/meminfo")),
         ("data-space", ("df", "/data")),
+        ("data-mounts", ("cat", "/proc/mounts")),
+        ("crypto-state", ("getprop", "ro.crypto.state")),
+        ("decrypt-state", ("getprop", "vold.decrypt")),
         ("zygote-mode", ("getprop", "ro.zygote")),
         ("zygote-primary", ("getprop", "init.svc.zygote")),
         ("zygote-secondary", ("getprop", "init.svc.zygote_secondary")),
@@ -738,7 +761,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             None,
-            lambda cap: _device(cap, "shell", "getprop", "sys.boot_completed"),
+            _boot_completed_argv,
         ),
         AndroidOperation.QEMU_KIND: OperationSpec(
             "capture",
@@ -3728,11 +3751,12 @@ def _observe_exact_device_state(
 
 
 def _parse_guest_completion(
-    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state"],
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state"],
 ) -> tuple[int, bytes]:
     marker = {
         "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
         "emulator-state": b"QPERIAPT_EMULATOR_STATE_EXIT:",
+        "boot-state": b"QPERIAPT_BOOT_QUERY_EXIT:",
     }[kind]
     parts = output.rsplit(b"\n", 2)
     _require(
@@ -3758,6 +3782,23 @@ def _parse_guest_completion(
         f"Android {kind} output is malformed: invalid query completion",
     )
     return int(matched[1]), payload
+
+
+def _boot_readiness_result(result: BoundedResult, run_id: str) -> BoundedResult:
+    if result.returncode != 0:
+        return BoundedResult(result.returncode)
+    status, payload = _parse_guest_completion(result.stdout, run_id, "boot-state")
+    if status != 0:
+        return BoundedResult(status)
+    matched = re.fullmatch(
+        rb"boot_completed=([01]?)\r?\nvold_decrypt=([a-z_]{0,92})\r?\n", payload,
+    )
+    _require(matched is not None, "Android boot-state properties are malformed")
+    # An empty vold.decrypt is valid when the FDE flow is not used (including
+    # modern FBE). Every active encryption/decryption transition waits within
+    # the existing boot deadline; only the full-framework trigger admits FDE.
+    ready = matched[1] == b"1" and matched[2] in (b"", b"trigger_restart_framework")
+    return BoundedResult(0, b"1\n" if ready else b"0\n")
 
 
 def _observe_package_state(
@@ -4314,6 +4355,8 @@ def invoke_operation(
             environment=_client_environment(capability),
         )
         _validate_owned_adb_server_for_client(capability)
+        if operation == AndroidOperation.BOOT_COMPLETED:
+            return _boot_readiness_result(result, capability.run_id)
         return result
     if spec.mode == "write":
         result = _write_operation(layout, capability, spec, argv, timeout)

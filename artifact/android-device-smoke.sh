@@ -2409,6 +2409,8 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
+# The bounded query requires the full framework after any FDE transition;
+# sys.boot_completed alone can describe the temporary encryption framework.
 BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)
 booted=
 while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLINE" 15); do
@@ -2422,7 +2424,7 @@ while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLIN
 	fi
 done
 if [ "$booted" != "1" ]; then
-	printf 'error: Android device did not complete boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
+	printf 'error: Android device did not complete full-framework boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
 	exit 1
 fi
 qemu=$(android_command qemu-kind | tr -d '\r')
