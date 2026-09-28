@@ -462,10 +462,11 @@ pub(super) fn fault_store(
 }
 
 #[test]
-fn every_sync_cut_closes_the_store_and_reconciles_without_repeating_crypto() {
+fn every_sync_cut_reconciles_exact_reserved_responder_computations() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let i = InitiatorOperation::start(Arc::clone(&f.initiator), &f.signer_i, 150).expect("initial");
     let initial = i.initial_message(150).expect("wire");
+    let saved_i = i.checkpoint().expect("original initiator state");
     let (pq, classic) = f.sources();
     let folder = directory();
     let dir = folder.path().canonicalize().expect("canonical");
@@ -482,7 +483,7 @@ fn every_sync_cut_closes_the_store_and_reconciles_without_repeating_crypto() {
         )
         .expect("normal durable response");
     let syncs = count.load(Ordering::SeqCst);
-    assert!(syncs >= 6, "three two-phase commits must sync");
+    assert_eq!(syncs, 10, "five two-phase commits must sync");
     drop(normal);
     let mut statuses = BTreeSet::new();
     for after_sync in [false, true] {
@@ -512,31 +513,389 @@ fn every_sync_cut_closes_the_store_and_reconciles_without_repeating_crypto() {
                 .status(&f.responder, initial)
                 .expect("exact query");
             statuses.insert(status as u8);
-            match status {
-                DurableStatus::Absent => assert!(matches!(
-                    recovered.resume(Arc::clone(&f.responder), initial, 150),
-                    Err(DurableError::Absent)
-                )),
-                DurableStatus::Executing => assert!(matches!(
-                    recovered.resume(Arc::clone(&f.responder), initial, 150),
-                    Err(DurableError::Suspended)
-                )),
-                DurableStatus::Prepared | DurableStatus::AwaitingFinal => {
-                    recovered
-                        .resume(Arc::clone(&f.responder), initial, 150)
-                        .expect("replay pinned result");
+            let reply = match status {
+                DurableStatus::Absent => {
+                    assert!(matches!(
+                        recovered.resume(Arc::clone(&f.responder), initial, 150),
+                        Err(DurableError::Absent)
+                    ));
+                    continue;
                 }
+                DurableStatus::Executing => recovered
+                    .respond(
+                        Arc::clone(&f.responder),
+                        initial,
+                        &f.signer_r,
+                        pq,
+                        classic,
+                        150,
+                    )
+                    .expect("repeat deterministic initial authentication"),
+                DurableStatus::ResponseKemReserved | DurableStatus::ResponseSignatureReserved => {
+                    recovered
+                        .resume_response(Arc::clone(&f.responder), initial, &f.signer_r, 150)
+                        .expect("same sealed contribution")
+                }
+                DurableStatus::Prepared | DurableStatus::AwaitingFinal => recovered
+                    .resume(Arc::clone(&f.responder), initial, 150)
+                    .expect("same pinned result"),
                 _ => unreachable!("response commit cannot install another state"),
-            }
+            };
+            let mut peer =
+                InitiatorOperation::restore_checkpoint(Arc::clone(&f.initiator), &saved_i)
+                    .expect("original private initiator state");
+            let outcome = peer.finish(&reply, 150).expect("real reply confirmation");
+            assert_eq!(
+                recovered
+                    .finish(
+                        Arc::clone(&f.responder),
+                        initial,
+                        outcome.final_message(),
+                        150
+                    )
+                    .expect("real final confirmation"),
+                outcome.pending_session().id()
+            );
         }
     }
     assert!(statuses.contains(&(DurableStatus::Executing as u8)));
+    assert!(statuses.contains(&(DurableStatus::ResponseKemReserved as u8)));
+    assert!(statuses.contains(&(DurableStatus::ResponseSignatureReserved as u8)));
     assert!(statuses.contains(&(DurableStatus::Prepared as u8)));
     assert!(statuses.contains(&(DurableStatus::AwaitingFinal as u8)));
     eprintln!(
         "durable sync fault matrix: sync_points={syncs}, cases={}, recovered={statuses:?}",
         syncs * 2
     );
+}
+
+#[test]
+fn staged_response_crash_child() {
+    let Some(path) = std::env::var_os("QPERIAPT_RESPONSE_CRASH_DIR") else {
+        return;
+    };
+    let path = Path::new(&path);
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let public = [
+        f.reusable.public_key().expect("public").to_bytes(),
+        f.once.public_key().expect("public").to_bytes(),
+    ]
+    .concat();
+    fs::write(path.join("keys-ready"), public).expect("public keys");
+    fs::rename(path.join("keys-ready"), path.join("peer-public")).expect("publish public keys");
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !path.join("peer-initial").exists() {
+        assert!(Instant::now() < deadline, "initial deadline");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let initial = fs::read(path.join("peer-initial")).expect("live peer initial");
+    let mut store = new_store(path, f.local_device());
+    let (pq, classic) = f.sources();
+    let reply = store
+        .respond(
+            Arc::clone(&f.responder),
+            &initial,
+            &f.signer_r,
+            pq,
+            classic,
+            150,
+        )
+        .expect("response");
+    fs::write(path.join("reply-ready"), &reply).expect("committed response");
+    fs::rename(path.join("reply-ready"), path.join("returned-response")).expect("publish reply");
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !path.join("peer-final").exists() {
+        assert!(Instant::now() < deadline, "final deadline");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let final_wire = fs::read(path.join("peer-final")).expect("live peer final");
+    let session = store
+        .finish(Arc::clone(&f.responder), &initial, &final_wire, 150)
+        .expect("confirm");
+    fs::write(path.join("returned-session"), session).expect("session after commit");
+}
+
+#[test]
+fn eight_responder_process_cuts_preserve_exact_response_and_live_peer_confirmation() {
+    let cuts = [
+        DurableStatus::Executing,
+        DurableStatus::ResponseKemReserved,
+        DurableStatus::ResponseSignatureReserved,
+        DurableStatus::Prepared,
+        DurableStatus::AwaitingFinal,
+        DurableStatus::Complete,
+    ]
+    .into_iter()
+    .map(|phase| (phase, false))
+    .chain([
+        (DurableStatus::ResponseKemReserved, true),
+        (DurableStatus::ResponseSignatureReserved, true),
+    ]);
+    for (phase, after_effect) in cuts {
+        let dir = directory();
+        let path = dir.path().canonicalize().expect("path");
+        let log = fs::File::create(path.join("child.log")).expect("log");
+        let child = Command::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "durable::tests::staged_response_crash_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_RESPONSE_CRASH_DIR", &path)
+            .env("QPERIAPT_JOURNAL_CRASH_DIR", &path)
+            .env(
+                if after_effect {
+                    "QPERIAPT_RESPONSE_CRASH_EFFECT"
+                } else {
+                    "QPERIAPT_JOURNAL_CRASH_PHASE"
+                },
+                (phase as u8).to_string(),
+            )
+            .stdout(Stdio::from(log.try_clone().expect("clone log")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned responder");
+        let mut child = ChildGuard(child);
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !path.join("peer-public").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "public enrollment deadline"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let public = fs::read(path.join("peer-public")).expect("public enrollment");
+        let (a, b) = public.split_at(q_periapt_sdk::PUBLIC_KEY_LEN);
+        let mut f = fixture_from_public(
+            PrekeyQuality::OneTimeBoth,
+            Some((
+                a.try_into().expect("public width"),
+                b.try_into().expect("public width"),
+            )),
+        );
+        // These local dummy prekeys are unrelated to the child. Recovery must
+        // use the committed authenticated contribution, not another private key.
+        f.reusable.close();
+        f.once.close();
+        if matches!(
+            phase,
+            DurableStatus::Prepared | DurableStatus::AwaitingFinal | DurableStatus::Complete
+        ) {
+            f.signer_r.close(); // Pinned/committed recovery must not need the signer either.
+        }
+        let mut peer = InitiatorOperation::start(Arc::clone(&f.initiator), &f.signer_i, 150)
+            .expect("live initiator");
+        let initial = peer.initial_message(150).expect("initial").to_vec();
+        fs::write(path.join("initial-ready"), &initial).expect("initial");
+        fs::rename(path.join("initial-ready"), path.join("peer-initial")).expect("publish initial");
+        while !path.join("ready").exists() {
+            let status = child.0.try_wait().expect("status");
+            if status.is_some() {
+                eprintln!(
+                    "child log: {}",
+                    fs::read_to_string(path.join("child.log")).expect("failure log")
+                );
+            }
+            assert!(
+                status.is_none() && Instant::now() < deadline,
+                "responder did not reach {phase:?}"
+            );
+            if path.join("returned-response").exists() && !path.join("peer-final").exists() {
+                let reply = fs::read(path.join("returned-response")).expect("committed reply");
+                let final_wire = peer
+                    .finish(&reply, 150)
+                    .expect("live response MAC")
+                    .final_message();
+                fs::write(path.join("final-ready"), final_wire).expect("final");
+                fs::rename(path.join("final-ready"), path.join("peer-final"))
+                    .expect("publish final");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            !path.join("returned-session").exists(),
+            "session escaped before commit return"
+        );
+        if phase != DurableStatus::Complete {
+            assert!(
+                !path.join("returned-response").exists(),
+                "reply escaped before outbox commit return"
+            );
+        }
+        child.0.kill().expect("kill exact process");
+        assert!(!child.0.wait().expect("reap").success());
+        let mut store = reopen(&path, f.local_device());
+        assert_eq!(store.status(&f.responder, &initial).expect("phase"), phase);
+        if phase == DurableStatus::Executing {
+            assert!(matches!(
+                store.resume_response(Arc::clone(&f.responder), &initial, &f.signer_r, 150),
+                Err(DurableError::Suspended)
+            ));
+            continue; // Original prekey recovery remains a separate obligation.
+        }
+        let pinned_reply = if matches!(
+            phase,
+            DurableStatus::Prepared | DurableStatus::AwaitingFinal | DurableStatus::Complete
+        ) {
+            let image = store.image().expect("pinned image");
+            Some(
+                image
+                    .records
+                    .get(&operation_id(&f.responder.digest(), &initial))
+                    .expect("record")
+                    .payload
+                    .get(40 + 5817..40 + 5817 + 4633)
+                    .expect("exact pinned reply")
+                    .to_vec(),
+            )
+        } else {
+            None
+        };
+        let reply = store
+            .resume_response(Arc::clone(&f.responder), &initial, &f.signer_r, 150)
+            .expect("recover without original prekeys");
+        if let Some(expected) = pinned_reply {
+            assert_eq!(reply, expected);
+        }
+        if after_effect {
+            let expected =
+                fs::read(path.join("computed-response")).expect("pre-crash public output");
+            let actual = if phase == DurableStatus::ResponseKemReserved {
+                open_envelope(&reply).expect("envelope").0
+            } else {
+                reply.as_slice()
+            };
+            assert_eq!(actual, expected);
+        }
+        let outcome = peer
+            .finish(&reply, 150)
+            .expect("same live initiator confirms recovered response");
+        assert_eq!(
+            store
+                .finish(
+                    Arc::clone(&f.responder),
+                    &initial,
+                    outcome.final_message(),
+                    150
+                )
+                .expect("real final MAC"),
+            outcome.pending_session().id()
+        );
+        assert_eq!(
+            store
+                .resume(Arc::clone(&f.responder), &initial, 150)
+                .expect("exact replay"),
+            reply
+        );
+    }
+}
+
+#[test]
+fn reserved_response_keeps_claims_and_rejects_corruption_without_original_prekeys() {
+    for corrupt in [false, true] {
+        let mut f = fixture(PrekeyQuality::OneTimeBoth);
+        let mut peer =
+            InitiatorOperation::start(Arc::clone(&f.initiator), &f.signer_i, 150).expect("initial");
+        let initial = peer.initial_message(150).expect("wire").to_vec();
+        let dir = directory();
+        let path = dir.path().canonicalize().expect("path");
+        drop(new_store(&path, f.local_device()));
+        let (mut store, fault, _, _) = fault_store(&path, f.local_device(), true);
+        fault.store(4, Ordering::SeqCst); // Fail after the contribution commit's second sync.
+        let (pq, classic) = f.sources();
+        assert!(matches!(
+            store.respond(
+                Arc::clone(&f.responder),
+                &initial,
+                &f.signer_r,
+                pq,
+                classic,
+                150
+            ),
+            Err(DurableError::CommitUncertain(_))
+        ));
+        let mut store = reopen(&path, f.local_device());
+        assert_eq!(
+            store.status(&f.responder, &initial).expect("phase"),
+            DurableStatus::ResponseKemReserved
+        );
+        let before = store.image().expect("image");
+        let other = InitiatorOperation::start(Arc::clone(&f.initiator), &f.signer_i, 150)
+            .expect("other initial");
+        assert!(matches!(
+            store.respond(
+                Arc::clone(&f.responder),
+                other.initial_message(150).expect("other wire"),
+                &f.signer_r,
+                pq,
+                classic,
+                150
+            ),
+            Err(DurableError::PrekeyClaimed)
+        ));
+        assert!(matches!(
+            store.resume_response(Arc::clone(&f.responder), &initial, &f.signer_i, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        f.reusable.close();
+        f.once.close();
+        f.signer_r.close();
+        assert!(matches!(
+            store.resume_response(Arc::clone(&f.responder), &initial, &f.signer_r, 150),
+            Err(DurableError::Protocol(Error::Closed))
+        ));
+        let after = store.image().expect("retained record");
+        assert_eq!(before.revision, after.revision);
+        let op = operation_id(&f.responder.digest(), &initial);
+        assert_eq!(
+            before
+                .records
+                .get(&op)
+                .expect("original")
+                .payload
+                .as_slice(),
+            after.records.get(&op).expect("retained").payload.as_slice()
+        );
+        let signer = fixture(PrekeyQuality::OneTimeBoth).signer_r; // Same protected signer fixture, not the lost prekeys.
+        if corrupt {
+            let mut image = after;
+            *image
+                .records
+                .get_mut(&op)
+                .expect("record")
+                .payload
+                .last_mut()
+                .expect("KEM token tag") ^= 1;
+            store
+                .persist(&mut image)
+                .expect("authenticated writer defect");
+            assert!(matches!(
+                store.resume_response(Arc::clone(&f.responder), &initial, &signer, 150),
+                Err(DurableError::InvalidCheckpoint(Error::Runtime(
+                    q_periapt_sdk::Error::InvalidPrivateKey
+                )))
+            ));
+            assert!(store.active.is_none());
+        } else {
+            drop(store);
+            let mut store = reopen(&path, f.local_device());
+            let reply = store
+                .resume_response(Arc::clone(&f.responder), &initial, &signer, 150)
+                .expect("same contribution without prekeys");
+            let outcome = peer.finish(&reply, 150).expect("real response MAC");
+            assert_eq!(
+                store
+                    .finish(
+                        Arc::clone(&f.responder),
+                        &initial,
+                        outcome.final_message(),
+                        150
+                    )
+                    .expect("real final MAC"),
+                outcome.pending_session().id()
+            );
+        }
+    }
 }
 
 #[test]
@@ -669,47 +1028,26 @@ pub(super) fn after_commit(image: &Image) {
     }
 }
 
-#[test]
-fn crash_child() {
-    let Some(path) = std::env::var_os("QPERIAPT_JOURNAL_CRASH_DIR") else {
+pub(super) fn after_response_effect(phase: u8, public_output: &[u8]) {
+    let Ok(target) = std::env::var("QPERIAPT_RESPONSE_CRASH_EFFECT") else {
         return;
     };
-    let dir = Path::new(&path);
-    let f = fixture(PrekeyQuality::OneTimeBoth);
-    let public = [
-        f.reusable.public_key().expect("public").to_bytes(),
-        f.once.public_key().expect("public").to_bytes(),
-    ]
-    .concat();
-    fs::write(dir.join("public-keys"), public).expect("public fixture");
-    let mut store = new_store(dir, f.local_device());
-    let mut i =
-        InitiatorOperation::start(Arc::clone(&f.initiator), &f.signer_i, 150).expect("initial");
-    let initial = i.initial_message(150).expect("wire").to_vec();
-    fs::write(dir.join("initial"), &initial).expect("initial fixture");
-    let (pq, classic) = f.sources();
-    let reply = store
-        .respond(
-            Arc::clone(&f.responder),
-            &initial,
-            &f.signer_r,
-            pq,
-            classic,
-            150,
-        )
-        .expect("respond");
-    fs::write(dir.join("returned-reply"), &reply).expect("reply after commit");
-    let result = i.finish(&reply, 150).expect("initiator confirmation");
-    fs::write(dir.join("final"), result.final_message()).expect("final fixture");
-    fs::write(dir.join("session-id"), result.pending_session().id()).expect("public session ID");
-    store
-        .finish(
-            Arc::clone(&f.responder),
-            &initial,
-            result.final_message(),
-            150,
-        )
-        .expect("complete");
+    if target != phase.to_string() {
+        return;
+    }
+    let path = std::env::var_os("QPERIAPT_JOURNAL_CRASH_DIR").expect("owned directory");
+    let path = Path::new(&path);
+    fs::write(path.join("computed-response"), public_output).expect("public result");
+    let mut ready = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path.join("ready"))
+        .expect("marker");
+    ready.write_all(b"computed\n").expect("marker data");
+    ready.sync_all().expect("marker sync");
+    loop {
+        std::thread::park();
+    }
 }
 
 pub(super) struct ChildGuard(pub(super) std::process::Child);
@@ -725,104 +1063,6 @@ impl Drop for ChildGuard {
         }
         if let Err(error) = self.0.wait() {
             eprintln!("owned test child wait: {error}");
-        }
-    }
-}
-#[test]
-fn process_kill_at_each_committed_boundary_preserves_exact_recovery_and_no_early_output() {
-    for phase in [
-        DurableStatus::Executing,
-        DurableStatus::Prepared,
-        DurableStatus::AwaitingFinal,
-        DurableStatus::Complete,
-    ] {
-        let folder = directory();
-        let dir = folder.path().canonicalize().expect("canonical");
-        let log = fs::File::create(dir.join("child.log")).expect("log");
-        let child = Command::new(std::env::current_exe().expect("test binary"))
-            .args(["--exact", "durable::tests::crash_child", "--nocapture"])
-            .env("QPERIAPT_JOURNAL_CRASH_DIR", &dir)
-            .env("QPERIAPT_JOURNAL_CRASH_PHASE", (phase as u8).to_string())
-            .stdout(Stdio::from(log.try_clone().expect("log clone")))
-            .stderr(Stdio::from(log))
-            .spawn()
-            .expect("owned test process");
-        let mut child = ChildGuard(child);
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while !dir.join("ready").exists() {
-            let status = child.0.try_wait().expect("child state");
-            if status.is_some() {
-                eprintln!(
-                    "child failure log: {}",
-                    fs::read_to_string(dir.join("child.log")).expect("failure log")
-                );
-            }
-            assert!(
-                status.is_none(),
-                "child exited before durability boundary: {status:?}"
-            );
-            assert!(
-                Instant::now() < deadline,
-                "child did not reach durability boundary"
-            );
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        if phase != DurableStatus::Complete {
-            assert!(
-                !dir.join("returned-reply").exists(),
-                "response escaped before final commit return"
-            );
-        }
-        child.0.kill().expect("kill exact child");
-        assert!(!child.0.wait().expect("reap exact child").success());
-        let public = fs::read(dir.join("public-keys")).expect("public fixture");
-        let (left, right) = public.split_at(q_periapt_sdk::PUBLIC_KEY_LEN);
-        let mut f = fixture_from_public(
-            PrekeyQuality::OneTimeBoth,
-            Some((
-                left.try_into().expect("public width"),
-                right.try_into().expect("public width"),
-            )),
-        );
-        f.signer_r.close();
-        f.reusable.close();
-        f.once.close();
-        let initial = fs::read(dir.join("initial")).expect("initial fixture");
-        let mut store = reopen(&dir, f.local_device());
-        assert_eq!(
-            store
-                .status(&f.responder, &initial)
-                .expect("authenticated recovered phase"),
-            phase
-        );
-        if phase == DurableStatus::Executing {
-            assert!(matches!(
-                store.resume(Arc::clone(&f.responder), &initial, 150),
-                Err(DurableError::Suspended)
-            ));
-        } else {
-            let image = store.image().expect("image");
-            let record = image.records.values().next().expect("record");
-            let expected = record
-                .payload
-                .get(40 + 5817..40 + 5817 + 4633)
-                .expect("pinned reply");
-            assert_eq!(
-                store
-                    .resume(Arc::clone(&f.responder), &initial, 150)
-                    .expect("recover without signer or prekeys"),
-                expected
-            );
-            if phase == DurableStatus::Complete {
-                let final_wire = fs::read(dir.join("final")).expect("final");
-                assert_eq!(
-                    store
-                        .finish(Arc::clone(&f.responder), &initial, &final_wire, 150)
-                        .expect("exact complete replay")
-                        .as_slice(),
-                    fs::read(dir.join("session-id")).expect("session ID")
-                );
-            }
         }
     }
 }

@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v3");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v4");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -32,6 +32,7 @@ const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
 mod initiator;
+mod responder;
 pub use initiator::{CommittedInitiation, InitiationId};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -70,7 +71,7 @@ pub enum DurableError {
     PrekeyClaimed,
     /// Bounded journal capacity or revision counter is exhausted.
     Capacity,
-    /// A prior non-repeatable computation may have run; it cannot be rerun.
+    /// This stage requires its original signing/prekey owner before it can resume.
     Suspended,
     /// This exact input already has a durable definitive-failure record.
     Rejected,
@@ -193,7 +194,7 @@ impl JournalIdentity {
 pub enum DurableStatus {
     /// A successful read proves this exact operation is absent.
     Absent = 0,
-    /// Reservation is durable; a non-repeatable computation may have executed.
+    /// Responder authentication is reserved; recovery needs the exact selected prekeys.
     Executing = 1,
     /// The exact encrypted response/root is pinned; final commit can resume without crypto.
     Prepared = 2,
@@ -217,6 +218,10 @@ pub enum DurableStatus {
     InitialKemReserved = 11,
     /// Complete initial body and purpose-bound signing randomness are durable.
     InitialSignatureReserved = 12,
+    /// Validated initial contribution and sealed responder encapsulation are durable.
+    ResponseKemReserved = 13,
+    /// Complete responder body and its purpose-bound signing randomness are durable.
+    ResponseSignatureReserved = 14,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -233,6 +238,8 @@ impl DurableStatus {
             10 => Ok(Self::InitialKeyReserved),
             11 => Ok(Self::InitialKemReserved),
             12 => Ok(Self::InitialSignatureReserved),
+            13 => Ok(Self::ResponseKemReserved),
+            14 => Ok(Self::ResponseSignatureReserved),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -259,16 +266,7 @@ impl Record {
         } else {
             context.one_time_fingerprints()
         };
-        let saved_initial = if matches!(
-            self.phase,
-            DurableStatus::Executing | DurableStatus::Rejected
-        ) {
-            self.payload.as_slice()
-        } else {
-            self.payload
-                .get(40..40 + 5817)
-                .ok_or(DurableError::Corrupt)?
-        };
+        let saved_initial = responder::initial_bytes(self.phase, &self.payload)?;
         if self.context != context.digest()
             || self.keys != expected_keys
             || saved_initial != initial
@@ -454,61 +452,6 @@ impl DeviceJournal {
             .get(&id)
             .map_or(DurableStatus::Absent, |r| r.phase))
     }
-    /// Reserve before real cryptography, pin its exact private result, atomically
-    /// consume one-time claims with the immutable response, then return wire bytes.
-    /// Exact committed inputs replay the same bytes without touching supplied keys.
-    pub fn respond(
-        &mut self,
-        context: Arc<BootstrapContext>,
-        initial: &[u8],
-        signer: &DeviceSigningKey,
-        pq: PqKeySource<'_>,
-        classical: TraditionalKeySource<'_>,
-        now: u64,
-    ) -> Result<Vec<u8>, DurableError> {
-        let id = self.admission(&context, initial, now)?;
-        let mut image = self.image()?;
-        if let Some(record) = image.records.get(&id) {
-            record.check_request(&context, initial)?;
-            return self.release_prepared(&mut image, id, context, now);
-        }
-        if image.records.len() >= MAX_RECORDS {
-            return Err(DurableError::Capacity);
-        }
-        let keys = context.one_time_fingerprints();
-        for record in image.records.values() {
-            if record.keys.iter().any(|key| keys.contains(key)) {
-                return Err(DurableError::PrekeyClaimed);
-            }
-        }
-        image.records.insert(
-            id,
-            Record {
-                kind: RecordKind::Responder,
-                context: context.digest(),
-                phase: DurableStatus::Executing,
-                keys,
-                payload: Zeroizing::new(initial.to_vec()),
-            },
-        );
-        self.persist(&mut image)?; // The sole execution admission barrier.
-        let mut operation = ResponderOperation::new(Arc::clone(&context));
-        if let Err(error) = operation.respond(initial, signer, pq, classical, now) {
-            let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
-            record.phase = DurableStatus::Rejected;
-            record.keys.clear();
-            self.persist(&mut image)?;
-            return Err(DurableError::Protocol(error));
-        }
-        context.check(now)?;
-        let checkpoint = operation.checkpoint()?;
-        let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
-        record.payload = checkpoint;
-        record.phase = DurableStatus::Prepared;
-        self.persist(&mut image)?; // Exact result survives before final commit.
-        self.release_prepared(&mut image, id, context, now)
-    }
-
     fn release_prepared(
         &mut self,
         image: &mut Image,
@@ -518,7 +461,9 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         match record.phase {
-            DurableStatus::Executing => return Err(DurableError::Suspended),
+            DurableStatus::Executing
+            | DurableStatus::ResponseKemReserved
+            | DurableStatus::ResponseSignatureReserved => return Err(DurableError::Suspended),
             DurableStatus::Rejected => return Err(DurableError::Rejected),
             DurableStatus::Absent => return Err(DurableError::Corrupt),
             _ => {}
@@ -551,7 +496,7 @@ impl DeviceJournal {
         }
     }
     /// Resume a pinned/committed response without a signing owner or prekey secret.
-    /// An executing reservation is suspended, never regenerated after a restart.
+    /// Pending plans require their original signer; Executing also needs its prekeys.
     pub fn resume(
         &mut self,
         context: Arc<BootstrapContext>,
@@ -637,7 +582,7 @@ fn load(db: &Database, key: &JournalKey, owner: [u8; 32]) -> Result<Image, Durab
     unseal(key, owner, value.value())
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG03".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG04".to_vec());
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
@@ -654,7 +599,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.records.len() > MAX_RECORDS || plaintext.len() > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT003".to_vec();
+    let mut wire = b"QPVLT004".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -681,7 +626,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT003" {
+    if outer.array::<8>()? != *b"QPVLT004" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -707,7 +652,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG03" {
+    if inner.array::<8>()? != *b"QPVIMG04" {
         return Err(DurableError::Corrupt);
     }
     let count = usize::from(inner.u16()?);
@@ -749,37 +694,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         if kind == RecordKind::Initiator {
             initiator::validate_record(&id, &op, &context, phase, &payload)?;
         } else {
-            let initial = match phase {
-                DurableStatus::Executing | DurableStatus::Rejected if payload.len() == 5817 => {
-                    payload.as_slice()
-                }
-                DurableStatus::Prepared
-                | DurableStatus::AwaitingFinal
-                | DurableStatus::Complete => {
-                    let expected = if phase == DurableStatus::Complete {
-                        COMPLETE_CHECKPOINT
-                    } else {
-                        PENDING_CHECKPOINT
-                    };
-                    let marker = if phase == DurableStatus::Complete {
-                        2
-                    } else {
-                        1
-                    };
-                    if payload.len() != expected
-                        || payload.get(..8) != Some(b"QPRCHK01")
-                        || payload.get(8..40) != Some(context.as_slice())
-                        || payload.get(PENDING_CHECKPOINT - 33) != Some(&marker)
-                    {
-                        return Err(DurableError::Corrupt);
-                    }
-                    payload.get(40..40 + 5817).ok_or(DurableError::Corrupt)?
-                }
-                _ => return Err(DurableError::Corrupt),
-            };
-            if operation_id(&context, initial) != op {
-                return Err(DurableError::Corrupt);
-            }
+            responder::validate_record(&id, &op, &context, phase, &payload)?;
         }
         records.insert(
             op,

@@ -33,21 +33,21 @@ commit-uncertainty behavior.
 
 The same journal now supports both local roles. Kind 1 is responder and kind 2
 is initiator; initiator records cannot claim remote prekey consumption. This
-unreleased local v3 schema rejects v1/v2 tables/headers without implicit migration or
+unreleased local v4 schema rejects v1/v2/v3 tables/headers without implicit migration or
 reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v3`, and one `image` row are
+Exactly one table, `continuity_device_candidate_v4`, and one `image` row are
 accepted. The image is:
 
-`QPVLT003[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT004[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG03[8] || count:u16 || records`
+`QPVIMG04[8] || count:u16 || records`
 
 Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
 fingerprints[key_count*32] || payload_length:u32 || payload`.
@@ -61,7 +61,8 @@ initial wire. Callers cannot supply an unrelated ID. Each API also checks exact
 initial bytes, context and derived claims. Claims use authenticated public-key
 fingerprints, so a new signed manifest/epoch cannot relabel a consumed public key.
 
-Executing/rejected records retain the initial wire. Other records hold a private
+Executing/rejected responder records retain the initial wire. Responder plans use
+the encoding below. Prepared/awaiting-final/complete records hold a private
 checkpoint: `QPRCHK01[8] || context[32] || initial[5817] || reply[4633] || root[32] ||
 state:u8 || tail`. State 1 has a 32-byte initiator-confirmation key; state 2 has the
 exact accepted final[136] and no confirmation key. The crate-private restore path
@@ -79,16 +80,44 @@ backups or all compiler/provider temporary copies.
 `respond` performs bounded public signature/scope admission, then:
 
 1. Commit `Executing`, the exact initial and one-time reservations.
-2. Only after acknowledgement, run the real responder computation once.
-3. Commit `Prepared` with the exact private result and response.
-4. Commit `AwaitingFinal`, consuming the claims together with the immutable outbox.
-5. Recheck policy/lifetime before returning response bytes.
+2. After acknowledgement, authenticate the initial with the exact selected prekeys.
+   This decapsulation and MAC check are deterministic and may resume from `Executing`
+   when those owners are available. No fresh responder contribution executes yet.
+3. Commit `ResponseKemReserved` (13): the admitted S0, fresh nonce and exact sealed
+   encapsulation command. The original prekeys are no longer needed for this operation.
+4. Compute the response body; commit `ResponseSignatureReserved` (14) with that
+   complete body and its purpose/body/owner-bound signing randomness before signing.
+5. Commit `Prepared` with the exact private result and signed response.
+6. Commit `AwaitingFinal`, consuming the claims together with the immutable outbox.
+7. Recheck policy/lifetime before returning response bytes.
+
+`respond` resumes an `Executing` record with the original selected prekeys.
+`resume_response` resumes a contribution or signing plan using only the original
+device signer. That signer may be a separately restored matching owner; this journal
+does not persist signing private keys. Signer-free `resume` can replay a pinned result
+but cannot perform unfinished signing. Missing owners are explicit failures, never
+requests to generate replacement keys or coins. A wrong prekey/signer is refused;
+local/transient failure retains the selected work. A definitive MAC or invalid-share
+failure commits rejection before clearing one-time reservations.
+
+Response scope is `D("Q-PERIAPT-CONTINUITY-RESPONSE-PLAN/v1",
+journal_id[32] || context[32] || record_operation_id[32])`. Bootstrap `H` labels
+`durable-reply-kem` and `durable-reply-sign` derive distinct command IDs. Plan bytes:
+`QPRPLN01[8] || phase:u8 || context[32] || scope[32] || initial[5817] || S0[32] ||
+nonce[32] || kem_token[245]`. Phase 14 appends `reply_body[1256] ||
+signing_binding[32] || signing_randomness[32]`. Exact sizes are 6199 and 7519 bytes.
+S0 is admitted only by actual initial authentication or by the authenticated encrypted
+local image, never by a public secret constructor. The context and exact initial
+still bind the prekey claims. Normal execution retains the derived schedule across
+acknowledged writes; restart recomputes the same KEM result, verifies the saved body
+and signs it with the same reservation. Result pin retires this plan's S0 and coins
+from the logical record, without claiming erasure of old encrypted database pages.
 
 Every write uses immediate durability and redb two-phase commit. The expected
 encrypted aggregate digest is compared again inside the write transaction.
 Invalid signatures fail before reservation; a definitive cryptographic failure
 writes `Rejected` and clears reservations. A different initial claiming a reserved
-or consumed one-time public key fails. Exact committed input replays saved bytes
+or consumed one-time public key fails. A pinned response replays its exact bytes
 without signing, decapsulation or new KEM randomness.
 
 `finish` validates the real final MAC and commits completion before returning its
@@ -103,7 +132,9 @@ authenticated input:
 | Phase | Recovery |
 | --- | --- |
 | Absent | Reservation did not survive; no crypto crossed its acknowledgement barrier |
-| Executing | Computation may have run: remain suspended, never regenerate it |
+| Executing | Repeat initial authentication only with the exact selected prekeys |
+| ResponseKemReserved | Resume the sealed contribution and signing with the original signer; prekeys are no longer needed |
+| ResponseSignatureReserved | Recompute/check the same body and sign with the saved randomness |
 | Prepared | Commit the pinned result without rerunning crypto |
 | AwaitingFinal | Replay the exact response |
 | Complete | Exact final replay returns the same session ID |
@@ -184,7 +215,7 @@ private-key import or fresh KEM randomness. `FinalCommitted` is distinct from th
 responder's `Complete`: local outbox commit does not prove remote final receipt.
 Phases are 1=Executing, 2=Prepared, 3=AwaitingFinal, 4=Complete, 5=Rejected,
 6=AwaitingReply, 7=FinalCommitted, 8=FinalPrepared, 9=ProcessingReply, with the three
-initial computation plans at 10–12. Absent=0
+initial computation plans at 10–12 and responder plans at 13–14. Absent=0
 remains query-only. The responder uses exact initial bytes for reconciliation;
 the initiator uses its retained request ID and context.
 
@@ -204,21 +235,24 @@ Real-peer tests cover all four modes, private checkpoint preservation, owner clo
 database reopen, exact replay, bad signatures/MACs, wrong key/store identity,
 header/ciphertext corruption and cross-manifest public-key reuse. A sampled disk
 scan detects plaintext root bytes; it is not a general forensic-erasure proof.
-The fault matrix covers six synchronization points across three response commits
-both before and after sync (12 cases), four final-confirmation sync failures and
+The fault matrix covers ten synchronization points across five response commits
+both before and after sync (20 cases), four final-confirmation sync failures and
 a first-write failure that reconciles to exact absence.
 
-Four separate owned subprocesses are killed after reservation, result pin,
-response commit and final commit. Their real files reopen under authenticated
-contexts reconstructed from public fixtures. Saved results replay without the
-original signing/prekey owners; `Executing` remains suspended. Production builds
-contain no test-only post-commit parking hook.
+Eight responder process cuts cover six committed boundaries and the two
+post-computation/pre-result-pin windows. An independent initiator stays alive and
+verifies response/final MACs after recovery. The original prekeys die with the child;
+saved contributions recover without them. Pinned results replay after the signing
+owner closes too. Executing without its prekeys remains explicitly suspended. This
+stronger live-peer harness replaces the earlier four-cut self-contained harness and
+retains its owner-loss/no-early-output assertions. Production builds contain no
+test-only parking or public-output capture hooks.
 
-The responder effect remains **non-repeatable**: its entropy is not yet sealed
-before execution. Its crash before result pin therefore sacrifices liveness
-rather than recomputing. Initiator plans are now replayable as described above;
-this does not promote the responder or the whole session lifecycle. Prekey
-**secret** inventory/erasure, cancellation,
+Both roles now replay reserved cryptographic commands as described above. The
+first responder authentication still requires the selected prekeys until S0 is
+durable. Recovering those owners before this boundary remains a **prekey secret
+inventory** obligation; a completed bootstrap is not a full session lifecycle.
+Prekey secret inventory/erasure, signing-owner persistence, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
 multi-device transactions remain implementation work. Logical replay retains the
 exact cryptographic result, but reseals an outer aggregate on a retried storage

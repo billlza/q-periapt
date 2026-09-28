@@ -670,7 +670,7 @@ fn old_headers_and_role_substitution_are_refused() {
         .expect("initial");
     let mut image = journal.image().expect("image");
     let active = journal.active.as_ref().expect("active");
-    for header in [b"QPVLT001", b"QPVLT002"] {
+    for header in [b"QPVLT001", b"QPVLT002", b"QPVLT003"] {
         let mut old = seal(&active.key, &image).expect("sealed");
         old.get_mut(..8).expect("header").copy_from_slice(header);
         assert!(matches!(

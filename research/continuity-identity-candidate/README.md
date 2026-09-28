@@ -85,8 +85,11 @@ journal identity, authenticated whole-image encryption, exact input reconciliati
 real I/O faults and process-kill tests cover this local boundary. The initiator
 seals key-generation, encapsulation and signing commands before execution and
 recovers identical public outputs after pre-pin crashes. It also restores reply
-state and pins replies before processing. The responder's unpinned computation
-still suspends on restart. This is not yet
+state and pins replies before processing. The responder persists its admitted
+initial contribution and exact KEM/signing reservations; after that boundary,
+recovery no longer needs the original prekeys. Before it, the selected prekeys
+must be recovered. Both roles are exercised against a surviving actual peer.
+This is not yet
 prekey-secret persistence, a ratchet, byte-identical anchor-intent replay
 or rollback protection; the complete 0.2.0 store contract remains required.
 

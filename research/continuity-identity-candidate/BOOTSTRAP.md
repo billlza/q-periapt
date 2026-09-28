@@ -66,8 +66,8 @@ same policy is still a different local revocation/admission authority.
 
 ## Three flights
 
-Every new nonce, key and encapsulation uses OS randomness. The durable initiator
-seals and replays this exact material after a crash; restart is not a new operation.
+Every new nonce, key and encapsulation uses OS randomness. The durable journal
+seals and replays each role's exact material after a crash; restart is not a new operation.
 The initiator's reply key is a
 fresh owned hybrid key; it is not an account or manifest signing key. Both signature
 components are required, with the identity candidate's purpose separation and

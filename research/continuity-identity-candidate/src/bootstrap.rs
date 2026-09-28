@@ -27,6 +27,7 @@ const REPLY_PREFIX: usize = 8 + 32 + 32 + 32;
 const REPLY_CORE: usize = REPLY_PREFIX + CIPHERTEXT_LEN;
 const FINAL_PREFIX: usize = 8 + 32 + 32 + 32;
 
+pub(crate) mod response_staged;
 pub(crate) mod staged;
 
 fn hash(label: &[u8], bytes: &[u8]) -> [u8; 32] {
@@ -787,18 +788,43 @@ fn prepare_response(
     peer: PublicKey,
     first: SharedSecret,
 ) -> Result<PreparedResponder, Error> {
-    let mut body = prefix(REPLY_TAG, &context.digest);
-    body.extend_from_slice(&hash(b"initial-wire", initial));
-    body.extend_from_slice(&nonce()?);
+    let body = response_prefix(context, initial, &nonce()?);
     let result = context
         .policy
         .runtime
         .encapsulate(&peer, &hash(b"kem-reply", &body))?;
+    let (body, keys) = response_body(body, &first.export_for_protocol()?, result)?;
+    let signature = signer.sign(Purpose::BootstrapResponder, &body)?;
+    prepared_response(context, initial, &body, &signature, keys)
+}
+
+fn response_prefix(context: &BootstrapContext, initial: &[u8], nonce: &[u8; 32]) -> Vec<u8> {
+    let mut body = prefix(REPLY_TAG, &context.digest);
+    body.extend_from_slice(&hash(b"initial-wire", initial));
+    body.extend_from_slice(nonce);
+    body
+}
+
+fn response_body(
+    mut body: Vec<u8>,
+    first: &ZeroizingBytes<32>,
+    result: q_periapt_sdk::Encapsulation,
+) -> Result<(Vec<u8>, Schedule), Error> {
     body.extend_from_slice(&result.ciphertext.to_bytes());
     let core = hash(b"reply-core", &body);
-    let keys = schedule(&first.export_for_protocol()?, &result.secret, &core)?;
+    let keys = schedule(first, &result.secret, &core)?;
     body.extend_from_slice(&mac(keys.responder.as_bytes(), &core)?);
-    let reply = envelope(&body, &signer.sign(Purpose::BootstrapResponder, &body)?)?;
+    Ok((body, keys))
+}
+
+fn prepared_response(
+    context: &BootstrapContext,
+    initial: &[u8],
+    body: &[u8],
+    signature: &[u8],
+    keys: Schedule,
+) -> Result<PreparedResponder, Error> {
+    let reply = envelope(body, signature)?;
     let session = pending(
         &context.digest,
         initial,
