@@ -10,7 +10,30 @@ permissions:
   contents: read
 
 jobs:
+  supervision-controls:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: proof_python
+        with:
+          python-version: "3.13.14"
+          check-latest: false
+          update-environment: false
+      - name: Check process ownership and bounded shutdown
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest -v artifact/test_android_platform_probe.py
+
   file-integrity-query:
+    needs: supervision-controls
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -27,10 +50,6 @@ jobs:
           python-version: "3.13.14"
           check-latest: false
           update-environment: false
-      - name: Check fresh-process supervision controls
-        env:
-          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/python-run.sh -m unittest -v artifact/test_android_platform_probe.py
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
         with:
           distribution: temurin
