@@ -100,6 +100,13 @@ identity lifecycle remain open. This is not yet
 a ratchet, byte-identical anchor-intent replay
 or rollback protection; the complete 0.2.0 store contract remains required.
 
+The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
+trusted enrollment from journal genesis, durable full-head/fence comparison and
+unknown-outcome recovery. Fresh challenges and one-result-per-attempt admission
+reject stale or cancelled replies. It is not yet connected to journal state/release
+gates or a signed required-anchor policy. Its independent storage trust and explicit
+whole-witness rollback counterexample remain part of the acceptance boundary.
+
 ## Exact candidate encoding
 
 All integers are unsigned, big-endian, with no implicit padding. No trailing

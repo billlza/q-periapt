@@ -134,7 +134,7 @@ impl From<PrivateDatabaseError> for DurableError {
         Self::Database(e)
     }
 }
-fn storage(e: impl Into<redb::Error>) -> DurableError {
+pub(crate) fn storage(e: impl Into<redb::Error>) -> DurableError {
     DurableError::Storage(Box::new(e.into()))
 }
 
@@ -143,6 +143,16 @@ fn storage(e: impl Into<redb::Error>) -> DurableError {
 /// neither a hardware key store nor an anti-rollback anchor.
 pub struct JournalKey(Box<ZeroizingBytes<32>>);
 impl JournalKey {
+    pub(crate) fn anchor_state_key(&self) -> Result<ZeroizingBytes<32>, Error> {
+        let mut key = ZeroizingBytes::zeroed();
+        hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
+            .expand(
+                b"Q-PERIAPT-CONTINUITY-ANCHOR-STATE-KEY/v1",
+                key.as_mut_bytes(),
+            )
+            .map_err(|_| Error::Provider)?;
+        Ok(key)
+    }
     fn write_intent_key(&self) -> Result<ZeroizingBytes<32>, Error> {
         let mut key = ZeroizingBytes::zeroed();
         hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
@@ -411,6 +421,28 @@ impl DeviceJournal {
         ))
     }
 
+    /// Derive witness enrollment metadata only from this authenticated empty
+    /// revision-1 journal. This does not enroll it or enable anchored operation.
+    pub fn anchor_genesis(
+        &mut self,
+        device: &VerifiedDevice,
+        policy: &crate::VerifiedSessionPolicy,
+    ) -> Result<crate::AnchorGenesis, DurableError> {
+        let image = self.image()?;
+        if image.owner != bootstrap::storage_owner(device)
+            || image.revision != 1
+            || !image.records.is_empty()
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(crate::AnchorGenesis::from_journal(
+            self.identity()?,
+            device,
+            policy,
+            image.digest,
+        )?)
+    }
+
     fn image(&mut self) -> Result<Image, DurableError> {
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         let result = load(&active.db, &active.key, active.owner).and_then(|image| {
@@ -575,7 +607,7 @@ impl DeviceJournal {
     }
 }
 
-fn transaction(db: &Database) -> Result<redb::WriteTransaction, DurableError> {
+pub(crate) fn transaction(db: &Database) -> Result<redb::WriteTransaction, DurableError> {
     let mut tx = db.begin_write().map_err(storage)?;
     tx.set_durability(Durability::Immediate);
     tx.set_two_phase_commit(true);

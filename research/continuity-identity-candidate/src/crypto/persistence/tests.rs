@@ -4,8 +4,8 @@ use crate::{
     bootstrap::tests::fixture_with_signers,
     crypto::{Purpose, SigningReservation},
     durable::tests::{directory, new_store, reopen, ChildGuard},
-    DeviceSigningKey, DurableStatus, InitiatorOperation, PolicySigningKey, PrekeyQuality,
-    RootSigningKey,
+    AnchorSigningKey, DeviceSigningKey, DurableStatus, InitiatorOperation, PolicySigningKey,
+    PrekeyQuality, RootSigningKey,
 };
 use std::{
     fs,
@@ -35,7 +35,7 @@ fn all_signing_roles_reopen_exact_keys_and_cannot_cross_roles_or_identities() {
             assert!(!disk
                 .windows(PUBLIC_KEY_BYTES)
                 .any(|window| window == public.encode()));
-            for role in [1, 2, 3].into_iter().filter(|r| *r != $role) {
+            for role in [1, 2, 3, 4].into_iter().filter(|r| *r != $role) {
                 assert!(matches!(
                     open(&file, &wrapping, id, role),
                     Err(DurableError::Conflict)
@@ -76,6 +76,7 @@ fn all_signing_roles_reopen_exact_keys_and_cannot_cross_roles_or_identities() {
     check!(RootSigningKey, 1, "root");
     check!(DeviceSigningKey, 2, "device");
     check!(PolicySigningKey, 3, "policy");
+    check!(AnchorSigningKey, 4, "anchor");
 }
 
 #[test]

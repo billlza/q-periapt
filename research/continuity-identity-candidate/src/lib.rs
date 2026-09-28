@@ -7,6 +7,7 @@
 //! Account enrollment must independently pin the intended account and roster head.
 //! No production crate, C ABI, or language binding depends on this candidate.
 
+mod anchor;
 mod bootstrap;
 mod codec;
 mod crypto;
@@ -19,12 +20,17 @@ mod session_policy;
 #[cfg(test)]
 mod tests;
 
+pub use anchor::{
+    AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
+    AnchorPin, AnchorReply, AnchorRequest, AnchorStore, AnchorSubject,
+};
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
     PendingSession, ResponderOperation,
 };
 pub use crypto::{
-    DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId, PUBLIC_KEY_BYTES,
+    AnchorSigningKey, DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId,
+    PUBLIC_KEY_BYTES,
 };
 pub use durable::{
     CommittedInitiation, DeviceJournal, DurableError, DurableStatus, InitiationId, JournalIdentity,

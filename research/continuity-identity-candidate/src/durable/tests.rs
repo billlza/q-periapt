@@ -456,7 +456,18 @@ pub(super) fn fault_database(
     Arc<AtomicUsize>,
     Arc<std::sync::atomic::AtomicBool>,
 ) {
-    let file = open_private_file(&dir.join("state.redb"), false).expect("private file");
+    fault_database_path(&dir.join("state.redb"), after_sync)
+}
+pub(crate) fn fault_database_path(
+    path: &Path,
+    after_sync: bool,
+) -> (
+    Database,
+    Arc<AtomicUsize>,
+    Arc<AtomicUsize>,
+    Arc<std::sync::atomic::AtomicBool>,
+) {
+    let file = open_private_file(path, false).expect("private file");
     let remaining = Arc::new(AtomicUsize::new(0));
     let count = Arc::new(AtomicUsize::new(0));
     let fail_write = Arc::new(std::sync::atomic::AtomicBool::new(false));

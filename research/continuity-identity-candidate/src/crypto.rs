@@ -31,6 +31,8 @@ pub(crate) enum Purpose {
     SessionPolicy = 4,
     BootstrapInitiator = 5,
     BootstrapResponder = 6,
+    AnchorRequest = 7,
+    AnchorReply = 8,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.
@@ -335,6 +337,9 @@ impl SigningReservation {
 /// Owned application protocol-policy signer, distinct from account and device roles.
 pub struct PolicySigningKey(Option<Material>);
 
+/// Owned witness signer, separate from account/device/protocol-policy roles.
+pub struct AnchorSigningKey(Option<Material>);
+
 macro_rules! owner {
     ($name:ident, $role:expr) => {
         impl $name {
@@ -406,3 +411,4 @@ macro_rules! owner {
 owner!(RootSigningKey, 1);
 owner!(DeviceSigningKey, 2);
 owner!(PolicySigningKey, 3);
+owner!(AnchorSigningKey, 4);

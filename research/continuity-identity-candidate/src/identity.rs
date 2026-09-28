@@ -356,6 +356,7 @@ impl AccountPin {
         authority.extend_from_slice(&self.checkpoint.digest);
         authority.extend_from_slice(&self.family);
         Ok(VerifiedDevice {
+            authority_key: self.root.clone(),
             account: self.account,
             description: credential.description,
             key: credential.key,
@@ -372,6 +373,7 @@ impl AccountPin {
 /// The service must recheck `authority_binding()` at its eventual transaction fence.
 /// A retained value does not automatically track later revocation or time advancement.
 pub struct VerifiedDevice {
+    pub(crate) authority_key: PublicKey,
     pub(crate) account: [u8; 32],
     pub(crate) description: DeviceDescription,
     pub(crate) key: PublicKey,

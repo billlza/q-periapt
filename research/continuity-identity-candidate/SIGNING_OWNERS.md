@@ -1,6 +1,6 @@
 # Protected signing owners
 
-The candidate's account-root, device and protocol-policy signing owners support
+The candidate's account-root, device, protocol-policy and witness signing owners support
 immutable encrypted files through `provision` and `open`. This provides software
 key persistence before enrollment, independently of the device journal that needs
 an already verified credential. The existing volatile `generate` API remains
@@ -48,7 +48,7 @@ The file is exactly **2138 bytes**:
 
 `QPSIGN01[8] || role:u8 || identity[32] || nonce[24] || ciphertext[2057] || tag[16]`
 
-Roles are root=1, device=2 and protocol-policy=3. The full 65-byte header is
+Roles are root=1, device=2, protocol-policy=3 and witness=4. The full 65-byte header is
 XChaCha20-Poly1305 associated data. A new OS-random nonce is chosen for the one
 initial sealing operation. HKDF-SHA256 with default zero salt and info
 `Q-PERIAPT-CONTINUITY-SIGNING-OWNER-KEY/v1` derives a distinct 32-byte encryption
@@ -75,7 +75,7 @@ Restoring a file does not grant a new credential, roster, policy or operation.
 Pinned result replay retains its existing signer-free path. Signing-owner
 persistence does not change bootstrap network or ABI bytes.
 
-Tests cover all three roles, owner close/reopen, role/identity/wrapping-key
+Tests cover all four roles, owner close/reopen, role/identity/wrapping-key
 substitution, every byte of the sealed file, length and scalar/public mismatch,
 unsafe filesystem shapes, and exact saved-signature replay. Three process cuts
 cover generated-but-unwritten, complete-but-unsynced and synced-before-return

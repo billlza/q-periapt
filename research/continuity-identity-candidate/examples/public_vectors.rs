@@ -41,6 +41,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let output = arguments
         .next()
         .ok_or("expected one new output directory")?;
+    let anchors = match arguments.next() {
+        Some(option) if option == "--with-anchor" => true,
+        None => false,
+        Some(_) => return Err("expected optional --with-anchor".into()),
+    };
     if arguments.next().is_some() {
         return Err("expected one new output directory".into());
     }
@@ -154,12 +159,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     signer.close();
-    bootstrap_vectors(directory)?;
+    bootstrap_vectors(directory, anchors)?;
     println!("public fixtures written; private fixture keys discarded");
     Ok(())
 }
 
-fn bootstrap_vectors(directory: &Path) -> Result<(), Box<dyn Error>> {
+fn bootstrap_vectors(directory: &Path, anchors: bool) -> Result<(), Box<dyn Error>> {
     use q_periapt_continuity_identity_candidate::{
         bootstrap_suite_digest, AllowedPrekeyModes, BootstrapContext, DirectoryExpectation,
         InitiatorOperation, PolicyPin, PolicySigningKey, PrekeyQuality, ResponderOperation,
@@ -262,6 +267,9 @@ fn bootstrap_vectors(directory: &Path) -> Result<(), Box<dyn Error>> {
     }
     let (signer_i, device_i) = devices.first().ok_or("initiator missing")?;
     let (signer_r, device_r) = devices.get(1).ok_or("responder missing")?;
+    if anchors {
+        anchor_vectors(directory, signer_r, device_r, &pr)?;
+    }
     let key = rr.generate_key()?;
     let public = key.public_key()?.to_bytes();
     let (pq, classical) = public.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
@@ -345,4 +353,80 @@ fn bootstrap_vectors(directory: &Path) -> Result<(), Box<dyn Error>> {
     save(directory, "bootstrap-final.bin", result.final_message())?;
     save(directory, "bootstrap-session.id", &session.id())?;
     Ok(())
+}
+
+#[cfg(unix)]
+fn anchor_vectors(
+    directory: &Path,
+    signer: &DeviceSigningKey,
+    device: &q_periapt_continuity_identity_candidate::VerifiedDevice,
+    policy: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+) -> Result<(), Box<dyn Error>> {
+    use q_periapt_continuity_identity_candidate::{
+        AnchorHead, AnchorIdentity, AnchorOperation, AnchorRequest, AnchorSigningKey, AnchorStore,
+        DeviceJournal, JournalKey,
+    };
+    use std::os::unix::fs::PermissionsExt;
+    let private = tempfile::Builder::new()
+        .prefix("anchor-vector-")
+        .permissions(fs::Permissions::from_mode(0o700))
+        .tempdir()?;
+    let path = private.path().canonicalize()?;
+    let mut journal = DeviceJournal::provision(
+        &path.join("journal"),
+        JournalKey::provision(&path.join("journal-key"))?,
+        device,
+    )?;
+    let genesis = journal.anchor_genesis(device, policy)?;
+    let initial = AnchorHead::from_trusted_state(1, 1, genesis.image_digest())?;
+    let identity = AnchorIdentity::generate()?;
+    let mut witness = AnchorStore::provision(
+        &path.join("witness"),
+        JournalKey::provision(&path.join("witness-key"))?,
+        AnchorSigningKey::generate()?,
+        identity,
+    )?;
+    witness.enroll(&genesis, device, policy, 150)?;
+    let pin = witness.pin()?;
+    save(directory, "anchor-witness.pub", &pin.public_key().encode())?;
+    save(directory, "anchor-instance.id", identity.as_bytes())?;
+    save(directory, "anchor-authority.digest", &pin.binding())?;
+    save(
+        directory,
+        "anchor-journal.id",
+        journal.identity()?.as_bytes(),
+    )?;
+    save(directory, "anchor-genesis.digest", &genesis.image_digest())?;
+    let advance = AnchorOperation::advance(initial, [42; 32])?;
+    let next = AnchorHead::from_trusted_state(1, 2, [42; 32])?;
+    let operations = [
+        AnchorOperation::query(),
+        advance,
+        advance,
+        AnchorOperation::fence_writer(next)?,
+        AnchorOperation::advance(next, [43; 32])?,
+        AnchorOperation::query(),
+    ];
+    for (index, operation) in operations.into_iter().enumerate() {
+        let request = AnchorRequest::new(&pin, genesis.subject(), operation, signer)?;
+        let response = witness.handle(request.as_bytes(), 150)?;
+        pin.verify_reply(&request, &response)?;
+        save(
+            directory,
+            &format!("anchor-{index}-request.bin"),
+            request.as_bytes(),
+        )?;
+        save(directory, &format!("anchor-{index}-reply.bin"), &response)?;
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn anchor_vectors(
+    _: &Path,
+    _: &DeviceSigningKey,
+    _: &q_periapt_continuity_identity_candidate::VerifiedDevice,
+    _: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+) -> Result<(), Box<dyn Error>> {
+    Err("anchor witness vectors require the private Unix storage adapter".into())
 }

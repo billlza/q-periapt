@@ -225,10 +225,18 @@ pub struct VerifiedSessionPolicy {
 }
 impl VerifiedSessionPolicy {
     pub(crate) fn check_device(&self, device: &VerifiedDevice, now: u64) -> Result<(), Error> {
-        if device.description.family != self.family || device.key.shares_component(&self.signer) {
+        if device.description.family != self.family {
             return Err(Error::Scope);
         }
-        let public = device.key.encode();
+        self.check_external_signer(&device.key)?;
+        device.description.validity.check(now)?;
+        device.roster_validity.check(now)
+    }
+    pub(crate) fn check_external_signer(&self, key: &PublicKey) -> Result<(), Error> {
+        if key.shares_component(&self.signer) {
+            return Err(Error::Scope);
+        }
+        let public = key.encode();
         let pq = public
             .get(..q_periapt_backends::ML_DSA_65_VK_LEN)
             .ok_or(Error::Encoding)?;
@@ -236,8 +244,7 @@ impl VerifiedSessionPolicy {
         if self.sdk.starts_with(&pq_digest) {
             return Err(Error::Scope);
         }
-        device.description.validity.check(now)?;
-        device.roster_validity.check(now)
+        Ok(())
     }
     /// Close this protocol-policy instance without changing other SDK applications.
     /// Durable policy replacement and other instances still require host coordination.

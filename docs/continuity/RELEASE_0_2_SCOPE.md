@@ -41,7 +41,9 @@ the existing public-commitment model into a working cryptographic protocol.
   one-time tokens with the response outbox; pending references block retirement.
   Its own lockfile and public-byte/OpenSSL verifier remain separate.
   Protected signing files restore unfinished operations, and local write intents
-  preserve exact sealed target bytes across state-write retries. Durable identity lifecycle,
+  preserve exact sealed target bytes across state-write retries. A separate witness
+  provider now signs fresh, command-bound receipts after real state/fence commits;
+  journal release integration and signed required-anchor policy remain open. Durable identity lifecycle,
   cryptographic erasure, ratchet, exact anchor-intent replay and
   rollback protection remain required work.
 

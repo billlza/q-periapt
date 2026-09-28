@@ -1679,9 +1679,12 @@ jobs:
           mkdir -p target
           candidate_openssl="$(brew --prefix openssl@3)/bin/openssl"
           test -x "$candidate_openssl"
-          cargo +1.96.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors
+          cargo +1.96.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-anchor
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py \
             --fixtures target/continuity-public-vectors --output target/continuity-public-verification \
+            --openssl "$candidate_openssl"
+          sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_anchor_vectors.py \
+            --fixtures target/continuity-public-vectors --output target/continuity-anchor-verification \
             --openssl "$candidate_openssl"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always() && matrix.os == 'macos-15'
@@ -1690,6 +1693,7 @@ jobs:
           path: |
             target/continuity-public-vectors
             target/continuity-public-verification
+            target/continuity-anchor-verification
           if-no-files-found: error
           retention-days: 14
 
