@@ -115,11 +115,13 @@ class MlKemSourceProfilesTests(unittest.TestCase):
         with self.assertRaisesRegex(RustPublishContractError, "feature table"):
             validate_mlkem_native_manifest_features(features, package_version="0.1.5")
 
-    def test_workspace_members_and_internal_pins_move_as_one_alpha(self) -> None:
+    def test_workspace_members_and_internal_pins_move_as_one_sdk_release(self) -> None:
         workspace = tomllib.loads((ROOT / "Cargo.toml").read_text())
         self.assertEqual(workspace["workspace"]["package"]["version"], SDK_VERSION)
+        member_names = set()
         for member in workspace["workspace"]["members"]:
             manifest = tomllib.loads((ROOT / member / "Cargo.toml").read_text())
+            member_names.add(manifest["package"]["name"])
             with self.subTest(member=member):
                 self.assertEqual(manifest["package"]["version"], {"workspace": True})
                 sections = [manifest, *manifest.get("target", {}).values()]
@@ -128,12 +130,16 @@ class MlKemSourceProfilesTests(unittest.TestCase):
                         for name, dependency in section.get(key, {}).items():
                             if name.startswith("q-periapt-"):
                                 self.assertEqual(dependency["version"], "=" + SDK_VERSION)
-        lock = tomllib.loads((ROOT / "Cargo.lock").read_text())
-        versions = {
-            package["version"] for package in lock["package"]
-            if package["name"].startswith("q-periapt-")
-        }
-        self.assertEqual(versions, {SDK_VERSION})
+        # Independent workspaces have their own package versions and lockfiles,
+        # but their path dependencies still resolve these workspace packages.
+        for relative in ("Cargo.lock", "fuzz/Cargo.lock", "research/hqc-fips207-candidate/Cargo.lock"):
+            with self.subTest(lockfile=relative):
+                lock = tomllib.loads((ROOT / relative).read_text())
+                versions = {
+                    package["version"] for package in lock["package"]
+                    if package["name"] in member_names
+                }
+                self.assertEqual(versions, {SDK_VERSION})
 
 
 if __name__ == "__main__":
