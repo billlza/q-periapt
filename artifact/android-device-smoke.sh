@@ -1297,7 +1297,7 @@ observe_owned_installed_package() {
 					recovery_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
 					if attempt_owned_emulator_transport_recovery postinstall \
-						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt"; then
+						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt" "$ownership_deadline"; then
 						continue
 					else
 						ownership_recovery_status=$?
@@ -1325,11 +1325,39 @@ observe_owned_installed_package() {
 	return 1
 }
 
+capture_recovered_emulator_evidence() {
+	# One-shot recovery creates a short observation window. These captures use
+	# its caller's existing absolute deadline and never authorize uninstall.
+	for recovery_observation_operation in capture-emulator-recovery-state capture-emulator-recovery-logcat; do
+		if ! recovery_observation_timeout=$(remaining_bounded_timeout "$recovery_deadline" 5); then
+			printf 'phase=%s invocation=%s attempt=%s recovery-observation=deadline-exhausted\n' \
+				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" >>"$PACKAGE_OBSERVATION_LOG"
+			return 1
+		fi
+		if android_command "$recovery_observation_operation" --timeout-seconds "$recovery_observation_timeout" \
+			>"$DIST/$recovery_observation_operation.stdout" 2>"$DIST/$recovery_observation_operation.err"; then
+			recovery_observation_status=0
+		else
+			recovery_observation_status=$?
+		fi
+		printf 'phase=%s invocation=%s attempt=%s recovery-observation=%s exit=%s\n' \
+			"$recovery_phase" "$recovery_invocation" "$recovery_attempt" \
+			"$recovery_observation_operation" "$recovery_observation_status" >>"$PACKAGE_OBSERVATION_LOG"
+		case "$recovery_observation_status" in
+			0) ;;
+			129 | 130 | 143) return "$recovery_observation_status" ;;
+			*) return 1 ;;
+		esac
+	done
+	return 0
+}
+
 attempt_owned_emulator_transport_recovery() {
 	recovery_phase=$1
 	recovery_timeout=$2
 	recovery_invocation=$3
 	recovery_attempt=$4
+	recovery_deadline=$5
 	recovery_phase_valid=0
 	case "$recovery_phase" in
 		postinstall)
@@ -1410,7 +1438,8 @@ attempt_owned_emulator_transport_recovery() {
 			printf 'phase=%s invocation=%s attempt=%s transport-recovery=%s\n' \
 				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" "$recovery_result" \
 				>>"$PACKAGE_OBSERVATION_LOG"
-			return 0
+			capture_recovered_emulator_evidence
+			return "$?"
 			;;
 		retryable:transport-inconclusive | retryable:registration-failed | retryable:post-state-unavailable)
 			recovery_reason=${recovery_result#retryable:}
@@ -1562,7 +1591,7 @@ cleanup_android_app() {
 					recovery_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
 					if attempt_owned_emulator_transport_recovery cleanup \
-						"$recovery_timeout" "$cleanup_invocation" "$attempt"; then
+						"$recovery_timeout" "$cleanup_invocation" "$attempt" "$cleanup_deadline"; then
 						absent_observations=0
 						cleanup_ownership_consecutive_exact=0
 						cleanup_ownership_previous_path_sha256=

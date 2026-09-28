@@ -1759,6 +1759,7 @@ fi
         boot_owned_emulator: bool = False,
         device_kind_override: str | None = None,
         emulator_started_override: bool | None = None,
+        recovery_capture_status: int = 0,
     ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], int, int]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
@@ -1821,7 +1822,7 @@ EMULATOR_STARTED={1 if emulator_started else 0}
 remaining_bounded_timeout() {{
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
     if [ "$observation_count" -lt {len(outcomes)} ]; then
-        printf '15\n'
+        printf '%s\n' "$2"
         return 0
     fi
     return 1
@@ -1858,6 +1859,19 @@ android_command() {{
             diagnostic) printf 'recovered\n'; printf 'unexpected diagnostic\n' >&2; return 0 ;;
             *) return 2 ;;
         esac
+    fi
+    case "$operation" in
+        capture-emulator-recovery-state) capture_leaf=emulator-state-recovery.txt ;;
+        capture-emulator-recovery-logcat) capture_leaf=emulator-recovery-logcat.txt ;;
+        *) capture_leaf= ;;
+    esac
+    if [ -n "$capture_leaf" ]; then
+        test "$#" -eq 3 && test "$2" = --timeout-seconds && test "$3" -le 5 || return 2
+        if [ {recovery_capture_status} -ne 0 ]; then
+            printf 'capture unavailable fixture\n' >&2; return {recovery_capture_status}
+        fi
+        printf 'recovered emulator fixture\n' >"$DIST/$capture_leaf"
+        return 0
     fi
     test "$operation" = observe-installed-apk
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
@@ -1914,6 +1928,7 @@ exit "$observation_status"
         remaining_calls_per_invocation: tuple[int, ...] | None = None,
         boot_owned_emulator: bool = False,
         transport_recovery_attempted: bool = False,
+        recovery_capture_status: int = 0,
     ) -> tuple[
         subprocess.CompletedProcess[bytes], dict[str, bytes], list[str], int, bool
     ]:
@@ -1926,7 +1941,7 @@ exit "$observation_status"
         sample_start = producer.index("observe_installed_package_sample() {")
         sample_end = producer.index("\n}\n\nobserve_owned_installed_package()", sample_start)
         sample_function = producer[sample_start : sample_end + len("\n}\n")]
-        recovery_start = producer.index("attempt_owned_emulator_transport_recovery() {")
+        recovery_start = producer.index("capture_recovered_emulator_evidence() {")
         recovery_end = producer.index("\n}\n\ncleanup_android_app()", recovery_start)
         recovery_function = producer[recovery_start : recovery_end + len("\n}\n")]
         cleanup_start = producer.index("cleanup_android_app() {")
@@ -2041,6 +2056,19 @@ verify_observed_installed_apk_signer() {{
 android_command() {{
     operation=$1
     printf '%s\n' "$operation" >>"$CALLS"
+    case "$operation" in
+        capture-emulator-recovery-state) capture_leaf=emulator-state-recovery.txt ;;
+        capture-emulator-recovery-logcat) capture_leaf=emulator-recovery-logcat.txt ;;
+        *) capture_leaf= ;;
+    esac
+    if [ -n "$capture_leaf" ]; then
+        test "$#" -eq 3 && test "$2" = --timeout-seconds && test "$3" -le 5 || return 2
+        if [ {recovery_capture_status} -ne 0 ]; then
+            printf 'capture unavailable fixture\n' >&2; return {recovery_capture_status}
+        fi
+        printf 'recovered emulator fixture\n' >"$DIST/$capture_leaf"
+        return 0
+    fi
     if [ "$operation" = uninstall-app ]; then
         return {uninstall_status}
     fi
@@ -5095,6 +5123,63 @@ fi
         recovery = journal.index("transport-recovery=recovered")
         first_exact = journal.index("state=exact path_sha256=", recovery)
         self.assertLess(recovery, first_exact)
+        self.assertEqual(files["emulator-state-recovery.txt"], b"recovered emulator fixture\n")
+        self.assertEqual(files["emulator-recovery-logcat.txt"], b"recovered emulator fixture\n")
+        state_capture = calls.index("capture-emulator-recovery-state")
+        log_capture = calls.index("capture-emulator-recovery-logcat")
+        next_ownership = calls.index("observe-installed-apk")
+        self.assertLess(calls.index("recover-emulator-transport"), state_capture)
+        self.assertLess(state_capture, log_capture)
+        self.assertLess(log_capture, next_ownership)
+
+    def test_recovery_diagnostics_do_not_extend_the_cleanup_deadline(self) -> None:
+        result, files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("device-unavailable",), transport_recovery_outcomes=("recovered",),
+            boot_owned_emulator=True, remaining_calls_per_invocation=(2,),
+        )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("recovery-observation=deadline-exhausted", files["adb-package-state-observation.log"].decode())
+        self.assertNotIn("capture-emulator-recovery-state", calls)
+        self.assertNotIn("uninstall-app", calls)
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+
+    def test_recovery_capture_failure_stays_observable_and_never_grants_ownership(self) -> None:
+        path_a = "a" * 64
+        result, files, calls, signer_count, _ = self._run_cleanup_observation(
+            ("device-unavailable", "present", "present") + ("absent",) * 3,
+            ownership_outcomes=(f"exact:{path_a}", f"exact:{path_a}"),
+            transport_recovery_outcomes=("recovered",), boot_owned_emulator=True,
+            recovery_capture_status=7,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("emulator-state-recovery.txt", files)
+        self.assertNotIn("capture-emulator-recovery-logcat", calls)
+        self.assertIn("recovery-observation=capture-emulator-recovery-state exit=7",
+                      files["adb-package-state-observation.log"].decode())
+        self.assertEqual(calls.count("observe-installed-apk"), 2)
+        self.assertEqual(signer_count, 1)
+        self.assertLess(calls.index("capture-emulator-recovery-state"), calls.index("observe-installed-apk"))
+
+    def test_recovery_capture_signals_stop_cleanup_and_postinstall(self) -> None:
+        for status in (129, 130, 143):
+            with self.subTest(status=status):
+                result, files, calls, signer_count, _ = self._run_cleanup_observation(
+                    ("device-unavailable", "present"), transport_recovery_outcomes=("recovered",),
+                    boot_owned_emulator=True, recovery_capture_status=status,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertNotIn("uninstall-app", calls)
+                self.assertEqual(signer_count, 0)
+                self.assertIn(f"exit={status}", files["adb-package-state-observation.log"].decode())
+                result, _, observations, signer_count = self._run_installed_package_ownership_observation(
+                    ("retryable:transport-absent", "exact:" + "a" * 64),
+                    transport_recovery_outcomes=("recovered",), boot_owned_emulator=True,
+                    recovery_capture_status=status,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertEqual(observations, 1)
+                self.assertEqual(signer_count, 0)
 
     def test_cleanup_transport_recovery_resets_prior_ownership_streak(self) -> None:
         path_a = "a" * 64

@@ -201,6 +201,8 @@ class AndroidOperation(str, enum.Enum):
     CAPTURE_EMULATOR_DIAGNOSTICS = "capture-emulator-diagnostics"
     CAPTURE_EMULATOR_BASELINE = "capture-emulator-baseline"
     CAPTURE_EMULATOR_FAILURE_STATE = "capture-emulator-failure-state"
+    CAPTURE_EMULATOR_RECOVERY_STATE = "capture-emulator-recovery-state"
+    CAPTURE_EMULATOR_RECOVERY_LOGCAT = "capture-emulator-recovery-logcat"
 
 
 class OutputRoot(str, enum.Enum):
@@ -963,6 +965,16 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "emulator-diagnostics", 15, 15,
             OutputSpec(proof, "emulator-state-failure.txt", 65536),
             _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE: OperationSpec(
+            "emulator-diagnostics", 5, 5,
+            OutputSpec(proof, "emulator-state-recovery.txt", 65536),
+            _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT: OperationSpec(
+            "emulator-diagnostics", 5, 5,
+            OutputSpec(proof, "emulator-recovery-logcat.txt", 16777216),
+            lambda cap: (),
         ),
     }
     return MappingProxyType(specs)
@@ -4234,7 +4246,10 @@ def _capture_emulator_diagnostics(
     remaining = _remaining_observation_timeout(deadline)
     _require(remaining is not None, "system diagnostic deadline expired")
     spec = OPERATION_SPECS[operation]
-    state_capture = operation is not AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS
+    state_capture = operation not in {
+        AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
+        AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT,
+    }
     argv = spec.build_argv(capability) if state_capture else _device(
         capability,
         "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",

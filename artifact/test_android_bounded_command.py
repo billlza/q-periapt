@@ -4169,6 +4169,8 @@ esac
                 commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
                 commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE,
                 commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT,
             ):
                 with (
                     self.subTest(kind=kind, operation=operation),
@@ -4194,7 +4196,12 @@ esac
         epoch = self.proof / "adb-device-time.txt"
         epoch.write_text("1786240000.123\n", encoding="ascii")
         epoch.chmod(0o600)
-        for phase in ("success", "replaced-before-read", "replaced-after-read", "read-and-postcheck-fail"):
+        for phase, operation in (
+            (phase, operation)
+            for phase in ("success", "replaced-before-read", "replaced-after-read", "read-and-postcheck-fail")
+            for operation in (commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
+                              commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT)
+        ):
             processes = [identity, None] if phase == "replaced-before-read" else [identity, identity, None if phase != "success" else identity]
             with (
                 self.subTest(phase=phase),
@@ -4206,13 +4213,13 @@ esac
                 if phase == "read-and-postcheck-fail":
                     write.side_effect = commands.BoundedProcessError("timeout", "fixture diagnostic read timeout")
                     with self.assertRaisesRegex(commands.BoundedProcessError, "diagnostic read timeout") as raised:
-                        self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS)
+                        self.invoke(operation)
                     self.assertTrue(any("postcheck also failed" in note for note in raised.exception.__notes__))
                 elif phase != "success":
                     with self.assertRaisesRegex(commands.AndroidCommandError, "identity changed"):
-                        self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS)
+                        self.invoke(operation)
                 else:
-                    self.assertEqual(self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS), BoundedResult(0))
+                    self.assertEqual(self.invoke(operation), BoundedResult(0))
                     argv = write.call_args.args[0]
                     self.assertEqual(argv[argv.index("logcat"):], (
                         "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
@@ -4224,9 +4231,10 @@ esac
                         "Zygote:E", "lmkd:*",
                         "libc:F", "DEBUG:*", "*:S",
                     ))
-                    self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], 30)
+                    self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], commands.OPERATION_SPECS[operation].timeout_maximum)
                     self.assertEqual(write.call_args.kwargs["maximum_bytes"], 16777216)
-                    self.assertEqual(write.call_args.kwargs["output_name"], "emulator-crash-logcat.txt")
+                    expected_leaf = "emulator-recovery-logcat.txt" if operation is commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT else "emulator-crash-logcat.txt"
+                    self.assertEqual(write.call_args.kwargs["output_name"], expected_leaf)
                     self.assertEqual(listeners.call_count, 2)
                 self.assertEqual(write.call_count, 0 if phase == "replaced-before-read" else 1)
 
@@ -4282,6 +4290,7 @@ esac
         for operation, leaf in (
             (commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE, "emulator-state-before.txt"),
             (commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE, "emulator-state-failure.txt"),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE, "emulator-state-recovery.txt"),
         ):
             for remote_status, crlf in ((0, False), (0, True), (7, False), (None, False)):
                 raw = b"native diagnostic body\n"

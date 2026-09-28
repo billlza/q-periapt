@@ -142,6 +142,18 @@ Read these snapshots together with the runtime result and system log when
 distinguishing kernel reboot, framework restart and resource pressure. CI keeps
 the baseline on successful runs as well as the available failure diagnostics.
 
+When the existing one-shot transport recovery observes the same owned emulator
+back in `device` state, it now immediately attempts `emulator-state-recovery.txt`
+and `emulator-recovery-logcat.txt` before another APK ownership read. Each capture
+has a five-second cap and shares the original post-install/cleanup deadline; no
+new grace period or additional transport retry is granted. The captures reuse the
+same owner checks, 64 KiB state bound and 16 MiB log bound. Their command statuses
+and errors are retained even if the guest disappears again. A capture failure is
+explicitly recorded as unavailable, and signals terminate the caller. Diagnostic
+data grants no cleanup authority: uninstall still requires both fresh matching
+APK observations and the signer check. Recovery files are distinct from baseline
+and final-failure files and remain forbidden for physical-device runs.
+
 The current [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records which of
 these gates have actually executed. Synthetic verifier tests, an APK build,
 workflow syntax checks and historical device receipts do not establish a
