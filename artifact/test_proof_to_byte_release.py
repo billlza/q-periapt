@@ -5439,7 +5439,7 @@ with _temporary_release_test_directories(parents):
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
         workflows = (
-            (CI_WORKFLOW, 23, 2),
+            (CI_WORKFLOW, 24, 2),
             (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
         )
         for path, expected_count, windows_count in workflows:
