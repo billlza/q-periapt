@@ -10,6 +10,7 @@
 mod bootstrap;
 mod codec;
 mod crypto;
+mod durable;
 mod identity;
 mod manifest;
 mod merkle;
@@ -23,6 +24,7 @@ pub use bootstrap::{
     PendingSession, ResponderOperation,
 };
 pub use crypto::{DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, PUBLIC_KEY_BYTES};
+pub use durable::{DurableError, DurableStatus, JournalIdentity, JournalKey, ResponderJournal};
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,
     VerifiedDevice, MAX_DEVICES,

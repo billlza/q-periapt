@@ -2,6 +2,7 @@ use super::*;
 use q_periapt_backends::MlDsa65;
 use q_periapt_policy::policy_signature_message;
 use q_periapt_sig::Signer;
+use redb::{backends::FileBackend, StorageBackend};
 use std::os::unix::fs::{symlink, PermissionsExt};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};

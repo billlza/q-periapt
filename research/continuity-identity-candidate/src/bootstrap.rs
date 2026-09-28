@@ -114,12 +114,56 @@ impl BootstrapContext {
         self.digest
     }
 
-    fn check(&self, now: u64) -> Result<(), Error> {
+    pub(crate) fn check(&self, now: u64) -> Result<(), Error> {
         self.policy.check_mode(self.selection.quality(), now)?;
         self.selection.check_time(now)?;
         self.policy.check_device(&self.initiator, now)?;
         self.policy.check_device(&self.responder, now)
     }
+
+    pub(crate) fn storage_owner(&self) -> [u8; 32] {
+        storage_owner(&self.responder)
+    }
+
+    pub(crate) fn one_time_fingerprints(&self) -> Vec<[u8; 32]> {
+        use crate::PrekeyQuality;
+        let mut keys = Vec::new();
+        if matches!(
+            self.selection.quality(),
+            PrekeyQuality::OneTimeBoth | PrekeyQuality::OneTimeClassicalLastResortPq
+        ) {
+            keys.push(self.selection.classical().key_fingerprint());
+        }
+        if matches!(
+            self.selection.quality(),
+            PrekeyQuality::OneTimeBoth | PrekeyQuality::SignedClassicalOneTimePq
+        ) {
+            keys.push(self.selection.post_quantum().key_fingerprint());
+        }
+        keys.sort();
+        keys
+    }
+
+    pub(crate) fn validate_initial_signature(&self, wire: &[u8]) -> Result<(), Error> {
+        let (body, signature) = open_envelope(wire)?;
+        if body.len() != INITIAL_CORE + 32
+            || body.get(..8) != Some(INITIAL_TAG)
+            || body.get(8..40) != Some(self.digest.as_slice())
+        {
+            return Err(Error::Encoding);
+        }
+        self.initiator
+            .key
+            .verify(Purpose::BootstrapInitiator, body, signature)
+    }
+}
+
+pub(crate) fn storage_owner(device: &VerifiedDevice) -> [u8; 32] {
+    let mut bytes = device.account_id().to_vec();
+    bytes.extend_from_slice(&device.device_id());
+    bytes.extend_from_slice(&device.generation().to_be_bytes());
+    bytes.extend_from_slice(&device.credential_digest());
+    hash(b"storage-owner", &bytes)
 }
 
 /// Global handshake role, independent of the local send/receive direction.
@@ -367,6 +411,103 @@ impl ResponderOperation {
     pub fn close(&mut self) {
         self.state = ResponderState::Closed;
     }
+
+    // Only the authenticated, encrypted local journal may restore these secret
+    // bytes. No network decoder or public constructor exposes this capability.
+    pub(crate) fn checkpoint(&self) -> Result<zeroize::Zeroizing<Vec<u8>>, Error> {
+        let ready = match &self.state {
+            ResponderState::Prepared(ready) => ready,
+            _ => return Err(Error::State),
+        };
+        let mut bytes = zeroize::Zeroizing::new(Vec::with_capacity(11000));
+        bytes.extend_from_slice(b"QPRCHK01");
+        bytes.extend_from_slice(&self.context.digest);
+        bytes.extend_from_slice(&ready.initial);
+        bytes.extend_from_slice(&ready.reply);
+        bytes.extend_from_slice(ready.session.root.as_ref().ok_or(Error::Closed)?.as_bytes());
+        match (&ready.confirmation, &ready.accepted_final) {
+            (Some(key), None) => {
+                bytes.push(1);
+                bytes.extend_from_slice(key.as_bytes());
+            }
+            (None, Some(final_wire)) => {
+                bytes.push(2);
+                bytes.extend_from_slice(final_wire);
+            }
+            _ => return Err(Error::State),
+        }
+        Ok(bytes)
+    }
+
+    pub(crate) fn restore_checkpoint(
+        context: Arc<BootstrapContext>,
+        bytes: &[u8],
+    ) -> Result<Self, Error> {
+        let mut decoder = Decoder::new(bytes);
+        if decoder.array::<8>()? != *b"QPRCHK01" || decoder.array::<32>()? != context.digest {
+            return Err(Error::Scope);
+        }
+        let initial = decoder.take(5817)?.to_vec();
+        context.validate_initial_signature(&initial)?;
+        let reply = decoder.take(4633)?.to_vec();
+        let (body, signature) = open_envelope(&reply)?;
+        context
+            .responder
+            .key
+            .verify(Purpose::BootstrapResponder, body, signature)?;
+        let mut expected = prefix(REPLY_TAG, &context.digest);
+        expected.extend_from_slice(&hash(b"initial-wire", &initial));
+        if body.len() != REPLY_CORE + 32 || body.get(..72) != Some(expected.as_slice()) {
+            return Err(Error::Scope);
+        }
+        let mut root = ZeroizingBytes::zeroed();
+        root.as_mut_bytes().copy_from_slice(decoder.take(32)?);
+        let [state] = decoder.array()?;
+        let (confirmation, accepted_final) = match state {
+            1 => {
+                let mut key = ZeroizingBytes::zeroed();
+                key.as_mut_bytes().copy_from_slice(decoder.take(32)?);
+                (Some(key), None)
+            }
+            2 => {
+                let final_wire = decoder.take(136)?.to_vec();
+                if final_wire.get(..FINAL_PREFIX)
+                    != Some(final_prefix(&context.digest, &initial, &reply).as_slice())
+                {
+                    return Err(Error::Scope);
+                }
+                (None, Some(final_wire))
+            }
+            _ => return Err(Error::Encoding),
+        };
+        decoder.finish()?;
+        let id = hash(
+            b"session-id",
+            &final_prefix(&context.digest, &initial, &reply),
+        );
+        let ready = PreparedResponder {
+            initial,
+            reply,
+            session: PendingSession {
+                root: Some(root),
+                id,
+                role: BootstrapRole::Responder,
+            },
+            confirmation,
+            accepted_final,
+        };
+        Ok(Self {
+            context,
+            state: ResponderState::Prepared(Box::new(ready)),
+        })
+    }
+
+    pub(crate) fn stored_reply(&self) -> Result<&[u8], Error> {
+        match &self.state {
+            ResponderState::Prepared(ready) => Ok(&ready.reply),
+            _ => Err(Error::State),
+        }
+    }
 }
 
 fn prefix(tag: &[u8; 8], context: &[u8; 32]) -> Vec<u8> {
@@ -579,20 +720,20 @@ fn finish_initiator(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{
         tests::{interval, sdk_runtime, session_policy_fixture},
         *,
     };
 
-    struct Fixture {
-        initiator: Arc<BootstrapContext>,
-        responder: Arc<BootstrapContext>,
-        signer_i: DeviceSigningKey,
-        signer_r: DeviceSigningKey,
-        reusable: HybridKey,
-        once: HybridKey,
+    pub(crate) struct Fixture {
+        pub(crate) initiator: Arc<BootstrapContext>,
+        pub(crate) responder: Arc<BootstrapContext>,
+        pub(crate) signer_i: DeviceSigningKey,
+        pub(crate) signer_r: DeviceSigningKey,
+        pub(crate) reusable: HybridKey,
+        pub(crate) once: HybridKey,
     }
     fn enrolled(seed: u8, family: [u8; 32]) -> (DeviceSigningKey, Arc<VerifiedDevice>) {
         let root = RootSigningKey::deterministic([seed; 32], [seed + 1; 32]).expect("root");
@@ -626,7 +767,16 @@ mod tests {
             ),
         )
     }
-    fn fixture(quality: PrekeyQuality) -> Fixture {
+    pub(crate) fn fixture(quality: PrekeyQuality) -> Fixture {
+        fixture_from_public(quality, None)
+    }
+    pub(crate) fn fixture_from_public(
+        quality: PrekeyQuality,
+        public_keys: Option<(
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+        )>,
+    ) -> Fixture {
         let (_, issued, pin, runtime_r) = session_policy_fixture(&[quality]);
         let runtime_i = sdk_runtime();
         let policy_i = Arc::new(
@@ -641,8 +791,13 @@ mod tests {
         let (signer_r, device_r) = enrolled(94, policy_r.family());
         let reusable = runtime_r.generate_key().expect("reusable");
         let once = runtime_r.generate_key().expect("one time");
-        let public = reusable.public_key().expect("public").to_bytes();
-        let one = once.public_key().expect("public").to_bytes();
+        let (public, one) = match public_keys {
+            Some(keys) => keys,
+            None => (
+                reusable.public_key().expect("public").to_bytes(),
+                once.public_key().expect("public").to_bytes(),
+            ),
+        };
         let (pq, classic) = public.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
         let (pq_once, classic_once) = one.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
         let leaves = [
@@ -729,7 +884,84 @@ mod tests {
         }
     }
     impl Fixture {
-        fn sources(&self) -> (PqKeySource<'_>, TraditionalKeySource<'_>) {
+        #[cfg(unix)]
+        pub(crate) fn local_device(&self) -> &VerifiedDevice {
+            &self.responder.responder
+        }
+        #[cfg(unix)]
+        pub(crate) fn close_responder_policy(&self) {
+            self.responder.policy.close();
+        }
+        #[cfg(unix)]
+        pub(crate) fn next_bundle_epoch(&self) -> (Arc<BootstrapContext>, Arc<BootstrapContext>) {
+            let reusable = self.reusable.public_key().expect("public").to_bytes();
+            let once = self.once.public_key().expect("public").to_bytes();
+            let (pq, classic) = reusable.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
+            let (pq_once, classic_once) = once.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
+            let leaves = [
+                (LeafKind::SignedClassical, classic),
+                (LeafKind::OneTimeClassical, classic_once),
+                (LeafKind::LastResortPq, pq),
+                (LeafKind::OneTimePq, pq_once),
+            ]
+            .map(|(kind, bytes)| PrekeyLeaf::new(kind, bytes, interval()).expect("leaf"));
+            let device = &self.responder.responder;
+            let manifest = self
+                .signer_r
+                .issue_manifest(
+                    device,
+                    ManifestContext::new(
+                        2,
+                        self.responder.policy.runtime.trusted_state().digest(),
+                        bootstrap_suite_digest(),
+                        [99; 32],
+                        interval(),
+                    )
+                    .expect("next epoch"),
+                    &leaves,
+                )
+                .expect("manifest");
+            let verified = device
+                .verify_manifest(manifest.as_bytes(), 150)
+                .expect("signed manifest");
+            let mut proofs = std::collections::BTreeMap::new();
+            for index in 0..manifest.leaf_count() {
+                let proof = manifest.proof(index).expect("proof");
+                proofs.insert(
+                    verified.verify_leaf(&proof, 150).expect("member").kind() as u8,
+                    proof,
+                );
+            }
+            let selection = Arc::new(
+                verified
+                    .select_prekeys(
+                        proofs.get(&1).expect("signed"),
+                        proofs.get(&3).expect("last resort"),
+                        ClassicalChoice::OneTime(proofs.get(&2).expect("classical once")),
+                        PqChoice::OneTime(proofs.get(&4).expect("PQ once")),
+                        150,
+                    )
+                    .expect("next selection"),
+            );
+            let make = |policy| {
+                Arc::new(
+                    BootstrapContext::new(
+                        policy,
+                        Arc::clone(&self.responder.initiator),
+                        Arc::clone(device),
+                        Arc::clone(&selection),
+                        DirectoryExpectation::from_trusted_state([99; 32]).expect("directory"),
+                        150,
+                    )
+                    .expect("context"),
+                )
+            };
+            (
+                make(Arc::clone(&self.initiator.policy)),
+                make(Arc::clone(&self.responder.policy)),
+            )
+        }
+        pub(crate) fn sources(&self) -> (PqKeySource<'_>, TraditionalKeySource<'_>) {
             let quality = self.responder.selection.quality();
             let pq = match quality {
                 PrekeyQuality::OneTimeBoth | PrekeyQuality::SignedClassicalOneTimePq => &self.once,

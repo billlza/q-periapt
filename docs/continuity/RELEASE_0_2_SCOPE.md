@@ -27,9 +27,12 @@ the existing public-commitment model into a working cryptographic protocol.
   canonical-context tests are useful design inputs, not product execution.
 - `research/continuity-identity-candidate` implements an isolated actual-signature
   root/credential/roster/manifest chain, Merkle membership verification and a
-  canonical selection derived from the actual authenticated members. It has
-  its own lockfile and independent public-byte/OpenSSL verifier. It supplies no
-  session protocol, fresh bootstrap confirmation or durable prekey consumption.
+  canonical selection derived from the actual authenticated members. It also
+  supplies a signed session policy, three-flight confirmed bootstrap and an
+  encrypted responder journal with real reservation/result/response/final commits.
+  Its own lockfile and public-byte/OpenSSL verifier remain separate. Initiator
+  persistence, prekey secret inventory, ratchet, exact anchor-intent replay and
+  rollback protection remain required work.
 
 ## Required completion evidence
 

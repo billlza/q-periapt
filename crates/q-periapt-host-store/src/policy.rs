@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
+#[cfg(all(test, unix))]
+use crate::filesystem::MAX_PRIVATE_DATABASE_BYTES as MAX_DATABASE_BYTES;
+use crate::filesystem::{
+    open_locked_database, open_private_file, provision_private_file, DatabaseOpenMode,
+    PrivateDatabaseError,
+};
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_policy::TrustedPolicyState;
 use q_periapt_sdk::{Limits, Runtime};
 use redb::{
-    backends::FileBackend, Database, Durability, ReadableTable, ReadableTableMetadata,
-    StorageBackend, TableDefinition, TableHandle,
+    Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
 };
 use std::{error::Error as StdError, fmt, fs::File, io, path::Path, sync::Arc};
 
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("sdk_host_policy_v1");
 const SCHEMA: &[u8] = b"QPeriapt-Host-Policy-v1";
-const MAX_DATABASE_BYTES: u64 = 64 * 1024 * 1024;
-const CACHE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_POLICY_BYTES: usize = 65_536;
 
 #[cfg(all(test, unix))]
@@ -88,77 +90,19 @@ impl From<io::Error> for StoreError {
 fn storage(error: impl Into<redb::Error>) -> StoreError {
     StoreError::Storage(Box::new(error.into()))
 }
-fn database_error(error: redb::DatabaseError) -> StoreError {
-    if matches!(error, redb::DatabaseError::DatabaseAlreadyOpen) {
-        StoreError::Busy
-    } else {
-        storage(error)
-    }
-}
-
-// Bound storage growth and backend read allocations. FileBackend retains the
-// existing descriptor's nonblocking, process-wide exclusive lock until Drop.
-#[derive(Debug)]
-struct BoundedBackend(FileBackend);
-fn extent(offset: u64, length: u64) -> io::Result<()> {
-    if offset
-        .checked_add(length)
-        .is_some_and(|end| end <= MAX_DATABASE_BYTES)
-    {
-        Ok(())
-    } else {
-        Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "host policy database size limit",
-        ))
-    }
-}
-impl StorageBackend for BoundedBackend {
-    fn len(&self) -> io::Result<u64> {
-        self.0.len()
-    }
-    fn read(&self, offset: u64, len: usize) -> io::Result<Vec<u8>> {
-        extent(offset, len as u64)?;
-        self.0.read(offset, len)
-    }
-    fn write(&self, offset: u64, data: &[u8]) -> io::Result<()> {
-        extent(offset, data.len() as u64)?;
-        self.0.write(offset, data)
-    }
-    fn set_len(&self, len: u64) -> io::Result<()> {
-        extent(0, len)?;
-        self.0.set_len(len)
-    }
-    fn sync_data(&self, eventual: bool) -> io::Result<()> {
-        self.0.sync_data(eventual)
-    }
-}
-
 fn database(file: File, create: bool) -> Result<Database, StoreError> {
-    let probe = file.try_clone()?;
-    let backend = FileBackend::new(file).map_err(database_error)?;
-    // Re-read the authoritative inode AFTER acquiring the lifetime lock.
-    let metadata = probe.metadata()?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        if metadata.nlink() != 1 {
-            return Err(StoreError::PrivateFile);
-        }
-    }
-    if (create && metadata.len() != 0)
-        || (!create && !(16..=MAX_DATABASE_BYTES).contains(&metadata.len()))
-    {
-        return Err(StoreError::Corrupt);
-    }
-    if !create {
-        refuse_unclean_foreign_redb(&backend).map_err(|_| StoreError::Corrupt)?;
-    }
-    let mut builder = Database::builder();
-    builder.set_cache_size(CACHE_BYTES);
-    builder
-        .create_with_backend(BoundedBackend(backend))
-        .map_err(database_error)
+    let mode = if create {
+        DatabaseOpenMode::New
+    } else {
+        DatabaseOpenMode::Existing
+    };
+    open_locked_database(file, mode).map_err(|error| match error {
+        PrivateDatabaseError::File => StoreError::PrivateFile,
+        PrivateDatabaseError::Busy => StoreError::Busy,
+        PrivateDatabaseError::Corrupt => StoreError::Corrupt,
+        PrivateDatabaseError::Io(error) => StoreError::Io(error),
+        PrivateDatabaseError::Storage(error) => StoreError::Storage(error),
+    })
 }
 
 struct Active {

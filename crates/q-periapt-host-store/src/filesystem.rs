@@ -7,6 +7,154 @@ use std::path::Path;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PrivateFileError;
 
+/// Hard bound shared by the host's protected database backends.
+pub const MAX_PRIVATE_DATABASE_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Explicit opening mode; an absent/corrupt existing store is never first use.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum DatabaseOpenMode {
+    /// The caller exclusively created a new, still-empty private inode.
+    New,
+    /// An existing nonempty private inode must be recovered and validated.
+    Existing,
+}
+
+/// Lock, inode, storage-format or I/O failure at the shared database boundary.
+#[derive(Debug)]
+pub enum PrivateDatabaseError {
+    /// The descriptor no longer has the required single-link file shape.
+    File,
+    /// Another owner holds the exclusive lifetime lock.
+    Busy,
+    /// File extent or crash-recovery header is inconsistent with the mode.
+    Corrupt,
+    /// Original filesystem failure.
+    Io(std::io::Error),
+    /// Original database failure.
+    Storage(Box<redb::Error>),
+}
+impl std::fmt::Display for PrivateDatabaseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::File => "protected database inode changed",
+            Self::Busy => "protected database has another owner",
+            Self::Corrupt => "protected database shape or recovery header differs",
+            Self::Io(_) => "protected database I/O failed",
+            Self::Storage(_) => "protected database operation failed",
+        })
+    }
+}
+impl std::error::Error for PrivateDatabaseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(e) => Some(e),
+            Self::Storage(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+fn database_error(error: redb::DatabaseError) -> PrivateDatabaseError {
+    if matches!(error, redb::DatabaseError::DatabaseAlreadyOpen) {
+        PrivateDatabaseError::Busy
+    } else {
+        PrivateDatabaseError::Storage(Box::new(error.into()))
+    }
+}
+
+#[derive(Debug)]
+struct BoundedBackend(redb::backends::FileBackend);
+fn database_extent(offset: u64, length: u64) -> std::io::Result<()> {
+    if offset
+        .checked_add(length)
+        .is_some_and(|end| end <= MAX_PRIVATE_DATABASE_BYTES)
+    {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "protected database size limit",
+        ))
+    }
+}
+impl redb::StorageBackend for BoundedBackend {
+    fn len(&self) -> std::io::Result<u64> {
+        self.0.len()
+    }
+    fn read(&self, offset: u64, len: usize) -> std::io::Result<Vec<u8>> {
+        database_extent(offset, len as u64)?;
+        self.0.read(offset, len)
+    }
+    fn write(&self, offset: u64, data: &[u8]) -> std::io::Result<()> {
+        database_extent(offset, data.len() as u64)?;
+        self.0.write(offset, data)
+    }
+    fn set_len(&self, len: u64) -> std::io::Result<()> {
+        database_extent(0, len)?;
+        self.0.set_len(len)
+    }
+    fn sync_data(&self, eventual: bool) -> std::io::Result<()> {
+        self.0.sync_data(eventual)
+    }
+}
+
+/// Lock and open a bounded database through the already-admitted descriptor.
+/// Obtain `file` through [`open_private_file`] or [`provision_private_file`]; this
+/// layer adds the lifetime lock, authoritative post-lock inode/extent check and
+/// strict two-phase crash-recovery header check. It does not authenticate records.
+pub(crate) fn open_locked_database(
+    file: File,
+    mode: DatabaseOpenMode,
+) -> Result<redb::Database, PrivateDatabaseError> {
+    let probe = file.try_clone().map_err(PrivateDatabaseError::Io)?;
+    let backend = redb::backends::FileBackend::new(file).map_err(database_error)?;
+    let metadata = probe.metadata().map_err(PrivateDatabaseError::Io)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if metadata.nlink() != 1 {
+            return Err(PrivateDatabaseError::File);
+        }
+    }
+    if (mode == DatabaseOpenMode::New && metadata.len() != 0)
+        || (mode == DatabaseOpenMode::Existing
+            && !(16..=MAX_PRIVATE_DATABASE_BYTES).contains(&metadata.len()))
+    {
+        return Err(PrivateDatabaseError::Corrupt);
+    }
+    if mode == DatabaseOpenMode::Existing {
+        refuse_unclean_foreign_redb(&backend).map_err(|_| PrivateDatabaseError::Corrupt)?;
+    }
+    let mut builder = redb::Database::builder();
+    builder.set_cache_size(2 * 1024 * 1024);
+    builder
+        .create_with_backend(BoundedBackend(backend))
+        .map_err(database_error)
+}
+
+/// Admit an existing database through its private absolute path, then retain
+/// its exclusive lifetime lock and bounded backend. Missing storage never creates.
+pub fn open_private_database(path: &Path) -> Result<redb::Database, PrivateDatabaseError> {
+    let file = open_private_file(path, false).map_err(|_| PrivateDatabaseError::File)?;
+    open_locked_database(file, DatabaseOpenMode::Existing)
+}
+
+/// Exclusively create a private database and initialize its application schema
+/// through the same pinned parent/descriptor. The initializer must durably commit
+/// before returning its owner; failure retains the original initialization error.
+pub fn provision_private_database<T, E>(
+    path: &Path,
+    initialize: impl FnOnce(redb::Database) -> Result<T, E>,
+) -> Result<T, E>
+where
+    E: From<PrivateDatabaseError>,
+{
+    provision_private_file(
+        path,
+        |_| E::from(PrivateDatabaseError::File),
+        |file| initialize(open_locked_database(file, DatabaseOpenMode::New).map_err(E::from)?),
+    )
+}
+
 /// An already-open, owner-owned exact-`0700` directory.
 ///
 /// Construction walks every absolute path component descriptor-relative with
