@@ -1453,8 +1453,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         # The test exercises the legacy branch through activity launch. Close
         # its explicit profile dispatch at this deliberately earlier test boundary.
         postinstall = producer[start:end] + "\nfi\n"
-        helper_start = producer.index("fail_runtime_with_logs() {\n")
-        helper_end = producer.index("\n}\n", helper_start) + 3
+        helper_start = producer.index("capture_emulator_failure_logs() {\n")
+        helper_end = producer.index("\nselect_serial_or_empty()", helper_start)
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -2120,8 +2120,8 @@ exit "$cleanup_status"
         phase_start = producer.index("ANDROID_APP_CLEANUP_ARMED=1\nif ! android_command install-apk")
         phase_end = producer.index("# This is a newly installed package:", phase_start)
         install_phase = producer[phase_start:phase_end]
-        helper_start = producer.index("fail_runtime_with_logs() {\n")
-        helper_end = producer.index("\n}\n", helper_start) + 3
+        helper_start = producer.index("capture_emulator_failure_logs() {\n")
+        helper_end = producer.index("\nselect_serial_or_empty()", helper_start)
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
