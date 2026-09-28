@@ -2094,6 +2094,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "            target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err\n"
@@ -2125,6 +2127,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64\n", proof_upload)
         self.assertIn("if: always() &&", proof_upload)
         self.assertNotIn("if: failure()", proof_upload)
+        for retained in ("emulator-state-*.txt", "emulator-state-*.err"):
+            self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{retained}", proof_upload)
         self.assertIn("if-no-files-found: error\n", proof_upload)
 
         producer = (ROOT / "artifact" / "android-device-smoke.sh").read_text(
