@@ -244,7 +244,7 @@ fn generation_sync_failures_reconcile_the_original_reserved_key() {
     let (policy, device, _) = f.responder.inventory_inputs();
     let mut states = BTreeSet::new();
     for after_sync in [false, true] {
-        for cut in 1..=4 {
+        for cut in 1..=8 {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
             drop(new_store(&path, device));
@@ -304,7 +304,7 @@ fn generation_sync_failures_reconcile_the_original_reserved_key() {
 #[test]
 fn response_sync_failures_keep_inventory_and_outbox_consumption_indivisible() {
     for after_sync in [false, true] {
-        for cut in 1..=10 {
+        for cut in 1..=20 {
             let mut f = inventory(PrekeyQuality::OneTimeBoth);
             let mut i =
                 InitiatorOperation::start(Arc::clone(&f.peer.initiator), &f.peer.signer_i, 150)
@@ -632,7 +632,7 @@ fn generation_process_cuts_replay_exact_key_before_publication() {
 #[test]
 fn retirement_unknown_commit_reconciles_without_reactivating_key() {
     for after_sync in [false, true] {
-        for cut in 1..=2 {
+        for cut in 1..=4 {
             let mut f = inventory(PrekeyQuality::OneTimeBoth);
             f.store.close();
             let (mut store, fault, _, _) = fault_store(&f.path, f.peer.local_device(), after_sync);

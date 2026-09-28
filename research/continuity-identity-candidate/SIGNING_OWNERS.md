@@ -72,8 +72,8 @@ Enroll only the public key returned by successful provisioning. On restart, open
 the protected owner and pass it to the existing journal recovery API. The journal
 still checks its verified device, exact signing purpose/body and saved randomness.
 Restoring a file does not grant a new credential, roster, policy or operation.
-Pinned result replay retains its existing signer-free path. The device journal's
-v5 schema and all network/ABI bytes remain unchanged.
+Pinned result replay retains its existing signer-free path. Signing-owner
+persistence does not change bootstrap network or ABI bytes.
 
 Tests cover all three roles, owner close/reopen, role/identity/wrapping-key
 substitution, every byte of the sealed file, length and scalar/public mismatch,

@@ -33,21 +33,23 @@ commit-uncertainty behavior.
 
 The same journal supports both local roles and its local prekey inventory. Kind 1
 is responder, kind 2 initiator and kind 3 prekey; initiator records cannot claim
-remote prekey consumption. This unreleased local v5 schema rejects v1–v4 tables/headers without implicit migration or
+remote prekey consumption. This unreleased local v6 schema rejects v1–v5 tables/headers without implicit migration or
 reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v5`, and one `image` row are
-accepted. The image is:
+Exactly one table, `continuity_device_candidate_v6`, holds one `image` row and an
+optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
+defines exact-target recovery and the two transactions used for each state advance.
+The image is:
 
-`QPVLT005[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT006[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG05[8] || count:u16 || records`
+`QPVIMG06[8] || count:u16 || records`
 
 Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
 fingerprints[key_count*32] || reference_count:u8 || prekeys[reference_count*32] ||
@@ -171,8 +173,11 @@ acknowledged writes; restart recomputes the same KEM result, verifies the saved 
 and signs it with the same reservation. Result pin retires this plan's S0 and coins
 from the logical record, without claiming erasure of old encrypted database pages.
 
-Every write uses immediate durability and redb two-phase commit. The expected
-encrypted aggregate digest is compared again inside the write transaction.
+Every logical write first persists the exact sealed target, then applies it and
+removes the intent in a second transaction. Both use immediate durability and redb
+two-phase commit. The expected encrypted aggregate digest is compared again inside
+each write transaction. Reopening checks the expected store identity before settling
+a pending write, and never reseals its saved target.
 Invalid signatures fail before reservation; a definitive cryptographic failure
 writes `Rejected` and clears reservations. A different initial claiming a reserved
 or consumed one-time public key fails. A pinned response replays its exact bytes
@@ -278,7 +283,7 @@ remains query-only. The responder uses exact initial bytes for reconciliation;
 the initiator uses its retained request ID and context.
 
 Both journals reopen and preserve equal roots for all four modes. An additional
-32 before/after-sync faults cover ten initial and six reply-processing sync points.
+64 before/after-sync faults cover twenty initial and twelve reply-processing sync points.
 Eleven initiator processes are killed at eight durable boundaries and after each
 of the three reserved computations but before its result is pinned. Public outputs
 from those interrupted computations are compared byte-for-byte after restart, and
@@ -293,8 +298,8 @@ Real-peer tests cover all four modes, private checkpoint preservation, owner clo
 database reopen, exact replay, bad signatures/MACs, wrong key/store identity,
 header/ciphertext corruption and cross-manifest public-key reuse. A sampled disk
 scan detects plaintext root bytes; it is not a general forensic-erasure proof.
-The fault matrix covers ten synchronization points across five response commits
-both before and after sync (20 cases), four final-confirmation sync failures and
+The fault matrix covers twenty synchronization points across five response transitions
+both before and after sync (40 cases), eight final-confirmation sync failures and
 a first-write failure that reconciles to exact absence.
 
 Eight responder process cuts cover six committed boundaries and the two
@@ -306,8 +311,8 @@ stronger live-peer harness replaces the earlier four-cut self-contained harness 
 retains its owner-loss/no-early-output assertions. Production builds contain no
 test-only parking or public-output capture hooks.
 
-Inventory tests cover all four selections, eight generation sync faults, twenty
-response sync faults and four retirement sync faults. Three generation process
+Inventory tests cover all four selections, sixteen generation sync faults, forty
+response sync faults and eight retirement sync faults. Three generation process
 cuts cover the reservation, computed-key/pre-publication window and available
 commit; three response process cuts cover initial authentication admission, pinned
 result and committed outbox. The original prekeys exist only in the killed child;
@@ -321,9 +326,9 @@ bootstrap is not a full session lifecycle. Protected signing files now restore
 matching owners for unfinished operations. Cryptographic erasure, durable identity
 rotation/revocation, cancellation,
 supersession, delivery acknowledgements, per-message state, ratchet/rekey and
-multi-device transactions remain implementation work. Logical replay retains the
-exact cryptographic result, but reseals an outer aggregate on a retried storage
-transition; this is not yet G1's persisted byte-identical write/anchor intent.
+multi-device transactions remain implementation work. Local write intents now retain
+the exact outer encrypted aggregate across state-write retries. The external anchor
+plan and the rest of G1's complete effect lifecycle remain required.
 
 Store identity does not detect an older snapshot of the same journal. Old encrypted
 pages remain decryptable with the wrapping key. The external monotonic checkpoint,

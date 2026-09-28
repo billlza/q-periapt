@@ -313,7 +313,7 @@ fn each_initial_sync_failure_is_reconciled_without_new_initial_randomness() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let mut states = BTreeSet::new();
     for after_sync in [false, true] {
-        for cut in 1..=10 {
+        for cut in 1..=20 {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
             drop(new_store(&path, f.initiator_device()));
@@ -383,7 +383,7 @@ fn each_reply_sync_failure_recovers_the_exact_reply_final_and_session() {
     let (pq, classic) = f.sources();
     let mut states = BTreeSet::new();
     for after_sync in [false, true] {
-        for cut in 1..=6 {
+        for cut in 1..=12 {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
             let mut journal = new_store(&path, f.initiator_device());
@@ -670,7 +670,13 @@ fn old_headers_and_role_substitution_are_refused() {
         .expect("initial");
     let mut image = journal.image().expect("image");
     let active = journal.active.as_ref().expect("active");
-    for header in [b"QPVLT001", b"QPVLT002", b"QPVLT003", b"QPVLT004"] {
+    for header in [
+        b"QPVLT001",
+        b"QPVLT002",
+        b"QPVLT003",
+        b"QPVLT004",
+        b"QPVLT005",
+    ] {
         let mut old = seal(&active.key, &image).expect("sealed");
         old.get_mut(..8).expect("header").copy_from_slice(header);
         assert!(matches!(

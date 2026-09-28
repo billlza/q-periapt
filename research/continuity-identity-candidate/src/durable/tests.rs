@@ -429,23 +429,10 @@ pub(super) fn fault_store(
     Arc<AtomicUsize>,
     Arc<std::sync::atomic::AtomicBool>,
 ) {
-    let file = open_private_file(&dir.join("state.redb"), false).expect("private file");
-    let remaining = Arc::new(AtomicUsize::new(0));
-    let count = Arc::new(AtomicUsize::new(0));
-    let fail_write = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let db = Database::builder()
-        .create_with_backend(FaultBackend {
-            inner: FileBackend::new(file).expect("lock"),
-            remaining: Arc::clone(&remaining),
-            count: Arc::clone(&count),
-            after_sync,
-            fail_write: Arc::clone(&fail_write),
-        })
-        .expect("fault backend");
+    let (db, remaining, count, fail_write) = fault_database(dir, after_sync);
     let key = JournalKey::open(&dir.join("key")).expect("key");
     let owner = bootstrap::storage_owner(device);
     let image = load(&db, &key, owner).expect("existing authenticated image");
-    count.store(0, Ordering::SeqCst);
     (
         DeviceJournal {
             active: Some(Active {
@@ -459,6 +446,31 @@ pub(super) fn fault_store(
         count,
         fail_write,
     )
+}
+pub(super) fn fault_database(
+    dir: &Path,
+    after_sync: bool,
+) -> (
+    Database,
+    Arc<AtomicUsize>,
+    Arc<AtomicUsize>,
+    Arc<std::sync::atomic::AtomicBool>,
+) {
+    let file = open_private_file(&dir.join("state.redb"), false).expect("private file");
+    let remaining = Arc::new(AtomicUsize::new(0));
+    let count = Arc::new(AtomicUsize::new(0));
+    let fail_write = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let db = Database::builder()
+        .create_with_backend(FaultBackend {
+            inner: FileBackend::new(file).expect("lock"),
+            remaining: Arc::clone(&remaining),
+            count: Arc::clone(&count),
+            after_sync,
+            fail_write: Arc::clone(&fail_write),
+        })
+        .expect("fault backend");
+    count.store(0, Ordering::SeqCst);
+    (db, remaining, count, fail_write)
 }
 
 #[test]
@@ -483,7 +495,10 @@ fn every_sync_cut_reconciles_exact_reserved_responder_computations() {
         )
         .expect("normal durable response");
     let syncs = count.load(Ordering::SeqCst);
-    assert_eq!(syncs, 10, "five two-phase commits must sync");
+    assert_eq!(
+        syncs, 20,
+        "five intent/state pairs each use two two-phase commits"
+    );
     drop(normal);
     let mut statuses = BTreeSet::new();
     for after_sync in [false, true] {
@@ -801,7 +816,7 @@ fn reserved_response_keeps_claims_and_rejects_corruption_without_original_prekey
         let path = dir.path().canonicalize().expect("path");
         drop(new_store(&path, f.local_device()));
         let (mut store, fault, _, _) = fault_store(&path, f.local_device(), true);
-        fault.store(4, Ordering::SeqCst); // Fail after the contribution commit's second sync.
+        fault.store(8, Ordering::SeqCst); // Fail after the contribution state's second sync.
         let (pq, classic) = f.sources();
         assert!(matches!(
             store.respond(
@@ -943,7 +958,7 @@ fn failed_first_write_reconciles_as_absent_before_any_crypto_execution() {
 #[test]
 fn final_confirmation_commit_errors_recover_the_same_session_identity() {
     for after_sync in [false, true] {
-        for cut in [1, 2] {
+        for cut in 1..=4 {
             let f = fixture(PrekeyQuality::OneTimeBoth);
             let folder = directory();
             let dir = folder.path().canonicalize().expect("canonical");

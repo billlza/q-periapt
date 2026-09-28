@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v5");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v6");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -34,6 +34,7 @@ const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 mod initiator;
 mod prekeys;
 mod responder;
+mod write_intent;
 pub use initiator::{CommittedInitiation, InitiationId};
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
@@ -142,6 +143,16 @@ fn storage(e: impl Into<redb::Error>) -> DurableError {
 /// neither a hardware key store nor an anti-rollback anchor.
 pub struct JournalKey(Box<ZeroizingBytes<32>>);
 impl JournalKey {
+    fn write_intent_key(&self) -> Result<ZeroizingBytes<32>, Error> {
+        let mut key = ZeroizingBytes::zeroed();
+        hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
+            .expand(
+                b"Q-PERIAPT-CONTINUITY-WRITE-INTENT-KEY/v1",
+                key.as_mut_bytes(),
+            )
+            .map_err(|_| Error::Provider)?;
+        Ok(key)
+    }
     pub(crate) fn signing_owner_key(&self) -> Result<ZeroizingBytes<32>, Error> {
         let mut key = ZeroizingBytes::zeroed();
         hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
@@ -379,10 +390,7 @@ impl DeviceJournal {
     ) -> Result<Self, DurableError> {
         let db = open_private_database(path)?;
         let owner = bootstrap::storage_owner(device);
-        let image = load(&db, &key, owner)?;
-        if image.id != expected_id.0 {
-            return Err(DurableError::Conflict);
-        }
+        let image = write_intent::recover(&db, &key, owner, expected_id)?;
         Ok(Self {
             active: Some(Active {
                 db,
@@ -427,20 +435,7 @@ impl DeviceJournal {
                 .filter(|v| *v != u64::MAX)
                 .ok_or(DurableError::Capacity)?;
             let sealed = seal(&active.key, image)?;
-            let tx = transaction(&active.db)?;
-            {
-                let mut table = tx.open_table(TABLE).map_err(storage)?;
-                let current = table
-                    .get("image")
-                    .map_err(storage)?
-                    .ok_or(DurableError::Corrupt)?;
-                if image_hash(current.value()) != image.digest {
-                    return Err(DurableError::Conflict);
-                }
-                drop(current);
-                table.insert("image", sealed.as_slice()).map_err(storage)?;
-            }
-            tx.commit().map_err(DurableError::CommitUncertain)?;
+            write_intent::commit(active, image, &sealed)?;
             image.digest = image_hash(&sealed);
             #[cfg(all(test, unix))]
             tests::after_commit(image);
@@ -595,7 +590,15 @@ fn image_hash(wire: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v2", wire)
 }
 fn load(db: &Database, key: &JournalKey, owner: [u8; 32]) -> Result<Image, DurableError> {
-    let read = db.begin_read().map_err(storage)?;
+    let (image, pending) = write_intent::load_snapshot(db, key, owner)?;
+    if pending.is_some() {
+        return Err(DurableError::Suspended);
+    }
+    Ok(image)
+}
+fn image_table(
+    read: &redb::ReadTransaction,
+) -> Result<redb::ReadOnlyTable<&'static str, &'static [u8]>, DurableError> {
     let names: Vec<_> = read
         .list_tables()
         .map_err(storage)?
@@ -610,18 +613,10 @@ fn load(db: &Database, key: &JournalKey, owner: [u8; 32]) -> Result<Image, Durab
     {
         return Err(DurableError::Corrupt);
     }
-    let table = read.open_table(TABLE).map_err(storage)?;
-    if table.len().map_err(storage)? != 1 {
-        return Err(DurableError::Corrupt);
-    }
-    let value = table
-        .get("image")
-        .map_err(storage)?
-        .ok_or(DurableError::Corrupt)?;
-    unseal(key, owner, value.value())
+    read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG05".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG06".to_vec());
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
@@ -645,7 +640,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT005".to_vec();
+    let mut wire = b"QPVLT006".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -672,7 +667,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT005" {
+    if outer.array::<8>()? != *b"QPVLT006" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -698,7 +693,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG05" {
+    if inner.array::<8>()? != *b"QPVIMG06" {
         return Err(DurableError::Corrupt);
     }
     let count = usize::from(inner.u16()?);

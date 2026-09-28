@@ -40,7 +40,8 @@ the existing public-commitment model into a working cryptographic protocol.
   prekeys before authentication, exposes committed public leaves and consumes
   one-time tokens with the response outbox; pending references block retirement.
   Its own lockfile and public-byte/OpenSSL verifier remain separate.
-  Protected signing files restore unfinished operations; durable identity lifecycle,
+  Protected signing files restore unfinished operations, and local write intents
+  preserve exact sealed target bytes across state-write retries. Durable identity lifecycle,
   cryptographic erasure, ratchet, exact anchor-intent replay and
   rollback protection remain required work.
 
