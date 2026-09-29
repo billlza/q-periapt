@@ -7,7 +7,10 @@ use sha2::Sha256;
 
 mod acknowledgement;
 mod closure;
-pub use closure::{SessionClosure, SessionClosureId, SessionClosureStatus};
+pub use closure::{
+    SessionClosure, SessionClosureArchive, SessionClosureId, SessionClosureJournal,
+    SessionClosureStatus,
+};
 mod terminal;
 use terminal::Retired;
 #[cfg(feature = "connection-tls")]

@@ -72,12 +72,47 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 218 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 220 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The native [independent-session closure](../research/continuity-identity-candidate/SESSION_CLOSURE.md)
+The native [archived session cleanup](../research/continuity-identity-candidate/SESSION_CLOSURE.md#archived-admission-and-restart)
+adds QPCSCA01, a 362-byte cleanup-only archive authenticated under a dedicated
+journal-wrapping subkey. The host can fsync it before message activation, closing
+the gap where a crash could lose the only reconstructible cleanup context.
+Its restricted owner verifies the original journal/owner/context/session/role and
+storage protection, then reconciles only existing sealed intents. It cannot create
+an operational BootstrapContext, extend a policy lifetime, create a missing session
+or expose message/rekey APIs. v20 storage and existing wire/public SDK contracts
+are unchanged. Required witnesses retain exact signer/pin, head and enrollment checks.
+
+The focused 11-test lifecycle run passes in 85.191 runner seconds. New cases include
+four observed process kills and four Busy contenders without constructing any verified
+context in the child; every archive truncation and a bit mutation in each of its
+362 bytes; wrong key/store/pin/signer; and witness enrollment expiry. Eight activation
+sync-fault cases yield six authenticated saved-transaction recoveries and two genuine
+Absent outcomes, determined from the actual stored image/intent. Sixteen closure
+sync-fault cases now also reopen through the archival API; 20 additional before/after
+witness losses cover archive open plus freeze/terminal transitions. Reserved fanout
+remains indivisible through the same restricted path. Strict Clippy on Rust 1.90 and
+1.98.1 and 45 clean source/isolation checks pass, with 220 Rust source files.
+The complete Debug/Release suites each pass **218 tests**, zero failed/ignored,
+in **619.889/612.144 runner seconds** under overlapping load. Both retained
+reservation-disclosure experiments still recover six future messages each. Separate
+carrier-only Clippy on both compilers, no-default Clippy, warning-strict docs and fmt
+also pass. Final exact-source hosted qualification remains pending for this patch.
+
+At predecessor **552a95a7**, both previously failing native Windows packaging trust-
+boundary steps now pass. Both Windows 2022 job 109664744957 and Windows job
+109664745017 complete successfully in the saved observation. Those are actual
+Windows results for the output-parent repair, not a claim that this archive patch's
+current CI or all package/device gates are complete. Host archive/index persistence,
+aggregate archival abandonment, witness enrollment renewal, initial bootstrap
+cancellation, device/root replacement, installed integration, cross-host/current-device
+qualification and construction-specific recovery/performance remain open.
+
+At **552a95a7**, the native [independent-session closure](../research/continuity-identity-candidate/SESSION_CLOSURE.md)
 adds permanent freeze, complete metadata-only host loss accounting and keyless
 terminal records for ordinary sessions and incomplete rekeys. It preserves
 authenticated ACK prefixes and unknown outcomes, cannot split a reserved fanout,
@@ -106,7 +141,8 @@ All original decapsulation, signature, key agreement and attack assertions remai
 Rust 1.90/1.98.1 strict all-target/all-feature Clippy and 45 clean source checks
 pass; the carrier-only feature checks, no-default build, docs and fmt pass with
 the same library code. Only test extraction changed after those feature checks.
-There are 218 Rust files. Current-head hosted qualification remains pending.
+That checkpoint has 218 Rust files. Its hosted qualification is tracked separately
+from the later archive change above.
 
 The prior `f151c136` completes all six CodeQL analyses, with its finding scope
 separate from job completion, but both Windows jobs fail output-parent admission.
@@ -115,9 +151,11 @@ missing-child result, preserving reparse/non-directory errors across platforms.
 The old helper fails both portable error-mapping controls; the current three
 affected Python modules pass **48 tests**, with warnings as errors and no skips.
 The native Windows rerun is still required. No alert, assertion or platform check
-is suppressed. Installed bindings, archived-context reconstruction after policy
-expiry, initial-bootstrap cancellation, device replacement, native cross-host/
-device execution and construction-specific recovery/performance remain open.
+is suppressed. At that earlier checkpoint, archived-context reconstruction after
+policy expiry was still missing; the new restricted archive path is qualified
+separately above. Installed bindings, initial-bootstrap cancellation, device replacement,
+native cross-host/device execution and construction-specific recovery/performance
+remain open.
 
 The [Python input-flow assessment](SDK_INTERNAL_REVIEW.md#python-input-flow-assessment-and-output-admission-2026-09-29)
 matches all 36 prior CodeQL annotations to their actual CLI/environment sources;

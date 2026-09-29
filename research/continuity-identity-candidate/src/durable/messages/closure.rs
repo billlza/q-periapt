@@ -3,6 +3,9 @@
 use super::*;
 use hmac::{Hmac, Mac};
 
+mod archive;
+pub use archive::{SessionClosureArchive, SessionClosureJournal};
+
 /// Private-keyed correlation for one immutable session loss report.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionClosureId([u8; 32]);
@@ -131,21 +134,58 @@ pub(super) fn validate_record(
         Ok(())
     }
 }
-fn report(context: &BootstrapContext, state: &State) -> Result<SessionClosure, Error> {
-    let devices = context.devices();
-    let peer = if state.role == 1 {
-        devices[1]
-    } else {
-        devices[0]
-    };
+#[derive(Clone)]
+struct Binding {
+    owner: [u8; 32],
+    local_account: [u8; 32],
+    session: [u8; 32],
+    context: [u8; 32],
+    role: u8,
+    peer_account: [u8; 32],
+    peer_device: [u8; 16],
+    peer_generation: u64,
+}
+fn record_role(record: &Record) -> Result<u8, DurableError> {
+    match record.phase {
+        DurableStatus::Messages
+        | DurableStatus::MessagesClosing
+        | DurableStatus::MessagesAbandoning => Ok(State::decode(&record.payload)?.role),
+        DurableStatus::MessagesClosed | DurableStatus::MessagesAbandoned => {
+            Ok(Retired::decode(&record.payload)?.role)
+        }
+        _ => Err(DurableError::Corrupt),
+    }
+}
+impl Binding {
+    fn check<'a>(&self, image: &'a Image) -> Result<&'a Record, DurableError> {
+        let record = image
+            .records
+            .get(&record_id(&self.session))
+            .ok_or(DurableError::Absent)?;
+        let mut accounts = vec![self.local_account, self.peer_account];
+        accounts.sort();
+        accounts.dedup();
+        if image.owner != self.owner
+            || image.local_account != self.local_account
+            || record.kind != RecordKind::Messages
+            || record.context != self.context
+            || record.authorities != accounts
+            || record_role(record)? != self.role
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(record)
+    }
+}
+fn report(binding: &Binding, state: &State) -> Result<SessionClosure, Error> {
     Ok(SessionClosure {
         session: state.session,
-        context: context.digest(),
+        context: binding.context,
         report: state.closure.as_ref().ok_or(Error::State)?.report,
         role: state.role,
-        peer_account: peer.account_id(),
-        peer_device: peer.device_id(),
-        peer_generation: peer.generation(),
+        peer_account: binding.peer_account,
+        peer_device: binding.peer_device,
+        peer_generation: binding.peer_generation,
         progress: fanout::abandoned_progress(state)?,
         reserved: state
             .epochs
@@ -161,6 +201,49 @@ fn report(context: &BootstrapContext, state: &State) -> Result<SessionClosure, E
     })
 }
 impl DeviceJournal {
+    fn closure_binding(
+        &self,
+        image: &Image,
+        context: &BootstrapContext,
+        session: [u8; 32],
+    ) -> Result<Binding, DurableError> {
+        let record = self.message_record_for_status(image, context, session)?;
+        let role = record_role(record)?;
+        check_message_owner(image, context, role)?;
+        let binding = self.closure_archive_binding(image, context, session)?;
+        binding.check(image)?;
+        Ok(binding)
+    }
+    fn closure_archive_binding(
+        &self,
+        image: &Image,
+        context: &BootstrapContext,
+        session: [u8; 32],
+    ) -> Result<Binding, DurableError> {
+        self.check_policy(context.policy())?;
+        crate::codec::nonzero(&session)?;
+        let devices = context.devices();
+        let (role, local, peer) = if image.owner == context.initiator_storage_owner() {
+            (1, devices[0], devices[1])
+        } else if image.owner == context.storage_owner() {
+            (2, devices[1], devices[0])
+        } else {
+            return Err(DurableError::Conflict);
+        };
+        if image.local_account != local.account_id() {
+            return Err(DurableError::Conflict);
+        }
+        Ok(Binding {
+            owner: image.owner,
+            local_account: image.local_account,
+            session,
+            context: context.digest(),
+            role,
+            peer_account: peer.account_id(),
+            peer_device: peer.device_id(),
+            peer_generation: peer.generation(),
+        })
+    }
     /// Inspect independent local closure after policy close, expiry or revocation.
     /// Sessions in reserved-fanout abandonment must use the aggregate API instead.
     pub fn session_closure_status(
@@ -169,31 +252,32 @@ impl DeviceJournal {
         session: [u8; 32],
     ) -> Result<SessionClosureStatus, DurableError> {
         let image = self.image()?;
-        let record = self.message_record_for_status(&image, context, session)?;
-        let (role, status) = match record.phase {
+        let binding = self.closure_binding(&image, context, session)?;
+        self.closure_status(image, &binding)
+    }
+    fn closure_status(
+        &mut self,
+        image: Image,
+        binding: &Binding,
+    ) -> Result<SessionClosureStatus, DurableError> {
+        let record = binding.check(&image)?;
+        let status = match record.phase {
             DurableStatus::Messages | DurableStatus::MessagesClosing => {
                 let state = State::decode(&record.payload)?;
-                let status = match state.closure {
+                match state.closure {
                     Some(pending) => SessionClosureStatus::Pending(pending.report),
                     None => SessionClosureStatus::Open,
-                };
-                (state.role, status)
+                }
             }
             DurableStatus::MessagesClosed => {
                 let retired = Retired::decode(&record.payload)?;
-                (
-                    retired.role,
-                    SessionClosureStatus::Closed(SessionClosureId::from_trusted_state(
-                        retired.report,
-                    )?),
-                )
+                SessionClosureStatus::Closed(SessionClosureId::from_trusted_state(retired.report)?)
             }
             DurableStatus::MessagesAbandoning | DurableStatus::MessagesAbandoned => {
                 return Err(DurableError::Suspended)
             }
             _ => return Err(DurableError::Corrupt),
         };
-        check_message_owner(&image, context, role)?;
         self.check_release(&image)?;
         Ok(status)
     }
@@ -206,8 +290,16 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<SessionClosure, DurableError> {
-        let mut image = self.image()?;
-        let record = self.message_record_for_status(&image, context, session)?;
+        let image = self.image()?;
+        let binding = self.closure_binding(&image, context, session)?;
+        self.begin_closure(image, &binding)
+    }
+    fn begin_closure(
+        &mut self,
+        mut image: Image,
+        binding: &Binding,
+    ) -> Result<SessionClosure, DurableError> {
+        let record = binding.check(&image)?;
         match record.phase {
             DurableStatus::Messages | DurableStatus::MessagesClosing => {}
             DurableStatus::MessagesClosed => return Err(Error::Retired.into()),
@@ -217,7 +309,6 @@ impl DeviceJournal {
             _ => return Err(DurableError::Corrupt),
         }
         let mut state = State::decode(&record.payload)?;
-        check_message_owner(&image, context, state.role)?;
         require_independent(&state)?;
         if record.phase == DurableStatus::Messages {
             let mut key = ZeroizingBytes::<32>::zeroed();
@@ -235,7 +326,7 @@ impl DeviceJournal {
             }
             let record = image
                 .records
-                .get_mut(&record_id(&session))
+                .get_mut(&record_id(&binding.session))
                 .ok_or(DurableError::Corrupt)?;
             record.phase = DurableStatus::MessagesClosing;
             record.payload = payload;
@@ -243,7 +334,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             tests::after_stage("session-closing");
         }
-        let report = report(context, &state)?;
+        let report = report(binding, &state)?;
         self.check_release(&image)?;
         Ok(report)
     }
@@ -257,19 +348,26 @@ impl DeviceJournal {
         session: [u8; 32],
         report: SessionClosureId,
     ) -> Result<(), DurableError> {
-        let mut image = self.image()?;
-        let record = self.message_record_for_status(&image, context, session)?;
+        let image = self.image()?;
+        let binding = self.closure_binding(&image, context, session)?;
+        self.acknowledge_closure(image, &binding, report)
+    }
+    fn acknowledge_closure(
+        &mut self,
+        mut image: Image,
+        binding: &Binding,
+        report: SessionClosureId,
+    ) -> Result<(), DurableError> {
+        let record = binding.check(&image)?;
         match record.phase {
             DurableStatus::MessagesClosed => {
                 let retired = Retired::decode(&record.payload)?;
-                check_message_owner(&image, context, retired.role)?;
                 if retired.report != *report.as_bytes() {
                     return Err(DurableError::Conflict);
                 }
             }
             DurableStatus::MessagesClosing => {
                 let state = State::decode(&record.payload)?;
-                check_message_owner(&image, context, state.role)?;
                 if state.closure.as_ref().ok_or(DurableError::Corrupt)?.report != report {
                     return Err(DurableError::Conflict);
                 }
@@ -280,7 +378,7 @@ impl DeviceJournal {
                 }
                 let record = image
                     .records
-                    .get_mut(&record_id(&session))
+                    .get_mut(&record_id(&binding.session))
                     .ok_or(DurableError::Corrupt)?;
                 record.payload = payload;
                 record.phase = DurableStatus::MessagesClosed;

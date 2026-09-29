@@ -22,6 +22,14 @@ pub(super) struct PendingWrite {
     local_account: [u8; 32],
 }
 impl PendingWrite {
+    pub(super) fn authenticated_target(
+        &self,
+        key: &JournalKey,
+        owner: [u8; 32],
+    ) -> Result<Image, DurableError> {
+        unseal(key, owner, &self.target)
+    }
+
     fn new(active: &Active, image: &Image, target: &[u8]) -> Result<Self, DurableError> {
         let expected_revision = image.revision.checked_sub(1).ok_or(DurableError::Corrupt)?;
         let mut wire = b"QPWINT01".to_vec();

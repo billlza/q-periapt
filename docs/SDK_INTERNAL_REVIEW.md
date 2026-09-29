@@ -267,3 +267,28 @@ construct filesystem paths. Later harness changes still require their own
 source-specific analysis. Platform execution, controlled performance and the
 coordinated release transaction remain in the
 [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
+
+
+### Archived session cleanup boundary (2026-09-30)
+
+The unpublished native QPCSCA01 archive is authenticated under a dedicated
+HKDF-derived journal-wrapping subkey. It binds the original journal, storage owner,
+local/peer account, peer device/generation, context/session/role, storage protection
+and exact signing-key binding. Preparation takes the retained verified context but
+can precede message activation, allowing the host to fsync its archive before that
+transaction. Archive parsing alone does not produce any verified authority.
+
+The restricted opener checks MAC and independently expected journal ID before I/O;
+then it holds the normal exclusive lease, verifies the existing authenticated image
+or original sealed activation target, and reconciles only saved write-intent bytes.
+It exposes only closure status, freeze/loss report, terminal acknowledgement and
+owner shutdown. It shares the original closure engine and cannot return a live
+DeviceJournal or BootstrapContext. Required-witness attachment compares the original
+pin and signing key, with the existing subject/current-head/advance protocol. Witness
+enrollment expiry still rejects new advancement; no local fallback is introduced.
+
+Public archive fields reveal metadata linkage. Wrapping-key disclosure, historical
+image rollback in the local-only profile, host archive/index durability, aggregate
+recipient-set archive recovery and witness renewal remain separate assumptions or
+integration work. No erased private session data is recovered from the archive.
+The new path changes no v20 disk grammar, wire KDF, KAT or published ABI.

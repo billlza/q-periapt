@@ -293,3 +293,9 @@ sessions and incomplete rekeys for explicit host loss accounting, then replaces
 private state with keyless tombstones. It cannot split a reserved fanout or turn
 unknown delivery into acknowledgement. Journal v20 shares its terminal codec and
 accounting projection with aggregate abandonment.
+
+The same closure engine now accepts a wrapping-key-authenticated QPCSCA01 archive
+through a restricted `SessionClosureJournal`. Persist that archive before message
+activation; reopening verifies an existing exact session or its already sealed
+activation transaction. It never rebuilds operational policy/device/context authority,
+and all original witness requirements remain. See [archived admission](SESSION_CLOSURE.md#archived-admission-and-restart).

@@ -303,6 +303,33 @@ fn independent_session_closure_preserves_committed_fanout_outcomes_and_reserved_
             Err(DurableError::Suspended)
         ));
     }
+    let archives: Vec<_> = reserved
+        .f
+        .contexts
+        .iter()
+        .zip(&reserved.sessions)
+        .map(|(context, session)| {
+            reserved
+                .sender
+                .archive_session_closure(context, *session)
+                .expect("retained binding")
+        })
+        .collect();
+    reserved.sender.close();
+    for archive in &archives {
+        let mut cleanup = crate::SessionClosureJournal::open(
+            &reserved.sender_path.join("state.redb"),
+            JournalKey::open(&reserved.sender_path.join("key")).expect("key"),
+            crate::durable::tests::identity(&reserved.sender_path),
+            archive,
+        )
+        .expect("cleanup owner");
+        assert!(
+            matches!(cleanup.begin(), Err(DurableError::Suspended)),
+            "archival path cannot split aggregate either"
+        );
+    }
+    reserved.reopen();
     assert_eq!(
         reserved.sender.image().expect("unchanged aggregate").digest,
         before

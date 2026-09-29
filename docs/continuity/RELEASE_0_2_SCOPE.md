@@ -123,7 +123,12 @@ slot. Committed fanout members retain separate ACK/unknown outcomes; a reserved
 aggregate cannot be split by this API. It shares journal v20 accounting/terminal
 codecs with batch abandonment. This closes the local established-session terminal
 path, not device replacement, initial bootstrap cancellation, whole-account
-coordination or installed binding integration.
+coordination or installed binding integration. A QPCSCA01 cleanup archive can now
+be persisted before activation and reopened without an operational context through
+the restricted SessionClosureJournal. Existing or sealed session admission, original
+owner/context and required witness remain mandatory. Expired witness enrollment,
+archival aggregate abandonment and installed-service archive persistence still need
+explicit lifecycle integration; no fresh permission is reconstructed from stale data.
 
 ## Required completion evidence
 

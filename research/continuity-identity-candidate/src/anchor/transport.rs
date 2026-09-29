@@ -152,6 +152,9 @@ impl AnchorClient {
         }
         Ok(())
     }
+    pub(crate) fn signer_public_key(&self) -> Result<PublicKey, Error> {
+        self.signer.public_key()
+    }
     pub(crate) fn exchange(
         &mut self,
         subject: AnchorSubject,

@@ -75,7 +75,39 @@ pub(super) struct AttachedAnchor {
     client: AnchorClient,
     subject: AnchorSubject,
 }
+pub(super) fn cleanup_signer_binding(key: &crate::PublicKey) -> [u8; 32] {
+    digest(
+        b"Q-PERIAPT-CONTINUITY-ARCHIVED-CLOSURE-SIGNER/v1",
+        &key.encode(),
+    )
+}
 impl Active {
+    // Only an authenticated local archive may supply this original signer binding.
+    // This attaches the unchanged witness subject, not renewed session authority.
+    pub(super) fn attach_closure_archive(
+        &mut self,
+        client: AnchorClient,
+        signer: [u8; 32],
+    ) -> Result<(), DurableError> {
+        let Protection::Required {
+            policy, witness, ..
+        } = self.protection
+        else {
+            return Err(DurableError::AnchorRequired);
+        };
+        if witness != client.pin().binding()
+            || signer != cleanup_signer_binding(&client.signer_public_key()?)
+        {
+            return Err(DurableError::Conflict);
+        }
+        let mut bytes = self.id.to_vec();
+        bytes.extend_from_slice(&self.owner);
+        bytes.extend_from_slice(&policy);
+        let subject = AnchorSubject::from_trusted_state(&bytes)?;
+        self.anchor = Some(AttachedAnchor { client, subject });
+        Ok(())
+    }
+
     fn attach(
         &mut self,
         device: &VerifiedDevice,

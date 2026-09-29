@@ -52,7 +52,8 @@ pub use durable::{
     JournalIdentity, JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus,
     RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
     RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure,
-    SessionClosureId, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
+    SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
+    UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,

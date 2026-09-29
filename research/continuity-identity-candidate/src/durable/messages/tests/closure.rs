@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+mod archive;
 use crate::{SessionClosure, SessionClosureId, SessionClosureStatus};
 use std::{
     process::{Command, Stdio},
@@ -408,6 +409,9 @@ fn independent_session_closure_every_observed_sync_fault_reconciles_one_transiti
             for after in [false, true] {
                 let (mut p, report) = prepared(finish);
                 let revision = p.jr.image().expect("before").revision;
+                let archive =
+                    p.jr.archive_session_closure(&p.f.responder, p.session)
+                        .expect("retained cleanup binding");
                 p.jr.close();
                 let (mut failed, remaining, _, _) = fault_store(&p.pr, p.f.local_device(), after);
                 remaining.store(cut, Ordering::SeqCst);
@@ -416,8 +420,24 @@ fn independent_session_closure_every_observed_sync_fault_reconciles_one_transiti
                     after,
                 );
                 assert!(failed.active.is_none());
+                let mut cleanup = crate::SessionClosureJournal::open(
+                    &p.pr.join("state.redb"),
+                    JournalKey::open(&p.pr.join("key")).expect("key"),
+                    crate::durable::tests::identity(&p.pr),
+                    &crate::SessionClosureArchive::from_bytes(archive.as_bytes())
+                        .expect("parsed archive"),
+                )
+                .expect("archived reconciliation of uncertain write");
+                let saved = if let Some(report) = report {
+                    cleanup
+                        .acknowledge(report)
+                        .expect("exact terminal reconciliation");
+                    report
+                } else {
+                    cleanup.begin().expect("exact freeze reconciliation").report
+                };
+                cleanup.close();
                 p.jr = reopen(&p.pr, p.f.local_device());
-                let saved = call(&mut p.jr, &p.f, p.session, report).expect("exact reconciliation");
                 assert_eq!(
                     call(&mut p.jr, &p.f, p.session, report).expect("duplicate"),
                     saved

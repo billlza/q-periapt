@@ -48,7 +48,8 @@ pub use messages::{
     FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, MessageId, MessageStatus,
     RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
     RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure,
-    SessionClosureId, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
+    SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
+    UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
 

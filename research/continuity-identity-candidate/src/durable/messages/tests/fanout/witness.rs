@@ -11,6 +11,7 @@ use std::{
 struct Witness {
     store: AnchorStore,
     calls: usize,
+    now: u64,
     fail: Option<(usize, bool)>,
 }
 struct Transport(Arc<Mutex<Witness>>);
@@ -22,7 +23,8 @@ impl AnchorTransport for Transport {
         if witness.fail == Some((attempt, false)) {
             return Err(io::ErrorKind::ConnectionReset.into());
         }
-        let result = witness.store.handle(wire, 150).map_err(io::Error::other)?;
+        let now = witness.now;
+        let result = witness.store.handle(wire, now).map_err(io::Error::other)?;
         if witness.fail == Some((attempt, true)) {
             return Err(io::ErrorKind::ConnectionReset.into());
         }
@@ -69,6 +71,7 @@ impl Anchored {
         let witness = Arc::new(Mutex::new(Witness {
             store,
             calls: 0,
+            now: 150,
             fail: None,
         }));
         let f = fixture_with_anchor(4, false, None, AnchorRequirement::required(&pin));
@@ -505,4 +508,180 @@ fn independent_session_closure_every_witness_loss_keeps_required_protection_and_
             calls * 2
         );
     }
+}
+
+#[test]
+fn archived_session_closure_preserves_every_witness_loss_and_refuses_expired_advancement() {
+    use crate::{SessionClosureArchive, SessionClosureJournal, SessionClosureStatus};
+    fn capture(c: &mut Anchored) -> SessionClosureArchive {
+        let n = &mut c.network;
+        let context = n.f.contexts.first().expect("context");
+        let session = *n.sessions.first().expect("session");
+        let id = n
+            .sender
+            .next_message_id(context, session, 150)
+            .expect("slot");
+        n.sender
+            .send_message(
+                context,
+                session,
+                id,
+                b"archived unknown outcome",
+                b"archive",
+                150,
+            )
+            .expect("original send");
+        let archive = n
+            .sender
+            .archive_session_closure(context, session)
+            .expect("protected archive");
+        context.policy().close();
+        n.sender.close();
+        SessionClosureArchive::from_bytes(archive.as_bytes()).expect("retained public bytes")
+    }
+    fn open(
+        c: &Anchored,
+        archive: &SessionClosureArchive,
+    ) -> Result<SessionClosureJournal, DurableError> {
+        let n = &c.network;
+        SessionClosureJournal::open_anchored(
+            &n.sender_path.join("state.redb"),
+            JournalKey::open(&n.sender_path.join("key")).expect("original key"),
+            crate::durable::tests::identity(&n.sender_path),
+            archive,
+            client(&c.pin, &c.witness, &n.f.local),
+        )
+    }
+    for finish in [false, true] {
+        let mut baseline = Anchored::new();
+        let archive = capture(&mut baseline);
+        let frozen = if finish {
+            let mut owner = open(&baseline, &archive).expect("open");
+            let report = owner.begin().expect("freeze");
+            super::super::closure::account(&baseline.network.sender_path, &report);
+            Some(report)
+        } else {
+            None
+        };
+        let before = baseline.witness.lock().expect("witness").calls;
+        let mut owner = open(&baseline, &archive).expect("baseline open");
+        if let Some(report) = &frozen {
+            owner.acknowledge(report.report).expect("terminal");
+        } else {
+            owner.begin().expect("freeze");
+        }
+        let calls = baseline.witness.lock().expect("witness").calls - before;
+        assert_eq!(calls, 5, "measured open plus transition witness exchanges");
+        for offset in 1..=calls {
+            for after in [false, true] {
+                let mut c = Anchored::new();
+                let archive = capture(&mut c);
+                let frozen = if finish {
+                    let mut owner = open(&c, &archive).expect("open");
+                    let report = owner.begin().expect("freeze");
+                    super::super::closure::account(&c.network.sender_path, &report);
+                    Some(report)
+                } else {
+                    None
+                };
+                {
+                    let mut w = c.witness.lock().expect("witness");
+                    w.fail = Some((w.calls + offset, after));
+                }
+                let attempt = open(&c, &archive).and_then(|mut owner| {
+                    if let Some(report) = &frozen {
+                        owner.acknowledge(report.report)
+                    } else {
+                        owner.begin().map(|_| ())
+                    }
+                });
+                assert!(
+                    matches!(attempt, Err(DurableError::Anchor(_))),
+                    "finish={finish}, offset={offset}, after={after}: {attempt:?}"
+                );
+                let n = &c.network;
+                assert!(matches!(
+                    SessionClosureJournal::open(
+                        &n.sender_path.join("state.redb"),
+                        JournalKey::open(&n.sender_path.join("key")).expect("key"),
+                        crate::durable::tests::identity(&n.sender_path),
+                        &archive
+                    ),
+                    Err(DurableError::AnchorRequired)
+                ));
+                c.witness.lock().expect("witness").fail = None;
+                let mut owner = open(&c, &archive).expect("exact protected recovery");
+                let report_id = match owner.status().expect("status") {
+                    SessionClosureStatus::Closed(id) => {
+                        assert_eq!(id, frozen.as_ref().expect("accounted").report);
+                        id
+                    }
+                    SessionClosureStatus::Open | SessionClosureStatus::Pending(_) => {
+                        let report = owner.begin().expect("same report");
+                        if let Some(saved) = &frozen {
+                            assert_eq!(&report, saved);
+                        } else {
+                            super::super::closure::account(&c.network.sender_path, &report);
+                        }
+                        owner.acknowledge(report.report).expect("terminal");
+                        report.report
+                    }
+                };
+                assert_eq!(
+                    owner.status().expect("closed"),
+                    SessionClosureStatus::Closed(report_id)
+                );
+            }
+        }
+        eprintln!(
+            "ARCHIVED_SESSION_CLOSURE_WITNESS finish={finish} calls={calls} before_after_losses={}",
+            calls * 2
+        );
+    }
+    let mut c = Anchored::new();
+    let archive = capture(&mut c);
+    let n = &c.network;
+    let calls = c.witness.lock().expect("witness").calls;
+    let wrong_pin = AnchorPin::new(
+        AnchorIdentity::generate().expect("other identity"),
+        AnchorSigningKey::generate()
+            .expect("other key")
+            .public_key()
+            .expect("public"),
+    );
+    for client in [
+        client(&wrong_pin, &c.witness, &n.f.local),
+        client(&c.pin, &c.witness, n.f.peers.first().expect("wrong device")),
+    ] {
+        assert!(matches!(
+            SessionClosureJournal::open_anchored(
+                &n.sender_path.join("state.redb"),
+                JournalKey::open(&n.sender_path.join("key")).expect("key"),
+                crate::durable::tests::identity(&n.sender_path),
+                &archive,
+                client
+            ),
+            Err(DurableError::Conflict)
+        ));
+    }
+    assert_eq!(
+        c.witness
+            .lock()
+            .expect("no request under substituted authority")
+            .calls,
+        calls
+    );
+    c.witness.lock().expect("witness").now = 1001;
+    let mut owner = open(&c, &archive).expect("read-only witness query after expiry");
+    assert_eq!(owner.status().expect("status"), SessionClosureStatus::Open);
+    assert!(
+        matches!(owner.begin(), Err(DurableError::Anchor(_))),
+        "expired witness authorization cannot advance"
+    );
+    assert!(matches!(owner.status(), Err(DurableError::Closed)));
+    drop(owner);
+    assert!(
+        matches!(open(&c, &archive), Err(DurableError::Anchor(_))),
+        "pending command cannot bypass witness expiry on reopen"
+    );
 }

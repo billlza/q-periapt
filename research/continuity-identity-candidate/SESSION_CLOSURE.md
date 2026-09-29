@@ -16,12 +16,10 @@ A closed policy or revoked peer does not become permission to send, and does not
 prevent local accounting. Required witnesses retain their existing authentication,
 availability and rollback assumptions; there is no local-only fallback.
 
-This API requires the original verified context object. The host must retain or
-restore that binding across restart; this change does not introduce an archival
-context constructor which bypasses current verification time or policy floors.
-Restoration when ordinary context verification is no longer admissible remains a
-separate product integration requirement. The retained-object cleanup tests do
-not establish that missing archival reconstruction capability.
+The ordinary API takes the original verified context. The cleanup-only archive
+below permits restart without reconstructing that operational context. Both entry
+points use the same closure engine and loss report; ordinary bootstrap admission
+continues enforcing its original time, pin, mode and lifetime checks.
 
 `begin_session_closure` durably changes the whole session to MessagesClosing before
 returning metadata. This permanently freezes sends, receive/consume, ACKs and rekey
@@ -55,6 +53,72 @@ During MessagesClosing, unacknowledged committed sends report ResolutionPending,
 except outcomes already covered by earlier acknowledged epoch accounting. Status
 queries do not release retained data. Read-only rekey/progress metadata can remain
 available while frozen; terminal private-state queries are retired.
+
+## Archived admission and restart
+
+After the bootstrap session ID is known, call `archive_session_closure` with the
+original verified context. Durably persist its result and the independently retained
+journal/session identities **before** activating message state. The archive may be
+prepared before a message record exists; preparation performs no journal mutation,
+freezing, activation or network authorization. A crash before activation can leave
+only a harmless archive. A crash after the activation write intent is sealed can
+reconcile exactly that authenticated transaction. Without an existing exact session
+or that already sealed transaction, archival open returns Absent rather than creating
+state. The host's atomic persistence of its own archive/index is an integration duty;
+this API does not claim to fsync a buffer returned to the caller.
+
+`SessionClosureArchive::from_bytes` checks only a fixed public grammar. The
+`SessionClosureJournal` owner authenticates it with the original wrapping key and
+independently retained journal ID, obtains the existing exclusive database lease,
+checks original owner/account/context/session/role/protection and then reconciles
+only the original sealed aggregate intent. An intent for another operation may
+be completed as part of the same journal recovery; no fresh cryptographic operation
+or alternative input is executed. Missing files never cause provisioning.
+
+The restricted owner exposes only `status`, `begin`, `acknowledge` and `close`.
+It cannot produce a BootstrapContext, DeviceJournal, operational policy/device,
+message key, plaintext, ciphertext, bootstrap flight or rekey. Fresh verification
+failure is therefore not converted into permission. The same immutable loss report
+and terminal codecs serve retained-context and archival callers. A reserved fanout
+still requires aggregate abandonment; this archive does not reconstruct the full
+recipient-set context or provide an aggregate cleanup capability.
+
+The 362-byte public grammar is:
+
+`QPCSCA01[8] || journal[32] || owner[32] || local_account[32] || session[32] || context[32] || role:u8 || peer_account[32] || peer_device[16] || peer_generation:u64 || protection[73] || signer_binding[32] || MAC[32]`.
+
+All integers are big-endian. Role is 1 or 2, identities/bindings are nonzero and
+generation excludes zero/u64::MAX. Protection reuses the canonical existing journal
+encoding: zero[73] for local-only, or 1 || policy[32] || witness[32] || fence:u64 for
+required protection, with nonzero bindings and a valid fence. No extra bytes or
+truncation is accepted. The MAC authenticates all 330 body bytes using HMAC-SHA-256
+and HKDF-SHA-256(None, wrapping_key), info
+`Q-PERIAPT-CONTINUITY-SESSION-CLOSURE-ARCHIVE-KEY/v1`. The signer binding is the
+existing domain-framed SHA3-256 digest of the complete canonical public signing key under
+`Q-PERIAPT-CONTINUITY-ARCHIVED-CLOSURE-SIGNER/v1`.
+
+The original verified context establishes these public identities when the archive
+is generated. Its MAC prevents substitutions later; the actual journal still checks
+its authenticated context, source-linked session, authorities, local owner and role.
+The archive is deterministic for that scope and does not include a mutable revision,
+so ordinary session progress does not invalidate it. It grants no anti-rollback
+property and cannot be applied to another journal even if that journal uses the same
+wrapping key. It contains account/device linkage that the host must treat according
+to its privacy policy. Anyone holding the wrapping key can already modify authenticated
+local storage; archive authentication does not repair a wrapping-key compromise.
+
+Required-witness open demands the exact retained witness pin and device signer.
+It binds the original journal/owner/policy subject and uses existing signed current-head
+and advance checks. Missing/wrong/expired/unavailable authority never causes fallback.
+Read-only witness queries can remain possible after enrollment expiry, but fresh
+advancement is still refused by the witness. Consequently local policy/credential
+expiry does not magically extend witness enrollment. Renewal/revocation coordination
+at that boundary remains an explicit service-lifecycle requirement.
+
+Neither QPCSCA01 nor the restricted owner changes v20 storage, existing wire/context
+hashes or public SDK bindings. Archives must already have been retained to recover
+without the original context; no claim is made to reconstruct lost admission facts
+from a context digest alone.
 
 ## Fanout composition
 
@@ -126,7 +190,7 @@ KATs and published SDK ABI contracts are unchanged. Device replacement, enrollme
 independent sender-store coordination, installed-language integration, recovery
 analysis and current-device/performance qualification remain 0.2.0 work.
 
-## Observed qualification
+## Previous v20 closure qualification (552a95a7)
 
 The final native macOS ARM64 Debug and Release suites each pass 213 tests with no
 failures or ignored tests. Seven added tests cover both roles, a real process-killed
@@ -158,3 +222,36 @@ overlapping load, not a performance comparison. The source, initial failures,
 corrected runs and actual test executables are retained. These results do not
 qualify installed language bindings, independent hosts/devices, archival context
 restoration or the complete protocol/recovery argument.
+
+
+## Archived cleanup qualification
+
+The final native Debug and Release suites each pass 218 tests, zero failed or
+ignored (619.889/612.144 runner seconds under overlapping load; not a performance
+comparison). The focused lifecycle run passes 11 tests. New subprocesses use only
+the retained archive, private wrapping-key file and independent journal ID, never
+constructing a verified policy, device or BootstrapContext. Both roles survive
+committed freeze and terminal kills, with four observed Busy contenders in total.
+
+Every one of the archive's 362 strict prefixes is rejected, as is a one-bit mutation
+in each byte, through grammar or MAC rejection. Wrong keys, store IDs, a different
+store sharing the wrapping key, absent sessions/files, wrong witness pins and wrong
+signers also fail. Ordinary public bootstrap verification still rejects expiry and
+closed policy owners. The prepared archive cannot create an unadmitted session.
+
+Eight measured activation before/after sync faults distinguish six actual sealed
+activation recoveries from two truly absent transactions. The original 16 closure
+sync faults now also recover through the archival owner. Twenty additional signed
+witness losses cover open plus freeze/terminal transitions while retaining immutable
+reports, required protection and host accounting. A witness with expired enrollment
+still answers read-only queries and refuses new advancement and its subsequent
+pending-intent retry. No authority or time floor is weakened to finish cleanup.
+
+Rust 1.90 and 1.98.1 strict all-target/all-feature Clippy, each independent TLS carrier
+on both compilers, no-default Clippy, warning-strict docs, fmt and 45 clean source/
+isolation checks pass. All 220 Rust files match the full-suite snapshot; only this
+guide and the release ledger receive final evidence text afterward. Both final test
+executables, exact commands, source identities and initial compile/lint errors are
+retained. Earlier 12-message disclosure witnesses remain unchanged and successful.
+These checks do not establish installed binding/service archive persistence,
+aggregate archival recovery, witness renewal or a complete recovery proof.
