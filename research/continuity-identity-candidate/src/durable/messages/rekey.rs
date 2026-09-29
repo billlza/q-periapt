@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Exact, identity-authenticated first control flight. Preparing an offer does
-//! not install an epoch, advance traffic chains, or establish peer confirmation.
+//! Exact identity-authenticated offer and response preparation. These flights
+//! do not install an epoch or advance traffic chains.
 use super::*;
 use crate::crypto::{envelope, open_envelope, Purpose, SigningReservation, SIGNATURE_BYTES};
 use q_periapt_sdk::{
     expert::replay::{RecoveryKey, SealedOperation},
     PublicKey, PUBLIC_KEY_LEN,
 };
+mod response;
+pub use response::RekeyResponseStatus;
 
 const TAG: &[u8; 8] = b"QPRKOF01";
 const CONTROL_TAG: &[u8; 8] = b"QPRKST01";
@@ -59,6 +61,7 @@ enum Plan {
         key: SealedOperation,
         wire: Vec<u8>,
     },
+    Response(response::Plan),
 }
 impl Plan {
     fn status(&self) -> RekeyOfferStatus {
@@ -66,11 +69,13 @@ impl Plan {
             Self::Key(_) => RekeyOfferStatus::KeyReserved,
             Self::Signing { .. } => RekeyOfferStatus::SignatureReserved,
             Self::Ready { .. } => RekeyOfferStatus::Committed,
+            Self::Response(_) => RekeyOfferStatus::Absent,
         }
     }
-    fn key(&self) -> &SealedOperation {
+    fn key(&self) -> Result<&SealedOperation, Error> {
         match self {
-            Self::Key(key) | Self::Signing { key, .. } | Self::Ready { key, .. } => key,
+            Self::Key(key) | Self::Signing { key, .. } | Self::Ready { key, .. } => Ok(key),
+            Self::Response(_) => Err(Error::State),
         }
     }
 }
@@ -131,12 +136,18 @@ impl Control {
         role: u8,
         context: &[u8; 32],
     ) -> Result<(), Error> {
-        // Only offer preparation is implemented at this checkpoint. Neither an
+        // Only offer/response preparation is implemented here. Neither an
         // authenticated image nor a caller can invent a completed epoch.
         if self.epoch != 0 || self.parent != genesis(session, context) {
             return Err(Error::State);
         }
         if let Some(plan) = &self.plan {
+            if let Plan::Response(response) = plan {
+                if role == proposer(self.target()?)? {
+                    return Err(Error::Scope);
+                }
+                return response.validate(self, session, context);
+            }
             if role != proposer(self.target()?)? {
                 return Err(Error::Scope);
             }
@@ -147,6 +158,7 @@ impl Control {
                     let (body, _) = open_envelope(wire)?;
                     self.check_body(session, context, body)?;
                 }
+                Plan::Response(_) => return Err(Error::State),
             }
         }
         Ok(())
@@ -160,16 +172,21 @@ impl Control {
             Some(Plan::Key(_)) => 1,
             Some(Plan::Signing { .. }) => 2,
             Some(Plan::Ready { .. }) => 3,
+            Some(Plan::Response(response)) => response.phase(),
         });
         if let Some(plan) = &self.plan {
-            bytes.extend_from_slice(plan.key().as_bytes());
             match plan {
-                Plan::Key(_) => {}
-                Plan::Signing { body, signing, .. } => {
+                Plan::Key(key) => bytes.extend_from_slice(key.as_bytes()),
+                Plan::Signing { key, body, signing } => {
+                    bytes.extend_from_slice(key.as_bytes());
                     bytes.extend_from_slice(body);
                     signing.encode(bytes);
                 }
-                Plan::Ready { wire, .. } => bytes.extend_from_slice(wire),
+                Plan::Ready { key, wire } => {
+                    bytes.extend_from_slice(key.as_bytes());
+                    bytes.extend_from_slice(wire);
+                }
+                Plan::Response(response) => response.encode(bytes),
             }
         }
     }
@@ -198,6 +215,7 @@ impl Control {
                     _ => return Err(Error::Encoding),
                 })
             }
+            4..=6 => Some(Plan::Response(response::Plan::decode(d, phase)?)),
             _ => return Err(Error::Encoding),
         };
         Ok(Self {
@@ -240,7 +258,11 @@ fn after_effect(stage: &str, public: &[u8]) {
 }
 
 impl DeviceJournal {
-    fn store_rekey_offer(&mut self, image: &mut Image, state: &State) -> Result<(), DurableError> {
+    fn store_rekey_control(
+        &mut self,
+        image: &mut Image,
+        state: &State,
+    ) -> Result<(), DurableError> {
         image
             .records
             .get_mut(&record_id(&state.session))
@@ -293,7 +315,7 @@ impl DeviceJournal {
                 .reserve_key(&context.policy().runtime, &key_scope)
                 .map_err(Error::from)?;
             state.control.plan = Some(Plan::Key(key));
-            self.store_rekey_offer(&mut image, &state)?;
+            self.store_rekey_control(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-key-reserved");
         }
@@ -306,7 +328,7 @@ impl DeviceJournal {
                 .plan
                 .as_ref()
                 .ok_or(DurableError::Corrupt)?
-                .key(),
+                .key()?,
         ) {
             Ok(key) => key,
             Err(q_periapt_sdk::Error::InvalidPrivateKey) => {
@@ -337,7 +359,7 @@ impl DeviceJournal {
                 body: body.clone(),
                 signing,
             });
-            self.store_rekey_offer(&mut image, &state)?;
+            self.store_rekey_control(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-signature-reserved");
         }
@@ -372,7 +394,7 @@ impl DeviceJournal {
             key,
             wire: wire.clone(),
         });
-        self.store_rekey_offer(&mut image, &state)?;
+        self.store_rekey_control(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::tests::after_stage("rekey-offer-committed");
         self.check_context_release(&image, context, now)?;
@@ -385,6 +407,18 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyOfferStatus, DurableError> {
+        let state = self.rekey_state_for_status(context, session)?;
+        Ok(state
+            .control
+            .plan
+            .as_ref()
+            .map_or(RekeyOfferStatus::Absent, Plan::status))
+    }
+    fn rekey_state_for_status(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+    ) -> Result<State, DurableError> {
         self.check_policy(context.policy())?;
         let image = self.image()?;
         let record = image
@@ -401,10 +435,6 @@ impl DeviceJournal {
         if bootstrap::storage_owner(device(context, state.role)?) != image.owner {
             return Err(DurableError::Conflict);
         }
-        Ok(state
-            .control
-            .plan
-            .as_ref()
-            .map_or(RekeyOfferStatus::Absent, Plan::status))
+        Ok(state)
     }
 }

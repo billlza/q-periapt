@@ -110,9 +110,9 @@ This initial epoch has no fresh DH/PQ input; the full ratchet, device lifecycle
 and multi-device contracts remain required within 0.2.0.
 
 The [durable rekey offer](REKEY_OFFERS.md) now reserves a fresh hybrid key and
-purpose-bound signature before committing its exact control outbox. This first
-flight remains distinct from peer confirmation and installation of new traffic
-keys. It is replayable after process loss and gated by current roster/witness
+purpose-bound signature before committing its exact control outbox. The response path also reserves a ContextBound
+encapsulation and commits a signed response with a pending root. These flights
+remain distinct from final confirmation and installation of new traffic keys. It is replayable after process loss and gated by current roster/witness
 authority. Use `public_vectors --with-rekey` and the verifier's matching flag for
 independent signature and binding checks of this path.
 

@@ -34,6 +34,7 @@ pub(crate) enum Purpose {
     AnchorRequest = 7,
     AnchorReply = 8,
     RekeyOffer = 9,
+    RekeyResponse = 10,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

@@ -267,7 +267,8 @@ def verify(oracle: Oracle, *, with_rekey: bool = False) -> dict:
             "authenticated_selections": selection_total + 1, "bootstrap": bootstrap,
             "fixture_sha256": oracle.inputs, "commands": oracle.commands}
     if with_rekey:
-        report.update(schema=4, signed_envelopes=16, rekey_offer=verify_rekey_offer(oracle))
+        report.update(schema=5, signed_envelopes=17, rekey_offer=verify_rekey_offer(oracle),
+                      rekey_response=verify_rekey_response(oracle))
     return report
 
 
@@ -408,6 +409,31 @@ def verify_rekey_offer(oracle: Oracle) -> dict:
     require(0 < classical < 2**255-19, "rekey noncanonical classical public key")
     return {"identity_signatures":"verified", "session_and_predecessor_binding":"verified",
             "confirmed_epoch":0, "offered_epoch":1, "scope":"committed offer only; no epoch installation"}
+
+
+def verify_rekey_response(oracle: Oracle) -> dict:
+    def rekey_hash(label: bytes, data: bytes) -> bytes:
+        domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/" + label
+        return hashlib.sha3_256(len(domain).to_bytes(8,"big") + domain + len(data).to_bytes(8,"big") + data).digest()
+    key = oracle.read("bootstrap-r-device.pub", 1985)
+    body = Reader(oracle.envelope("rekey-response", 10, key))
+    require(body.take(8) == b"QPRKRP01", "rekey response tag")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-offer/v1")
+    require(body.take(32) == profile, "rekey response profile")
+    context = oracle.read("bootstrap-context.digest", 32)
+    session = oracle.read("bootstrap-session.id", 32)
+    require(body.take(32) == context and body.take(32) == session, "rekey response session/context")
+    require(body.integer(8) == 0 and body.integer(8) == 1 and body.integer(1) == 2, "rekey response epoch/role")
+    require(body.take(32) == rekey_hash(b"genesis", session+context), "rekey response predecessor")
+    require(body.take(32) == rekey_hash(b"offer-wire", oracle.read("rekey-offer.bin", 4746)), "exact offer wire binding")
+    ciphertext = body.take(1120)
+    classical = int.from_bytes(ciphertext[1088:], "little")
+    require(0 < classical < 2**255-19, "rekey noncanonical classical ciphertext")
+    body.take(32)  # The public oracle can authenticate its inclusion, not recompute its secret MAC.
+    body.finish()
+    return {"identity_signatures":"verified", "exact_offer_and_session_binding":"verified",
+            "confirmed_epoch":0, "response_epoch":1, "key_confirmation":"not checked by public-only oracle",
+            "scope":"committed response only; no epoch installation"}
 
 
 if __name__ == "__main__":

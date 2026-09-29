@@ -435,6 +435,19 @@ fn durable_bootstrap_vectors(
     if ji.prepare_rekey_offer(ci, session, si, 150)? != offer {
         return Err("durable offer replay differs".into());
     }
+    let response = jr.respond_rekey_offer(cr, session, &offer, sr, 150)?;
+    save(directory, "rekey-response.bin", &response)?;
+    let identity = jr.identity()?;
+    jr.close();
+    jr = DeviceJournal::open(
+        &path.join("responder.redb"),
+        JournalKey::open(&path.join("responder-key"))?,
+        dr,
+        identity,
+    )?;
+    if jr.respond_rekey_offer(cr, session, &offer, sr, 150)? != response {
+        return Err("durable response replay differs".into());
+    }
     Ok(())
 }
 

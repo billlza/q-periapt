@@ -7,7 +7,7 @@ use sha2::Sha256;
 
 mod acknowledgement;
 mod rekey;
-pub use rekey::RekeyOfferStatus;
+pub use rekey::{RekeyOfferStatus, RekeyResponseStatus};
 
 const MAX_PLAINTEXT: usize = 16 * 1024;
 const MAX_AD: usize = 1024;
@@ -15,7 +15,7 @@ const MAX_SKIPPED: usize = 128;
 const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
 const MESSAGE_TAG: &[u8; 8] = b"QPCMSG02";
-const STATE_TAG: &[u8; 8] = b"QPMST003";
+const STATE_TAG: &[u8; 8] = b"QPMST004";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
 /// Journal-issued session/direction/sequence ID, retained by the host for retries.

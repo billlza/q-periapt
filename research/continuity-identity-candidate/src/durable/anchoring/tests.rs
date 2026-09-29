@@ -429,6 +429,40 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .expect("same bytes after lost release"),
         offer
     );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 8, false));
+    assert!(matches!(
+        responder.respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 8);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .rekey_response_status(&c.peer.responder, session)
+            .expect("pending response"),
+        crate::RekeyResponseStatus::Committed
+    );
+    let response = responder
+        .respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150)
+        .expect("exact response release");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        responder.respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150)
+            .expect("same response after lost release"),
+        response
+    );
 }
 
 #[test]

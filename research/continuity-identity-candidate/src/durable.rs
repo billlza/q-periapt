@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v11");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v12");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -40,7 +40,9 @@ mod rosters;
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
-pub use messages::{CommittedPlaintext, MessageId, MessageStatus, RekeyOfferStatus};
+pub use messages::{
+    CommittedPlaintext, MessageId, MessageStatus, RekeyOfferStatus, RekeyResponseStatus,
+};
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -718,7 +720,7 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG11".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG12".to_vec());
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&image.local_account);
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
@@ -759,7 +761,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT011".to_vec();
+    let mut wire = b"QPVLT012".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -786,7 +788,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT011" {
+    if outer.array::<8>()? != *b"QPVLT012" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -812,7 +814,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG11" {
+    if inner.array::<8>()? != *b"QPVIMG12" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
