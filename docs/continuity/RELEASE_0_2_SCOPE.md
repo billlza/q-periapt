@@ -109,6 +109,12 @@ the existing public-commitment model into a working cryptographic protocol.
   and confirms application consumption with independent disk readback in both
   directions. Installed bindings, independent implementations/cross-host/device
   qualification and the remaining product protocol requirements stay open.
+  A [portable bootstrap-material input](../../research/continuity-identity-candidate/BOOTSTRAP_BUNDLE.md)
+  now reconstructs contexts through the existing public verifiers while keeping
+  policy/runtime owners, account pins, exact intended devices and requested modes
+  independent of received bytes. A Python producer exercises the actual Rust
+  consumer, and native endpoint processes reverify saved bundles. This closes a
+  serialization/admission prerequisite, not the installed binding requirement.
 
 ## Required completion evidence
 

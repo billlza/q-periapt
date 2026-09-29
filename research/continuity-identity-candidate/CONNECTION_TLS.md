@@ -169,3 +169,8 @@ Result wrapper) were corrected without suppressing checks. The lost-response
 tests now observe the actual commit marker before killing the process rather
 than relying on a two-second timing window. Raw runs, source hashes and both
 test executables are retained in the qualification cohort.
+
+The later [portable-material input](BOOTSTRAP_BUNDLE.md) reuses this execution
+path with contexts reverified from saved public bundle bytes in each process.
+The existing policy owner, trust pins, intended devices and requested quality
+remain independent host inputs. QPCNET01 and journal semantics are unchanged.

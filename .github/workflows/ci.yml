@@ -1820,6 +1820,10 @@ jobs:
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_anchor_vectors.py \
             --fixtures target/continuity-public-vectors --output target/continuity-anchor-verification \
             --openssl "$candidate_openssl"
+          cargo +1.98.1 build --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --release --all-features --example import_bootstrap_bundle
+          sh artifact/python-run.sh research/continuity-identity-candidate/scripts/exercise_bootstrap_bundle.py \
+            --fixtures target/continuity-public-vectors --consumer "$CARGO_TARGET_DIR/release/examples/import_bootstrap_bundle" \
+            --output target/continuity-bootstrap-bundle-verification
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always() && matrix.os == 'macos-15'
         with:
@@ -1828,6 +1832,7 @@ jobs:
             target/continuity-public-vectors
             target/continuity-public-verification
             target/continuity-anchor-verification
+            target/continuity-bootstrap-bundle-verification
           if-no-files-found: error
           retention-days: 14
 

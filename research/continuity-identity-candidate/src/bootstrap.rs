@@ -965,12 +965,18 @@ pub(crate) mod tests {
         pub(crate) signer_r: DeviceSigningKey,
         pub(crate) reusable: HybridKey,
         pub(crate) once: HybridKey,
+        pub(crate) bundle: BootstrapBundle,
+        pub(crate) pin_i: AccountPin,
+        pub(crate) pin_r: AccountPin,
     }
-    fn enrolled(
-        seed: u8,
-        family: [u8; 32],
-        signer: Option<DeviceSigningKey>,
-    ) -> (DeviceSigningKey, Arc<VerifiedDevice>) {
+    struct Enrollment {
+        signer: DeviceSigningKey,
+        device: Arc<VerifiedDevice>,
+        certificate: Vec<u8>,
+        roster: IssuedRoster,
+        pin: AccountPin,
+    }
+    fn enrolled(seed: u8, family: [u8; 32], signer: Option<DeviceSigningKey>) -> Enrollment {
         let root = RootSigningKey::deterministic([seed; 32], [seed + 1; 32]).expect("root");
         let signer = signer.unwrap_or_else(|| {
             DeviceSigningKey::deterministic([seed + 2; 32], [seed + 3; 32]).expect("device")
@@ -995,13 +1001,17 @@ pub(crate) mod tests {
             family,
         )
         .expect("pin");
-        (
+        let device = Arc::new(
+            pin.verify_device(&certificate, roster.as_bytes(), 150)
+                .expect("verified"),
+        );
+        Enrollment {
             signer,
-            Arc::new(
-                pin.verify_device(&certificate, roster.as_bytes(), 150)
-                    .expect("verified"),
-            ),
-        )
+            device,
+            certificate,
+            roster,
+            pin,
+        }
     }
     pub(crate) fn fixture(quality: PrekeyQuality) -> Fixture {
         fixture_from_public(quality, None)
@@ -1122,8 +1132,20 @@ pub(crate) mod tests {
             Some((i, r)) => (Some(i), Some(r)),
             None => (None, None),
         };
-        let (signer_i, device_i) = enrolled(90, policy_r.family(), signer_i);
-        let (signer_r, device_r) = enrolled(94, policy_r.family(), signer_r);
+        let Enrollment {
+            signer: signer_i,
+            device: device_i,
+            certificate: certificate_i,
+            roster: roster_i,
+            pin: pin_i,
+        } = enrolled(90, policy_r.family(), signer_i);
+        let Enrollment {
+            signer: signer_r,
+            device: device_r,
+            certificate: certificate_r,
+            roster: roster_r,
+            pin: pin_r,
+        } = enrolled(94, policy_r.family(), signer_r);
         let reusable = runtime_r.generate_key().expect("reusable");
         let once = runtime_r.generate_key().expect("one time");
         let (public, one) = match public_keys {
@@ -1192,6 +1214,45 @@ pub(crate) mod tests {
                 )
                 .expect("selection"),
         );
+        let signed = proof(LeafKind::SignedClassical)
+            .encode()
+            .expect("proof encoding");
+        let last = proof(LeafKind::LastResortPq)
+            .encode()
+            .expect("proof encoding");
+        let once_c = proof(LeafKind::OneTimeClassical)
+            .encode()
+            .expect("proof encoding");
+        let once_p = proof(LeafKind::OneTimePq).encode().expect("proof encoding");
+        let bundle = BootstrapBundle::from_materials(
+            quality,
+            BootstrapMaterials {
+                initiator_credential: &certificate_i,
+                initiator_roster: roster_i.as_bytes(),
+                responder_credential: &certificate_r,
+                responder_roster: roster_r.as_bytes(),
+                responder_manifest: manifest.as_bytes(),
+                signed_classical: &signed,
+                last_resort_pq: &last,
+                one_time_classical: if matches!(
+                    quality,
+                    PrekeyQuality::OneTimeBoth | PrekeyQuality::OneTimeClassicalLastResortPq
+                ) {
+                    Some(&once_c)
+                } else {
+                    None
+                },
+                one_time_pq: if matches!(
+                    quality,
+                    PrekeyQuality::OneTimeBoth | PrekeyQuality::SignedClassicalOneTimePq
+                ) {
+                    Some(&once_p)
+                } else {
+                    None
+                },
+            },
+        )
+        .expect("public bundle");
         let directory = DirectoryExpectation::from_trusted_state([99; 32]).expect("directory");
         let initiator = Arc::new(
             BootstrapContext::new(
@@ -1216,9 +1277,55 @@ pub(crate) mod tests {
             signer_r,
             reusable,
             once,
+            bundle,
+            pin_i,
+            pin_r,
         }
     }
     impl Fixture {
+        pub(crate) fn policy_owner(&self, role: BootstrapRole) -> Arc<VerifiedSessionPolicy> {
+            Arc::clone(match role {
+                BootstrapRole::Initiator => &self.initiator.policy,
+                BootstrapRole::Responder => &self.responder.policy,
+            })
+        }
+        pub(crate) fn bundle_requirements(
+            &self,
+            quality: PrekeyQuality,
+        ) -> BootstrapRequirements<'_> {
+            BootstrapRequirements {
+                initiator: ExpectedDevice::new(&self.pin_i, [90; 16], 1)
+                    .expect("intended initiator"),
+                responder: ExpectedDevice::new(&self.pin_r, [94; 16], 1)
+                    .expect("intended responder"),
+                quality,
+                directory: DirectoryExpectation::from_trusted_state([99; 32])
+                    .expect("retained directory"),
+            }
+        }
+        #[cfg(all(unix, feature = "connection-tls"))]
+        pub(crate) fn import_bundle_contexts(&mut self, bytes: &[u8], quality: PrekeyQuality) {
+            let bundle = BootstrapBundle::from_bytes(bytes).expect("public bundle grammar");
+            let initiator = bundle
+                .verify(
+                    self.policy_owner(BootstrapRole::Initiator),
+                    self.bundle_requirements(quality),
+                    150,
+                )
+                .expect("independent initiator expectations");
+            let responder = bundle
+                .verify(
+                    self.policy_owner(BootstrapRole::Responder),
+                    self.bundle_requirements(quality),
+                    150,
+                )
+                .expect("independent responder expectations");
+            assert_eq!(initiator.digest(), self.initiator.digest());
+            assert_eq!(responder.digest(), self.responder.digest());
+            self.initiator = Arc::new(initiator);
+            self.responder = Arc::new(responder);
+        }
+
         #[cfg(unix)]
         pub(crate) fn initiator_device(&self) -> &VerifiedDevice {
             &self.initiator.initiator

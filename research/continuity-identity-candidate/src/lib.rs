@@ -9,6 +9,7 @@
 
 mod anchor;
 mod bootstrap;
+mod bootstrap_bundle;
 mod codec;
 #[cfg(feature = "connection-tls")]
 pub mod connection_transport;
@@ -34,6 +35,10 @@ pub use anchor::{
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
     PendingSession, ResponderOperation,
+};
+pub use bootstrap_bundle::{
+    BootstrapBundle, BootstrapMaterials, BootstrapRequirements, ExpectedDevice,
+    MAX_BOOTSTRAP_BUNDLE_BYTES,
 };
 pub use crypto::{
     AnchorSigningKey, DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId,

@@ -229,6 +229,11 @@ fn bootstrap_vectors(directory: &Path, anchors: bool, rekey: bool) -> Result<(),
         &authority.public_key()?.encode(),
     )?;
     save(directory, "bootstrap-policy.bin", policy.as_bytes())?;
+    save(directory, "bootstrap-family.bin", &family)?;
+    let mut checkpoint = policy.checkpoint().version().to_be_bytes().to_vec();
+    checkpoint.extend_from_slice(&policy.checkpoint().digest());
+    save(directory, "bootstrap-policy-checkpoint.bin", &checkpoint)?;
+    save(directory, "bootstrap-directory.bin", &[99; 32])?;
     let pin = PolicyPin::new(family, authority.public_key()?, policy.checkpoint())?;
     let pi = Arc::new(pin.verify(policy.as_bytes(), Arc::clone(&ri), 150)?);
     let pr = Arc::new(pin.verify(policy.as_bytes(), Arc::clone(&rr), 150)?);
@@ -248,6 +253,16 @@ fn bootstrap_vectors(directory: &Path, anchors: bool, rekey: bool) -> Result<(),
             family,
         )?;
         let verified = Arc::new(pin.verify_device(&cert, roster.as_bytes(), 150)?);
+        let mut expected = root.account_id()?.to_vec();
+        expected.extend_from_slice(&roster.checkpoint().version().to_be_bytes());
+        expected.extend_from_slice(&roster.checkpoint().digest());
+        expected.extend_from_slice(&[id; 16]);
+        expected.extend_from_slice(&1u64.to_be_bytes());
+        save(
+            directory,
+            &format!("bootstrap-{role}-expectation.bin"),
+            &expected,
+        )?;
         save(
             directory,
             &format!("bootstrap-{role}-root.pub"),

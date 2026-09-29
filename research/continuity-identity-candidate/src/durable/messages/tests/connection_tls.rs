@@ -100,6 +100,12 @@ struct Network {
 impl Network {
     fn new() -> Self {
         let mut inventory = inventory(PrekeyQuality::OneTimeBoth);
+        let public_bundle = inventory.peer.bundle.as_bytes().to_vec();
+        inventory
+            .peer
+            .import_bundle_contexts(&public_bundle, PrekeyQuality::OneTimeBoth);
+        fs::write(inventory.path.join("connection-bundle"), &public_bundle)
+            .expect("portable public materials");
         let dir = directory();
         let client_path = dir.path().canonicalize().expect("client path");
         let journal = new_store(&client_path, inventory.peer.initiator_device());
@@ -263,9 +269,13 @@ fn connection_tls_peer_child() -> Result<(), Box<dyn std::error::Error>> {
     let mode = std::env::var("QPERIAPT_CONNECTION_TLS_CUT")?;
     let public = fs::read(path.join("connection-public"))?;
     let (reusable, once) = public.split_at(q_periapt_sdk::PUBLIC_KEY_LEN);
-    let f = crate::bootstrap::tests::fixture_from_public(
+    let mut f = crate::bootstrap::tests::fixture_from_public(
         PrekeyQuality::OneTimeBoth,
         Some((reusable.try_into()?, once.try_into()?)),
+    );
+    f.import_bundle_contexts(
+        &fs::read(path.join("connection-bundle"))?,
+        PrekeyQuality::OneTimeBoth,
     );
     let certificate = fs::read(path.join("connection-server.der"))?;
     let key = Zeroizing::new(fs::read(path.join("connection-server.key"))?);

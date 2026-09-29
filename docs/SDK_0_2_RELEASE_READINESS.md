@@ -72,12 +72,43 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 212 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 216 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The new [native reference connection](../research/continuity-identity-candidate/CONNECTION_TLS.md)
+The [public bootstrap material importer](../research/continuity-identity-candidate/BOOTSTRAP_BUNDLE.md)
+now reconstructs the original verified context from a bounded QPBNDL01 input.
+Its existing policy/runtime owner, account pins, exact intended device IDs and
+generations, required prekey quality, directory expectation and trusted clock
+are independent caller inputs. Incoming public materials cannot enroll their own
+trust or reopen a closed owner. All four prekey modes retain the original context
+commitment; a fully signed same-account package for reversed device roles fails
+the intended-peer check. Native endpoint processes reverify saved public inputs
+before running the existing connection and recovery cases.
+
+The current local debug/release suites pass **206 tests each**, zero failures or
+ignored tests, in 365.363/369.495 runner seconds. These overlapping runs are not
+performance comparisons. An independent Python constructor passes one valid and
+25 negative packages through the actual compiled Rust importer, with separate
+fixture trust and unchanged pre/post executable hash. This is cross-language
+input verification, not installed-language SDK connection qualification. The
+public-only OpenSSL oracles separately pass 20 envelopes/100 signature negatives
+and 12 witness envelopes/60 negatives. Strict Rust 1.90/1.98.1 Clippy, independent
+transport features, no-default compilation, fmt, warning-strict docs and 45 clean
+isolation/inventory checks pass for 216 Rust files. The new importer and corpus
+are wired into the public-vector CI job; hosted execution of this source is pending.
+
+The preceding head `fb98db1c` has an explicitly unresolved hosted CodeQL result:
+check [109631309472](https://github.com/billlza/q-periapt/runs/109631309472)
+reports **36 Python path/command-input annotations** (five critical and 31 high)
+and missing Rust/Swift configurations at that observation. Workflow analysis-job
+completion and a clean security finding set are separate requirements. The
+annotations and their source identity are retained for input-to-sink analysis;
+no suppression, dismissal or confirmed-exploit claim is made. Earlier successful
+analysis jobs do not close these findings or qualify the newer source.
+
+The preceding [native reference connection](../research/continuity-identity-candidate/CONNECTION_TLS.md)
 starts with an empty sender journal and a real encrypted responder prekey inventory.
 Original bootstrap flights cross actual standard TLS sockets; both sides activate
 message state, perform three network rekeys, and deliver application bytes in both

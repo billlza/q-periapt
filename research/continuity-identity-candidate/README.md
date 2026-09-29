@@ -280,3 +280,9 @@ bootstrap through the encrypted prekey inventory, delivers actual application
 frames and confirms only authenticated consumption prefixes after durable host
 accounting. It shares TLS I/O with the control carrier. This is a native candidate
 execution path; installed bindings and account-directory integration remain open.
+
+[Portable bootstrap materials](BOOTSTRAP_BUNDLE.md) provide a bounded byte-input
+contract for subsequent language integration. Verification retains an existing
+policy owner and independently pinned, exact device expectations; parsing the
+container grants no authority. Native endpoint tests consume this file boundary,
+and a separate Python producer exercises the compiled Rust importer.

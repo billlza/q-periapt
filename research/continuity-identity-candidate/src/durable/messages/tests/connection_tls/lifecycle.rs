@@ -77,6 +77,11 @@ fn connection_tls_bootstrap_rekeys_and_both_application_directions_use_actual_ne
     wait(&n, &mut child, 4);
     readback(&n, session, id, b"forward after three fresh contributions");
     n.journal.close();
+    fs::copy(
+        n.inventory.path.join("connection-bundle"),
+        n.client_path.join("connection-bundle"),
+    )
+    .expect("same public materials for reverse endpoint");
     for (name, data) in [
         (
             "connection-public",
