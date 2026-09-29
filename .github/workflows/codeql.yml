@@ -139,9 +139,19 @@ jobs:
         with:
           gradle-version: "9.8.0"
 
-      - name: Verify Gradle JVM
+      - name: Restore and verify selected Java after Gradle setup
         if: matrix.language == 'java-kotlin'
-        run: gradle --version
+        run: |
+          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          printf '%s\n' "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+          command -v java
+          command -v javac
+          java -version
+          javac -version
+          gradle --version
 
       - name: Initialize CodeQL
         id: codeql_init

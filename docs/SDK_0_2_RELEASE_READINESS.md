@@ -115,8 +115,12 @@ retains the exact contract and limits. This remains an unpublished research
 workspace. Its hosted CodeQL run completes all six analyses; its primary CI run
 passes 41 jobs and cancels the Linux Rust 1.90 candidate job. A separate same-head
 run fails the JVM installer at `PATH java must match JAVA_HOME`, while the primary
-run passes that job. The failure's exact environment cause remains unresolved;
-the passing run does not erase it.
+run passes that job. The subsequent [toolchain path investigation](SDK_DEPENDENCY_POLICY.md#jvm-executable-selection-after-gradle-provisioning)
+reproduces the pinned Gradle action's shared-directory prepend on the new runner
+image. Both JVM workflows restore the chosen JDK afterward and retain strict
+identity checks; 51 local wiring/package-admission checks pass. Actual hosted
+package execution of that repair remains required, and the original failure is
+retained.
 These checks do not replace exact-source hosted CI or release qualification.
 
 Source `57334d4` passes all 37

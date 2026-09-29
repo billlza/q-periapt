@@ -1085,8 +1085,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
           gradle-version: "9.8.0"
-      - name: Verify Gradle JVM
-        run: gradle --version
+      - name: Restore and verify selected Java after Gradle setup
+        run: |
+          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          printf '%s\n' "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+          command -v java
+          command -v javac
+          java -version
+          javac -version
+          gradle --version
       - run: cargo build --locked -p q-periapt-ffi --release
       - run: gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail
       - name: Execute Android JNI owner API in the host JVM

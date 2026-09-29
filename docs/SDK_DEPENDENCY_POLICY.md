@@ -75,6 +75,33 @@ strict verification run. Node 24.0.0 remains the independent minimum-runtime
 check; it is not the package producer. Fresh platform, package and runtime
 qualification must bind this updated source before release.
 
+## JVM executable selection after Gradle provisioning
+
+The selected JDK must remain first on `PATH` after `setup-gradle`. The pinned
+[provisioner](https://github.com/gradle/actions/blob/3f131e8634966bd73d06cc69884922b02e6faf92/sources/src/execution/provision.ts)
+prepends the directory returned by executable lookup, including when the requested
+Gradle already exists. The Ubuntu 22.04 image
+[installer](https://github.com/actions/runner-images/blob/ubuntu22/20260927.309/images/ubuntu/scripts/build/install-java-tools.sh)
+places its Gradle link in `/usr/bin`. Matching Gradle 9.8.0 therefore moves that
+shared directory ahead of the JDK selected earlier, while `JAVA_HOME` remains
+unchanged. A downloaded Gradle instead contributes its own private bin directory.
+
+This difference explains the reproduced path mismatch between the two 4a78609
+runner cohorts: the new image logs reuse of Gradle 9.8.0, while the older image
+logs a download. The historical failing job did not print its final resolved
+Java path; `/usr/bin/java` is inferred from the fixed action/image and the logged
+branch, not presented as a direct path observation. The real installer rejected
+`PATH java must match JAVA_HOME` before creating package output.
+
+Both JVM-producing workflows now restore `$JAVA_HOME/bin` in the current step and
+`GITHUB_PATH` after Gradle setup. They recheck exact `java` and `javac` selection,
+record their command paths/versions, and execute Gradle before consumers. The
+installed-package path check is unchanged. Regression tests run the actual shell
+selection block and hardened Python path predicate, including omitted current-step
+restoration, omitted next-step restoration and a missing selected compiler. Those
+path fixtures do not execute a simulated JVM or establish SDK runtime success;
+the subsequent real package/consumer job remains required.
+
 The local refresh evidence is retained under
 `target/sdk-dependency-refresh-020-1/`: official Rust channel manifests, registry
 index snapshots, compiler identities, dependency update logs, real old-format

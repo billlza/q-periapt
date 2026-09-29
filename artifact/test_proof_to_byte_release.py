@@ -1185,18 +1185,93 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertLess(job.index(setup_name), job.index(verify_name))
                 self.assertLess(job.index(verify_name), job.index(consumer))
                 if version == 25:
-                    gradle = extract_named_workflow_step(job, "Verify Gradle JVM")
+                    restored_name = "Restore and verify selected Java after Gradle setup"
+                    gradle = extract_named_workflow_step(job, restored_name)
                     self.assertEqual(
                         gradle.rstrip(),
-                        "      - name: Verify Gradle JVM\n"
+                        f"      - name: {restored_name}\n"
                         f"{condition}"
-                        "        run: gradle --version",
+                        "        run: |\n"
+                        "          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.\n"
+                        '          export PATH="$JAVA_HOME/bin:$PATH"\n'
+                        '          test "$(command -v java)" = "$JAVA_HOME/bin/java"\n'
+                        '          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"\n'
+                        '          printf \'%s\\n\' "$JAVA_HOME/bin" >> "$GITHUB_PATH"\n'
+                        "          command -v java\n"
+                        "          command -v javac\n"
+                        "          java -version\n"
+                        "          javac -version\n"
+                        "          gradle --version",
                     )
                     self.assertIn('          gradle-version: "9.8.0"', job)
-                    self.assertLess(
-                        job.index(verify_name), job.index("Verify Gradle JVM")
+                    self.assertLess(job.index(verify_name), job.index("gradle/actions/setup-gradle@"))
+                    self.assertLess(job.index("gradle/actions/setup-gradle@"), job.index(restored_name))
+                    self.assertLess(job.index(restored_name), job.index(consumer))
+
+    def test_gradle_shared_path_restoration_covers_current_and_later_steps(self) -> None:
+        # Executable markers exercise path resolution only. No marker is run as a
+        # pretend JVM; actual JDK/Gradle/package execution remains a hosted gate.
+        for workflow, job_name in ((CI_WORKFLOW, "bindings-kotlin"), (CODEQL_WORKFLOW, "analyze")):
+            with self.subTest(workflow=workflow.name), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                selected = root / "selected jdk" / "bin"
+                shared = root / "shared-bin"
+                private = root / "gradle-only" / "bin"
+                for directory in (selected, shared, private):
+                    directory.mkdir(parents=True)
+                for directory in (selected, shared):
+                    for tool in ("java", "javac"):
+                        path = directory / tool
+                        path.touch()
+                        path.chmod(0o700)
+                job = extract_workflow_job(workflow.read_text(), job_name)
+                step = extract_named_workflow_step(job, "Restore and verify selected Java after Gradle setup")
+                body = step.split("        run: |\n", 1)[1]
+                prefix, versions = body.split("          java -version\n", 1)
+                self.assertIn("          javac -version\n", versions)
+                self.assertIn("          gradle --version", versions)
+                prefix = "\n".join(line.removeprefix("          ") for line in prefix.splitlines())
+                probe = ('import os,pathlib,shutil; p=pathlib.Path(os.environ["JAVA_HOME"])/"bin/java"; '
+                         'raise SystemExit(0 if pathlib.Path(shutil.which("java") or "").resolve()==p.resolve() else 1)')
+                env = dict(os.environ, JAVA_HOME=str(selected.parent), QPERIAPT_PYTHON=sys.executable)
+                polluted = os.pathsep.join((str(shared), str(selected), "/usr/bin", "/bin"))
+
+                def observe(path: str) -> int:
+                    result = subprocess.run(
+                        ["/bin/sh", str(ROOT / "artifact/python-run.sh"), "-c", probe],
+                        env=dict(env, PATH=path), capture_output=True, timeout=15, check=False,
                     )
-                    self.assertLess(job.index("Verify Gradle JVM"), job.index(consumer))
+                    self.assertIn(result.returncode, (0, 1), result.stderr)
+                    return result.returncode
+
+                self.assertEqual(observe(polluted), 1)
+                self.assertEqual(observe(os.pathsep.join((str(private), str(selected), str(shared), "/usr/bin", "/bin"))), 0)
+                for label, script, current_ok, later_ok in (
+                    ("repair", prefix, True, True),
+                    ("missing-current", prefix.replace('export PATH="$JAVA_HOME/bin:$PATH"', ""), False, False),
+                    ("missing-later", "\n".join(line for line in prefix.splitlines() if '>> "$GITHUB_PATH"' not in line), True, False),
+                ):
+                    with self.subTest(case=label):
+                        github_path = root / label
+                        result = subprocess.run(
+                            ["/bin/bash", "-eu", "-c", script],
+                            env=dict(env, PATH=polluted, GITHUB_PATH=str(github_path)),
+                            capture_output=True, timeout=15, check=False,
+                        )
+                        self.assertEqual(result.returncode, 0 if current_ok else 1, result.stderr)
+                        lines = github_path.read_text().splitlines() if github_path.exists() else []
+                        if later_ok:
+                            self.assertEqual(lines, [str(selected)])
+                        self.assertEqual(observe(os.pathsep.join([*reversed(lines), polluted])), 0 if later_ok else 1)
+
+                (selected / "javac").unlink()
+                result = subprocess.run(
+                    ["/bin/bash", "-eu", "-c", prefix],
+                    env=dict(env, PATH=polluted, GITHUB_PATH=str(root / "missing-compiler")),
+                    capture_output=True, timeout=15, check=False,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertFalse((root / "missing-compiler").exists())
 
     def test_kotlin_lts_build_uses_the_java_25_stable_api_and_bytecode(
         self,
