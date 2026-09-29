@@ -106,6 +106,9 @@ traffic must be able to respond without an application creating dummy messages.
 Choosing the budget requires a matched full-profile measurement that includes
 control-only traffic, bandwidth, durable writes, latency and energy. The existing
 32/64-message component intervals are experiment parameters, not product defaults.
+The [send-progress contract](SEND_PROGRESS_V1.md) specifies the required accounting:
+old and newly installed sending epochs share the window until local completion,
+and application sends already made in the new epoch remain spent afterward.
 
 ## Required trace and implementation evidence
 
