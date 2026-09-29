@@ -67,7 +67,7 @@ jobs:
         if: matrix.language == 'java-kotlin' || matrix.language == 'rust' || matrix.language == 'swift'
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
 
       - name: Compile all Rust targets with compatibility and canonical toolchains
         if: matrix.language == 'rust'
@@ -77,8 +77,8 @@ jobs:
             CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.94.0" \
             cargo +1.94.0 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           RUSTFLAGS='-D warnings' \
-            CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.96.1" \
-            cargo +1.96.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
+            CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.98.1" \
+            cargo +1.98.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           test ! -e target && test ! -L target
 
       - name: Compile isolated ratchet references with both analysis toolchains
@@ -86,7 +86,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
-          for reference_toolchain in 1.94.0 1.96.1; do
+          for reference_toolchain in 1.94.0 1.98.1; do
             RUSTFLAGS='-D warnings' \
               CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-spqr-check-${reference_toolchain}" \
               cargo +"$reference_toolchain" check --manifest-path research/continuity-spqr-reference/Cargo.toml --all-targets --locked

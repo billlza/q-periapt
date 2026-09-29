@@ -584,9 +584,9 @@ CARGO_HOME=$OWNED_CARGO_HOME
 export CARGO_HOME
 printf 'RUST_CARGO_HOME_ISOLATION_PASS mode=0700 ambient_cargo_home_data=unused\n'
 
-rustc_version=$(rustc +1.96.1 --version)
-rustc_verbose=$(rustc +1.96.1 -vV)
-cargo_version=$(cargo +1.96.1 --version)
+rustc_version=$(rustc +1.98.1 --version)
+rustc_verbose=$(rustc +1.98.1 -vV)
+cargo_version=$(cargo +1.98.1 --version)
 cargo_audit_version=$(cargo-audit --version)
 rustc_host=$(python3 - "$rustc_verbose" <<'PY'
 import re
@@ -606,8 +606,8 @@ import re
 import sys
 
 expected = (
-    ("rustc", "1.96.1", sys.argv[1]),
-    ("cargo", "1.96.1", sys.argv[2]),
+    ("rustc", "1.98.1", sys.argv[1]),
+    ("cargo", "1.98.1", sys.argv[2]),
     ("cargo-audit", "0.22.2", sys.argv[3]),
 )
 for tool, version, output in expected:
@@ -618,7 +618,7 @@ for tool, version, output in expected:
         raise SystemExit(
             f"error: Rust package contract requires {tool} {version}; got {output!r}"
         )
-print("RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2")
+print("RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.98.1 cargo=1.98.1 cargo-audit=0.22.2")
 PY
 
 if [ "$ALLOW_DIRTY" = "0" ]; then
@@ -632,7 +632,7 @@ mkdir -p "$ROOT/target"
 metadata_json=$(mktemp "$ROOT/target/qperiapt-cargo-metadata.XXXXXX")
 metadata_stderr=$(mktemp "$ROOT/target/qperiapt-cargo-metadata-stderr.XXXXXX")
 run_cargo_captured "cargo-metadata" "$metadata_json" "$metadata_stderr" \
-	cargo +1.96.1 metadata --locked --format-version 1
+	cargo +1.98.1 metadata --locked --format-version 1
 
 python3 - "$metadata_json" <<'PY'
 import json
@@ -875,10 +875,10 @@ sys_build_dependencies = [
 if (
     len(sys_build_dependencies) != 1
     or sys_build_dependencies[0]["name"] != "cc"
-    or sys_build_dependencies[0].get("req") != "=1.2.67"
+    or sys_build_dependencies[0].get("req") != "=1.5.1"
 ):
     raise SystemExit(
-        "error: q-periapt-mlkem-native-sys must pin its sole C build dependency to cc =1.2.67"
+        "error: q-periapt-mlkem-native-sys must pin its sole C build dependency to cc =1.5.1"
     )
 for pkg in packages.values():
     if not pkg["name"].startswith("q-periapt"):
@@ -892,7 +892,7 @@ for pkg in packages.values():
 print(
     "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 "
     "mlkem_provider=q-periapt-mlkem-native-sys "
-    "sys_build_dependency=cc@1.2.67"
+    "sys_build_dependency=cc@1.5.1"
 )
 PY
 
@@ -901,7 +901,7 @@ check_package_list() {
 	list_file=$(mktemp "$ROOT/target/qperiapt-package-$crate.XXXXXX")
 	list_stderr=$(mktemp "$ROOT/target/qperiapt-package-$crate-stderr.XXXXXX")
 	run_cargo_captured "cargo-package-list-$crate" "$list_file" "$list_stderr" \
-		cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked --registry crates-io \
+		cargo +1.98.1 package $ALLOW_DIRTY_ARG --locked --registry crates-io \
 		-p "$crate" --list
 	python3 - "$crate" "$list_file" <<'PY'
 import pathlib
@@ -948,7 +948,7 @@ run_package_verification() {
 	crate=$1
 	package_stdout=$(mktemp "$ROOT/target/qperiapt-package-verification-$crate-stdout.XXXXXX")
 	package_stderr=$(mktemp "$ROOT/target/qperiapt-package-verification-$crate-stderr.XXXXXX")
-	set -- cargo +1.96.1 package --locked --registry crates-io \
+	set -- cargo +1.98.1 package --locked --registry crates-io \
 		--target-dir "$PACKAGE_VERIFICATION_TARGET" -p "$crate"
 	if [ -n "$ALLOW_DIRTY_ARG" ]; then
 		set -- "$@" "$ALLOW_DIRTY_ARG"
@@ -1104,7 +1104,7 @@ sys_package_stdout="$PACKAGE_INSPECTION_TARGET/cargo-package-mlkem-native-sys.st
 sys_package_stderr="$PACKAGE_INSPECTION_TARGET/cargo-package-mlkem-native-sys.stderr"
 run_cargo_captured "cargo-package-inspection-q-periapt-mlkem-native-sys" \
 	"$sys_package_stdout" "$sys_package_stderr" env RUSTFLAGS='-D warnings' \
-	cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked --registry crates-io \
+	cargo +1.98.1 package $ALLOW_DIRTY_ARG --locked --registry crates-io \
 	--target-dir "$PACKAGE_INSPECTION_TARGET" -p q-periapt-mlkem-native-sys
 verify_cargo_package_completion q-periapt-mlkem-native-sys \
 	"$sys_package_stdout" "$sys_package_stderr"
@@ -1525,7 +1525,7 @@ package_inspection_stdout="$PACKAGE_INSPECTION_TARGET/cargo-package-backends.std
 package_inspection_stderr="$PACKAGE_INSPECTION_TARGET/cargo-package-backends.stderr"
 run_cargo_captured "cargo-package-inspection-q-periapt-backends" \
 	"$package_inspection_stdout" "$package_inspection_stderr" \
-	env RUSTFLAGS='-D warnings' cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked \
+	env RUSTFLAGS='-D warnings' cargo +1.98.1 package $ALLOW_DIRTY_ARG --locked \
 	--registry crates-io \
 	--target-dir "$PACKAGE_INSPECTION_TARGET" \
 	--config 'patch.crates-io.q-periapt-core.path="crates/q-periapt-core"' \
@@ -1642,7 +1642,7 @@ NORMALIZED_BACKENDS_DIR=${1%/Cargo.toml}
 lockfile_stdout="$PACKAGE_INSPECTION_TARGET/cargo-generate-lockfile.stdout"
 lockfile_stderr="$PACKAGE_INSPECTION_TARGET/cargo-generate-lockfile.stderr"
 run_cargo_captured "cargo-generate-normalized-backends-lockfile" \
-	"$lockfile_stdout" "$lockfile_stderr" cargo +1.96.1 generate-lockfile \
+	"$lockfile_stdout" "$lockfile_stderr" cargo +1.98.1 generate-lockfile \
 	--manifest-path "$NORMALIZED_BACKENDS_DIR/Cargo.toml" \
 	--config "patch.crates-io.q-periapt-core.path=\"$ROOT/crates/q-periapt-core\"" \
 	--config "patch.crates-io.q-periapt-sig.path=\"$ROOT/crates/q-periapt-sig\"" \

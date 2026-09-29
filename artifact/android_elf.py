@@ -103,8 +103,8 @@ ANDROID_CONSUMER_RULES = b"""-keep class dev.qperiapt.android.QPeriaptAndroid {
 }
 """
 MANIFEST_SCHEMA_VERSION = 4
-EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+EXPECTED_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 AAR_CANONICAL_DATE_TIME = (2000, 1, 1, 0, 0, 0)
 AAR_CANONICAL_CREATE_SYSTEM = 3
 AAR_CANONICAL_EXTERNAL_ATTR = (stat.S_IFREG | 0o644) << 16
@@ -253,7 +253,7 @@ THIRD_PARTY_RUST_COVERED_TARGETS = (
     "i686-linux-android",
 )
 SDK_NOTICE_SOURCES = {
-    "META-INF/LICENSES/Rust-1.96.1-library.html": "LICENSES/Rust-1.96.1-library.html",
+    "META-INF/LICENSES/Rust-1.98.1-library.html": "LICENSES/Rust-1.98.1-library.html",
     **{f"META-INF/LICENSES/mlkem-native/{name}": f"crates/q-periapt-mlkem-native-sys/vendor/{name}"
        for name in ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")},
 }

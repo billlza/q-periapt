@@ -53,7 +53,7 @@ def write_candidate(root: pathlib.Path, overrides: dict | None = None) -> dict:
             "native_abi_major": 2, "base_commit": SOURCE, "crates": records,
             "git_dirty": False, "diagnostic_only": False, "publication_performed": False,
             "release_claim_eligible": False, "sources_unchanged": True, "cargo_home_isolated": True,
-            "cargo": "cargo 1.96.1 (fixture 2026-01-01)"}
+            "cargo": "cargo 1.98.1 (fixture 2026-01-01)"}
 
 
 class SdkUploaderTests(unittest.TestCase):
@@ -68,7 +68,7 @@ class SdkUploaderTests(unittest.TestCase):
     def prepare(self, *, expected_digest=None, **options):
         data = (json.dumps(self.report) + "\n").encode()
         self.manifest.write_bytes(data)
-        return build.build(self.manifest, TEMPLATE, self.output, crate_dir=None, cargo_version="1.96.1",
+        return build.build(self.manifest, TEMPLATE, self.output, crate_dir=None, cargo_version="1.98.1",
                            profile=sdk.PROFILE, input_sha256=expected_digest or hashlib.sha256(data).hexdigest(),
                            **options)
 
@@ -101,16 +101,16 @@ class SdkUploaderTests(unittest.TestCase):
     def test_profiles_do_not_auto_select_each_other(self):
         self.manifest.write_text(json.dumps(self.report))
         with self.assertRaisesRegex(build.UploaderBuildError, "not a rust package handoff"):
-            build.build(self.manifest, TEMPLATE, self.output, crate_dir=None, cargo_version="1.96.1")
+            build.build(self.manifest, TEMPLATE, self.output, crate_dir=None, cargo_version="1.98.1")
         legacy = _write_cohort(self.root)
         with self.assertRaisesRegex(build.UploaderBuildError, "SDK package report identity"):
-            build.build(legacy, TEMPLATE, self.output, crate_dir=None, cargo_version="1.96.1",
+            build.build(legacy, TEMPLATE, self.output, crate_dir=None, cargo_version="1.98.1",
                         profile=sdk.PROFILE, input_sha256=hashlib.sha256(legacy.read_bytes()).hexdigest())
 
     def test_report_requires_explicit_matching_digest(self):
         self.manifest.write_text(json.dumps(self.report))
         with self.assertRaisesRegex(build.UploaderBuildError, "explicitly pinned"):
-            build.build(self.manifest, TEMPLATE, self.output, crate_dir=None, cargo_version="1.96.1", profile=sdk.PROFILE)
+            build.build(self.manifest, TEMPLATE, self.output, crate_dir=None, cargo_version="1.98.1", profile=sdk.PROFILE)
         with self.assertRaisesRegex(build.UploaderBuildError, "SHA-256 differs"):
             self.prepare(expected_digest="0" * 64)
         self.assertFalse(self.output.exists())
@@ -261,7 +261,7 @@ class SdkUploaderTests(unittest.TestCase):
     def cli_arguments(self):
         self.manifest.write_text(json.dumps(self.report))
         selected = hashlib.sha256(self.manifest.read_bytes()).hexdigest()
-        return [str(self.manifest), "--profile", sdk.PROFILE, "--input-sha256", selected, "--cargo-version", "1.96.1"], selected
+        return [str(self.manifest), "--profile", sdk.PROFILE, "--input-sha256", selected, "--cargo-version", "1.98.1"], selected
 
     def test_cli_derives_separate_private_outputs_from_report_bytes(self):
         candidate_root = self.root / "candidates"

@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use q_periapt_backends::{ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
+use redb::ReadableDatabase;
 use redb::{Database, Durability, ReadableTable, TableDefinition};
 
 use crate::authentication::{
@@ -671,7 +672,9 @@ impl WitnessStore {
                 let mut transaction = database
                     .begin_write()
                     .map_err(|_| WitnessError::Persistence)?;
-                transaction.set_durability(Durability::Immediate);
+                transaction
+                    .set_durability(Durability::Immediate)
+                    .map_err(|_| WitnessError::Persistence)?;
                 transaction.set_two_phase_commit(true);
                 {
                     let mut meta = transaction
@@ -722,8 +725,8 @@ impl WitnessStore {
         let mut reader = file.try_clone().map_err(|_| WitnessError::Persistence)?;
         // The clone shares the original open file description. No content is read
         // until FileBackend has obtained its nonblocking exclusive flock.
-        let backend =
-            redb::backends::FileBackend::new(file).map_err(|_| WitnessError::Persistence)?;
+        let backend = q_periapt_host_store::filesystem::LockedFileBackend::new(file)
+            .map_err(|_| WitnessError::Persistence)?;
         refuse_unclean_foreign_redb(&backend).map_err(|_| WitnessError::Persistence)?;
         {
             let mut scratch = parent
@@ -908,7 +911,9 @@ impl WitnessStore {
             .database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         let receipt = {
             let mut meta = transaction
@@ -1144,7 +1149,9 @@ pub(crate) mod test_support {
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
@@ -1192,7 +1199,9 @@ pub(crate) mod test_support {
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
@@ -1268,7 +1277,9 @@ pub(crate) mod test_support {
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction

@@ -163,15 +163,15 @@ def qualify(args: argparse.Namespace) -> dict:
                 "selected offline Cargo cache must not contain config/credential overrides")
         environment.update(CARGO_HOME=str(cargo_home), CARGO_NET_OFFLINE="true", CARGO_TERM_COLOR="never",
                            CARGO_TARGET_DIR=str(outside / "rust-build"), RUSTFLAGS="-D warnings")
-        toolchain = run_command(["rustc", "+1.96.1", "--version"], output, "rustc", outside, environment).decode().strip()
-        require(toolchain == "rustc 1.96.1 (31fca3adb 2026-06-26)", "installed Rust compiler differs")
-        run_command(["cargo", "+1.96.1", "build", "--offline", "--bins", "-j", "2"], output, "rust-build", rust_consumer, environment)
+        toolchain = run_command(["rustc", "+1.98.1", "--version"], output, "rustc", outside, environment).decode().strip()
+        require(toolchain == "rustc 1.98.1 (48a229cea 2026-09-01)", "installed Rust compiler differs")
+        run_command(["cargo", "+1.98.1", "build", "--offline", "--bins", "-j", "2"], output, "rust-build", rust_consumer, environment)
         metadata = parse_strict_json_bytes(run_command(
-            ["cargo", "+1.96.1", "metadata", "--locked", "--offline", "--format-version", "1"],
+            ["cargo", "+1.98.1", "metadata", "--locked", "--offline", "--format-version", "1"],
             output, "rust-metadata", rust_consumer, environment), label="installed connection Cargo metadata")
         result["rust_resolution"] = verify_rust_resolution(metadata, rust_consumer, snapshot(rust_consumer / "Cargo.lock").data,
                                                             snapshot(ROOT / "Cargo.lock").data)
-        run_command(["cargo", "+1.96.1", "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
+        run_command(["cargo", "+1.98.1", "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
                     output, "rust-clippy", rust_consumer, environment)
         copy(rust_consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         rust.verify_consumed_sources(rust_consumer, args.rust_report.parent, report["crates"])

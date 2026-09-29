@@ -11,7 +11,7 @@ deliberate plaintext-transfer API is available only through `/expert` or
 `/web/expert`. The old deterministic/KAT crate remains separate. The exports map
 is an integration boundary, not a same-realm adversarial isolation mechanism.
 
-Build from the repository root with pinned Rust 1.96.1, wasm-pack 0.15.0,
+Build from the repository root with pinned Rust 1.98.1, wasm-pack 0.15.0,
 a WASM-capable C compiler and Node >=24:
 
 ```sh

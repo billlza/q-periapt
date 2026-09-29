@@ -2,7 +2,7 @@
 name = "q-periapt-sdk-package-consumer"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.90"
 publish = false
 
 [workspace]

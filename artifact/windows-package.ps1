@@ -1627,7 +1627,7 @@ $Cl = $MsvcTools.Cl
 $Dumpbin = $MsvcTools.Dumpbin
 $Linker = $MsvcTools.Linker
 [void] (Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker)
-$RustSysrootText = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--print", "sysroot")
+$RustSysrootText = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "--print", "sysroot")
 if (-not [System.IO.Path]::IsPathFullyQualified($RustSysrootText)) {
     throw "Rust sysroot must be absolute"
 }
@@ -1646,18 +1646,18 @@ $WindowsDirectory = [System.IO.Path]::GetFullPath(
         [System.Environment+SpecialFolder]::Windows
     )
 )
-$RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "-vV")
+$RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
 if (-not $RustHostMatch.Success) {
     throw "cannot determine the Rust host triple"
 }
-$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--version")
-if ($RustcVersion -cne "rustc 1.97.0 (2d8144b78 2026-07-07)") {
-    throw "Windows release package requires rustc 1.97.0: $RustcVersion"
+$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "--version")
+if ($RustcVersion -cne "rustc 1.98.1 (48a229cea 2026-09-01)") {
+    throw "Windows release package requires rustc 1.98.1: $RustcVersion"
 }
-$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "--version")
-if ($CargoVersion -cne "cargo 1.97.0 (c980f4866 2026-06-30)") {
-    throw "Windows release package requires cargo 1.97.0: $CargoVersion"
+$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.98.1", "--version")
+if ($CargoVersion -cne "cargo 1.98.1 (797e8a9bc 2026-08-05)") {
+    throw "Windows release package requires cargo 1.98.1: $CargoVersion"
 }
 $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustSysroot $RustSysroot `
@@ -1792,7 +1792,7 @@ if ($SourceDateEpochText -notmatch '^(0|[1-9][0-9]*)$') {
     throw "source commit timestamp is malformed: $SourceDateEpochText"
 }
 $SourceDateEpoch = [int64] $SourceDateEpochText
-$metadata = (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "metadata", "--locked", "--format-version", "1", "--no-deps")) | ConvertFrom-Json
+$metadata = (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.98.1", "metadata", "--locked", "--format-version", "1", "--no-deps")) | ConvertFrom-Json
 $ffiPackage = @($metadata.packages | Where-Object { $_.name -eq "q-periapt-ffi" })
 if ($ffiPackage.Count -ne 1 -or $ffiPackage[0].version -ne $Version) {
     throw "q-periapt-ffi package version must be $Version"
@@ -1891,7 +1891,7 @@ try {
         $env:CFLAGS = $sdkCompilerFlags
         Assert-SdkCPathRemapping -Compiler $Cl -Flags $sdkCompilerArguments `
             -OutputDirectory $OutRoot -CargoDirectory $CargoHome
-        Invoke-Checked -FilePath "cargo.exe" -Arguments @("+1.97.0", "fetch", "--locked")
+        Invoke-Checked -FilePath "cargo.exe" -Arguments @("+1.98.1", "fetch", "--locked")
         $env:CARGO_NET_OFFLINE = "true"
     }
     $env:AR = $LlvmAr
@@ -1914,7 +1914,7 @@ try {
         -WindowsDirectory $WindowsDirectory `
         -NormalizePath
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
+        "+1.98.1", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
         "-Clinker=link.exe", "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
         "-Clink-arg=/WX", "-Clink-arg=/DEBUG:NONE",
         "-Clink-arg=/Brepro", "-Clink-arg=/NOCOFFGRPINFO",
@@ -1939,7 +1939,7 @@ try {
     )
     $env:CARGO_TARGET_DIR = $StaticTarget
     $staticBuild = Invoke-Captured -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
+        "+1.98.1", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
         "--print", "native-static-libs", "-Cstrip=debuginfo"
     ) -Echo
     $nativeStaticLibrariesLog = Join-Path $OutRoot "native-static-libraries.txt"
@@ -2104,12 +2104,12 @@ if ($Profile -eq "sdk-020") {
     Copy-Item -LiteralPath (Join-Path $Root "bindings/c/sdk_smoke.c") -Destination (Join-Path $PackageRoot "share/q-periapt/sdk_smoke.c")
     Copy-Item -LiteralPath (Join-Path $Root "bindings/c/sdk_policy_update_fixture.h") -Destination (Join-Path $PackageRoot "include/qperiapt/abi2/sdk_policy_update_fixture.h")
     Copy-Item -LiteralPath (Join-Path $Root "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h") -Destination (Join-Path $PackageRoot "share/q-periapt/legacy/q_periapt.h")
-    $rustNotice = Join-Path $Root "LICENSES/Rust-1.97.0-library.html"
+    $rustNotice = Join-Path $Root "LICENSES/Rust-1.98.1-library.html"
     if ((Get-FileHash -LiteralPath $rustNotice -Algorithm SHA256).Hash -cne
         (Get-FileHash -LiteralPath (Join-Path $RustSysroot "share/doc/rust/COPYRIGHT-library.html") -Algorithm SHA256).Hash) {
         throw "Windows Rust standard-library notice differs from the exact build toolchain"
     }
-    Copy-Item -LiteralPath $rustNotice -Destination (Join-Path $PackageRoot "LICENSES/Rust-1.97.0-library.html")
+    Copy-Item -LiteralPath $rustNotice -Destination (Join-Path $PackageRoot "LICENSES/Rust-1.98.1-library.html")
 }
 foreach ($name in @("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md")) {
     Copy-Item -LiteralPath (Join-Path $Root "crates/q-periapt-mlkem-native-sys/vendor/$name") -Destination (Join-Path $PackageRoot "THIRD_PARTY/mlkem-native/$name")
@@ -2125,13 +2125,13 @@ try {
         $env:CARGO_HOME = $CargoHome
         $env:CARGO_NET_OFFLINE = "true"
     }
-    $cbomArguments = @("+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt")
+    $cbomArguments = @("+1.98.1", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt")
     if ($Profile -eq "sdk-020") { $cbomArguments += @("--features", "sdk-cbom") }
     $cbomArguments += @("--", "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json"))
     if ($Profile -eq "sdk-020") { $cbomArguments += @("--native-sdk") }
     Invoke-Checked -FilePath "cargo.exe" -Arguments $cbomArguments
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
+        "+1.98.1", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
         "sbom", "--lock", "Cargo.lock", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/sbom.cdx.json")
     )
     Invoke-PythonChecked -Arguments @(
@@ -2240,7 +2240,7 @@ applications must pin their own trust roots and persist policy state.
 Windows persistent-store entry points explicitly return
 Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM; no weaker filesystem fallback is used.
 The caller owns transport and durable policy storage. This package includes
-the 37-asset native SDK CBOM and notices for the exact Rust 1.97.0 library.
+the 37-asset native SDK CBOM and notices for the exact Rust 1.98.1 library.
 Authenticode trust and release readiness require their respective verification
 receipts. See the repository's docs/SDK_WINDOWS_PACKAGE.md for qualification.
 '@
@@ -2274,8 +2274,8 @@ if ($clVersion -cnotmatch '^MSVC [1-9][0-9]\.[0-9]{2}\.(0|[1-9][0-9]{0,4})\.(0|[
     throw "MSVC compiler version inspector returned a malformed contract"
 }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
-$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--version")
-$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "--version")
+$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "--version")
+$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.98.1", "--version")
 if ($ManifestRustcVersion -cne $RustcVersion -or $ManifestCargoVersion -cne $CargoVersion) {
     throw "Windows Rust toolchain changed during release package construction"
 }

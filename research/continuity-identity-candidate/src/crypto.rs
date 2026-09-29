@@ -59,7 +59,7 @@ impl PublicKey {
         let classic = decoder.array()?;
         decoder.finish()?;
         let key = VerifyingKey::from_sec1_bytes(&classic).map_err(|_| Error::Encoding)?;
-        if key.to_encoded_point(true).as_bytes() != classic {
+        if key.to_sec1_point(true).as_bytes() != classic {
             return Err(Error::Encoding);
         }
         Ok(Self { pq, classic })
@@ -87,7 +87,7 @@ impl PublicKey {
         let classic_signature =
             Signature::from_slice(classic_signature).map_err(|_| Error::Authentication)?;
         // One canonical signature representation: reject high-s aliases.
-        if classic_signature.normalize_s().is_some() {
+        if classic_signature.normalize_s() != classic_signature {
             return Err(Error::Authentication);
         }
         let key = VerifyingKey::from_sec1_bytes(&self.classic).map_err(|_| Error::Encoding)?;
@@ -197,7 +197,7 @@ impl Material {
         expanded.zeroize();
         let classic_public = classic
             .verifying_key()
-            .to_encoded_point(true)
+            .to_sec1_point(true)
             .as_bytes()
             .try_into()
             .map_err(|_| Error::Provider)?;
@@ -250,10 +250,7 @@ impl Material {
             .classic
             .try_sign(message)
             .map_err(|_| Error::Provider)?;
-        let canonical = match signature.normalize_s() {
-            Some(normalized) => normalized,
-            None => signature,
-        };
+        let canonical = signature.normalize_s();
         let mut result = Vec::with_capacity(SIGNATURE_BYTES);
         result.extend_from_slice(&pq_signature);
         result.extend_from_slice(&canonical.to_bytes());

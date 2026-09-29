@@ -28,9 +28,10 @@ use q_periapt_mlkem_native_sys::{
     Error as NativeMlKemError, MlKem1024 as NativeMlKem1024, MlKem512 as NativeMlKem512,
     MlKem768 as NativeMlKem768,
 };
-use sha3::{
+use sha3::{Digest, Sha3_256};
+use shake::{
     digest::{ExtendableOutput, Update, XofReader},
-    Digest, Sha3_256, Shake256,
+    Shake256,
 };
 use x25519_dalek::{PublicKey, StaticSecret};
 

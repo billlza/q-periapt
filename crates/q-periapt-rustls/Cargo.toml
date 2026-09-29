@@ -42,7 +42,7 @@ socket2 = "0.6"  # stable SO_LINGER for the netem bench (std set_linger is night
 
 [target.'cfg(unix)'.dev-dependencies]
 # Reuse the policy agent's pinned readiness API for the bounded reference peer.
-rustix = { version = "=1.1.4", features = ["event"] }
+rustix = { version = "=1.1.5", features = ["event"] }
 
 [[example]]
 name = "netem_bench"

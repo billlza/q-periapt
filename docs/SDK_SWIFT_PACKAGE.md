@@ -42,8 +42,8 @@ need neither a Rust installation nor source-checkout library search paths.
 The complete ZIP contains wrappers, all binary slices, the native 37-asset
 CBOM, workspace lock SBOM, per-target Cargo dependency notices, mlkem-native
 notices and the Rust standard-library copyright notice. The latter is copied
-verbatim from Rust 1.96.1's `share/doc/rust/COPYRIGHT-library.html`, SHA-256
-`78c163fcec50e64bfd85fedb850c273595602fafa2b41f30f75d4e410b80ee83`.
+verbatim from Rust 1.98.1's `share/doc/rust/COPYRIGHT-library.html`, SHA-256
+`68129500b616d5838629e68f55ff3aed5e096dacf60ce9eb41bbe599a563afa6`.
 Inventory scopes are specified in [SDK_CBOM.md](SDK_CBOM.md); a workspace SBOM
 is not an exact per-slice linked-code inventory.
 

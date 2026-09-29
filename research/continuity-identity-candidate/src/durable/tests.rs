@@ -5,7 +5,8 @@ use crate::{
     crypto::{envelope, open_envelope, Purpose},
     InitiatorOperation, PrekeyQuality,
 };
-use redb::{backends::FileBackend, StorageBackend};
+use q_periapt_host_store::filesystem::LockedFileBackend as FileBackend;
+use redb::StorageBackend;
 use std::{
     fs,
     os::unix::fs::PermissionsExt,
@@ -389,8 +390,8 @@ impl StorageBackend for FaultBackend {
     fn len(&self) -> io::Result<u64> {
         self.inner.len()
     }
-    fn read(&self, offset: u64, len: usize) -> io::Result<Vec<u8>> {
-        self.inner.read(offset, len)
+    fn read(&self, offset: u64, out: &mut [u8]) -> io::Result<()> {
+        self.inner.read(offset, out)
     }
     fn write(&self, offset: u64, bytes: &[u8]) -> io::Result<()> {
         if self.fail_write.swap(false, Ordering::SeqCst) {
@@ -401,7 +402,17 @@ impl StorageBackend for FaultBackend {
     fn set_len(&self, len: u64) -> io::Result<()> {
         self.inner.set_len(len)
     }
-    fn sync_data(&self, eventual: bool) -> io::Result<()> {
+    fn try_lock_range(
+        &self,
+        start: std::ops::Bound<u64>,
+        end: std::ops::Bound<u64>,
+    ) -> Result<bool, redb::BackendError> {
+        self.inner.try_lock_range(start, end)
+    }
+    fn close(&self) -> io::Result<()> {
+        self.inner.close()
+    }
+    fn sync_data(&self) -> io::Result<()> {
         self.count.fetch_add(1, Ordering::SeqCst);
         let last = self
             .remaining
@@ -411,7 +422,7 @@ impl StorageBackend for FaultBackend {
         if last && !self.after_sync {
             return Err(io::Error::other("injected pre-sync error"));
         }
-        self.inner.sync_data(eventual)?;
+        self.inner.sync_data()?;
         if last {
             Err(io::Error::other("injected lost sync acknowledgement"))
         } else {

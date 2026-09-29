@@ -6,6 +6,7 @@ use crate::{
 };
 use hmac::{Hmac, Mac};
 use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
+use redb::ReadableDatabase;
 use redb::{Database, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle};
 use sha2::Sha256;
 use std::{collections::BTreeMap, path::Path};

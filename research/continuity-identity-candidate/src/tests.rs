@@ -149,10 +149,11 @@ fn mathematically_valid_high_s_alias_is_rejected() {
     let (body, signature) = open_envelope(&f.certificate).expect("envelope");
     let classic = Signature::from_slice(signature.get(ML_DSA_65_SIG_LEN..).expect("classic"))
         .expect("signature");
-    assert!(classic.normalize_s().is_none());
+    assert_eq!(classic.normalize_s(), classic);
     let high =
         Signature::from_scalars(classic.r().to_bytes(), (-classic.s()).to_bytes()).expect("high s");
-    assert_eq!(high.normalize_s(), Some(classic));
+    assert_ne!(high, classic);
+    assert_eq!(high.normalize_s(), classic);
     let mut bound = b"Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1".to_vec();
     bound.push(1);
     bound.extend_from_slice(&(body.len() as u32).to_be_bytes());

@@ -27,7 +27,7 @@ every product to the extracted path and exact SDK version. External dependency
 versions, registry origins and checksums must match the locked workspace.
 This is consumption of packaged crates, not public-registry installation.
 
-The builds use Rust 1.96.1 with warnings denied, Clippy with warnings denied, and
+The builds use Rust 1.98.1 with warnings denied, Clippy with warnings denied, and
 Swift release compilation with complete concurrency checks and warnings as errors.
 The Swift linker map must identify the selected packaged static archive; its
 bytes must match the native ZIP. At runtime, dyld must identify the frozen

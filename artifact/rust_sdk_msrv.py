@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the public API consumer of pinned SDK archives on the actual Rust 1.85 compiler."""
+"""Run the public API consumer of pinned SDK archives on the actual Rust 1.90 compiler."""
 from __future__ import annotations
 
 import argparse
@@ -14,7 +14,7 @@ import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
 ROOT = Path(__file__).resolve().parent.parent
-RUSTC = "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+RUSTC = "rustc 1.90.0 (1159e78c4 2025-09-14)"
 
 
 def source_inputs() -> dict:
@@ -92,10 +92,10 @@ def qualify(args: argparse.Namespace) -> dict:
             return sdk.command(argv, output / label, consumer, environment=environment)
 
         compiler = run([str(toolchain / "bin/rustc"), "--version", "--verbose"], "rustc").decode()
-        sdk.require(compiler.splitlines()[0] == RUSTC, "MSRV qualification requires the actual Rust 1.85.0 compiler")
+        sdk.require(compiler.splitlines()[0] == RUSTC, "MSRV qualification requires the actual Rust 1.90.0 compiler")
         result["rustc"] = compiler
         result["cargo"] = run([str(toolchain / "bin/cargo"), "--version"], "cargo").decode().strip()
-        sdk.require(result["cargo"].startswith("cargo 1.85.0 "), "MSRV Cargo version differs")
+        sdk.require(result["cargo"].startswith("cargo 1.90.0 "), "MSRV Cargo version differs")
         cargo = [str(toolchain / "bin/cargo")]
         # The workspace lock must first acquire this external consumer identity.
         # Every remaining registry tuple is then checked before compiling; no

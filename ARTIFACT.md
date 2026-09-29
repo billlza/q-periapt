@@ -26,9 +26,8 @@ model boundary are in
 may be interpreted as a PQ3/Signal-parity claim.
 
 All commands run from the repository root. The host smoke and repository development tests use
-the pinned Rust 1.96.1 toolchain. The product's Rust 1.85 minimum is checked separately by a
-workspace build and the [public SDK package consumer](docs/SDK_RUST_PACKAGE.md#minimum-compiler-and-development-toolchain);
-the locked development dependencies do not support full workspace tests on 1.85.
+the pinned Rust 1.98.1 toolchain. The product's Rust 1.90 minimum is checked separately by a
+workspace build and the [public SDK package consumer](docs/SDK_RUST_PACKAGE.md#minimum-compiler-and-development-toolchain).
 Proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
 uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PATH fallback.
 
@@ -37,10 +36,10 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 The Rust CodeQL lane uses the CodeQL 2.26.2 bundle linked to the exact pinned CodeQL Action
 commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
 with a Rust 1.94.0 analysis sysroot
-because the bundled Rust extractor cannot completely expand this repository with the canonical
-Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.96.1
+because the bundled Rust extractor cannot completely expand this repository with the previous canonical
+Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.98.1
 CodeQL analysis. Before CodeQL initialization, the same commit must pass
-`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.96.1 with
+`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
@@ -51,7 +50,7 @@ sentinels. Path-resolution and type-inference internal-consistency categories ar
 complete, self-reconciling classification and reported as telemetry rather than required to be
 zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
 produce type-inference telemetry; this is not a claim of complete extractor semantics for that
-generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
+generated code. The canonical Rust 1.98.1 all-target compile and the separate WASM Node gate cover
 those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
 budget while retaining its 300-second process deadline and bounded diagnostic output; a resource or
 deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database

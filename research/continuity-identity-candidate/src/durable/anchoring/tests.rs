@@ -6,6 +6,7 @@ use crate::{
     AnchorIdentity, AnchorPin, AnchorRequest, AnchorRequirement, AnchorSigningKey, AnchorStore,
     AnchorTransport, InitiatorOperation, PrekeyQuality,
 };
+use redb::ReadableDatabase;
 use std::{
     fs,
     path::PathBuf,

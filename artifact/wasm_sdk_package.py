@@ -27,7 +27,7 @@ CONTENTS = "PACKAGE_CONTENTS.json"
 MTIME = 946684800
 GENERATED = ("q_periapt_sdk_wasm.js", "q_periapt_sdk_wasm.d.ts", "q_periapt_sdk_wasm_bg.wasm")
 POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
-NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.96.1-library.html")
+NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.98.1-library.html")
 VENDOR_NOTICES = ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")
 CONSUMER_FILES = ("product.cjs", "installed.mjs", "browser.html", "browser-acceptance.js",
                   "browser-suite.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts")
@@ -223,7 +223,7 @@ def build(output: Path) -> dict:
     tools = {}
     for tool in ("rustc", "cargo", "node", "npm", "wasm-pack"):
         tools[tool] = run([tool, "--version"], output / f"version-{tool}", ROOT).decode().strip()
-    require(tools["rustc"].startswith("rustc 1.96.1 "), "Rust notices require the pinned Rust 1.96.1 toolchain")
+    require(tools["rustc"].startswith("rustc 1.98.1 "), "Rust notices require the pinned Rust 1.98.1 toolchain")
     require(tools["wasm-pack"] == "wasm-pack 0.15.0", "WASM SDK requires pinned wasm-pack 0.15.0")
     require(int(tools["node"].split(".")[0].lstrip("v")) >= 24, "WASM SDK requires Node >=24")
     for target in ("nodejs", "web"):

@@ -48,14 +48,14 @@ if [ "$VERIFY_ONLY" = "0" ]; then
 fi
 
 RUSTC_VERSION=$(rustc --version)
-if [ "$RUSTC_VERSION" != "rustc 1.96.1 (31fca3adb 2026-06-26)" ]; then
-	printf 'error: C release package requires rustc 1.96.1: %s\n' "$RUSTC_VERSION" >&2
+if [ "$RUSTC_VERSION" != "rustc 1.98.1 (48a229cea 2026-09-01)" ]; then
+	printf 'error: C release package requires rustc 1.98.1: %s\n' "$RUSTC_VERSION" >&2
 	exit 2
 fi
 if [ "$VERIFY_ONLY" = "0" ]; then
 	CARGO_VERSION=$(cargo --version)
-	if [ "$CARGO_VERSION" != "cargo 1.96.1 (356927216 2026-06-26)" ]; then
-		printf 'error: C release package requires cargo 1.96.1: %s\n' "$CARGO_VERSION" >&2
+	if [ "$CARGO_VERSION" != "cargo 1.98.1 (797e8a9bc 2026-08-05)" ]; then
+		printf 'error: C release package requires cargo 1.98.1: %s\n' "$CARGO_VERSION" >&2
 		exit 2
 	fi
 fi
@@ -815,8 +815,8 @@ require("f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677" in ve
 if profile == "sdk-020":
     from package_bom import BomProfile, verify
     verify(package_root, cargo_lock=None if verify_only else root / "Cargo.lock", profile=BomProfile.NATIVE_SDK_020)
-    require((package_root / "LICENSES/Rust-1.96.1-library.html").read_bytes() ==
-            (root / "LICENSES/Rust-1.96.1-library.html").read_bytes(), "Rust standard-library notice differs")
+    require((package_root / "LICENSES/Rust-1.98.1-library.html").read_bytes() ==
+            (root / "LICENSES/Rust-1.98.1-library.html").read_bytes(), "Rust standard-library notice differs")
     raise SystemExit(0)
 
 bad_value = re.compile(
@@ -1137,7 +1137,7 @@ cp "$ROOT/LICENSE" "$PACKAGE_DIR/LICENSE"
 cp "$ROOT/LICENSES/Apache-2.0.txt" "$PACKAGE_DIR/LICENSES/Apache-2.0.txt"
 cp "$ROOT/LICENSES/MIT.txt" "$PACKAGE_DIR/LICENSES/MIT.txt"
 if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
-	cp "$ROOT/LICENSES/Rust-1.96.1-library.html" "$PACKAGE_DIR/LICENSES/Rust-1.96.1-library.html"
+	cp "$ROOT/LICENSES/Rust-1.98.1-library.html" "$PACKAGE_DIR/LICENSES/Rust-1.98.1-library.html"
 	cp "$ROOT/bindings/c/sdk_smoke.c" "$PACKAGE_DIR/share/q-periapt/sdk_smoke.c"
 	cp "$ROOT/bindings/c/sdk_policy_update_fixture.h" "$PACKAGE_DIR/include/qperiapt/abi2/sdk_policy_update_fixture.h"
 	mkdir "$PACKAGE_DIR/share/q-periapt/legacy"

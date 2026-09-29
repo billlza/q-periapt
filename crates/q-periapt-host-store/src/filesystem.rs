@@ -1,7 +1,72 @@
 //! Shared owner-only directory capabilities for security-critical host files.
 
+use redb::StorageBackend;
 use std::fs::File;
+use std::ops::Bound;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// A file backend whose exclusive whole-file lock precedes all content checks.
+///
+/// redb 4.3 takes locks when opening the database rather than constructing its
+/// file backend. This owner acquires the nonblocking whole-file lock first and
+/// exposes only redb's whole-storage locking contract. Subrange/shared locking
+/// is deliberately unsupported: these protected stores have one lifetime owner.
+#[derive(Debug)]
+pub struct LockedFileBackend {
+    inner: redb::backends::FileBackend,
+    locked: AtomicBool,
+}
+
+impl LockedFileBackend {
+    /// Acquire an exclusive lifetime lock, failing if locking is unavailable or busy.
+    pub fn new(file: File) -> Result<Self, redb::DatabaseError> {
+        let inner = redb::backends::FileBackend::new(file)?;
+        if !inner.try_lock_range(Bound::Unbounded, Bound::Unbounded)? {
+            return Err(redb::DatabaseError::DatabaseAlreadyOpen);
+        }
+        Ok(Self {
+            inner,
+            locked: AtomicBool::new(true),
+        })
+    }
+}
+
+impl StorageBackend for LockedFileBackend {
+    fn len(&self) -> std::io::Result<u64> {
+        self.inner.len()
+    }
+    fn read(&self, offset: u64, out: &mut [u8]) -> std::io::Result<()> {
+        self.inner.read(offset, out)
+    }
+    fn write(&self, offset: u64, data: &[u8]) -> std::io::Result<()> {
+        self.inner.write(offset, data)
+    }
+    fn set_len(&self, len: u64) -> std::io::Result<()> {
+        self.inner.set_len(len)
+    }
+    fn sync_data(&self) -> std::io::Result<()> {
+        self.inner.sync_data()
+    }
+    fn try_lock_range(
+        &self,
+        start: Bound<u64>,
+        end: Bound<u64>,
+    ) -> Result<bool, redb::BackendError> {
+        if start != Bound::Unbounded || end != Bound::Unbounded {
+            return Err(redb::BackendError::Unsupported);
+        }
+        if !self.locked.load(Ordering::Acquire) {
+            return Err(std::io::Error::other("protected database backend is closed").into());
+        }
+        // The exact whole-file lock was acquired by new(), and has never been released.
+        Ok(true)
+    }
+    fn close(&self) -> std::io::Result<()> {
+        self.locked.store(false, Ordering::Release);
+        self.inner.close()
+    }
+}
 
 /// A path, mode, owner, ACL, file-shape or filesystem operation was refused.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -62,7 +127,7 @@ fn database_error(error: redb::DatabaseError) -> PrivateDatabaseError {
 }
 
 #[derive(Debug)]
-struct BoundedBackend(redb::backends::FileBackend);
+struct BoundedBackend(LockedFileBackend);
 fn database_extent(offset: u64, length: u64) -> std::io::Result<()> {
     if offset
         .checked_add(length)
@@ -80,9 +145,9 @@ impl redb::StorageBackend for BoundedBackend {
     fn len(&self) -> std::io::Result<u64> {
         self.0.len()
     }
-    fn read(&self, offset: u64, len: usize) -> std::io::Result<Vec<u8>> {
-        database_extent(offset, len as u64)?;
-        self.0.read(offset, len)
+    fn read(&self, offset: u64, out: &mut [u8]) -> std::io::Result<()> {
+        database_extent(offset, out.len() as u64)?;
+        self.0.read(offset, out)
     }
     fn write(&self, offset: u64, data: &[u8]) -> std::io::Result<()> {
         database_extent(offset, data.len() as u64)?;
@@ -92,8 +157,18 @@ impl redb::StorageBackend for BoundedBackend {
         database_extent(0, len)?;
         self.0.set_len(len)
     }
-    fn sync_data(&self, eventual: bool) -> std::io::Result<()> {
-        self.0.sync_data(eventual)
+    fn sync_data(&self) -> std::io::Result<()> {
+        self.0.sync_data()
+    }
+    fn try_lock_range(
+        &self,
+        start: Bound<u64>,
+        end: Bound<u64>,
+    ) -> Result<bool, redb::BackendError> {
+        self.0.try_lock_range(start, end)
+    }
+    fn close(&self) -> std::io::Result<()> {
+        self.0.close()
     }
 }
 
@@ -106,7 +181,7 @@ pub(crate) fn open_locked_database(
     mode: DatabaseOpenMode,
 ) -> Result<redb::Database, PrivateDatabaseError> {
     let probe = file.try_clone().map_err(PrivateDatabaseError::Io)?;
-    let backend = redb::backends::FileBackend::new(file).map_err(database_error)?;
+    let backend = LockedFileBackend::new(file).map_err(database_error)?;
     let metadata = probe.metadata().map_err(PrivateDatabaseError::Io)?;
     #[cfg(unix)]
     {
@@ -375,7 +450,7 @@ fn open_private_leaf(
 /// crate's safety argument excludes. It is refused untouched instead. A file
 /// too short to carry the header is left for redb to reject.
 ///
-/// Layout (redb 2.6 file format v2): nine magic bytes, then the god byte at
+/// Layout (redb 4.3 file format v3): nine magic bytes, then the god byte at
 /// offset 9 with bit 2 = recovery required and bit 4 = two-phase commit.
 /// This format check does not establish private-file ownership. In particular,
 /// Windows private-file admission remains unsupported. The already-locked backend
@@ -383,10 +458,8 @@ fn open_private_leaf(
 /// through a competing handle first would hide Windows lock conflicts as I/O errors.
 #[cfg(any(unix, windows))]
 pub fn refuse_unclean_foreign_redb(
-    backend: &redb::backends::FileBackend,
+    backend: &impl redb::StorageBackend,
 ) -> Result<(), PrivateFileError> {
-    use redb::StorageBackend;
-
     const GOD_BYTE_OFFSET: u64 = 9;
     const RECOVERY_REQUIRED: u8 = 2;
     const TWO_PHASE_COMMIT: u8 = 4;
@@ -394,12 +467,11 @@ pub fn refuse_unclean_foreign_redb(
     if backend.len().map_err(|_| PrivateFileError)? <= GOD_BYTE_OFFSET {
         return Ok(());
     }
-    let header = backend
-        .read(GOD_BYTE_OFFSET, 1)
+    let mut header = [0u8; 1];
+    backend
+        .read(GOD_BYTE_OFFSET, &mut header)
         .map_err(|_| PrivateFileError)?;
-    let [god] = header.as_slice() else {
-        return Err(PrivateFileError);
-    };
+    let [god] = header;
     let unclean = god & RECOVERY_REQUIRED != 0;
     let two_phase = god & TWO_PHASE_COMMIT != 0;
     if unclean && !two_phase {
@@ -410,9 +482,7 @@ pub fn refuse_unclean_foreign_redb(
 
 #[cfg(not(any(unix, windows)))]
 /// Refuse header inspection on platforms without a reviewed file-offset read.
-pub fn refuse_unclean_foreign_redb(
-    _: &redb::backends::FileBackend,
-) -> Result<(), PrivateFileError> {
+pub fn refuse_unclean_foreign_redb(_: &impl redb::StorageBackend) -> Result<(), PrivateFileError> {
     Err(PrivateFileError)
 }
 
@@ -421,6 +491,45 @@ mod redb_header_tests {
     use super::*;
     use redb::backends::FileBackend;
     use std::io::{Seek, SeekFrom, Write};
+
+    #[test]
+    fn backend_lock_precedes_inspection_and_excludes_stock_redb(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("owned.redb");
+        let open = || File::options().read(true).write(true).open(&path);
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&path)?;
+        let backend = LockedFileBackend::new(file)?;
+        assert!(matches!(
+            LockedFileBackend::new(open()?),
+            Err(redb::DatabaseError::DatabaseAlreadyOpen)
+        ));
+        assert!(matches!(
+            redb::Database::builder().create_file(open()?),
+            Err(redb::DatabaseError::DatabaseAlreadyOpen)
+        ));
+        assert_eq!(std::fs::metadata(&path)?.len(), 0);
+        let database = redb::Database::builder().create_with_backend(BoundedBackend(backend))?;
+        let transaction = database.begin_write()?;
+        drop(database);
+        // A transaction can outlive Database; its backend must still own the lock.
+        assert!(matches!(
+            LockedFileBackend::new(open()?),
+            Err(redb::DatabaseError::DatabaseAlreadyOpen)
+        ));
+        transaction.abort()?;
+        let backend = LockedFileBackend::new(open()?)?;
+        backend.close()?;
+        assert!(backend
+            .try_lock_range(Bound::Unbounded, Bound::Unbounded)
+            .is_err());
+        let _next_owner = LockedFileBackend::new(open()?)?;
+        Ok(())
+    }
 
     #[test]
     fn header_inspection_requires_two_phase_commit_for_unclean_files(

@@ -12,9 +12,10 @@ use std::fs::File;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use redb::ReadableDatabase;
 use redb::{
-    backends::FileBackend, Database, Durability, ReadableTable, ReadableTableMetadata,
-    StorageBackend, TableDefinition, TableHandle,
+    Database, Durability, ReadableTable, ReadableTableMetadata, StorageBackend, TableDefinition,
+    TableHandle,
 };
 
 use crate::authority::{
@@ -496,7 +497,8 @@ impl AuthorityStoreV2 {
     }
 
     fn open_file(file: File) -> Result<Self, AuthorityStoreErrorV2> {
-        let backend = FileBackend::new(file).map_err(map_database_open)?;
+        let backend = q_periapt_host_store::filesystem::LockedFileBackend::new(file)
+            .map_err(map_database_open)?;
         if backend
             .len()
             .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?
@@ -868,7 +870,9 @@ fn durable_write(database: &Database) -> Result<redb::WriteTransaction, Authorit
     let mut transaction = database
         .begin_write()
         .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
-    transaction.set_durability(Durability::Immediate);
+    transaction
+        .set_durability(Durability::Immediate)
+        .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
     transaction.set_two_phase_commit(true);
     Ok(transaction)
 }

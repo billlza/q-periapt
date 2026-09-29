@@ -664,7 +664,7 @@ impl DeviceJournal {
 
 pub(crate) fn transaction(db: &Database) -> Result<redb::WriteTransaction, DurableError> {
     let mut tx = db.begin_write().map_err(storage)?;
-    tx.set_durability(Durability::Immediate);
+    tx.set_durability(Durability::Immediate).map_err(storage)?;
     tx.set_two_phase_commit(true);
     Ok(tx)
 }

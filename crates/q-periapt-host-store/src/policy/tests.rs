@@ -1,8 +1,9 @@
 use super::*;
+use crate::filesystem::LockedFileBackend as FileBackend;
 use q_periapt_backends::MlDsa65;
 use q_periapt_policy::policy_signature_message;
 use q_periapt_sig::Signer;
-use redb::{backends::FileBackend, StorageBackend};
+use redb::StorageBackend;
 use std::os::unix::fs::{symlink, PermissionsExt};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -248,8 +249,8 @@ impl StorageBackend for SyncFailure {
     fn len(&self) -> io::Result<u64> {
         self.inner.len()
     }
-    fn read(&self, offset: u64, len: usize) -> io::Result<Vec<u8>> {
-        self.inner.read(offset, len)
+    fn read(&self, offset: u64, out: &mut [u8]) -> io::Result<()> {
+        self.inner.read(offset, out)
     }
     fn write(&self, offset: u64, data: &[u8]) -> io::Result<()> {
         self.inner.write(offset, data)
@@ -257,17 +258,27 @@ impl StorageBackend for SyncFailure {
     fn set_len(&self, len: u64) -> io::Result<()> {
         self.inner.set_len(len)
     }
-    fn sync_data(&self, eventual: bool) -> io::Result<()> {
+    fn try_lock_range(
+        &self,
+        start: std::ops::Bound<u64>,
+        end: std::ops::Bound<u64>,
+    ) -> std::result::Result<bool, redb::BackendError> {
+        self.inner.try_lock_range(start, end)
+    }
+    fn close(&self) -> io::Result<()> {
+        self.inner.close()
+    }
+    fn sync_data(&self) -> io::Result<()> {
         if self.armed.swap(false, Ordering::SeqCst) {
             if let Some(runtime) = &self.close_on_sync {
-                self.inner.sync_data(eventual)?;
+                self.inner.sync_data()?;
                 runtime.close();
                 Ok(())
             } else {
                 Err(io::Error::other("injected disk sync failure"))
             }
         } else {
-            self.inner.sync_data(eventual)
+            self.inner.sync_data()
         }
     }
 }

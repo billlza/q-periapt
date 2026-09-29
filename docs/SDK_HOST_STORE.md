@@ -95,7 +95,7 @@ Linux's mode/ACL mask correspondence is used. Other host platform permission
 models are not implemented; they fail closed. File hard links are refused by
 the policy store.
 
-The pinned redb 2.6.3 file backend takes a nonblocking exclusive lock for the
+The pinned redb 4.3.0 backend is wrapped by `LockedFileBackend`, which takes a nonblocking exclusive whole-file lock for the
 entire store lifetime. A second owner, including another process, receives
 `Busy`. File size and unclean-header checks run **after** that lock is acquired.
 The retained guard rejects unclean files not written with the reviewed two-phase
@@ -159,3 +159,20 @@ explicitly rejected as a current initial/installed baseline. No current source
 transition, proof, receipt or publication is inferred from the map update.
 See the [persistent-binding checkpoint](../research/sdk-alpha1/evidence/20260925-persistent-runtime-bindings/manifest.json)
 and [release-readiness ledger](SDK_0_2_RELEASE_READINESS.md).
+
+## Storage dependency refresh
+
+The 0.2.0 candidate now uses redb 4.3.0 and requires Rust 1.90 or newer. New
+stores use redb file format v3. Existing redb 2.6 format-v2 files are refused
+with the underlying `UpgradeRequired(2)` error; opening never initializes an
+empty replacement or automatically migrates a protected store. Preserve the
+original file and its independent state/witness material. A separate migration
+operation must preserve the application's schema, authenticated head and
+rollback policy before a legacy deployment can move to the new producer.
+
+`LockedFileBackend` obtains an exclusive whole-file lock before checking the
+inode, extent or recovery header. It supports redb's explicit whole-storage
+lock path; shared and byte-range modes are unavailable for protected stores.
+The lock remains held through database recovery and transactions that outlive
+the `Database` handle. Every write continues to require immediate durability
+and two-phase commit; errors setting either storage policy are propagated.

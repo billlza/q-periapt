@@ -10,6 +10,7 @@ use q_periapt_migration::{
     PendingMigrationCommitKind, PendingMigrationCommitV1, SignedMigrationResetV1,
     SignedMigrationStateV1, StateRevisionV1, UninitializedMigrationStateV1,
 };
+use redb::ReadableDatabase;
 use redb::{Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition};
 
 use crate::authority::OperationIdV2;
@@ -370,8 +371,8 @@ impl StateRepository {
     pub fn open_existing(path: &Path, roots: MigrationTrustRoots) -> Result<Self, RepositoryError> {
         let file =
             open_private_file(path, false).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
-        let backend =
-            redb::backends::FileBackend::new(file).map_err(|_| RepositoryError::CorruptStore)?;
+        let backend = q_periapt_host_store::filesystem::LockedFileBackend::new(file)
+            .map_err(|_| RepositoryError::CorruptStore)?;
         refuse_unclean_foreign_redb(&backend).map_err(|_| RepositoryError::CorruptStore)?;
         let mut database = Database::builder()
             .create_with_backend(backend)
@@ -1091,7 +1092,9 @@ fn durable_write(database: &Database) -> Result<redb::WriteTransaction, Reposito
     let mut transaction = database
         .begin_write()
         .map_err(|_| RepositoryError::CorruptStore)?;
-    transaction.set_durability(Durability::Immediate);
+    transaction
+        .set_durability(Durability::Immediate)
+        .map_err(|_| RepositoryError::CorruptStore)?;
     transaction.set_two_phase_commit(true);
     Ok(transaction)
 }

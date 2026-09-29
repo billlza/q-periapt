@@ -13,8 +13,8 @@ set "AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc=1"
 set "AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc=0"
 set "AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc=/Ddllexport="
 
-echo [1/5] cargo +1.97.0 build -p q-periapt-ffi --release
-cargo +1.97.0 build -p q-periapt-ffi --release --locked || exit /b 1
+echo [1/5] cargo +1.98.1 build -p q-periapt-ffi --release
+cargo +1.98.1 build -p q-periapt-ffi --release --locked || exit /b 1
 
 echo [2/5] locate MSVC (vswhere -^> vcvars64)
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"

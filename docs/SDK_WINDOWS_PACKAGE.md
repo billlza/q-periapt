@@ -18,7 +18,7 @@ The candidate manifest explicitly records
 
 Run in a clean standalone Windows x64 checkout containing the matching 0.2.0
 source. Use PowerShell 7, Git, CPython 3.11 or newer, CMake/CTest, Visual Studio's
-x64 MSVC tools and Windows SDK, cbindgen 0.29.4, and Rust **1.97.0** with its
+x64 MSVC tools and Windows SDK, cbindgen 0.29.4, and Rust **1.98.1** with its
 `llvm-tools` component. The producer verifies the exact Rust version and x64
 host, and resolves MSVC tools from a single trusted Visual Studio installation.
 The existing ambient Cargo/build configuration guards remain enforced.
@@ -63,7 +63,7 @@ library consumers do not require a C export table.
 $env:AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc = "1"
 $env:AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc = "0"
 $env:AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc = "/Ddllexport="
-cargo +1.97.0 build --locked --release -p q-periapt-ffi
+cargo +1.98.1 build --locked --release -p q-periapt-ffi
 ```
 
 Use those settings only for the direct Cargo invocation. The package producer
@@ -92,7 +92,7 @@ Legacy package parsing retains the original dependency contract.
 
 The closed schema-4 manifest binds the SDK header/contract, frozen 0.1.5 header,
 consumer sources, 37-asset native SDK CBOM, workspace SBOM, target-specific
-third-party notices and Rust 1.97.0 standard-library notice. Existing PE checks
+third-party notices and Rust 1.98.1 standard-library notice. Existing PE checks
 still require x64, relocation evidence, ASLR/NX and reproducible-link metadata;
 absolute producer paths, unexpected DLL dependencies and payload substitution
 remain rejected. These checks do not constitute a constant-time or security audit.

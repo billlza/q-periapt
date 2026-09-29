@@ -45,7 +45,7 @@ class RustPublishContractError(RuntimeError):
 RUSTSEC_ADVISORY_DB_URL = "https://github.com/RustSec/advisory-db.git"
 RUST_PACKAGE_TOOLCHAIN_MARKER = (
     "RUST_PACKAGE_TOOLCHAIN_PASS "
-    "rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2"
+    "rustc=1.98.1 cargo=1.98.1 cargo-audit=0.22.2"
 )
 RUST_PACKAGE_CARGO_HOME_MARKER = (
     "RUST_CARGO_HOME_ISOLATION_PASS mode=0700 ambient_cargo_home_data=unused"
@@ -67,7 +67,7 @@ RUST_MLKEM_PROVIDER_FENCE_MARKER = (
 RUST_PUBLISH_METADATA_MARKER = (
     "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 "
     "mlkem_provider=q-periapt-mlkem-native-sys "
-    "sys_build_dependency=cc@1.2.67"
+    "sys_build_dependency=cc@1.5.1"
 )
 RUST_BACKENDS_INSPECTION_MARKER = (
     "RUST_BACKENDS_INSPECTION_PACKAGE_PASS "

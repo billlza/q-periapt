@@ -52,12 +52,12 @@ ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
 )
 WINDOWS_C_SMOKE_SCRIPT = ROOT / "bindings" / "c" / "build-and-run.bat"
 RUST_TOOLCHAIN_FILE = ROOT / "rust-toolchain.toml"
-CANONICAL_RUST_TOOLCHAIN = "1.96.1"
-CANONICAL_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-CANONICAL_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
-WINDOWS_RELEASE_RUST_TOOLCHAIN = "1.97.0"
-WINDOWS_RELEASE_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
-WINDOWS_RELEASE_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
+CANONICAL_RUST_TOOLCHAIN = "1.98.1"
+CANONICAL_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+CANONICAL_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+WINDOWS_RELEASE_RUST_TOOLCHAIN = "1.98.1"
+WINDOWS_RELEASE_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+WINDOWS_RELEASE_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 PINNED_CANONICAL_RUST_ACTION = (
     "dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c"
 )
@@ -1309,11 +1309,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
             compile_step,
         )
         self.assertIn(
-            'CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.96.1"',
+            'CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.98.1"',
             compile_step,
         )
         self.assertIn(
-            "cargo +1.96.1 check --workspace --all-targets --locked",
+            "cargo +1.98.1 check --workspace --all-targets --locked",
             compile_step,
         )
         self.assertEqual(compile_step.count("          RUSTFLAGS='-D warnings' \\\n"), 2)
@@ -1469,8 +1469,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
-        self.assertIn("not native Rust 1.96.1 CodeQL analysis", normalized)
-        self.assertIn("under both Rust 1.94.0 and Rust 1.96.1 with", normalized)
+        self.assertIn("not native Rust 1.98.1 CodeQL analysis", normalized)
+        self.assertIn("under both Rust 1.94.0 and Rust 1.98.1 with", normalized)
         # Taken from the gate's own constant, never a second literal: this
         # audit read 93 while the gate enforced 105, so the stale sentence it
         # was meant to catch passed it.
@@ -2373,7 +2373,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS", source)
         self.assertIn("RUST_BACKENDS_INSPECTION_PACKAGE_PASS", source)
 
-        self.assertIn("cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked", source)
+        self.assertIn("cargo +1.98.1 package $ALLOW_DIRTY_ARG --locked", source)
         self.assertIn("--registry crates-io", source)
         self.assertEqual(source.count("run_cargo_captured"), 8)
         self.assertIn("validate_cargo_output", source)
@@ -5164,7 +5164,7 @@ with _temporary_release_test_directories(parents):
         self.assertEqual(audit_step.count("verify-workspace-dependency-audit"), 1)
         self.assertEqual(
             audit_job.count(
-                "cargo +1.96.1 install cargo-audit --version 0.22.2 "
+                "cargo +1.98.1 install cargo-audit --version 0.22.2 "
                 "--locked \\\n"
                 "            --root target/qperiapt-audit-tool"
             ),
@@ -5537,22 +5537,22 @@ with _temporary_release_test_directories(parents):
             extract_workflow_job(ci, "cross-compiler"),
         )
         self.assertIn(
-            "cargo +1.85.0 build --workspace --locked",
+            "cargo +1.90.0 build --workspace --locked",
             extract_workflow_job(ci, "msrv"),
         )
         identity_job = extract_workflow_job(ci, "continuity-identity-candidate")
-        for selection in ("if: matrix.toolchain == '1.96.1'", "if: matrix.toolchain == '1.85.0'"):
+        for selection in ("if: matrix.toolchain == '1.98.1'", "if: matrix.toolchain == '1.90.0'"):
             self.assertIn(selection, identity_job)
-        self.assertEqual(identity_job.splitlines().count("          toolchain: 1.85.0"), 1)
+        self.assertEqual(identity_job.splitlines().count("          toolchain: 1.90.0"), 1)
         self.assertIn("CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}", identity_job)
         for command in ("clippy", "test"):
             self.assertIn(f'cargo +"$CANDIDATE_TOOLCHAIN" {command} --manifest-path', identity_job)
         package_job = extract_workflow_job(ci, "rust-publish-contract")
         self.assertIn("artifact/rust_sdk_msrv.py", package_job)
-        self.assertIn('--toolchain-root "$(rustc +1.85.0 --print sysroot)"', package_job)
+        self.assertIn('--toolchain-root "$(rustc +1.90.0 --print sysroot)"', package_job)
         for job_name in ("msrv", "rust-publish-contract"):
             selected = extract_workflow_job(ci, job_name)
-            self.assertEqual(selected.count("          toolchain: 1.85.0\n"), 1)
+            self.assertEqual(selected.count("          toolchain: 1.90.0\n"), 1)
             self.assertIn("dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88", selected)
         self.assertIn('--report "$report" --report-sha256 "$report_sha256"', package_job)
         self.assertIn("target/sdk-rust-msrv/consumer-Cargo.lock", package_job)

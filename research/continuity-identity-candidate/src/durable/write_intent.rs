@@ -2,6 +2,7 @@
 //! Persist the exact sealed aggregate before attempting its state transaction.
 use super::*;
 use hmac::{Hmac, Mac};
+use redb::ReadableDatabase;
 use sha2::Sha256;
 
 const INTENT_HEADER: usize = 8 + 32 + 32 + 8 + 32 + 8 + 32 + 4;

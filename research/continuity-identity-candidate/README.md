@@ -227,7 +227,7 @@ hashes, OpenSSL identity, command arguments and return codes; separate bounded
 stdout/stderr logs preserve failures. This is component verification, not a
 network protocol or session-recovery test.
 
-Hosted CI builds/tests the locked candidate on Linux with Rust 1.96.1 and the
-declared 1.85.0 floor, and on macOS with Rust 1.96.1. The macOS lane uses its
+Hosted CI builds/tests the locked candidate on Linux with Rust 1.98.1 and the
+declared 1.90.0 floor, and on macOS with Rust 1.98.1. The macOS lane uses its
 installed OpenSSL provider for the independent fixture check. A separate
 dependency fence prevents the candidate from entering SDK package manifests.

@@ -258,7 +258,7 @@ class WindowsSDKProfileTests(unittest.TestCase):
         for required in ('[ValidateSet("legacy", "sdk-020")]', '$Version = "0.2.0"',
                          '"--profile", $Profile', '"--native-sdk"',
                          '"--features", "sdk-cbom"', '"share/q-periapt/legacy/q_periapt.h"',
-                         '"share/q-periapt/sdk_smoke.c"', '"LICENSES/Rust-1.97.0-library.html"',
+                         '"share/q-periapt/sdk_smoke.c"', '"LICENSES/Rust-1.98.1-library.html"',
                          'dynamic-smoke,sdk-dynamic-smoke,sdk-static-smoke,static-smoke',
                          'SDK output already exists', 'installed SDK consumers must be outside the checkout',
                          'Windows archive changed during consumer execution'):

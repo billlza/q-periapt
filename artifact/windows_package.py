@@ -325,8 +325,8 @@ SDK_WINDOWS_NATIVE_STATIC_LIBRARIES = (
 
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
 REQUIRED_MSVC_LINK_ARGUMENTS = ("/nologo", "/wx")
-EXPECTED_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
-EXPECTED_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
+EXPECTED_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+EXPECTED_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 
 EXPECTED_PAYLOAD_FILES = frozenset(
     {
@@ -357,7 +357,7 @@ SDK_SCHEMA_VERSION = 4
 SDK_KIND = "qperiapt.windows_sdk_package_manifest"
 SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
-SDK_RUST_LIBRARY_NOTICE = "LICENSES/Rust-1.97.0-library.html"
+SDK_RUST_LIBRARY_NOTICE = "LICENSES/Rust-1.98.1-library.html"
 SDK_UNSIGNED_REASON = (
     "This alpha candidate is unsigned; hashes and source records do not "
     "establish Authenticode trust or publication."

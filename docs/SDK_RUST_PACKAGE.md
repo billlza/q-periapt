@@ -1,6 +1,6 @@
 # Rust SDK 0.2.0 package gate
 
-Run the SDK profile from a standalone Git checkout using Rust 1.96.1 and
+Run the SDK profile from a standalone Git checkout using Rust 1.98.1 and
 cargo-audit 0.22.2:
 
 ```sh
@@ -63,7 +63,7 @@ SDK input profile. Pin the completed report before preparing a fresh output:
 ```sh
 sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
   target/sdk-rust-package/RUST_SDK_PACKAGE.json \
-  --profile sdk-020 --input-sha256 <SHA256-of-that-report> --cargo-version 1.96.1
+  --profile sdk-020 --input-sha256 <SHA256-of-that-report> --cargo-version 1.98.1
 ```
 
 Preparation reads only the selected report, template and archives. It rejects
@@ -146,18 +146,17 @@ Cargo's multi-package behavior is documented in the primary
 
 ## Minimum compiler and development toolchain
 
-The product declares Rust 1.85. The repository's full development tests,
+The product declares Rust 1.90. The repository's full development tests,
 benchmarks, certificate generation, Clippy and package producer use the pinned
-Rust 1.96.1 toolchain. These are separate support contracts: the current locked
-development dependencies include Criterion requiring 1.86, Orion requiring 1.87
-and rcgen/time requiring 1.88. `cargo +1.85 test --workspace --locked` is therefore
-not supported by this lockfile. Do not use `--ignore-rust-version`, downgrade the
-lock, skip tests or raise the product minimum just to hide that distinction.
+Rust 1.98.1 toolchain. These are separate support contracts: the current locked
+storage dependency redb 4.3 requires 1.90. The producer and minimum-compiler
+checks are separate: release qualification runs both without ignoring dependency
+Rust-version requirements or disabling warnings.
 
 The default workspace build retains its independent CI check:
-`cargo +1.85.0 build --workspace --locked`. The package job also takes the exact
+`cargo +1.90.0 build --workspace --locked`. The package job also takes the exact
 archives it has just produced and exercises the same four public API consumer
-tests with the actual 1.85.0 compiler. To run that additional check with an
+tests with the actual 1.90.0 compiler. To run that additional check with an
 already installed toolchain and a completed, hash-pinned package cohort:
 
 ```sh
@@ -166,7 +165,7 @@ sh artifact/python-run.sh artifact/rust_sdk_msrv.py \
   --report target/sdk-rust-package/RUST_SDK_PACKAGE.json \
   --report-sha256 <SHA256-of-that-report> \
   --cargo-home target/sdk-rust-package/cargo-home \
-  --toolchain-root <absolute-Rust-1.85.0-sysroot>
+  --toolchain-root <absolute-Rust-1.90.0-sysroot>
 ```
 
 The tool does not install or select a global default toolchain. It invokes the
@@ -186,6 +185,11 @@ the consumer's build dependency on rcgen. Live OS entropy, hybrid key exchange,
 certificate verification, application policy confirmation, fragmentation,
 private database operations and assertions remain real. Canonical tests still
 exercise the same consumer, and other repository TLS tests retain rcgen.
+
+### Historical qualifications before the dependency refresh
+
+The following captures used Rust 1.85.0 and 1.96.1; their artifacts are unchanged.
+They do not qualify the new compiler/dependency cohort.
 
 The first actual minimum-compiler qualification passed on macOS ARM64: default
 workspace build plus all four tests from nine archives, with 98 external

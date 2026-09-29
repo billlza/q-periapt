@@ -388,10 +388,10 @@ def build(output: Path) -> dict:
     environment = dict(os.environ, CARGO_HOME=str(cargo_home), CARGO_NET_OFFLINE="true",
                        CARGO_TERM_COLOR="never", RUSTFLAGS="-D warnings")
     version = command(["rustc", "--version"], output / "rustc-version", ROOT, environment=environment).decode().strip()
-    require(version.startswith("rustc 1.96.1 "), "Rust SDK package toolchain differs")
+    require(version.startswith("rustc 1.98.1 "), "Rust SDK package toolchain differs")
     cargo_version = command(["cargo", "--version"], output / "cargo-version", ROOT, environment=environment).decode().strip()
     audit_version = command(["cargo-audit", "--version"], output / "audit-version", ROOT, environment=environment).decode().strip()
-    require(cargo_version.startswith("cargo 1.96.1 ") and audit_version == "cargo-audit 0.22.2",
+    require(cargo_version.startswith("cargo 1.98.1 ") and audit_version == "cargo-audit 0.22.2",
             "Rust SDK package Cargo/audit toolchain differs")
     metadata = command(["cargo", "metadata", "--locked", "--offline", "--no-deps", "--format-version", "1"],
                        output / "metadata", ROOT, environment=environment)

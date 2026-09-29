@@ -8,6 +8,7 @@ use crate::filesystem::{
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_policy::TrustedPolicyState;
 use q_periapt_sdk::{Limits, Runtime};
+use redb::ReadableDatabase;
 use redb::{
     Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
 };
@@ -348,7 +349,9 @@ fn read_image(
 }
 fn write_transaction(database: &Database) -> Result<redb::WriteTransaction, StoreError> {
     let mut transaction = database.begin_write().map_err(storage)?;
-    transaction.set_durability(Durability::Immediate);
+    transaction
+        .set_durability(Durability::Immediate)
+        .map_err(storage)?;
     transaction.set_two_phase_commit(true);
     Ok(transaction)
 }

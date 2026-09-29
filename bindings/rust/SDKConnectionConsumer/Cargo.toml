@@ -17,7 +17,7 @@ rcgen = "0.14"
 [target.'cfg(unix)'.dependencies]
 # The shipped example becomes this crate's binary, so its direct dependencies
 # must be declared here rather than inherited from q-periapt-rustls's dev-deps.
-rustix = { version = "=1.1.4", features = ["event"] }
+rustix = { version = "=1.1.5", features = ["event"] }
 
 # The diagnostic peer code comes from the shipped crate, not the checkout.
 [[bin]]

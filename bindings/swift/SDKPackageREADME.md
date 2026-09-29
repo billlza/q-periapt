@@ -57,5 +57,5 @@ physical-device validation or release approval.
 `PACKAGE_CONTENTS.json` binds the contents of this folder. The separate
 `MANIFEST.json` alongside the downloadable ZIP records the checks actually run.
 The package includes the native algorithm CBOM, workspace SBOM, target-specific
-Cargo dependency notices and the Rust 1.96.1 standard-library copyright notice.
+Cargo dependency notices and the Rust 1.98.1 standard-library copyright notice.
 These inventories describe the packaged algorithms, dependencies and license notices.

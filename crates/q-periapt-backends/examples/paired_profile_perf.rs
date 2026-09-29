@@ -338,7 +338,7 @@ fn parse_args() -> Result<Args, BenchError> {
             _ => return Err(BenchError(format!("unknown argument: {flag}"))),
         }
     }
-    if samples % 2 != 0 {
+    if !samples.is_multiple_of(2) {
         return Err(BenchError(
             "samples must be even so ABBA/BAAB yields equal paired counts".into(),
         ));

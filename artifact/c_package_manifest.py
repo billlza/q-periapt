@@ -105,17 +105,17 @@ SDK_SOURCE_INPUT_PATHS = {
     "native_cbom_inventory": "artifact/fixtures/sdk-native-020-tls-inventory.json",
     "package_bom_verifier": "artifact/package_bom.py",
     "apple_rustc_wrapper": "artifact/apple-sdk-rustc.sh",
-    "rust_library_notices": "LICENSES/Rust-1.96.1-library.html",
+    "rust_library_notices": "LICENSES/Rust-1.98.1-library.html",
 }
 SDK_EXTRA_FILES = frozenset({
     "share/q-periapt/sdk_smoke.c", "include/qperiapt/abi2/sdk_policy_update_fixture.h",
-    "share/q-periapt/legacy/q_periapt.h", "LICENSES/Rust-1.96.1-library.html",
+    "share/q-periapt/legacy/q_periapt.h", "LICENSES/Rust-1.98.1-library.html",
 })
 SDK_PAYLOAD_SOURCES = {
     "share/q-periapt/sdk_smoke.c": "bindings/c/sdk_smoke.c",
     "include/qperiapt/abi2/sdk_policy_update_fixture.h": "bindings/c/sdk_policy_update_fixture.h",
     "share/q-periapt/legacy/q_periapt.h": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
-    "LICENSES/Rust-1.96.1-library.html": "LICENSES/Rust-1.96.1-library.html",
+    "LICENSES/Rust-1.98.1-library.html": "LICENSES/Rust-1.98.1-library.html",
 }
 
 
@@ -136,8 +136,8 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)+$")
 SHARED_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
-EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+EXPECTED_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 LDD_MAPPING_RE = re.compile(
     r"^(?P<name>\S+)\s+=>\s+(?P<target>.+)$"
 )

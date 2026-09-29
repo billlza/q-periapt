@@ -257,12 +257,12 @@ if [ -n "$missing_targets" ]; then
 fi
 RUSTC_VERSION=$(rustc --version)
 CARGO_VERSION=$(cargo --version)
-if [ "$RUSTC_VERSION" != "rustc 1.96.1 (31fca3adb 2026-06-26)" ]; then
-	printf 'error: Android release package requires rustc 1.96.1: %s\n' "$RUSTC_VERSION" >&2
+if [ "$RUSTC_VERSION" != "rustc 1.98.1 (48a229cea 2026-09-01)" ]; then
+	printf 'error: Android release package requires rustc 1.98.1: %s\n' "$RUSTC_VERSION" >&2
 	exit 2
 fi
-if [ "$CARGO_VERSION" != "cargo 1.96.1 (356927216 2026-06-26)" ]; then
-	printf 'error: Android release package requires cargo 1.96.1: %s\n' "$CARGO_VERSION" >&2
+if [ "$CARGO_VERSION" != "cargo 1.98.1 (797e8a9bc 2026-08-05)" ]; then
+	printf 'error: Android release package requires cargo 1.98.1: %s\n' "$CARGO_VERSION" >&2
 	exit 2
 fi
 

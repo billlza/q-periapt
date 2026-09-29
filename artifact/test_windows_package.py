@@ -2429,8 +2429,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$LlvmAr = $RustLlvmTools.Ar',
             '$LlvmNm = $RustLlvmTools.Nm',
             '-RustToolsSearchDirectory $RustLlvmTools.Bin',
-            'rustc 1.97.0 (2d8144b78 2026-07-07)',
-            'cargo 1.97.0 (c980f4866 2026-06-30)',
+            'rustc 1.98.1 (48a229cea 2026-09-01)',
+            'cargo 1.98.1 (797e8a9bc 2026-08-05)',
             '$ManifestRustcVersion -cne $RustcVersion',
             '$ManifestCargoVersion -cne $CargoVersion',
             'Windows Rust toolchain changed during release package construction',
@@ -2565,8 +2565,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertEqual(len(rustup_tool_invocations), 11)
         for invocation in rustup_tool_invocations:
             self.assertTrue(
-                script[invocation.end() :].lstrip().startswith('"+1.97.0"'),
-                "every Windows release rustc/cargo invocation must select 1.97.0",
+                script[invocation.end() :].lstrip().startswith('"+1.98.1"'),
+                "every Windows release rustc/cargo invocation must select 1.98.1",
             )
         self.assertNotIn(
             "debug_directory_absent",

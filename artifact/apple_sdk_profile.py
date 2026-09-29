@@ -51,7 +51,7 @@ SHIPPED_SOURCES = {
     "Sources/QPeriaptHybrid/QPeriaptHybrid.swift": "bindings/swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift",
     "README.md": "bindings/swift/SDKPackageREADME.md",
     **{name: name for name in ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt",
-                              "LICENSES/Rust-1.96.1-library.html")},
+                              "LICENSES/Rust-1.98.1-library.html")},
     **{f"LICENSES/mlkem-native/{name}": f"crates/q-periapt-mlkem-native-sys/vendor/{name}"
        for name in ("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md")},
 }
