@@ -105,6 +105,9 @@ fn real_handshake_survives_owner_loss_and_restart_in_every_mode() {
                     == after.records.get(id).expect("record").payload.as_slice(),
                 "private checkpoint changed across reopen"
             );
+            if entry.kind != RecordKind::Responder {
+                continue;
+            }
             let root = entry.payload.get(10490..10522).expect("owned session root");
             let disk = fs::read(dir.join("state.redb")).expect("database bytes");
             assert!(
@@ -174,7 +177,9 @@ fn invalid_inputs_never_consume_prekeys_and_second_valid_initial_conflicts() {
         ),
         Err(DurableError::Protocol(Error::Authentication))
     ));
-    assert!(store.image().expect("image").records.is_empty());
+    let untouched = store.image().expect("image");
+    assert_eq!(untouched.revision, 1);
+    assert!(rosters::is_genesis(&untouched, f.local_device()).expect("genesis authority"));
     let (body, _) = open_envelope(initial).expect("body");
     let mut bad_mac = body.to_vec();
     *bad_mac.last_mut().expect("MAC") ^= 1;
@@ -363,7 +368,11 @@ fn authenticated_but_invalid_checkpoint_closes_the_journal() {
     // Simulate an authenticated writer/serialization defect, distinct from a
     // ciphertext-bit change. The restored protocol must still validate itself.
     let mut image = store.image().expect("image");
-    let record = image.records.values_mut().next().expect("record");
+    let record = image
+        .records
+        .values_mut()
+        .find(|r| r.kind == RecordKind::Responder)
+        .expect("record");
     *record
         .payload
         .get_mut(40 + 5817 + 4633 - 1)
@@ -376,6 +385,55 @@ fn authenticated_but_invalid_checkpoint_closes_the_journal() {
         Err(DurableError::InvalidCheckpoint(Error::Authentication))
     ));
     assert!(store.active.is_none());
+}
+
+#[derive(Debug)]
+struct InjectedSyncFault {
+    after_sync: bool,
+}
+impl fmt::Display for InjectedSyncFault {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(if self.after_sync {
+            "injected lost sync acknowledgement"
+        } else {
+            "injected pre-sync error"
+        })
+    }
+}
+impl std::error::Error for InjectedSyncFault {}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(super) enum SyncFailureSite {
+    Commit,
+    BeforeCommit,
+}
+/// redb may sync a growing allocation during insert, before commit() is called.
+/// Accept only this test backend's exact typed injected I/O error, and keep its
+/// before/after-sync identity; unrelated storage and protocol errors must fail.
+pub(super) fn assert_sync_failure<T>(
+    result: Result<T, DurableError>,
+    after_sync: bool,
+) -> SyncFailureSite {
+    let (site, error) = match result {
+        Err(DurableError::CommitUncertain(redb::CommitError::Storage(redb::StorageError::Io(
+            error,
+        )))) => Ok((SyncFailureSite::Commit, error)),
+        Err(DurableError::Storage(error)) => match *error {
+            redb::Error::Io(error) => Ok((SyncFailureSite::BeforeCommit, error)),
+            error => Err(format!("unexpected non-I/O storage failure: {error:?}")),
+        },
+        Err(error) => Err(format!(
+            "unexpected failure instead of injected sync: {error:?}"
+        )),
+        Ok(_) => Err("injected sync fault did not fail the operation".to_owned()),
+    }
+    .expect("operation must return the injected storage or commit I/O fault");
+    let injected = error
+        .get_ref()
+        .and_then(|source| source.downcast_ref::<InjectedSyncFault>())
+        .expect("the exact injected I/O fault must be preserved");
+    assert_eq!(injected.after_sync, after_sync);
+    site
 }
 
 #[derive(Debug)]
@@ -419,12 +477,18 @@ impl StorageBackend for FaultBackend {
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
             .ok()
             == Some(1);
+        if last && std::env::var_os("QPERIAPT_TRACE_SYNC_FAULT").is_some() {
+            eprintln!(
+                "injected sync boundary: {}",
+                std::backtrace::Backtrace::force_capture()
+            );
+        }
         if last && !self.after_sync {
-            return Err(io::Error::other("injected pre-sync error"));
+            return Err(io::Error::other(InjectedSyncFault { after_sync: false }));
         }
         self.inner.sync_data()?;
         if last {
-            Err(io::Error::other("injected lost sync acknowledgement"))
+            Err(io::Error::other(InjectedSyncFault { after_sync: true }))
         } else {
             Ok(())
         }
@@ -981,8 +1045,47 @@ fn failed_first_write_reconciles_as_absent_before_any_crypto_execution() {
 
 #[test]
 fn final_confirmation_commit_errors_recover_the_same_session_identity() {
+    let measured_fixture = fixture(PrekeyQuality::OneTimeBoth);
+    let measured_dir = directory();
+    let measured_path = measured_dir.path().canonicalize().expect("path");
+    let mut measured = new_store(&measured_path, measured_fixture.local_device());
+    let mut initial_operation = InitiatorOperation::start(
+        Arc::clone(&measured_fixture.initiator),
+        &measured_fixture.signer_i,
+        150,
+    )
+    .expect("initial");
+    let initial = initial_operation
+        .initial_message(150)
+        .expect("wire")
+        .to_vec();
+    let (pq, classic) = measured_fixture.sources();
+    let reply = measured
+        .respond(
+            Arc::clone(&measured_fixture.responder),
+            &initial,
+            &measured_fixture.signer_r,
+            pq,
+            classic,
+            150,
+        )
+        .expect("reply");
+    let final_outcome = initial_operation.finish(&reply, 150).expect("final");
+    measured.close();
+    let (mut measured, _, count, _) =
+        fault_store(&measured_path, measured_fixture.local_device(), false);
+    measured
+        .finish(
+            Arc::clone(&measured_fixture.responder),
+            &initial,
+            final_outcome.final_message(),
+            150,
+        )
+        .expect("count final barriers");
+    let syncs = count.load(Ordering::SeqCst);
+    assert!((4..=64).contains(&syncs));
     for after_sync in [false, true] {
-        for cut in 1..=4 {
+        for cut in 1..=syncs {
             let f = fixture(PrekeyQuality::OneTimeBoth);
             let folder = directory();
             let dir = folder.path().canonicalize().expect("canonical");
@@ -1013,15 +1116,15 @@ fn final_confirmation_commit_errors_recover_the_same_session_identity() {
             drop(store);
             let (mut store, remaining, _, _) = fault_store(&dir, f.local_device(), after_sync);
             remaining.store(cut, Ordering::SeqCst);
-            assert!(matches!(
+            assert_sync_failure(
                 store.finish(
                     Arc::clone(&f.responder),
                     &initial,
                     outcome.final_message(),
-                    150
+                    150,
                 ),
-                Err(DurableError::CommitUncertain(_))
-            ));
+                after_sync,
+            );
             assert!(store.active.is_none());
             let mut recovered = reopen(&dir, f.local_device());
             assert!(matches!(

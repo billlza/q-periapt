@@ -76,6 +76,74 @@ fn inventory_at(
 }
 
 #[test]
+fn installed_revocation_fences_prekey_generation_and_cached_leaf_but_allows_retirement() {
+    let mut f = inventory(PrekeyQuality::OneTimeBoth);
+    let (policy, device, _) = f.peer.responder.inventory_inputs();
+    let request = *f.ids.first().expect("retained prekey");
+    let leaf = f
+        .store
+        .prekey_leaf(policy, device, request, 150)
+        .expect("initial leaf");
+    let peer_update = rosters::tests::update(f.peer.initiator_device(), 90, 2, false);
+    f.store
+        .install_roster(&peer_update, 150)
+        .expect("peer revocation");
+    assert_eq!(
+        f.store
+            .prekey_leaf(policy, device, request, 150)
+            .expect("unrevoked local leaf")
+            .public_key(),
+        leaf.public_key()
+    );
+    let revoked = rosters::tests::update(device, 94, 2, false);
+    f.store
+        .install_roster(&revoked, 150)
+        .expect("local revocation");
+    f.store.close();
+    f.store = reopen(&f.path, device);
+    assert_eq!(
+        f.store
+            .prekey_status(policy, device, request)
+            .expect("read-only state"),
+        PrekeyStatus::Available
+    );
+    assert!(matches!(
+        f.store.prekey_leaf(policy, device, request, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    for request in [
+        request,
+        PrekeyId::from_trusted_state([55; 32]).expect("new request"),
+    ] {
+        assert!(matches!(
+            f.store.generate_prekey(
+                policy,
+                device,
+                request,
+                LeafKind::SignedClassical,
+                interval(),
+                150
+            ),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+    }
+    assert_eq!(
+        f.store
+            .retire_prekey(policy, device, request)
+            .expect("cleanup remains possible"),
+        PrekeyStatus::Retired
+    );
+    f.store.close();
+    f.store = reopen(&f.path, device);
+    assert_eq!(
+        f.store
+            .prekey_status(policy, device, request)
+            .expect("retirement persisted"),
+        PrekeyStatus::Retired
+    );
+}
+
+#[test]
 fn inventory_roundtrips_every_quality_and_atomically_retires_only_selected_one_time_keys() {
     for quality in [
         PrekeyQuality::OneTimeBoth,
@@ -303,8 +371,32 @@ fn generation_sync_failures_reconcile_the_original_reserved_key() {
 
 #[test]
 fn response_sync_failures_keep_inventory_and_outbox_consumption_indivisible() {
+    let mut measured = inventory(PrekeyQuality::OneTimeBoth);
+    let initial_operation = InitiatorOperation::start(
+        Arc::clone(&measured.peer.initiator),
+        &measured.peer.signer_i,
+        150,
+    )
+    .expect("initial");
+    let initial = initial_operation
+        .initial_message(150)
+        .expect("wire")
+        .to_vec();
+    measured.store.close();
+    let (mut measured_store, _, count, _) =
+        fault_store(&measured.path, measured.peer.local_device(), false);
+    measured_store
+        .respond_from_inventory(
+            Arc::clone(&measured.peer.responder),
+            &initial,
+            &measured.peer.signer_r,
+            150,
+        )
+        .expect("count inventory response barriers");
+    let syncs = count.load(Ordering::SeqCst);
+    assert!((20..=64).contains(&syncs));
     for after_sync in [false, true] {
-        for cut in 1..=20 {
+        for cut in 1..=syncs {
             let mut f = inventory(PrekeyQuality::OneTimeBoth);
             let mut i =
                 InitiatorOperation::start(Arc::clone(&f.peer.initiator), &f.peer.signer_i, 150)
@@ -313,15 +405,16 @@ fn response_sync_failures_keep_inventory_and_outbox_consumption_indivisible() {
             f.store.close();
             let (mut store, fault, _, _) = fault_store(&f.path, f.peer.local_device(), after_sync);
             fault.store(cut, Ordering::SeqCst);
-            assert!(matches!(
+            crate::durable::tests::assert_sync_failure(
                 store.respond_from_inventory(
                     Arc::clone(&f.peer.responder),
                     &initial,
                     &f.peer.signer_r,
-                    150
+                    150,
                 ),
-                Err(DurableError::CommitUncertain(_))
-            ));
+                after_sync,
+            );
+            assert!(store.active.is_none());
             let mut store = reopen(&f.path, f.peer.local_device());
             let phase = store.status(&f.peer.responder, &initial).expect("phase");
             let (policy, device, _) = f.peer.responder.inventory_inputs();

@@ -214,7 +214,7 @@ impl DeviceJournal {
             if image.id != active.id
                 || image.protection != active.protection
                 || image.revision != 1
-                || !image.records.is_empty()
+                || !rosters::is_genesis(&image, device)?
                 || active.anchor.is_some()
             {
                 return Err(DurableError::Conflict);
@@ -240,7 +240,7 @@ impl DeviceJournal {
         let db = open_private_database(path)?;
         let owner = bootstrap::storage_owner(device);
         let (image, pending) = write_intent::load_snapshot(&db, &key, owner)?;
-        if image.id != expected_id.0 {
+        if image.id != expected_id.0 || image.local_account != device.account_id() {
             return Err(DurableError::Conflict);
         }
         let mut active = Active {

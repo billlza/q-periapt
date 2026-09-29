@@ -274,12 +274,19 @@ impl VerifiedSessionPolicy {
         self.anchor
     }
     pub(crate) fn check_device(&self, device: &VerifiedDevice, now: u64) -> Result<(), Error> {
+        self.check_device_identity(device, now)?;
+        device.roster_validity.check(now)
+    }
+    pub(crate) fn check_device_identity(
+        &self,
+        device: &VerifiedDevice,
+        now: u64,
+    ) -> Result<(), Error> {
         if device.description.family != self.family {
             return Err(Error::Scope);
         }
         self.check_external_signer(&device.key)?;
-        device.description.validity.check(now)?;
-        device.roster_validity.check(now)
+        device.description.validity.check(now)
     }
     pub(crate) fn check_external_signer(&self, key: &PublicKey) -> Result<(), Error> {
         if key.shares_component(&self.signer) {

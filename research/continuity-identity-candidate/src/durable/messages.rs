@@ -641,9 +641,10 @@ impl DeviceJournal {
         request: InitiationId,
         now: u64,
     ) -> Result<[u8; 32], DurableError> {
-        context.check_session(now)?;
+        context.check_session_identity(now)?;
         let op = self.initiation_query(&context, request)?;
         let mut image = self.image()?;
+        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         initiator::check_request(record, &context, request)?;
         if record.phase == DurableStatus::Messages {
@@ -668,9 +669,10 @@ impl DeviceJournal {
         initial: &[u8],
         now: u64,
     ) -> Result<[u8; 32], DurableError> {
-        context.check_session(now)?;
+        context.check_session_identity(now)?;
         let op = self.query_id(&context, initial)?;
         let mut image = self.image()?;
+        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         record.check_request(&context, initial)?;
         if record.phase == DurableStatus::Messages {
@@ -701,8 +703,8 @@ impl DeviceJournal {
         {
             let state = State::decode(&record.payload)?;
             if state.source == *op {
-                context.check_session(now)?;
-                self.check_release(image)?;
+                context.check_session_identity(now)?;
+                self.check_context_release(image, context, now)?;
                 return Ok(state.session);
             }
         }
@@ -728,6 +730,7 @@ impl DeviceJournal {
                 kind: RecordKind::Messages,
                 context: context.digest(),
                 phase: DurableStatus::Messages,
+                authorities: rosters::context_accounts(context),
                 keys: Vec::new(),
                 prekeys: Vec::new(),
                 payload: state.encode(),
@@ -736,8 +739,8 @@ impl DeviceJournal {
         self.persist(image)?;
         #[cfg(all(test, unix))]
         tests::after_stage("activation");
-        context.check_session(now)?;
-        self.check_release(image)?;
+        context.check_session_identity(now)?;
+        self.check_context_release(image, context, now)?;
         Ok(state.session)
     }
     fn message_state(
@@ -747,13 +750,16 @@ impl DeviceJournal {
         session: &[u8; 32],
         now: u64,
     ) -> Result<State, DurableError> {
-        context.check_session(now)?;
+        rosters::authorize_context(image, context, now)?;
         self.check_policy(context.policy())?;
         let record = image
             .records
             .get(&record_id(session))
             .ok_or(DurableError::Absent)?;
-        if record.kind != RecordKind::Messages || record.context != context.digest() {
+        if record.kind != RecordKind::Messages
+            || record.context != context.digest()
+            || record.authorities != rosters::context_accounts(context)
+        {
             return Err(DurableError::Conflict);
         }
         let state = State::decode(&record.payload)?;
@@ -778,8 +784,8 @@ impl DeviceJournal {
         let image = self.image()?;
         let state = self.message_state(&image, context, &session, now)?;
         let id = MessageId::for_index(&session, state.role, state.sent)?;
-        context.check_session(now)?;
-        self.check_release(&image)?;
+        context.check_session_identity(now)?;
+        self.check_context_release(&image, context, now)?;
         Ok(id)
     }
     /// Commit the next chain state and exact ciphertext outbox together before
@@ -832,7 +838,7 @@ impl DeviceJournal {
                 #[cfg(all(test, unix))]
                 tests::after_stage("reserved");
             }
-            context.check_session(now)?;
+            context.check_session_identity(now)?;
         }
         let wire = state.send(id, plaintext, associated_data)?;
         if !already {
@@ -845,8 +851,8 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             tests::after_stage("sent");
         }
-        context.check_session(now)?;
-        self.check_release(&image)?;
+        context.check_session_identity(now)?;
+        self.check_context_release(&image, context, now)?;
         Ok(wire)
     }
     /// Inspect an authenticated outgoing record without executing or releasing it.
@@ -863,7 +869,10 @@ impl DeviceJournal {
             .records
             .get(&record_id(&session))
             .ok_or(DurableError::Absent)?;
-        if record.kind != RecordKind::Messages || record.context != context.digest() {
+        if record.kind != RecordKind::Messages
+            || record.context != context.digest()
+            || record.authorities != rosters::context_accounts(context)
+        {
             return Err(DurableError::Conflict);
         }
         let state = State::decode(&record.payload)?;
@@ -901,8 +910,8 @@ impl DeviceJournal {
             return Err(Error::Retired.into());
         }
         if let Some(saved) = state.outgoing.get(&id) {
-            context.check_session(now)?;
-            self.check_release(&image)?;
+            context.check_session_identity(now)?;
+            self.check_context_release(&image, context, now)?;
             return Ok(saved.wire.clone());
         }
         let plan = state
@@ -938,8 +947,8 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             tests::after_stage("received");
         }
-        context.check_session(now)?;
-        self.check_release(&image)?;
+        context.check_session_identity(now)?;
+        self.check_context_release(&image, context, now)?;
         Ok(plaintext)
     }
 }
@@ -972,6 +981,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
         if source.kind != expected
             || source.phase != DurableStatus::Messages
             || source.context != record.context
+            || source.authorities != record.authorities
         {
             return Err(DurableError::Corrupt);
         }

@@ -2,9 +2,10 @@
 
 Each logical journal transition now persists its complete sealed target before
 attempting to install that target as current state. This covers reservations,
-result pins, bootstrap outboxes/confirmations and prekey generation/retirement.
+result pins, bootstrap outboxes/confirmations, prekey generation/retirement and
+authenticated roster updates.
 It preserves the same ciphertext, nonce, revision and complete aggregate across
-an interrupted state write. The unpublished local journal schema is v6; earlier
+an interrupted state write. The unpublished local journal schema is v10; earlier
 schemas are rejected without migration or reset. Network bytes and ABI 2 are
 unchanged.
 
@@ -60,9 +61,9 @@ advance.
 
 ## Encoding and bounds
 
-The single table `continuity_device_candidate_v9` accepts exactly the `image` row
+The single table `continuity_device_candidate_v10` accepts exactly the `image` row
 and, while a write is pending, one `pending` row. The current image uses the
-[v6 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
+[v10 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
 rows are rejected.
 
 The intent is:
@@ -74,7 +75,8 @@ exactly `expected_revision + 1`, with both nonzero and below `u64::MAX`. Both
 digests use the existing complete encrypted-image hash, including nonce and tag.
 The decoded target must authenticate under the journal key and match the same
 store, owner, next revision and next digest. Its ordinary record/claim/inventory
-validation also applies before an intent can be admitted.
+validation also applies before an intent can be admitted. The target must retain
+the current image's protection metadata and local account identity.
 
 HMAC-SHA256 authenticates the entire prefix and sealed target. Its 32-byte key is
 derived from the protected journal wrapping key by HKDF-SHA256 with default zero
@@ -104,7 +106,8 @@ prior digests, wrong expected identity and exact duplicate application are check
 This implements local write-intent ordering and recovery. The
 [required-anchor profile](REQUIRED_ANCHOR.md) also derives the same full-head
 advance from the saved intent, verifies the witness before local application, and
-requires fresh queries before usable output. Complete policy/roster fences,
+requires fresh queries before usable output. [Account roster fences](ROSTER_AUTHORITY.md)
+use this same path. Complete policy and witness-authority renewal,
 suspension records, release acknowledgements, cancellation and multi-device atomicity
 remain part of the full 0.2.0 contract. Local-only mode can still restore an older
 valid image; store identity alone is not a monotonic anchor.

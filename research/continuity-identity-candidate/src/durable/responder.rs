@@ -87,6 +87,8 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         let id = self.admission(&context, initial, now)?;
         let mut image = self.image()?;
+        let new_operation = !image.records.contains_key(&id);
+        rosters::admit_context(&mut image, &context, new_operation, now)?;
         if let Some(record) = image.records.get(&id) {
             record.check_request(&context, initial)?;
             if record.phase != DurableStatus::Executing {
@@ -113,6 +115,7 @@ impl DeviceJournal {
                     kind: RecordKind::Responder,
                     context: context.digest(),
                     phase: DurableStatus::Executing,
+                    authorities: rosters::context_accounts(&context),
                     keys,
                     prekeys: Vec::new(),
                     payload: Zeroizing::new(initial.to_vec()),
@@ -191,6 +194,7 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
+        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         if !is_plan(record.phase) {
             return self.release_prepared(&mut image, id, context, now);

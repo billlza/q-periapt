@@ -1181,3 +1181,161 @@ fn retired_boundaries_are_canonical_and_counter_exhaustion_cannot_recreate_a_slo
         expected
     );
 }
+
+fn roster_update(
+    device: &VerifiedDevice,
+    seed: u8,
+    version: u64,
+    keep: bool,
+) -> crate::VerifiedRoster {
+    rosters::tests::update(device, seed, version, keep)
+}
+
+#[test]
+fn installed_roster_expiry_blocks_cached_context_but_retained_renewal_recovers_messages() {
+    let mut p = Pair::new();
+    p.activate();
+    let short = rosters::tests::update_with_validity(
+        p.f.initiator_device(),
+        90,
+        2,
+        true,
+        crate::Validity::new(100, 160).expect("short interval"),
+    );
+    p.ji.install_roster(&short, 150).expect("short roster");
+    let slot =
+        p.ji.next_message_id(&p.f.initiator, p.session, 159)
+            .expect("before expiry");
+    p.f.initiator_device()
+        .roster()
+        .authorize_device(p.f.initiator_device(), 160)
+        .expect("original snapshot still valid");
+    assert!(matches!(
+        p.ji.next_message_id(&p.f.initiator, p.session, 160),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    p.ji.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    assert!(matches!(
+        p.ji.next_message_id(&p.f.initiator, p.session, 160),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    let renewal = roster_update(p.f.initiator_device(), 90, 3, true);
+    p.ji.install_roster(&renewal, 160)
+        .expect("explicit retained-credential renewal");
+    assert_eq!(
+        p.ji.next_message_id(&p.f.initiator, p.session, 160)
+            .expect("same pending slot"),
+        slot
+    );
+}
+
+#[test]
+fn committed_roster_revocation_fences_cached_messages_and_bootstrap_after_restart() {
+    for (initiator, seed) in [(true, 90), (false, 94)] {
+        let mut p = Pair::new();
+        p.activate();
+        let device = if initiator {
+            p.f.initiator_device()
+        } else {
+            p.f.local_device()
+        };
+        let retained = roster_update(device, seed, 2, true);
+        p.ji.install_roster(&retained, 150)
+            .expect("retain initiator view");
+        p.jr.install_roster(&retained, 150)
+            .expect("retain responder view");
+        let revoked = roster_update(device, seed, 3, false);
+        let fork = roster_update(device, seed, 3, true);
+        let resurrection = roster_update(device, seed, 4, true);
+        let account = device.account_id();
+        let slot =
+            p.ji.next_message_id(&p.f.initiator, p.session, 150)
+                .expect("unrevoked old context remains usable");
+        let wire = p.send(slot, b"retained private delivery");
+        assert_eq!(p.receive(&wire).as_bytes(), b"retained private delivery");
+        let ack =
+            p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                .expect("old acknowledgement");
+        p.ji.install_roster(&revoked, 150)
+            .expect("commit revocation at sender");
+        p.jr.install_roster(&revoked, 150)
+            .expect("commit revocation at receiver");
+        let revision = p.ji.image().expect("committed").revision;
+        assert_eq!(
+            p.ji.install_roster(&revoked, 150).expect("idempotent"),
+            revoked.checkpoint()
+        );
+        assert_eq!(p.ji.image().expect("unchanged").revision, revision);
+        for update in [&retained, &fork, &resurrection] {
+            assert!(matches!(
+                p.ji.install_roster(update, 150),
+                Err(DurableError::Protocol(Error::Checkpoint))
+            ));
+        }
+        p.ji.close();
+        p.jr.close();
+        p.ji = reopen(&p.pi, p.f.initiator_device());
+        p.jr = reopen(&p.pr, p.f.local_device());
+        assert_eq!(
+            p.ji.roster_checkpoint(account).expect("durable head"),
+            revoked.checkpoint()
+        );
+        assert_eq!(
+            p.ji.message_status(&p.f.initiator, p.session, slot)
+                .expect("read-only reconciliation"),
+            MessageStatus::Committed
+        );
+        assert!(matches!(
+            p.ji.next_message_id(&p.f.initiator, p.session, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.ji.send_message(
+                &p.f.initiator,
+                p.session,
+                slot,
+                b"retained private delivery",
+                b"application",
+                150
+            ),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.ji.resume_message(&p.f.initiator, p.session, slot, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.jr.receive_message(&p.f.responder, p.session, &wire, b"application", 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.jr.message_acknowledgement(&p.f.responder, p.session, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.ji.initiate(Arc::clone(&p.f.initiator), p.request, &p.f.signer_i, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.jr.resume(Arc::clone(&p.f.responder), &p.initial, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.ji.activate_initiator_messages(Arc::clone(&p.f.initiator), p.request, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert!(matches!(
+            p.jr.activate_responder_messages(Arc::clone(&p.f.responder), &p.initial, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+        assert_eq!(
+            p.ji.image().expect("denials do not rewrite").revision,
+            revision
+        );
+    }
+}

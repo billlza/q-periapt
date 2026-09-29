@@ -94,6 +94,7 @@ pub(super) fn check_request(
 ) -> Result<(), DurableError> {
     if record.kind != RecordKind::Initiator
         || record.context != context.digest()
+        || record.authorities != rosters::context_accounts(context)
         || !record.keys.is_empty()
         || record.payload.get(..32) != Some(request.0.as_slice())
     {
@@ -166,6 +167,8 @@ impl DeviceJournal {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
         let mut image = self.image()?;
+        let new_operation = !image.records.contains_key(&id);
+        rosters::admit_context(&mut image, &context, new_operation, now)?;
         if let Some(record) = image.records.get(&id) {
             check_request(record, &context, request)?;
             if !is_plan(record.phase) {
@@ -206,6 +209,7 @@ impl DeviceJournal {
                     kind: RecordKind::Initiator,
                     context: context.digest(),
                     phase: DurableStatus::InitialKeyReserved,
+                    authorities: rosters::context_accounts(&context),
                     keys: Vec::new(),
                     prekeys: Vec::new(),
                     payload: pack(request, &plan.encode()),
@@ -289,6 +293,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
+        rosters::authorize_context(image, &context, now)?;
         let wire = initial(record)?.to_vec();
         if let Err(error) = context.validate_initial_signature(&wire) {
             self.close();
@@ -304,7 +309,7 @@ impl DeviceJournal {
             self.persist(image)?;
         }
         context.check(now)?;
-        self.check_release(image)?;
+        self.check_context_release(image, &context, now)?;
         Ok(wire)
     }
     /// Replay a pinned/committed initial without key import, signing or new KEM
@@ -354,6 +359,11 @@ impl DeviceJournal {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
         let mut image = self.image()?;
+
+        if !image.records.contains_key(&id) {
+            return Err(DurableError::Absent);
+        }
+        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get_mut(&id).ok_or(DurableError::Absent)?;
         check_request(record, &context, request)?;
         match record.phase {
@@ -421,7 +431,7 @@ impl DeviceJournal {
             self.persist(&mut image)?;
         }
         context.check(now)?;
-        self.check_release(&image)?;
+        self.check_context_release(&image, &context, now)?;
         Ok(result)
     }
     /// Continue the already-selected reply/result, with no caller replacement input.

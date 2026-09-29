@@ -298,6 +298,7 @@ impl DeviceJournal {
             return Err(Error::Validity.into());
         }
         let mut image = self.image()?;
+        rosters::authorize_device(&image, device, now)?;
         let op = id(request);
         let recovery = self.inventory_recovery_key()?;
         let mut entry = if image.records.contains_key(&op) {
@@ -334,6 +335,7 @@ impl DeviceJournal {
                     kind: RecordKind::Prekey,
                     context: entry.intent(),
                     phase: DurableStatus::PrekeyReserved,
+                    authorities: vec![image.local_account],
                     keys: Vec::new(),
                     prekeys: Vec::new(),
                     payload: entry.encode(),
@@ -344,7 +346,7 @@ impl DeviceJournal {
         };
         match image.records.get(&op).ok_or(DurableError::Absent)?.phase {
             DurableStatus::PrekeyAvailable => {
-                self.check_release(&image)?;
+                self.check_device_release(&image, device, now)?;
                 return entry.leaf();
             }
             DurableStatus::PrekeyConsumed => return Err(DurableError::PrekeyClaimed),
@@ -380,7 +382,7 @@ impl DeviceJournal {
         record.phase = DurableStatus::PrekeyAvailable;
         record.payload = entry.encode();
         self.persist(&mut image)?;
-        self.check_release(&image)?;
+        self.check_device_release(&image, device, now)?;
         Ok(leaf)
     }
     /// Retrieve only a currently usable committed public leaf. Reserved, consumed
@@ -394,6 +396,7 @@ impl DeviceJournal {
     ) -> Result<PrekeyLeaf, DurableError> {
         self.inventory_owner(policy, device)?;
         let image = self.image()?;
+        rosters::authorize_device(&image, device, now)?;
         let entry = self.inventory_entry(&image, policy, request)?;
         admission(policy, device, entry.kind, now)?;
         entry.validity.check(now)?;
@@ -404,7 +407,7 @@ impl DeviceJournal {
             .phase
         {
             DurableStatus::PrekeyAvailable => {
-                self.check_release(&image)?;
+                self.check_device_release(&image, device, now)?;
                 entry.leaf()
             }
             DurableStatus::PrekeyReserved => Err(DurableError::Suspended),
@@ -497,6 +500,8 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         let op = self.admission(&context, initial, now)?;
         let mut image = self.image()?;
+        let new_operation = !image.records.contains_key(&op);
+        rosters::admit_context(&mut image, &context, new_operation, now)?;
         if let Some(record) = image.records.get(&op) {
             record.check_request(&context, initial)?;
             if record.phase != DurableStatus::Executing {
@@ -532,6 +537,7 @@ impl DeviceJournal {
                     kind: RecordKind::Responder,
                     context: context.digest(),
                     phase: DurableStatus::Executing,
+                    authorities: rosters::context_accounts(&context),
                     keys,
                     prekeys: refs.to_vec(),
                     payload: Zeroizing::new(initial.to_vec()),

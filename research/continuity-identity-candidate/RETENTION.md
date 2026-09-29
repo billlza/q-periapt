@@ -92,9 +92,9 @@ witness journals must reconcile against the independently protected witness head
 
 Consumption and acknowledgement application each use one existing exact-intent
 journal persist: the same crash reconciliation, atomic image installation and
-post-commit release checks apply. Journal schema v9 uses
-`continuity_device_candidate_v9`, `QPVLT009`, `QPVIMG09` and message state
-`QPMST002`. Old v1–v8 journals are rejected without reset or implicit migration.
+post-commit release checks apply, including the installed [roster](ROSTER_AUTHORITY.md).
+Journal schema v10 uses `continuity_device_candidate_v10`, `QPVLT010`, `QPVIMG10`
+and message state `QPMST002`. Old v1–v9 journals are rejected without reset or implicit migration.
 Logical plaintext/key removal does not erase old encrypted pages, intents,
 snapshots or backups. Fresh-PQ/DH recovery, rekey-aware acknowledgement keys,
-revocation/fanout integration and physical erasure remain required work.
+device lifecycle/fanout integration and physical erasure remain required work.

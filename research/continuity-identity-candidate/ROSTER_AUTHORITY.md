@@ -17,33 +17,76 @@ no parallel weaker decoder or alternate signature path. Wire bytes and authority
 binding computation are unchanged.
 
 These values are immutable public snapshots. They do not follow updates, establish
-which independently signed head is newest, advance journal state or constitute a
-freshness lease. Calling `authorize_device` outside the journal transaction cannot
-revoke a previously admitted message operation. The durable fence is not yet
-implemented.
+which independently signed head is newest or constitute a freshness lease. The
+host must explicitly deliver an independently authenticated update to the journal.
 
-## Required journal integration
+## Journal authority and generation history
 
-The device journal must own one monotonic roster head per admitted account, bound
-to its authenticated root and policy family. Initial independently verified pins
-must be persisted before secret operations can release output. A signed update
-must reject lower versions and same-version forks and commit through the existing
-exact write intent and required-witness reconciliation. An uncertain outcome must
-close new work until reopening reconciles that same update. Identical canonical
-heads must be idempotent without replacing retained bytes.
+`DeviceJournal::install_roster` commits one monotonic head per account through the
+existing exact write intent and required-witness reconciliation. Lower versions,
+same-version forks and changes of root/family fail. An identical canonical head
+is idempotent and retains the original signed bytes. An uncertain storage or
+witness outcome closes the journal; reopening reconciles the retained exact target
+before new work. `roster_checkpoint` is a read-only reconciliation query.
+
+Provisioning stores the local device's authenticated roster. A new bootstrap can
+admit a peer's independently verified first snapshot together with its first
+operation reservation. Existing contexts cannot implicitly advance installed
+heads. Bootstrap and message records contain canonical account references; prekeys
+reference only the local account. Missing heads, duplicate references, mismatched
+message/bootstrap references and a pending write that changes the local account
+are rejected. This prevents a missing peer head from being treated as fresh
+admission for an existing operation.
+
+Each account retains the highest observed generation and credential digest for
+every observed device ID, including removed devices. A removed generation cannot
+reappear in a higher-version roster; a live generation cannot silently change its
+credential. A replacement requires a higher generation and a distinct journal
+owner. Limits are 64 account heads and 256 historical device IDs per account, in
+addition to the existing 32 active devices per roster and 2 MiB image bound.
+Capacity exhaustion fails explicitly without dropping history.
 
 Every bootstrap, prekey, message, cached outbox/plaintext and consumption-ACK
-release must recheck the installed roster. A committed revocation must block old
-`BootstrapContext`/`VerifiedDevice` instances and survive restart. Read-only
-operation-status queries can remain available for reconciliation without granting
-new dispatch or plaintext authority. A still-enrolled credential must be checked
-against the installed roster's lifetime; its own credential expiry remains
-binding. Witness enrollment validity and its later renewal require a corresponding
-explicit authority transition.
+operation checks the installed roster before private use and output release.
+Committed revocations block cached `BootstrapContext`/`VerifiedDevice` values after
+restart. Read-only status and prekey retirement remain available without granting
+dispatch or plaintext authority. Established messages use the installed roster's
+lifetime, while credential and policy expiry remain binding. Explicit renewal may
+retain a still-enrolled credential. Witness enrollment validity and its later
+renewal remain a separate authority transition.
 
-Verification must cover exact post-revocation replay attempts, replacement device
-generations, unrevoked peers, expiry, stale and forked updates, every update sync
-cut, actual process loss, required-witness outage/unknown outcomes, and restored
-snapshots. This prerequisite is part of the complete 0.2.0 revocation and rekey
-work, not its completion. Fresh DH/PQ ratcheting, continuous recovery, device
-lifecycle/fanout and product bindings remain required.
+The unreleased journal schema is v10: `continuity_device_candidate_v10`,
+`QPVLT010`, `QPVIMG10`. It rejects earlier journal schemas without reset or implicit
+migration. Network bootstrap/message bytes and SDK ABI major 2 are unchanged.
+The image contains `local_account[32]`; each record adds a one-byte authority count
+and zero to two sorted account IDs. Roster records use kind 5/phase 20 and
+`QPRHST01 || roster_length:u32 || retained_roster || history_count:u16 || history`.
+Each sorted history entry is `device_id[16] || generation:u64 || credential[32]`.
+The retained roster is `QPROWR01 || account[32] || family[32] || version:u64 ||
+body_digest[32] || root_public_key || wire_length:u32 || signed_wire`. Reopening
+reauthenticates both signatures and canonical shape; operation admission checks
+trusted time.
+
+## Validation and remaining scope
+
+The roster tests cover measured before/after-sync cuts, exact-byte recovery, actual
+process termination at intent and committed-image barriers, required-witness
+exchange loss, restored snapshots, cached message/bootstrap/ACK denial, prekey
+release and retirement, expiry/renewal and replacement generations. Malformed
+authenticated fixtures test account-reference and local-account invariants.
+
+Local Rust 1.98.1 release validation passes all 126 candidate tests and strict
+all-target Clippy; actual Rust 1.90 checks all targets. The roster transition has
+four measured sync barriers (eight before/after faults) and four witness exchanges
+(eight request/response-loss cases). Two real child-process termination points
+cover durable intent and committed image before API return. Independent OpenSSL
+verification also passes the unchanged public identity/bootstrap vectors. These
+results establish the tested local paths, not the complete release qualification.
+
+The history covers observed updates; it cannot discover a skipped signed
+revocation or establish global latest-head agreement. A local-only database still
+cannot detect restoration of an entire earlier database. Required-witness mode
+rejects an older client snapshot against the independently protected witness head;
+the witness itself remains a separate trust boundary. Fresh DH/PQ ratcheting,
+continuous recovery, device lifecycle/fanout and product bindings remain required
+for the complete 0.2.0 scope.

@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v9");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v10");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -36,6 +36,7 @@ mod initiator;
 mod messages;
 mod prekeys;
 mod responder;
+mod rosters;
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
@@ -49,6 +50,7 @@ enum RecordKind {
     Initiator = 2,
     Prekey = 3,
     Messages = 4,
+    Roster = 5,
 }
 
 /// Explicit local persistence failures. No storage error is reported as absence.
@@ -105,7 +107,7 @@ impl fmt::Display for DurableError {
             Self::CommitUncertain(_) => "journal commit outcome is uncertain",
             Self::Authentication => "sealed journal authentication failed",
             Self::Corrupt => "journal image is inconsistent",
-            Self::InvalidCheckpoint(_) => "stored bootstrap checkpoint is invalid",
+            Self::InvalidCheckpoint(_) => "stored cryptographic checkpoint is invalid",
             Self::Conflict => "journal scope or expected image differs",
             Self::PrekeyClaimed => "one-time prekey already claimed",
             Self::KeyRetired => "prekey inventory entry is retired",
@@ -286,6 +288,8 @@ pub enum DurableStatus {
     PrekeyRetired = 18,
     /// Bootstrap root transferred to the paired durable message state.
     Messages = 19,
+    /// Monotonic authenticated account roster in this journal image.
+    Roster = 20,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -309,6 +313,7 @@ impl DurableStatus {
             17 => Ok(Self::PrekeyConsumed),
             18 => Ok(Self::PrekeyRetired),
             19 => Ok(Self::Messages),
+            20 => Ok(Self::Roster),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -318,6 +323,7 @@ struct Record {
     kind: RecordKind,
     context: [u8; 32],
     phase: DurableStatus,
+    authorities: Vec<[u8; 32]>,
     keys: Vec<[u8; 32]>,
     prekeys: Vec<[u8; 32]>,
     payload: Zeroizing<Vec<u8>>,
@@ -338,6 +344,7 @@ impl Record {
         };
         let saved_initial = responder::initial_bytes(self.phase, &self.payload)?;
         if self.context != context.digest()
+            || self.authorities != rosters::context_accounts(context)
             || self.keys != expected_keys
             || saved_initial != initial
         {
@@ -347,6 +354,7 @@ impl Record {
     }
 }
 struct Image {
+    local_account: [u8; 32],
     id: [u8; 32],
     owner: [u8; 32],
     revision: u64,
@@ -358,7 +366,7 @@ impl Image {
     fn operation_count(&self) -> usize {
         self.records
             .values()
-            .filter(|record| record.kind != RecordKind::Prekey)
+            .filter(|record| !matches!(record.kind, RecordKind::Prekey | RecordKind::Roster))
             .count()
     }
 }
@@ -399,12 +407,13 @@ impl DeviceJournal {
         getrandom::fill(&mut id).map_err(|_| Error::Entropy)?;
         JournalIdentity::from_trusted_state(id)?;
         let image = Image {
+            local_account: device.account_id(),
             id,
             owner,
             revision: 1,
             digest: [0; 32],
             protection,
-            records: BTreeMap::new(),
+            records: rosters::genesis(device),
         };
         let sealed = seal(&key, &image)?;
         provision_private_database(path, |db| {
@@ -441,6 +450,9 @@ impl DeviceJournal {
         let db = open_private_database(path)?;
         let owner = bootstrap::storage_owner(device);
         let image = write_intent::recover(&db, &key, owner, expected_id)?;
+        if image.local_account != device.account_id() {
+            return Err(DurableError::Conflict);
+        }
         Ok(Self {
             active: Some(Active {
                 db,
@@ -477,7 +489,7 @@ impl DeviceJournal {
             || image.id != active.id
             || image.protection != active.protection
             || image.revision != 1
-            || !image.records.is_empty()
+            || !rosters::is_genesis(&image, device)?
         {
             return Err(DurableError::Conflict);
         }
@@ -508,6 +520,7 @@ impl DeviceJournal {
         let result = (|| {
             prekeys::validate_image(image)?;
             messages::validate_image(image)?;
+            rosters::validate_image(image)?;
             let active = self.active.as_mut().ok_or(DurableError::Closed)?;
             if image.protection != active.protection || image.id != active.id {
                 return Err(DurableError::Conflict);
@@ -578,6 +591,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
+        rosters::authorize_context(image, &context, now)?;
         match record.phase {
             DurableStatus::Executing
             | DurableStatus::ResponseKemReserved
@@ -599,7 +613,7 @@ impl DeviceJournal {
             self.persist(image)?;
         }
         context.check(now)?;
-        self.check_release(image)?;
+        self.check_context_release(image, &context, now)?;
         Ok(reply)
     }
     fn restore_record(
@@ -641,6 +655,7 @@ impl DeviceJournal {
     ) -> Result<[u8; 32], DurableError> {
         let id = self.admission(&context, initial, now)?;
         let mut image = self.image()?;
+        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get_mut(&id).ok_or(DurableError::Absent)?;
         record.check_request(&context, initial)?;
         if !matches!(
@@ -657,7 +672,7 @@ impl DeviceJournal {
             self.persist(&mut image)?;
         }
         context.check(now)?;
-        self.check_release(&image)?;
+        self.check_context_release(&image, &context, now)?;
         Ok(session)
     }
 }
@@ -703,14 +718,19 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG09".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG10".to_vec());
     image.protection.encode(&mut plaintext);
+    plaintext.extend_from_slice(&image.local_account);
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
         plaintext.extend_from_slice(&record.context);
         plaintext.push(record.kind as u8);
         plaintext.push(record.phase as u8);
+        plaintext.push(record.authorities.len() as u8);
+        for account in &record.authorities {
+            plaintext.extend_from_slice(account);
+        }
         plaintext.push(record.keys.len() as u8);
         for key in &record.keys {
             plaintext.extend_from_slice(key);
@@ -723,12 +743,23 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
         plaintext.extend_from_slice(&record.payload);
     }
     if image.operation_count() > MAX_RECORDS
-        || image.records.len() - image.operation_count() > prekeys::MAX_PREKEY_RECORDS
+        || image
+            .records
+            .values()
+            .filter(|r| r.kind == RecordKind::Prekey)
+            .count()
+            > prekeys::MAX_PREKEY_RECORDS
+        || image
+            .records
+            .values()
+            .filter(|r| r.kind == RecordKind::Roster)
+            .count()
+            > rosters::MAX_ROSTERS
         || plaintext.len() > MAX_IMAGE
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT009".to_vec();
+    let mut wire = b"QPVLT010".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -751,11 +782,11 @@ fn unseal(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image, Durab
     }
 }
 fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image, DurableError> {
-    if !(HEADER + 16 + 83..=HEADER + 16 + MAX_IMAGE).contains(&wire.len()) {
+    if !(HEADER + 16 + 115..=HEADER + 16 + MAX_IMAGE).contains(&wire.len()) {
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT009" {
+    if outer.array::<8>()? != *b"QPVLT010" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -781,12 +812,13 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG09" {
+    if inner.array::<8>()? != *b"QPVIMG10" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
+    let local_account = inner.array::<32>()?;
     let count = usize::from(inner.u16()?);
-    if count > MAX_RECORDS + prekeys::MAX_PREKEY_RECORDS {
+    if count > MAX_RECORDS + prekeys::MAX_PREKEY_RECORDS + rosters::MAX_ROSTERS {
         return Err(DurableError::Capacity);
     }
     let mut records = BTreeMap::new();
@@ -799,15 +831,28 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         }
         previous = Some(op);
         let context = inner.array::<32>()?;
-        let [kind, phase, count] = inner.array::<3>()?;
+        let [kind, phase, authority_count] = inner.array::<3>()?;
         let kind = match kind {
             1 => RecordKind::Responder,
             2 => RecordKind::Initiator,
             3 => RecordKind::Prekey,
             4 => RecordKind::Messages,
+            5 => RecordKind::Roster,
             _ => return Err(DurableError::Corrupt),
         };
         let phase = DurableStatus::decode(phase)?;
+        if authority_count > 2 {
+            return Err(DurableError::Corrupt);
+        }
+        let mut authorities = Vec::new();
+        for _ in 0..authority_count {
+            let account = inner.array::<32>()?;
+            if account == [0; 32] || authorities.last().is_some_and(|p| *p >= account) {
+                return Err(DurableError::Corrupt);
+            }
+            authorities.push(account);
+        }
+        let [count] = inner.array::<1>()?;
         if count > 2
             || ((phase == DurableStatus::Rejected || kind != RecordKind::Responder) && count != 0)
         {
@@ -844,6 +889,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
                 kind,
                 context,
                 phase,
+                authorities,
                 keys,
                 prekeys,
                 payload,
@@ -852,6 +898,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
     }
     inner.finish()?;
     let image = Image {
+        local_account,
         id,
         owner,
         revision,
@@ -861,6 +908,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
     };
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
     messages::validate_image(&image)?;
+    rosters::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
     Ok(image)
 }
 

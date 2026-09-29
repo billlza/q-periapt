@@ -35,9 +35,11 @@ Constructing a pin from an incoming bundle does not authenticate its claimed pee
 digests, expiry, count and root. These signed context digests require separate
 semantic authorization. `AuthenticatedLeaf` authenticates public bytes and their
 role; it is not a primitive-validated KEM key, a lease or a consumption receipt.
-Retained objects do not discover later revocation. An eventual consumption
-transaction must recheck the current authority/fence and atomically commit the
-prekey, session, deduplication, inbox and outbox records.
+Retained objects do not discover later revocation. The journal's installed
+[account roster heads](ROSTER_AUTHORITY.md) recheck current membership before
+private work and output release. Updates preserve observed generation history
+and fence old contexts after restart. The host must explicitly supply independently
+authenticated updates; these snapshots do not establish global newest-head agreement.
 
 Exact public-byte fingerprints exclude role, epoch and expiry, allowing the
 issuer to reject repeated public bytes within a manifest. They do not establish
@@ -104,7 +106,7 @@ input before encryption and commits chain/outbox or chain/inbox together before
 release. It supports bounded reordered delivery, exact replay and owned plaintext
 results. [Consumption acknowledgements](RETENTION.md) now reclaim inbox/outbox
 records using authenticated monotonic floors and session-issued sequence IDs.
-This initial epoch has no fresh DH/PQ input; the full ratchet, revocation, expiry
+This initial epoch has no fresh DH/PQ input; the full ratchet, device lifecycle
 and multi-device contracts remain required within 0.2.0.
 
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,

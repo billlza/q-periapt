@@ -32,24 +32,25 @@ cache is 2 MiB. The policy store uses this same backend and retains its policy a
 commit-uncertainty behavior.
 
 The same journal supports both local roles and its local prekey inventory. Kind 1
-is responder, kind 2 initiator, kind 3 prekey and kind 4 message state; initiator
-records cannot claim remote prekey consumption. This unreleased local v9 schema
-rejects v1–v8 tables/headers without implicit migration or reset. The network bootstrap bytes and SDK ABI major **2** are unchanged.
+is responder, kind 2 initiator, kind 3 prekey, kind 4 message state and kind 5 account
+roster; initiator records cannot claim remote prekey consumption. This unreleased
+local v10 schema rejects v1–v9 tables/headers without implicit migration or reset.
+The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v9`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v10`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT009[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT010[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG09[8] || protection[73] || count:u16 || records`
+`QPVIMG10[8] || protection[73] || local_account[32] || count:u16 || records`
 
 `protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
 Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and
@@ -58,10 +59,13 @@ ordinary recovery cannot replace it. The [required-anchor contract](REQUIRED_ANC
 checks this metadata before applying any pending intent. Old tables/images are
 rejected; this candidate provides no implicit migration.
 
-Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 || key_count:u8 ||
+Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 ||
+authority_count:u8 || accounts[authority_count*32] || key_count:u8 ||
 fingerprints[key_count*32] || reference_count:u8 || prekeys[reference_count*32] ||
 payload_length:u32 || payload`.
-There are at most 128 session-operation records, 1024 prekey records, two one-time
+The [roster contract](ROSTER_AUTHORITY.md) requires retained account heads for each
+record and keeps the local account immutable across pending writes. There are at
+most 64 roster records, 128 session-operation records, 1024 prekey records, two one-time
 claims per responder record and 2 MiB of total plaintext. The byte limit applies
 even before either count limit is reached. Inventory-backed responders reference
 exactly two prekey record IDs, PQ first then classical; other records have none.
@@ -333,10 +337,11 @@ inconsistent consumption/outbox state are rejected.
 Both roles now replay reserved cryptographic commands, and local inventory
 restores the selected prekeys before first responder authentication. A completed
 bootstrap is not a full session lifecycle. Protected signing files now restore
-matching owners for unfinished operations. Cryptographic erasure, durable identity
-rotation/revocation, cancellation,
-supersession, delivery acknowledgements, per-message state, ratchet/rekey and
-multi-device transactions remain implementation work. Local write intents now retain
+matching owners for unfinished operations. Installed account rosters now fence
+revoked devices and retained contexts, and the message layer supplies durable
+per-message state and consumption acknowledgements. Cryptographic erasure, full
+identity rotation, cancellation, supersession, ratchet/rekey and multi-device
+transactions remain implementation work. Local write intents now retain
 the exact outer encrypted aggregate across state-write retries. Required-anchor
 journals derive their immutable witness command from that intent and verify fresh
 evidence at open, state application and result release. The rest of G1's complete

@@ -19,6 +19,7 @@ pub(super) struct PendingWrite {
     target: Vec<u8>,
     wire: Vec<u8>,
     protection: Protection,
+    local_account: [u8; 32],
 }
 impl PendingWrite {
     fn new(active: &Active, image: &Image, target: &[u8]) -> Result<Self, DurableError> {
@@ -55,7 +56,7 @@ impl PendingWrite {
         id: [u8; 32],
         wire: &[u8],
     ) -> Result<Self, DurableError> {
-        if !(INTENT_HEADER + HEADER + 16 + 83 + 32..=INTENT_HEADER + MAX_TARGET + 32)
+        if !(INTENT_HEADER + HEADER + 16 + 115 + 32..=INTENT_HEADER + MAX_TARGET + 32)
             .contains(&wire.len())
         {
             return Err(DurableError::Corrupt);
@@ -101,12 +102,14 @@ impl PendingWrite {
             target,
             wire: wire.to_vec(),
             protection: next.protection,
+            local_account: next.local_account,
         })
     }
     fn check_current(&self, current: &Image) -> Result<(), DurableError> {
         if current.revision == self.expected_revision
             && current.digest == self.expected_digest
             && current.protection == self.protection
+            && current.local_account == self.local_account
         {
             Ok(())
         } else {

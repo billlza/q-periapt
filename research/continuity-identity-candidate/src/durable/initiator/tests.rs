@@ -154,8 +154,16 @@ fn both_journals_reopen_and_agree_for_every_mode_with_no_signing_owner() {
         );
         let i = ji.image().expect("initiator image");
         let r = jr.image().expect("responder image");
-        let saved_i = i.records.values().next().expect("I record");
-        let saved_r = r.records.values().next().expect("R record");
+        let saved_i = i
+            .records
+            .values()
+            .find(|r| r.kind == RecordKind::Initiator)
+            .expect("I record");
+        let saved_r = r
+            .records
+            .values()
+            .find(|r| r.kind == RecordKind::Responder)
+            .expect("R record");
         assert!(
             saved_i.keys.is_empty(),
             "initiator must not claim remote prekey consumption"
@@ -355,7 +363,11 @@ fn each_initial_sync_failure_is_reconciled_without_new_initial_randomness() {
                 }
                 DurableStatus::Prepared | DurableStatus::AwaitingReply => {
                     let image = recovered.image().expect("image");
-                    let record = image.records.values().next().expect("record");
+                    let record = image
+                        .records
+                        .values()
+                        .find(|r| r.kind == RecordKind::Initiator)
+                        .expect("record");
                     assert_eq!(
                         recovered
                             .resume_initial(Arc::clone(&f.initiator), request, 150)
@@ -382,8 +394,36 @@ fn each_reply_sync_failure_recovers_the_exact_reply_final_and_session() {
     let f = fixture(PrekeyQuality::ReusableBoth);
     let (pq, classic) = f.sources();
     let mut states = BTreeSet::new();
+    let measured_dir = directory();
+    let measured_path = measured_dir.path().canonicalize().expect("path");
+    let mut measured = new_store(&measured_path, f.initiator_device());
+    let measured_request = InitiationId::generate().expect("request");
+    let measured_initial = measured
+        .initiate(Arc::clone(&f.initiator), measured_request, &f.signer_i, 150)
+        .expect("initial");
+    let mut peer = ResponderOperation::new(Arc::clone(&f.responder));
+    let measured_reply = peer
+        .respond(&measured_initial, &f.signer_r, pq, classic, 150)
+        .expect("reply")
+        .to_vec();
+    measured.close();
+    let (mut measured, _, count, _) = fault_store(&measured_path, f.initiator_device(), false);
+    measured
+        .accept_reply(
+            Arc::clone(&f.initiator),
+            measured_request,
+            &measured_reply,
+            150,
+        )
+        .expect("count all reply barriers");
+    let syncs = count.load(Ordering::SeqCst);
+    assert!(
+        (12..=64).contains(&syncs),
+        "bounded fixture sync count: {syncs}"
+    );
+    let mut failure_sites = std::collections::BTreeSet::new();
     for after_sync in [false, true] {
-        for cut in 1..=12 {
+        for cut in 1..=syncs {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
             let mut journal = new_store(&path, f.initiator_device());
@@ -399,13 +439,11 @@ fn each_reply_sync_failure_recovers_the_exact_reply_final_and_session() {
             drop(journal);
             let (mut journal, fault, _, _) = fault_store(&path, f.initiator_device(), after_sync);
             fault.store(cut, Ordering::SeqCst);
-            assert!(
-                matches!(
-                    journal.accept_reply(Arc::clone(&f.initiator), request, &reply, 150),
-                    Err(DurableError::CommitUncertain(_))
-                ),
-                "cut={cut} after={after_sync}"
-            );
+            failure_sites.insert(crate::durable::tests::assert_sync_failure(
+                journal.accept_reply(Arc::clone(&f.initiator), request, &reply, 150),
+                after_sync,
+            ));
+            assert!(journal.active.is_none());
             let mut recovered = reopen(&path, f.initiator_device());
             let phase = recovered
                 .initiation_status(&f.initiator, request)
@@ -450,7 +488,13 @@ fn each_reply_sync_failure_recovers_the_exact_reply_final_and_session() {
             && states.contains(&(DurableStatus::FinalPrepared as u8))
             && states.contains(&(DurableStatus::FinalCommitted as u8))
     );
-    eprintln!("initiator reply faults: cases=12 recovered={states:?}");
+    eprintln!("initiator reply faults: cuts_per_mode={syncs} recovered={states:?}");
+    assert!(failure_sites.contains(&crate::durable::tests::SyncFailureSite::Commit));
+    assert!(failure_sites.contains(&crate::durable::tests::SyncFailureSite::BeforeCommit));
+    eprintln!(
+        "reply sync faults: barriers={syncs} cases={} sites={failure_sites:?}",
+        syncs * 2
+    );
 }
 
 #[test]
@@ -605,7 +649,11 @@ fn process_kill_at_eleven_initiator_cuts_recovers_exact_reserved_work() {
             phase
         );
         let image = journal.image().expect("image");
-        let record = image.records.values().next().expect("record");
+        let record = image
+            .records
+            .values()
+            .find(|r| r.kind == RecordKind::Initiator)
+            .expect("record");
         let recovered_initial = if is_plan(phase) {
             journal
                 .initiate(Arc::clone(&f.initiator), request, &f.signer_i, 150)
@@ -684,7 +732,12 @@ fn old_headers_and_role_substitution_are_refused() {
             Err(DurableError::Corrupt)
         ));
     }
-    image.records.values_mut().next().expect("record").kind = RecordKind::Responder;
+    image
+        .records
+        .values_mut()
+        .find(|r| r.kind == RecordKind::Initiator)
+        .expect("record")
+        .kind = RecordKind::Responder;
     let sealed = seal(&active.key, &image).expect("authenticated wrong role");
     assert!(matches!(
         unseal(&active.key, active.owner, &sealed),
@@ -710,7 +763,11 @@ fn restored_private_key_must_be_valid_and_match_the_signed_reply_public_key() {
             .expect("reply")
             .to_vec();
         let mut image = journal.image().expect("image");
-        let record = image.records.values_mut().next().expect("record");
+        let record = image
+            .records
+            .values_mut()
+            .find(|r| r.kind == RecordKind::Initiator)
+            .expect("record");
         let key_start = 32 + PREFIX + 1 + 32;
         let expected = if wrong_pair {
             let other = f.occupy_initiator_slot();

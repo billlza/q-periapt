@@ -333,6 +333,11 @@ impl AccountPin {
     /// The exact checkpoint must come from independently trusted configuration.
     /// This immutable snapshot does not advance a journal's durable authority.
     pub fn verify_roster(&self, wire: &[u8], trusted_time: u64) -> Result<VerifiedRoster, Error> {
+        let roster = self.authenticate_roster(wire)?;
+        roster.check_time(trusted_time)?;
+        Ok(roster)
+    }
+    fn authenticate_roster(&self, wire: &[u8]) -> Result<VerifiedRoster, Error> {
         let (body, signature) = open_envelope(wire)?;
         self.root.verify(Purpose::Roster, body, signature)?;
         let mut decoder = Decoder::new(body);
@@ -347,7 +352,6 @@ impl AccountPin {
             return Err(Error::Checkpoint);
         }
         let validity = Validity::decode(&mut decoder)?;
-        validity.check(trusted_time)?;
         let count = usize::from(decoder.u16()?);
         if count > MAX_DEVICES {
             return Err(Error::Capacity);
@@ -398,6 +402,56 @@ pub struct VerifiedRoster {
     wire: Vec<u8>,
 }
 impl VerifiedRoster {
+    pub(crate) fn members(&self) -> impl Iterator<Item = ([u8; 16], u64, [u8; 32])> + '_ {
+        self.entries
+            .iter()
+            .map(|entry| (entry.id, entry.generation, entry.certificate))
+    }
+    pub(crate) fn contains_member(
+        &self,
+        id: [u8; 16],
+        generation: u64,
+        certificate: [u8; 32],
+    ) -> bool {
+        self.members()
+            .any(|member| member == (id, generation, certificate))
+    }
+    pub(crate) fn check_time(&self, now: u64) -> Result<(), Error> {
+        self.validity.check(now)
+    }
+    pub(crate) fn same_authority(&self, other: &Self) -> bool {
+        self.account == other.account
+            && self.family == other.family
+            && self.root.encode() == other.root.encode()
+    }
+    pub(crate) fn journal_bytes(&self) -> Vec<u8> {
+        let mut out = b"QPROWR01".to_vec();
+        out.extend_from_slice(&self.account);
+        out.extend_from_slice(&self.family);
+        out.extend_from_slice(&self.checkpoint.version.to_be_bytes());
+        out.extend_from_slice(&self.checkpoint.digest);
+        out.extend_from_slice(&self.root.encode());
+        out.extend_from_slice(&(self.wire.len() as u32).to_be_bytes());
+        out.extend_from_slice(&self.wire);
+        out
+    }
+    // Only the authenticated journal image can supply these retained pins.
+    // Reopening checks signatures/shape, while operation admission checks time.
+    pub(crate) fn from_journal(bytes: &[u8]) -> Result<Self, Error> {
+        let mut decoder = Decoder::new(bytes);
+        if decoder.array::<8>()? != *b"QPROWR01" {
+            return Err(Error::Encoding);
+        }
+        let account = decoder.array()?;
+        let family = decoder.array()?;
+        let version = decoder.u64()?;
+        let checkpoint = RosterCheckpoint::from_trusted_state(version, decoder.array()?)?;
+        let root = PublicKey::decode(decoder.take(PUBLIC_KEY_BYTES)?)?;
+        let length = u32::from_be_bytes(decoder.array()?) as usize;
+        let wire = decoder.take(length)?;
+        decoder.finish()?;
+        AccountPin::new(account, root, checkpoint, family)?.authenticate_roster(wire)
+    }
     /// Account identity authenticated by both root signature components.
     pub fn account_id(&self) -> [u8; 32] {
         self.account

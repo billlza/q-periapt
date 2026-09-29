@@ -123,12 +123,15 @@ impl BootstrapContext {
         self.policy.check_device(&self.initiator, now)?;
         self.policy.check_device(&self.responder, now)
     }
-    pub(crate) fn check_session(&self, now: u64) -> Result<(), Error> {
+    pub(crate) fn check_session_identity(&self, now: u64) -> Result<(), Error> {
         // Admitted sessions retain their selected prekey identity, but prekey
         // advertisement expiry must not become their application lifetime.
         self.policy.check_mode(self.selection.quality(), now)?;
-        self.policy.check_device(&self.initiator, now)?;
-        self.policy.check_device(&self.responder, now)
+        self.policy.check_device_identity(&self.initiator, now)?;
+        self.policy.check_device_identity(&self.responder, now)
+    }
+    pub(crate) fn devices(&self) -> [&VerifiedDevice; 2] {
+        [self.initiator.as_ref(), self.responder.as_ref()]
     }
     pub(crate) fn policy(&self) -> &VerifiedSessionPolicy {
         &self.policy

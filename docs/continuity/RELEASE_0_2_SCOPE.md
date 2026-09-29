@@ -66,7 +66,11 @@ the existing public-commitment model into a working cryptographic protocol.
   Exact input reservations, bounded skipped keys and retained receipts support
   restart, reordering and duplicate reconciliation. Authenticated contiguous
   consumption acknowledgements now bound outstanding records while monotonic
-  sequence IDs prevent retired requests from becoming new sends. Durable identity lifecycle,
+  sequence IDs prevent retired requests from becoming new sends. Its installed
+  [account roster heads](../../research/continuity-identity-candidate/ROSTER_AUTHORITY.md)
+  now fence bootstrap, prekey, message and cached-output authority across restarts,
+  preserving observed device-generation history through exact write-intent recovery.
+  Full device lifecycle,
   cryptographic erasure, fresh DH/PQ ratcheting and full rollback recovery remain
   required work.
 

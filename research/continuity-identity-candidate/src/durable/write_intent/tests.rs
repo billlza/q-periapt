@@ -18,12 +18,14 @@ fn proposal(path: &Path, f: &Fixture) -> (DeviceJournal, PendingWrite) {
         InitiatorOperation::start(Arc::clone(&f.initiator), &f.signer_i, 150).expect("initial");
     let initial = peer.initial_message(150).expect("wire");
     let mut image = store.image().expect("image");
+    rosters::admit_context(&mut image, &f.responder, true, 150).expect("admit account heads");
     image.records.insert(
         operation_id(&f.responder.digest(), initial),
         Record {
             context: f.responder.digest(),
             kind: RecordKind::Responder,
             phase: DurableStatus::Executing,
+            authorities: rosters::context_accounts(&f.responder),
             keys: f.responder.one_time_fingerprints(),
             prekeys: Vec::new(),
             payload: Zeroizing::new(initial.to_vec()),
@@ -65,6 +67,36 @@ fn authenticated_intent_cannot_change_journal_protection_metadata() {
     let target = seal(&active.key, &changed).expect("authenticated target with changed profile");
     let intent = PendingWrite::new(active, &changed, &target).expect("valid intent MAC");
     reserve(active, &intent).expect("persist adversarial authenticated fixture");
+    assert!(matches!(
+        load_snapshot(&active.db, &active.key, active.owner),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        recover(
+            &active.db,
+            &active.key,
+            active.owner,
+            JournalIdentity(active.id)
+        ),
+        Err(DurableError::Conflict)
+    ));
+    assert_eq!(disk_image(&active.db), original);
+}
+
+#[test]
+fn authenticated_intent_cannot_rebind_the_journal_local_account() {
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let dir = directory();
+    let path = dir.path().canonicalize().expect("path");
+    let (store, pending) = proposal(&path, &f);
+    let active = store.active.as_ref().expect("active");
+    let original = disk_image(&active.db);
+    let mut changed = unseal(&active.key, active.owner, &pending.target).expect("target");
+    changed.digest = pending.expected_digest;
+    changed.local_account = f.initiator_device().account_id();
+    let target = seal(&active.key, &changed).expect("authenticated different account");
+    let intent = PendingWrite::new(active, &changed, &target).expect("valid intent MAC");
+    reserve(active, &intent).expect("adversarial authenticated fixture");
     assert!(matches!(
         load_snapshot(&active.db, &active.key, active.owner),
         Err(DurableError::Conflict)
@@ -137,8 +169,25 @@ fn pending_ciphertext_is_applied_exactly_once_and_reopening_checks_identity_firs
 #[test]
 fn recovery_commit_sync_failures_preserve_the_same_sealed_target() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
+    let measured_dir = directory();
+    let measured_path = measured_dir.path().canonicalize().expect("path");
+    let (mut measured, expected) = proposal(&measured_path, &f);
+    reserve(measured.active.as_ref().expect("active"), &expected).expect("plan");
+    measured.close();
+    let (db, _, count, _) = fault_database(&measured_path, false);
+    let key = JournalKey::open(&measured_path.join("key")).expect("wrapping");
+    recover(
+        &db,
+        &key,
+        bootstrap::storage_owner(f.local_device()),
+        identity(&measured_path),
+    )
+    .expect("count recovery barriers");
+    let syncs = count.load(Ordering::SeqCst);
+    assert!((2..=64).contains(&syncs));
+    drop(db);
     for after_sync in [false, true] {
-        for cut in 1..=2 {
+        for cut in 1..=syncs {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
             let (mut store, pending) = proposal(&path, &f);
@@ -147,15 +196,15 @@ fn recovery_commit_sync_failures_preserve_the_same_sealed_target() {
             let (db, remaining, _, _) = fault_database(&path, after_sync);
             let key = JournalKey::open(&path.join("key")).expect("wrapping");
             remaining.store(cut, Ordering::SeqCst);
-            assert!(matches!(
+            crate::durable::tests::assert_sync_failure(
                 recover(
                     &db,
                     &key,
                     bootstrap::storage_owner(f.local_device()),
-                    identity(&path)
+                    identity(&path),
                 ),
-                Err(DurableError::CommitUncertain(_))
-            ));
+                after_sync,
+            );
             drop(db);
             let store = reopen(&path, f.local_device());
             assert_eq!(

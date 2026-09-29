@@ -522,6 +522,87 @@ fn captured_query_reply_cannot_reopen_or_release_a_required_journal() {
 }
 
 #[test]
+fn every_roster_witness_exchange_loss_recovers_exact_revocation() {
+    let mut baseline = case();
+    let revoked = rosters::tests::update(baseline.peer.initiator_device(), 90, 2, false);
+    let before = baseline.server.lock().expect("server").requests.len();
+    baseline
+        .journal
+        .install_roster(&revoked, 150)
+        .expect("baseline update");
+    let exchanges = baseline.server.lock().expect("server").requests.len() - before;
+    assert_eq!(
+        exchanges, 4,
+        "admission, advance, committed-head query, release"
+    );
+    for offset in 1..=exchanges {
+        for after in [false, true] {
+            let mut c = case();
+            let revoked = rosters::tests::update(c.peer.initiator_device(), 90, 2, false);
+            {
+                let mut server = c.server.lock().expect("server");
+                server.fail = Some((server.requests.len() + offset, after));
+            }
+            assert!(
+                matches!(
+                    c.journal.install_roster(&revoked, 150),
+                    Err(DurableError::Anchor(_))
+                ),
+                "exchange {offset}, after {after}"
+            );
+            assert!(c.journal.active.is_none());
+            assert!(matches!(initiate(&mut c), Err(DurableError::Closed)));
+            c.server.lock().expect("server").fail = None;
+            c.journal = reopen(&c).expect("reconcile exact durable intent and witness head");
+            let image = c.journal.image().expect("recovered head");
+            if offset == 1 {
+                assert_eq!(image.revision, 1, "admission loss precedes reservation");
+            } else {
+                assert_eq!(image.revision, 2);
+                assert_eq!(
+                    c.journal
+                        .roster_checkpoint(c.peer.initiator_device().account_id())
+                        .expect("durable revocation"),
+                    revoked.checkpoint()
+                );
+                assert!(matches!(
+                    initiate(&mut c),
+                    Err(DurableError::Protocol(Error::Scope))
+                ));
+            }
+            c.journal
+                .install_roster(&revoked, 150)
+                .expect("exact update retry");
+            assert_eq!(c.journal.image().expect("one update").revision, 2);
+            assert!(matches!(
+                initiate(&mut c),
+                Err(DurableError::Protocol(Error::Scope))
+            ));
+        }
+    }
+    eprintln!(
+        "ROSTER_WITNESS_RECOVERY exchanges={exchanges} losses={}",
+        exchanges * 2
+    );
+}
+
+#[test]
+fn restored_roster_snapshot_cannot_override_the_witness_revocation_head() {
+    let mut c = case();
+    c.journal.close();
+    let snapshot = c.path.join("enrolled-roster-snapshot.redb");
+    fs::copy(c.path.join("state.redb"), &snapshot).expect("owned initial snapshot");
+    c.journal = reopen(&c).expect("current head");
+    let revoked = rosters::tests::update(c.peer.initiator_device(), 90, 2, false);
+    c.journal
+        .install_roster(&revoked, 150)
+        .expect("witness-backed revocation");
+    c.journal.close();
+    fs::copy(snapshot, c.path.join("state.redb")).expect("restore owned older image");
+    assert!(matches!(reopen(&c), Err(DurableError::Anchor(_))));
+}
+
+#[test]
 fn each_local_commit_sync_failure_reconciles_against_the_real_witness() {
     use std::sync::atomic::Ordering;
     for after_sync in [false, true] {

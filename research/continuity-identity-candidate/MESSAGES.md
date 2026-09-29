@@ -42,8 +42,8 @@ ID. Result plaintext is zeroized on drop; caller copies remain caller-owned.
 Both directions recheck current protocol policy, runtime lifetime and device/roster
 validity before operation and release, including cached output. Prekey advertisement
 expiry is checked during bootstrap, not used as an established message lifetime.
-Durable roster replacement/revocation coordination remains a later integration
-step within the same release scope.
+The installed [roster head](ROSTER_AUTHORITY.md) controls both peers' membership
+and roster lifetime. Committed revocations fence retained contexts after restart.
 
 ## Fixed candidate cryptography and bytes
 
@@ -85,11 +85,11 @@ no construction-specific recovery result from it.
 
 ## Storage, bounds and remaining work
 
-Journal schema v9 rejects schemas v1–v8 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v9`, `QPVLT009`, `QPVIMG09`.
+Journal schema v10 rejects schemas v1–v9 without reset. The outer table/header and
+inner image are `continuity_device_candidate_v10`, `QPVLT010`, `QPVIMG10`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
 phase 19 and `QPMST002`. Image admission enforces a one-to-one link with the
-matching bootstrap role, context and session transcript, zero retired bootstrap
+matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap
 root, canonical sorted records, and disjoint consumed/skipped receive indices.
 A restored root cannot coexist with a valid linked message state.
 
@@ -97,7 +97,7 @@ Candidate resource bounds are 16 KiB plaintext, 1 KiB application associated dat
 128 aggregate skipped receive keys and 64 outstanding records per direction.
 [Consumption acknowledgements](RETENTION.md) retire contiguous consumed ranges
 without resetting counters or allowing old request IDs to become new work. The
-existing aggregate journal limit is 2 MiB/128 non-prekey records; each activated
+existing aggregate journal limit is 2 MiB/128 session-operation records; each activated
 pairwise session uses its bootstrap and message records. Capacity exhaustion is
 explicit. Application consumption and peer acknowledgements are committed
 explicitly; there is no timeout-based dropping, silent gap skipping or chain reset. Root transfer and receive each use one
@@ -106,7 +106,7 @@ journal persist (four storage sync boundaries); a new send uses two (eight).
 The initial epoch provides one-use message keys and durable replay ordering.
 It introduces no fresh DH/PQ entropy and therefore does not provide recovery from
 a compromised current chain. The selected PQ/DH composition, rekey epochs,
-rekey-aware acknowledgement keys, revocation fences, expiry policy, multi-device
+rekey-aware acknowledgement keys, full device lifecycle, multi-device
 fanout, independent rollback authority and product/binding integration remain
 required work. Logical root/key removal does not erase old encrypted database
 pages, write intents, snapshots or backups. The witness profile detects local
