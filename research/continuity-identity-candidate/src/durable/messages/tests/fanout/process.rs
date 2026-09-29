@@ -18,7 +18,12 @@ fn account_fanout_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         .as_chunks::<{ q_periapt_sdk::PUBLIC_KEY_LEN }>()
         .0
         .to_vec();
-    let f = fixture(4, false, Some(public));
+    let budget = u16::from_be_bytes(
+        fs::read(path.join("fanout-budget"))?
+            .try_into()
+            .expect("budget width"),
+    );
+    let f = fixture(budget, false, Some(public));
     if std::env::var_os("QPERIAPT_FANOUT_CONTENDER").is_some() {
         assert!(matches!(
             DeviceJournal::open(
@@ -41,16 +46,22 @@ fn account_fanout_crash_child() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let selected = targets(&f, &sessions);
     let mut sender = reopen(path, &f.local);
-    sender.send_account_message(
-        FanoutInput {
-            id,
-            account: f.peers.first().expect("peer").account_id(),
-            targets: &selected,
-            plaintext: b"durable multi-device process cut",
-            associated_data: b"account-message",
-        },
-        150,
-    )?;
+    if std::env::var_os("QPERIAPT_FANOUT_ABANDON").is_some() {
+        let report = sender.begin_fanout_abandonment(id, &selected)?;
+        super::abandonment::account(path, &report);
+        sender.acknowledge_fanout_abandonment(id, report.report, &selected)?;
+    } else {
+        sender.send_account_message(
+            FanoutInput {
+                id,
+                account: f.peers.first().expect("peer").account_id(),
+                targets: &selected,
+                plaintext: b"durable multi-device process cut",
+                associated_data: b"account-message",
+            },
+            150,
+        )?;
+    }
     fs::write(path.join("fanout-returned"), b"whole aggregate returned")?;
     Ok(())
 }
@@ -100,6 +111,17 @@ fn account_fanout_process_cuts_preserve_all_members_and_exclude_concurrent_write
         fs::write(path.join("fanout-public"), public).expect("public fixture");
         fs::write(path.join("fanout-sessions"), n.sessions.concat()).expect("sessions");
         fs::write(path.join("fanout-id"), id.as_bytes()).expect("ID");
+        fs::write(
+            path.join("fanout-budget"),
+            n.f.contexts
+                .first()
+                .expect("context")
+                .policy()
+                .application_send_budget()
+                .messages()
+                .to_be_bytes(),
+        )
+        .expect("budget");
         let mut child = spawn(path, Some(stage));
         let deadline = Instant::now() + Duration::from_secs(20);
         while !path.join("ready").exists() {
@@ -235,4 +257,100 @@ fn account_fanout_process_cuts_preserve_all_members_and_exclude_concurrent_write
             results.len()
         );
     }
+}
+
+// Reuse the real reservation/computation path, killed before API return.
+pub(super) fn reserved(n: &mut Network, stage: &str) -> FanoutId {
+    let id = n.sender.next_fanout_id().expect("ID");
+    n.sender.close();
+    let path = &n.sender_path;
+    let public: Vec<u8> =
+        n.f.keys
+            .iter()
+            .flat_map(|k| k.public_key().expect("public").to_bytes())
+            .collect();
+    fs::write(path.join("fanout-public"), public).expect("public fixture");
+    fs::write(path.join("fanout-sessions"), n.sessions.concat()).expect("sessions");
+    fs::write(path.join("fanout-id"), id.as_bytes()).expect("ID");
+    fs::write(
+        path.join("fanout-budget"),
+        n.f.contexts
+            .first()
+            .expect("context")
+            .policy()
+            .application_send_budget()
+            .messages()
+            .to_be_bytes(),
+    )
+    .expect("budget");
+    let mut child = spawn(path, Some(stage));
+    wait_ready(path, &mut child, stage, "fanout-child.log");
+    child.0.kill().expect("kill owned child");
+    assert!(!child.0.wait().expect("reap").success());
+    fs::rename(path.join("ready"), path.join("reservation-cut-ready"))
+        .expect("retain stage evidence");
+    n.sender = reopen(path, &n.f.local);
+    assert_eq!(
+        n.sender.fanout_status(id).expect("reserved"),
+        FanoutStatus::Reserved
+    );
+    id
+}
+fn wait_ready(path: &Path, child: &mut ChildGuard, stage: &str, log: &str) {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !path.join("ready").exists() {
+        assert!(
+            child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+            "{stage}: {}",
+            fs::read_to_string(path.join(log)).expect("log")
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        fs::read_to_string(path.join("ready")).expect("marker"),
+        stage
+    );
+}
+pub(super) fn abandonment_cut(n: &mut Network, stage: &str) {
+    n.sender.close();
+    let path = &n.sender_path;
+    let log = fs::File::create_new(path.join("fanout-abandon-child.log")).expect("new log");
+    let mut child = ChildGuard(
+        Command::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "durable::messages::tests::fanout::process::account_fanout_crash_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_FANOUT_DIR", path)
+            .env("QPERIAPT_FANOUT_ABANDON", "1")
+            .env("QPERIAPT_MESSAGES_CRASH_DIR", path)
+            .env("QPERIAPT_MESSAGES_STAGE", stage)
+            .stdout(Stdio::from(log.try_clone().expect("log")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned child"),
+    );
+    wait_ready(path, &mut child, stage, "fanout-abandon-child.log");
+    let mut contender = spawn(path, None);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Some(status) = contender.0.try_wait().expect("contender") {
+            assert!(
+                status.success(),
+                "{}",
+                fs::read_to_string(path.join("fanout-contender.log")).expect("log")
+            );
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "competing writer must refuse ownership"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!path.join("fanout-returned").exists());
+    child.0.kill().expect("kill child");
+    assert!(!child.0.wait().expect("reap").success());
+    n.sender = reopen(path, &n.f.local);
 }

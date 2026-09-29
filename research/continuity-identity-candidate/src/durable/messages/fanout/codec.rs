@@ -11,20 +11,28 @@ pub(super) struct Member {
     pub role: u8,
     pub message: MessageId,
 }
+pub(super) enum BatchState {
+    Reserved(Zeroizing<[u8; 32]>),
+    Committed(Zeroizing<[u8; 32]>),
+    Abandoning {
+        report: FanoutAbandonmentId,
+        key: ZeroizingBytes<32>,
+    },
+    Abandoned(FanoutAbandonmentId),
+}
 pub(super) struct Batch {
     pub id: FanoutId,
     pub account: [u8; 32],
     pub roster: RosterCheckpoint,
-    pub reserved: bool,
-    pub intent: Zeroizing<[u8; 32]>,
+    pub state: BatchState,
     pub members: Vec<Member>,
 }
 pub(super) fn batch_key(id: FanoutId) -> [u8; 32] {
     digest(&label(b"account-fanout-record/v1"), id.as_bytes())
 }
 impl Batch {
-    fn metadata(&self) -> Vec<u8> {
-        let mut bytes = b"QPFANO01".to_vec();
+    pub(super) fn metadata(&self) -> Vec<u8> {
+        let mut bytes = b"QPFANO02".to_vec();
         bytes.extend_from_slice(&self.id.0);
         bytes.extend_from_slice(&self.account);
         bytes.extend_from_slice(&self.roster.version().to_be_bytes());
@@ -45,18 +53,35 @@ impl Batch {
         let metadata = self.metadata();
         let context = digest(&label(b"account-fanout-metadata/v1"), &metadata);
         let mut payload = Zeroizing::new(metadata);
-        payload.extend_from_slice(self.intent.as_ref());
+        // Fixed-size tail reserves cleanup capacity before any message encryption.
+        let phase = match &self.state {
+            BatchState::Reserved(intent) | BatchState::Committed(intent) => {
+                payload.extend_from_slice(intent.as_ref());
+                payload.extend_from_slice(&[0; 32]);
+                if self.reserved() {
+                    DurableStatus::FanoutReserved
+                } else {
+                    DurableStatus::FanoutCommitted
+                }
+            }
+            BatchState::Abandoning { report, key } => {
+                payload.extend_from_slice(report.as_bytes());
+                payload.extend_from_slice(key.as_bytes());
+                DurableStatus::FanoutAbandoning
+            }
+            BatchState::Abandoned(report) => {
+                payload.extend_from_slice(report.as_bytes());
+                payload.extend_from_slice(&[0; 32]);
+                DurableStatus::FanoutAbandoned
+            }
+        };
         let mut authorities = vec![local, self.account];
         authorities.sort_unstable();
         authorities.dedup();
         Record {
             kind: RecordKind::Fanout,
             context,
-            phase: if self.reserved {
-                DurableStatus::FanoutReserved
-            } else {
-                DurableStatus::FanoutCommitted
-            },
+            phase,
             authorities,
             keys: Vec::new(),
             prekeys: Vec::new(),
@@ -74,13 +99,8 @@ impl Batch {
         {
             return Err(DurableError::Corrupt);
         }
-        let reserved = match record.phase {
-            DurableStatus::FanoutReserved => true,
-            DurableStatus::FanoutCommitted => false,
-            _ => return Err(DurableError::Corrupt),
-        };
         let mut d = Decoder::new(&record.payload);
-        if d.array::<8>()? != *b"QPFANO01" {
+        if d.array::<8>()? != *b"QPFANO02" {
             return Err(DurableError::Corrupt);
         }
         let id = FanoutId::from_trusted_state(d.array()?)?;
@@ -127,14 +147,37 @@ impl Batch {
                 message,
             });
         }
-        let intent = Zeroizing::new(d.array()?);
+        let first = Zeroizing::new(d.array::<32>()?);
+        let second = Zeroizing::new(d.array::<32>()?);
         d.finish()?;
+        let state = match record.phase {
+            DurableStatus::FanoutReserved | DurableStatus::FanoutCommitted => {
+                if *second != [0; 32] {
+                    return Err(DurableError::Corrupt);
+                }
+                if record.phase == DurableStatus::FanoutReserved {
+                    BatchState::Reserved(first)
+                } else {
+                    BatchState::Committed(first)
+                }
+            }
+            DurableStatus::FanoutAbandoning => BatchState::Abandoning {
+                report: FanoutAbandonmentId::from_trusted_state(*first)?,
+                key: super::key(second.as_ref())?,
+            },
+            DurableStatus::FanoutAbandoned => {
+                if *second != [0; 32] {
+                    return Err(DurableError::Corrupt);
+                }
+                BatchState::Abandoned(FanoutAbandonmentId::from_trusted_state(*first)?)
+            }
+            _ => return Err(DurableError::Corrupt),
+        };
         let batch = Self {
             id,
             account,
             roster,
-            reserved,
-            intent,
+            state,
             members,
         };
         let expected = batch.record(image.local_account);
@@ -142,6 +185,24 @@ impl Batch {
             return Err(DurableError::Corrupt);
         }
         Ok(batch)
+    }
+    pub(super) fn reserved(&self) -> bool {
+        matches!(self.state, BatchState::Reserved(_))
+    }
+    pub(super) fn intent(&self) -> Result<&Zeroizing<[u8; 32]>, DurableError> {
+        match &self.state {
+            BatchState::Reserved(intent) | BatchState::Committed(intent) => Ok(intent),
+            BatchState::Abandoning { .. } => Err(DurableError::Suspended),
+            BatchState::Abandoned(_) => Err(Error::Retired.into()),
+        }
+    }
+    pub(super) fn status(&self) -> FanoutStatus {
+        match self.state {
+            BatchState::Reserved(_) => FanoutStatus::Reserved,
+            BatchState::Committed(_) => FanoutStatus::Committed,
+            BatchState::Abandoning { report, .. } => FanoutStatus::Abandoning(report),
+            BatchState::Abandoned(report) => FanoutStatus::Abandoned(report),
+        }
     }
     pub(super) fn match_targets(&self, selected: &[Selected<'_>]) -> Result<(), DurableError> {
         if self.members.len() != selected.len()
@@ -214,7 +275,10 @@ pub(in crate::durable::messages) fn validate_image(image: &Image) -> Result<(), 
         if record.kind != RecordKind::Fanout {
             if matches!(
                 record.phase,
-                DurableStatus::FanoutReserved | DurableStatus::FanoutCommitted
+                DurableStatus::FanoutReserved
+                    | DurableStatus::FanoutCommitted
+                    | DurableStatus::FanoutAbandoning
+                    | DurableStatus::FanoutAbandoned
             ) {
                 return Err(DurableError::Corrupt);
             }
@@ -226,6 +290,9 @@ pub(in crate::durable::messages) fn validate_image(image: &Image) -> Result<(), 
         }
         let batch = Batch::decode(image, key, record)?;
         let authorities = &record.authorities;
+        if matches!(batch.state, BatchState::Abandoning { .. }) {
+            abandonment::validate_report(image, &batch)?;
+        }
         for member in &batch.members {
             let record = image
                 .records
@@ -237,23 +304,50 @@ pub(in crate::durable::messages) fn validate_image(image: &Image) -> Result<(), 
             {
                 return Err(DurableError::Corrupt);
             }
+            if record.phase == DurableStatus::MessagesAbandoned {
+                let retired = Retired::decode(&record.payload)?;
+                if retired.session != member.session || retired.role != member.role {
+                    return Err(DurableError::Corrupt);
+                }
+                match batch.state {
+                    BatchState::Abandoned(report)
+                        if retired.batch == batch.id
+                            && retired.report == report
+                            && retired.pending == member.message => {}
+                    BatchState::Committed(_) => {
+                        record_output(image, &batch, member)?;
+                    }
+                    _ => return Err(DurableError::Corrupt),
+                }
+                continue;
+            }
             let state = State::decode(&record.payload)?;
             if state.session != member.session || state.role != member.role {
                 return Err(DurableError::Corrupt);
             }
-            if batch.reserved {
+            if matches!(
+                batch.state,
+                BatchState::Reserved(_) | BatchState::Abandoning { .. }
+            ) {
                 let traffic = state.traffic(member.message.epoch()?)?;
                 let plan = traffic.pending.as_ref().ok_or(DurableError::Corrupt)?;
                 if member.message.epoch()? != state.send_epoch
                     || plan.id != member.message
                     || plan.fanout != Some(batch.id)
                     || !reserved.insert((member.session, member.message))
-                    || intent(b"send-intent", &plan.plaintext, &plan.ad) != batch.intent
+                    || (batch.reserved()
+                        && intent(b"send-intent", &plan.plaintext, &plan.ad) != *batch.intent()?)
+                    || record.phase
+                        != if batch.reserved() {
+                            DurableStatus::Messages
+                        } else {
+                            DurableStatus::MessagesAbandoning
+                        }
                 {
                     return Err(DurableError::Corrupt);
                 }
             } else {
-                output(&state, member, &batch.intent)?;
+                output(&state, member, batch.intent()?)?;
             }
         }
     }
@@ -265,21 +359,58 @@ pub(in crate::durable::messages) fn validate_image(image: &Image) -> Result<(), 
 pub(in crate::durable::messages) fn validate_pending(
     image: &Image,
     state: &State,
+    phase: DurableStatus,
 ) -> Result<(), DurableError> {
+    let mut linked = false;
     for traffic in state.epochs.values() {
         if let Some(plan) = &traffic.pending {
             if let Some(id) = plan.fanout {
                 let batch = get(image, id)?;
-                if !batch.reserved
-                    || !batch
-                        .members
-                        .iter()
-                        .any(|m| m.session == state.session && m.message == plan.id)
+                linked = true;
+                if !matches!(
+                    (phase, &batch.state),
+                    (DurableStatus::Messages, BatchState::Reserved(_))
+                        | (
+                            DurableStatus::MessagesAbandoning,
+                            BatchState::Abandoning { .. }
+                        )
+                ) || !batch
+                    .members
+                    .iter()
+                    .any(|m| m.session == state.session && m.message == plan.id)
                 {
                     return Err(DurableError::Corrupt);
                 }
             }
         }
     }
+    if phase == DurableStatus::MessagesAbandoning && !linked {
+        return Err(DurableError::Corrupt);
+    }
     Ok(())
+}
+
+pub(super) fn record_output(
+    image: &Image,
+    batch: &Batch,
+    member: &Member,
+) -> Result<FanoutOutput, DurableError> {
+    let record = image
+        .records
+        .get(&record_id(&member.session))
+        .ok_or(DurableError::Corrupt)?;
+    if record.phase == DurableStatus::MessagesAbandoned {
+        return match Retired::decode(&record.payload)?.status(member.message) {
+            Ok(MessageStatus::Acknowledged) => Ok(FanoutOutput::Acknowledged),
+            Ok(MessageStatus::DeliveryUnknown) => Ok(FanoutOutput::DeliveryUnknown),
+            Ok(MessageStatus::ReservationAbandoned)
+                if matches!(batch.state, BatchState::Abandoned(_)) =>
+            {
+                Ok(FanoutOutput::ReservationAbandoned)
+            }
+            Err(Error::Retired) => Ok(FanoutOutput::HistoryRetired),
+            _ => Err(DurableError::Corrupt),
+        };
+    }
+    output(&State::decode(&record.payload)?, member, batch.intent()?)
 }

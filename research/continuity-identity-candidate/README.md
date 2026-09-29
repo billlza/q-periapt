@@ -269,3 +269,8 @@ Hosted CI builds/tests the locked candidate on Linux with Rust 1.98.1 and the
 declared 1.90.0 floor, and on macOS with Rust 1.98.1. The macOS lane uses its
 installed OpenSSL provider for the independent fixture check. A separate
 dependency fence prevents the candidate from entering SDK package manifests.
+
+Explicit [fanout abandonment](FANOUT_ABANDONMENT.md) freezes a reserved batch's
+whole sessions and requires durable metadata-only loss accounting before logical
+key erasure. Journal v19 rejects v18 images; pairwise v6 wire bytes are unchanged.
+This scoped lifecycle operation does not complete account-wide device replacement.

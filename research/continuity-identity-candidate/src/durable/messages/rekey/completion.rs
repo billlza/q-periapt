@@ -1153,11 +1153,7 @@ impl DeviceJournal {
             confirmed_epoch: state.control.epoch,
             sending_epoch: state.send_epoch,
             receiving_epoch: state.receive_epoch,
-            pending_epoch: if state.control.plan.is_some() || state.control.request.is_some() {
-                Some(state.control.target()?)
-            } else {
-                None
-            },
+            pending_epoch: state.control.pending_epoch()?,
         })
     }
     /// Release one exact committed control flight for the explicit target epoch,

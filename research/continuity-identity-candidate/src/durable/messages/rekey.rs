@@ -114,6 +114,13 @@ impl Control {
     pub(super) fn has_pending(&self) -> bool {
         self.plan.is_some()
     }
+    pub(super) fn pending_epoch(&self) -> Result<Option<u64>, Error> {
+        if self.plan.is_some() || self.request.is_some() {
+            Ok(Some(self.target()?))
+        } else {
+            Ok(None)
+        }
+    }
     fn target(&self) -> Result<u64, Error> {
         self.epoch
             .checked_add(1)

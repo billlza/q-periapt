@@ -7,6 +7,7 @@ use crate::{
 };
 use q_periapt_sdk::HybridKey;
 
+mod abandonment;
 mod lifecycle;
 mod process;
 mod roles;
@@ -703,7 +704,9 @@ fn account_fanout_sync_faults_reconcile_all_members_together_at_every_measured_b
                         FanoutStatus::Absent => Ok(MessageStatus::Absent),
                         FanoutStatus::Reserved => Ok(MessageStatus::Reserved),
                         FanoutStatus::Committed => Ok(MessageStatus::Committed),
-                        FanoutStatus::Retired => Err("batch was never retired"),
+                        FanoutStatus::Retired
+                        | FanoutStatus::Abandoning(_)
+                        | FanoutStatus::Abandoned(_) => Err("batch was never retired or abandoned"),
                     }
                     .expect("exact member phase")
                 );

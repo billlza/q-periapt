@@ -4,7 +4,13 @@ use super::*;
 use crate::{RosterCheckpoint, MAX_DEVICES};
 
 mod codec;
-use codec::{batch_key, Batch, Member};
+use codec::{batch_key, Batch, BatchState, Member};
+mod abandonment;
+pub(super) use abandonment::{require_live_source, validate_message_record, Retired};
+pub use abandonment::{
+    AbandonedDelivery, AbandonedEpoch, AbandonedSession, FanoutAbandonment, FanoutAbandonmentId,
+    ReservedAbandonment,
+};
 const MAX_FANOUTS: usize = 16;
 
 /// Journal-bound monotonic correlation ID. It contains no plaintext commitment.
@@ -83,6 +89,10 @@ pub enum FanoutStatus {
     Reserved,
     /// All required chain advances and ciphertexts committed together.
     Committed,
+    /// Every member session is frozen; the exact report awaits host accounting.
+    Abandoning(FanoutAbandonmentId),
+    /// All member sessions are permanently closed after host accounting.
+    Abandoned(FanoutAbandonmentId),
     /// This older ID was explicitly retired and can never identify new work.
     Retired,
 }
@@ -99,6 +109,8 @@ pub enum FanoutOutput {
     /// Earlier epoch history was retired after its separate settlement/accounting.
     /// This does not distinguish acknowledgement from recorded unknown delivery.
     HistoryRetired,
+    /// Input was reserved but never committed; the whole session is now terminal.
+    ReservationAbandoned,
 }
 /// One explicitly identified member of a complete aggregate result.
 pub struct FanoutMember {
@@ -134,11 +146,7 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         match image.records.get(&batch_key(id)) {
-            Some(record) => Ok(if Batch::decode(&image, &batch_key(id), record)?.reserved {
-                FanoutStatus::Reserved
-            } else {
-                FanoutStatus::Committed
-            }),
+            Some(record) => Ok(Batch::decode(&image, &batch_key(id), record)?.status()),
             None if ordinal == image.next_fanout => Ok(FanoutStatus::Absent),
             None => Ok(FanoutStatus::Retired),
         }
@@ -241,7 +249,8 @@ impl DeviceJournal {
         if let Some(record) = image.records.get(&batch_key(input.id)) {
             let batch = Batch::decode(&image, &batch_key(input.id), record)?;
             if batch.account != input.account
-                || batch.intent != intent(b"send-intent", input.plaintext, input.associated_data)
+                || *batch.intent()?
+                    != intent(b"send-intent", input.plaintext, input.associated_data)
             {
                 return Err(DurableError::Conflict);
             }
@@ -294,8 +303,11 @@ impl DeviceJournal {
             id: input.id,
             account: input.account,
             roster,
-            reserved: true,
-            intent: intent(b"send-intent", input.plaintext, input.associated_data),
+            state: BatchState::Reserved(intent(
+                b"send-intent",
+                input.plaintext,
+                input.associated_data,
+            )),
             members: selected.iter().map(|s| s.member.clone()).collect(),
         };
         for item in &selected {
@@ -329,18 +341,19 @@ impl DeviceJournal {
     ) -> Result<Vec<FanoutMember>, DurableError> {
         let mut image = self.image()?;
         let mut batch = codec::get(&image, id)?;
+        batch.intent()?;
         let mut selected = self.select_fanout(&image, batch.account, targets, Some(now))?;
         batch.match_targets(&selected)?;
         if self.authorize_fanout(&image, batch.account, &selected, now)? != batch.roster {
             return Err(Error::Checkpoint.into());
         }
-        if batch.reserved {
+        if batch.reserved() {
             for (member, item) in batch.members.iter().zip(&mut selected) {
                 let traffic = item.state.traffic_mut(member.message.epoch()?)?;
                 let plan = traffic.pending.take().ok_or(DurableError::Corrupt)?;
                 if plan.id != member.message
                     || plan.fanout != Some(id)
-                    || intent(b"send-intent", &plan.plaintext, &plan.ad) != batch.intent
+                    || intent(b"send-intent", &plan.plaintext, &plan.ad) != *batch.intent()?
                 {
                     return Err(DurableError::Corrupt);
                 }
@@ -361,7 +374,7 @@ impl DeviceJournal {
                     .ok_or(DurableError::Corrupt)?
                     .payload = item.state.encode();
             }
-            batch.reserved = false;
+            batch.state = BatchState::Committed(batch.intent()?.clone());
             image
                 .records
                 .insert(batch_key(id), batch.record(image.local_account));
@@ -381,7 +394,7 @@ impl DeviceJournal {
                     device: member.device,
                     session: member.session,
                     message: member.message,
-                    output: codec::output(&item.state, member, &batch.intent)?,
+                    output: codec::output(&item.state, member, batch.intent()?)?,
                 })
             })
             .collect()
@@ -396,14 +409,16 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         let mut image = self.image()?;
         let batch = codec::get(&image, id)?;
-        if batch.reserved {
+        if matches!(
+            batch.state,
+            BatchState::Reserved(_) | BatchState::Abandoning { .. }
+        ) {
             return Err(DurableError::Suspended);
         }
-        let selected = self.select_fanout(&image, batch.account, targets, None)?;
-        batch.match_targets(&selected)?;
-        for (member, item) in batch.members.iter().zip(&selected) {
+        self.check_fanout_cleanup(&image, &batch, targets)?;
+        for member in &batch.members {
             if matches!(
-                codec::output(&item.state, member, &batch.intent)?,
+                codec::record_output(&image, &batch, member)?,
                 FanoutOutput::Committed(_) | FanoutOutput::ResolutionPending
             ) {
                 return Err(DurableError::Suspended);
@@ -429,11 +444,13 @@ pub(super) fn require_individual(
         .filter(|(_, r)| r.kind == RecordKind::Fanout)
     {
         let batch = Batch::decode(image, key, record)?;
-        if batch.reserved
-            && batch
-                .members
-                .iter()
-                .any(|m| m.session == session && m.message == id)
+        if matches!(
+            batch.state,
+            BatchState::Reserved(_) | BatchState::Abandoning { .. }
+        ) && batch
+            .members
+            .iter()
+            .any(|m| m.session == session && m.message == id)
         {
             return Err(DurableError::Suspended);
         }

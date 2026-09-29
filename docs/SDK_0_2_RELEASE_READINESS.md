@@ -72,12 +72,39 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 198 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 201 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The isolated [account-send candidate](../research/continuity-identity-candidate/FANOUT.md)
+The [reserved-fanout abandonment contract](../research/continuity-identity-candidate/FANOUT_ABANDONMENT.md)
+adds an explicit two-stage terminal lifecycle. A reserved batch can freeze all
+member sessions, return only metadata for durable host loss accounting, then
+erase logical private state while preserving source/session/ID tombstones. Old
+bootstrap, data, ACK and rekey output cannot reactivate those sessions. Peer
+revocation does not prevent cleanup, and required witnesses cannot be bypassed.
+A killed producer's actual precommit ciphertext supplies a keystream-reuse
+counterexample to simply replacing the pending input. v19 storage uses QPFANO02
+and QPABND01; pairwise v6 and published contracts remain unchanged.
+
+The v19 local debug/release runs pass **192 tests each**, zero failures/ignored,
+in 503.38/350.78 runner seconds. They overlap and are not performance
+comparisons. Six added tests cover the keystream counterexample, two process cuts
+with bounded competing writers, 18 measured before/after sync faults and 16 signed
+witness response losses, revoked-peer cleanup, exact host accounting, fresh-session
+delivery and full batch capacity. Strict Clippy on Rust 1.90/1.98.1, no-default
+compilation, fmt, warning-strict docs and 45 clean source/inventory checks pass.
+These are native candidate checks; exact-head hosted qualification, installed
+cross-language/device paths and broader lifecycle/recovery requirements remain open.
+
+The preceding `1210788c` now passes all **42 CI jobs** and **six CodeQL analyses**.
+Both Linux toolchains and macOS pass 186 debug/release tests. Tested merge
+`e0c64352b84832a7bc0a451e726b3582a521f578` has tree
+`04a65c1f94390ec7b5e3f1c2c38dd30a71d3e223`, identical to that head. These hosted
+results apply to v18 fanout, not the new v19 abandonment changes.
+
+
+At `1210788c`, the isolated [account-send candidate](../research/continuity-identity-candidate/FANOUT.md)
 now binds every required device in the installed signed roster. It reserves all
 pairwise input slots together, then commits all chain/outbox advances before
 releasing any member. A real unary-loop counterexample discloses the first
@@ -88,7 +115,7 @@ does not reset on retirement. Existing pairwise control and data wire bytes rema
 unchanged; acknowledgement, unresolved delivery and retired history are explicit
 per-member outcomes.
 
-Eleven focused tests now cover peer and own-account rosters, mixed bootstrap roles,
+That checkpoint's eleven focused tests cover peer and own-account rosters, mixed bootstrap roles,
 scope/capacity/expiry/revocation, partial ACK plus durable closed-epoch accounting,
 18 measured before/after sync faults, three process kills with deadline-bounded
 competing writers and all 18 before/after losses across nine actual witness calls.

@@ -95,7 +95,7 @@ no construction-specific recovery result from it.
 ## Storage, bounds and remaining work
 
 Journal schema v18 rejects schemas v1–v17 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v18`, `QPVLT018`, `QPVIMG18`.
+inner image are `continuity_device_candidate_v19`, `QPVLT019`, `QPVIMG19`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
 phase 19 and `QPMST010`. Image admission enforces a one-to-one link with the
 matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap

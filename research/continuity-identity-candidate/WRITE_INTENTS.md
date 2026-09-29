@@ -5,7 +5,7 @@ attempting to install that target as current state. This covers reservations,
 result pins, bootstrap outboxes/confirmations, prekey generation/retirement and
 authenticated roster updates.
 It preserves the same ciphertext, nonce, revision and complete aggregate across
-an interrupted state write. The unpublished local journal schema is v18; earlier
+an interrupted state write. The unpublished local journal schema is v19; earlier
 schemas are rejected without migration or reset. Network bytes and ABI 2 are
 unchanged.
 
@@ -61,7 +61,7 @@ advance.
 
 ## Encoding and bounds
 
-The single table `continuity_device_candidate_v18` accepts exactly the `image` row
+The single table `continuity_device_candidate_v19` accepts exactly the `image` row
 and, while a write is pending, one `pending` row. The current image uses the
 [v18 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
 rows are rejected.

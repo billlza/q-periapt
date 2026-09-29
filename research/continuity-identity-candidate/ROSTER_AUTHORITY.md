@@ -55,8 +55,8 @@ lifetime, while credential and policy expiry remain binding. Explicit renewal ma
 retain a still-enrolled credential. Witness enrollment validity and its later
 renewal remain a separate authority transition.
 
-The unreleased journal schema is v18: `continuity_device_candidate_v18`,
-`QPVLT018`, `QPVIMG18`. It rejects earlier journal schemas without reset or implicit
+The unreleased journal schema is v19: `continuity_device_candidate_v19`,
+`QPVLT019`, `QPVIMG19`. It rejects earlier journal schemas without reset or implicit
 migration. Network bootstrap/message bytes and SDK ABI major 2 are unchanged.
 The image contains `local_account[32]`; each record adds a one-byte authority count
 and zero to two sorted account IDs. Roster records use kind 5/phase 20 and

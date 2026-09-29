@@ -208,3 +208,161 @@ fn account_fanout_every_witness_loss_keeps_the_complete_aggregate_and_exact_budg
         calls * 2
     );
 }
+
+fn reserve_with_loss(c: &mut Anchored, offset: usize) -> FanoutId {
+    let id = c.network.sender.next_fanout_id().expect("ID");
+    {
+        let mut witness = c.witness.lock().expect("witness");
+        witness.fail = Some((witness.calls + offset, true));
+    }
+    assert!(matches!(
+        c.network.send(id, b"abandon anchored reservation"),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.network.sender.active.is_none());
+    c.witness.lock().expect("witness").fail = None;
+    c.reopen_sender();
+    id
+}
+#[test]
+fn account_fanout_abandonment_every_witness_loss_preserves_exact_whole_report() {
+    // Discover the actual boundary from authenticated readback; do not assume
+    // a particular number/order of witness calls for the reservation transaction.
+    let mut found = None;
+    for offset in 1..=12 {
+        let mut c = Anchored::new();
+        let id = reserve_with_loss(&mut c, offset);
+        if c.network.sender.fanout_status(id).expect("phase") == FanoutStatus::Reserved {
+            found = Some((c, id, offset));
+            break;
+        }
+    }
+    let (mut baseline, id, reservation_cut) = found.expect("observed durable reservation boundary");
+    let selected = targets(&baseline.network.f, &baseline.network.sessions);
+    let before = baseline.witness.lock().expect("witness").calls;
+    let report = baseline
+        .network
+        .sender
+        .begin_fanout_abandonment(id, &selected)
+        .expect("baseline freeze");
+    let freeze_calls = baseline.witness.lock().expect("witness").calls - before;
+    super::abandonment::account(&baseline.network.sender_path, &report);
+    let before = baseline.witness.lock().expect("witness").calls;
+    baseline
+        .network
+        .sender
+        .acknowledge_fanout_abandonment(id, report.report, &selected)
+        .expect("baseline terminal");
+    let finish_calls = baseline.witness.lock().expect("witness").calls - before;
+    for (finish, calls) in [(false, freeze_calls), (true, finish_calls)] {
+        assert!((3..=12).contains(&calls), "measured calls={calls}");
+        for offset in 1..=calls {
+            for after in [false, true] {
+                let mut c = Anchored::new();
+                let id = reserve_with_loss(&mut c, reservation_cut);
+                assert_eq!(
+                    c.network.sender.fanout_status(id).expect("reserved"),
+                    FanoutStatus::Reserved
+                );
+                let selected = targets(&c.network.f, &c.network.sessions);
+                let frozen = if finish {
+                    let report = c
+                        .network
+                        .sender
+                        .begin_fanout_abandonment(id, &selected)
+                        .expect("freeze");
+                    super::abandonment::account(&c.network.sender_path, &report);
+                    Some(report.report)
+                } else {
+                    None
+                };
+                {
+                    let mut witness = c.witness.lock().expect("witness");
+                    witness.fail = Some((witness.calls + offset, after));
+                }
+                let result = match frozen {
+                    Some(report) => c
+                        .network
+                        .sender
+                        .acknowledge_fanout_abandonment(id, report, &selected),
+                    None => c
+                        .network
+                        .sender
+                        .begin_fanout_abandonment(id, &selected)
+                        .map(|_| ()),
+                };
+                assert!(
+                    matches!(result, Err(DurableError::Anchor(_))),
+                    "finish={finish} offset={offset} after={after}"
+                );
+                assert!(c.network.sender.active.is_none());
+                let n = &c.network;
+                match DeviceJournal::open(
+                    &n.sender_path.join("state.redb"),
+                    JournalKey::open(&n.sender_path.join("key")).expect("key"),
+                    &n.f.local,
+                    crate::durable::tests::identity(&n.sender_path),
+                ) {
+                    Ok(mut ordinary) => {
+                        assert!(matches!(
+                            ordinary.fanout_status(id),
+                            Err(DurableError::AnchorRequired)
+                        ));
+                        ordinary.close();
+                    }
+                    Err(error) => assert!(matches!(error, DurableError::AnchorRequired), "{error}"),
+                }
+                c.witness.lock().expect("witness").fail = None;
+                c.reopen_sender();
+                let phase = c.network.sender.fanout_status(id).expect("reconciled");
+                let expected = match phase {
+                    FanoutStatus::Reserved if !finish => Ok(DurableStatus::Messages),
+                    FanoutStatus::Abandoning(_) => Ok(DurableStatus::MessagesAbandoning),
+                    FanoutStatus::Abandoned(saved) if Some(saved) == frozen => {
+                        Ok(DurableStatus::MessagesAbandoned)
+                    }
+                    _ => Err("invalid whole-report phase"),
+                }
+                .expect("only adjacent commit outcomes");
+                let image = c.network.sender.image().expect("image");
+                for session in &c.network.sessions {
+                    assert_eq!(
+                        image
+                            .records
+                            .get(&record_id(session))
+                            .expect("member")
+                            .phase,
+                        expected
+                    );
+                }
+                let selected = targets(&c.network.f, &c.network.sessions);
+                let report_id = match phase {
+                    FanoutStatus::Abandoned(report) => report,
+                    _ => {
+                        let report = c
+                            .network
+                            .sender
+                            .begin_fanout_abandonment(id, &selected)
+                            .expect("recover exact report");
+                        if let Some(saved) = frozen {
+                            assert_eq!(saved, report.report);
+                        } else {
+                            super::abandonment::account(&c.network.sender_path, &report);
+                        }
+                        c.network
+                            .sender
+                            .acknowledge_fanout_abandonment(id, report.report, &selected)
+                            .expect("complete");
+                        report.report
+                    }
+                };
+                c.reopen_sender();
+                assert_eq!(
+                    c.network.sender.fanout_status(id).expect("terminal"),
+                    FanoutStatus::Abandoned(report_id)
+                );
+            }
+        }
+        eprintln!("FANOUT_ABANDONMENT_WITNESS finish={finish} calls={calls} before_after_losses={} reservation_cut={reservation_cut}", calls*2);
+    }
+}

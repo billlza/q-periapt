@@ -60,11 +60,18 @@ impl EpochResolutionStatus {
 }
 
 /// Exact committed send with no accepted consumption acknowledgement.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnconfirmedMessage {
     id: MessageId,
     wire_digest: [u8; 32],
 }
 impl UnconfirmedMessage {
+    pub(super) fn new(id: MessageId, wire: &[u8]) -> Self {
+        Self {
+            id,
+            wire_digest: wire_digest(wire),
+        }
+    }
     /// Original ID for application reconciliation; it cannot become a new send.
     pub fn message_id(&self) -> MessageId {
         self.id

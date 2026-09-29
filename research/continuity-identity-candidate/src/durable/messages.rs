@@ -7,7 +7,11 @@ use sha2::Sha256;
 
 mod acknowledgement;
 mod fanout;
-pub use fanout::{FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget};
+pub use fanout::{
+    AbandonedDelivery, AbandonedEpoch, AbandonedSession, FanoutAbandonment, FanoutAbandonmentId,
+    FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget,
+    ReservedAbandonment,
+};
 mod progress;
 pub use progress::SendProgress;
 mod resolution;
@@ -118,6 +122,8 @@ pub enum MessageStatus {
     /// The application acknowledged recording this unresolved delivery outcome.
     /// No successful delivery or permission to reuse this ID is implied.
     DeliveryUnknown,
+    /// Reserved input was explicitly abandoned and its entire session is terminal.
+    ReservationAbandoned,
 }
 
 /// Authenticated plaintext returned only after the inbox and chain commit.
@@ -413,6 +419,7 @@ impl DeviceJournal {
         context.check_session_identity(now)?;
         let op = self.initiation_query(&context, request)?;
         let mut image = self.image()?;
+        require_live_source(&image, &op)?;
         rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         initiator::check_request(record, &context, request)?;
@@ -441,6 +448,7 @@ impl DeviceJournal {
         context.check_session_identity(now)?;
         let op = self.query_id(&context, initial)?;
         let mut image = self.image()?;
+        require_live_source(&image, &op)?;
         rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         record.check_request(&context, initial)?;
@@ -468,7 +476,7 @@ impl DeviceJournal {
         for record in image
             .records
             .values()
-            .filter(|r| r.kind == RecordKind::Messages)
+            .filter(|r| r.kind == RecordKind::Messages && r.phase == DurableStatus::Messages)
         {
             let state = State::decode(&record.payload)?;
             if state.source == *op {
@@ -530,6 +538,12 @@ impl DeviceJournal {
             || record.authorities != rosters::context_accounts(context)
         {
             return Err(DurableError::Conflict);
+        }
+        match record.phase {
+            DurableStatus::Messages => {}
+            DurableStatus::MessagesAbandoning => return Err(DurableError::Suspended),
+            DurableStatus::MessagesAbandoned => return Err(Error::Retired.into()),
+            _ => return Err(DurableError::Corrupt),
         }
         let state = State::decode(&record.payload)?;
         let owner = if state.role == 1 {
@@ -662,7 +676,16 @@ impl DeviceJournal {
         session: [u8; 32],
         id: MessageId,
     ) -> Result<MessageStatus, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let image = self.image()?;
+        let record = self.message_record_for_status(&image, context, session)?;
+        if record.phase == DurableStatus::MessagesAbandoned {
+            let retired = fanout::Retired::decode(&record.payload)?;
+            check_message_owner(&image, context, retired.role)?;
+            return Ok(retired.status(id)?);
+        }
+        let state = State::decode(&record.payload)?;
+        check_message_owner(&image, context, state.role)?;
+        state.send_progress(context.policy().application_send_budget())?;
         let index = id.check(&session, state.role)?;
         let traffic = state.traffic(id.epoch()?)?;
         Ok(if index < traffic.send_floor {
@@ -681,13 +704,13 @@ impl DeviceJournal {
             MessageStatus::Absent
         })
     }
-    fn message_state_for_status(
-        &mut self,
+    fn message_record_for_status<'a>(
+        &self,
+        image: &'a Image,
         context: &BootstrapContext,
         session: [u8; 32],
-    ) -> Result<State, DurableError> {
+    ) -> Result<&'a Record, DurableError> {
         self.check_policy(context.policy())?;
-        let image = self.image()?;
         let record = image
             .records
             .get(&record_id(&session))
@@ -698,15 +721,20 @@ impl DeviceJournal {
         {
             return Err(DurableError::Conflict);
         }
-        let state = State::decode(&record.payload)?;
-        let owner = if state.role == 1 {
-            context.initiator_storage_owner()
-        } else {
-            context.storage_owner()
-        };
-        if image.owner != owner {
-            return Err(DurableError::Conflict);
+        Ok(record)
+    }
+    fn message_state_for_status(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+    ) -> Result<State, DurableError> {
+        let image = self.image()?;
+        let record = self.message_record_for_status(&image, context, session)?;
+        if record.phase == DurableStatus::MessagesAbandoned {
+            return Err(Error::Retired.into());
         }
+        let state = State::decode(&record.payload)?;
+        check_message_owner(&image, context, state.role)?;
         state.send_progress(context.policy().application_send_budget())?;
         Ok(state)
     }
@@ -781,40 +809,62 @@ impl DeviceJournal {
     }
 }
 
+fn check_message_owner(
+    image: &Image,
+    context: &BootstrapContext,
+    role: u8,
+) -> Result<(), DurableError> {
+    let owner = if role == 1 {
+        context.initiator_storage_owner()
+    } else {
+        context.storage_owner()
+    };
+    if image.owner != owner {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+
+pub(super) fn require_live_source(image: &Image, source: &[u8; 32]) -> Result<(), DurableError> {
+    fanout::require_live_source(image, source)
+}
+
 pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
     let mut sources = BTreeSet::new();
     for (id, record) in &image.records {
         if record.kind != RecordKind::Messages {
             continue;
         }
-        if record.phase != DurableStatus::Messages
-            || !record.keys.is_empty()
-            || !record.prekeys.is_empty()
-        {
+        if !record.keys.is_empty() || !record.prekeys.is_empty() {
             return Err(DurableError::Corrupt);
         }
-        let state = State::decode(&record.payload).map_err(|_| DurableError::Corrupt)?;
-        fanout::validate_pending(image, &state).map_err(|_| DurableError::Corrupt)?;
-        state
-            .control
-            .validate(&state.session, state.role, &record.context, &state.rekey)
-            .map_err(|_| DurableError::Corrupt)?;
-        state
-            .control
-            .validate_epochs(state.send_epoch, state.receive_epoch, state.epochs.len())
-            .map_err(|_| DurableError::Corrupt)?;
-        state
-            .control
-            .validate_cutovers(&state, &record.context)
-            .map_err(|_| DurableError::Corrupt)?;
-        if *id != record_id(&state.session) || !sources.insert(state.source) {
+        let (source_id, session, role) = match record.phase {
+            DurableStatus::Messages | DurableStatus::MessagesAbandoning => {
+                let state = State::decode(&record.payload).map_err(|_| DurableError::Corrupt)?;
+                fanout::validate_pending(image, &state, record.phase)
+                    .map_err(|_| DurableError::Corrupt)?;
+                state
+                    .control
+                    .validate(&state.session, state.role, &record.context, &state.rekey)
+                    .map_err(|_| DurableError::Corrupt)?;
+                state
+                    .control
+                    .validate_epochs(state.send_epoch, state.receive_epoch, state.epochs.len())
+                    .map_err(|_| DurableError::Corrupt)?;
+                state
+                    .control
+                    .validate_cutovers(&state, &record.context)
+                    .map_err(|_| DurableError::Corrupt)?;
+                (state.source, state.session, state.role)
+            }
+            DurableStatus::MessagesAbandoned => fanout::validate_message_record(image, record)?,
+            _ => return Err(DurableError::Corrupt),
+        };
+        if *id != record_id(&session) || !sources.insert(source_id) {
             return Err(DurableError::Corrupt);
         }
-        let source = image
-            .records
-            .get(&state.source)
-            .ok_or(DurableError::Corrupt)?;
-        let expected = if state.role == 1 {
+        let source = image.records.get(&source_id).ok_or(DurableError::Corrupt)?;
+        let expected = if role == 1 {
             RecordKind::Initiator
         } else {
             RecordKind::Responder
@@ -826,7 +876,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
         {
             return Err(DurableError::Corrupt);
         }
-        let payload = if state.role == 1 {
+        let payload = if role == 1 {
             source.payload.get(32..).ok_or(DurableError::Corrupt)?
         } else {
             &source.payload
@@ -843,7 +893,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
         if digest(
             b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/session-id",
             prefix,
-        ) != state.session
+        ) != session
         {
             return Err(DurableError::Corrupt);
         }

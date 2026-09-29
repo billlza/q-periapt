@@ -59,9 +59,10 @@ does not provide an account-global transaction across other sender devices' stor
 
 Cancellation stops dispatch and retains exact work; it does not cancel the durable
 reservation, restore the spent allowance or permit replacement plaintext. Authority
-loss can leave a batch suspended. Re-enrollment, device replacement and explicit
-abandonment of permanently revoked sessions remain separate lifecycle work; this
-API does not reset those sessions to manufacture progress.
+loss can leave a batch suspended. The separate [explicit abandonment](FANOUT_ABANDONMENT.md)
+flow freezes and accounts for every member session before terminal closure. It
+never resets a session, refunds a slot or substitutes a recipient. Re-enrollment,
+device replacement and account-wide coordination remain separate lifecycle work.
 
 ## IDs, replay, retention and privacy
 
@@ -93,9 +94,9 @@ is silently truncated or dropped.
 
 ## Storage identity and qualification boundary
 
-The candidate journal advances to **v18** (`continuity_device_candidate_v18`,
-`QPVLT018`, `QPVIMG18`). The image adds its monotonic batch counter. Record kind 6
-uses `QPFANO01`, explicit reserved/committed phases and canonical sorted members.
+The candidate journal advances to **v19** (`continuity_device_candidate_v19`,
+`QPVLT019`, `QPVIMG19`). The image adds its monotonic batch counter. Record kind 6
+uses `QPFANO02`, explicit reserved/committed/abandoning/abandoned phases and canonical sorted members.
 Message state is **QPMST010**, traffic state **QPTEPO04**; a pending send stores an
 optional exact batch ID. Older research images are rejected without reset or an
 implicit migration. v6 signed controls, QPSESP03 policy and application wire bytes
@@ -103,33 +104,35 @@ are unchanged.
 
 The kind-6 payload is canonical, big-endian and has no trailing bytes:
 
-`QPFANO01[8] || id[32] || account[32] || roster_version:u64 || roster_digest[32] || count:u8 || members || intent[32]`.
+`QPFANO02[8] || id[32] || account[32] || roster_version:u64 || roster_digest[32] || count:u8 || members || private_tail[64]`.
 
 Each of the `count` members is exactly 153 bytes:
 
 `device[16] || generation:u64 || credential[32] || context[32] || session[32] || role:u8 || message_id[32]`.
 
-The payload is `145 + 153 * count` bytes. Members are strictly ordered by device
+The payload is `177 + 153 * count` bytes. Members are strictly ordered by device
 ID; sessions and reserved slots cannot repeat. The record context uses the existing
 length-prefixed digest helper with message-domain label `account-fanout-metadata/v1`
-over all payload bytes before `intent`. The intent is the existing private
+over all payload bytes before `private_tail`. In live phases the tail contains
+`intent[32] || reserved_zero[32]`; other phases are defined in the abandonment
+contract. The intent is the existing private
 `send-intent` digest and never enters a public batch ID. Reserved/committed phase
 21/22 resides in the enclosing authenticated record, not a caller-provided flag.
 In QPTEPO04, immediately after a pending message ID, a one-byte 0/1 discriminant
 is followed by the exact 32-byte batch ID only when it is 1. The plaintext and AD
 length/value fields then follow the existing pending-input grammar.
 
-The final local macOS ARM64 runs pass **186 tests each**, with zero failures or
+At commit `1210788c`, the v18 local macOS ARM64 runs pass **186 tests each**, with zero failures or
 ignored tests: debug 518.46 seconds and release 443.62 seconds in their runners.
 The runs overlapped and are not a controlled performance comparison. Rust 1.90
 and 1.98.1 strict all-target/all-feature Clippy, no-default-feature compilation,
 formatting and warning-strict docs pass. A separate clean source snapshot passes
-45 candidate-isolation and Rust-inventory checks for 198 Rust files. Current
+45 candidate-isolation and Rust-inventory checks for its 198 Rust files. Those
 public-byte/OpenSSL oracles verify 20 envelopes/100 signature negatives, and the
 separate witness oracle verifies 12/60; private message protection is established
 by the actual journal tests, not inferred from those public signatures.
 
-Eleven fanout tests include the subprocess entry point and exercise complete peer
+The checkpoint's eleven fanout tests include the subprocess entry point and exercise complete peer
 and own-account rosters, both bootstrap roles in one batch, omission/duplication,
 expiry, changed/revoked roster heads, capacity, exact replay and ID retirement.
 Two independently enrolled recipient journals decrypt the actual frames. A unary

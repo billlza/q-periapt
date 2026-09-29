@@ -292,6 +292,7 @@ impl DeviceJournal {
         context: Arc<BootstrapContext>,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
+        messages::require_live_source(image, &id)?;
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         rosters::authorize_context(image, &context, now)?;
         let wire = initial(record)?.to_vec();
@@ -359,6 +360,7 @@ impl DeviceJournal {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
         let mut image = self.image()?;
+        messages::require_live_source(&image, &id)?;
 
         if !image.records.contains_key(&id) {
             return Err(DurableError::Absent);

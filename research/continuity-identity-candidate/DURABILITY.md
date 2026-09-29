@@ -39,18 +39,18 @@ The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v18`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v19`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT018[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT019[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG18[8] || protection[73] || local_account[32] || next_fanout:u64 || count:u16 || records`
+`QPVIMG19[8] || protection[73] || local_account[32] || next_fanout:u64 || count:u16 || records`
 
 `protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
 Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and
