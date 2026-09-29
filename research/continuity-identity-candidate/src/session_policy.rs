@@ -11,7 +11,7 @@ use std::sync::{
     Arc,
 };
 
-const POLICY_TAG: &[u8; 8] = b"QPSESP02";
+const POLICY_TAG: &[u8; 8] = b"QPSESP03";
 const POLICY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1";
 const FAMILY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1";
 
@@ -86,12 +86,30 @@ impl AnchorRequirement {
     }
 }
 
-/// Issuer-selected version, time window, bootstrap modes and anchor requirement.
+/// Explicit signed application-send allowance between local rekey completions.
+/// This bounds protocol work, not an adversary's knowledge or recovery time.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ApplicationSendBudget(std::num::NonZeroU16);
+impl ApplicationSendBudget {
+    /// Require an explicit nonzero issuer value; there is no runtime default.
+    pub fn new(messages: u16) -> Result<Self, Error> {
+        std::num::NonZeroU16::new(messages)
+            .map(Self)
+            .ok_or(Error::Encoding)
+    }
+    /// Maximum new application slots before the next locally completed rekey.
+    pub fn messages(self) -> u16 {
+        self.0.get()
+    }
+}
+
+/// Issuer-selected version, time window, bootstrap modes, anchor and send budget.
 pub struct SessionPolicyParameters {
     version: u64,
     validity: Validity,
     modes: AllowedPrekeyModes,
     anchor: AnchorRequirement,
+    budget: ApplicationSendBudget,
 }
 impl SessionPolicyParameters {
     /// Validate the content revision. Its durable monotonic issuance is a host duty.
@@ -100,6 +118,7 @@ impl SessionPolicyParameters {
         validity: Validity,
         modes: AllowedPrekeyModes,
         anchor: AnchorRequirement,
+        budget: ApplicationSendBudget,
     ) -> Result<Self, Error> {
         generation(version)?;
         Ok(Self {
@@ -107,6 +126,7 @@ impl SessionPolicyParameters {
             validity,
             modes,
             anchor,
+            budget,
         })
     }
 }
@@ -167,7 +187,7 @@ impl PolicySigningKey {
         if parameters.modes.0 != 0 && !runtime.is_enabled()? {
             return Err(Error::PolicyDenied);
         }
-        let mut body = Vec::with_capacity(198);
+        let mut body = Vec::with_capacity(200);
         body.extend_from_slice(POLICY_TAG);
         body.extend_from_slice(&self.policy_family()?);
         body.extend_from_slice(&parameters.version.to_be_bytes());
@@ -176,6 +196,7 @@ impl PolicySigningKey {
         body.extend_from_slice(&sdk);
         body.push(parameters.modes.0);
         parameters.anchor.encode(&mut body);
+        body.extend_from_slice(&parameters.budget.messages().to_be_bytes());
         let checkpoint =
             PolicyCheckpoint::from_trusted_state(parameters.version, digest(POLICY_DOMAIN, &body))?;
         let wire = envelope(&body, &self.sign(Purpose::SessionPolicy, &body)?)?;
@@ -238,6 +259,7 @@ impl PolicyPin {
         let [modes] = decoder.array()?;
         let modes = AllowedPrekeyModes::decode(modes)?;
         let anchor = AnchorRequirement::decode(&mut decoder)?;
+        let budget = ApplicationSendBudget::new(decoder.u16()?)?;
         decoder.finish()?;
         if modes.0 != 0 && !runtime.is_enabled()? {
             return Err(Error::PolicyDenied);
@@ -249,6 +271,7 @@ impl PolicyPin {
             validity,
             modes,
             anchor,
+            budget,
             sdk,
             closed: AtomicBool::new(false),
             signer: self.root.clone(),
@@ -264,11 +287,16 @@ pub struct VerifiedSessionPolicy {
     validity: Validity,
     modes: AllowedPrekeyModes,
     anchor: AnchorRequirement,
+    budget: ApplicationSendBudget,
     sdk: [u8; 68],
     closed: AtomicBool,
     signer: PublicKey,
 }
 impl VerifiedSessionPolicy {
+    /// Authenticated immutable send bound; reading it grants no message permission.
+    pub fn application_send_budget(&self) -> ApplicationSendBudget {
+        self.budget
+    }
     /// Exact signed requirement. Reading it does not refresh policy authority or time.
     pub fn anchor_requirement(&self) -> AnchorRequirement {
         self.anchor

@@ -131,7 +131,8 @@ traffic independently of application sends. A fixed, authenticated PQ-progress
 budget must bound new application traffic without a completed fresh contribution;
 exhaustion suspends new work while retaining exact control retransmissions.
 The [send-progress contract](SEND_PROGRESS_V1.md) defines the signed budget and
-the counter window across asymmetric confirmation. The governor, independent
+the counter window across asymmetric confirmation. The isolated v5 candidate
+now implements that governor through actual journal admission. The independent
 control trigger and chosen product value remain implementation/qualification
 requirements.
 Network loss remains an explicit liveness assumption in the recovery condition.

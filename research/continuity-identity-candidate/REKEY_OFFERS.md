@@ -6,15 +6,16 @@ The permanent logical session, device identities, policy and installed roster
 bindings remain unchanged. The complete product profile and its security argument
 remain unfrozen. ABI major stays **2**.
 
-The history bound is four retained traffic epochs. The v4 signed profile requires
+The history bound is four retained traffic epochs. The v5 signed profile requires
 both peers to attest that the displaced prefix is settled: fully drained or
 accounted for through an application-acknowledged
 [closed-epoch resolution](EPOCH_RESOLUTION.md). Such resolution reports unknown
 delivery rather than success. Pending reports continue to block retirement;
 final/receipt commits retire settled history atomically with the new owners. The
 [retirement contract](RETENTION.md) preserves lost-ACK recovery and exact control
-replay. The authenticated progress budget/control scheduler remains required for
-the full 0.2.0 contract.
+replay. The [signed application budget](../../docs/continuity/SEND_PROGRESS_V1.md)
+now limits new sends across unconfirmed cutovers. Independent control scheduling
+and a measured product value remain required for the full 0.2.0 contract.
 
 ## Local permission and durable ordering
 
@@ -62,7 +63,7 @@ length-delimited SHA3-256 over
 
 The closed candidate profile is:
 
-`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1")`
+`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")`
 
 A common 153-byte prefix is:
 

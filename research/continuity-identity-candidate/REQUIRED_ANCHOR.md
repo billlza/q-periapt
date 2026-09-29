@@ -6,10 +6,10 @@ registrations); published SDK packages do not depend on this candidate.
 
 ## Authority and provisioning
 
-The dual-signed `QPSESP02` session policy explicitly chooses local persistence or
+The dual-signed `QPSESP03` session policy explicitly chooses local persistence or
 requires one exact witness identity/public-key binding. Its digest enters the
 bootstrap context. A required journal additionally seals that policy digest,
-witness binding and writer fence into every version-7 image. These fields cannot
+witness binding and writer fence into every current image (introduced at version 7). These fields cannot
 change in a saved write intent. A local journal cannot accept a required policy;
 a required journal cannot accept a replacement/downgraded policy.
 

@@ -760,6 +760,22 @@ pub(crate) fn session_policy_fixture_with_anchor(
     PolicyPin,
     Arc<q_periapt_sdk::Runtime>,
 ) {
+    session_policy_fixture_with_budget(
+        modes,
+        anchor,
+        ApplicationSendBudget::new(1024).expect("fixture budget"),
+    )
+}
+pub(crate) fn session_policy_fixture_with_budget(
+    modes: &[PrekeyQuality],
+    anchor: AnchorRequirement,
+    budget: ApplicationSendBudget,
+) -> (
+    PolicySigningKey,
+    IssuedSessionPolicy,
+    PolicyPin,
+    Arc<q_periapt_sdk::Runtime>,
+) {
     let signer = PolicySigningKey::deterministic([82; 32], [83; 32]).expect("policy signer");
     let runtime = sdk_runtime();
     let issued = signer
@@ -770,6 +786,7 @@ pub(crate) fn session_policy_fixture_with_anchor(
                 interval(),
                 AllowedPrekeyModes::new(modes).expect("explicit modes"),
                 anchor,
+                budget,
             )
             .expect("parameters"),
         )
@@ -844,6 +861,85 @@ fn protocol_policy_binds_real_sdk_runtime_and_explicit_mode_permissions() {
 }
 
 #[test]
+fn application_send_budget_is_signed_nonzero_and_has_no_legacy_default() {
+    fail(ApplicationSendBudget::new(0), Error::Encoding);
+    assert_eq!(
+        ApplicationSendBudget::new(u16::MAX)
+            .expect("explicit bound")
+            .messages(),
+        u16::MAX
+    );
+    let (signer, issued, pin, runtime) = session_policy_fixture_with_budget(
+        &[PrekeyQuality::OneTimeBoth],
+        AnchorRequirement::local_only(),
+        ApplicationSendBudget::new(3).expect("budget"),
+    );
+    assert_eq!(
+        pin.verify(issued.as_bytes(), Arc::clone(&runtime), 150)
+            .expect("policy")
+            .application_send_budget()
+            .messages(),
+        3
+    );
+    let (body, _) = open_envelope(issued.as_bytes()).expect("body");
+    assert_eq!(body.len(), 200);
+    assert_eq!(body.get(198..).expect("canonical budget"), &[0, 3]);
+    let mut changed = body.to_vec();
+    changed
+        .get_mut(198..)
+        .expect("budget")
+        .copy_from_slice(&4_u16.to_be_bytes());
+    let wire = envelope(
+        &changed,
+        &signer
+            .sign(Purpose::SessionPolicy, &changed)
+            .expect("changed signed budget"),
+    )
+    .expect("wire");
+    fail(
+        pin.verify(&wire, Arc::clone(&runtime), 150),
+        Error::Checkpoint,
+    );
+    for (mut bad, expected) in [
+        (body.to_vec(), Error::Encoding),
+        (
+            body.get(..198).expect("missing field").to_vec(),
+            Error::Encoding,
+        ),
+        (body.to_vec(), Error::Scope),
+    ] {
+        if bad.len() == 200 {
+            if expected == Error::Encoding {
+                bad.get_mut(198..).expect("zero field").fill(0);
+            } else {
+                bad.get_mut(..8)
+                    .expect("legacy tag")
+                    .copy_from_slice(b"QPSESP02");
+            }
+        }
+        let checkpoint = PolicyCheckpoint::from_trusted_state(
+            1,
+            crate::crypto::digest(b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1", &bad),
+        )
+        .expect("trusted malformed fixture checkpoint");
+        let pin = PolicyPin::new(
+            signer.policy_family().expect("family"),
+            signer.public_key().expect("authority"),
+            checkpoint,
+        )
+        .expect("pin");
+        let wire = envelope(
+            &bad,
+            &signer
+                .sign(Purpose::SessionPolicy, &bad)
+                .expect("signature"),
+        )
+        .expect("wire");
+        fail(pin.verify(&wire, Arc::clone(&runtime), 150), expected);
+    }
+}
+
+#[test]
 fn protocol_policy_rejects_signature_and_checkpoint_substitution() {
     let (signer, issued, pin, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
     let (body, signature) = open_envelope(issued.as_bytes()).expect("body");
@@ -873,6 +969,7 @@ fn protocol_policy_rejects_signature_and_checkpoint_substitution() {
                 interval(),
                 AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth]).expect("modes"),
                 AnchorRequirement::local_only(),
+                ApplicationSendBudget::new(1024).expect("explicit fixture budget"),
             )
             .expect("parameters"),
         )
@@ -897,7 +994,7 @@ fn protocol_policy_rejects_signature_and_checkpoint_substitution() {
 fn correctly_resigned_protocol_policy_cannot_override_profile_family_or_sdk_binding() {
     let (signer, issued, _, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
     let (body, _) = open_envelope(issued.as_bytes()).expect("body");
-    assert_eq!(body.len(), 198);
+    assert_eq!(body.len(), 200);
     for (offset, expected) in [
         (8, Error::Scope),
         (64, Error::Scope),

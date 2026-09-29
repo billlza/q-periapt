@@ -6,6 +6,8 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+mod progress;
+pub use progress::SendProgress;
 mod resolution;
 pub use resolution::{
     ClosedEpochResolution, EpochResolutionId, EpochResolutionStatus, UnconfirmedMessage,
@@ -532,6 +534,7 @@ impl DeviceJournal {
         if owner != image.owner {
             return Err(DurableError::Conflict);
         }
+        state.send_progress(context.policy().application_send_budget())?;
         Ok(state)
     }
     /// Read the current send slot before submitting input. Retain this ID across
@@ -546,6 +549,10 @@ impl DeviceJournal {
         let state = self.message_state(&image, context, &session, now)?;
         if state.control.send_fenced() {
             return Err(DurableError::Suspended);
+        }
+        let progress = state.send_progress(context.policy().application_send_budget())?;
+        if progress.remaining == 0 && !progress.reserved {
+            return Err(Error::RekeyRequired.into());
         }
         let id = MessageId::for_epoch(
             &session,
@@ -577,6 +584,7 @@ impl DeviceJournal {
         let epoch = id.epoch()?;
         let active_epoch = state.send_epoch;
         let fenced = state.control.send_fenced();
+        let progress = state.send_progress(context.policy().application_send_budget())?;
         let traffic = state.traffic_mut(epoch)?;
         traffic.require_unresolved()?;
         if index < traffic.send_floor {
@@ -598,6 +606,9 @@ impl DeviceJournal {
                     return Err(DurableError::Conflict);
                 }
             } else {
+                if progress.remaining == 0 {
+                    return Err(Error::RekeyRequired.into());
+                }
                 if traffic.outgoing.len() >= MAX_RECEIPTS {
                     return Err(DurableError::Capacity);
                 }
@@ -687,6 +698,7 @@ impl DeviceJournal {
         if image.owner != owner {
             return Err(DurableError::Conflict);
         }
+        state.send_progress(context.policy().application_send_budget())?;
         Ok(state)
     }
     /// Continue only the sealed pending input or replay its committed outbox.
@@ -731,7 +743,11 @@ impl DeviceJournal {
     ) -> Result<CommittedPlaintext, DurableError> {
         let mut image = self.image()?;
         let mut state = self.message_state(&image, context, &session, now)?;
-        let id = Header::decode(wire)?.id;
+        let header = Header::decode(wire)?;
+        if header.index >= u64::from(context.policy().application_send_budget().messages()) {
+            return Err(Error::PolicyDenied.into());
+        }
+        let id = header.id;
         let epoch = id.epoch()?;
         if epoch > state.receive_epoch {
             return Err(DurableError::Suspended);

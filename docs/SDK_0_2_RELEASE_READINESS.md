@@ -72,10 +72,26 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 183 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 185 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The isolated Continuity v5 candidate now enforces a policy-authority-signed,
+nonzero application-send budget. Old and newly installed sending epochs share
+the window until local receipt completion; already committed new-epoch messages
+remain spent afterward. Exact pending work and outbox replay remain available,
+while ACKs, reopen and closed-epoch resolution cannot refund slots. Authenticated
+over-limit data and signed close counts are rejected before state mutation.
+The [send-progress contract](continuity/SEND_PROGRESS_V1.md) records the rule,
+versioned policy body and remaining independent control-scheduling requirement.
+The final local run passes **161 release tests in 236.98 seconds**, including
+34 measured last-slot sync faults, two budget-reservation process kills and lost
+required-witness replies. Strict Clippy, formatting, Rust 1.90 all-target checking,
+45 standalone source-contract tests and both independent public-byte/OpenSSL
+oracles pass. The initial full run retains a stage-marker publication race
+(160 pass, one failure); atomic publication of the complete test marker repairs
+that cause. These are candidate checks, not installed product qualification.
 
 The actual Continuity reservation-disclosure experiment now covers the two first
 durable rekey reservations. After killing the process before KEM computation, a
@@ -88,7 +104,7 @@ recovery proof. See [the experiment and its input boundary](../research/continui
 The integrated local run passes 153 release tests, strict Clippy and formatting,
 Rust 1.90 all-target compilation and 45 standalone source-contract checks.
 
-The current Continuity v4 candidate adds explicit closed-epoch outcome reports.
+The preceding Continuity v4 checkpoint adds explicit closed-epoch outcome reports.
 The application must durably account for the immutable report before its old
 keys and retained data are removed. Unconfirmed sends remain `DeliveryUnknown`;
 the old acknowledgement floor is never advanced to manufacture delivery success.
@@ -118,9 +134,12 @@ run fails the JVM installer at `PATH java must match JAVA_HOME`, while the prima
 run passes that job. The subsequent [toolchain path investigation](SDK_DEPENDENCY_POLICY.md#jvm-executable-selection-after-gradle-provisioning)
 reproduces the pinned Gradle action's shared-directory prepend on the new runner
 image. Both JVM workflows restore the chosen JDK afterward and retain strict
-identity checks; 51 local wiring/package-admission checks pass. Actual hosted
-package execution of that repair remains required, and the original failure is
-retained.
+identity checks; 51 local wiring/package-admission checks pass. At `b4ee99f5`,
+both hosted Kotlin package jobs now pass installed Kotlin, Java module-path and
+six native-loading negative controls. Both used Ubuntu image `20260920.303.1`
+and downloaded Gradle; the newer image's reuse branch is locally reproduced but
+does not yet have a post-fix hosted runtime result. The original failure remains
+retained, and the other current-head CI jobs keep their own incomplete status.
 These checks do not replace exact-source hosted CI or release qualification.
 
 Source `57334d4` passes all 37

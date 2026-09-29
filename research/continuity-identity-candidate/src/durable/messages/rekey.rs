@@ -25,7 +25,7 @@ fn hash(label: &[u8], data: &[u8]) -> [u8; 32] {
 fn profile() -> [u8; 32] {
     hash(
         b"offer-profile",
-        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1",
+        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1",
     )
 }
 fn genesis(session: &[u8; 32], context: &[u8; 32]) -> [u8; 32] {
@@ -91,6 +91,9 @@ pub(super) struct Control {
     last: Option<completion::Completed>,
 }
 impl Control {
+    pub(super) fn confirmed_epoch(&self) -> u64 {
+        self.epoch
+    }
     pub(super) fn genesis(session: &[u8; 32], context: &[u8; 32]) -> Self {
         Self {
             epoch: 0,

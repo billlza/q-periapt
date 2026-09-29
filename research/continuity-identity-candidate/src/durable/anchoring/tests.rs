@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 use crate::{
-    bootstrap::tests::{fixture_with_anchor, Fixture},
+    bootstrap::tests::{fixture_with_anchor_and_budget, Fixture},
     durable::tests::directory,
     AnchorIdentity, AnchorPin, AnchorRequest, AnchorRequirement, AnchorSigningKey, AnchorStore,
     AnchorTransport, InitiatorOperation, PrekeyQuality,
@@ -67,6 +67,9 @@ fn client(pin: &AnchorPin, server: &Arc<Mutex<Server>>, initiator: bool) -> Anch
     .expect("client")
 }
 fn case() -> Case {
+    case_with_budget(1024)
+}
+fn case_with_budget(budget: u16) -> Case {
     let folder = directory();
     let path = folder.path().canonicalize().expect("path");
     let wrapping = JournalKey::provision(&path.join("witness-key")).expect("wrapping");
@@ -79,9 +82,10 @@ fn case() -> Case {
     )
     .expect("store");
     let pin = store.pin().expect("pin");
-    let peer = fixture_with_anchor(
+    let peer = fixture_with_anchor_and_budget(
         PrekeyQuality::OneTimeBoth,
         AnchorRequirement::required(&pin),
+        crate::ApplicationSendBudget::new(budget).expect("signed fixture budget"),
     );
     let key = JournalKey::provision(&path.join("key")).expect("journal key");
     let mut journal = DeviceJournal::provision_anchored(
@@ -223,7 +227,7 @@ fn required_policy_has_no_volatile_or_local_journal_bypass() {
 
 #[test]
 fn both_real_journals_complete_handshake_under_required_witness_policy() {
-    let mut c = case();
+    let mut c = case_with_budget(2);
     let (policy, device, _) = c.peer.responder.inventory_inputs();
     let key = JournalKey::provision(&c.path.join("responder-key")).expect("key");
     let mut responder =
@@ -394,17 +398,39 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
         .journal
         .next_message_id(&c.peer.initiator, session, 150)
         .expect("old slot");
-    let unresolved = c
-        .journal
-        .send_message(
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        c.journal.send_message(
             &c.peer.initiator,
             session,
             unresolved_id,
             b"old delivery awaiting application resolution",
             b"application",
             150,
-        )
-        .expect("old send");
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("last slot committed before lost witness release");
+    let spent = c
+        .journal
+        .application_send_progress(&c.peer.initiator, session)
+        .expect("retained spending");
+    assert_eq!(
+        (spent.committed, spent.reserved, spent.remaining),
+        (2, false, 0)
+    );
+    assert!(matches!(
+        c.journal.next_message_id(&c.peer.initiator, session, 150),
+        Err(DurableError::Protocol(Error::RekeyRequired))
+    ));
+    let unresolved = c
+        .journal
+        .resume_message(&c.peer.initiator, session, unresolved_id, 150)
+        .expect("same last-slot outbox");
     responder
         .receive_message(&c.peer.responder, session, &unresolved, b"application", 150)
         .expect("retain unconsumed plaintext");
@@ -555,6 +581,14 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
     assert!(c.journal.active.is_none());
     c.server.lock().expect("server").fail = None;
     c.journal = reopen(&c).expect("recover receive cutover");
+    let fresh = c
+        .journal
+        .application_send_progress(&c.peer.initiator, session)
+        .expect("only committed receipt advances budget");
+    assert_eq!(
+        (fresh.confirmed_epoch, fresh.committed, fresh.remaining),
+        (1, 0, 2)
+    );
     assert_eq!(
         c.journal
             .accept_rekey_receipt(&c.peer.initiator, session, &receipt, 150)

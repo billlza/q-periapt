@@ -51,7 +51,9 @@ def verify(oracle: Oracle) -> dict:
     certificate = public_body(oracle, 'bootstrap-r-credential.bin', 2097)
     require(certificate[:8] == b'QPCERT01' and certificate[112:] == device, 'device public binding')
     owner = bootstrap_hash(b'storage-owner', certificate[8:64] + digest('CREDENTIAL', certificate))
-    policy = public_body(oracle, 'bootstrap-policy.bin', 198)
+    policy = public_body(oracle, 'bootstrap-policy.bin', 200)
+    require(policy[:8] == b'QPSESP03' and int.from_bytes(policy[198:], 'big') == 1024,
+            'explicit signed fixture send budget')
     subject = oracle.read('anchor-journal.id', 32) + owner + digest('SESSION-POLICY', policy)
     initial = (1, 1, oracle.read('anchor-genesis.digest', 32))
     observed = initial

@@ -296,7 +296,7 @@ def verify_bootstrap(oracle: Oracle) -> dict:
     revision = (1).to_bytes(8, "big")
     interval = (100).to_bytes(8, "big") + (200).to_bytes(8, "big")
     policy = oracle.envelope("bootstrap-policy", 4, policy_key)
-    require(policy == b"QPSESP02" + family + revision + interval + suite + sdk_binding + b"\x02" + bytes(33),
+    require(policy == b"QPSESP03" + family + revision + interval + suite + sdk_binding + b"\x02" + bytes(33) + (1024).to_bytes(2, "big"),
             "session policy does not authorize the exact reusable mode and SDK")
     identities = []
     for role, device_id in (("i", bytes([1]) * 16), ("r", bytes([2]) * 16)):
@@ -393,7 +393,7 @@ def verify_rekey_offer(oracle: Oracle) -> dict:
     key = oracle.read("bootstrap-i-device.pub", 1985)
     body = Reader(oracle.envelope("rekey-offer", 9, key))
     require(body.take(8) == b"QPRKOF01", "rekey offer tag")
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")
     require(body.take(32) == profile, "rekey offer profile")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
@@ -418,7 +418,7 @@ def verify_rekey_response(oracle: Oracle) -> dict:
     key = oracle.read("bootstrap-r-device.pub", 1985)
     body = Reader(oracle.envelope("rekey-response", 10, key))
     require(body.take(8) == b"QPRKRP01", "rekey response tag")
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")
     require(body.take(32) == profile, "rekey response profile")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
@@ -440,7 +440,7 @@ def verify_rekey_completion(oracle: Oracle) -> dict:
     def rekey_hash(label: bytes, data: bytes) -> bytes:
         domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/" + label
         return hashlib.sha3_256(len(domain).to_bytes(8,"big") + domain + len(data).to_bytes(8,"big") + data).digest()
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
     offer = oracle.read("rekey-offer.bin", 4746)

@@ -954,7 +954,7 @@ fn finish_initiator(
 pub(crate) mod tests {
     use super::*;
     use crate::{
-        tests::{interval, sdk_runtime_with_limits, session_policy_fixture_with_anchor},
+        tests::{interval, sdk_runtime_with_limits, session_policy_fixture_with_budget},
         *,
     };
 
@@ -1013,12 +1013,27 @@ pub(crate) mod tests {
             [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
         )>,
     ) -> Fixture {
+        fixture_from_public_with_budget(
+            quality,
+            public_keys,
+            ApplicationSendBudget::new(1024).expect("fixture budget"),
+        )
+    }
+    pub(crate) fn fixture_from_public_with_budget(
+        quality: PrekeyQuality,
+        public_keys: Option<(
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+        )>,
+        budget: ApplicationSendBudget,
+    ) -> Fixture {
         fixture_with_options(
             quality,
             public_keys,
             q_periapt_sdk::Limits::default(),
             None,
             AnchorRequirement::local_only(),
+            budget,
         )
     }
     #[cfg(unix)]
@@ -1036,6 +1051,7 @@ pub(crate) mod tests {
             q_periapt_sdk::Limits::default(),
             Some(signers),
             AnchorRequirement::local_only(),
+            ApplicationSendBudget::new(1024).expect("fixture budget"),
         )
     }
     #[cfg(unix)]
@@ -1043,11 +1059,19 @@ pub(crate) mod tests {
         quality: PrekeyQuality,
         limits: q_periapt_sdk::Limits,
     ) -> Fixture {
-        fixture_with_options(quality, None, limits, None, AnchorRequirement::local_only())
+        fixture_with_options(
+            quality,
+            None,
+            limits,
+            None,
+            AnchorRequirement::local_only(),
+            ApplicationSendBudget::new(1024).expect("fixture budget"),
+        )
     }
-    pub(crate) fn fixture_with_anchor(
+    pub(crate) fn fixture_with_anchor_and_budget(
         quality: PrekeyQuality,
         anchor: AnchorRequirement,
+        budget: ApplicationSendBudget,
     ) -> Fixture {
         fixture_with_options(
             quality,
@@ -1055,6 +1079,21 @@ pub(crate) mod tests {
             q_periapt_sdk::Limits::default(),
             None,
             anchor,
+            budget,
+        )
+    }
+    #[cfg(unix)]
+    pub(crate) fn fixture_with_send_budget(
+        quality: PrekeyQuality,
+        budget: ApplicationSendBudget,
+    ) -> Fixture {
+        fixture_with_options(
+            quality,
+            None,
+            q_periapt_sdk::Limits::default(),
+            None,
+            AnchorRequirement::local_only(),
+            budget,
         )
     }
     fn fixture_with_options(
@@ -1066,8 +1105,10 @@ pub(crate) mod tests {
         limits: q_periapt_sdk::Limits,
         signers: Option<(DeviceSigningKey, DeviceSigningKey)>,
         anchor: AnchorRequirement,
+        budget: ApplicationSendBudget,
     ) -> Fixture {
-        let (_, issued, pin, runtime_r) = session_policy_fixture_with_anchor(&[quality], anchor);
+        let (_, issued, pin, runtime_r) =
+            session_policy_fixture_with_budget(&[quality], anchor, budget);
         let runtime_i = sdk_runtime_with_limits(limits);
         let policy_i = Arc::new(
             pin.verify(issued.as_bytes(), runtime_i, 150)

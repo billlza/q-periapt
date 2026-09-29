@@ -37,7 +37,7 @@ pub use durable::{
     ClosedEpochResolution, CommittedInitiation, CommittedPlaintext, DeviceJournal, DurableError,
     DurableStatus, EpochResolutionId, EpochResolutionStatus, InitiationId, JournalIdentity,
     JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus, RekeyFlight, RekeyOfferStatus,
-    RekeyProgress, RekeyResponseStatus, UnconfirmedMessage, UnconsumedDelivery,
+    RekeyProgress, RekeyResponseStatus, SendProgress, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,
@@ -51,8 +51,9 @@ pub use selection::{
     AuthenticatedPrekeySelection, ClassicalChoice, PqChoice, PrekeyQuality, PREKEY_SELECTION_BYTES,
 };
 pub use session_policy::{
-    bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, IssuedSessionPolicy,
-    PolicyCheckpoint, PolicyPin, SessionPolicyParameters, VerifiedSessionPolicy,
+    bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget,
+    IssuedSessionPolicy, PolicyCheckpoint, PolicyPin, SessionPolicyParameters,
+    VerifiedSessionPolicy,
 };
 
 use std::fmt;
@@ -80,6 +81,8 @@ pub enum Error {
     Runtime(q_periapt_sdk::Error),
     /// A per-record or per-operation resource bound was exceeded.
     Capacity,
+    /// The signed application-send budget requires locally completed rekey progress.
+    RekeyRequired,
     /// This message lies below the retained acknowledgement/delivery boundary.
     Retired,
     /// The signing owner, policy or operation has been closed.
@@ -103,6 +106,7 @@ impl fmt::Display for Error {
             Self::State => "candidate operation phase does not permit this action",
             Self::Runtime(_) => "candidate SDK runtime operation failed",
             Self::Capacity => "candidate resource limit",
+            Self::RekeyRequired => "candidate application-send budget requires rekey completion",
             Self::Retired => "candidate message has been retired",
             Self::Closed => "candidate owner is closed",
             Self::Entropy => "platform entropy unavailable",

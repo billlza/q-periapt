@@ -373,7 +373,31 @@ fn verify_wire(
     let (body, signature) = open_envelope(wire)?;
     device(context, flight.role(target)?)?
         .key
-        .verify(flight.purpose(), body, signature)
+        .verify(flight.purpose(), body, signature)?;
+    check_closing_budget(
+        body,
+        flight,
+        context.policy().application_send_budget().messages(),
+    )
+}
+fn check_closing_budget(body: &[u8], flight: RekeyFlight, limit: u16) -> Result<(), Error> {
+    let closing_core = match flight {
+        RekeyFlight::Final => Some(FINAL_CORE),
+        RekeyFlight::Receipt => Some(RECEIPT_CORE),
+        RekeyFlight::Offer | RekeyFlight::Response => None,
+    };
+    if let Some(core) = closing_core {
+        let closing = u64::from_be_bytes(
+            body.get(core - 8..core)
+                .ok_or(Error::Encoding)?
+                .try_into()
+                .map_err(|_| Error::Encoding)?,
+        );
+        if closing > u64::from(limit) {
+            return Err(Error::PolicyDenied);
+        }
+    }
+    Ok(())
 }
 fn core_prefix(
     control: &Control,
@@ -562,6 +586,30 @@ impl Control {
         if (send, receive) != expected || count as u64 != newest - first_retained_epoch(newest) + 1
         {
             return Err(Error::State);
+        }
+        Ok(())
+    }
+    pub(in super::super) fn validate_budget(&self, limit: u16) -> Result<(), Error> {
+        if let Some(last) = &self.last {
+            for flight in [RekeyFlight::Final, RekeyFlight::Receipt] {
+                check_closing_budget(open_envelope(last.outbox(flight))?.0, flight, limit)?;
+            }
+        }
+        if let Some(super::Plan::Completing(plan)) = &self.plan {
+            match &plan.step {
+                Step::FinalSigning { body, .. } => {
+                    check_closing_budget(body, RekeyFlight::Final, limit)?
+                }
+                Step::FinalReady { wire } => {
+                    check_closing_budget(open_envelope(wire)?.0, RekeyFlight::Final, limit)?
+                }
+                Step::ReceiptSigning {
+                    final_wire, body, ..
+                } => {
+                    check_closing_budget(open_envelope(final_wire)?.0, RekeyFlight::Final, limit)?;
+                    check_closing_budget(body, RekeyFlight::Receipt, limit)?;
+                }
+            }
         }
         Ok(())
     }

@@ -1,9 +1,9 @@
 # Candidate application-send progress budget
 
-Status: implementation contract for the 0.2.0 Continuity candidate. The current
-v4 implementation does not enforce this budget. This document neither freezes
-the full product profile nor establishes a recovery guarantee. It resolves the
-counter/authority rule needed before implementing the governor and scheduler.
+Status: implemented application governor in the isolated v5 candidate. The
+independent control scheduler and a measured product budget remain required.
+This document neither freezes the full product profile nor establishes a recovery
+guarantee.
 
 ## Authenticated parameter and admission
 
@@ -14,17 +14,17 @@ a new policy/checkpoint cannot reinterpret a retained session's counters. A
 product profile still needs a measured, selected value. Values used by fixtures
 or comparison experiments do not become product defaults.
 
-The planned canonical policy body is the current body with tag `QPSESP03` and
+The canonical policy body is the current body with tag `QPSESP03` and
 an appended big-endian `B:u16`: 200 bytes. Zero is rejected, including in a policy
 that disables new bootstrap modes. The policy digest covers the complete body.
-The signed rekey profile must advance to a distinct version binding
+The signed v5 rekey profile binds
 `application-send-budget/v1`; older profile/policy tags are refused, without
 fallback or a silent counter reset. No primitive KAT, SDK KEM contract or ABI 2
 entry changes its meaning.
 
-Only a verified policy can supply this value to message admission. A proposed
+Only a verified policy supplies this value to message admission. The
 `ApplicationSendBudget` constructor validates explicit issuer input, and
-`SessionPolicyParameters` must require it. It cannot be reconstructed from a peer
+`SessionPolicyParameters` requires it. It cannot be reconstructed from a peer
 assertion or an application-supplied remaining-count field.
 
 ## Exact counter rule
@@ -70,9 +70,9 @@ reordering, capacity, revocation and authority checks still apply.
 
 ## Control liveness and observability
 
-Budget exhaustion needs a distinct `RekeyRequired` outcome, separate from storage
-capacity, invalid input, revoked authority and an unknown commit. A progress
-query may report the completed/sending epochs, signed limit, spent count,
+Budget exhaustion returns a distinct `RekeyRequired` outcome, separate from storage
+capacity, invalid input, revoked authority and an unknown commit. The `application_send_progress`
+query reports the completed/sending epochs, signed limit, spent count,
 reserved slot and remaining count. Like other read-only reconciliation queries,
 those values do not grant permission to send after expiry, close or revocation,
 and do not claim that the adversary lacks the installed keys.
@@ -110,3 +110,39 @@ entropy exposed before computation. This governor bounds application work betwee
 observable protocol completions; construction-specific recovery conditions must
 separately account for that entropy ancestry, identity/RNG compromise and access
 to later encrypted journal state.
+
+The current implementation also bounds every retained sent/received/peer-close
+count and the close counts in cached final/receipt plans and transcripts. It
+rejects an excessive signed peer count before reserving a local signature. State
+records remain `QPMST008`/`QPTEPO03`; the budget comes from the exact verified
+policy instead of a caller-replaceable checkpoint field. Earlier policy bodies
+are rejected without resetting the existing journal.
+
+## Local qualification
+
+The 2026-09-29 final run passes 161 release tests in 236.98 seconds, with no
+ignored tests or compiler warnings. Eight budget-focused tests cover explicit
+policy issuance and legacy rejection, both sending directions and direct IDs,
+ACK/restart persistence, the old/new confirmation window, pending input on both
+sides of receipt acceptance, authenticated excessive frames, invalid restored
+counts and validly signed excessive peer close counts. Actual last-slot storage
+measurements expose nine barriers for role 1 and eight for role 2; all 34
+before/after fault cases recover exactly. Two process kills retain the last-slot
+reservation. The required-witness trace also loses the final send-release reply
+and receipt-acceptance reply, then reconciles the correct spending after reopen.
+These cases do not yet qualify a service scheduler or a full multi-writer workload.
+
+The first full run has 160 passes and one retained failure: the crash parent saw
+the stage-marker filename after creation but before its content was written.
+The test helper now writes/synchronizes a private temporary marker and publishes
+the completed marker by rename before the parent may kill the child. No protocol
+assertion, fault case or deadline is weakened. The final full run includes both
+real reservation-disclosure counterexamples again.
+
+Strict all-target Clippy and formatting pass on Rust 1.98.1; locked all-target
+compilation passes on Rust 1.90. The 45 standalone candidate-isolation and Rust
+inventory checks pass for 185 tracked Rust files. Independent OpenSSL/public
+parsing verifies 19 envelopes, 30 Merkle proofs, nine selections and 95 signature
+negative controls, including the new policy/profile bytes; the witness oracle
+verifies 12 envelopes and 60 signature negatives. Public parsing does not test
+secret MAC/AEAD correctness; the journal regressions exercise those operations.

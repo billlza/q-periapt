@@ -220,6 +220,7 @@ fn bootstrap_vectors(directory: &Path, anchors: bool, rekey: bool) -> Result<(),
             validity,
             AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth])?,
             q_periapt_continuity_identity_candidate::AnchorRequirement::local_only(),
+            q_periapt_continuity_identity_candidate::ApplicationSendBudget::new(1024)?,
         )?,
     )?;
     save(

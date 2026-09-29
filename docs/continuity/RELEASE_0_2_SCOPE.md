@@ -72,13 +72,17 @@ the existing public-commitment model into a working cryptographic protocol.
   preserving observed device-generation history through exact write-intent recovery.
   Its [identity-signed hybrid rekey](../../research/continuity-identity-candidate/REKEY_OFFERS.md)
   now commits offer, response, final and receipt flights, installs fresh traffic
-  and ACK epochs and preserves exact output across restart. The v4 profile retires
+  and ACK epochs and preserves exact output across restart. The current v5 profile retires
   a settled prefix only after both peers' signed assertions, keeping at most four
   traffic epochs without resetting their identities. Unconsumed inboxes and
   unacknowledged outboxes cause backpressure unless the application explicitly
   records and acknowledges an immutable [closed-epoch resolution](../../research/continuity-identity-candidate/EPOCH_RESOLUTION.md).
   Such unresolved sends remain `DeliveryUnknown`; no successful delivery is
-  invented. Continuous recovery analysis, authenticated progress scheduling, full device
+  invented. Its signed, nonzero [application-send budget](SEND_PROGRESS_V1.md)
+  now bounds committed and reserved sends across the old/new epoch confirmation
+  window. ACKs, restart and old-epoch resolution cannot refund that budget; exact
+  previously admitted work remains recoverable. Continuous recovery analysis,
+  authenticated progress scheduling, a measured product budget, full device
   lifecycle, cryptographic erasure and product integration remain required work.
 
 ## Required completion evidence

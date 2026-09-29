@@ -9,6 +9,7 @@ use std::{fs, sync::atomic::Ordering};
 
 mod epoch_resolution;
 mod reservation_disclosure;
+mod send_budget;
 
 struct Pair {
     f: Fixture,
@@ -26,7 +27,9 @@ struct Pair {
 }
 impl Pair {
     fn new() -> Self {
-        let f = fixture(PrekeyQuality::OneTimeBoth);
+        Self::with_fixture(fixture(PrekeyQuality::OneTimeBoth))
+    }
+    fn with_fixture(f: Fixture) -> Self {
         let di = directory();
         let dr = directory();
         let pi = di.path().canonicalize().expect("initiator path");
@@ -514,13 +517,19 @@ pub(super) fn after_stage(stage: &str) {
         return;
     }
     let path = std::env::var_os("QPERIAPT_MESSAGES_CRASH_DIR").expect("owned fixture");
+    let path = Path::new(&path);
+    // A visible final name is the parent's signal to kill this process. Creating
+    // it before writing allowed the parent to observe an empty stage marker.
+    let pending = path.join("ready-staging");
     let mut marker = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(Path::new(&path).join("ready"))
+        .open(&pending)
         .expect("new marker");
     marker.write_all(stage.as_bytes()).expect("marker");
     marker.sync_all().expect("marker sync");
+    drop(marker);
+    fs::rename(pending, path.join("ready")).expect("publish complete stage marker");
     loop {
         std::thread::park();
     }

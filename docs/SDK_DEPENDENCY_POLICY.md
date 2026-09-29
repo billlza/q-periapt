@@ -99,8 +99,13 @@ record their command paths/versions, and execute Gradle before consumers. The
 installed-package path check is unchanged. Regression tests run the actual shell
 selection block and hardened Python path predicate, including omitted current-step
 restoration, omitted next-step restoration and a missing selected compiler. Those
-path fixtures do not execute a simulated JVM or establish SDK runtime success;
-the subsequent real package/consumer job remains required.
+path fixtures do not execute a simulated JVM or establish SDK runtime success.
+At `b4ee99f5`, the [actual installed-consumer job](https://github.com/billlza/q-periapt/actions/runs/36593465227/job/109492248708)
+records the selected JDK paths, 17 source tests, passing installed Kotlin and Java
+module-path consumers, and six native-loading negative controls. Both same-head
+Kotlin jobs pass on Ubuntu image `20260920.303.1`, which downloads Gradle. This
+qualifies that runtime path; a post-fix hosted result for the newer image's
+preinstalled-Gradle branch remains separate from the local behavioral regression.
 
 The local refresh evidence is retained under
 `target/sdk-dependency-refresh-020-1/`: official Rust channel manifests, registry

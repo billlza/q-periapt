@@ -42,7 +42,7 @@ use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
 pub use messages::{
     ClosedEpochResolution, CommittedPlaintext, EpochResolutionId, EpochResolutionStatus, MessageId,
-    MessageStatus, RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyResponseStatus,
+    MessageStatus, RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyResponseStatus, SendProgress,
     UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};

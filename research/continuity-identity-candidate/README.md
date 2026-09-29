@@ -109,13 +109,15 @@ records using authenticated monotonic floors and session-issued sequence IDs.
 The initial epoch itself adds no new entropy. Signed hybrid rekeys now install
 separate traffic/ACK epochs. Signed settled-prefix retirement bounds history;
 explicit [closed-epoch outcome reports](EPOCH_RESOLUTION.md) account for unresolved
-old deliveries without labelling them successful. Authenticated progress, device
-lifecycle and multi-device contracts remain required within 0.2.0.
+old deliveries without labelling them successful. A signed application-send
+budget now bounds new reservations without locally completed rekey progress.
+Independent control scheduling, device lifecycle and multi-device contracts
+remain required within 0.2.0.
 
 The [durable hybrid rekey path](REKEY_OFFERS.md) now commits four signed flights
 and switches sending/receiving epochs at authenticated, crash-recoverable boundaries.
 Message IDs and ACK authority are scoped to epochs, preserving old outboxes and
-rejecting old-key influence on new traffic. Its v4 profile can advance beyond the
+rejecting old-key influence on new traffic. Its v5 profile can advance beyond the
 four-retained-epoch bound after each peer drains the displaced history or its
 application acknowledges an immutable resolution report. Missing ACKs, unconsumed
 plaintext and unacknowledged reports otherwise retain explicit backpressure.
