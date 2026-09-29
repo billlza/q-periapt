@@ -16,7 +16,7 @@ class AndroidAgpConsumerError(RuntimeError):
 AGP_VERSION = "9.4.0"
 GRADLE_VERSION = "9.7.1"
 SDK_AGP_VERSION = "9.4.1"
-SDK_GRADLE_VERSION = "9.8.0"
+SDK_GRADLE_VERSION = "9.7.1"
 PROOF_KIND = "qperiapt.android_agp_consumer_proof"
 BUILD_KIND = "qperiapt.android_agp_consumer_build"
 # The historical maintenance transaction imports PROFILES. Keep its admitted

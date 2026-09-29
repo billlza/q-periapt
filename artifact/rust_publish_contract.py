@@ -2692,7 +2692,7 @@ _SDK_020_LOCAL_SOURCE_SHA256 = {
     "src/mlkem_bridge_x86_64_asm.S": "9883dd7537158f994edd05a53f5dc8f826f0b5694015d7ee6672d5ae40e7cebc",
     "src/mlkem_config.h": "4f25bb9465bbc97bb6288ebe8ab4fbea03dd126a354683af56ab2497db9e5e28",
     "src/mlkem_fips202_aarch64.h": "6057160bbae3ba7ce63794ac3708e6b6ce16cd018e9d3852f1e7b4f5f50dfad8",
-    "src/raw.rs": "6aadf63c2bec569564f20d7d4f1d445d9a4499ad82001a1e3bd339f6d290010e",
+    "src/raw.rs": "e8d34c199856412660df4dc11235a3696404bf065a0a69ac9582a667375a88c9",
     "src/tests.rs": "5b5ae328625deb9e91e0a90239560a0175a09d88bd66644b036b286a624b9d6e",
     "src/x86_cpu.rs": "9cc280fd8eb685049d799ff9b8c2b6e12123e093972de58cac910cfec1acd811",
 }

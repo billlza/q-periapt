@@ -233,8 +233,8 @@ macro_rules! define_raw_parameter_set {
                     }
                     // SAFETY: fixed public-key extent, arbitrary encodings permitted.
                     unsafe {
-                        assert_eq!(super::$check_public_key_ffi(bad_pk.as_ptr()), -1);
-                        assert_eq!(check_public_key(bad_pk.as_ptr()), -1);
+                        assert_eq!(super::$check_public_key_ffi(bad_pk.as_ptr()), -4);
+                        assert_eq!(check_public_key(bad_pk.as_ptr()), -4);
                     }
                     *sk_native
                         .get_mut($embedded_public_key_offset + $public_key_len)
@@ -247,7 +247,7 @@ macro_rules! define_raw_parameter_set {
                                 ct_portable.as_ptr(),
                                 sk_native.as_ptr()
                             ),
-                            -1
+                            -5
                         );
                         assert_eq!(
                             decapsulate(
@@ -255,7 +255,7 @@ macro_rules! define_raw_parameter_set {
                                 ct_portable.as_ptr(),
                                 sk_native.as_ptr()
                             ),
-                            -1
+                            -5
                         );
                     }
                 }

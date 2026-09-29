@@ -205,7 +205,7 @@ def build(args: argparse.Namespace) -> dict:
     version = run([str(java_home / "bin/java"), "--version"], output / "java-version", ROOT, env).decode()
     require(version.startswith("openjdk 21.") or version.startswith("java 21."), "Android SDK qualification requires JDK 21")
     gradle_version = run([args.gradle, "--version"], output / "gradle-version", ROOT, env).decode()
-    require("\nGradle 9.8.0\n" in gradle_version, "Android SDK qualification requires Gradle 9.8.0")
+    require("\nGradle 9.7.1\n" in gradle_version, "Android SDK qualification requires Gradle 9.7.1")
     common = [args.gradle, "--no-daemon", "--warning-mode", "fail"]
     if args.offline:
         common.append("--offline")
@@ -290,7 +290,7 @@ def build(args: argparse.Namespace) -> dict:
     report = {"coordinate": COORDINATE, "archive": str(archive), "sha256": archive_sha, "manifest_sha256": manifest_sha,
         "aar_sha256": args.aar_sha256, "aar_manifest_sha256": args.manifest_sha256, "installed": str(installed),
         "source_tree_sha256": before, "sources_unchanged": True, "native_abi_major": 2, "c_exports": 43, "jni_methods": 26,
-        "consumers": consumers, "agp_version": "9.4.1", "gradle_version": "9.8.0", "runtime_executed": False,
+        "consumers": consumers, "agp_version": "9.4.1", "gradle_version": "9.7.1", "runtime_executed": False,
         "public_registry_publication": False, "release_claim_eligible": False}
     write_json(output / "INSTALLED_CONSUMERS.json", report)
     return report

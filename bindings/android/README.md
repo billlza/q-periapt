@@ -52,7 +52,7 @@ sh artifact/python-run.sh artifact/android_sdk_package.py \
   --aar /absolute/path/to/q-periapt-android-0.2.0.aar \
   --manifest /absolute/path/to/MANIFEST.json \
   --aar-sha256 "$AAR_SHA256" --manifest-sha256 "$AAR_MANIFEST_SHA256" \
-  --sdk /absolute/path/to/android-sdk --gradle /absolute/path/to/gradle-9.8.0/bin/gradle
+  --sdk /absolute/path/to/android-sdk --gradle /absolute/path/to/gradle-9.7.1/bin/gradle
 ```
 
 Use `--offline` only with the required Gradle/AGP dependencies already cached.

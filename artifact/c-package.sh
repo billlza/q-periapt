@@ -808,9 +808,17 @@ require(
     all(token in vendor_license for token in ("Apache-2.0 license", "ISC license", "MIT license")),
     "mlkem-native license choices are incomplete",
 )
-require("119 vendored" in vendor_inventory and "CC-BY-4.0" in vendor_inventory, "mlkem-native license inventory is incomplete")
-require("0ba906cb14b1c241476134d7403a811b382ca498" in vendor_provenance, "mlkem-native provenance commit is missing")
-require("f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677" in vendor_provenance, "mlkem-native provenance archive hash is missing")
+if profile == "sdk-020":
+    vendor_count = "119 vendored"
+    vendor_commit = "d1b2fe782888bdb761a50336012923180be7f502"
+    vendor_archive = "7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3"
+else:
+    vendor_count = "118 vendored"
+    vendor_commit = "0ba906cb14b1c241476134d7403a811b382ca498"
+    vendor_archive = "f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677"
+require(vendor_count in vendor_inventory and "CC-BY-4.0" in vendor_inventory, "mlkem-native license inventory is incomplete")
+require(vendor_commit in vendor_provenance, "mlkem-native provenance commit is missing")
+require(vendor_archive in vendor_provenance, "mlkem-native provenance archive hash is missing")
 
 if profile == "sdk-020":
     from package_bom import BomProfile, verify

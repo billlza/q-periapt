@@ -60,7 +60,14 @@ contract and receipts remain pinned to their original 1.2.0 implementation.
 Android SDK and legacy receipt profiles have separate exact build-tool versions.
 The AGP 9.4.1 optimized default rules were extracted through its actual public
 `ProguardFiles.createProguardFile` API and are byte-identical to the retained
-9.4.0 fixture. The Gradle distribution and wrapper are checksum-pinned.
+9.4.0 fixture. The Android producer retains Gradle 9.7.1: AGP 9.4.1 still calls
+`Configuration.setVisible`, newly deprecated by Gradle 9.8.0. Both hosted Android
+builds reached APK assembly but failed the existing zero-warning gate. The
+published AGP source confirms these calls in `BasePlugin` and
+`VariantDependenciesBuilder`. Keep the newest compatible Android pairing until
+upstream removes those calls; do not suppress the warning. The standalone JVM
+producer uses Gradle 9.8.0 with strict verification. Both Gradle distributions
+and the Android wrapper are checksum-pinned.
 Kotlin dependency checksums are generated once and then enforced by a separate
 strict verification run. Node 24.0.0 remains the independent minimum-runtime
 check; it is not the package producer. Fresh platform, package and runtime
