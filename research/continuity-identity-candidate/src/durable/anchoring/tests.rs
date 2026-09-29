@@ -434,6 +434,27 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
     responder
         .receive_message(&c.peer.responder, session, &unresolved, b"application", 150)
         .expect("retain unconsumed plaintext");
+    // The idle-designated proposer can be requested without an application send.
+    // Lose the final release query after both request transactions committed.
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        responder.prepare_rekey_request(&c.peer.responder, session, &c.peer.signer_r, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .rekey_request_status(&c.peer.responder, session)
+            .expect("request phase"),
+        crate::RekeyRequestStatus::Committed
+    );
+    let control_request = responder
+        .prepare_rekey_request(&c.peer.responder, session, &c.peer.signer_r, 150)
+        .expect("release the exact request after reconciliation");
     // Three exact persisted stages each advance/query the witness. Lose only
     // the final release query, after the signed offer is already committed.
     let start = c.server.lock().expect("server").requests.len();
@@ -457,6 +478,18 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
         .journal
         .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150)
         .expect("exact offer release");
+    assert_eq!(
+        c.journal
+            .respond_rekey_request(
+                &c.peer.initiator,
+                session,
+                &control_request,
+                &c.peer.signer_i,
+                150
+            )
+            .expect("request joins the existing offer"),
+        offer
+    );
     let start = c.server.lock().expect("server").requests.len();
     c.server.lock().expect("server").fail = Some((start + 2, false));
     assert!(matches!(

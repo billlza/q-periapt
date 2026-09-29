@@ -1,7 +1,8 @@
 # Candidate application-send progress budget
 
-Status: implemented application governor in the isolated v5 candidate. The
-independent control scheduler and a measured product budget remain required.
+Status: application governor implemented since the isolated v5 candidate. The
+v6 candidate adds signed requests and explicit-target control steps; the product
+transport scheduler and a measured product budget remain required.
 This document neither freezes the full product profile nor establishes a recovery
 guarantee.
 
@@ -17,7 +18,7 @@ or comparison experiments do not become product defaults.
 The canonical policy body is the current body with tag `QPSESP03` and
 an appended big-endian `B:u16`: 200 bytes. Zero is rejected, including in a policy
 that disables new bootstrap modes. The policy digest covers the complete body.
-The signed v5 rekey profile binds
+The signed rekey profile binds
 `application-send-budget/v1`; older profile/policy tags are refused, without
 fallback or a silent counter reset. No primitive KAT, SDK KEM contract or ABI 2
 entry changes its meaning.
@@ -81,8 +82,10 @@ Control traffic must run without dummy application messages and without consumin
 this application budget. The four existing rekey flights alone do not define
 the service scheduler. In particular, the non-proposing endpoint needs an
 authenticated way to request control progress when the other endpoint is idle.
-That trigger, its exact durable outbox/retry semantics, bounded resource usage
-and interaction with pending old-history resolution remain implementation work.
+The [v6 control path](../../research/continuity-identity-candidate/CONTROL_PROGRESS.md)
+now implements that authenticated trigger, durable reservation/outbox and
+explicit-target steps. Product transport scheduling, retry policy and matched
+resource measurements remain required.
 Loss of control delivery can suspend application progress; it cannot authorize
 reset, skipped confirmation, plaintext release or a weaker profile.
 
@@ -114,7 +117,9 @@ to later encrypted journal state.
 The current implementation also bounds every retained sent/received/peer-close
 count and the close counts in cached final/receipt plans and transcripts. It
 rejects an excessive signed peer count before reserving a local signature. State
-records remain `QPMST008`/`QPTEPO03`; the budget comes from the exact verified
+records were `QPMST008`/`QPTEPO03` in the v5 qualification below. The v6 control
+request extends message state to `QPMST009`; traffic remains `QPTEPO03`. The
+budget comes from the exact verified
 policy instead of a caller-replaceable checkpoint field. Earlier policy bodies
 are rejected without resetting the existing journal.
 

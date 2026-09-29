@@ -131,10 +131,12 @@ traffic independently of application sends. A fixed, authenticated PQ-progress
 budget must bound new application traffic without a completed fresh contribution;
 exhaustion suspends new work while retaining exact control retransmissions.
 The [send-progress contract](SEND_PROGRESS_V1.md) defines the signed budget and
-the counter window across asymmetric confirmation. The isolated v5 candidate
-now implements that governor through actual journal admission. The independent
-control trigger and chosen product value remain implementation/qualification
-requirements.
+the counter window across asymmetric confirmation. The isolated candidate
+now implements that governor through actual journal admission. Its v6
+[control path](../../research/continuity-identity-candidate/CONTROL_PROGRESS.md)
+adds signed requests and exact-target steps for an idle proposer. Product
+transport scheduling and the chosen product value remain implementation and
+qualification requirements.
 Network loss remains an explicit liveness assumption in the recovery condition.
 The [recovery-condition ledger](RECOVERY_CONDITIONS_V1.md) distinguishes pending
 entropy reservations, identity/RNG compromise, active intervention and rollback;

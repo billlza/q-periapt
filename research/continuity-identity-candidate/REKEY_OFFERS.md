@@ -6,7 +6,7 @@ The permanent logical session, device identities, policy and installed roster
 bindings remain unchanged. The complete product profile and its security argument
 remain unfrozen. ABI major stays **2**.
 
-The history bound is four retained traffic epochs. The v5 signed profile requires
+The history bound is four retained traffic epochs. The v6 signed profile requires
 both peers to attest that the displaced prefix is settled: fully drained or
 accounted for through an application-acknowledged
 [closed-epoch resolution](EPOCH_RESOLUTION.md). Such resolution reports unknown
@@ -63,7 +63,7 @@ length-delimited SHA3-256 over
 
 The closed candidate profile is:
 
-`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")`
+`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1")`
 
 A common 153-byte prefix is:
 
@@ -123,15 +123,16 @@ decryption of post-confirmation application frames after restart.
 
 ## Stored state and retained authority
 
-Journal v16 uses `continuity_device_candidate_v16`, `QPVLT016` and `QPVIMG16`, and
-rejects earlier candidate journals unchanged. `QPMST008` stores common session
+Journal v17 uses `continuity_device_candidate_v17`, `QPVLT017` and `QPVIMG17`, and
+rejects earlier candidate journals unchanged. `QPMST009` stores common session
 identity/rekey state, current send/receive epoch IDs, bounded length-delimited
-`QPTEPO03` traffic records and the `QPRKST02` control record. Each traffic record
+`QPTEPO03` traffic records and the `QPRKST03` control record. Each traffic record
 owns its independent counters, chains, ACK keys, receipts and pending input;
 [RETENTION.md](RETENTION.md) specifies their invariants and old-epoch bounds.
 
 Control state contains completed epoch, predecessor, an optional exact last
-completed four-flight transcript, and one pending phase:
+completed four-flight transcript, one optional [request](CONTROL_PROGRESS.md),
+and one pending exchange phase:
 
 - 0: none; 1–3: offer key reserved / signature reserved / outbox committed.
 - 4–6: response encapsulation reserved / signature reserved / outbox committed.

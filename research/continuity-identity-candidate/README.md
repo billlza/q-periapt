@@ -111,18 +111,20 @@ separate traffic/ACK epochs. Signed settled-prefix retirement bounds history;
 explicit [closed-epoch outcome reports](EPOCH_RESOLUTION.md) account for unresolved
 old deliveries without labelling them successful. A signed application-send
 budget now bounds new reservations without locally completed rekey progress.
-Independent control scheduling, device lifecycle and multi-device contracts
-remain required within 0.2.0.
+The [control-progress path](CONTROL_PROGRESS.md) adds a durable signed request
+and one-target step driver for an otherwise idle proposer. Host transport
+scheduling, device lifecycle and multi-device contracts remain required within
+0.2.0.
 
 The [durable hybrid rekey path](REKEY_OFFERS.md) now commits four signed flights
 and switches sending/receiving epochs at authenticated, crash-recoverable boundaries.
 Message IDs and ACK authority are scoped to epochs, preserving old outboxes and
-rejecting old-key influence on new traffic. Its v5 profile can advance beyond the
+rejecting old-key influence on new traffic. Its v6 profile can advance beyond the
 four-retained-epoch bound after each peer drains the displaced history or its
 application acknowledges an immutable resolution report. Missing ACKs, unconsumed
 plaintext and unacknowledged reports otherwise retain explicit backpressure.
 Resolution preserves unknown delivery outcomes and does not repair past
-authenticity. Continuous progress scheduling and complete lifecycle remain open.
+authenticity. Product transport scheduling and complete lifecycle remain open.
 `public_vectors --with-rekey` completes the real journals, restarts them, exercises
 new traffic and exports public control/frame bytes for the independent oracle.
 

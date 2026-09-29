@@ -72,12 +72,29 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 185 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 188 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The isolated Continuity v5 candidate now enforces a policy-authority-signed,
+The isolated Continuity v6 candidate now has a durable, identity-signed request
+for an idle designated proposer and a control driver for one explicit target.
+The driver reuses the existing flight transactions; repeated calls cannot silently
+start another target after completion. Its bounded test schedules complete three
+epochs in either one-way application direction while losing/duplicating each
+control flight and cancelling dispatch before owner reopen. The final source
+passes **166 release tests in 248.18 seconds**, including 42 measured request/offer
+sync faults, three request process kills with deadline-bounded competing writers,
+and lost required-witness release replies. Strict all-target Clippy passes on both
+Rust 1.98.1 and Rust 1.90; formatting, warning-strict documentation and 45 standalone
+source-contract checks pass. Current independent oracles verify 20 envelopes/100
+signature negatives plus 12 witness envelopes/60 negatives. The
+[control-progress contract](../research/continuity-identity-candidate/CONTROL_PROGRESS.md)
+records v6, journal v17 and the remaining product transport/retry-policy boundary.
+These in-process schedules and process/storage cuts do not qualify the installed
+cross-language or independent network endpoint requirements.
+
+The preceding Continuity v5 checkpoint enforces a policy-authority-signed,
 nonzero application-send budget. Old and newly installed sending epochs share
 the window until local receipt completion; already committed new-epoch messages
 remain spent afterward. Exact pending work and outbox replay remain available,

@@ -4,7 +4,7 @@ use super::*;
 use hmac::{Hmac, Mac};
 use q_periapt_sdk::{Ciphertext, CIPHERTEXT_LEN};
 
-const TAG: &[u8; 8] = b"QPRKRP01";
+pub(super) const TAG: &[u8; 8] = b"QPRKRP01";
 const TOKEN_LEN: usize = 245;
 pub(super) const PREFIX_LEN: usize = BODY_LEN - PUBLIC_KEY_LEN + 32;
 pub(super) const CORE_LEN: usize = PREFIX_LEN + CIPHERTEXT_LEN;

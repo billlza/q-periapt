@@ -8,12 +8,16 @@ use q_periapt_sdk::{
     PublicKey, PUBLIC_KEY_LEN,
 };
 mod completion;
+mod driver;
+mod request;
 mod response;
 pub use completion::{RekeyFlight, RekeyProgress};
+pub use driver::{RekeyControlMessage, RekeyControlStep};
+pub use request::RekeyRequestStatus;
 pub use response::RekeyResponseStatus;
 
 const TAG: &[u8; 8] = b"QPRKOF01";
-const CONTROL_TAG: &[u8; 8] = b"QPRKST02";
+const CONTROL_TAG: &[u8; 8] = b"QPRKST03";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/";
 const KEY_TOKEN_LEN: usize = 277;
 const BODY_LEN: usize = 8 + 32 + 32 + 32 + 8 + 8 + 1 + 32 + PUBLIC_KEY_LEN;
@@ -25,7 +29,7 @@ fn hash(label: &[u8], data: &[u8]) -> [u8; 32] {
 fn profile() -> [u8; 32] {
     hash(
         b"offer-profile",
-        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1",
+        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1",
     )
 }
 fn genesis(session: &[u8; 32], context: &[u8; 32]) -> [u8; 32] {
@@ -89,6 +93,7 @@ pub(super) struct Control {
     parent: [u8; 32],
     plan: Option<Plan>,
     last: Option<completion::Completed>,
+    request: Option<request::Plan>,
 }
 impl Control {
     pub(super) fn confirmed_epoch(&self) -> u64 {
@@ -100,6 +105,7 @@ impl Control {
             parent: genesis(session, context),
             plan: None,
             last: None,
+            request: None,
         }
     }
     pub(super) fn send_fenced(&self) -> bool {
@@ -152,6 +158,9 @@ impl Control {
         context: &[u8; 32],
         root: &ZeroizingBytes<32>,
     ) -> Result<(), Error> {
+        if let Some(request) = &self.request {
+            request.validate(self, session, role, context)?;
+        }
         match (self.epoch, &self.last) {
             (0, None) if self.parent == genesis(session, context) => {}
             (epoch, Some(last)) if epoch != 0 => {
@@ -195,6 +204,7 @@ impl Control {
         if let Some(last) = &self.last {
             last.encode(bytes);
         }
+        request::encode(&self.request, bytes);
         bytes.push(match &self.plan {
             None => 0,
             Some(Plan::Key(_)) => 1,
@@ -231,6 +241,7 @@ impl Control {
             [1] => Some(completion::Completed::decode(d)?),
             _ => return Err(Error::Encoding),
         };
+        let request = request::decode(d)?;
         let [phase] = d.array()?;
         let plan = match phase {
             0 => None,
@@ -259,6 +270,7 @@ impl Control {
             parent,
             plan,
             last,
+            request,
         })
     }
 }

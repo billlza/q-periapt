@@ -94,10 +94,10 @@ no construction-specific recovery result from it.
 
 ## Storage, bounds and remaining work
 
-Journal schema v16 rejects schemas v1–v15 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v16`, `QPVLT016`, `QPVIMG16`.
+Journal schema v17 rejects schemas v1–v16 without reset. The outer table/header and
+inner image are `continuity_device_candidate_v17`, `QPVLT017`, `QPVIMG17`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
-phase 19 and `QPMST008`. Image admission enforces a one-to-one link with the
+phase 19 and `QPMST009`. Image admission enforces a one-to-one link with the
 matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap
 root, canonical sorted records, and disjoint consumed/skipped receive indices.
 A restored root cannot coexist with a valid linked message state.

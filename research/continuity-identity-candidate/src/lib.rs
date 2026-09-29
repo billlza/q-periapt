@@ -36,8 +36,9 @@ pub use crypto::{
 pub use durable::{
     ClosedEpochResolution, CommittedInitiation, CommittedPlaintext, DeviceJournal, DurableError,
     DurableStatus, EpochResolutionId, EpochResolutionStatus, InitiationId, JournalIdentity,
-    JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus, RekeyFlight, RekeyOfferStatus,
-    RekeyProgress, RekeyResponseStatus, SendProgress, UnconfirmedMessage, UnconsumedDelivery,
+    JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus, RekeyControlMessage,
+    RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyRequestStatus,
+    RekeyResponseStatus, SendProgress, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,

@@ -267,7 +267,8 @@ def verify(oracle: Oracle, *, with_rekey: bool = False) -> dict:
             "authenticated_selections": selection_total + 1, "bootstrap": bootstrap,
             "fixture_sha256": oracle.inputs, "commands": oracle.commands}
     if with_rekey:
-        report.update(schema=6, signed_envelopes=19, rekey_offer=verify_rekey_offer(oracle),
+        report.update(schema=7, signed_envelopes=20, rekey_offer=verify_rekey_offer(oracle),
+                      rekey_request=verify_rekey_request(oracle),
                       rekey_response=verify_rekey_response(oracle), rekey_completion=verify_rekey_completion(oracle))
     return report
 
@@ -393,7 +394,7 @@ def verify_rekey_offer(oracle: Oracle) -> dict:
     key = oracle.read("bootstrap-i-device.pub", 1985)
     body = Reader(oracle.envelope("rekey-offer", 9, key))
     require(body.take(8) == b"QPRKOF01", "rekey offer tag")
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1")
     require(body.take(32) == profile, "rekey offer profile")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
@@ -411,6 +412,18 @@ def verify_rekey_offer(oracle: Oracle) -> dict:
             "confirmed_epoch":0, "offered_epoch":1, "scope":"committed offer only; no epoch installation"}
 
 
+def verify_rekey_request(oracle: Oracle) -> dict:
+    key = oracle.read("bootstrap-r-device.pub", 1985)
+    body = oracle.envelope("rekey-request", 13, key)
+    offer = oracle.read("rekey-offer.bin", 4746)
+    prefix = offer[4:4+153]
+    require(len(body) == 153 and body == b"QPRKRQ01" + prefix[8:120] + b"\x02" + prefix[121:],
+            "request context/profile/epoch/predecessor or non-proposer role differs")
+    return {"identity_signatures": "verified", "purpose": 13,
+            "target_epoch": 1, "requester_role": 2,
+            "scope": "request only; no settled-history assertion or confirmed progress"}
+
+
 def verify_rekey_response(oracle: Oracle) -> dict:
     def rekey_hash(label: bytes, data: bytes) -> bytes:
         domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/" + label
@@ -418,7 +431,7 @@ def verify_rekey_response(oracle: Oracle) -> dict:
     key = oracle.read("bootstrap-r-device.pub", 1985)
     body = Reader(oracle.envelope("rekey-response", 10, key))
     require(body.take(8) == b"QPRKRP01", "rekey response tag")
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1")
     require(body.take(32) == profile, "rekey response profile")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
@@ -440,7 +453,7 @@ def verify_rekey_completion(oracle: Oracle) -> dict:
     def rekey_hash(label: bytes, data: bytes) -> bytes:
         domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/" + label
         return hashlib.sha3_256(len(domain).to_bytes(8,"big") + domain + len(data).to_bytes(8,"big") + data).digest()
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v5;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
     offer = oracle.read("rekey-offer.bin", 4746)

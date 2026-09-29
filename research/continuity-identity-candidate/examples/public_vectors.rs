@@ -423,7 +423,9 @@ fn durable_bootstrap_vectors(
     save(directory, "bootstrap-reply.bin", &reply)?;
     save(directory, "bootstrap-final.bin", completed.final_message())?;
     save(directory, "bootstrap-session.id", &session)?;
-    let offer = ji.prepare_rekey_offer(ci, session, si, 150)?;
+    let request = jr.prepare_rekey_request(cr, session, sr, 150)?;
+    save(directory, "rekey-request.bin", &request)?;
+    let offer = ji.respond_rekey_request(ci, session, &request, si, 150)?;
     save(directory, "rekey-offer.bin", &offer)?;
     let identity = ji.identity()?;
     ji.close();

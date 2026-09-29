@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{fs, sync::atomic::Ordering};
 
+mod control_progress;
 mod epoch_resolution;
 mod reservation_disclosure;
 mod send_budget;
@@ -551,6 +552,18 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         )),
     );
     let operation = fs::read_to_string(path.join("operation")).expect("operation");
+    if std::env::var_os("QPERIAPT_REQUEST_CONTENDER").is_some() {
+        assert!(matches!(
+            DeviceJournal::open(
+                &path.join("state.redb"),
+                JournalKey::open(&path.join("key"))?,
+                f.local_device(),
+                crate::durable::tests::identity(path)
+            ),
+            Err(DurableError::Database(PrivateDatabaseError::Busy))
+        ));
+        return Ok(());
+    }
     let is_i = matches!(
         operation.as_str(),
         "activate_i" | "reserved" | "sent" | "acknowledged"
@@ -571,6 +584,11 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .expect("width");
     match operation.as_str() {
+        "rekey-request" => {
+            journal
+                .prepare_rekey_request(&f.responder, session, &f.signer_r, 150)
+                .expect("prepare exact rekey request");
+        }
         "epoch-resolution-begin" => {
             journal
                 .begin_closed_epoch_resolution(&f.responder, session, 0, 150)
@@ -3071,7 +3089,7 @@ fn rekey_offer_rejects_authenticated_epoch_invention_and_corrupt_cached_signatur
         .records
         .get_mut(&record_id(&p.session))
         .expect("state");
-    let offset = saved.payload.len() - 50; // fixed empty QPRKST02 control record
+    let offset = saved.payload.len() - 51; // fixed empty QPRKST03 control record
     saved
         .payload
         .get_mut(offset + 8..offset + 16)

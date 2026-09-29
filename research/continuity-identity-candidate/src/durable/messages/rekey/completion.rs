@@ -4,8 +4,8 @@ use super::*;
 use hmac::{Hmac, Mac};
 use q_periapt_sdk::Ciphertext;
 
-const FINAL_TAG: &[u8; 8] = b"QPRKFN01";
-const RECEIPT_TAG: &[u8; 8] = b"QPRKRC01";
+pub(super) const FINAL_TAG: &[u8; 8] = b"QPRKFN01";
+pub(super) const RECEIPT_TAG: &[u8; 8] = b"QPRKRC01";
 const FINAL_CORE: usize = 153 + 32 + 32 + 8;
 const RECEIPT_CORE: usize = FINAL_CORE + 32;
 const FINAL_BODY: usize = FINAL_CORE + 32;
@@ -52,7 +52,7 @@ pub struct RekeyProgress {
     pub sending_epoch: u64,
     /// Highest key epoch admitted for incoming application messages.
     pub receiving_epoch: u64,
-    /// Target of the retained in-progress control exchange, if one exists.
+    /// Target of the retained request or in-progress exchange, if one exists.
     pub pending_epoch: Option<u64>,
 }
 
@@ -78,6 +78,12 @@ pub(super) struct Plan {
     step: Step,
 }
 impl Plan {
+    pub(super) fn resume_input(&self) -> &[u8] {
+        match &self.step {
+            Step::FinalSigning { .. } | Step::FinalReady { .. } => &self.response,
+            Step::ReceiptSigning { final_wire, .. } => final_wire,
+        }
+    }
     pub(super) fn phase(&self) -> u8 {
         match self.step {
             Step::FinalSigning { .. } => 7,
@@ -296,6 +302,7 @@ impl Completed {
             .try_into()
             .map_err(|_| Error::Encoding)?;
         let prior = Control {
+            request: None,
             epoch: epoch - 1,
             parent,
             plan: None,
@@ -694,6 +701,7 @@ impl State {
         self.control.parent = completed.digest();
         self.control.last = Some(completed);
         self.control.plan = None;
+        self.control.request = None;
         Ok(())
     }
 }
@@ -1145,7 +1153,7 @@ impl DeviceJournal {
             confirmed_epoch: state.control.epoch,
             sending_epoch: state.send_epoch,
             receiving_epoch: state.receive_epoch,
-            pending_epoch: if state.control.plan.is_some() {
+            pending_epoch: if state.control.plan.is_some() || state.control.request.is_some() {
                 Some(state.control.target()?)
             } else {
                 None
