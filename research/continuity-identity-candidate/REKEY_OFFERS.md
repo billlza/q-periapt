@@ -6,13 +6,15 @@ The permanent logical session, device identities, policy and installed roster
 bindings remain unchanged. The complete product profile and its security argument
 remain unfrozen. ABI major stays **2**.
 
-The history bound is four retained traffic epochs. The v3 signed profile requires
-both peers to attest that the prefix displaced by a new epoch is fully drained;
-final/receipt commits retire it atomically with the new owners. Outstanding
-application records produce explicit backpressure. The
+The history bound is four retained traffic epochs. The v4 signed profile requires
+both peers to attest that the displaced prefix is settled: fully drained or
+accounted for through an application-acknowledged
+[closed-epoch resolution](EPOCH_RESOLUTION.md). Such resolution reports unknown
+delivery rather than success. Pending reports continue to block retirement;
+final/receipt commits retire settled history atomically with the new owners. The
 [retirement contract](RETENTION.md) preserves lost-ACK recovery and exact control
-replay. The authenticated progress budget/control scheduler and resolution of
-compromised or undeliverable history remain required for the full 0.2.0 contract.
+replay. The authenticated progress budget/control scheduler remains required for
+the full 0.2.0 contract.
 
 ## Local permission and durable ordering
 
@@ -60,7 +62,7 @@ length-delimited SHA3-256 over
 
 The closed candidate profile is:
 
-`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1")`
+`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1")`
 
 A common 153-byte prefix is:
 
@@ -117,10 +119,10 @@ the same reservation is not new entropy relative to that disclosure.
 
 ## Stored state and retained authority
 
-Journal v14 uses `continuity_device_candidate_v14`, `QPVLT014` and `QPVIMG14`, and
-rejects earlier candidate journals unchanged. `QPMST006` stores common session
+Journal v16 uses `continuity_device_candidate_v16`, `QPVLT016` and `QPVIMG16`, and
+rejects earlier candidate journals unchanged. `QPMST008` stores common session
 identity/rekey state, current send/receive epoch IDs, bounded length-delimited
-`QPTEPO01` traffic records and the `QPRKST02` control record. Each traffic record
+`QPTEPO03` traffic records and the `QPRKST02` control record. Each traffic record
 owns its independent counters, chains, ACK keys, receipts and pending input;
 [RETENTION.md](RETENTION.md) specifies their invariants and old-epoch bounds.
 
@@ -142,6 +144,14 @@ Old receiving counts can exceed a new authenticated close count after old-key
 forgery; they remain isolated rather than becoming a new-epoch floor.
 
 ## Executed validation and remaining requirements
+
+The v4 follow-up adds explicit [closed-epoch outcome resolution](EPOCH_RESOLUTION.md)
+and passes 151 release tests on the fixed Rust 1.98.1 toolchain. Sixteen measured
+resolution sync faults and two process kills preserve the exact report or
+application acknowledgement. The original cutover/retirement grids below also
+pass under v4. Format, strict Clippy, Rust 1.90 all-target compilation, 45 isolated
+source-contract checks and both independent public-byte oracles pass. This is
+local candidate evidence; hosted and installed product qualification are separate.
 
 The retained v3 local runs on Rust 1.94 and the fixed Rust 1.98.1 each pass
 **145 release tests**, including eight alternating rekeys with per-epoch traffic
@@ -174,8 +184,8 @@ those are checked by the actual journal fixture and Rust tests. The separate
 anchor oracle verifies 12 envelopes, 60 negative controls and six transitions.
 
 This is a bounded whole-hybrid candidate, not a completed continuous-PQ security
-argument or the finished 0.2.0 SDK. Undeliverable or compromised-history resolution,
-authenticated progress limits/control scheduling, complete lifecycle/fanout,
+argument or the finished 0.2.0 SDK. Application resolution records an unknown
+historical outcome, not restored authenticity. Authenticated progress limits/control scheduling, complete lifecycle/fanout,
 product bindings, construction analysis and current-source platform/performance/
 energy qualification remain required. No history is discarded to manufacture
 further progress. Logical erasure does not erase old database pages or backups.

@@ -25,7 +25,7 @@ fn hash(label: &[u8], data: &[u8]) -> [u8; 32] {
 fn profile() -> [u8; 32] {
     hash(
         b"offer-profile",
-        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1",
+        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v4;messages/v3;retained-epochs=4;settled-prefix-attestation/v1",
     )
 }
 fn genesis(session: &[u8; 32], context: &[u8; 32]) -> [u8; 32] {
@@ -101,6 +101,9 @@ impl Control {
     }
     pub(super) fn send_fenced(&self) -> bool {
         matches!(&self.plan, Some(Plan::Completing(plan)) if plan.send_fenced())
+    }
+    pub(super) fn has_pending(&self) -> bool {
+        self.plan.is_some()
     }
     fn target(&self) -> Result<u64, Error> {
         self.epoch
@@ -289,18 +292,6 @@ fn after_effect(stage: &str, public: &[u8]) {
 }
 
 impl DeviceJournal {
-    fn store_rekey_control(
-        &mut self,
-        image: &mut Image,
-        state: &State,
-    ) -> Result<(), DurableError> {
-        image
-            .records
-            .get_mut(&record_id(&state.session))
-            .ok_or(DurableError::Corrupt)?
-            .payload = state.encode();
-        self.persist(image)
-    }
     /// Prepare and commit the exact identity-signed first rekey flight. This
     /// reserves randomness before computation and replays the same bytes after
     /// restart. It does not install traffic keys or report a confirmed epoch.
@@ -350,7 +341,7 @@ impl DeviceJournal {
                 .reserve_key(&context.policy().runtime, &key_scope)
                 .map_err(Error::from)?;
             state.control.plan = Some(Plan::Key(key));
-            self.store_rekey_control(&mut image, &state)?;
+            self.store_message_state(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-key-reserved");
         }
@@ -394,7 +385,7 @@ impl DeviceJournal {
                 body: body.clone(),
                 signing,
             });
-            self.store_rekey_control(&mut image, &state)?;
+            self.store_message_state(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-signature-reserved");
         }
@@ -429,7 +420,7 @@ impl DeviceJournal {
             key,
             wire: wire.clone(),
         });
-        self.store_rekey_control(&mut image, &state)?;
+        self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::tests::after_stage("rekey-offer-committed");
         self.check_context_release(&image, context, now)?;
@@ -442,34 +433,11 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyOfferStatus, DurableError> {
-        let state = self.rekey_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session)?;
         Ok(state
             .control
             .plan
             .as_ref()
             .map_or(RekeyOfferStatus::Absent, Plan::status))
-    }
-    fn rekey_state_for_status(
-        &mut self,
-        context: &BootstrapContext,
-        session: [u8; 32],
-    ) -> Result<State, DurableError> {
-        self.check_policy(context.policy())?;
-        let image = self.image()?;
-        let record = image
-            .records
-            .get(&record_id(&session))
-            .ok_or(DurableError::Absent)?;
-        if record.kind != RecordKind::Messages
-            || record.context != context.digest()
-            || record.authorities != rosters::context_accounts(context)
-        {
-            return Err(DurableError::Conflict);
-        }
-        let state = State::decode(&record.payload)?;
-        if bootstrap::storage_owner(device(context, state.role)?) != image.owner {
-            return Err(DurableError::Conflict);
-        }
-        Ok(state)
     }
 }

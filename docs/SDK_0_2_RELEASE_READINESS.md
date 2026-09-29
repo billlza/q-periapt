@@ -61,7 +61,7 @@ are retained runtime failures; the version transition does not close them.
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
 | Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. Physical Android evidence remains open; JVM Java-source owner construction is closed |
-| Rust compiler floor | Actual minimum-compiler build and public API execution from the same pinned packages; explicit development-toolchain scope | Rust 1.85.0 builds the default workspace on macOS ARM64 and hosted Linux; the 830e381 Linux MSRV job passes. The retained twelve-crate package cohort has four public API tests passing from nine extracted archives on Rust 1.85.0 and 1.96.1. Remaining target/feature floors require their own evidence; full development tests use the canonical toolchain |
+| Rust compiler floor | Actual minimum-compiler build and public API execution from the same pinned packages; explicit development-toolchain scope | The current dependency contract selects Rust 1.90 and producer 1.98.1; see [dependency maintenance](SDK_DEPENDENCY_POLICY.md). Local candidate all-target compilation passes on 1.90. The older 1.85 package receipts remain historical evidence and cannot qualify the refreshed source. Current installed-package and target floors retain their own source-bound gates |
 | Immutable verified runtime | Actual signature/root/state validation; no raw decision constructor; policy epoch/revocation rules and persistence boundary | Prepare/persist/activate, one-winner revocation, disabled-policy recovery and later re-enabling implemented across all six surfaces; shared Rust/C/Swift persistent runtime and both installed macOS peers have real-file/process recovery evidence; native Linux reference qualification remains open |
 | Explicit expert access and named-purpose derivation | Separate APIs, specified formats/KDF/domain binding, rejection and interoperability evidence | Owned HKDF-SHA-256 purpose derivation and explicit expanded-key transfer implemented across all six surfaces; native integrity/PCT checks and foreign roundtrips pass locally; focused internal review remains required |
 | Resource failures and budgets | Bounded inputs, in-flight workspace/live-object budgets, cleanup on entropy/allocation failure, no success-shaped error path | Per-runtime quotas plus native 1024-owner/64-call aggregate limits implemented; close and prepared activation exempt; full-budget activation and JNI failure/copy disposal exercised; process OOM recovery is not claimed |
@@ -72,12 +72,27 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. Rust inventory remains 137 files; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 182 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The current Continuity candidate implements the four signed rekey flights,
+The current Continuity v4 candidate adds explicit closed-epoch outcome reports.
+The application must durably account for the immutable report before its old
+keys and retained data are removed. Unconfirmed sends remain `DeliveryUnknown`;
+the old acknowledgement floor is never advanced to manufacture delivery success.
+The reproduced old-chain poisoning trace progresses through epoch 6 after that
+explicit accounting. Private per-report HMAC keys also repair a reproduced
+plaintext-guess verifier in the unkeyed draft report ID. The fixed Rust 1.98.1
+run passes 151 release tests, including all 16 measured resolution sync faults
+and two new process kills. Format/strict Clippy, Rust 1.90 all-target compilation,
+45 isolated source-contract checks and both independent OpenSSL oracles pass.
+The [resolution contract](../research/continuity-identity-candidate/EPOCH_RESOLUTION.md)
+records the tested behavior and limits. Continuous recovery analysis,
+authenticated progress scheduling, full device lifecycle and installed
+cross-language product integration remain open.
+
+The earlier `4a78609` Continuity checkpoint implements four signed rekey flights,
 epoch-scoped traffic and ACK authority, and v3 drained-prefix retirement. Eight
 alternating exchanges with message traffic and restart pass while history stays
 bounded to four epochs. Both Rust 1.94 and fixed Rust 1.98.1 pass 145 release
@@ -86,8 +101,11 @@ tests; fixed-toolchain format/strict Clippy, Rust 1.90 all-target compilation an
 cutover grids cover 94 before/after sync faults and 14 real process kills.
 The [protocol record](../research/continuity-identity-candidate/REKEY_OFFERS.md)
 retains the exact contract and limits. This remains an unpublished research
-workspace: compromised-history resolution, authenticated progress scheduling,
-full device lifecycle and installed cross-language product integration are open.
+workspace. Its hosted CodeQL run completes all six analyses; its primary CI run
+passes 41 jobs and cancels the Linux Rust 1.90 candidate job. A separate same-head
+run fails the JVM installer at `PATH java must match JAVA_HOME`, while the primary
+run passes that job. The failure's exact environment cause remains unresolved;
+the passing run does not erase it.
 These checks do not replace exact-source hosted CI or release qualification.
 
 Source `57334d4` passes all 37

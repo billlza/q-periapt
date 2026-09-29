@@ -612,8 +612,8 @@ impl State {
             .expand(&info, material.as_mut_bytes())
             .map_err(|_| Error::Provider)?;
         let traffic = Traffic::from_material(self.session, self.role, target, material.as_bytes())?;
-        // Both authenticated first flights use the v3 drained-prefix contract.
-        // The peer therefore no longer needs this epoch's final ACK. Removal,
+        // Both first flights attest to settled history, including explicit local
+        // accounting for unknown outcomes. The peer no longer needs the final ACK. Removal,
         // fresh owners and exact control output enter the same durable intent.
         self.epochs.retain(|epoch, _| *epoch >= first);
         self.epochs.insert(target, traffic);
@@ -818,7 +818,7 @@ impl DeviceJournal {
                     signing,
                 },
             }));
-            self.store_rekey_control(&mut image, &state)?;
+            self.store_message_state(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-final-reserved");
         }
@@ -864,7 +864,7 @@ impl DeviceJournal {
             response,
             step: Step::FinalReady { wire: wire.clone() },
         }));
-        self.store_rekey_control(&mut image, &state)?;
+        self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-final-committed");
         self.check_context_release(&image, context, now)?;
@@ -954,7 +954,7 @@ impl DeviceJournal {
                     signing,
                 },
             }));
-            self.store_rekey_control(&mut image, &state)?;
+            self.store_message_state(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-receipt-reserved");
         }
@@ -1017,7 +1017,7 @@ impl DeviceJournal {
             final_wire,
             receipt: wire.clone(),
         })?;
-        self.store_rekey_control(&mut image, &state)?;
+        self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-receipt-committed");
         self.check_context_release(&image, context, now)?;
@@ -1079,7 +1079,7 @@ impl DeviceJournal {
             final_wire: wire,
             receipt: receipt.to_vec(),
         })?;
-        self.store_rekey_control(&mut image, &state)?;
+        self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-receipt-accepted");
         self.check_context_release(&image, context, now)?;
@@ -1092,7 +1092,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyProgress, DurableError> {
-        let state = self.rekey_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session)?;
         Ok(RekeyProgress {
             confirmed_epoch: state.control.epoch,
             sending_epoch: state.send_epoch,

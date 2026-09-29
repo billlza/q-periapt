@@ -25,6 +25,12 @@ No SDK binding or ABI export depends on this unpublished candidate. ABI remains 
    then retires only that epoch's outboxes. `message_status` reports the matching
    epoch's absent/reserved/committed/acknowledged state. A stale ACK cannot regress
    a floor or affect any other epoch.
+5. When a closed old epoch cannot be reconciled, the application may explicitly
+   begin [closed-epoch resolution](EPOCH_RESOLUTION.md). Its durable report freezes
+   that epoch and lists unresolved sends, retained plaintext and observed gaps.
+   Only after the host durably accounts for the report may it acknowledge its ID.
+   Such sends then report `DeliveryUnknown`, never `Acknowledged`. Resolution is
+   not an automatic retry, timer, successful-delivery claim or session reset.
 
 Out-of-order consumption erases retained plaintext immediately and leaves its
 consumed marker until the contiguous prefix advances. Missing earlier deliveries
@@ -95,10 +101,11 @@ required witness apply to all current and old-epoch operations.
 
 ## Bounded history and authenticated retirement
 
-The v3 rekey profile binds a mandatory drained-prefix attestation. For target
+The v4 rekey profile binds a mandatory settled-prefix attestation. For target
 epoch `t`, both the offer and response assert that the signing peer can retire
-every locally retained epoch below `max(0, t - 3)`. Before reserving either signed
-flight, the journal requires each such epoch to have:
+every locally retained epoch below `max(0, t - 3)`. A peer either has the
+application-acknowledged terminal resolution described above, or it must satisfy
+the ordinary drained-history conditions before reserving either signed flight:
 
 - a closed sending chain, no pending input, and every outbox acknowledged;
 - an identity-signed receiving close count and consumption through that count;
@@ -128,16 +135,23 @@ queries for an older epoch return `Retired`; unknown old IDs are not labelled
 epoch-bound IDs and fresh keys. Each retained epoch still allows 64 outstanding
 records per direction and 128 skipped keys; the journal remains capped at 2 MiB.
 
-These are local implementation conditions under authenticated, honest peer
-signing. They do not prove continuous recovery under arbitrary compromise. Old
-compromised or undeliverable outboxes may need a separately authenticated,
-application-visible resolution; this candidate conservatively retains them and
-applies backpressure. That resolution, the signed progress budget/control
-scheduler, full lifecycle/fanout and product binding integration remain mandatory
-0.2.0 work.
+The terminal resolution state retains the original counters and ACK floors,
+plus its exact report ID, with no traffic/ACK/skipped keys or inbox/outbox data.
+Only the explicit application acknowledgement can create it. Pending reports do
+not satisfy retirement. Historical receipt coverage applies to ordinary/frozen
+states; a terminal unresolved send range instead yields `DeliveryUnknown` until
+the later signed rekey removes that epoch. Removed epochs return `Retired`, so
+the host must retain its own durable outcome record.
 
-Journal v14 uses `continuity_device_candidate_v14`, `QPVLT014`, `QPVIMG14` and
-message state `QPMST006`. Earlier candidate journals are rejected unchanged,
+These are local implementation conditions under authenticated, honest peer
+signing and explicit application accounting. They do not prove continuous
+recovery under arbitrary compromise or restore past authenticity. Without such
+accounting, unresolved records remain and apply backpressure. The signed progress
+budget/control scheduler, full lifecycle/fanout, complete construction analysis
+and product binding integration remain mandatory 0.2.0 work.
+
+Journal v16 uses `continuity_device_candidate_v16`, `QPVLT016`, `QPVIMG16` and
+message state `QPMST008`. Earlier candidate journals are rejected unchanged,
 without migration or reset. Logical erasure does not erase old encrypted pages,
 write intents, snapshots or backups. Local-only journals do not detect whole-file
 rollback; required-witness journals depend on the independently retained head.

@@ -261,7 +261,7 @@ impl DeviceJournal {
                 offer: offer.to_vec(),
                 stage: Stage::Encapsulation(reservation),
             }));
-            self.store_rekey_control(&mut image, &state)?;
+            self.store_message_state(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-response-kem-reserved");
         }
@@ -320,7 +320,7 @@ impl DeviceJournal {
                     signing,
                 },
             }));
-            self.store_rekey_control(&mut image, &state)?;
+            self.store_message_state(&mut image, &state)?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-response-signature-reserved");
         }
@@ -356,7 +356,7 @@ impl DeviceJournal {
                 root,
             },
         }));
-        self.store_rekey_control(&mut image, &state)?;
+        self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-response-committed");
         self.check_context_release(&image, context, now)?;
@@ -380,7 +380,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyResponseStatus, DurableError> {
-        let state = self.rekey_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session)?;
         Ok(match state.control.plan {
             Some(super::Plan::Response(response)) => response.status(),
             Some(super::Plan::Completing(plan)) => plan.response_status(),

@@ -102,7 +102,7 @@ it cannot be silently rebuilt under a new epoch. Lost control output replays exa
 bytes. A later rekey must retain the previous completion receipt until the peer
 can advance, rather than overwriting the only recoverable copy.
 
-The [signed drained-prefix contract](RETENTION.md) bounds history to four retained
+The [signed settled-prefix contract](RETENTION.md) bounds history to four retained
 epochs and permits further rekeys only when both peers have finished the displaced
 history. The authenticated progress budget and control scheduler remain part of
 the unfrozen profile. Bounds may produce explicit backpressure. They must not be satisfied by
@@ -114,9 +114,14 @@ The implemented transition accepts valid new-epoch traffic after this trace
 while still rejecting old-ID reuse. The tests also cover delayed old ciphertext, old-key ACK rejection against new
 outboxes, control-only replies, restart, all measured cutover sync failures, seven
 actual process-kill points and failed witness-release queries. Complete asymmetric
-scheduling, authenticated resolution of compromised or undeliverable old records,
-and the signed progress budget remain required. Bounded drained-history retirement
-alone does not resolve the retained poisoned outbox in this trace. Message counters, source-bound packet hashes and
+scheduling and the signed progress budget remain required. Drained-history
+retirement alone cannot resolve the retained poisoned outbox in this trace. The
+explicit [application resolution](EPOCH_RESOLUTION.md) now freezes a report of that
+exact outbox, commits application acknowledgement without advancing the old ACK
+floor, and retains `DeliveryUnknown`. The trace then completes epoch four through
+six with actual fresh traffic and bounded history. Without that explicit
+accounting, epoch four remains blocked; no past authenticity is restored.
+Message counters, source-bound packet hashes and
 actual key agreement must remain observable in the tests without exporting live
 application secrets.
 

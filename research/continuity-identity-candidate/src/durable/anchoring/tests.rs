@@ -390,6 +390,24 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .expect("retired status"),
         crate::MessageStatus::Acknowledged
     );
+    let unresolved_id = c
+        .journal
+        .next_message_id(&c.peer.initiator, session, 150)
+        .expect("old slot");
+    let unresolved = c
+        .journal
+        .send_message(
+            &c.peer.initiator,
+            session,
+            unresolved_id,
+            b"old delivery awaiting application resolution",
+            b"application",
+            150,
+        )
+        .expect("old send");
+    responder
+        .receive_message(&c.peer.responder, session, &unresolved, b"application", 150)
+        .expect("retain unconsumed plaintext");
     // Three exact persisted stages each advance/query the witness. Lose only
     // the final release query, after the signed offer is already committed.
     let start = c.server.lock().expect("server").requests.len();
@@ -580,6 +598,69 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .as_bytes(),
         b"anchored epoch one"
     );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 4, false));
+    assert!(matches!(
+        responder.begin_closed_epoch_resolution(&c.peer.responder, session, 0, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 4);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    let resolution = match responder
+        .closed_epoch_resolution_status(&c.peer.responder, session, 0)
+        .expect("committed frozen report")
+    {
+        crate::EpochResolutionStatus::Pending(id) => Some(id),
+        _ => None,
+    }
+    .expect("expected frozen report");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        responder.begin_closed_epoch_resolution(&c.peer.responder, session, 0, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    let report = responder
+        .begin_closed_epoch_resolution(&c.peer.responder, session, 0, 150)
+        .expect("authorized exact report");
+    assert_eq!(report.resolution_id(), resolution);
+    assert_eq!(
+        report
+            .unconsumed_deliveries()
+            .first()
+            .expect("retained old secret")
+            .as_bytes(),
+        b"old delivery awaiting application resolution"
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 4, false));
+    assert!(matches!(
+        responder.acknowledge_closed_epoch_resolution(
+            &c.peer.responder,
+            session,
+            0,
+            resolution,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .closed_epoch_resolution_status(&c.peer.responder, session, 0)
+            .expect("exact accounted outcome"),
+        crate::EpochResolutionStatus::Acknowledged(resolution)
+    );
+    responder
+        .acknowledge_closed_epoch_resolution(&c.peer.responder, session, 0, resolution, 150)
+        .expect("idempotent authorized recovery");
 }
 
 #[test]

@@ -8,6 +8,8 @@ pub(super) struct Traffic {
     pub(super) epoch: u64,
     pub(super) send_closed: bool,
     pub(super) receive_limit: Option<u64>,
+    pub(super) resolution: EpochResolutionStatus,
+    pub(super) resolution_key: Option<ZeroizingBytes<32>>,
     pub(super) send: ZeroizingBytes<32>,
     pub(super) receive: ZeroizingBytes<32>,
     pub(super) send_ack: ZeroizingBytes<32>,
@@ -23,11 +25,23 @@ pub(super) struct Traffic {
 }
 impl Traffic {
     // Signed rekey flights attest to this local condition before a later cutover
-    // can remove the epoch. Do not destroy an unsent reservation, an unacknowledged
-    // outbox, or plaintext the application has not consumed. A disclosed old key
-    // can invent indices beyond the identity-signed close count; only skipped keys
+    // can remove the epoch. Without explicit application resolution, do not destroy
+    // an unsent reservation, unacknowledged outbox, or unconsumed plaintext. A
+    // disclosed old key can invent indices beyond the identity-signed close count; only skipped keys
     // and already-consumed metadata for those impossible honest slots may expire.
     pub(super) fn can_retire(&self) -> bool {
+        if self.resolution.acknowledged() {
+            // The distinct terminal invariant is checked at every image admission.
+            return self.send_closed
+                && self.receive_limit.is_some()
+                && self.pending.is_none()
+                && self.outgoing.is_empty()
+                && self.incoming.is_empty()
+                && self.skipped.is_empty();
+        }
+        if self.resolution != EpochResolutionStatus::Unrequested {
+            return false;
+        }
         self.send_closed
             && self.pending.is_none()
             && self.send_floor == self.sent
@@ -63,6 +77,8 @@ impl Traffic {
             epoch,
             send_closed: false,
             receive_limit: None,
+            resolution: EpochResolutionStatus::Unrequested,
+            resolution_key: None,
             send,
             receive,
             send_ack,
@@ -78,12 +94,17 @@ impl Traffic {
         })
     }
     pub(super) fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(b"QPTEPO01".to_vec());
+        let mut bytes = Zeroizing::new(b"QPTEPO03".to_vec());
         bytes.extend_from_slice(&self.epoch.to_be_bytes());
         bytes.push(u8::from(self.send_closed));
         bytes.push(u8::from(self.receive_limit.is_some()));
         if let Some(limit) = self.receive_limit {
             bytes.extend_from_slice(&limit.to_be_bytes());
+        }
+        self.resolution.encode(&mut bytes);
+        bytes.push(u8::from(self.resolution_key.is_some()));
+        if let Some(key) = &self.resolution_key {
+            bytes.extend_from_slice(key.as_bytes());
         }
         for k in [&self.send, &self.receive, &self.send_ack, &self.receive_ack] {
             bytes.extend_from_slice(k.as_bytes());
@@ -108,7 +129,7 @@ impl Traffic {
         bytes.extend_from_slice(&(self.outgoing.len() as u16).to_be_bytes());
         for (id, saved) in &self.outgoing {
             bytes.extend_from_slice(&id.0);
-            bytes.extend_from_slice(&saved.intent);
+            bytes.extend_from_slice(saved.intent.as_ref());
             bytes.extend_from_slice(&(saved.wire.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&saved.wire);
         }
@@ -116,7 +137,7 @@ impl Traffic {
         for (id, saved) in &self.incoming {
             bytes.extend_from_slice(&id.0);
             bytes.extend_from_slice(&saved.index.to_be_bytes());
-            bytes.extend_from_slice(&saved.intent);
+            bytes.extend_from_slice(saved.intent.as_ref());
             bytes.push(u8::from(saved.consumed));
             bytes.extend_from_slice(&(saved.plaintext.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&saved.plaintext);
@@ -128,7 +149,7 @@ impl Traffic {
             return Err(Error::Capacity);
         }
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPTEPO01" {
+        if d.array::<8>()? != *b"QPTEPO03" {
             return Err(Error::Encoding);
         }
         let epoch = d.u64()?;
@@ -148,6 +169,12 @@ impl Traffic {
         if !matches!(role, 1 | 2) {
             return Err(Error::Encoding);
         }
+        let resolution = EpochResolutionStatus::decode(&mut d)?;
+        let resolution_key = match d.array::<1>()? {
+            [0] => None,
+            [1] => Some(key(d.take(32)?)?),
+            _ => return Err(Error::Encoding),
+        };
         let send = key(d.take(32)?)?;
         let receive = key(d.take(32)?)?;
         let send_ack = key(d.take(32)?)?;
@@ -158,7 +185,7 @@ impl Traffic {
         let received = d.u64()?;
         let mut skipped = BTreeMap::new();
         let count = usize::from(d.u16()?);
-        if count > MAX_SKIPPED {
+        if count > MAX_SKIPPED || (resolution.acknowledged() && count != 0) {
             return Err(Error::Capacity);
         }
         for _ in 0..count {
@@ -197,12 +224,18 @@ impl Traffic {
         let mut outgoing = BTreeMap::new();
         let mut send_indices = BTreeSet::new();
         let count = usize::from(d.u16()?);
-        if count > MAX_RECEIPTS || sent.checked_sub(send_floor) != Some(count as u64) {
+        if count > MAX_RECEIPTS
+            || if resolution.acknowledged() {
+                count != 0 || send_floor > sent
+            } else {
+                sent.checked_sub(send_floor) != Some(count as u64)
+            }
+        {
             return Err(Error::Capacity);
         }
         for _ in 0..count {
             let id = MessageId::from_trusted_state(d.array()?)?;
-            let intent = d.array()?;
+            let intent = Zeroizing::new(d.array()?);
             let length = u32::from_be_bytes(d.array()?) as usize;
             if length > MESSAGE_HEADER + 16 + MAX_PLAINTEXT {
                 return Err(Error::Encoding);
@@ -237,7 +270,11 @@ impl Traffic {
         let mut receive_indices = BTreeSet::new();
         let count = usize::from(d.u16()?);
         if count > MAX_RECEIPTS
-            || received.checked_sub(receive_floor) != Some((count + skipped.len()) as u64)
+            || if resolution.acknowledged() {
+                count != 0 || receive_floor > received
+            } else {
+                received.checked_sub(receive_floor) != Some((count + skipped.len()) as u64)
+            }
         {
             return Err(Error::Capacity);
         }
@@ -247,7 +284,7 @@ impl Traffic {
             if id.check(&session, 3 - role)? != index || id.epoch()? != epoch {
                 return Err(Error::Encoding);
             }
-            let intent = d.array()?;
+            let intent = Zeroizing::new(d.array()?);
             let consumed = match d.array::<1>()? {
                 [0] => false,
                 [1] => true,
@@ -284,12 +321,14 @@ impl Traffic {
         {
             return Err(Error::Encoding);
         }
-        Ok(Self {
+        let traffic = Self {
             session,
             role,
             epoch,
             send_closed,
             receive_limit,
+            resolution,
+            resolution_key,
             send,
             receive,
             send_ack,
@@ -302,7 +341,9 @@ impl Traffic {
             pending,
             outgoing,
             incoming,
-        })
+        };
+        traffic.validate_resolution()?;
+        Ok(traffic)
     }
     pub(super) fn send(
         &mut self,
@@ -310,6 +351,7 @@ impl Traffic {
         plaintext: &[u8],
         ad: &[u8],
     ) -> Result<Vec<u8>, Error> {
+        self.require_unresolved()?;
         if plaintext.len() > MAX_PLAINTEXT || ad.len() > MAX_AD {
             return Err(Error::Capacity);
         }
@@ -376,6 +418,7 @@ impl Traffic {
         Ok(wire)
     }
     pub(super) fn receive(&mut self, wire: &[u8], ad: &[u8]) -> Result<CommittedPlaintext, Error> {
+        self.require_unresolved()?;
         if ad.len() > MAX_AD {
             return Err(Error::Capacity);
         }

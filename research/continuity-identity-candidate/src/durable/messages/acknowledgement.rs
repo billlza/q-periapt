@@ -23,6 +23,7 @@ fn wire_epoch(wire: &[u8]) -> Result<u64, Error> {
 
 impl Traffic {
     pub(super) fn consume(&mut self, id: MessageId) -> Result<bool, Error> {
+        self.require_unresolved()?;
         let index = id.check(&self.session, 3 - self.role)?;
         if id.epoch()? != self.epoch {
             return Err(Error::Scope);
@@ -49,6 +50,7 @@ impl Traffic {
         Ok(true)
     }
     pub(super) fn acknowledgement(&self) -> Result<Vec<u8>, Error> {
+        self.require_unresolved()?;
         let mut wire = if self.epoch == 0 {
             ACK_TAG.to_vec()
         } else {
@@ -68,6 +70,7 @@ impl Traffic {
         Ok(wire)
     }
     pub(super) fn accept_acknowledgement(&mut self, wire: &[u8]) -> Result<bool, Error> {
+        self.require_unresolved()?;
         let epoch = wire_epoch(wire)?;
         if epoch != self.epoch {
             return Err(Error::Scope);

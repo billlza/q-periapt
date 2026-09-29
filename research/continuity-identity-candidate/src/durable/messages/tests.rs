@@ -7,6 +7,8 @@ use crate::{
 };
 use std::{fs, sync::atomic::Ordering};
 
+mod epoch_resolution;
+
 struct Pair {
     f: Fixture,
     di: tempfile::TempDir,
@@ -559,6 +561,23 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .expect("width");
     match operation.as_str() {
+        "epoch-resolution-begin" => {
+            journal
+                .begin_closed_epoch_resolution(&f.responder, session, 0, 150)
+                .expect("freeze report");
+        }
+        "epoch-resolution-ack" => {
+            let id = EpochResolutionId::from_trusted_state(
+                fs::read(path.join("resolution-id"))
+                    .expect("application ID")
+                    .try_into()
+                    .expect("ID width"),
+            )
+            .expect("ID");
+            journal
+                .acknowledge_closed_epoch_resolution(&f.responder, session, 0, id, 150)
+                .expect("commit application accounting");
+        }
         "rekey-final" => {
             journal
                 .accept_rekey_response(
@@ -1551,7 +1570,7 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
     ));
 
     // Fresh, independently identity-signed control flights are not affected by
-    // this old-chain disclosure. They do not yet install an epoch in the API.
+    // this old-chain disclosure. Those first two flights alone do not install an epoch.
     let offer =
         p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
             .expect("honest offer");
@@ -1641,6 +1660,115 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
         honest_wire
     );
     eprintln!("OLD_CHAIN_RETENTION_POISON forged=8 honest_sent_before=0 persisted_floor=8 actual_honest_receive=retired signed_rekey_response=valid isolated_fresh_aead=valid key_only_candidate_receive=retired real_epoch_one_receive=accepted old_outbox=retained");
+    let poisoned_ack =
+        p.jr.message_acknowledgement_for_epoch(&p.f.responder, p.session, 0, 150)
+            .expect("authentic ACK with poisoned count");
+    assert!(matches!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &poisoned_ack, 150),
+        Err(DurableError::Protocol(Error::Authentication))
+    ));
+    p.jr.consume_message(&p.f.responder, p.session, recovered_id, 150)
+        .expect("consume recovered traffic");
+    let ack =
+        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+            .expect("fresh ACK");
+    p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+        .expect("fresh ACK accepted");
+    for target in [2, 3] {
+        assert_eq!(complete_rekey(&mut p), target);
+    }
+    let next_offer =
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150)
+            .expect("receiver has no unresolved local data");
+    assert!(matches!(
+        p.ji.respond_rekey_offer(&p.f.initiator, p.session, &next_offer, &p.f.signer_i, 150),
+        Err(DurableError::Capacity)
+    ));
+    eprintln!("OLD_CHAIN_RECOVERY_BOUNDARY fresh_epochs=3 next_response=capacity old_ack=authenticated_but_out_of_range delivery_outcome=unknown");
+    let report =
+        p.ji.begin_closed_epoch_resolution(&p.f.initiator, p.session, 0, 150)
+            .expect("explicit application resolution");
+    assert_eq!(
+        (
+            report.epoch(),
+            report.acknowledged_before(),
+            report.sent_count()
+        ),
+        (0, 0, 1)
+    );
+    assert_eq!(report.unconfirmed_messages().len(), 1);
+    let unconfirmed = report
+        .unconfirmed_messages()
+        .first()
+        .expect("exactly the honest old send");
+    assert_eq!(unconfirmed.message_id(), honest_id);
+    assert_eq!(
+        *unconfirmed.ciphertext_digest(),
+        digest(&label(b"resolution-ciphertext/v1"), &honest_wire)
+    );
+    let resolution = report.resolution_id();
+    assert_eq!(
+        p.ji.message_status(&p.f.initiator, p.session, honest_id)
+            .expect("pending outcome"),
+        MessageStatus::ResolutionPending
+    );
+    assert!(matches!(
+        p.ji.respond_rekey_offer(&p.f.initiator, p.session, &next_offer, &p.f.signer_i, 150),
+        Err(DurableError::Capacity)
+    ));
+    p.ji.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    assert_eq!(
+        p.ji.begin_closed_epoch_resolution(&p.f.initiator, p.session, 0, 150)
+            .expect("same report after restart")
+            .resolution_id(),
+        resolution
+    );
+    let mut application = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(p.pi.join("application-unknown-delivery"))
+        .expect("new application receipt");
+    application
+        .write_all(resolution.as_bytes())
+        .expect("report identity");
+    application
+        .write_all(honest_id.as_bytes())
+        .expect("unknown delivery identity");
+    application
+        .sync_all()
+        .expect("persist application outcome before library acknowledgement");
+    fs::File::open(&p.pi)
+        .expect("application receipt directory")
+        .sync_all()
+        .expect("persist the new receipt directory entry");
+    p.ji.acknowledge_closed_epoch_resolution(&p.f.initiator, p.session, 0, resolution, 150)
+        .expect("accounted unknown outcome");
+    assert_eq!(
+        p.ji.message_status(&p.f.initiator, p.session, honest_id)
+            .expect("true unknown outcome"),
+        MessageStatus::DeliveryUnknown
+    );
+    assert_eq!(
+        (
+            epoch(&state(&mut p.ji, &p.session)).send_floor,
+            epoch(&state(&mut p.ji, &p.session)).sent
+        ),
+        (0, 1)
+    );
+    assert_eq!(complete_rekey(&mut p), 4);
+    for target in [5, 6] {
+        assert_eq!(complete_rekey(&mut p), target);
+    }
+    let next =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("post-resolution ID");
+    let fresh = p.send(next, b"continued PQ epochs after explicit unknown outcome");
+    assert_eq!(
+        p.receive(&fresh).as_bytes(),
+        b"continued PQ epochs after explicit unknown outcome"
+    );
+    eprintln!("OLD_CHAIN_RESOLUTION unknown_deliveries=1 acknowledged_floor=unchanged fresh_epochs=6 actual_traffic=accepted history=bounded");
 }
 
 #[test]

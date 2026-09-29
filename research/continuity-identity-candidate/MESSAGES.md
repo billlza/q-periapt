@@ -94,10 +94,10 @@ no construction-specific recovery result from it.
 
 ## Storage, bounds and remaining work
 
-Journal schema v14 rejects schemas v1–v13 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v14`, `QPVLT014`, `QPVIMG14`.
+Journal schema v16 rejects schemas v1–v15 without reset. The outer table/header and
+inner image are `continuity_device_candidate_v16`, `QPVLT016`, `QPVIMG16`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
-phase 19 and `QPMST006`. Image admission enforces a one-to-one link with the
+phase 19 and `QPMST008`. Image admission enforces a one-to-one link with the
 matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap
 root, canonical sorted records, and disjoint consumed/skipped receive indices.
 A restored root cannot coexist with a valid linked message state.
@@ -105,7 +105,7 @@ A restored root cannot coexist with a valid linked message state.
 Candidate resource bounds are 16 KiB plaintext, 1 KiB application associated data,
 128 skipped receive keys and 64 outstanding records per direction **per retained
 epoch**. The current candidate retains at most four traffic epochs, retiring a
-drained prefix only through the signed v3 rekey contract; the existing 2 MiB
+settled prefix only through the signed v4 rekey contract; the existing 2 MiB
 aggregate limit remains enforced. Capacity exhaustion does not discard pending
 application records or reset a session.
 [Consumption acknowledgements](RETENTION.md) retire contiguous consumed ranges
@@ -120,8 +120,9 @@ The initial epoch alone has no new DH/PQ input. The implemented signed rekey pat
 now installs fresh hybrid-derived directional traffic and ACK keys, including
 across restart. Tests exercise repeated alternating rekeys, bounded history and
 recovery from the specific old-chain retention-poisoning trace. They are not a
-completed security argument. Authenticated resolution of undeliverable old records,
-an authenticated progress budget/control scheduler, full device lifecycle, multi-device
+completed security argument. Explicit [closed-epoch resolution](EPOCH_RESOLUTION.md)
+now records application-acknowledged unknown outcomes while preserving the old
+ACK floor. An authenticated progress budget/control scheduler, full device lifecycle, multi-device
 fanout and product/binding integration remain required work. Logical root/key removal does not erase old encrypted database
 pages, write intents, snapshots or backups. The witness profile detects local
 rollback only while its separately protected authority remains current.

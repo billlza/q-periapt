@@ -6,6 +6,11 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+mod resolution;
+pub use resolution::{
+    ClosedEpochResolution, EpochResolutionId, EpochResolutionStatus, UnconfirmedMessage,
+    UnconsumedDelivery,
+};
 mod traffic;
 use traffic::Traffic;
 mod rekey;
@@ -18,7 +23,7 @@ const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
 const MESSAGE_TAG: &[u8; 8] = b"QPCMSG03";
 const MAX_TRAFFIC_EPOCHS: usize = 4;
-const STATE_TAG: &[u8; 8] = b"QPMST006";
+const STATE_TAG: &[u8; 8] = b"QPMST008";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
 fn first_retained_epoch(newest: u64) -> u64 {
@@ -101,6 +106,11 @@ pub enum MessageStatus {
     Committed,
     /// The peer authenticated application consumption; its outbox was retired.
     Acknowledged,
+    /// This committed send is in a frozen report awaiting application accounting.
+    ResolutionPending,
+    /// The application acknowledged recording this unresolved delivery outcome.
+    /// No successful delivery or permission to reuse this ID is implied.
+    DeliveryUnknown,
 }
 
 /// Authenticated plaintext returned only after the inbox and chain commit.
@@ -127,12 +137,12 @@ struct SendPlan {
     ad: Vec<u8>,
 }
 struct Outgoing {
-    intent: [u8; 32],
+    intent: Zeroizing<[u8; 32]>,
     wire: Vec<u8>,
 }
 struct Incoming {
     index: u64,
-    intent: [u8; 32],
+    intent: Zeroizing<[u8; 32]>,
     plaintext: Zeroizing<Vec<u8>>,
     consumed: bool,
 }
@@ -160,12 +170,12 @@ fn label(name: &[u8]) -> Vec<u8> {
 fn record_id(session: &[u8; 32]) -> [u8; 32] {
     digest(&label(b"record"), session)
 }
-fn intent(name: &[u8], first: &[u8], second: &[u8]) -> [u8; 32] {
+fn intent(name: &[u8], first: &[u8], second: &[u8]) -> Zeroizing<[u8; 32]> {
     let mut value = Zeroizing::new(Vec::with_capacity(8 + first.len() + second.len()));
     value.extend_from_slice(&(first.len() as u64).to_be_bytes());
     value.extend_from_slice(first);
     value.extend_from_slice(second);
-    digest(&label(name), &value)
+    Zeroizing::new(digest(&label(name), &value))
 }
 fn step(
     seed: &ZeroizingBytes<32>,
@@ -372,6 +382,18 @@ impl State {
 }
 
 impl DeviceJournal {
+    fn store_message_state(
+        &mut self,
+        image: &mut Image,
+        state: &State,
+    ) -> Result<(), DurableError> {
+        image
+            .records
+            .get_mut(&record_id(&state.session))
+            .ok_or(DurableError::Corrupt)?
+            .payload = state.encode();
+        self.persist(image)
+    }
     /// Transfer a committed initiator bootstrap root into durable message chains.
     /// Dispatch its already committed final flight before application frames.
     pub fn activate_initiator_messages(
@@ -556,6 +578,7 @@ impl DeviceJournal {
         let active_epoch = state.send_epoch;
         let fenced = state.control.send_fenced();
         let traffic = state.traffic_mut(epoch)?;
+        traffic.require_unresolved()?;
         if index < traffic.send_floor {
             return Err(Error::Retired.into());
         }
@@ -619,6 +642,30 @@ impl DeviceJournal {
         session: [u8; 32],
         id: MessageId,
     ) -> Result<MessageStatus, DurableError> {
+        let state = self.message_state_for_status(context, session)?;
+        let index = id.check(&session, state.role)?;
+        let traffic = state.traffic(id.epoch()?)?;
+        Ok(if index < traffic.send_floor {
+            MessageStatus::Acknowledged
+        } else if index < traffic.sent && traffic.resolution.acknowledged() {
+            MessageStatus::DeliveryUnknown
+        } else if index < traffic.sent
+            && matches!(traffic.resolution, EpochResolutionStatus::Pending(_))
+        {
+            MessageStatus::ResolutionPending
+        } else if traffic.outgoing.contains_key(&id) {
+            MessageStatus::Committed
+        } else if traffic.pending.as_ref().is_some_and(|p| p.id == id) {
+            MessageStatus::Reserved
+        } else {
+            MessageStatus::Absent
+        })
+    }
+    fn message_state_for_status(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+    ) -> Result<State, DurableError> {
         self.check_policy(context.policy())?;
         let image = self.image()?;
         let record = image
@@ -640,17 +687,7 @@ impl DeviceJournal {
         if image.owner != owner {
             return Err(DurableError::Conflict);
         }
-        let index = id.check(&session, state.role)?;
-        let traffic = state.traffic(id.epoch()?)?;
-        Ok(if index < traffic.send_floor {
-            MessageStatus::Acknowledged
-        } else if traffic.outgoing.contains_key(&id) {
-            MessageStatus::Committed
-        } else if traffic.pending.as_ref().is_some_and(|p| p.id == id) {
-            MessageStatus::Reserved
-        } else {
-            MessageStatus::Absent
-        })
+        Ok(state)
     }
     /// Continue only the sealed pending input or replay its committed outbox.
     /// No replacement plaintext or fresh message ID is accepted by this method.
@@ -665,6 +702,7 @@ impl DeviceJournal {
         let mut state = self.message_state(&image, context, &session, now)?;
         let index = id.check(&session, state.role)?;
         let traffic = state.traffic_mut(id.epoch()?)?;
+        traffic.require_unresolved()?;
         if index < traffic.send_floor {
             return Err(Error::Retired.into());
         }
