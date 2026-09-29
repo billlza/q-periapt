@@ -117,7 +117,7 @@ TEMPLATE_FILES = tuple(
     )
 )
 NORMALIZATION_POLICY = "known-path-roots-v1"
-# Exact optimized default extracted by the pinned AGP 9.4.0 distribution.
+# Exact optimized default: independently extracted from AGP 9.4.0 and 9.4.1; byte-identical.
 # A changed SDK default needs explicit review; it cannot add application Q rules.
 DEFAULT_PROGUARD_SHA256 = (
     "0c2037f6eca949ee82dad4ade741ad1e3fcb7a5d98e4b31d08be89b26cf0d7d0"
@@ -160,13 +160,13 @@ class GradleJvm:
     java_home: str
 
 
-def parse_gradle_jvm(text: str, *, normalized: bool) -> GradleJvm:
+def parse_gradle_jvm(text: str, *, normalized: bool, profile: str = "agp_full_release") -> GradleJvm:
     """Read the selected JVM from the pinned wrapper's actual version output."""
 
     lines = text.splitlines()
     require(
         [line for line in lines if line.startswith("Gradle ")]
-        == [f"Gradle {GRADLE_VERSION}"],
+        == [f"Gradle {profile_spec(profile).gradle_version}"],
         "actual Gradle version output mismatch",
     )
     launcher = [line for line in lines if line.startswith("Launcher JVM:")]
@@ -360,6 +360,7 @@ def verify_r8_configuration(
 ) -> None:
     """Audit merged rule origins and their full bodies; no app-supplied Q keep is accepted."""
     require(package_version in {"0.1.5", "0.2.0"}, "unsupported R8 consumer package version")
+    agp_version = profile_spec("agp_sdk_full_release" if package_version == "0.2.0" else "agp_full_release").agp_version
     verify_normalized_text(text)
     begin = "# The proguard configuration file for the following section is "
     end = "# End of content from "
@@ -386,9 +387,9 @@ def verify_r8_configuration(
     require(origin is None and sections, "incomplete R8 rule source capture")
     matched = set()
     for origin, rules in sections.items():
-        if origin.startswith(f"Android Gradle plugin {AGP_VERSION} (extracted file: "):
+        if origin.startswith(f"Android Gradle plugin {agp_version} (extracted file: "):
             require(
-                origin.endswith(f"/proguard-android-optimize.txt-{AGP_VERSION})"),
+                origin.endswith(f"/proguard-android-optimize.txt-{agp_version})"),
                 "R8 default rule origin differs",
             )
             kind, expected = "default", default
@@ -634,14 +635,19 @@ def _apk_snapshot_entries(data: bytes) -> dict[str, bytes]:
         raise AndroidAgpConsumerError(f"invalid APK archive: {error}") from error
 
 
-def signing_input_entries(original: dict[str, bytes]) -> dict[str, bytes]:
+def app_metadata_content(profile: str) -> bytes:
+    version = profile_spec(profile).agp_version
+    return f"appMetadataVersion=1.1\nandroidGradlePluginVersion={version}\n".encode()
+
+
+def signing_input_entries(original: dict[str, bytes], *, profile: str = "agp_full_release") -> dict[str, bytes]:
     """Select the fixed AGP payload before the existing alignment/signing steps."""
     require(
         VCS_METADATA_ENTRY not in original,
         "AGP release must disable VCS metadata through vcsInfo.include",
     )
     require(
-        original.get(APP_METADATA_ENTRY) == APP_METADATA_CONTENT,
+        original.get(APP_METADATA_ENTRY) == app_metadata_content(profile),
         "AGP app metadata is missing or differs from the pinned producer",
     )
     require(
@@ -657,10 +663,11 @@ def signing_input_entries(original: dict[str, bytes]) -> dict[str, bytes]:
 
 
 def verify_signing_input(
-    original_apk: pathlib.Path, prepared_apk: pathlib.Path
+    original_apk: pathlib.Path, prepared_apk: pathlib.Path, *, profile: str = "agp_full_release"
 ) -> dict[str, object]:
     """Recheck the complete entry/content delta; ZIP layout is not an identity claim."""
-    expected = signing_input_entries(_apk_entries(original_apk))
+    metadata = app_metadata_content(profile)
+    expected = signing_input_entries(_apk_entries(original_apk), profile=profile)
     require(
         _apk_entries(prepared_apk) == expected,
         "AGP signing input changed entries beyond the fixed app metadata removal",
@@ -669,8 +676,8 @@ def verify_signing_input(
         "policy": SIGNING_INPUT_POLICY,
         "removed": {
             APP_METADATA_ENTRY: {
-                "bytes": len(APP_METADATA_CONTENT),
-                "sha256": hashlib.sha256(APP_METADATA_CONTENT).hexdigest(),
+                "bytes": len(metadata),
+                "sha256": hashlib.sha256(metadata).hexdigest(),
             }
         },
     }
@@ -865,8 +872,8 @@ def _verify_build(
     )
     require(
         receipt["profile"] == profile
-        and receipt["agp_version"] == AGP_VERSION
-        and receipt["gradle_version"] == GRADLE_VERSION,
+        and receipt["agp_version"] == spec.agp_version
+        and receipt["gradle_version"] == spec.gradle_version,
         "AGP build profile/toolchain mismatch",
     )
     require(
@@ -894,7 +901,7 @@ def _verify_build(
     verify_build_jvm(
         _json(paths["build_jvm"]),
         parse_gradle_jvm(
-            _bytes(paths["gradle_version"]).decode("utf-8"), normalized=True
+            _bytes(paths["gradle_version"]).decode("utf-8"), normalized=True, profile=profile
         ),
         profile=profile,
     )
@@ -966,7 +973,7 @@ def _verify_build(
     )
     _hash(metadata["sha256"], "removed AGP metadata")
     require(
-        signing_input == verify_signing_input(paths["agp_apk"], paths["apk"]),
+        signing_input == verify_signing_input(paths["agp_apk"], paths["apk"], profile=profile),
         "AGP signing input receipt differs from the complete APK delta",
     )
     unsigned = _apk_entries(paths["apk"])

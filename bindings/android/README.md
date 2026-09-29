@@ -52,12 +52,12 @@ sh artifact/python-run.sh artifact/android_sdk_package.py \
   --aar /absolute/path/to/q-periapt-android-0.2.0.aar \
   --manifest /absolute/path/to/MANIFEST.json \
   --aar-sha256 "$AAR_SHA256" --manifest-sha256 "$AAR_MANIFEST_SHA256" \
-  --sdk /absolute/path/to/android-sdk --gradle /absolute/path/to/gradle-9.7.1/bin/gradle
+  --sdk /absolute/path/to/android-sdk --gradle /absolute/path/to/gradle-9.8.0/bin/gradle
 ```
 
 Use `--offline` only with the required Gradle/AGP dependencies already cached.
 The publisher uses a file Maven repository, pins the original AAR bytes and
-adds a sources JAR and licenses. The consumer reuses the existing AGP 9.4.0
+adds a sources JAR and licenses. The SDK consumer uses AGP 9.4.1
 template with an explicit SDK/Maven mode. Its full variant uses the owner API;
 its minimal variant calls only `runtimeVersion()`. Actual compiler inputs,
 resolved coordinate/hash, compile JVM, merged R8 rules, all 26 DEX native methods,

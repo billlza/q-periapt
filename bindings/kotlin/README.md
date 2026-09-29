@@ -29,7 +29,7 @@ This is a host JVM binding, not the Android binding. Android apps should consume
 the AAR/JNI surface under [`../android`](../android/), built by
 `artifact/android-aar.sh`.
 
-> **Build toolchain** — CI uses Kotlin 2.4.10, JDK 25 LTS and Gradle 9.2.1.
+> **Build toolchain** — CI uses Kotlin 2.4.20, JDK 25 LTS and Gradle 9.8.0.
 > The binding targets JVM bytecode and the stable JDK 25 API. `gradle test` exercises
 > signed-policy resolution, exact digest/state, OS-random key generation and
 > encapsulation, context-bound roundtrip, legacy-state/rollback/tamper rejection,
@@ -41,7 +41,7 @@ the AAR/JNI surface under [`../android`](../android/), built by
 The Maven coordinate is `dev.qperiapt:q-periapt-hybrid:0.2.0`. The existing
 Gradle project name stays `q-periapt-hybrid`. Binary and sources JARs include
 version/ABI metadata and the project licenses. The only SDK dependency is
-Kotlin stdlib 2.4.10. See [the packaged installation instructions](PackageREADME.md)
+Kotlin stdlib 2.4.20. See [the packaged installation instructions](PackageREADME.md)
 for classpath/module-path native access and explicit shared-library selection.
 
 `publishSdkPublicationToSdkStagingRepository` writes only to a file repository.
@@ -58,7 +58,7 @@ sh artifact/python-run.sh artifact/jvm_sdk_package.py \
 ```
 
 Select JDK 25 through `JAVA_HOME` and `PATH` for the invocation, as below. Gradle
-9.2.1 and the existing strict dependency checksum policy are required. Add
+9.8.0 and the existing strict dependency checksum policy are required. Add
 `--offline` only when those tool/dependency artifacts are already cached. Every
 output directory must be fresh. The native archive/manifest digests must come
 from the inspected C candidate, not an unrelated package with the same name.

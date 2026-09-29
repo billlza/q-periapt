@@ -43,7 +43,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -95,7 +95,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -236,7 +236,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -329,7 +329,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

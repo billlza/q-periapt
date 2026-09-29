@@ -45,7 +45,7 @@ class RustPublishContractError(RuntimeError):
 RUSTSEC_ADVISORY_DB_URL = "https://github.com/RustSec/advisory-db.git"
 RUST_PACKAGE_TOOLCHAIN_MARKER = (
     "RUST_PACKAGE_TOOLCHAIN_PASS "
-    "rustc=1.98.1 cargo=1.98.1 cargo-audit=0.22.2"
+    "rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2"
 )
 RUST_PACKAGE_CARGO_HOME_MARKER = (
     "RUST_CARGO_HOME_ISOLATION_PASS mode=0700 ambient_cargo_home_data=unused"
@@ -67,7 +67,7 @@ RUST_MLKEM_PROVIDER_FENCE_MARKER = (
 RUST_PUBLISH_METADATA_MARKER = (
     "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 "
     "mlkem_provider=q-periapt-mlkem-native-sys "
-    "sys_build_dependency=cc@1.5.1"
+    "sys_build_dependency=cc@1.2.67"
 )
 RUST_BACKENDS_INSPECTION_MARKER = (
     "RUST_BACKENDS_INSPECTION_PACKAGE_PASS "
@@ -2680,20 +2680,20 @@ _EXPECTED_LOCAL_SOURCE_SHA256 = {
 # the historical 0.1.5 profile above remains immutable. See SDK_X86_CANDIDATE.md.
 _SDK_020_LOCAL_SOURCE_SHA256 = {
     "build.rs": "423984f4ff9ce17c71087b0cb5fb7208edca6b8a5b2ba47c44fa7c74ccb3002d",
-    "src/build_support.rs": "f6da791117157994e140948e201a7f0e90b21338f79fa65f086577e890139946",
+    "src/build_support.rs": "99bc174061332beb75a32ad77141ad05396d34492c25ed5fff2eccbcf72fe46d",
     "src/build_support_tests.rs": "20424277b435eacc51d5302b5f3fcd893a6654f8dca3a1b02bf1e24b11eb4a40",
-    "src/lib.rs": "a242cf7ad7310b7873269e473b1156c677e637eadb7d3cc9fb5bf240887acf3a",
+    "src/lib.rs": "2248aa6ec5f6fb67993cd8454455efc2f214e0e70e2946961dce82386ce77ab6",
     "src/mlkem_bridge.c": "8984b98849b7a11212ce41c93ea1ff83103bc5eece07195e4b1da7ce401f2120",
-    "src/mlkem_bridge.h": "15538fd5ffc04b35ac4adbd24c7cefcf3073c393484fc2ef13521712f368c390",
+    "src/mlkem_bridge.h": "4d4b8db62d555405d3add46af7eb3c46b178b83982e0db1ebdabb650fbe382e1",
     "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
     "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
     "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
     "src/mlkem_bridge_x86_64.c": "fad6b11a5ec7714de5d5080516cdd148aaf51fd5b0ea4af2d30a8ccc70becca5",
     "src/mlkem_bridge_x86_64_asm.S": "9883dd7537158f994edd05a53f5dc8f826f0b5694015d7ee6672d5ae40e7cebc",
-    "src/mlkem_config.h": "ba4ef98baaf9b1ec7579fb605a84b6341fb6a558ab2e39398aaa40b844da9902",
+    "src/mlkem_config.h": "4f25bb9465bbc97bb6288ebe8ab4fbea03dd126a354683af56ab2497db9e5e28",
     "src/mlkem_fips202_aarch64.h": "6057160bbae3ba7ce63794ac3708e6b6ce16cd018e9d3852f1e7b4f5f50dfad8",
-    "src/raw.rs": "59ce73a32c7868f5c968c7be5b887cee549d6d5672d719beffa671ebae38caf5",
-    "src/tests.rs": "6925afd0e21834fc60159875e9a7ef313b68fa120d541f8a1f4c2ea7d6ad92b3",
+    "src/raw.rs": "6aadf63c2bec569564f20d7d4f1d445d9a4499ad82001a1e3bd339f6d290010e",
+    "src/tests.rs": "5b5ae328625deb9e91e0a90239560a0175a09d88bd66644b036b286a624b9d6e",
     "src/x86_cpu.rs": "9cc280fd8eb685049d799ff9b8c2b6e12123e093972de58cac910cfec1acd811",
 }
 _EXPECTED_BUILD_SURFACE_FILES = (

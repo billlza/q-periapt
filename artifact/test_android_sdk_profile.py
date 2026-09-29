@@ -89,9 +89,9 @@ class AndroidSDKProfileTests(unittest.TestCase):
                 path = fixture / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes((source / name).read_bytes())
-            # An unrelated platform compiler notice and a later repository notice
+            # A retired compiler notice and a later repository notice
             # must not expand either profile's closed Android payload.
-            (fixture / "LICENSES/Rust-1.98.1-library.html").write_bytes(b"other platform compiler notice\n")
+            (fixture / "LICENSES/Rust-1.97.0-library.html").write_bytes(b"retired compiler notice\n")
             (fixture / "LICENSES/future-notice.txt").write_bytes(b"unrelated repository notice\n")
             for profile in ("legacy", "sdk-020"):
                 with self.subTest(profile=profile):

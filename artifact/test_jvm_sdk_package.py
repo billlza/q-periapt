@@ -43,7 +43,7 @@ class JvmSDKPackageTests(unittest.TestCase):
         (self.directory / f"{jvm.PREFIX}.pom").write_text(self.pom)
         self.module = {"formatVersion": "1.1", "component": {"group": jvm.GROUP, "module": jvm.NAME,
             "version": jvm.VERSION, "attributes": {"org.gradle.status": "release"}},
-            "createdBy": {"gradle": {"version": "9.2.1"}}, "variants": []}
+            "createdBy": {"gradle": {"version": "9.8.0"}}, "variants": []}
         for variant in ("apiElements", "runtimeElements", "sourcesElements"):
             sources = variant == "sourcesElements"
             name = f"{jvm.PREFIX}{'-sources' if sources else ''}.jar"

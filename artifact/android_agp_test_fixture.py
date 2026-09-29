@@ -68,9 +68,9 @@ def json_bytes(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
 
 
-def gradle_version(java_home: str = "${JAVA_HOME}") -> bytes:
+def gradle_version(java_home: str = "${JAVA_HOME}", *, profile: str = "agp_full_release") -> bytes:
     return (
-        "Gradle 9.7.1\n"
+        f"Gradle {contract.profile_spec(profile).gradle_version}\n"
         "Launcher JVM:  21.0.11 (Homebrew 21.0.11)\n"
         f"Daemon JVM:    {java_home} (no Daemon JVM specified, using current Java home)\n"
     ).encode()
@@ -377,11 +377,11 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
 
         manifest_rules = b"-keep class dev.qperiapt.androidsmoke.QPeriaptSmokeActivity { <init>(); }\n-keep class dev.qperiapt.androidsmoke.QPeriaptResultInstrumentation { <init>(); }\n"
         merged = section(
-            "Android Gradle plugin 9.4.0 (extracted file: ${WORK}/project/app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-9.4.0)",
+            f"Android Gradle plugin {spec.agp_version} (extracted file: ${{WORK}}/project/app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-{spec.agp_version})",
             default,
         )
         merged += section(
-            "${GRADLE_HOME}/caches/9.7.1/transforms/fixture/transformed/q-periapt-android-" + spec.version + "/proguard.txt",
+            f"${{GRADLE_HOME}}/caches/{spec.gradle_version}/transforms/fixture/transformed/q-periapt-android-" + spec.version + "/proguard.txt",
             aar_entries["proguard.txt"],
         )
         merged += section("<unknown>", b"")
@@ -389,7 +389,7 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
             "agp_apk": zip_bytes(
                 {
                     **apk_entries,
-                    consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+                    consumer.APP_METADATA_ENTRY: consumer.app_metadata_content(profile),
                 }
             ),
             "apk": zip_bytes(apk_entries),
@@ -402,7 +402,7 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
                 f"> Task :app:compile{flavor.title()}ReleaseJavaWithJavac\n"
                 f"> Task :app:minify{flavor.title()}ReleaseWithR8\nBUILD SUCCESSFUL\n"
             ).encode(),
-            "gradle_version": gradle_version(),
+            "gradle_version": gradle_version(profile=profile),
             "build_jvm": json_bytes(build_jvm(profile)),
             "compilation_inputs": (
                 "\n".join(consumer.compiled_sources(profile)) + "\n"
@@ -424,13 +424,13 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
             "source_tree_sha256": tree,
             "aar_sha256": digest(aar),
             "aar_manifest_sha256": digest(manifest),
-            "agp_version": contract.AGP_VERSION,
-            "gradle_version": contract.GRADLE_VERSION,
+            "agp_version": spec.agp_version,
+            "gradle_version": spec.gradle_version,
             "minify_enabled": True,
             "debuggable": False,
             "app_q_keep_rules": [],
             "signing_input": consumer.verify_signing_input(
-                build_paths["agp_apk"], build_paths["apk"]
+                build_paths["agp_apk"], build_paths["apk"], profile=profile
             ),
             "files": {key: record(path) for key, path in build_paths.items()},
             "dex_sha256": {

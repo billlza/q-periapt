@@ -39,9 +39,9 @@ pub fn active_implementation_id() -> &'static str {
     #[cfg(qpn_mlkem_x86_dispatch)]
     {
         if raw::avx2_available() {
-            "mlkem-native-1.2.0/x86_64-native-arith+fips202-avx2"
+            "mlkem-native-2.0.0/x86_64-native-arith+fips202-avx2"
         } else {
-            "mlkem-native-1.2.0/portable-c"
+            "mlkem-native-2.0.0/portable-c"
         }
     }
     #[cfg(not(qpn_mlkem_x86_dispatch))]
@@ -59,8 +59,10 @@ pub const ENCAPSULATION_SEED_LEN: usize = 32;
 /// Length in bytes of an ML-KEM shared secret.
 pub const SHARED_SECRET_LEN: usize = 32;
 
-const MLK_ERR_FAIL: i32 = -1;
 const MLK_ERR_OUT_OF_MEMORY: i32 = -2;
+const MLK_ERR_INVALID_PK: i32 = -4;
+const MLK_ERR_INVALID_SK: i32 = -5;
+const MLK_ERR_PCT_FAIL: i32 = -6;
 
 /// Failure reported by the safe ML-KEM boundary.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -71,7 +73,7 @@ pub enum Error {
     InvalidPublicKey,
     /// The expanded decapsulation key fails its embedded-key or hash check.
     InvalidDecapsulationKey,
-    /// Deterministic key generation reported its generic failure status.
+    /// Deterministic key generation failed its pairwise consistency test.
     KeyGenerationFailed,
     /// The configured C implementation reported an allocation failure.
     OutOfMemory,
@@ -109,13 +111,18 @@ fn map_call(result: raw::CallResult) -> Result<(), Error> {
     match status {
         0 => Ok(()),
         MLK_ERR_OUT_OF_MEMORY => Err(Error::OutOfMemory),
-        MLK_ERR_FAIL => match operation {
-            Operation::Keypair => Err(Error::KeyGenerationFailed),
-            Operation::Encapsulate => Err(Error::InvalidPublicKey),
-            Operation::CheckEmbeddedPublicKey | Operation::Decapsulate => {
-                Err(Error::InvalidDecapsulationKey)
-            }
-        },
+        MLK_ERR_PCT_FAIL if matches!(operation, Operation::Keypair) => {
+            Err(Error::KeyGenerationFailed)
+        }
+        MLK_ERR_INVALID_PK if matches!(operation, Operation::Encapsulate) => {
+            Err(Error::InvalidPublicKey)
+        }
+        MLK_ERR_INVALID_PK if matches!(operation, Operation::CheckEmbeddedPublicKey) => {
+            Err(Error::InvalidDecapsulationKey)
+        }
+        MLK_ERR_INVALID_SK if matches!(operation, Operation::Decapsulate) => {
+            Err(Error::InvalidDecapsulationKey)
+        }
         unexpected => Err(Error::UnexpectedStatus(unexpected)),
     }
 }

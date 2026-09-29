@@ -4,9 +4,9 @@
 
 #include <stdint.h>
 
-#define MLK_CONFIG_API_CONSTANTS_ONLY
+#define MLK_CONFIG_CONSTANTS_ONLY
 #include "mlkem_native.h"
-#undef MLK_CONFIG_API_CONSTANTS_ONLY
+#undef MLK_CONFIG_CONSTANTS_ONLY
 
 #if MLKEM512_PUBLICKEYBYTES != 800 || MLKEM512_SECRETKEYBYTES != 1632 || \
     MLKEM512_CIPHERTEXTBYTES != 768 || MLKEM768_PUBLICKEYBYTES != 1184 || \
@@ -48,11 +48,11 @@ enum
  * public q_periapt_* ABI is unaffected. Unsupported raw archive symbols are
  * not a same-process security boundary. */
 #if defined(QPN_MLKEM_BUILD_NATIVE_X86_64)
-#define QPN_MLKEM_BRIDGE(name) qpn_mlkem_bridge_v1_2_0_avx2_##name
-#define QPN_MLKEM_INTERNAL(name) qpn_mlkem_internal_v1_2_0_avx2_##name
+#define QPN_MLKEM_BRIDGE(name) qpn_mlkem_bridge_v2_0_0_avx2_##name
+#define QPN_MLKEM_INTERNAL(name) qpn_mlkem_internal_v2_0_0_avx2_##name
 #else
-#define QPN_MLKEM_BRIDGE(name) qpn_mlkem_bridge_v1_2_0_##name
-#define QPN_MLKEM_INTERNAL(name) qpn_mlkem_internal_v1_2_0_##name
+#define QPN_MLKEM_BRIDGE(name) qpn_mlkem_bridge_v2_0_0_##name
+#define QPN_MLKEM_INTERNAL(name) qpn_mlkem_internal_v2_0_0_##name
 #endif
 
 QPN_MLKEM_BRIDGE_API int QPN_MLKEM_BRIDGE(512_keypair_derand)(

@@ -17,7 +17,7 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
 > in a `publish = false` shadow crate with no suite code or ABI. The release
 > graph depends on the target-selected `q-periapt-mlkem-native-sys`
-> boundary over vendored `mlkem-native` v1.2.0 plus pinned pre-1.0 backends
+> boundary over vendored `mlkem-native` v2.0.0 plus pinned pre-1.0 backends
 > (`fips204` 0.4.6 and `sha3` 0.10.9). **Do not deploy.** The value proposition is
 > *not* primitive or speed superiority — it is
 > auditable composition, crypto-agility, side-channel CI, machine-checked binding
@@ -371,7 +371,7 @@ backend is a zero-sized type implementing a core trait:
 
 | Backend | Primitive | Crate | Notes |
 |---|---|---|---|
-| `MlKem768` | ML-KEM-768 (FIPS 203) | `q-periapt-mlkem-native-sys` (`mlkem-native` v1.2.0, target-selected native/portable) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Raw expanded-DK import checks the embedded public key's canonical encoding and its stored hash before decapsulation; malformed inputs fail without copying temporary output to the caller. Randomness remains explicit for deterministic conformance testing. No predecessor source-CT claim is inherited. |
+| `MlKem768` | ML-KEM-768 (FIPS 203) | `q-periapt-mlkem-native-sys` (`mlkem-native` v2.0.0, target-selected native/portable) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Raw expanded-DK import checks the embedded public key's canonical encoding and its stored hash before decapsulation; malformed inputs fail without copying temporary output to the caller. Randomness remains explicit for deterministic conformance testing. No predecessor source-CT claim is inherited. |
 | `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `q-periapt-mlkem-native-sys` + `sha3` 0.10.9 | `Kem`, `PreparedKem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; stable private bytes remain the 32-byte seed, while an optional process-local prepared owner holds and erases the 2,400-byte expanded key. It is the only backend admitted to `CompatXWing`. |
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 3.0.0 | `Kem`, default-false first-slot capabilities; deterministic from a 32-byte scalar. Canonical X-Wing uses it in the absorbed traditional slot. |
 | `Sha3_256Xof` | SHA3-256 | RustCrypto `sha3` 0.10.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
@@ -396,10 +396,10 @@ contradictory target metadata and caller backend flags, and provide no runtime
 CPU dispatch: each target's profile is fixed at build time.
 The selection lives below the primitive adapter: ABI 2 exports, key/ciphertext
 formats, suite/profile policy, and combiner wire bytes are unchanged.
-Its upstream trust anchors are v1.2.0 commit
-`0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit
+Its upstream trust anchors are v2.0.0 commit
+`d1b2fe782888bdb761a50336012923180be7f502` and immutable GitHub commit
 archive SHA-256
-`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
+`7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3`.
 The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 `77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`.
 The safe facade concentrates fixed lengths, non-aliasing temporary arrays, return-code
@@ -833,7 +833,7 @@ q-periapt-core  (no deps; no_std; deny unsafe)
    │   └────────────── q-periapt-kem   (core)
    └──────── q-periapt-policy (core + sig)
 
-q-periapt-mlkem-native-sys → pinned vendored mlkem-native v1.2.0 target-selected C/assembly + cc (build only)
+q-periapt-mlkem-native-sys → pinned vendored mlkem-native v2.0.0 target-selected C/assembly + cc (build only)
 q-periapt-backends  → core + sig + mlkem-native-sys / fips204 / sha3 / x25519-dalek / [fips205]
 q-periapt-ffi       → backends + kem + core            (C ABI)
 q-periapt-wasm      → backends + kem + core            (wasm-bindgen)

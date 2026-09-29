@@ -381,28 +381,28 @@ define_raw_parameter_set!(
     keypair = (
         ffi_mlkem512_keypair_derand,
         mlkem512_keypair_derand,
-        "qpn_mlkem_bridge_v1_2_0_512_keypair_derand"
+        "qpn_mlkem_bridge_v2_0_0_512_keypair_derand"
     ),
     encapsulate = (
         ffi_mlkem512_encapsulate_derand,
         mlkem512_encapsulate_derand,
-        "qpn_mlkem_bridge_v1_2_0_512_encapsulate_derand"
+        "qpn_mlkem_bridge_v2_0_0_512_encapsulate_derand"
     ),
     decapsulate = (
         ffi_mlkem512_decapsulate,
         mlkem512_decapsulate,
-        "qpn_mlkem_bridge_v1_2_0_512_decapsulate"
+        "qpn_mlkem_bridge_v2_0_0_512_decapsulate"
     ),
     check_public_key = (
         ffi_mlkem512_check_public_key,
-        "qpn_mlkem_bridge_v1_2_0_512_check_public_key"
+        "qpn_mlkem_bridge_v2_0_0_512_check_public_key"
     ),
     avx2 = (
         avx2_512,
-        "qpn_mlkem_bridge_v1_2_0_avx2_512_keypair_derand",
-        "qpn_mlkem_bridge_v1_2_0_avx2_512_encapsulate_derand",
-        "qpn_mlkem_bridge_v1_2_0_avx2_512_decapsulate",
-        "qpn_mlkem_bridge_v1_2_0_avx2_512_check_public_key"
+        "qpn_mlkem_bridge_v2_0_0_avx2_512_keypair_derand",
+        "qpn_mlkem_bridge_v2_0_0_avx2_512_encapsulate_derand",
+        "qpn_mlkem_bridge_v2_0_0_avx2_512_decapsulate",
+        "qpn_mlkem_bridge_v2_0_0_avx2_512_check_public_key"
     ),
     public_key_len = 800,
     decapsulation_key_len = 1632,
@@ -414,28 +414,28 @@ define_raw_parameter_set!(
     keypair = (
         ffi_mlkem768_keypair_derand,
         mlkem768_keypair_derand,
-        "qpn_mlkem_bridge_v1_2_0_768_keypair_derand"
+        "qpn_mlkem_bridge_v2_0_0_768_keypair_derand"
     ),
     encapsulate = (
         ffi_mlkem768_encapsulate_derand,
         mlkem768_encapsulate_derand,
-        "qpn_mlkem_bridge_v1_2_0_768_encapsulate_derand"
+        "qpn_mlkem_bridge_v2_0_0_768_encapsulate_derand"
     ),
     decapsulate = (
         ffi_mlkem768_decapsulate,
         mlkem768_decapsulate,
-        "qpn_mlkem_bridge_v1_2_0_768_decapsulate"
+        "qpn_mlkem_bridge_v2_0_0_768_decapsulate"
     ),
     check_public_key = (
         ffi_mlkem768_check_public_key,
-        "qpn_mlkem_bridge_v1_2_0_768_check_public_key"
+        "qpn_mlkem_bridge_v2_0_0_768_check_public_key"
     ),
     avx2 = (
         avx2_768,
-        "qpn_mlkem_bridge_v1_2_0_avx2_768_keypair_derand",
-        "qpn_mlkem_bridge_v1_2_0_avx2_768_encapsulate_derand",
-        "qpn_mlkem_bridge_v1_2_0_avx2_768_decapsulate",
-        "qpn_mlkem_bridge_v1_2_0_avx2_768_check_public_key"
+        "qpn_mlkem_bridge_v2_0_0_avx2_768_keypair_derand",
+        "qpn_mlkem_bridge_v2_0_0_avx2_768_encapsulate_derand",
+        "qpn_mlkem_bridge_v2_0_0_avx2_768_decapsulate",
+        "qpn_mlkem_bridge_v2_0_0_avx2_768_check_public_key"
     ),
     public_key_len = 1184,
     decapsulation_key_len = 2400,
@@ -447,28 +447,28 @@ define_raw_parameter_set!(
     keypair = (
         ffi_mlkem1024_keypair_derand,
         mlkem1024_keypair_derand,
-        "qpn_mlkem_bridge_v1_2_0_1024_keypair_derand"
+        "qpn_mlkem_bridge_v2_0_0_1024_keypair_derand"
     ),
     encapsulate = (
         ffi_mlkem1024_encapsulate_derand,
         mlkem1024_encapsulate_derand,
-        "qpn_mlkem_bridge_v1_2_0_1024_encapsulate_derand"
+        "qpn_mlkem_bridge_v2_0_0_1024_encapsulate_derand"
     ),
     decapsulate = (
         ffi_mlkem1024_decapsulate,
         mlkem1024_decapsulate,
-        "qpn_mlkem_bridge_v1_2_0_1024_decapsulate"
+        "qpn_mlkem_bridge_v2_0_0_1024_decapsulate"
     ),
     check_public_key = (
         ffi_mlkem1024_check_public_key,
-        "qpn_mlkem_bridge_v1_2_0_1024_check_public_key"
+        "qpn_mlkem_bridge_v2_0_0_1024_check_public_key"
     ),
     avx2 = (
         avx2_1024,
-        "qpn_mlkem_bridge_v1_2_0_avx2_1024_keypair_derand",
-        "qpn_mlkem_bridge_v1_2_0_avx2_1024_encapsulate_derand",
-        "qpn_mlkem_bridge_v1_2_0_avx2_1024_decapsulate",
-        "qpn_mlkem_bridge_v1_2_0_avx2_1024_check_public_key"
+        "qpn_mlkem_bridge_v2_0_0_avx2_1024_keypair_derand",
+        "qpn_mlkem_bridge_v2_0_0_avx2_1024_encapsulate_derand",
+        "qpn_mlkem_bridge_v2_0_0_avx2_1024_decapsulate",
+        "qpn_mlkem_bridge_v2_0_0_avx2_1024_check_public_key"
     ),
     public_key_len = 1568,
     decapsulation_key_len = 3168,

@@ -21,14 +21,13 @@
 
 /* Keep every upstream KEM entry point local to the single compilation unit. */
 #if defined(QPN_MLKEM_BUILD_NATIVE_X86_64)
-#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v1_2_0_avx2_
+#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v2_0_0_avx2_
 #else
-#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v1_2_0_
+#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v2_0_0_
 #endif
 #define MLK_CONFIG_MULTILEVEL_BUILD
 #define MLK_CONFIG_EXTERNAL_API_QUALIFIER static inline
 #define MLK_CONFIG_INTERNAL_API_QUALIFIER static
-#define MLK_CONFIG_NO_SUPERCOP
 
 #if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64)
 #if defined(QPN_MLKEM_FREESTANDING) || defined(MLK_CONFIG_NO_ASM)
@@ -109,7 +108,7 @@
 #endif /* QPN_MLKEM_FREESTANDING */
 
 /*
- * v1.2.0 declares its randomized entry points even when their definitions are
+ * v2.0.0 declares its randomized entry points even when their definitions are
  * disabled. With static linkage GCC correctly diagnoses those declarations as
  * never defined. Keep the unreachable static-inline definitions well-formed,
  * but provide no entropy source and expose no bridge for them.

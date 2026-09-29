@@ -6,7 +6,7 @@ A new upstream version is a candidate for validation, not evidence that all
 known defects have disappeared. Beta/RC versions remain confined to explicitly
 experimental components. Performance improvements require measured comparisons.
 
-The 2026-09-29 refresh selects Rust 1.98.1 for every release producer, including
+The 2026-09-29 refresh selects Rust 1.98.1 for every SDK release producer, including
 Windows, and Rust 1.90 for the product minimum. The minimum change permits redb
 4.3.0; it is a support-contract change, not a workaround for a failed test.
 The current source uses SHA3 0.12.0, SHAKE 0.1.0, P-256 0.14.0 in the isolated
@@ -41,16 +41,29 @@ format conversion alone cannot establish freshness. See [host storage](SDK_HOST_
 - The SPQR and whole-KEM reference lockfiles identify fixed external comparison
   baselines. Updating them requires a separately identified experiment and new
   results. They are outside the product dependency graph.
+- The legacy ten-crate maintenance proof keeps its exact Rust 1.96.1 receipt
+  contract. It is distinct from the twelve-crate SDK 0.2 producer; frozen
+  publications must remain verifiable without relabeling their compiler.
 - The CodeQL compatibility sysroot remains 1.94.0 for the pinned extractor;
   canonical compilation uses 1.98.1. A future extractor upgrade must retain the
   complete extraction and consistency checks.
 
-Native ML-KEM 2.0.0, Kotlin 2.4.20, Gradle 9.8.0 and AGP 9.4.1 are identified
-follow-up candidates in this refresh. Their integration and qualification are
-separate from the completed Rust lock updates. Node's current stable release is
-26.10.0, its current LTS patch is 24.21.0, and Python's latest stable patch is
-3.14.7. Do not claim these build-tool updates have passed until their package and
-runtime lanes have been exercised.
+The current source also selects native ML-KEM 2.0.0, Kotlin 2.4.20, Gradle 9.8.0,
+AGP 9.4.1, Node 26.10.0 and Python 3.14.7. The native import pins upstream commit
+`d1b2fe782888bdb761a50336012923180be7f502` and its verified archive and per-file
+hashes. Its new operation-specific error codes preserve strict public-key,
+expanded-secret-key and implicit-rejection behavior; internal symbol namespaces
+change to v2.0.0 while the public ABI stays 2. The original 0.1.5 native source
+contract and receipts remain pinned to their original 1.2.0 implementation.
+
+Android SDK and legacy receipt profiles have separate exact build-tool versions.
+The AGP 9.4.1 optimized default rules were extracted through its actual public
+`ProguardFiles.createProguardFile` API and are byte-identical to the retained
+9.4.0 fixture. The Gradle distribution and wrapper are checksum-pinned.
+Kotlin dependency checksums are generated once and then enforced by a separate
+strict verification run. Node 24.0.0 remains the independent minimum-runtime
+check; it is not the package producer. Fresh platform, package and runtime
+qualification must bind this updated source before release.
 
 The local refresh evidence is retained under
 `target/sdk-dependency-refresh-020-1/`: official Rust channel manifests, registry

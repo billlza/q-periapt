@@ -4,13 +4,13 @@
 
 use core::{fmt, str};
 
-pub(crate) const PORTABLE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/portable-c";
+pub(crate) const PORTABLE_IMPLEMENTATION_ID: &str = "mlkem-native-2.0.0/portable-c";
 pub(crate) const AARCH64_NATIVE_IMPLEMENTATION_ID: &str =
-    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar";
+    "mlkem-native-2.0.0/aarch64-native-arith+fips202-v8a-scalar";
 pub(crate) const AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID: &str =
-    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a";
+    "mlkem-native-2.0.0/aarch64-native-arith+fips202-v84a";
 pub(crate) const X86_64_DISPATCH_IMPLEMENTATION_ID: &str =
-    "mlkem-native-1.2.0/x86_64-avx2+portable-dispatch";
+    "mlkem-native-2.0.0/x86_64-avx2+portable-dispatch";
 pub(crate) const X86_BASELINE_FLAGS: [&str; 3] = ["-march=x86-64", "-mno-avx", "-mno-avx2"];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

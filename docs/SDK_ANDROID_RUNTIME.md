@@ -19,7 +19,7 @@ The shared `android-device-smoke.sh` collector accepts two SDK profiles:
 
 The full workload uses in-memory policy state. It does not qualify an Android
 durable state store. Both profiles consume the exact selected four-ABI AAR,
-compile Java 11 bytecode with JDK 21 / AGP 9.4.0 / Gradle 9.7.1, run as
+compile Java 11 bytecode with JDK 21 / AGP 9.4.1 / Gradle 9.8.0, run as
 non-debuggable release APKs, and return results through the manifest-declared
 Instrumentation component. The runtime target for these profiles is an owned
 API 35 emulator with 16-KiB pages, explicitly selected as `arm64-v8a` or `x86_64`.

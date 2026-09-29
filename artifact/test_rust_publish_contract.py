@@ -1335,7 +1335,8 @@ class RustPublishContractTests(unittest.TestCase):
         # the new host-store is local and reuses already pinned redb/rustix.
         # Opt-in sealed SDK operations add exactly seven registry packages:
         # aead, chacha20, chacha20poly1305, cipher, inout, poly1305 and universal-hash
-        # (231 -> 238). Existing registry versions/checksums are unchanged.
+        # (231 -> 238). The current stable refresh adds sponge-cursor and
+        # updated WASM support; exact current registry counts are 240 and 46.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1345,7 +1346,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            238,
+            240,
         )
         self.assertEqual(
             len(
@@ -1354,7 +1355,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="fuzz",
                 )
             ),
-            38,
+            46,
         )
         for scope, local_crates in (
             ("workspace", RUST_WORKSPACE_LOCAL_CRATES),
@@ -2542,7 +2543,7 @@ class RustPublishContractTests(unittest.TestCase):
             ("normal=q-periapt-mlkem-native-sys", "normal=ml-kem"),
             ("publishable=10", "publishable=9"),
             ("nonpublishable=5", "nonpublishable=4"),
-            ("sys_build_dependency=cc@1.5.1", "sys_build_dependency=cc@1.2.68"),
+            ("sys_build_dependency=cc@1.2.67", "sys_build_dependency=cc@1.2.68"),
             ("vendor_files=118", "vendor_files=117"),
             ("upstream=v1.2.0", "upstream=v1.2.1"),
             (
@@ -2842,7 +2843,7 @@ class RustPublishContractTests(unittest.TestCase):
             "create_owned_package_target qperiapt-package-cargo-home."
         )
         cargo_home_export = script.index("export CARGO_HOME")
-        first_cargo_invocation = script.index("cargo +1.98.1")
+        first_cargo_invocation = script.index("cargo +1.96.1")
         self.assertLess(cargo_home_creation, cargo_home_export)
         self.assertLess(cargo_home_export, first_cargo_invocation)
         self.assertIn(
@@ -2908,7 +2909,7 @@ class RustPublishContractTests(unittest.TestCase):
         self.assertLess(explicit_cleanup, script.index(final_marker))
         self.assertIn(
             "RUST_PACKAGE_TOOLCHAIN_PASS "
-            "rustc=1.98.1 cargo=1.98.1 cargo-audit=0.22.2",
+            "rustc=1.96.1 cargo=1.96.1 cargo-audit=0.22.2",
             script,
         )
         self.assertNotIn("git status --porcelain", script)
@@ -2925,12 +2926,12 @@ class RustPublishContractTests(unittest.TestCase):
         self.assertLess(exit_trap, cargo_home_export)
         self.assertLess(exit_trap, cargo_home_marker)
         toolchain_marker = script.index(
-            "RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.98.1 "
-            "cargo=1.98.1 cargo-audit=0.22.2"
+            "RUST_PACKAGE_TOOLCHAIN_PASS rustc=1.96.1 "
+            "cargo=1.96.1 cargo-audit=0.22.2"
         )
         source_marker = script.index("RUST_PACKAGE_SOURCE_PASS commit=%s clean=1")
         metadata_invocation = script.index(
-            "cargo +1.98.1 metadata --locked --format-version 1"
+            "cargo +1.96.1 metadata --locked --format-version 1"
         )
         self.assertLess(cargo_home_marker, toolchain_marker)
         self.assertLess(toolchain_marker, source_marker)
@@ -3626,7 +3627,7 @@ class RustPublishContractTests(unittest.TestCase):
             "RUST_MLKEM_PROVIDER_FENCE_PASS ",
             "reference=ml-kem@0.2.3:dev-only normal=q-periapt-mlkem-native-sys",
             "RUST_PUBLISH_METADATA_PASS publishable=10 nonpublishable=5 ",
-            "sys_build_dependency=cc@1.5.1",
+            "sys_build_dependency=cc@1.2.67",
             "RUST_BACKENDS_INSPECTION_PACKAGE_PASS package=q-periapt-backends ",
             "normalized_archive=present",
             "RUST_BACKENDS_NORMALIZED_MANIFEST_PASS package=q-periapt-backends ",

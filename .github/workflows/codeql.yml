@@ -133,11 +133,11 @@ jobs:
           java -version
           javac -version
 
-      - name: Set up Gradle 9.2.1
+      - name: Set up Gradle 9.8.0
         if: matrix.language == 'java-kotlin'
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
-          gradle-version: "9.2.1"
+          gradle-version: "9.8.0"
 
       - name: Verify Gradle JVM
         if: matrix.language == 'java-kotlin'

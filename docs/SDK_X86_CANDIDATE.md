@@ -6,8 +6,8 @@ their existing default paths and require separate native-backend qualification.
 
 ## Source and dispatch boundary
 
-The 124 vendored files still match mlkem-native v1.2.0 at
-`0ba906cb14b1c241476134d7403a811b382ca498`; no upstream code was edited.
+The 125 vendored files still match mlkem-native v2.0.0 at
+`d1b2fe782888bdb761a50336012923180be7f502`; no upstream code was edited.
 `mlkem_bridge_x86_64.c` and its assembly wrapper select the pinned x86 arithmetic
 and four-way Keccak headers directly. Both the baseline portable C unit and
 native wrapper compile with baseline x86-64 flags. The native assembly has a

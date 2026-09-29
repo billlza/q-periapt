@@ -12,7 +12,7 @@ BIN="$ROOT/target/release/ct_decaps_gap"
 test -x "$BIN"
 WORK=$(mktemp -d "$ROOT/target/x86-avx2-ct.XXXXXX")
 printf 'AVX2_CT_EVIDENCE=%s\n' "$WORK"
-export QPERIAPT_EXPECT_MLKEM_IMPLEMENTATION=mlkem-native-1.2.0/x86_64-native-arith+fips202-avx2
+export QPERIAPT_EXPECT_MLKEM_IMPLEMENTATION=mlkem-native-2.0.0/x86_64-native-arith+fips202-avx2
 sha256sum "$BIN" > "$WORK/binary.sha256"
 {
     uname -srm

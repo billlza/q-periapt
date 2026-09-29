@@ -15,6 +15,8 @@ class AndroidAgpConsumerError(RuntimeError):
 
 AGP_VERSION = "9.4.0"
 GRADLE_VERSION = "9.7.1"
+SDK_AGP_VERSION = "9.4.1"
+SDK_GRADLE_VERSION = "9.8.0"
 PROOF_KIND = "qperiapt.android_agp_consumer_proof"
 BUILD_KIND = "qperiapt.android_agp_consumer_build"
 # The historical maintenance transaction imports PROFILES. Keep its admitted
@@ -68,6 +70,14 @@ class ProfileSpec:
     smoke_directory: str
     workload: str | None
     fixtures: tuple[str, ...]
+
+    @property
+    def agp_version(self) -> str:
+        return SDK_AGP_VERSION if self.aar_profile == "sdk-020" else AGP_VERSION
+
+    @property
+    def gradle_version(self) -> str:
+        return SDK_GRADLE_VERSION if self.aar_profile == "sdk-020" else GRADLE_VERSION
 
     @property
     def proof_kind(self) -> str:
@@ -184,8 +194,8 @@ def validate_profile_projection(
         "AGP AAR manifest mismatch",
     )
     require(
-        record["agp_version"] == AGP_VERSION
-        and record["gradle_version"] == GRADLE_VERSION,
+        record["agp_version"] == profile_spec(expected_profile).agp_version
+        and record["gradle_version"] == profile_spec(expected_profile).gradle_version,
         "AGP consumer toolchain mismatch",
     )
     require(

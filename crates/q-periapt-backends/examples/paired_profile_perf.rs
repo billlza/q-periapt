@@ -41,10 +41,10 @@ const IMPLEMENTATION_IMPROVEMENT: &str = "implementation_improvement";
 const RELEASE_EVIDENCE_MODE: &str = "release_evidence";
 const PROFILE_DIAGNOSTIC_MODE: &str = "profile_diagnostic";
 #[cfg(qperiapt_performance_evidence)]
-const NATIVE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a";
+const NATIVE_IMPLEMENTATION_ID: &str = "mlkem-native-2.0.0/aarch64-native-arith+fips202-v84a";
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_IMPLEMENTATION_ID: &str =
-    "mlkem-native-1.2.0/portable-c/evidence-only-reference";
+    "mlkem-native-2.0.0/portable-c/evidence-only-reference";
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_SCOPE: &str = "evidence_only_non_product_reference";
 #[cfg(qperiapt_performance_evidence)]
@@ -663,13 +663,13 @@ mod portable_reference {
     use q_periapt_core::{Error, Kem, ZeroizingBytes, SHARED_SECRET_LEN};
 
     unsafe extern "C" {
-        fn qpn_mlkem_evidence_portable_v1_2_0_768_encapsulate_derand(
+        fn qpn_mlkem_evidence_portable_v2_0_0_768_encapsulate_derand(
             ciphertext: *mut u8,
             shared_secret: *mut u8,
             public_key: *const u8,
             seed: *const u8,
         ) -> i32;
-        fn qpn_mlkem_evidence_portable_v1_2_0_768_decapsulate(
+        fn qpn_mlkem_evidence_portable_v2_0_0_768_decapsulate(
             shared_secret: *mut u8,
             ciphertext: *const u8,
             decapsulation_key: *const u8,
@@ -717,7 +717,7 @@ mod portable_reference {
             let mut output_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
             // SAFETY: the four exact-size arrays are live and non-overlapping.
             let status = unsafe {
-                qpn_mlkem_evidence_portable_v1_2_0_768_encapsulate_derand(
+                qpn_mlkem_evidence_portable_v2_0_0_768_encapsulate_derand(
                     output_ciphertext.as_mut_ptr(),
                     output_secret.as_mut_bytes().as_mut_ptr(),
                     public_key.as_ptr(),
@@ -748,7 +748,7 @@ mod portable_reference {
             let mut output_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
             // SAFETY: all pointers name exact-size, non-overlapping live arrays.
             let status = unsafe {
-                qpn_mlkem_evidence_portable_v1_2_0_768_decapsulate(
+                qpn_mlkem_evidence_portable_v2_0_0_768_decapsulate(
                     output_secret.as_mut_bytes().as_mut_ptr(),
                     ciphertext.as_ptr(),
                     expanded_key_owner.as_bytes().as_ptr(),

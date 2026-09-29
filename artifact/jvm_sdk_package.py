@@ -29,7 +29,7 @@ BINDING = ROOT / "bindings/kotlin"
 VERSION = "0.2.0"
 GROUP = "dev.qperiapt"
 NAME = "q-periapt-hybrid"
-KOTLIN = "2.4.10"
+KOTLIN = "2.4.20"
 COORDINATE = f"{GROUP}:{NAME}:{VERSION}"
 MODULE = "dev.qperiapt.hybrid"
 MAVEN_PATH = Path("dev/qperiapt") / NAME / VERSION
@@ -186,7 +186,7 @@ def verify_maven(repository: Path) -> dict:
                                      label="JVM Gradle module metadata")
     require(module["formatVersion"] == "1.1" and module["component"] == {"group": GROUP, "module": NAME,
             "version": VERSION, "attributes": {"org.gradle.status": "release"}}, "Gradle module identity differs")
-    require(module["createdBy"] == {"gradle": {"version": "9.2.1"}}, "Gradle module producer differs")
+    require(module["createdBy"] == {"gradle": {"version": "9.8.0"}}, "Gradle module producer differs")
     require([row["name"] for row in module["variants"]] == ["apiElements", "runtimeElements", "sourcesElements"],
             "Gradle module variants differ")
     for row in module["variants"]:
@@ -323,7 +323,7 @@ def build(args: argparse.Namespace) -> dict:
         versions[name] = run(command, output / f"version-{name}", ROOT, env).decode().strip()
     require(re.match(r"(?:openjdk|java) 25(?:[ .])", versions["java"]) is not None
             and versions["javac"].startswith("javac 25"), "JVM SDK candidate requires JDK 25")
-    require("\nGradle 9.2.1\n" in versions["gradle"], "JVM SDK candidate requires Gradle 9.2.1")
+    require("\nGradle 9.8.0\n" in versions["gradle"], "JVM SDK candidate requires Gradle 9.8.0")
     host = re.search(r"^host: (.+)$", versions["rustc"], re.MULTILINE).group(1)
     require(host in ("aarch64-apple-darwin", "x86_64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
             "JVM SDK package qualification supports 64-bit macOS and GNU/Linux hosts")

@@ -9,7 +9,7 @@ The Android binding is a separate AAR/JNI product.
 
 Verify this archive against a trusted SHA-256 digest, then extract it. Configure
 the extracted `maven` directory as a file Maven repository restricted to
-`dev.qperiapt`, with Maven Central supplying Kotlin stdlib 2.4.10. Use the exact
+`dev.qperiapt`, with Maven Central supplying Kotlin stdlib 2.4.20. Use the exact
 coordinate above; this candidate does not provide dynamic-version metadata.
 For example, a Kotlin Gradle consumer uses:
 

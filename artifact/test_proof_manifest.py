@@ -74,7 +74,7 @@ class ProofManifestTests(unittest.TestCase):
                 "boundary": proof_manifest.RUST_PACKAGE_BOUNDARY,
                 "cargo_audit_version": "0.22.2",
                 "cargo_home_isolated": True,
-                "cargo_version": "1.98.1",
+                "cargo_version": "1.96.1",
                 "cargo_warning_free": True,
                 "command": proof_manifest.RUST_PACKAGE_COMMAND,
                 "completed_at": completed_at,
@@ -118,7 +118,7 @@ class ProofManifestTests(unittest.TestCase):
                     proof_manifest.RUST_PACKAGE_PUBLISHABLE_CRATES
                 ),
                 "registry": "crates-io",
-                "rustc_version": "1.98.1",
+                "rustc_version": "1.96.1",
                 "source_commit": commit,
                 "source_tree_dirty": False,
                 "status": "pass",

@@ -505,6 +505,8 @@ def _validate_current_rust_package_contract(
         source_commit=source_commit,
         label="Rust package contract",
     )
+    # This is the frozen ten-crate release contract. SDK 0.2 uses its separate
+    # rust_sdk_profile qualification; changing this pin would reinterpret old receipts.
     exact_fields: tuple[tuple[str, object], ...] = (
         ("evidence_schema", 2),
         ("status", "pass"),
@@ -514,8 +516,8 @@ def _validate_current_rust_package_contract(
         ("boundary", RUST_PACKAGE_BOUNDARY),
         ("registry", "crates-io"),
         ("upload_attempted", False),
-        ("rustc_version", "1.98.1"),
-        ("cargo_version", "1.98.1"),
+        ("rustc_version", "1.96.1"),
+        ("cargo_version", "1.96.1"),
         ("cargo_audit_version", "0.22.2"),
         ("crates_io_index_protocol", RUST_PACKAGE_CRATES_IO_INDEX_PROTOCOL),
         ("crates_io_index_url", RUST_CRATES_IO_SPARSE_INDEX),

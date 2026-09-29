@@ -1192,7 +1192,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
                         f"{condition}"
                         "        run: gradle --version",
                     )
-                    self.assertIn('          gradle-version: "9.2.1"', job)
+                    self.assertIn('          gradle-version: "9.8.0"', job)
                     self.assertLess(
                         job.index(verify_name), job.index("Verify Gradle JVM")
                     )
@@ -1202,7 +1202,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self,
     ) -> None:
         build = (ROOT / "bindings/kotlin/build.gradle.kts").read_text(encoding="utf-8")
-        self.assertIn('kotlin("jvm") version "2.4.10"', build)
+        self.assertIn('kotlin("jvm") version "2.4.20"', build)
         self.assertEqual(
             re.findall(r"jvmTarget\.set\(JvmTarget\.JVM_([0-9]+)\)", build), ["25"]
         )
@@ -5441,26 +5441,16 @@ with _temporary_release_test_directories(parents):
         )
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
-        workflows = (
-            (CI_WORKFLOW, 24, 2),
-            (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
-        )
-        for path, expected_count, windows_count in workflows:
+        workflows = ((CI_WORKFLOW, 24), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
+        self.assertEqual(WINDOWS_RELEASE_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN)
+        for path, expected_count in workflows:
             with self.subTest(workflow=path.name):
                 source = path.read_text(encoding="utf-8")
                 steps = extract_action_steps(source, PINNED_CANONICAL_RUST_ACTION)
                 self.assertEqual(len(steps), expected_count)
                 canonical = f"          toolchain: {CANONICAL_RUST_TOOLCHAIN}\n"
-                windows = f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n"
-                self.assertEqual(
-                    sum(step.count(canonical) for step in steps),
-                    expected_count - windows_count,
-                )
-                self.assertEqual(
-                    sum(step.count(windows) for step in steps), windows_count
-                )
                 for step in steps:
-                    self.assertEqual(step.count(canonical) + step.count(windows), 1)
+                    self.assertEqual(step.count(canonical), 1)
                 self.assertNotIn("cargo +stable", source)
                 self.assertNotIn("toolchain: stable", source)
                 self.assertNotIn("RUSTUP_TOOLCHAIN", source)
@@ -6076,7 +6066,7 @@ with _temporary_release_test_directories(parents):
             "        id: proof_python\n"
             f"        uses: {setup_action}\n"
             "        with:\n"
-            '          python-version: "3.13.14"\n'
+            '          python-version: "3.14.7"\n'
             "          check-latest: false\n"
             "          update-environment: false\n"
         )

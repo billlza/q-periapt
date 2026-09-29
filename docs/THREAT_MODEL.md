@@ -6,7 +6,7 @@
 > portable-derived artifacts; the current target-selected source has no fresh attested
 > multi-platform binary bundle.
 > The target-selected `q-periapt-mlkem-native-sys` integration
-> over vendored `mlkem-native` v1.2.0, pinned `fips204` 0.4.6,
+> over vendored `mlkem-native` v2.0.0, pinned `fips204` 0.4.6,
 > `sha3` 0.10.9, x25519-dalek, and optional fips205 is scoped to the source,
 > build and target identified by each verification record. This document is the
 > authoritative statement of *what the design defends against and — equally

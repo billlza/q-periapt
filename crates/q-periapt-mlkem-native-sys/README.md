@@ -4,7 +4,7 @@
 
 This crate is the single native-code and `unsafe` boundary for Q-Periapt's
 target-selected ML-KEM implementation. It vendors the `mlkem/` subtree from
-`pq-code-package/mlkem-native` v1.2.0 and exposes only safe, allocation-free,
+`pq-code-package/mlkem-native` v2.0.0 and exposes only safe, allocation-free,
 exact-array Rust operations for ML-KEM-512, ML-KEM-768, and ML-KEM-1024. The
 public `IMPLEMENTATION_ID` reports the build configuration;
 `active_implementation_id()` reports the implementation selected in the process.
@@ -18,7 +18,7 @@ An error always leaves every output filled with zeroes.
 - All upstream KEM entry points and parameter-dependent helpers have static
   linkage within each implementation's C translation unit. mlkem-native's remaining shared FIPS 202
   helpers use a unique versioned namespace and hidden visibility.
-- Rust links only versioned `qpn_mlkem_bridge_v1_2_0_*` symbols. Those symbols
+- Rust links only versioned `qpn_mlkem_bridge_v2_0_0_*` symbols. Those symbols
   have hidden visibility and deliberately do not use the product-reserved
   `q_periapt_` prefix.
 - Public Rust signatures encode every C buffer length as an array type.
@@ -56,7 +56,7 @@ functions and upstream's `SecureZeroMemory` path. These helpers and the selected
 assembly are part of this crate's integration TCB. The crate is `no_std` at the
 Rust runtime boundary, but building it requires a supported C compiler.
 
-mlkem-native v1.2.0 declares its randomized functions even when their
+mlkem-native v2.0.0 declares its randomized functions even when their
 definitions are disabled, which conflicts with strict GCC diagnostics once the
 upstream API has static linkage. The translation unit therefore retains those
 functions as unreachable static-inline code and binds a private random-byte
@@ -69,8 +69,7 @@ separate formal evidence for selected assembly routines. The allowlisted
 AArch64 builds use upstream routines from that source tree, but this crate does
 not reproduce the proofs or claim end-to-end functional correctness or
 source-level constant-time verification for the integration. Portable targets
-do not inherit assembly evidence. The crate has not received an independent
-security audit.
+do not inherit assembly evidence.
 
 ELF and Mach-O builds mark the bridge and remaining versioned helpers hidden.
 COFF has no equivalent source-level visibility class; the bridge deliberately
@@ -97,7 +96,7 @@ their default implementation mapping is unchanged. Higher-level backends, SDK,
 FFI and CT harness crates forward the same feature. It is not enabled by default
 until native Linux qualification and performance/release gates are complete.
 
-The candidate compiles the unchanged v1.2.0 portable implementation and the
+The candidate compiles the unchanged v2.0.0 portable implementation and the
 upstream AVX2 arithmetic/four-way Keccak implementation into distinct hidden
 namespaces. C code in both units uses `-march=x86-64 -mno-avx -mno-avx2`; only the
 separate assembly unit contains AVX instructions. Rust CPU/feature overrides and
@@ -114,8 +113,8 @@ process, and never contains key or policy material. Capability-based portable
 selection preserves the exact ML-KEM algorithm, key/ciphertext encodings, key
 checks and implicit rejection. There is no classical KEM fallback.
 
-Build identity is `mlkem-native-1.2.0/x86_64-avx2+portable-dispatch`. Active identity
-is either `mlkem-native-1.2.0/x86_64-native-arith+fips202-avx2` or the unchanged
+Build identity is `mlkem-native-2.0.0/x86_64-avx2+portable-dispatch`. Active identity
+is either `mlkem-native-2.0.0/x86_64-native-arith+fips202-avx2` or the unchanged
 portable identity. Capture the active identity inside instrumentation as well:
 an AVX2 build running the portable path is not an AVX2 CT/performance result.
 This new dispatcher and its assembly are integration TCB; upstream proofs do
@@ -127,7 +126,7 @@ See [candidate validation and open gates](../../docs/SDK_X86_CANDIDATE.md).
 
 [`vendor/PROVENANCE.md`](vendor/PROVENANCE.md) records the immutable commit and
 archive hashes. [`vendor/INVENTORY.sha256`](vendor/INVENTORY.sha256) covers all
-124 files in the repository copy of the upstream `mlkem/` subtree. From a full
+125 files in the repository copy of the upstream `mlkem/` subtree. From a full
 Q-Periapt repository checkout, run:
 
 ```text
@@ -135,13 +134,13 @@ python3 scripts/verify-vendor.py
 ```
 
 The published `.crate` deliberately contains the pinned inventory, provenance,
-licenses, and all 118 build-relevant upstream code files, but not the repository
+licenses, and all 119 build-relevant upstream code files, but not the repository
 maintenance scripts. Crates.io package readers verify its immutable contents via
 the archive checksum and inventory; the commands in this section require a
 repository checkout.
 
 The repository retains the exact upstream subtree. The crates.io package
-contains all 118 code files (`.c`, `.h`, `.inc`, and `.S`) but excludes the six
+contains all 119 code files (`.c`, `.h`, `.inc`, and `.S`) but excludes the six
 CC-BY-4.0 upstream README files because they do not participate in the build.
 The packaged code is available under Apache-2.0 or MIT, matching this crate.
 
@@ -156,7 +155,10 @@ Without `--archive`, the update script downloads the immutable commit archive,
 verifies it before extraction, rejects unsafe paths and non-regular selected
 members, and replaces the subtree only after complete staging.
 
-## Resource bounds
+## Historical portable stack reference
+
+The following v1.2.0 figures are retained as historical context; they do not
+establish v2.0.0 stack bounds. Fresh compiler/target measurements are required.
 
 The upstream v1.2.0 headers report the following maximum cumulative C stack
 allocations. The table applies directly to portable builds; allowlisted AArch64
