@@ -14,7 +14,7 @@ progress budget permits another application send. It cannot observe an adversary
 knowledge. A valid confirmation demonstrates possession of a transcript-bound key;
 it does not demonstrate that nobody else holds that key.
 
-Three executed counterexamples make this distinction operational:
+Four executed counterexamples make this distinction operational:
 
 - The [passive state predictor](../../research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md)
   derives an additional epoch from a disclosed pending decapsulation key and later
@@ -23,6 +23,12 @@ Three executed counterexamples make this distinction operational:
   obtains all 1,536 actual sender keys while honest endpoints confirm fresh epochs
   on two attacker-controlled exchanges. More frequent rekeying does not remove
   continuing impersonation by a disclosed session authenticator.
+- The [durable reservation disclosure](../../research/continuity-identity-candidate/RESERVATION_DISCLOSURE.md)
+  kills the actual candidate after key-generation or encapsulation reservation
+  commit, before computation. The captured token, host wrapping key and prior
+  root reconstruct the later contribution and decrypt all six tested epoch-one
+  messages in each case, after real confirmation and restart. Later KEM execution
+  does not make previously reserved entropy unknown to that observer.
 - The [old-chain retention trace](../../research/continuity-identity-candidate/EPOCH_CUTOVER.md)
   uses one initial receiving-chain disclosure to forge eight real application
   frames. Their committed consumption advances the receiver floor to eight while
@@ -73,9 +79,13 @@ a successful witness query does not make the same reservation fresh. New entropy
 must be reserved only for a genuinely new, admissible transition, never as a retry
 of an uncertain old operation.
 
-The existing passive component experiments serialize KEM private keys directly;
-they do not yet model the candidate's sealed operation reservations. That
-implementation-correspondence experiment remains required.
+The passive component experiments serialize KEM private keys directly. The actual
+candidate now also exercises both first-reservation cuts with process loss,
+sealed-operation replay and twelve real future message decryptions. This supplies
+implementation correspondence for those two cuts only; the remaining phases,
+later contribution ancestry and full construction argument remain required.
+A known host wrapping key plus continuing access to later sealed records is a
+different, stronger disclosure than the experiment's one captured snapshot.
 
 ## Control delivery and bounded continuation
 

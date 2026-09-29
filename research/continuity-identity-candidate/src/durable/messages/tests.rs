@@ -8,6 +8,7 @@ use crate::{
 use std::{fs, sync::atomic::Ordering};
 
 mod epoch_resolution;
+mod reservation_disclosure;
 
 struct Pair {
     f: Fixture,

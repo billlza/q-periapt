@@ -116,6 +116,9 @@ is removed from the current image when final preparation commits; the 245-byte
 encapsulation token is removed when response body/root/signing preparation commits.
 Stored or disclosed old reservations remain exposed material: later execution of
 the same reservation is not new entropy relative to that disclosure.
+The [actual reservation disclosure experiment](RESERVATION_DISCLOSURE.md) now
+reproduces that boundary at both first durable reservations, including successful
+decryption of post-confirmation application frames after restart.
 
 ## Stored state and retained authority
 
