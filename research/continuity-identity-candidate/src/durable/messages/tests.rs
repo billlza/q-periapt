@@ -524,7 +524,7 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
     let is_i = matches!(
         operation.as_str(),
         "activate_i" | "reserved" | "sent" | "acknowledged"
-    );
+    ) || operation == "rekey";
     let mut journal = reopen(
         path,
         if is_i {
@@ -538,6 +538,11 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .expect("width");
     match operation.as_str() {
+        "rekey" => {
+            journal
+                .prepare_rekey_offer(&f.initiator, session, &f.signer_i, 150)
+                .expect("prepare exact rekey offer");
+        }
         "activate_i" => {
             let request = InitiationId::from_trusted_state(
                 fs::read(path.join("request"))
@@ -1336,6 +1341,325 @@ fn committed_roster_revocation_fences_cached_messages_and_bootstrap_after_restar
         assert_eq!(
             p.ji.image().expect("denials do not rewrite").revision,
             revision
+        );
+    }
+}
+
+#[test]
+fn rekey_offer_is_signed_once_replays_after_restart_and_preserves_traffic_state() {
+    let mut p = Pair::new();
+    p.activate();
+    let before = p.ji.image().expect("before");
+    let before_state = State::decode(
+        &before
+            .records
+            .get(&record_id(&p.session))
+            .expect("messages")
+            .payload,
+    )
+    .expect("state");
+    assert_eq!(
+        p.ji.rekey_offer_status(&p.f.initiator, p.session)
+            .expect("status"),
+        RekeyOfferStatus::Absent
+    );
+    let wire =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("offer");
+    let (body, signature) = crate::crypto::open_envelope(&wire).expect("signed envelope");
+    let mut d = Decoder::new(body);
+    assert_eq!(d.array::<8>().expect("tag"), *b"QPRKOF01");
+    d.array::<32>().expect("profile");
+    assert_eq!(d.array::<32>().expect("context"), p.f.initiator.digest());
+    assert_eq!(d.array::<32>().expect("session"), p.session);
+    assert_eq!(d.u64().expect("prior"), 0);
+    assert_eq!(d.u64().expect("target"), 1);
+    assert_eq!(d.array::<1>().expect("role"), [1]);
+    assert_ne!(d.array::<32>().expect("parent"), [0; 32]);
+    q_periapt_sdk::PublicKey::from_bytes(
+        d.take(q_periapt_sdk::PUBLIC_KEY_LEN)
+            .expect("fresh hybrid key"),
+    )
+    .expect("public key");
+    d.finish().expect("exact body");
+    p.f.initiator_device()
+        .key
+        .verify(crate::crypto::Purpose::RekeyOffer, body, signature)
+        .expect("both independent identity signatures");
+    for offset in [0, signature.len() - 1] {
+        let mut forged = signature.to_vec();
+        *forged.get_mut(offset).expect("signature component") ^= 1;
+        assert!(p
+            .f
+            .initiator_device()
+            .key
+            .verify(crate::crypto::Purpose::RekeyOffer, body, &forged)
+            .is_err());
+    }
+    assert!(p
+        .f
+        .initiator_device()
+        .key
+        .verify(crate::crypto::Purpose::BootstrapInitiator, body, signature)
+        .is_err());
+    let after = p.ji.image().expect("committed");
+    let after_state = State::decode(
+        &after
+            .records
+            .get(&record_id(&p.session))
+            .expect("messages")
+            .payload,
+    )
+    .expect("state");
+    assert_eq!(after.revision, before.revision + 3);
+    assert_eq!(
+        (after_state.sent, after_state.received),
+        (before_state.sent, before_state.received)
+    );
+    assert_eq!(after_state.rekey.as_bytes(), before_state.rekey.as_bytes());
+    assert_eq!(after_state.send.as_bytes(), before_state.send.as_bytes());
+    assert_eq!(
+        after_state.receive.as_bytes(),
+        before_state.receive.as_bytes()
+    );
+    p.f.signer_i.close();
+    p.ji.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    assert_eq!(
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("replay without a signing owner"),
+        wire
+    );
+    assert_eq!(
+        p.ji.image().expect("not rewritten").revision,
+        after.revision
+    );
+    assert_eq!(
+        p.ji.rekey_offer_status(&p.f.initiator, p.session)
+            .expect("phase"),
+        RekeyOfferStatus::Committed
+    );
+    let id =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("existing initial-epoch slot");
+    let message = p.send(id, b"traffic after offer preparation");
+    assert_eq!(
+        p.receive(&message).as_bytes(),
+        b"traffic after offer preparation"
+    );
+}
+
+#[test]
+fn rekey_offer_requires_the_designated_identity_and_current_rosters() {
+    let mut p = Pair::new();
+    p.activate();
+    let revision = p.ji.image().expect("before").revision;
+    assert!(matches!(
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_r, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert!(matches!(
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150),
+        Err(DurableError::Protocol(Error::State))
+    ));
+    assert_eq!(
+        p.ji.image().expect("denial does not reserve").revision,
+        revision
+    );
+    p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+        .expect("offer");
+    let revoked = rosters::tests::update(p.f.initiator_device(), 90, 2, false);
+    p.ji.install_roster(&revoked, 150)
+        .expect("commit revocation");
+    p.ji.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    assert_eq!(
+        p.ji.rekey_offer_status(&p.f.initiator, p.session)
+            .expect("read-only reconciliation"),
+        RekeyOfferStatus::Committed
+    );
+    assert!(matches!(
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+}
+
+#[test]
+fn rekey_offer_rejects_authenticated_epoch_invention_and_corrupt_cached_signatures() {
+    let mut p = Pair::new();
+    p.activate();
+    let mut image = p.ji.image().expect("image");
+    let saved = image
+        .records
+        .get_mut(&record_id(&p.session))
+        .expect("state");
+    let offset = saved.payload.len() - 49; // fixed empty QPRKST01 control record
+    saved
+        .payload
+        .get_mut(offset + 8..offset + 16)
+        .expect("confirmed epoch")
+        .copy_from_slice(&1u64.to_be_bytes());
+    assert!(matches!(validate_image(&image), Err(DurableError::Corrupt)));
+    let wire =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("offer");
+    let mut image = p.ji.image().expect("committed");
+    let saved = image
+        .records
+        .get_mut(&record_id(&p.session))
+        .expect("state");
+    let offset = saved
+        .payload
+        .windows(wire.len())
+        .position(|value| value == wire)
+        .expect("exact cached offer");
+    *saved
+        .payload
+        .get_mut(offset + wire.len() - 1)
+        .expect("signature byte") ^= 1;
+    p.ji.persist(&mut image)
+        .expect("authenticated malformed test fixture");
+    assert!(matches!(
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150),
+        Err(DurableError::InvalidCheckpoint(Error::Authentication))
+    ));
+    assert!(p.ji.active.is_none());
+}
+
+#[test]
+fn rekey_offer_sync_faults_reconcile_every_observed_barrier() {
+    let mut baseline = Pair::new();
+    baseline.activate();
+    baseline.ji.close();
+    let (mut normal, _, count, _) = fault_store(&baseline.pi, baseline.f.initiator_device(), false);
+    count.store(0, Ordering::SeqCst);
+    normal
+        .prepare_rekey_offer(
+            &baseline.f.initiator,
+            baseline.session,
+            &baseline.f.signer_i,
+            150,
+        )
+        .expect("measure exact preparation");
+    let barriers = count.load(Ordering::SeqCst);
+    assert!(
+        (12..=48).contains(&barriers),
+        "observed barriers {barriers}"
+    );
+    normal.close();
+    for cut in 1..=barriers {
+        for after in [false, true] {
+            let mut p = Pair::new();
+            p.activate();
+            let revision = p.ji.image().expect("before").revision;
+            p.ji.close();
+            let (mut failed, remaining, _, _) = fault_store(&p.pi, p.f.initiator_device(), after);
+            remaining.store(cut, Ordering::SeqCst);
+            crate::durable::tests::assert_sync_failure(
+                failed.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150),
+                after,
+            );
+            assert!(failed.active.is_none());
+            p.ji = reopen(&p.pi, p.f.initiator_device());
+            let wire =
+                p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+                    .expect("recover exact plan");
+            assert_eq!(
+                p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+                    .expect("same outbox"),
+                wire
+            );
+            assert_eq!(
+                p.ji.rekey_offer_status(&p.f.initiator, p.session)
+                    .expect("phase"),
+                RekeyOfferStatus::Committed
+            );
+            assert_eq!(
+                p.ji.image().expect("one preparation").revision,
+                revision + 3
+            );
+        }
+    }
+    eprintln!(
+        "REKEY_OFFER_SYNC_RECOVERY barriers={barriers} faults={}",
+        barriers * 2
+    );
+}
+
+#[test]
+fn killed_rekey_preparation_reuses_reserved_keys_and_signatures_before_publication() {
+    use crate::durable::tests::ChildGuard;
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+    for stage in [
+        "rekey-key-reserved",
+        "rekey-key-computed",
+        "rekey-signature-reserved",
+        "rekey-signature-computed",
+        "rekey-offer-committed",
+    ] {
+        let mut p = Pair::new();
+        p.activate();
+        p.ji.close();
+        let path = &p.pi;
+        let mut public =
+            p.f.reusable
+                .public_key()
+                .expect("public")
+                .to_bytes()
+                .to_vec();
+        public.extend_from_slice(&p.f.once.public_key().expect("public").to_bytes());
+        fs::write(path.join("public-keys"), public).expect("fixture public keys");
+        fs::write(path.join("session"), p.session).expect("session");
+        fs::write(path.join("operation"), b"rekey").expect("operation");
+        let log = fs::File::create(path.join("child.log")).expect("log");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "durable::messages::tests::message_crash_child",
+                    "--nocapture",
+                ])
+                .env("QPERIAPT_MESSAGES_CRASH_DIR", path)
+                .env("QPERIAPT_MESSAGES_STAGE", stage)
+                .stdout(Stdio::from(log.try_clone().expect("clone log")))
+                .stderr(Stdio::from(log))
+                .spawn()
+                .expect("owned child"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !path.join("ready").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "{stage} did not reach its actual barrier"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!path.join("returned").exists());
+        child.0.kill().expect("kill owned child");
+        assert!(!child.0.wait().expect("reap").success());
+        p.ji = reopen(path, p.f.initiator_device());
+        let wire =
+            p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+                .expect("same computation");
+        if stage == "rekey-key-computed" {
+            let (body, _) = crate::crypto::open_envelope(&wire).expect("envelope");
+            assert_eq!(
+                body,
+                fs::read(path.join("rekey-effect")).expect("original public key body")
+            );
+        } else if stage == "rekey-signature-computed" {
+            assert_eq!(
+                wire,
+                fs::read(path.join("rekey-effect")).expect("original exact signature and wire")
+            );
+        }
+        assert_eq!(
+            p.ji.rekey_offer_status(&p.f.initiator, p.session)
+                .expect("committed"),
+            RekeyOfferStatus::Committed
         );
     }
 }

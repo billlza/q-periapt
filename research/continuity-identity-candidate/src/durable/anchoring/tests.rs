@@ -390,6 +390,45 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .expect("retired status"),
         crate::MessageStatus::Acknowledged
     );
+    // Three exact persisted stages each advance/query the witness. Lose only
+    // the final release query, after the signed offer is already committed.
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 8, false));
+    assert!(matches!(
+        c.journal
+            .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 8);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("reconcile committed offer");
+    assert_eq!(
+        c.journal
+            .rekey_offer_status(&c.peer.initiator, session)
+            .expect("status"),
+        crate::RekeyOfferStatus::Committed
+    );
+    let offer = c
+        .journal
+        .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150)
+        .expect("exact offer release");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        c.journal
+            .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("reopen current head");
+    assert_eq!(
+        c.journal
+            .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150)
+            .expect("same bytes after lost release"),
+        offer
+    );
 }
 
 #[test]

@@ -41,13 +41,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let output = arguments
         .next()
         .ok_or("expected one new output directory")?;
-    let anchors = match arguments.next() {
-        Some(option) if option == "--with-anchor" => true,
-        None => false,
-        Some(_) => return Err("expected optional --with-anchor".into()),
-    };
-    if arguments.next().is_some() {
-        return Err("expected one new output directory".into());
+    let mut anchors = false;
+    let mut rekey = false;
+    for option in arguments {
+        if option == "--with-anchor" && !anchors {
+            anchors = true;
+        } else if option == "--with-rekey" && !rekey {
+            rekey = true;
+        } else {
+            return Err("expected distinct optional --with-anchor and --with-rekey flags".into());
+        }
     }
     let directory = Path::new(&output);
     fs::create_dir(directory)?;
@@ -159,12 +162,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     signer.close();
-    bootstrap_vectors(directory, anchors)?;
+    bootstrap_vectors(directory, anchors, rekey)?;
     println!("public fixtures written; private fixture keys discarded");
     Ok(())
 }
 
-fn bootstrap_vectors(directory: &Path, anchors: bool) -> Result<(), Box<dyn Error>> {
+fn bootstrap_vectors(directory: &Path, anchors: bool, rekey: bool) -> Result<(), Box<dyn Error>> {
     use q_periapt_continuity_identity_candidate::{
         bootstrap_suite_digest, AllowedPrekeyModes, BootstrapContext, DirectoryExpectation,
         InitiatorOperation, PolicyPin, PolicySigningKey, PrekeyQuality, ResponderOperation,
@@ -334,6 +337,14 @@ fn bootstrap_vectors(directory: &Path, anchors: bool) -> Result<(), Box<dyn Erro
         return Err("fixture context differs".into());
     }
     save(directory, "bootstrap-context.digest", &ci.digest())?;
+    if rekey {
+        return durable_bootstrap_vectors(
+            directory,
+            (&ci, signer_i, device_i),
+            (&cr, signer_r, device_r),
+            &key,
+        );
+    }
     let mut initiator = InitiatorOperation::start(ci, signer_i, 150)?;
     let mut responder = ResponderOperation::new(cr);
     let initial = initiator.initial_message(150)?;
@@ -354,6 +365,87 @@ fn bootstrap_vectors(directory: &Path, anchors: bool) -> Result<(), Box<dyn Erro
     save(directory, "bootstrap-final.bin", result.final_message())?;
     save(directory, "bootstrap-session.id", &session.id())?;
     Ok(())
+}
+
+type VectorParty<'a> = (
+    &'a Arc<q_periapt_continuity_identity_candidate::BootstrapContext>,
+    &'a DeviceSigningKey,
+    &'a q_periapt_continuity_identity_candidate::VerifiedDevice,
+);
+
+#[cfg(unix)]
+fn durable_bootstrap_vectors(
+    directory: &Path,
+    initiator: VectorParty<'_>,
+    responder: VectorParty<'_>,
+    prekey: &q_periapt_sdk::HybridKey,
+) -> Result<(), Box<dyn Error>> {
+    use q_periapt_continuity_identity_candidate::{DeviceJournal, InitiationId, JournalKey};
+    use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
+    use std::os::unix::fs::PermissionsExt;
+    let private = tempfile::Builder::new()
+        .prefix("rekey-vector-")
+        .permissions(fs::Permissions::from_mode(0o700))
+        .tempdir()?;
+    let path = private.path().canonicalize()?;
+    let (ci, si, di) = initiator;
+    let (cr, sr, dr) = responder;
+    let mut ji = DeviceJournal::provision(
+        &path.join("initiator.redb"),
+        JournalKey::provision(&path.join("initiator-key"))?,
+        di,
+    )?;
+    let mut jr = DeviceJournal::provision(
+        &path.join("responder.redb"),
+        JournalKey::provision(&path.join("responder-key"))?,
+        dr,
+    )?;
+    let request = InitiationId::generate()?;
+    let initial = ji.initiate(Arc::clone(ci), request, si, 150)?;
+    let reply = jr.respond(
+        Arc::clone(cr),
+        &initial,
+        sr,
+        PqKeySource::from_key(prekey),
+        TraditionalKeySource::from_key(prekey),
+        150,
+    )?;
+    let completed = ji.accept_reply(Arc::clone(ci), request, &reply, 150)?;
+    let session = completed.session_id();
+    if jr.finish(Arc::clone(cr), &initial, completed.final_message(), 150)? != session
+        || ji.activate_initiator_messages(Arc::clone(ci), request, 150)? != session
+        || jr.activate_responder_messages(Arc::clone(cr), &initial, 150)? != session
+    {
+        return Err("durable fixture session differs".into());
+    }
+    save(directory, "bootstrap-initial.bin", &initial)?;
+    save(directory, "bootstrap-reply.bin", &reply)?;
+    save(directory, "bootstrap-final.bin", completed.final_message())?;
+    save(directory, "bootstrap-session.id", &session)?;
+    let offer = ji.prepare_rekey_offer(ci, session, si, 150)?;
+    save(directory, "rekey-offer.bin", &offer)?;
+    let identity = ji.identity()?;
+    ji.close();
+    ji = DeviceJournal::open(
+        &path.join("initiator.redb"),
+        JournalKey::open(&path.join("initiator-key"))?,
+        di,
+        identity,
+    )?;
+    if ji.prepare_rekey_offer(ci, session, si, 150)? != offer {
+        return Err("durable offer replay differs".into());
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn durable_bootstrap_vectors(
+    _: &Path,
+    _: VectorParty<'_>,
+    _: VectorParty<'_>,
+    _: &q_periapt_sdk::HybridKey,
+) -> Result<(), Box<dyn Error>> {
+    Err("durable rekey vectors require the private Unix storage adapter".into())
 }
 
 #[cfg(unix)]

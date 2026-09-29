@@ -45,6 +45,11 @@ expiry is checked during bootstrap, not used as an established message lifetime.
 The installed [roster head](ROSTER_AUTHORITY.md) controls both peers' membership
 and roster lifetime. Committed revocations fence retained contexts after restart.
 
+The [rekey offer path](REKEY_OFFERS.md) reserves a fresh hybrid key and commits an
+identity-signed control outbox through the same journal. Preparing that offer does
+not change the confirmed epoch or traffic chains; response and epoch installation
+remain required.
+
 ## Fixed candidate cryptography and bytes
 
 Let `D = ASCII("Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/")`.
@@ -85,10 +90,10 @@ no construction-specific recovery result from it.
 
 ## Storage, bounds and remaining work
 
-Journal schema v10 rejects schemas v1–v9 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v10`, `QPVLT010`, `QPVIMG10`.
+Journal schema v11 rejects schemas v1–v10 without reset. The outer table/header and
+inner image are `continuity_device_candidate_v11`, `QPVLT011`, `QPVIMG11`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
-phase 19 and `QPMST002`. Image admission enforces a one-to-one link with the
+phase 19 and `QPMST003`. Image admission enforces a one-to-one link with the
 matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap
 root, canonical sorted records, and disjoint consumed/skipped receive indices.
 A restored root cannot coexist with a valid linked message state.

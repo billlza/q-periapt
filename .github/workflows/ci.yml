@@ -1799,10 +1799,10 @@ jobs:
           mkdir -p target
           candidate_openssl="$(brew --prefix openssl@3)/bin/openssl"
           test -x "$candidate_openssl"
-          cargo +1.98.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-anchor
+          cargo +1.98.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-anchor --with-rekey
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py \
             --fixtures target/continuity-public-vectors --output target/continuity-public-verification \
-            --openssl "$candidate_openssl"
+            --openssl "$candidate_openssl" --with-rekey
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_anchor_vectors.py \
             --fixtures target/continuity-public-vectors --output target/continuity-anchor-verification \
             --openssl "$candidate_openssl"

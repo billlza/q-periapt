@@ -170,7 +170,7 @@ def expected_path(ids: list[bytes], index: int) -> list[bytes]:
     return expected_path(ids[pivot:], index - pivot) + [tree(ids[:pivot])]
 
 
-def verify(oracle: Oracle) -> dict:
+def verify(oracle: Oracle, *, with_rekey: bool = False) -> dict:
     version = oracle.command("version", ["version", "-a"], 0).decode()
     root_key = oracle.read("root.pub", 1985)
     device_key = oracle.read("device.pub", 1985)
@@ -262,10 +262,13 @@ def verify(oracle: Oracle) -> dict:
                         "selection quality differs")
                 selection_total += 1
     bootstrap = verify_bootstrap(oracle)
-    return {"schema": 3, "status": "passed", "scope": "public candidate fixture cross-check",
+    report = {"schema": 3, "status": "passed", "scope": "public candidate fixture cross-check",
             "openssl": version, "signed_envelopes": 15, "membership_proofs": proof_total + 2,
             "authenticated_selections": selection_total + 1, "bootstrap": bootstrap,
             "fixture_sha256": oracle.inputs, "commands": oracle.commands}
+    if with_rekey:
+        report.update(schema=4, signed_envelopes=16, rekey_offer=verify_rekey_offer(oracle))
+    return report
 
 
 def bootstrap_hash(label: bytes, body: bytes) -> bytes:
@@ -372,12 +375,39 @@ def main() -> None:
     parser.add_argument("--fixtures", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--openssl", required=True)
+    parser.add_argument("--with-rekey", action="store_true")
     args = parser.parse_args()
     args.output.mkdir()
     oracle = Oracle(args.fixtures, args.output, args.openssl)
-    report = verify(oracle)
+    report = verify(oracle, with_rekey=args.with_rekey)
     save(args.output / "result.json", (json.dumps(report, indent=2) + "\n").encode())
-    print("CANDIDATE_PUBLIC_VECTORS_PASS envelopes=15 proofs=30 selections=9 signature_negative_controls=75 bootstrap=passed")
+    envelopes = report["signed_envelopes"]
+    print(f"CANDIDATE_PUBLIC_VECTORS_PASS envelopes={envelopes} proofs=30 selections=9 signature_negative_controls={envelopes*5} bootstrap=passed rekey={'verified' if args.with_rekey else 'not-requested'}")
+
+
+def verify_rekey_offer(oracle: Oracle) -> dict:
+    def rekey_hash(label: bytes, data: bytes) -> bytes:
+        domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/" + label
+        return hashlib.sha3_256(len(domain).to_bytes(8,"big") + domain + len(data).to_bytes(8,"big") + data).digest()
+    key = oracle.read("bootstrap-i-device.pub", 1985)
+    body = Reader(oracle.envelope("rekey-offer", 9, key))
+    require(body.take(8) == b"QPRKOF01", "rekey offer tag")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-offer/v1")
+    require(body.take(32) == profile, "rekey offer profile")
+    context = oracle.read("bootstrap-context.digest", 32)
+    session = oracle.read("bootstrap-session.id", 32)
+    require(body.take(32) == context and body.take(32) == session, "rekey offer session/context")
+    require(body.integer(8) == 0 and body.integer(8) == 1 and body.integer(1) == 1, "rekey epoch/role")
+    require(body.take(32) == rekey_hash(b"genesis", session+context), "rekey predecessor transcript")
+    public = body.take(1216)
+    body.finish()
+    for at in range(0,1152,3):
+        word = int.from_bytes(public[at:at+3],"little")
+        require((word & 4095) < 3329 and (word >> 12) < 3329, "rekey noncanonical ML-KEM public coefficient")
+    classical = int.from_bytes(public[1184:],"little")
+    require(0 < classical < 2**255-19, "rekey noncanonical classical public key")
+    return {"identity_signatures":"verified", "session_and_predecessor_binding":"verified",
+            "confirmed_epoch":0, "offered_epoch":1, "scope":"committed offer only; no epoch installation"}
 
 
 if __name__ == "__main__":

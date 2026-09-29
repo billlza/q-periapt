@@ -109,6 +109,13 @@ records using authenticated monotonic floors and session-issued sequence IDs.
 This initial epoch has no fresh DH/PQ input; the full ratchet, device lifecycle
 and multi-device contracts remain required within 0.2.0.
 
+The [durable rekey offer](REKEY_OFFERS.md) now reserves a fresh hybrid key and
+purpose-bound signature before committing its exact control outbox. This first
+flight remains distinct from peer confirmation and installation of new traffic
+keys. It is replayable after process loss and gated by current roster/witness
+authority. Use `public_vectors --with-rekey` and the verifier's matching flag for
+independent signature and binding checks of this path.
+
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
 trusted enrollment from journal genesis, durable full-head/fence comparison and
 unknown-outcome recovery. Fresh challenges and one-result-per-attempt admission

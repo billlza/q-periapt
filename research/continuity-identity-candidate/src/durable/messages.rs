@@ -6,6 +6,8 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+mod rekey;
+pub use rekey::RekeyOfferStatus;
 
 const MAX_PLAINTEXT: usize = 16 * 1024;
 const MAX_AD: usize = 1024;
@@ -13,7 +15,7 @@ const MAX_SKIPPED: usize = 128;
 const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
 const MESSAGE_TAG: &[u8; 8] = b"QPCMSG02";
-const STATE_TAG: &[u8; 8] = b"QPMST002";
+const STATE_TAG: &[u8; 8] = b"QPMST003";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
 /// Journal-issued session/direction/sequence ID, retained by the host for retries.
@@ -118,6 +120,7 @@ struct State {
     session: [u8; 32],
     role: u8,
     rekey: ZeroizingBytes<32>,
+    control: rekey::Control,
     send: ZeroizingBytes<32>,
     receive: ZeroizingBytes<32>,
     send_ack: ZeroizingBytes<32>,
@@ -260,6 +263,7 @@ impl State {
             session,
             role,
             rekey,
+            control: rekey::Control::genesis(&session, context),
             send,
             receive,
             send_ack,
@@ -321,6 +325,7 @@ impl State {
             bytes.extend_from_slice(&(saved.plaintext.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&saved.plaintext);
         }
+        self.control.encode(&mut bytes);
         bytes
     }
     fn decode(bytes: &[u8]) -> Result<Self, Error> {
@@ -464,12 +469,14 @@ impl State {
                 },
             );
         }
+        let control = rekey::Control::decode(&mut d)?;
         d.finish()?;
         Ok(Self {
             source,
             session,
             role,
             rekey,
+            control,
             send,
             receive,
             send_ack,
@@ -966,6 +973,10 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             return Err(DurableError::Corrupt);
         }
         let state = State::decode(&record.payload).map_err(|_| DurableError::Corrupt)?;
+        state
+            .control
+            .validate(&state.session, state.role, &record.context)
+            .map_err(|_| DurableError::Corrupt)?;
         if *id != record_id(&state.session) || !sources.insert(state.source) {
             return Err(DurableError::Corrupt);
         }

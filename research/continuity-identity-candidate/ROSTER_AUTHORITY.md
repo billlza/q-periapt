@@ -55,8 +55,8 @@ lifetime, while credential and policy expiry remain binding. Explicit renewal ma
 retain a still-enrolled credential. Witness enrollment validity and its later
 renewal remain a separate authority transition.
 
-The unreleased journal schema is v10: `continuity_device_candidate_v10`,
-`QPVLT010`, `QPVIMG10`. It rejects earlier journal schemas without reset or implicit
+The unreleased journal schema is v11: `continuity_device_candidate_v11`,
+`QPVLT011`, `QPVIMG11`. It rejects earlier journal schemas without reset or implicit
 migration. Network bootstrap/message bytes and SDK ABI major 2 are unchanged.
 The image contains `local_account[32]`; each record adds a one-byte authority count
 and zero to two sorted account IDs. Roster records use kind 5/phase 20 and
@@ -75,7 +75,7 @@ exchange loss, restored snapshots, cached message/bootstrap/ACK denial, prekey
 release and retirement, expiry/renewal and replacement generations. Malformed
 authenticated fixtures test account-reference and local-account invariants.
 
-Local Rust 1.98.1 release validation passes all 126 candidate tests and strict
+Local Rust 1.98.1 release validation passes all 131 candidate tests and strict
 all-target Clippy; actual Rust 1.90 checks all targets. The roster transition has
 four measured sync barriers (eight before/after faults) and four witness exchanges
 (eight request/response-loss cases). Two real child-process termination points

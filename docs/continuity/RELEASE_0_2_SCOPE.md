@@ -70,6 +70,9 @@ the existing public-commitment model into a working cryptographic protocol.
   [account roster heads](../../research/continuity-identity-candidate/ROSTER_AUTHORITY.md)
   now fence bootstrap, prekey, message and cached-output authority across restarts,
   preserving observed device-generation history through exact write-intent recovery.
+  It also prepares an [identity-signed rekey offer](../../research/continuity-identity-candidate/REKEY_OFFERS.md)
+  with reserved hybrid-key/signature randomness and exact committed replay.
+  This first flight does not install an epoch or satisfy the fresh-rekey requirement.
   Full device lifecycle,
   cryptographic erasure, fresh DH/PQ ratcheting and full rollback recovery remain
   required work.
