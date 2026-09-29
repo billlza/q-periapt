@@ -1290,7 +1290,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
         self.assertIn("        if: matrix.language == 'rust'\n", compatibility)
         self.assertIn(f"        uses: {PINNED_CANONICAL_RUST_ACTION}\n", compatibility)
-        self.assertIn("          toolchain: 1.94.0\n", compatibility)
+        self.assertIn("          toolchain: 1.97.0\n", compatibility)
         self.assertIn("          components: rust-src\n", compatibility)
 
         compile_step = extract_named_workflow_step(
@@ -1301,11 +1301,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
             compile_step.count("          test ! -e target && test ! -L target\n"), 2
         )
         self.assertIn(
-            'CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.94.0"',
+            'CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.97.0"',
             compile_step,
         )
         self.assertIn(
-            "cargo +1.94.0 check --workspace --all-targets --locked",
+            "cargo +1.97.0 check --workspace --all-targets --locked",
             compile_step,
         )
         self.assertIn(
@@ -1321,7 +1321,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         sysroot_step = extract_named_workflow_step(
             source, "Bind Rust CodeQL to the compatible analysis sysroot"
         )
-        self.assertIn("rustc 1.94.0 (4a4ef493e 2026-03-02)", sysroot_step)
+        self.assertIn("rustc 1.97.0 (2d8144b78 2026-07-07)", sysroot_step)
         self.assertIn("CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT=%s", sysroot_step)
         self.assertIn("CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT_SRC=%s", sysroot_step)
         self.assertIn("RUSTUP_TOOLCHAIN=%s", sysroot_step)
@@ -1470,7 +1470,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
         self.assertIn("not native Rust 1.98.1 CodeQL analysis", normalized)
-        self.assertIn("under both Rust 1.94.0 and Rust 1.98.1 with", normalized)
+        self.assertIn("under both Rust 1.97.0 and Rust 1.98.1 with", normalized)
         # Taken from the gate's own constant, never a second literal: this
         # audit read 93 while the gate enforced 105, so the stale sentence it
         # was meant to catch passed it.

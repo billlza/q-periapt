@@ -44,9 +44,11 @@ format conversion alone cannot establish freshness. See [host storage](SDK_HOST_
 - The legacy ten-crate maintenance proof keeps its exact Rust 1.96.1 receipt
   contract. It is distinct from the twelve-crate SDK 0.2 producer; frozen
   publications must remain verifiable without relabeling their compiler.
-- The CodeQL compatibility sysroot remains 1.94.0 for the pinned extractor;
-  canonical compilation uses 1.98.1. A future extractor upgrade must retain the
-  complete extraction and consistency checks.
+- CodeQL 2.27.1 uses a 1.97.0 analysis sysroot matching its observed process-macro
+  artifacts; canonical compilation uses 1.98.1. Retaining the former 1.94.0
+  macro server caused an ABI mismatch and incomplete extraction of seven files.
+  The updated pairing still must pass the complete extraction and consistency
+  checks before any Rust result upload.
 
 The current source also selects native ML-KEM 2.0.0, Kotlin 2.4.20, Gradle 9.8.0,
 AGP 9.4.1, Node 26.10.0, npm 12.1.0, TypeScript 7.0.2 and Python 3.14.7.

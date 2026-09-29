@@ -35,12 +35,12 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 
 The Rust CodeQL lane uses the CodeQL 2.27.1 bundle linked to the exact pinned CodeQL Action
 commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
-with a Rust 1.94.0 analysis sysroot
-because the previous 2.26.2 extractor could not completely expand this repository
-with Rust 1.96.1. The compatibility sysroot remains pinned during the 2.27.1
-bundle upgrade until a fresh canonical-sysroot extraction is qualified. This is a compatibility analysis configuration, not native Rust 1.98.1
+with a Rust 1.97.0 analysis sysroot. The 2.27.1 extractor's process-macro
+artifacts identify Rust 1.97.0; retaining the former 1.94.0 macro server produced
+an ABI mismatch and left seven tracked sources incompletely extracted. Align the
+analysis sysroot with those artifacts and require fresh complete extraction. This is a compatibility analysis configuration, not native Rust 1.98.1
 CodeQL analysis. Before CodeQL initialization, the same commit must pass
-`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.98.1 with
+`cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
@@ -57,7 +57,7 @@ budget while retaining its 300-second process deadline and bounded diagnostic ou
 deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
 upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
 publish results. The quality adapter accepts no environment-selected executable, database, or
-temporary path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout,
+temporary path: it uses the exact Linux CodeQL 2.27.1 toolcache path and workflow database layout,
 rejects unsafe file types, requires the database paths to be current-user-owned and without
 cross-account write permission, and revalidates their open path identities around every query and
 decode.
