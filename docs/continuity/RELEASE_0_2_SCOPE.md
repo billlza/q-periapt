@@ -70,12 +70,14 @@ the existing public-commitment model into a working cryptographic protocol.
   [account roster heads](../../research/continuity-identity-candidate/ROSTER_AUTHORITY.md)
   now fence bootstrap, prekey, message and cached-output authority across restarts,
   preserving observed device-generation history through exact write-intent recovery.
-  It also prepares an [identity-signed rekey offer](../../research/continuity-identity-candidate/REKEY_OFFERS.md)
-  with reserved hybrid-key/signature randomness and exact committed replay.
-  This first flight does not install an epoch or satisfy the fresh-rekey requirement.
-  Full device lifecycle,
-  cryptographic erasure, fresh DH/PQ ratcheting and full rollback recovery remain
-  required work.
+  Its [identity-signed hybrid rekey](../../research/continuity-identity-candidate/REKEY_OFFERS.md)
+  now commits offer, response, final and receipt flights, installs fresh traffic
+  and ACK epochs and preserves exact output across restart. The v3 profile retires
+  a drained prefix only after both peers' signed assertions, keeping at most four
+  traffic epochs without resetting their identities. Unconsumed inboxes and
+  unacknowledged outboxes cause backpressure. Continuous recovery analysis,
+  authenticated progress scheduling, compromised-history resolution, full device
+  lifecycle, cryptographic erasure and product integration remain required work.
 
 ## Required completion evidence
 

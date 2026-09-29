@@ -1,105 +1,143 @@
-# Consumption acknowledgements and bounded message retention
+# Epoch-scoped consumption and bounded retention
 
-The candidate's previous 64-receipt limit bounded total session traffic. Simply
-removing old random IDs would have allowed an old request to be treated as new.
-Message profile v2 instead uses session-scoped sequence IDs and monotonic
-consumption floors. The 64-entry bound now applies to outstanding records.
-No SDK binding or ABI export depends on this candidate. ABI major stays 2.
+The candidate's message profile v3 scopes IDs, chains, receipts and ACK authority
+to a key epoch within one permanent logical session. It preserves one-use message
+keys and exact pending-input/outbox replay. A retired ID never becomes new work.
+The [old-chain poisoning trace](EPOCH_CUTOVER.md) motivated this separation: an
+old-key-authenticated consumption floor must not reject new-epoch traffic.
+No SDK binding or ABI export depends on this unpublished candidate. ABI remains 2.
 
 ## Application contract
 
-1. Read `next_message_id` and retain that ID before submitting plaintext to
-   `send_message`. Reading a slot is not a reservation: concurrent readers can see
-   the same ID. The first durable input reservation wins; different input conflicts.
-2. Receive authenticated `CommittedPlaintext`, durably deduplicate the application's
-   own external effects by session and message ID, then call `consume_message`.
-   The call commits consumption and removes retained plaintext. It cannot make an
-   external application transaction atomic with this separate journal.
-3. `message_acknowledgement` returns the currently committed contiguous consumed
-   prefix. Send it explicitly to the peer. This is not automatic telemetry; its
-   cleartext counter reveals application-consumption progress and cadence.
-4. The sender calls `accept_message_acknowledgement`, which verifies its MAC and
-   atomically retires the corresponding ciphertext outboxes. `message_status` then
-   returns `Acknowledged`. Sending or resuming a retired ID returns `Retired`;
-   the old slot never becomes an absent/new request.
+1. Read `next_message_id` and retain the complete 32-byte ID before `send_message`.
+   Reading is not a reservation. Concurrent reads can see the same slot; a rekey
+   can also close that epoch before input reservation. The caller must handle the
+   explicit conflict/suspension rather than reinterpret an old ID as a new one.
+2. Receive `CommittedPlaintext`, durably deduplicate external application effects
+   by logical session and **complete message ID**, then call `consume_message`.
+   An index alone is not a deduplication key. The journal does not make external
+   application transactions atomic with its own storage.
+3. `message_acknowledgement` reports the committed contiguous consumed prefix of
+   the current receiving epoch. `message_acknowledgement_for_epoch` does the same
+   for an explicitly selected retained old epoch. Each result requires current
+   policy/roster/witness authority, even if its contents were already committed.
+4. `accept_message_acknowledgement` verifies the exact direction and epoch key,
+   then retires only that epoch's outboxes. `message_status` reports the matching
+   epoch's absent/reserved/committed/acknowledged state. A stale ACK cannot regress
+   a floor or affect any other epoch.
 
-Out-of-order consumption erases that message's plaintext immediately and retains
-only its index, commitment and consumed marker. A missing earlier delivery keeps
-the cumulative floor behind the gap. The sender retains that missing message's
-outbox for retransmission. There is no timeout-based skipping, silent loss,
-unbounded tombstone set, probabilistic duplicate filter or automatic new-session
-reset. A full outstanding window explicitly applies backpressure.
+Out-of-order consumption erases retained plaintext immediately and leaves its
+consumed marker until the contiguous prefix advances. Missing earlier deliveries
+retain their skipped keys and the sender's exact outboxes. There is no automatic
+application gap skipping, timeout-based loss, probabilistic duplicate filter or
+new-session reset. Closed old epochs remain separately addressable for replay and
+explicit consumption.
 
-After a lost acknowledgement or restart, the receiver can recompute its current
-MAC without a fresh message key or nonce. A valid old acknowledgement is harmless:
-it cannot lower the sender floor or restore an outbox. All output, including
-recomputed acknowledgements and cached messages, checks current policy/device
-validity and any required fresh witness evidence. Read-only outgoing status does
-not grant permission to release a message after policy close or expiry.
+A prepared final/receipt signing plan fences that local direction's **new sends**
+until its exact cutover commits. Earlier outboxes remain replayable, and reception
+and consumption can continue. Cutover admission refuses an unresolved old send
+reservation; `resume_message` must first finish its already retained input. No
+pending plaintext is silently re-encrypted under another epoch or ID.
 
-## Closed bytes and cryptography
+## Canonical IDs and ACKs
 
-Application messages use `QPCMSG02` and the domain
-`Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/` (`D` below). The header layout remains
-93 bytes and accepts only epoch zero. Profile v1 frames are rejected; there is no
-implicit fallback. The initial HKDF in [MESSAGES.md](MESSAGES.md) now emits 160
-bytes: rekey seed, initiator-send chain, responder-send chain, acknowledgement key
-for initiator messages, acknowledgement key for responder messages (32 bytes each).
-The acknowledgement keys are separate from traffic keys and from each other.
+Let `D = ASCII("Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/")`. The initial key
+schedule and chain-step labels remain unchanged; the authenticated frame tag is
+now `QPCMSG03`. Older message tags are rejected. All integers are big endian.
 
-`MessageId` is exactly `index:u64 || binding[24]`, where `binding` is the first
-24 bytes of the repository's length-delimited SHA3-256 digest using domain
-`D || "message-id"` and body `session_id[32] || direction:u8 || index:u64`.
-Indices are unsigned big endian, start at zero and never reset. The decoder and
-send boundary require the exact session/direction binding, and the network header
-index must equal the ID's index. Public ID bytes are not an authorization secret.
-Callers recover retained IDs with `from_trusted_state`; there is no random-ID
-constructor for this protocol.
+`MessageId = epoch:u64 || index:u64 || binding[16]`, where `binding` is the first
+16 bytes of the repository's length-delimited SHA3-256 digest using domain
+`D || "epoch-message-id"` and body
+`logical_session[32] || direction:u8 || epoch:u64 || index:u64`.
+The full tuple never repeats. Indices start at zero inside each authenticated
+fresh-key epoch. The ID's epoch/index must match the network header, and its exact
+session/direction binding is checked. Public ID bytes are not secret capabilities.
 
-An acknowledgement is exactly 81 bytes:
+Epoch zero retains the original 81-byte ACK and known-answer vector:
 
-`"QPCMACK1"[8] || session_id[32] || acknowledged_direction:u8 || consumed_floor:u64 || tag[32]`
+`"QPCMACK1"[8] || session[32] || direction:u8 || floor:u64 || tag[32]`
 
-The tag is HMAC-SHA-256 with the direction's acknowledgement key, over
-`D || "acknowledgement" || first_49_bytes`. The receiver signs the direction it
-receives; the sender verifies its sending direction. Length, tag, session,
-direction and the bound `floor <= sent_count` are checked. Zero is a valid floor
-when a gap prevents contiguous progress. The MAC authenticates the peer's
-consumption claim; it cannot prove an honest application acted outside the SDK.
+A later epoch uses exactly 89 bytes:
 
-## State invariants and recovery
+`"QPCMACK2"[8] || session[32] || direction:u8 || epoch:u64 || floor:u64 || tag[32]`
 
-Let `S` be the next send index, `Fs` the authenticated peer consumption floor,
-`R` the next receive-chain index and `Fr` the local contiguous consumption floor.
-The admission checks enforce:
+`QPCMACK2` requires a nonzero epoch. For either form, the tag is HMAC-SHA256 under
+that epoch/direction's separate acknowledgement key over
+`D || "acknowledgement" || complete_prefix`. The receiver authenticates the
+direction it receives; the sender verifies its sending direction. The bound
+`floor <= sent_count` applies to the named epoch. Zero is a valid floor.
+A valid MAC authenticates the peer's consumption claim; it does not prove an
+honest external application action. These cleartext fields reveal progress and
+cadence and belong in the full metadata/privacy analysis.
 
-- `0 <= Fs <= S`; outboxes contain exactly the indices `[Fs, S)`.
-- `0 <= Fr <= R`; skipped keys and inbox records are disjoint and together cover
-  `[Fr, R)`. A consumed record retains no plaintext.
-- A consumed record at `Fr` cannot remain stored: consumption advances over the
-  complete contiguous consumed prefix and removes those records.
-- Every pending send uses the single ID for index `S`; it cannot replace a live
-  outbox. Retired IDs are recognized from the floor even after all their bytes
-  are removed. A future index cannot skip the current send slot.
-- Floors and chain counters only advance, within `u64`. Exhaustion explicitly
-  ends admission; no counter wrap or restart recreates an old ID/message key.
+## Epoch state and close counts
 
-These are implementation invariants and reasoning obligations, not a mechanized
-security proof. They close the bounded-ID replay problem independently of the
-future DH/PQ update construction. They still rely on the chosen rollback profile:
-restoring a whole local-only database can restore old counters, whereas required
-witness journals must reconcile against the independently protected witness head.
+Each retained `Traffic` owns its own send/receive seeds, ACK keys, counters, floors,
+skipped-key map, pending send and inbox/outbox maps. For each epoch:
 
-These floors are scoped to the currently implemented initial epoch. The
-[old-chain poisoning trace](EPOCH_CUTOVER.md) shows why future key epochs must use
-separate message IDs, receive floors and ACK authority. The current global index
-must not be treated as a trusted cross-epoch cutover coordinate after disclosure.
+- `0 <= send_floor <= sent`; outboxes cover exactly `[send_floor, sent)`.
+- `0 <= receive_floor <= received`; skipped keys and inbox entries are disjoint
+  and cover `[receive_floor, received)`. Consumed records hold no plaintext.
+- A pending send names the exact current slot of that epoch. A closed sending
+  chain has no pending send and its chain seed is zeroed. It can replay existing
+  outboxes but cannot generate a replacement ciphertext.
+- The signed peer cutover supplies the old receiving epoch's upper message-count
+  bound. Packets at or above it cannot produce another delivery. Old receive
+  seeds are erased when the observed receive index reaches that bound; until
+  then, delayed in-bound traffic uses the existing bounded derivation path.
+- A poisoned old receive index/floor can exceed the honest signed close count.
+  That old state remains isolated; it neither advances nor retires new-epoch
+  work. Existing old inbox/outbox evidence is not silently discarded.
 
-Consumption and acknowledgement application each use one existing exact-intent
-journal persist: the same crash reconciliation, atomic image installation and
-post-commit release checks apply, including the installed [roster](ROSTER_AUTHORITY.md).
-Journal schema v12 uses `continuity_device_candidate_v12`, `QPVLT012`, `QPVIMG12`
-and message state `QPMST004`. Old v1–v11 journals are rejected without reset or implicit migration.
-Logical plaintext/key removal does not erase old encrypted pages, intents,
-snapshots or backups. Fresh-PQ/DH recovery, rekey-aware acknowledgement keys,
-device lifecycle/fanout integration and physical erasure remain required work.
+Unknown commits retain the exact encrypted write intent, close the journal, and
+require reopening/reconciliation before any output. Roster revocation and the
+required witness apply to all current and old-epoch operations.
+
+## Bounded history and authenticated retirement
+
+The v3 rekey profile binds a mandatory drained-prefix attestation. For target
+epoch `t`, both the offer and response assert that the signing peer can retire
+every locally retained epoch below `max(0, t - 3)`. Before reserving either signed
+flight, the journal requires each such epoch to have:
+
+- a closed sending chain, no pending input, and every outbox acknowledged;
+- an identity-signed receiving close count and consumption through that count;
+- no unconsumed plaintext. Remaining skipped keys may only address indices at or
+  above the signed close count, where the honest peer cannot have sent a message.
+
+Consumed metadata and those unreachable skipped keys can be removed. A missing
+in-bound message, pending send, unconsumed inbox or unacknowledged outbox produces
+`Capacity` before the new reservation. It neither deletes records nor claims
+application delivery. In particular, an ACK lost in transit is not a reason to
+retire a sender's outbox: the receiver retains its old ACK key while preparing an
+offer, so the sender can recover that ACK before signing a response.
+
+After both signed flights and fresh-key confirmation, final/receipt commits
+atomically remove that prefix, install new owners, and retain the exact signed
+control output. The sender has authenticated the peer's drain assertion before
+deleting its last old ACK authority. A lost final or receipt replays exact stored
+bytes after restart. Receipt acceptance changes the receiving epoch without a
+second history deletion. The immediate predecessor remains available to validate
+the signed cutover counts and the last completed control exchange remains stored.
+
+The retained epochs are exactly the contiguous range
+`[max(0, newest_local_epoch - 3), newest_local_epoch]`: at most four at any time,
+with monotonically increasing epoch IDs. Requests, packets, ACKs and status
+queries for an older epoch return `Retired`; unknown old IDs are not labelled
+`Acknowledged`. Current indices may restart at zero only under their distinct
+epoch-bound IDs and fresh keys. Each retained epoch still allows 64 outstanding
+records per direction and 128 skipped keys; the journal remains capped at 2 MiB.
+
+These are local implementation conditions under authenticated, honest peer
+signing. They do not prove continuous recovery under arbitrary compromise. Old
+compromised or undeliverable outboxes may need a separately authenticated,
+application-visible resolution; this candidate conservatively retains them and
+applies backpressure. That resolution, the signed progress budget/control
+scheduler, full lifecycle/fanout and product binding integration remain mandatory
+0.2.0 work.
+
+Journal v14 uses `continuity_device_candidate_v14`, `QPVLT014`, `QPVIMG14` and
+message state `QPMST006`. Earlier candidate journals are rejected unchanged,
+without migration or reset. Logical erasure does not erase old encrypted pages,
+write intents, snapshots or backups. Local-only journals do not detect whole-file
+rollback; required-witness journals depend on the independently retained head.

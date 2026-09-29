@@ -36,7 +36,7 @@ pub use crypto::{
 pub use durable::{
     CommittedInitiation, CommittedPlaintext, DeviceJournal, DurableError, DurableStatus,
     InitiationId, JournalIdentity, JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus,
-    RekeyOfferStatus, RekeyResponseStatus,
+    RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyResponseStatus,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,

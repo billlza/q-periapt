@@ -29,8 +29,9 @@ Three executed counterexamples make this distinction operational:
   the honest sender is still at zero. Restart preserves that difference. A
   cryptographically valid fresh-key packet is still rejected by an isolated
   key-replacement-only transition that retains the original message namespace.
-  The actual candidate's signed offer and response do not yet install an epoch;
-  the trace falsifies that proposed shortcut, not a completed rekey implementation.
+  The real epoch-scoped final/receipt path now accepts new-epoch traffic after
+  this trace while retaining the old floor and outbox. This repairs that specific
+  namespace failure; it is not a proof of recovery from every disclosure.
 
 These observations do not establish that every unpredicted message is secure.
 They falsify unconditional recovery labels and identify assumptions that must be
@@ -111,7 +112,7 @@ unknown commit results. The required witness and device-generation rules apply
 to the same transaction as each ratchet transition. A component trace, a journal
 unit test and a formal model each establish different parts of this obligation.
 
-Epoch installation must also be tested after old-key-authenticated traffic has
+The implemented epoch installation is now tested after old-key-authenticated traffic has
 advanced the receiver beyond the honest sender's prior count. Such counts are
 observations under potentially disclosed authority, not globally trustworthy
 cutover coordinates. A fresh epoch must not inherit that old retirement floor.

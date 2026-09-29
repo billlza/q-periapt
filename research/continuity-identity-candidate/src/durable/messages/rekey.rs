@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Exact identity-authenticated offer and response preparation. These flights
-//! do not install an epoch or advance traffic chains.
+//! are completed by signed, journal-owned epoch cutovers.
 use super::*;
 use crate::crypto::{envelope, open_envelope, Purpose, SigningReservation, SIGNATURE_BYTES};
 use q_periapt_sdk::{
     expert::replay::{RecoveryKey, SealedOperation},
     PublicKey, PUBLIC_KEY_LEN,
 };
+mod completion;
 mod response;
+pub use completion::{RekeyFlight, RekeyProgress};
 pub use response::RekeyResponseStatus;
 
 const TAG: &[u8; 8] = b"QPRKOF01";
-const CONTROL_TAG: &[u8; 8] = b"QPRKST01";
+const CONTROL_TAG: &[u8; 8] = b"QPRKST02";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/";
 const KEY_TOKEN_LEN: usize = 277;
 const BODY_LEN: usize = 8 + 32 + 32 + 32 + 8 + 8 + 1 + 32 + PUBLIC_KEY_LEN;
@@ -23,7 +25,7 @@ fn hash(label: &[u8], data: &[u8]) -> [u8; 32] {
 fn profile() -> [u8; 32] {
     hash(
         b"offer-profile",
-        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-offer/v1",
+        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1",
     )
 }
 fn genesis(session: &[u8; 32], context: &[u8; 32]) -> [u8; 32] {
@@ -62,6 +64,7 @@ enum Plan {
         wire: Vec<u8>,
     },
     Response(response::Plan),
+    Completing(completion::Plan),
 }
 impl Plan {
     fn status(&self) -> RekeyOfferStatus {
@@ -70,12 +73,13 @@ impl Plan {
             Self::Signing { .. } => RekeyOfferStatus::SignatureReserved,
             Self::Ready { .. } => RekeyOfferStatus::Committed,
             Self::Response(_) => RekeyOfferStatus::Absent,
+            Self::Completing(plan) => plan.offer_status(),
         }
     }
     fn key(&self) -> Result<&SealedOperation, Error> {
         match self {
             Self::Key(key) | Self::Signing { key, .. } | Self::Ready { key, .. } => Ok(key),
-            Self::Response(_) => Err(Error::State),
+            Self::Response(_) | Self::Completing(_) => Err(Error::State),
         }
     }
 }
@@ -84,6 +88,7 @@ pub(super) struct Control {
     epoch: u64,
     parent: [u8; 32],
     plan: Option<Plan>,
+    last: Option<completion::Completed>,
 }
 impl Control {
     pub(super) fn genesis(session: &[u8; 32], context: &[u8; 32]) -> Self {
@@ -91,7 +96,11 @@ impl Control {
             epoch: 0,
             parent: genesis(session, context),
             plan: None,
+            last: None,
         }
+    }
+    pub(super) fn send_fenced(&self) -> bool {
+        matches!(&self.plan, Some(Plan::Completing(plan)) if plan.send_fenced())
     }
     fn target(&self) -> Result<u64, Error> {
         self.epoch
@@ -135,13 +144,22 @@ impl Control {
         session: &[u8; 32],
         role: u8,
         context: &[u8; 32],
+        root: &ZeroizingBytes<32>,
     ) -> Result<(), Error> {
-        // Only offer/response preparation is implemented here. Neither an
-        // authenticated image nor a caller can invent a completed epoch.
-        if self.epoch != 0 || self.parent != genesis(session, context) {
-            return Err(Error::State);
+        match (self.epoch, &self.last) {
+            (0, None) if self.parent == genesis(session, context) => {}
+            (epoch, Some(last)) if epoch != 0 => {
+                last.validate(session, context, epoch)?;
+                if self.parent != last.digest() {
+                    return Err(Error::Scope);
+                }
+            }
+            _ => return Err(Error::State),
         }
         if let Some(plan) = &self.plan {
+            if let Plan::Completing(completing) = plan {
+                return completing.validate(self, session, role, context, root);
+            }
             if let Plan::Response(response) = plan {
                 if role == proposer(self.target()?)? {
                     return Err(Error::Scope);
@@ -158,7 +176,7 @@ impl Control {
                     let (body, _) = open_envelope(wire)?;
                     self.check_body(session, context, body)?;
                 }
-                Plan::Response(_) => return Err(Error::State),
+                Plan::Response(_) | Plan::Completing(_) => return Err(Error::State),
             }
         }
         Ok(())
@@ -167,12 +185,17 @@ impl Control {
         bytes.extend_from_slice(CONTROL_TAG);
         bytes.extend_from_slice(&self.epoch.to_be_bytes());
         bytes.extend_from_slice(&self.parent);
+        bytes.push(u8::from(self.last.is_some()));
+        if let Some(last) = &self.last {
+            last.encode(bytes);
+        }
         bytes.push(match &self.plan {
             None => 0,
             Some(Plan::Key(_)) => 1,
             Some(Plan::Signing { .. }) => 2,
             Some(Plan::Ready { .. }) => 3,
             Some(Plan::Response(response)) => response.phase(),
+            Some(Plan::Completing(plan)) => plan.phase(),
         });
         if let Some(plan) = &self.plan {
             match plan {
@@ -187,6 +210,7 @@ impl Control {
                     bytes.extend_from_slice(wire);
                 }
                 Plan::Response(response) => response.encode(bytes),
+                Plan::Completing(plan) => plan.encode(bytes),
             }
         }
     }
@@ -196,6 +220,11 @@ impl Control {
         }
         let epoch = d.u64()?;
         let parent = d.array()?;
+        let last = match d.array::<1>()? {
+            [0] => None,
+            [1] => Some(completion::Completed::decode(d)?),
+            _ => return Err(Error::Encoding),
+        };
         let [phase] = d.array()?;
         let plan = match phase {
             0 => None,
@@ -216,12 +245,14 @@ impl Control {
                 })
             }
             4..=6 => Some(Plan::Response(response::Plan::decode(d, phase)?)),
+            7..=9 => Some(Plan::Completing(completion::Plan::decode(d, phase)?)),
             _ => return Err(Error::Encoding),
         };
         Ok(Self {
             epoch,
             parent,
             plan,
+            last,
         })
     }
 }
@@ -285,6 +316,9 @@ impl DeviceJournal {
         if state.role != proposer(state.control.target()?)? {
             return Err(Error::State.into());
         }
+        if matches!(state.control.plan, Some(Plan::Completing(_))) {
+            return Err(DurableError::Suspended);
+        }
         if let Some(Plan::Ready { wire, .. }) = &state.control.plan {
             if let Err(error) = verify_offer(&state, context, wire) {
                 self.close();
@@ -296,6 +330,7 @@ impl DeviceJournal {
         if signer.public_key()? != device(context, state.role)?.key {
             return Err(Error::Scope.into());
         }
+        state.admit_history_retirement()?;
         let recovery = RecoveryKey::from_host_key(
             self.active
                 .as_ref()

@@ -1,9 +1,9 @@
 # Epoch cutover and old-chain state poisoning
 
-Status: executed counterexample and implementation requirements for the complete
-0.2.0 ratchet. This is not an implemented epoch transition or a frozen profile.
-The signed [offer and response](REKEY_OFFERS.md) retain a pending hybrid root;
-the actual API still installs no epoch beyond zero.
+Status: executed counterexample, implemented bounded epoch isolation and remaining
+requirements for the complete 0.2.0 ratchet. The four-flight [rekey path](REKEY_OFFERS.md)
+now installs real traffic epochs, with separate message IDs and ACK authority. The
+complete product profile and security argument remain unfrozen.
 
 ## Executed trace
 
@@ -32,7 +32,7 @@ state is written to either real journal.
 Observed output:
 
 ```text
-OLD_CHAIN_RETENTION_POISON forged=8 honest_sent_before=0 persisted_floor=8 actual_honest_receive=retired signed_rekey_response=valid isolated_fresh_aead=valid key_only_candidate_receive=retired
+OLD_CHAIN_RETENTION_POISON forged=8 honest_sent_before=0 persisted_floor=8 actual_honest_receive=retired signed_rekey_response=valid isolated_fresh_aead=valid key_only_candidate_receive=retired real_epoch_one_receive=accepted old_outbox=retained
 ```
 
 This does not contradict the initial epoch's stated lack of compromise recovery.
@@ -44,6 +44,16 @@ restart without requiring the attacker to substitute a new ratchet key.
 The test does not undo application effects already caused by accepted old-key
 forgeries. Recovery cannot retroactively restore their authenticity. It does not
 claim that a complete epoch-aware construction has been implemented or proved.
+
+## Implemented positive control
+
+After the failing key-only projection, the same test completes the actual signed
+final/receipt exchange through both journals. It sends an epoch-one packet using
+real fresh hybrid-derived traffic keys and the receiver accepts its plaintext.
+The old receive floor remains eight and the honest old outbox still replays exact
+bytes. The new ID differs from the retired epoch-zero ID. No old journal counters
+or records are cleared to produce this result. This demonstrates the specific
+state-isolation repair, not recovery from every compromise scenario.
 
 ## Required epoch representation
 
@@ -75,12 +85,12 @@ unchanged across key epochs. They retain the stronger requirement that an old
 operation ID can never become new work. Product crypto KATs, implicit rejection,
 device-generation monotonicity and ABI major 2 remain unchanged.
 
-## Control ordering to implement
+## Implemented control ordering
 
-The pending response alone must not switch the application to an unconfirmed
-epoch. The next implementation must bind proposer and responder cutovers to the
-same authenticated offer/response transcript and newly derived root. A final
-proposer confirmation and exact responder completion receipt can separate the
+The pending response alone does not switch the application to an unconfirmed
+epoch. The implemented final and receipt bind proposer and responder cutovers to the
+same authenticated offer/response transcript and newly derived root. The final
+proposer confirmation and exact responder completion receipt separate the
 two local switch times while ordinary old-epoch traffic continues in the interim.
 Any new-epoch data arriving ahead of its required control evidence must remain
 retryable without consuming keys or modifying the journal.
@@ -92,19 +102,21 @@ it cannot be silently rebuilt under a new epoch. Lost control output replays exa
 bytes. A later rekey must retain the previous completion receipt until the peer
 can advance, rather than overwriting the only recoverable copy.
 
-The numeric history and pending-work bounds, acknowledgement retirement rules,
-authenticated progress budget and control scheduler remain part of the unfrozen
-profile. Bounds may produce explicit backpressure. They must not be satisfied by
+The [signed drained-prefix contract](RETENTION.md) bounds history to four retained
+epochs and permits further rekeys only when both peers have finished the displaced
+history. The authenticated progress budget and control scheduler remain part of
+the unfrozen profile. Bounds may produce explicit backpressure. They must not be satisfied by
 unreported old-epoch data loss or by replacing required new-epoch validation.
 
-## Required acceptance cases
+## Acceptance boundary
 
-The implemented transition must accept valid new-epoch traffic after the trace
-above while still rejecting old-ID reuse. It must preserve delayed old ciphertext
-and plaintext handling, reject old-key ACKs against new outboxes, handle asymmetric
-application traffic and control-only replies, and preserve both directions across
-restart and uncertain commits. Every cutover phase needs actual process-loss and
-witness-release verification. Message counters, source-bound packet hashes and
+The implemented transition accepts valid new-epoch traffic after this trace
+while still rejecting old-ID reuse. The tests also cover delayed old ciphertext, old-key ACK rejection against new
+outboxes, control-only replies, restart, all measured cutover sync failures, seven
+actual process-kill points and failed witness-release queries. Complete asymmetric
+scheduling, authenticated resolution of compromised or undeliverable old records,
+and the signed progress budget remain required. Bounded drained-history retirement
+alone does not resolve the retained poisoned outbox in this trace. Message counters, source-bound packet hashes and
 actual key agreement must remain observable in the tests without exporting live
 application secrets.
 

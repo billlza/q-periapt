@@ -448,6 +448,65 @@ fn durable_bootstrap_vectors(
     if jr.respond_rekey_offer(cr, session, &offer, sr, 150)? != response {
         return Err("durable response replay differs".into());
     }
+    let final_wire = ji.accept_rekey_response(ci, session, &response, si, 150)?;
+    let receipt = jr.finish_rekey(cr, session, &final_wire, sr, 150)?;
+    if ji.accept_rekey_receipt(ci, session, &receipt, 150)? != 1 {
+        return Err("epoch completion differs".into());
+    }
+    save(directory, "rekey-final.bin", &final_wire)?;
+    save(directory, "rekey-receipt.bin", &receipt)?;
+    let ii = ji.identity()?;
+    let ir = jr.identity()?;
+    ji.close();
+    jr.close();
+    ji = DeviceJournal::open(
+        &path.join("initiator.redb"),
+        JournalKey::open(&path.join("initiator-key"))?,
+        di,
+        ii,
+    )?;
+    jr = DeviceJournal::open(
+        &path.join("responder.redb"),
+        JournalKey::open(&path.join("responder-key"))?,
+        dr,
+        ir,
+    )?;
+    use q_periapt_continuity_identity_candidate::RekeyFlight;
+    if ji.rekey_outbox(ci, session, 1, RekeyFlight::Final, 150)? != final_wire
+        || jr.rekey_outbox(cr, session, 1, RekeyFlight::Receipt, 150)? != receipt
+    {
+        return Err("completed control outbox replay differs".into());
+    }
+    let id = ji.next_message_id(ci, session, 150)?;
+    let wire = ji.send_message(ci, session, id, b"epoch fixture I", b"epoch fixture", 150)?;
+    if jr
+        .receive_message(cr, session, &wire, b"epoch fixture", 150)?
+        .as_bytes()
+        != b"epoch fixture I"
+    {
+        return Err("new initiator traffic differs".into());
+    }
+    save(directory, "rekey-i-message.bin", &wire)?;
+    let id = jr.next_message_id(cr, session, 150)?;
+    let wire = jr.send_message(cr, session, id, b"epoch fixture R", b"epoch fixture", 150)?;
+    if ji
+        .receive_message(ci, session, &wire, b"epoch fixture", 150)?
+        .as_bytes()
+        != b"epoch fixture R"
+    {
+        return Err("new responder traffic differs".into());
+    }
+    save(directory, "rekey-r-message.bin", &wire)?;
+    for (journal, context) in [(&mut ji, ci), (&mut jr, cr)] {
+        let progress = journal.rekey_progress(context, session)?;
+        if progress.confirmed_epoch != 1
+            || progress.sending_epoch != 1
+            || progress.receiving_epoch != 1
+            || progress.pending_epoch.is_some()
+        {
+            return Err("restart rekey progress differs".into());
+        }
+    }
     Ok(())
 }
 

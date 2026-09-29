@@ -1,181 +1,181 @@
-# Durable identity-authenticated rekey offers and responses
+# Durable authenticated hybrid rekey exchanges
 
-This checkpoint implements the first two control flights for a whole-hybrid KEM rekey
-candidate in the actual encrypted device journal. `prepare_rekey_offer` commits a
-fresh ML-KEM-768 + X25519 public key and an identity-signed offer. It does not
-install an epoch or change application traffic keys. The responder authenticates
-the exact offer, executes a reserved ContextBound
-hybrid encapsulation and commits a signed response with a pending root. Final
-confirmation, recurring epoch installation, old-epoch handling and an authenticated
-PQ-progress budget remain implementation work for 0.2.0. The complete product
-ratchet profile remains unfrozen. ABI major stays 2.
+This unpublished candidate now executes four identity-authenticated control
+flights and installs separate traffic/ACK epochs in the actual encrypted journals.
+The permanent logical session, device identities, policy and installed roster
+bindings remain unchanged. The complete product profile and its security argument
+remain unfrozen. ABI major stays **2**.
 
-## Owned preparation and exact recovery
+The history bound is four retained traffic epochs. The v3 signed profile requires
+both peers to attest that the prefix displaced by a new epoch is fully drained;
+final/receipt commits retire it atomically with the new owners. Outstanding
+application records produce explicit backpressure. The
+[retirement contract](RETENTION.md) preserves lost-ACK recovery and exact control
+replay. The authenticated progress budget/control scheduler and resolution of
+compromised or undeliverable history remain required for the full 0.2.0 contract.
 
-The API takes the admitted `BootstrapContext`, established message-session ID,
-designated device signing owner and trusted time. It accepts no caller entropy,
-raw private key or replacement operation ID. The journal checks the session,
-owner, policy and installed account rosters before private work and release.
-The first proposer is the original bootstrap initiator; the responder cannot
-create an independent competing proposal for that target epoch.
+## Local permission and durable ordering
 
-Preparation uses three existing exact-intent journal transactions:
+The original bootstrap initiator proposes odd target epochs; the other role
+proposes even ones. Each target is exactly its predecessor plus one. An offer
+cannot compete with another retained proposal for the same slot. Both signatures,
+complete transcript bindings and current roster/policy authority are checked
+before new peer input can reserve private work.
+For target `t`, both first flights additionally attest to local retirement
+eligibility for all retained epochs below `max(0, t - 3)`. This mandatory
+profile-bound assertion is verified by the signing implementation; it is not an
+unauthenticated header hint or proof of an arbitrary peer's internal state.
 
-1. Reserve SDK key-generation randomness scoped to the journal identity, session,
-   context, predecessor and target epoch, and commit the sealed operation token.
-2. Generate that exact hybrid key, construct the complete public body, reserve
-   purpose-bound signing randomness and commit both before signing.
-3. Sign with both device-identity components and commit the exact public outbox.
-   A required witness must confirm the committed image before bytes return.
+| Flight and local commit | Permitted effect |
+| --- | --- |
+| Offer: sealed key reservation, exact signing plan, signed outbox | Dispatch the exact offer; traffic remains on the prior epoch |
+| Response: exact encapsulation reservation, computed body/root and signing plan, signed outbox | Dispatch the exact response; traffic remains unchanged |
+| Final: proposer verifies the response and real decapsulation confirmation; commits a signing plan, then final outbox plus fresh traffic owners | Switch the proposer's sending epoch; dispatch final before new application frames; receiving epoch still waits for receipt |
+| Receipt: responder verifies the final; commits a signing plan, then receipt plus both directional switches | Admit the new receiving epoch, use the new sending epoch and release the exact receipt |
+| Receipt acceptance: proposer verifies both signature components and MAC; commits receiving cutover and completed transcript | Admit new-epoch incoming traffic and report local completion |
 
-The temporary `HybridKey` owner is dropped after public-key extraction. Its sealed
-generation token remains for future response decapsulation; no private-key export
-is introduced. A resumed unsigned offer reconstructs the same public key and checks
-it against the retained body before signing. A committed offer replays exact bytes
-without reopening a signer or regenerating a key. Both signatures and all bound
-fields are checked on cached release. Policy close, expiry or committed revocation
-still denies release; read-only `rekey_offer_status` remains available.
+Preparing final/receipt signatures fences only that direction's new sends, fixing
+its exact old sending-chain length. Cached sends, receives and consumption remain
+available. An existing unresolved send reservation must finish from its retained
+input before cutover preparation. A future-epoch packet arriving before control
+admission returns `Suspended` without advancing a chain or consuming a key.
 
-Unknown storage or witness outcomes close the journal. Reopening reconciles the
-same retained write intent. Retries never replace a committed randomness
-reservation. Corrupted tokens, bodies or signatures cannot yield an alternate
-offer. The [recovery conditions](../../docs/continuity/RECOVERY_CONDITIONS_V1.md)
-still apply: re-executing an exposed reservation is not new entropy relative to
-that disclosure.
+Unknown commit/witness outcomes close the journal. Reopening reconciles the exact
+saved intent. `rekey_outbox(context, session, target, flight, now)` retrieves only
+the named committed flight after fresh authority/release checks; an unsigned stage
+suspends. Duplicate response/final/receipt calls return the retained result rather
+than incrementing another epoch. The most recent completed four-flight transcript
+remains available while the next exchange is pending.
 
-## Exact candidate public bytes
+`rekey_progress` separately reports local completed, sending and receiving epochs
+and the pending target. After final commit the proposer can report `(0, 1, 0)` for
+completed/sending/receiving; this is intentionally distinct from `(1, 1, 1)` after
+receipt acceptance. None of these counters asserts that an adversary lacks keys.
 
-Let `H(label, body)` be the existing length-delimited SHA3-256 function, with domain
-`ASCII("Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/") || label`. Its preimage is
-`domain_length:u64 || domain || body_length:u64 || body`; integers are big endian.
+## Fixed public grammar and KDF graph
 
-The 1,369-byte offer body is:
+Let `D = ASCII("Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/")` and let `H(label, x)` be
+length-delimited SHA3-256 over
+`len(D||label):u64 || D || label || len(x):u64 || x`. Integers are big endian.
 
-`"QPRKOF01"[8] || profile[32] || bootstrap_context[32] || session[32] || prior_epoch:u64 || target_epoch:u64 || proposer_role:u8 || predecessor[32] || hybrid_public_key[1216]`
+The closed candidate profile is:
 
-The profile is `H("offer-profile", ASCII("ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-offer/v1"))`.
-The initial predecessor is `H("genesis", session || bootstrap_context)`. This
-checkpoint accepts only prior epoch 0, target epoch 1 and proposer role 1. A
-persisted nonzero confirmed epoch is rejected; preparation cannot manufacture
-confirmation evidence. The public key is the SDK's full ML-KEM-768 key followed by
-its X25519 key. ContextBound will apply to the actual two-leg KEM exchange;
-preparation itself neither encapsulates nor establishes new shared entropy.
+`H("offer-profile", "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1")`
 
-The candidate envelope adds `body_length:u32` and the fixed 3,373-byte ML-DSA-65 /
-canonical P-256 signature pair. Total wire length is **4,746 bytes**. Signing
-purpose is **9**, separate from bootstrap and witness purposes. Both signatures
-cover the existing identity context, purpose, length and complete body. Unknown
-tags, altered profiles/roles/session/epoch/predecessor bindings, wrong lengths and
-trailing bytes fail. Retransmission preserves the original signatures. The
-application-message decoder does not reinterpret this control packet as traffic.
+A common 153-byte prefix is:
 
-## Sealed representation
+`tag[8] || profile[32] || bootstrap_context[32] || logical_session[32] || prior_epoch:u64 || target_epoch:u64 || signing_role:u8 || predecessor[32]`
 
-Journal v12 uses `continuity_device_candidate_v12`, `QPVLT012` and `QPVIMG12`.
-Earlier candidate journals are rejected without implicit migration or reset.
-Message state is `QPMST004`; existing traffic-key, sequence, retention and
-acknowledgement fields retain their meanings. Public application frames remain
-`QPCMSG02`, epoch zero.
+The initial predecessor is `H("genesis", session || context)`. After completion it
+is `H("completed-epoch", offer_wire || response_wire || final_wire || receipt_wire)`.
+Each fixed-size envelope is `body_length:u32 || body || hybrid_signature[3373]`.
+Both ML-DSA-65 and canonical P-256 verify under the existing identity context,
+separate purpose, length and entire body. No optional signature or downgrade path
+is introduced.
 
-The payload appends `QPRKST01 || epoch:u64 || predecessor[32] || phase:u8`.
-Phase 0 has no proposal. Offer phases 1–3 retain the 277-byte sealed key-generation
-token; phase 1 adds nothing, phase 2 adds the exact body and 64-byte signing
-reservation, and phase 3 adds the exact signed wire. Unknown phases, orphaned
-bindings and invented completed epochs fail image admission. One offer can be
-pending per session, within the existing 2 MiB aggregate bound.
+| Flight | Tag / purpose | Body after the prefix | Body / envelope bytes |
+| --- | --- | --- | --- |
+| Offer | `QPRKOF01` / 9 | full hybrid public key[1216] | 1369 / 4746 |
+| Response | `QPRKRP01` / 10 | `H("offer-wire", offer)[32] || ciphertext[1120] || MAC[32]` | 1337 / 4714 |
+| Final | `QPRKFN01` / 11 | `H("offer-wire", offer)[32] || H("response-wire", response)[32] || old_send_count:u64 || MAC[32]` | 257 / 3634 |
+| Receipt | `QPRKRC01` / 12 | the two preceding hashes, `H("final-wire", final)[32] || old_send_count:u64 || MAC[32]` | 289 / 3666 |
 
-## Offer checkpoint validation
+The offer's role is the designated proposer; response and receipt use the other
+role. Unknown tags/profiles, wrong roles, noncontiguous epochs, altered context,
+session, predecessor or exact-wire hashes, bad lengths and trailing bytes fail.
+The ciphertext is the 1088-byte ML-KEM component followed by the 32-byte X25519
+ephemeral public key. The offer contains the full 1184+32-byte public key.
 
-At commit `45ba726`, local validation passed 131 candidate release tests, strict all-target Clippy and
-actual Rust 1.90 all-target checking. The offer transition measures 13 storage sync
-barriers; 26 before/after-sync faults recover through the original exact intent.
-Five actual process termination points cover key reservation/computation,
-signature reservation/computation and committed outbox before return. The tests
-compare the original computed public key and signature bytes after restart.
-Required-witness tests reject both a lost final release query and a failed cached
-offer release query. Wrong roles/signers, revocation, corrupted authenticated
-fixtures and fictitious epoch advancement are rejected.
+The graph is acyclic:
 
-`public_vectors --with-rekey` completes both bootstrap roles through real private
-journals, prepares the offer and checks restart replay. The independent
-`verify_public_vectors.py --with-rekey` oracle verifies both signatures, the exact
-profile/session/predecessor grammar and canonical public-key encodings. At that checkpoint, together
-with the existing fixtures it verified 16 signed envelopes and 80 signature
-negative controls. It reports offered epoch 1 and confirmed epoch 0; confirmation and traffic-key transition verification remained required.
+1. The SDK's actual two-leg ContextBound encapsulation uses application context
+   `H("response-kem", offer_wire)`. Let its combined secret be `S`, and let `C` be
+   `H("response-core", response_body_without_MAC)`.
+2. HKDF-SHA256 with the old rekey root as salt, `S` as input and info
+   `D || "pending-root/HKDF-SHA256/" || C` derives the 32-byte pending root.
+3. HKDF-SHA256 with no salt, that root as input and info
+   `D || "responder-confirmation"` derives the responder MAC key. HMAC-SHA256
+   authenticates `C`; both response signatures then cover core plus MAC.
+4. For final/receipt, derive a separate MAC key from the pending root with info
+   `D || "final-confirmation"` or `D || "receipt-confirmation"`. Its HMAC input is
+   `H("final-core", final_without_MAC)` or `H("receipt-core", receipt_without_MAC)`.
+   The final binds the complete signed response; the receipt binds the complete
+   signed final. Both cutover counts are independently identity-signed.
+5. Epoch traffic HKDF uses salt `session`, input pending root, and info
+   `D || "epoch-traffic/HKDF-SHA256/ChaCha20Poly1305/" || context || target:u64 || H("traffic-transcript", offer_wire || response_wire)`.
+   Its 128 bytes are initiator-send, responder-send, initiator-message ACK and
+   responder-message ACK keys. Each new directional chain begins at index zero
+   under its distinct epoch-bound message IDs. The pending root becomes the next
+   rekey root; it is not used directly as a traffic or ACK key.
 
+Only owned SDK operations and the journal's internal KDF handle these secrets.
+There is no public pending-root import. The 277-byte offer key-generation token
+is removed from the current image when final preparation commits; the 245-byte
+encapsulation token is removed when response body/root/signing preparation commits.
+Stored or disclosed old reservations remain exposed material: later execution of
+the same reservation is not new entropy relative to that disclosure.
 
-## Exact responder contribution
+## Stored state and retained authority
 
-`respond_rekey_offer` accepts the existing context, session, exact offer, local
-signing owner and trusted time. Only the other designated role may respond. Both
-peer identity signatures and every offer binding are checked before any durable
-reservation. A second valid but different offer for that slot fails as a conflict;
-retries never replace the original encapsulation randomness. Revocation, expired
-authority and required witness checks also apply to replayed responses.
+Journal v14 uses `continuity_device_candidate_v14`, `QPVLT014` and `QPVIMG14`, and
+rejects earlier candidate journals unchanged. `QPMST006` stores common session
+identity/rekey state, current send/receive epoch IDs, bounded length-delimited
+`QPTEPO01` traffic records and the `QPRKST02` control record. Each traffic record
+owns its independent counters, chains, ACK keys, receipts and pending input;
+[RETENTION.md](RETENTION.md) specifies their invariants and old-epoch bounds.
 
-The responder makes three exact-intent commits:
+Control state contains completed epoch, predecessor, an optional exact last
+completed four-flight transcript, and one pending phase:
 
-1. Retain the authenticated offer and a 245-byte sealed encapsulation reservation.
-   Its operation scope binds the journal identity, prior/target state and exact
-   offer hash. The SDK token additionally binds the peer public key, policy and
-   application context `H("response-kem", offer_wire)`.
-2. Execute that reservation through the SDK's actual ML-KEM-768 + X25519
-   ContextBound path. Commit the resulting body, pending root and purpose-10
-   signing reservation. Remove the encapsulation token from the current image.
-3. Sign the entire body with both device identity components, commit the exact
-   response outbox and query the current witness head before returning it.
+- 0: none; 1–3: offer key reserved / signature reserved / outbox committed.
+- 4–6: response encapsulation reserved / signature reserved / outbox committed.
+- 7: final root/body/signature reserved; 8: final committed, sending epoch switched.
+- 9: receipt root/body/signature reserved. Receipt commit moves the four wires
+  into completed state and advances both responder directions.
 
-The core is 1,305 bytes:
+The signer reservations are 64 bytes. Phase 7/9 holds the pending root until the
+switch commit; phase 8 uses the installed next rekey root. Image validation checks
+MAC/body correspondence, exact local cutover counts, pending-send exclusion,
+per-epoch state invariants, directional switch permissions and the completed
+transcript digest. Cached release verifies the relevant public identity proof.
+Old receiving counts can exceed a new authenticated close count after old-key
+forgery; they remain isolated rather than becoming a new-epoch floor.
 
-`"QPRKRP01"[8] || profile[32] || bootstrap_context[32] || session[32] || prior_epoch:u64 || target_epoch:u64 || responder_role:u8 || predecessor[32] || H("offer-wire", offer_wire)[32] || hybrid_ciphertext[1120]`
+## Executed validation and remaining requirements
 
-At this checkpoint the prior/target/role fields are 0/1/2. The profile and
-predecessor use the offer definitions above. The ciphertext is the full 1,088-byte
-ML-KEM ciphertext and the 32-byte X25519 ephemeral public key. The complete offer
-wire, including both signatures, is bound into the context and response.
+The retained v3 local runs on Rust 1.94 and the fixed Rust 1.98.1 each pass
+**145 release tests**, including eight alternating rekeys with per-epoch traffic
+and restart. Fixed-toolchain formatting and strict all-target Clippy pass, and
+Rust 1.90 passes locked all-target compilation. The first cutover
+grid measures 9/10/5 sync barriers for final, receipt and receipt acceptance;
+the history-retirement grid measures 9/9/5. All **94** before/after faults recover
+the exact control output and actual traffic. Fourteen process kills cover both
+sets of reserved/computed/committed boundaries. Tests separately retain
+unconsumed deliveries, recover a lost ACK before signing the peer response, and
+recover lost final/receipt output after asymmetric history deletion. The frozen
+standalone snapshot passes 45 candidate-isolation and CodeQL-contract tests;
+this is not a CodeQL database analysis or a product package qualification.
+Required-witness tests lose the final release queries after each switch commit
+and on a cached final release; all close without early output.
 
-The KDF graph has no circular dependency. Let `C = H("response-core", core)` and
-`S` be the owned combined secret from the SDK. HKDF-SHA256 with the previous rekey
-root as salt and `S` as input derives a 32-byte pending root, using info
-`D || "pending-root/HKDF-SHA256/" || C`, where `D` is the rekey domain above.
-HKDF-SHA256 with no salt and that pending root as input derives the responder
-confirmation key using info `D || "responder-confirmation"`. HMAC-SHA256 under
-that key authenticates `C`. The body is `core || confirmation[32]` (1,337 bytes).
-Both identity signatures cover that complete body under purpose **10**. The
-fixed envelope is **4,714 bytes**.
+Tests also exercise old delayed traffic/outbox replay,
+future-epoch suspension, cross-epoch ACK forgery, real implicit-rejection/key
+confirmation, both identity signature components, revocation, signer-close replay
+and restart. The [old-chain counterexample](EPOCH_CUTOVER.md) now includes a real
+positive control: epoch-one traffic succeeds while the poisoned old floor and old
+outbox remain retained. This does not restore past application authenticity.
 
-The pending root is internal and erased from transient owners on drop. It is not
-installed as the traffic root. Neither role reports epoch 1 as confirmed. Existing
-application chains, counters, skipped keys, outboxes and acknowledgement keys
-retain their current epoch-zero meaning. No caller can import a pending root.
-The final flight and safe traffic/acknowledgement cutover remain required.
-The executed [old-chain state-poisoning trace](EPOCH_CUTOVER.md) rules out replacing
-keys while reusing the original global message/consumption namespace. Epoch
-installation must give new traffic and ACKs separate authority while retaining
-bounded old-epoch delivery and replay state.
+`public_vectors --with-rekey` restarts both real journals, completes all four
+flights, replays their committed outputs and performs traffic in both directions.
+The independent OpenSSL oracle verifies **19 signed envelopes / 95 signature
+negative controls**, exact control transcript/cutover fields and both new-epoch
+frame/ID encodings. Public parsing does not recompute secret MAC/AEAD operations;
+those are checked by the actual journal fixture and Rust tests. The separate
+anchor oracle verifies 12 envelopes, 60 negative controls and six transitions.
 
-The control record uses mutually exclusive phases. Offer phases remain 0–3.
-Response phase 4 retains the exact 4,746-byte offer and 245-byte token; phase 5
-retains the offer, 1,337-byte body, 32-byte root and 64-byte signing reservation;
-phase 6 retains the offer, 4,714-byte response and 32-byte root. Image admission
-checks bindings and the pending-root confirmation MAC. Cached release additionally
-verifies both responder signatures. Corruption cannot trigger a fresh replacement
-reservation. The current v12 aggregate rejects prior candidate schemas unchanged.
-
-The public-vector option now exports both actual durable flights and checks exact
-replay through both restarted journals. The independent public oracle verifies
-17 signed envelopes and 85 signature negative controls, including response role,
-context, predecessor, full offer-wire hash and ciphertext grammar. It does not
-possess the pending root and therefore does not claim to recompute the secret
-confirmation MAC. The Rust integration test performs actual decapsulation using
-the retained offer key and independently reconstructs the pending-root and MAC
-schedule, while checking that active traffic state is unchanged.
-
-Current local validation passes 137 release tests, strict all-target Clippy and
-actual Rust 1.90 all-target checking. Response recovery measures 12 storage sync
-barriers and injects all 24 before/after failures. Five actual process kills cover
-encapsulation reservation/computation, signature reservation/computation and the
-committed response before return. Tests compare the original computed ciphertext,
-confirmation tag and signature bytes after restart. Failed witness queries block
-both initial and cached response release. Invalid roles, signatures, conflicting
-signed offers, committed revocation and corrupted pending roots are rejected.
+This is a bounded whole-hybrid candidate, not a completed continuous-PQ security
+argument or the finished 0.2.0 SDK. Undeliverable or compromised-history resolution,
+authenticated progress limits/control scheduling, complete lifecycle/fanout,
+product bindings, construction analysis and current-source platform/performance/
+energy qualification remain required. No history is discarded to manufacture
+further progress. Logical erasure does not erase old database pages or backups.

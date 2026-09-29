@@ -106,15 +106,20 @@ input before encryption and commits chain/outbox or chain/inbox together before
 release. It supports bounded reordered delivery, exact replay and owned plaintext
 results. [Consumption acknowledgements](RETENTION.md) now reclaim inbox/outbox
 records using authenticated monotonic floors and session-issued sequence IDs.
-This initial epoch has no fresh DH/PQ input; the full ratchet, device lifecycle
-and multi-device contracts remain required within 0.2.0.
+The initial epoch itself adds no new entropy. Signed hybrid rekeys now install
+separate traffic/ACK epochs. Signed drained-prefix retirement bounds history;
+authenticated progress, undeliverable-record resolution, device lifecycle and
+multi-device contracts remain required within 0.2.0.
 
-The [durable rekey offer](REKEY_OFFERS.md) now reserves a fresh hybrid key and
-purpose-bound signature before committing its exact control outbox. The response path also reserves a ContextBound
-encapsulation and commits a signed response with a pending root. These flights
-remain distinct from final confirmation and installation of new traffic keys. It is replayable after process loss and gated by current roster/witness
-authority. Use `public_vectors --with-rekey` and the verifier's matching flag for
-independent signature and binding checks of this path.
+The [durable hybrid rekey path](REKEY_OFFERS.md) now commits four signed flights
+and switches sending/receiving epochs at authenticated, crash-recoverable boundaries.
+Message IDs and ACK authority are scoped to epochs, preserving old outboxes and
+rejecting old-key influence on new traffic. Its v3 profile can advance beyond the
+four-retained-epoch bound after both peers finish the displaced history. Missing
+ACKs or unconsumed plaintext cause backpressure and remain recoverable. Continuous
+progress scheduling and compromised-history resolution remain unfinished.
+`public_vectors --with-rekey` completes the real journals, restarts them, exercises
+new traffic and exports public control/frame bytes for the independent oracle.
 
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
 trusted enrollment from journal genesis, durable full-head/fence comparison and
@@ -199,7 +204,8 @@ The actual implementation has no dependency on the lifecycle model.
 
 ## Reproduce verification
 
-Run from the repository root with the locked toolchain. Each output directory
+Run from the repository root with the locked toolchain and the supported Unix
+private-filesystem adapter for the durable rekey fixture. Each output directory
 below must be new; evidence is never overwritten.
 Keep build output in the repository's designated `target` tree (or outside the
 checkout), so the source-provenance gate can distinguish generated build files
@@ -213,18 +219,22 @@ cargo clippy --manifest-path research/continuity-identity-candidate/Cargo.toml -
 cargo test --manifest-path research/continuity-identity-candidate/Cargo.toml --locked
 cargo test --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --release
 cargo audit --file research/continuity-identity-candidate/Cargo.lock --deny warnings
-cargo run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors
-sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py --fixtures target/continuity-public-vectors --output target/continuity-public-verification --openssl /absolute/path/to/openssl
+cargo run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-rekey --with-anchor
+sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py --fixtures target/continuity-public-vectors --output target/continuity-public-verification --openssl /absolute/path/to/openssl --with-rekey
+sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_anchor_vectors.py --fixtures target/continuity-public-vectors --output target/continuity-anchor-verification --openssl /absolute/path/to/openssl
 )
 ```
 
-The last command requires OpenSSL with ML-DSA and external-context support
+The verifier commands require OpenSSL with ML-DSA and external-context support
 (OpenSSL 3.5 or later). It fails when the required provider is unavailable. The
 example generates fresh signing and actual X25519/ML-KEM public keys, emits only
 public records, and discards secret owners. Python independently reconstructs
-canonical bodies, 15 body/signature bindings and 30 membership proofs across
+canonical bodies, 19 body/signature bindings and 30 membership proofs across
 tree sizes 1, 2, 3, 5 and 17. OpenSSL verifies both signature components and rejects
-75 altered-body, purpose or ML-DSA-context controls. The independent existing
+95 altered-body, purpose or ML-DSA-context controls. Both generator and verifier
+require `--with-rekey` to include the four control flights and their new-epoch
+message encodings. The anchor verifier separately checks 12 envelopes and 60
+negative controls across six transitions. The independent existing
 PrekeySelectionV1 codec also reconstructs nine authenticated selection records
 (four role combinations for each of the 5- and 17-leaf trees, plus the two-leaf
 bootstrap manifest), their digests and quality codes from the verified leaf set.

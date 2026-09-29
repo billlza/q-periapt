@@ -8,6 +8,9 @@ current-source evidence. The user's latest direction is **retain ABI major 2**.
 The current release quality gates are internal review of cryptographic
 boundaries, ownership/error paths, code quality and maintainability, together
 with source-bound tests, platform execution and the release transaction.
+The user manages any independent external security review separately; it is not
+an automated delivery task. Internal verification must still retain its exact
+source, tested behavior and limitations, without claiming an external audit.
 The current requirements table governs this release. Checkpoints below retain
 source identities and observed outcomes; their release-gate references follow
 the current requirements. The
@@ -73,6 +76,19 @@ are retained runtime failures; the version transition does not close them.
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The current Continuity candidate implements the four signed rekey flights,
+epoch-scoped traffic and ACK authority, and v3 drained-prefix retirement. Eight
+alternating exchanges with message traffic and restart pass while history stays
+bounded to four epochs. Both Rust 1.94 and fixed Rust 1.98.1 pass 145 release
+tests; fixed-toolchain format/strict Clippy, Rust 1.90 all-target compilation and
+45 isolated source-contract tests also pass. The measured initial/retirement
+cutover grids cover 94 before/after sync faults and 14 real process kills.
+The [protocol record](../research/continuity-identity-candidate/REKEY_OFFERS.md)
+retains the exact contract and limits. This remains an unpublished research
+workspace: compromised-history resolution, authenticated progress scheduling,
+full device lifecycle and installed cross-language product integration are open.
+These checks do not replace exact-source hosted CI or release qualification.
 
 Source `57334d4` passes all 37
 [CI jobs](https://github.com/billlza/q-periapt/actions/runs/36372546368).

@@ -463,6 +463,123 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             .expect("same response after lost release"),
         response
     );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        c.journal.accept_rekey_response(
+            &c.peer.initiator,
+            session,
+            &response,
+            &c.peer.signer_i,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover final commit");
+    let final_wire = c
+        .journal
+        .rekey_outbox(
+            &c.peer.initiator,
+            session,
+            1,
+            crate::RekeyFlight::Final,
+            150,
+        )
+        .expect("committed final");
+    let progress = c
+        .journal
+        .rekey_progress(&c.peer.initiator, session)
+        .expect("half cutover");
+    assert_eq!(
+        (
+            progress.sending_epoch,
+            progress.receiving_epoch,
+            progress.confirmed_epoch
+        ),
+        (1, 0, 0)
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        responder.finish_rekey(
+            &c.peer.responder,
+            session,
+            &final_wire,
+            &c.peer.signer_r,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    let receipt = responder
+        .rekey_outbox(
+            &c.peer.responder,
+            session,
+            1,
+            crate::RekeyFlight::Receipt,
+            150,
+        )
+        .expect("committed receipt");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 4, false));
+    assert!(matches!(
+        c.journal
+            .accept_rekey_receipt(&c.peer.initiator, session, &receipt, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 4);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover receive cutover");
+    assert_eq!(
+        c.journal
+            .accept_rekey_receipt(&c.peer.initiator, session, &receipt, 150)
+            .expect("receipt replay"),
+        1
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        c.journal.rekey_outbox(
+            &c.peer.initiator,
+            session,
+            1,
+            crate::RekeyFlight::Final,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover cached release");
+    let id = c
+        .journal
+        .next_message_id(&c.peer.initiator, session, 150)
+        .expect("new epoch ID");
+    let wire = c
+        .journal
+        .send_message(
+            &c.peer.initiator,
+            session,
+            id,
+            b"anchored epoch one",
+            b"application",
+            150,
+        )
+        .expect("new anchored traffic");
+    assert_eq!(
+        responder
+            .receive_message(&c.peer.responder, session, &wire, b"application", 150)
+            .expect("actual new epoch receipt")
+            .as_bytes(),
+        b"anchored epoch one"
+    );
 }
 
 #[test]

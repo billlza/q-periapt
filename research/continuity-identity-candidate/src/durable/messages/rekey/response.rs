@@ -6,10 +6,10 @@ use q_periapt_sdk::{Ciphertext, CIPHERTEXT_LEN};
 
 const TAG: &[u8; 8] = b"QPRKRP01";
 const TOKEN_LEN: usize = 245;
-const PREFIX_LEN: usize = BODY_LEN - PUBLIC_KEY_LEN + 32;
-const CORE_LEN: usize = PREFIX_LEN + CIPHERTEXT_LEN;
-const RESPONSE_BODY_LEN: usize = CORE_LEN + 32;
-const RESPONSE_WIRE_LEN: usize = 4 + RESPONSE_BODY_LEN + SIGNATURE_BYTES;
+pub(super) const PREFIX_LEN: usize = BODY_LEN - PUBLIC_KEY_LEN + 32;
+pub(super) const CORE_LEN: usize = PREFIX_LEN + CIPHERTEXT_LEN;
+pub(super) const RESPONSE_BODY_LEN: usize = CORE_LEN + 32;
+pub(super) const RESPONSE_WIRE_LEN: usize = 4 + RESPONSE_BODY_LEN + SIGNATURE_BYTES;
 
 /// Local preparation state; a committed response is not a confirmed new epoch.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub enum RekeyResponseStatus {
     Committed,
 }
 
-enum Stage {
+pub(super) enum Stage {
     Encapsulation(SealedOperation),
     Signing {
         body: Vec<u8>,
@@ -37,8 +37,8 @@ enum Stage {
     },
 }
 pub(super) struct Plan {
-    offer: Vec<u8>,
-    stage: Stage,
+    pub(super) offer: Vec<u8>,
+    pub(super) stage: Stage,
 }
 impl Plan {
     pub(super) fn phase(&self) -> u8 {
@@ -111,7 +111,7 @@ impl Plan {
     }
 }
 
-fn prefix(
+pub(super) fn prefix(
     control: &Control,
     session: &[u8; 32],
     context: &[u8; 32],
@@ -128,10 +128,10 @@ fn prefix(
     bytes.extend_from_slice(&hash(b"offer-wire", offer));
     Ok(bytes)
 }
-fn kem_context(offer: &[u8]) -> [u8; 32] {
+pub(super) fn kem_context(offer: &[u8]) -> [u8; 32] {
     hash(b"response-kem", offer)
 }
-fn derive_root(
+pub(super) fn derive_root(
     previous: &ZeroizingBytes<32>,
     shared: &ZeroizingBytes<32>,
     core: &[u8],
@@ -157,7 +157,11 @@ fn confirmation(root: &ZeroizingBytes<32>, core: &[u8]) -> Result<Hmac<Sha256>, 
     mac.update(&hash(b"response-core", core));
     Ok(mac)
 }
-fn check_body(prefix: &[u8], body: &[u8], root: &ZeroizingBytes<32>) -> Result<(), Error> {
+pub(super) fn check_body(
+    prefix: &[u8],
+    body: &[u8],
+    root: &ZeroizingBytes<32>,
+) -> Result<(), Error> {
     if body.len() != RESPONSE_BODY_LEN || !body.starts_with(prefix) {
         return Err(Error::Scope);
     }
@@ -182,11 +186,26 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         let mut image = self.image()?;
         let mut state = self.message_state(&image, context, &session, now)?;
+        if let Some(last) = &state.control.last {
+            if last.offer == offer && state.role == 3 - proposer(state.control.epoch)? {
+                self.check_completed(context, last)?;
+                self.check_context_release(&image, context, now)?;
+                return Ok(last.response.clone());
+            }
+        }
         if state.role == proposer(state.control.target()?)? {
             return Err(Error::State.into());
         }
         // Authenticate before any entropy reservation or persistent mutation.
         verify_offer(&state, context, offer)?;
+        if let Some(super::Plan::Completing(plan)) = &state.control.plan {
+            let (saved_offer, saved_response) = plan.inputs();
+            if saved_offer != offer {
+                return Err(DurableError::Conflict);
+            }
+            self.check_context_release(&image, context, now)?;
+            return Ok(saved_response.to_vec());
+        }
         if let Some(super::Plan::Response(saved)) = &state.control.plan {
             if saved.offer != offer {
                 return Err(DurableError::Conflict);
@@ -208,6 +227,7 @@ impl DeviceJournal {
         if signer.public_key()? != device(context, state.role)?.key {
             return Err(Error::Scope.into());
         }
+        state.admit_history_retirement()?;
         let scope = hash(
             b"response-operation",
             &[
@@ -342,7 +362,7 @@ impl DeviceJournal {
         self.check_context_release(&image, context, now)?;
         Ok(wire)
     }
-    fn rekey_recovery_key(&self) -> Result<RecoveryKey, DurableError> {
+    pub(super) fn rekey_recovery_key(&self) -> Result<RecoveryKey, DurableError> {
         RecoveryKey::from_host_key(
             self.active
                 .as_ref()
@@ -363,6 +383,7 @@ impl DeviceJournal {
         let state = self.rekey_state_for_status(context, session)?;
         Ok(match state.control.plan {
             Some(super::Plan::Response(response)) => response.status(),
+            Some(super::Plan::Completing(plan)) => plan.response_status(),
             _ => RekeyResponseStatus::Absent,
         })
     }

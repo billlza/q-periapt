@@ -1,48 +1,69 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Initial-epoch message protection owned exclusively by the device transaction.
+//! Epoch-scoped message protection owned exclusively by the device transaction.
 use super::*;
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+mod traffic;
+use traffic::Traffic;
 mod rekey;
-pub use rekey::{RekeyOfferStatus, RekeyResponseStatus};
+pub use rekey::{RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyResponseStatus};
 
 const MAX_PLAINTEXT: usize = 16 * 1024;
 const MAX_AD: usize = 1024;
 const MAX_SKIPPED: usize = 128;
 const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
-const MESSAGE_TAG: &[u8; 8] = b"QPCMSG02";
-const STATE_TAG: &[u8; 8] = b"QPMST004";
+const MESSAGE_TAG: &[u8; 8] = b"QPCMSG03";
+const MAX_TRAFFIC_EPOCHS: usize = 4;
+const STATE_TAG: &[u8; 8] = b"QPMST006";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
-/// Journal-issued session/direction/sequence ID, retained by the host for retries.
+fn first_retained_epoch(newest: u64) -> u64 {
+    newest.saturating_sub((MAX_TRAFFIC_EPOCHS - 1) as u64)
+}
+
+/// Journal-issued session/direction/epoch/sequence ID, retained for retries.
 /// Reusing an active ID with different input fails; retired IDs cannot be reused.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MessageId([u8; 32]);
 impl MessageId {
-    fn for_index(session: &[u8; 32], role: u8, index: u64) -> Result<Self, Error> {
-        if !matches!(role, 1 | 2) || index == u64::MAX {
+    fn for_epoch(session: &[u8; 32], role: u8, epoch: u64, index: u64) -> Result<Self, Error> {
+        if !matches!(role, 1 | 2) || epoch == u64::MAX || index == u64::MAX {
             return Err(Error::Capacity);
         }
         let mut bound = session.to_vec();
         bound.push(role);
+        bound.extend_from_slice(&epoch.to_be_bytes());
         bound.extend_from_slice(&index.to_be_bytes());
-        let binding = digest(&label(b"message-id"), &bound);
+        let binding = digest(&label(b"epoch-message-id"), &bound);
         let mut bytes = [0; 32];
         bytes
             .get_mut(..8)
             .ok_or(Error::Encoding)?
+            .copy_from_slice(&epoch.to_be_bytes());
+        bytes
+            .get_mut(8..16)
+            .ok_or(Error::Encoding)?
             .copy_from_slice(&index.to_be_bytes());
         bytes
-            .get_mut(8..)
+            .get_mut(16..)
             .ok_or(Error::Encoding)?
-            .copy_from_slice(binding.get(..24).ok_or(Error::Encoding)?);
+            .copy_from_slice(binding.get(..16).ok_or(Error::Encoding)?);
         Ok(Self(bytes))
     }
     fn index(self) -> Result<u64, Error> {
+        Ok(u64::from_be_bytes(
+            self.0
+                .get(8..16)
+                .ok_or(Error::Encoding)?
+                .try_into()
+                .map_err(|_| Error::Encoding)?,
+        ))
+    }
+    fn epoch(self) -> Result<u64, Error> {
         Ok(u64::from_be_bytes(
             self.0
                 .get(..8)
@@ -53,7 +74,7 @@ impl MessageId {
     }
     fn check(self, session: &[u8; 32], role: u8) -> Result<u64, Error> {
         let index = self.index()?;
-        if self != Self::for_index(session, role, index)? {
+        if self != Self::for_epoch(session, role, self.epoch()?, index)? {
             return Err(Error::Scope);
         }
         Ok(index)
@@ -121,18 +142,9 @@ struct State {
     role: u8,
     rekey: ZeroizingBytes<32>,
     control: rekey::Control,
-    send: ZeroizingBytes<32>,
-    receive: ZeroizingBytes<32>,
-    send_ack: ZeroizingBytes<32>,
-    receive_ack: ZeroizingBytes<32>,
-    send_floor: u64,
-    receive_floor: u64,
-    sent: u64,
-    received: u64,
-    skipped: BTreeMap<u64, ZeroizingBytes<32>>,
-    pending: Option<SendPlan>,
-    outgoing: BTreeMap<MessageId, Outgoing>,
-    incoming: BTreeMap<MessageId, Incoming>,
+    send_epoch: u64,
+    receive_epoch: u64,
+    epochs: BTreeMap<u64, Traffic>,
 }
 fn key(bytes: &[u8]) -> Result<ZeroizingBytes<32>, Error> {
     let bytes: &[u8; 32] = bytes.try_into().map_err(|_| Error::Encoding)?;
@@ -183,6 +195,7 @@ fn associated(header: &[u8], ad: &[u8]) -> Vec<u8> {
 struct Header {
     session: [u8; 32],
     role: u8,
+    epoch: u64,
     index: u64,
     id: MessageId,
     length: usize,
@@ -198,7 +211,8 @@ impl Header {
         }
         let session = d.array()?;
         let [role] = d.array()?;
-        if !matches!(role, 1 | 2) || d.u64()? != 0 {
+        let epoch = d.u64()?;
+        if !matches!(role, 1 | 2) || epoch == u64::MAX {
             return Err(Error::Encoding);
         }
         let index = d.u64()?;
@@ -206,7 +220,7 @@ impl Header {
             return Err(Error::Capacity);
         }
         let id = MessageId::from_trusted_state(d.array()?)?;
-        if id.check(&session, role)? != index {
+        if id.check(&session, role)? != index || id.epoch()? != epoch {
             return Err(Error::Encoding);
         }
         let length = u32::from_be_bytes(d.array()?) as usize;
@@ -217,6 +231,7 @@ impl Header {
         Ok(Self {
             session,
             role,
+            epoch,
             index,
             id,
             length,
@@ -226,7 +241,7 @@ impl Header {
         let mut wire = MESSAGE_TAG.to_vec();
         wire.extend_from_slice(&self.session);
         wire.push(self.role);
-        wire.extend_from_slice(&0u64.to_be_bytes());
+        wire.extend_from_slice(&self.epoch.to_be_bytes());
         wire.extend_from_slice(&self.index.to_be_bytes());
         wire.extend_from_slice(&self.id.0);
         wire.extend_from_slice(&(self.length as u32).to_be_bytes());
@@ -248,82 +263,48 @@ impl State {
             .expand(&info, output.as_mut_bytes())
             .map_err(|_| Error::Provider)?;
         let rekey = key(output.as_bytes().get(..32).ok_or(Error::Encoding)?)?;
-        let a = key(output.as_bytes().get(32..64).ok_or(Error::Encoding)?)?;
-        let b = key(output.as_bytes().get(64..96).ok_or(Error::Encoding)?)?;
-        let ack_a = key(output.as_bytes().get(96..128).ok_or(Error::Encoding)?)?;
-        let ack_b = key(output.as_bytes().get(128..).ok_or(Error::Encoding)?)?;
-        let (send_ack, receive_ack) = if role == 1 {
-            (ack_a, ack_b)
-        } else {
-            (ack_b, ack_a)
-        };
-        let (send, receive) = if role == 1 { (a, b) } else { (b, a) };
+        let traffic = Traffic::from_material(
+            session,
+            role,
+            0,
+            output.as_bytes().get(32..).ok_or(Error::Encoding)?,
+        )?;
         Ok(Self {
             source,
             session,
             role,
             rekey,
             control: rekey::Control::genesis(&session, context),
-            send,
-            receive,
-            send_ack,
-            receive_ack,
-            send_floor: 0,
-            receive_floor: 0,
-            sent: 0,
-            received: 0,
-            skipped: BTreeMap::new(),
-            pending: None,
-            outgoing: BTreeMap::new(),
-            incoming: BTreeMap::new(),
+            send_epoch: 0,
+            receive_epoch: 0,
+            epochs: BTreeMap::from([(0, traffic)]),
         })
+    }
+    fn traffic(&self, epoch: u64) -> Result<&Traffic, Error> {
+        if epoch < first_retained_epoch(self.send_epoch.max(self.receive_epoch)) {
+            return Err(Error::Retired);
+        }
+        self.epochs.get(&epoch).ok_or(Error::State)
+    }
+    fn traffic_mut(&mut self, epoch: u64) -> Result<&mut Traffic, Error> {
+        if epoch < first_retained_epoch(self.send_epoch.max(self.receive_epoch)) {
+            return Err(Error::Retired);
+        }
+        self.epochs.get_mut(&epoch).ok_or(Error::State)
     }
     fn encode(&self) -> Zeroizing<Vec<u8>> {
         let mut bytes = Zeroizing::new(STATE_TAG.to_vec());
         bytes.extend_from_slice(&self.source);
         bytes.extend_from_slice(&self.session);
         bytes.push(self.role);
-        for k in [
-            &self.rekey,
-            &self.send,
-            &self.receive,
-            &self.send_ack,
-            &self.receive_ack,
-        ] {
-            bytes.extend_from_slice(k.as_bytes());
-        }
-        bytes.extend_from_slice(&self.send_floor.to_be_bytes());
-        bytes.extend_from_slice(&self.receive_floor.to_be_bytes());
-        bytes.extend_from_slice(&self.sent.to_be_bytes());
-        bytes.extend_from_slice(&self.received.to_be_bytes());
-        bytes.extend_from_slice(&(self.skipped.len() as u16).to_be_bytes());
-        for (index, k) in &self.skipped {
-            bytes.extend_from_slice(&index.to_be_bytes());
-            bytes.extend_from_slice(k.as_bytes());
-        }
-        bytes.push(u8::from(self.pending.is_some()));
-        if let Some(plan) = &self.pending {
-            bytes.extend_from_slice(&plan.id.0);
-            bytes.extend_from_slice(&(plan.plaintext.len() as u32).to_be_bytes());
-            bytes.extend_from_slice(&plan.plaintext);
-            bytes.extend_from_slice(&(plan.ad.len() as u16).to_be_bytes());
-            bytes.extend_from_slice(&plan.ad);
-        }
-        bytes.extend_from_slice(&(self.outgoing.len() as u16).to_be_bytes());
-        for (id, saved) in &self.outgoing {
-            bytes.extend_from_slice(&id.0);
-            bytes.extend_from_slice(&saved.intent);
-            bytes.extend_from_slice(&(saved.wire.len() as u32).to_be_bytes());
-            bytes.extend_from_slice(&saved.wire);
-        }
-        bytes.extend_from_slice(&(self.incoming.len() as u16).to_be_bytes());
-        for (id, saved) in &self.incoming {
-            bytes.extend_from_slice(&id.0);
-            bytes.extend_from_slice(&saved.index.to_be_bytes());
-            bytes.extend_from_slice(&saved.intent);
-            bytes.push(u8::from(saved.consumed));
-            bytes.extend_from_slice(&(saved.plaintext.len() as u32).to_be_bytes());
-            bytes.extend_from_slice(&saved.plaintext);
+        bytes.extend_from_slice(self.rekey.as_bytes());
+        bytes.extend_from_slice(&self.send_epoch.to_be_bytes());
+        bytes.extend_from_slice(&self.receive_epoch.to_be_bytes());
+        bytes.push(self.epochs.len() as u8);
+        for value in self.epochs.values() {
+            let encoded = value.encode();
+            bytes.extend_from_slice(&(encoded.len() as u32).to_be_bytes());
+            bytes.extend_from_slice(&encoded);
         }
         self.control.encode(&mut bytes);
         bytes
@@ -343,131 +324,37 @@ impl State {
             return Err(Error::Encoding);
         }
         let rekey = key(d.take(32)?)?;
-        let send = key(d.take(32)?)?;
-        let receive = key(d.take(32)?)?;
-        let send_ack = key(d.take(32)?)?;
-        let receive_ack = key(d.take(32)?)?;
-        let send_floor = d.u64()?;
-        let receive_floor = d.u64()?;
-        let sent = d.u64()?;
-        let received = d.u64()?;
-        let mut skipped = BTreeMap::new();
-        let count = usize::from(d.u16()?);
-        if count > MAX_SKIPPED {
+        let send_epoch = d.u64()?;
+        let receive_epoch = d.u64()?;
+        let [count] = d.array()?;
+        if count == 0 || usize::from(count) > MAX_TRAFFIC_EPOCHS {
             return Err(Error::Capacity);
         }
-        for _ in 0..count {
-            let index = d.u64()?;
-            if index < receive_floor
-                || index >= received
-                || skipped
-                    .last_key_value()
-                    .is_some_and(|(last, _)| *last >= index)
-            {
-                return Err(Error::Encoding);
-            }
-            skipped.insert(index, key(d.take(32)?)?);
-        }
-        let pending = match d.array::<1>()? {
-            [0] => None,
-            [1] => {
-                let id = MessageId::from_trusted_state(d.array()?)?;
-                let length = u32::from_be_bytes(d.array()?) as usize;
-                if length > MAX_PLAINTEXT {
-                    return Err(Error::Capacity);
-                }
-                let plaintext = Zeroizing::new(d.take(length)?.to_vec());
-                let length = usize::from(d.u16()?);
-                if length > MAX_AD {
-                    return Err(Error::Capacity);
-                }
-                Some(SendPlan {
-                    id,
-                    plaintext,
-                    ad: d.take(length)?.to_vec(),
-                })
-            }
-            _ => return Err(Error::Encoding),
-        };
-        let mut outgoing = BTreeMap::new();
-        let mut send_indices = BTreeSet::new();
-        let count = usize::from(d.u16()?);
-        if count > MAX_RECEIPTS || sent.checked_sub(send_floor) != Some(count as u64) {
-            return Err(Error::Capacity);
-        }
-        for _ in 0..count {
-            let id = MessageId::from_trusted_state(d.array()?)?;
-            let intent = d.array()?;
-            let length = u32::from_be_bytes(d.array()?) as usize;
-            if length > MESSAGE_HEADER + 16 + MAX_PLAINTEXT {
-                return Err(Error::Encoding);
-            }
-            let wire = d.take(length)?.to_vec();
-            let header = Header::decode(&wire)?;
-            if header.id != id
-                || header.session != session
-                || header.role != role
-                || header.index < send_floor
-                || header.index >= sent
-                || !send_indices.insert(header.index)
-                || outgoing
-                    .last_key_value()
-                    .is_some_and(|(last, _)| *last >= id)
-            {
-                return Err(Error::Encoding);
-            }
-            outgoing.insert(id, Outgoing { intent, wire });
-        }
-        if pending.as_ref().is_some_and(|p| {
-            p.id.check(&session, role) != Ok(sent)
-                || outgoing.contains_key(&p.id)
-                || outgoing.len() >= MAX_RECEIPTS
-        }) {
+        let newest = send_epoch.max(receive_epoch);
+        let first = first_retained_epoch(newest);
+        if newest == u64::MAX || u64::from(count) != newest - first + 1 {
             return Err(Error::Encoding);
         }
-        let mut incoming = BTreeMap::new();
-        let mut receive_indices = BTreeSet::new();
-        let count = usize::from(d.u16()?);
-        if count > MAX_RECEIPTS
-            || received.checked_sub(receive_floor) != Some((count + skipped.len()) as u64)
-        {
-            return Err(Error::Capacity);
-        }
-        for _ in 0..count {
-            let id = MessageId::from_trusted_state(d.array()?)?;
-            let index = d.u64()?;
-            if id.check(&session, 3 - role)? != index {
+        let mut epochs = BTreeMap::new();
+        for ordinal in 0..u64::from(count) {
+            let length = u32::from_be_bytes(d.array()?) as usize;
+            let traffic = Traffic::decode(d.take(length)?, session, role)?;
+            if traffic.epoch != first + ordinal {
                 return Err(Error::Encoding);
             }
-            let intent = d.array()?;
-            let consumed = match d.array::<1>()? {
-                [0] => false,
-                [1] => true,
-                _ => return Err(Error::Encoding),
-            };
-            let length = u32::from_be_bytes(d.array()?) as usize;
-            if length > MAX_PLAINTEXT
-                || (consumed && (length != 0 || index == receive_floor))
-                || index < receive_floor
-                || index >= received
-                || skipped.contains_key(&index)
-                || !receive_indices.insert(index)
-                || incoming
-                    .last_key_value()
-                    .is_some_and(|(last, _)| *last >= id)
+            epochs.insert(traffic.epoch, traffic);
+        }
+        if !epochs.contains_key(&send_epoch) || !epochs.contains_key(&receive_epoch) {
+            return Err(Error::Encoding);
+        }
+        for (epoch, traffic) in &epochs {
+            if traffic.send_closed != (*epoch < send_epoch)
+                || traffic.receive_limit.is_some() != (*epoch < receive_epoch)
+                || (*epoch > send_epoch && (traffic.sent != 0 || traffic.pending.is_some()))
+                || (*epoch > receive_epoch && traffic.received != 0)
             {
                 return Err(Error::Encoding);
             }
-            let plaintext = Zeroizing::new(d.take(length)?.to_vec());
-            incoming.insert(
-                id,
-                Incoming {
-                    index,
-                    intent,
-                    plaintext,
-                    consumed,
-                },
-            );
         }
         let control = rekey::Control::decode(&mut d)?;
         d.finish()?;
@@ -477,164 +364,9 @@ impl State {
             role,
             rekey,
             control,
-            send,
-            receive,
-            send_ack,
-            receive_ack,
-            send_floor,
-            receive_floor,
-            sent,
-            received,
-            skipped,
-            pending,
-            outgoing,
-            incoming,
-        })
-    }
-    fn send(&mut self, id: MessageId, plaintext: &[u8], ad: &[u8]) -> Result<Vec<u8>, Error> {
-        if plaintext.len() > MAX_PLAINTEXT || ad.len() > MAX_AD {
-            return Err(Error::Capacity);
-        }
-        let index = id.check(&self.session, self.role)?;
-        if index < self.send_floor {
-            return Err(Error::Retired);
-        }
-        let intent = intent(b"send-intent", plaintext, ad);
-        if let Some(saved) = self.outgoing.get(&id) {
-            return if saved.intent == intent {
-                Ok(saved.wire.clone())
-            } else {
-                Err(Error::Conflict)
-            };
-        }
-        if index != self.sent {
-            return Err(Error::Conflict);
-        }
-        if self.outgoing.len() >= MAX_RECEIPTS {
-            return Err(Error::Capacity);
-        }
-        let plan = self.pending.as_ref().ok_or(Error::State)?;
-        if plan.id != id || plan.plaintext.as_slice() != plaintext || plan.ad != ad {
-            return Err(Error::Conflict);
-        }
-        let (next, message) = step(&self.send, self.sent)?;
-        let mut wire = Header {
-            session: self.session,
-            role: self.role,
-            index: self.sent,
-            id,
-            length: plaintext.len(),
-        }
-        .encode();
-        let mut ciphertext = Zeroizing::new(plaintext.to_vec());
-        let cipher =
-            ChaCha20Poly1305::new_from_slice(message.as_bytes()).map_err(|_| Error::Provider)?;
-        let tag = cipher
-            .encrypt_inout_detached(
-                &Nonce::from([0; 12]),
-                &associated(&wire, ad),
-                ciphertext.as_mut_slice().into(),
-            )
-            .map_err(|_| Error::Provider)?;
-        wire.extend_from_slice(&ciphertext);
-        wire.extend_from_slice(&tag);
-        self.pending = None;
-        self.send = next;
-        self.sent += 1;
-        self.outgoing.insert(
-            id,
-            Outgoing {
-                intent,
-                wire: wire.clone(),
-            },
-        );
-        Ok(wire)
-    }
-    fn receive(&mut self, wire: &[u8], ad: &[u8]) -> Result<CommittedPlaintext, Error> {
-        if ad.len() > MAX_AD {
-            return Err(Error::Capacity);
-        }
-        let header = Header::decode(wire)?;
-        if header.session != self.session || header.role == self.role {
-            return Err(Error::Scope);
-        }
-        if header.index < self.receive_floor {
-            return Err(Error::Retired);
-        }
-        let intent = intent(b"receive-intent", wire, ad);
-        if let Some(saved) = self.incoming.get(&header.id) {
-            return if saved.intent == intent {
-                if saved.consumed {
-                    return Err(Error::Retired);
-                }
-                Ok(CommittedPlaintext {
-                    id: header.id,
-                    bytes: saved.plaintext.clone(),
-                })
-            } else {
-                Err(Error::Authentication)
-            };
-        }
-        if self.incoming.len() >= MAX_RECEIPTS {
-            return Err(Error::Capacity);
-        }
-        // Candidate state is transaction-private and dropped on any error. Even a
-        // failed skipped-key authentication cannot consume the persisted key.
-        let message = if header.index < self.received {
-            self.skipped
-                .remove(&header.index)
-                .ok_or(Error::Authentication)?
-        } else {
-            let distance = header.index - self.received;
-            if distance > MAX_SKIPPED as u64 || self.skipped.len() + distance as usize > MAX_SKIPPED
-            {
-                return Err(Error::Capacity);
-            }
-            while self.received < header.index {
-                let (next, message) = step(&self.receive, self.received)?;
-                self.skipped.insert(self.received, message);
-                self.receive = next;
-                self.received += 1;
-            }
-            let (next, message) = step(&self.receive, self.received)?;
-            self.receive = next;
-            self.received += 1;
-            message
-        };
-        let mut plaintext = Zeroizing::new(
-            wire.get(MESSAGE_HEADER..MESSAGE_HEADER + header.length)
-                .ok_or(Error::Encoding)?
-                .to_vec(),
-        );
-        let tag = Tag::from(
-            <[u8; 16]>::try_from(
-                wire.get(MESSAGE_HEADER + header.length..)
-                    .ok_or(Error::Encoding)?,
-            )
-            .map_err(|_| Error::Encoding)?,
-        );
-        let cipher =
-            ChaCha20Poly1305::new_from_slice(message.as_bytes()).map_err(|_| Error::Provider)?;
-        cipher
-            .decrypt_inout_detached(
-                &Nonce::from([0; 12]),
-                &associated(wire.get(..MESSAGE_HEADER).ok_or(Error::Encoding)?, ad),
-                plaintext.as_mut_slice().into(),
-                &tag,
-            )
-            .map_err(|_| Error::Authentication)?;
-        self.incoming.insert(
-            header.id,
-            Incoming {
-                index: header.index,
-                intent,
-                plaintext: plaintext.clone(),
-                consumed: false,
-            },
-        );
-        Ok(CommittedPlaintext {
-            id: header.id,
-            bytes: plaintext,
+            send_epoch,
+            receive_epoch,
+            epochs,
         })
     }
 }
@@ -790,7 +522,15 @@ impl DeviceJournal {
     ) -> Result<MessageId, DurableError> {
         let image = self.image()?;
         let state = self.message_state(&image, context, &session, now)?;
-        let id = MessageId::for_index(&session, state.role, state.sent)?;
+        if state.control.send_fenced() {
+            return Err(DurableError::Suspended);
+        }
+        let id = MessageId::for_epoch(
+            &session,
+            state.role,
+            state.send_epoch,
+            state.traffic(state.send_epoch)?.sent,
+        )?;
         context.check_session_identity(now)?;
         self.check_context_release(&image, context, now)?;
         Ok(id)
@@ -812,15 +552,22 @@ impl DeviceJournal {
             return Err(DurableError::Capacity);
         }
         let index = id.check(&session, state.role)?;
-        if index < state.send_floor {
+        let epoch = id.epoch()?;
+        let active_epoch = state.send_epoch;
+        let fenced = state.control.send_fenced();
+        let traffic = state.traffic_mut(epoch)?;
+        if index < traffic.send_floor {
             return Err(Error::Retired.into());
         }
-        let already = state.outgoing.contains_key(&id);
-        if !already && index != state.sent {
+        let already = traffic.outgoing.contains_key(&id);
+        if !already && (epoch != active_epoch || fenced) {
+            return Err(DurableError::Suspended);
+        }
+        if !already && index != traffic.sent {
             return Err(Error::Conflict.into());
         }
         if !already {
-            if let Some(plan) = &state.pending {
+            if let Some(plan) = &traffic.pending {
                 if plan.id != id
                     || plan.plaintext.as_slice() != plaintext
                     || plan.ad != associated_data
@@ -828,10 +575,10 @@ impl DeviceJournal {
                     return Err(DurableError::Conflict);
                 }
             } else {
-                if state.outgoing.len() >= MAX_RECEIPTS {
+                if traffic.outgoing.len() >= MAX_RECEIPTS {
                     return Err(DurableError::Capacity);
                 }
-                state.pending = Some(SendPlan {
+                traffic.pending = Some(SendPlan {
                     id,
                     plaintext: Zeroizing::new(plaintext.to_vec()),
                     ad: associated_data.to_vec(),
@@ -847,7 +594,9 @@ impl DeviceJournal {
             }
             context.check_session_identity(now)?;
         }
-        let wire = state.send(id, plaintext, associated_data)?;
+        let wire = state
+            .traffic_mut(epoch)?
+            .send(id, plaintext, associated_data)?;
         if !already {
             image
                 .records
@@ -892,11 +641,12 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         let index = id.check(&session, state.role)?;
-        Ok(if index < state.send_floor {
+        let traffic = state.traffic(id.epoch()?)?;
+        Ok(if index < traffic.send_floor {
             MessageStatus::Acknowledged
-        } else if state.outgoing.contains_key(&id) {
+        } else if traffic.outgoing.contains_key(&id) {
             MessageStatus::Committed
-        } else if state.pending.as_ref().is_some_and(|p| p.id == id) {
+        } else if traffic.pending.as_ref().is_some_and(|p| p.id == id) {
             MessageStatus::Reserved
         } else {
             MessageStatus::Absent
@@ -913,15 +663,17 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         let image = self.image()?;
         let mut state = self.message_state(&image, context, &session, now)?;
-        if id.check(&session, state.role)? < state.send_floor {
+        let index = id.check(&session, state.role)?;
+        let traffic = state.traffic_mut(id.epoch()?)?;
+        if index < traffic.send_floor {
             return Err(Error::Retired.into());
         }
-        if let Some(saved) = state.outgoing.get(&id) {
+        if let Some(saved) = traffic.outgoing.get(&id) {
             context.check_session_identity(now)?;
             self.check_context_release(&image, context, now)?;
             return Ok(saved.wire.clone());
         }
-        let plan = state
+        let plan = traffic
             .pending
             .take()
             .filter(|plan| plan.id == id)
@@ -942,8 +694,13 @@ impl DeviceJournal {
         let mut image = self.image()?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let id = Header::decode(wire)?.id;
-        let already = state.incoming.contains_key(&id);
-        let plaintext = state.receive(wire, associated_data)?;
+        let epoch = id.epoch()?;
+        if epoch > state.receive_epoch {
+            return Err(DurableError::Suspended);
+        }
+        let traffic = state.traffic_mut(epoch)?;
+        let already = traffic.incoming.contains_key(&id);
+        let plaintext = traffic.receive(wire, associated_data)?;
         if !already {
             image
                 .records
@@ -975,7 +732,15 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
         let state = State::decode(&record.payload).map_err(|_| DurableError::Corrupt)?;
         state
             .control
-            .validate(&state.session, state.role, &record.context)
+            .validate(&state.session, state.role, &record.context, &state.rekey)
+            .map_err(|_| DurableError::Corrupt)?;
+        state
+            .control
+            .validate_epochs(state.send_epoch, state.receive_epoch, state.epochs.len())
+            .map_err(|_| DurableError::Corrupt)?;
+        state
+            .control
+            .validate_cutovers(&state, &record.context)
             .map_err(|_| DurableError::Corrupt)?;
         if *id != record_id(&state.session) || !sources.insert(state.source) {
             return Err(DurableError::Corrupt);

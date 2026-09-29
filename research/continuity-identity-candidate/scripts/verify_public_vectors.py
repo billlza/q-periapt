@@ -267,8 +267,8 @@ def verify(oracle: Oracle, *, with_rekey: bool = False) -> dict:
             "authenticated_selections": selection_total + 1, "bootstrap": bootstrap,
             "fixture_sha256": oracle.inputs, "commands": oracle.commands}
     if with_rekey:
-        report.update(schema=5, signed_envelopes=17, rekey_offer=verify_rekey_offer(oracle),
-                      rekey_response=verify_rekey_response(oracle))
+        report.update(schema=6, signed_envelopes=19, rekey_offer=verify_rekey_offer(oracle),
+                      rekey_response=verify_rekey_response(oracle), rekey_completion=verify_rekey_completion(oracle))
     return report
 
 
@@ -393,7 +393,7 @@ def verify_rekey_offer(oracle: Oracle) -> dict:
     key = oracle.read("bootstrap-i-device.pub", 1985)
     body = Reader(oracle.envelope("rekey-offer", 9, key))
     require(body.take(8) == b"QPRKOF01", "rekey offer tag")
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-offer/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1")
     require(body.take(32) == profile, "rekey offer profile")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
@@ -418,7 +418,7 @@ def verify_rekey_response(oracle: Oracle) -> dict:
     key = oracle.read("bootstrap-r-device.pub", 1985)
     body = Reader(oracle.envelope("rekey-response", 10, key))
     require(body.take(8) == b"QPRKRP01", "rekey response tag")
-    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-offer/v1")
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1")
     require(body.take(32) == profile, "rekey response profile")
     context = oracle.read("bootstrap-context.digest", 32)
     session = oracle.read("bootstrap-session.id", 32)
@@ -434,6 +434,46 @@ def verify_rekey_response(oracle: Oracle) -> dict:
     return {"identity_signatures":"verified", "exact_offer_and_session_binding":"verified",
             "confirmed_epoch":0, "response_epoch":1, "key_confirmation":"not checked by public-only oracle",
             "scope":"committed response only; no epoch installation"}
+
+
+def verify_rekey_completion(oracle: Oracle) -> dict:
+    def rekey_hash(label: bytes, data: bytes) -> bytes:
+        domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/" + label
+        return hashlib.sha3_256(len(domain).to_bytes(8,"big") + domain + len(data).to_bytes(8,"big") + data).digest()
+    profile = rekey_hash(b"offer-profile", b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v3;messages/v3;retained-epochs=4;drained-prefix-attestation/v1")
+    context = oracle.read("bootstrap-context.digest", 32)
+    session = oracle.read("bootstrap-session.id", 32)
+    offer = oracle.read("rekey-offer.bin", 4746)
+    reply = oracle.read("rekey-response.bin", 4714)
+    final = oracle.read("rekey-final.bin", 3634)
+    for name, purpose, role, tag in (("rekey-final", 11, 1, b"QPRKFN01"), ("rekey-receipt", 12, 2, b"QPRKRC01")):
+        key = oracle.read("bootstrap-" + ("i" if role == 1 else "r") + "-device.pub", 1985)
+        body = Reader(oracle.envelope(name, purpose, key))
+        require(body.take(8) == tag and body.take(32) == profile, "completion tag/profile")
+        require(body.take(32) == context and body.take(32) == session, "completion context/session")
+        require(body.integer(8) == 0 and body.integer(8) == 1 and body.integer(1) == role, "completion epochs/role")
+        require(body.take(32) == rekey_hash(b"genesis", session+context), "completion predecessor")
+        require(body.take(32) == rekey_hash(b"offer-wire", offer), "completion exact offer")
+        require(body.take(32) == rekey_hash(b"response-wire", reply), "completion exact response")
+        if role == 2:
+            require(body.take(32) == rekey_hash(b"final-wire", final), "receipt exact final")
+        require(body.integer(8) == 0, "fixture prior sending-chain length")
+        body.take(32)
+        body.finish()
+    for name, role in (("rekey-i-message.bin", 1), ("rekey-r-message.bin", 2)):
+        wire = Reader(oracle.read(name))
+        require(wire.take(8) == b"QPCMSG03" and wire.take(32) == session, "traffic tag/session")
+        require(wire.integer(1) == role and wire.integer(8) == 1 and wire.integer(8) == 0, "traffic direction/epoch/index")
+        domain = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/epoch-message-id"
+        body = session + bytes([role]) + (1).to_bytes(8,"big") + bytes(8)
+        binding = hashlib.sha3_256(len(domain).to_bytes(8,"big") + domain + len(body).to_bytes(8,"big") + body).digest()
+        require(wire.take(32) == (1).to_bytes(8,"big") + bytes(8) + binding[:16], "epoch-bound message ID")
+        require(wire.integer(4) == len(b"epoch fixture I"), "traffic length")
+        wire.take(len(b"epoch fixture I") + 16)
+        wire.finish()
+    return {"identity_signatures":"verified", "complete_transcript_and_cutovers":"verified",
+            "traffic_epoch":1, "traffic_frames":2, "epoch_bound_ids":"verified",
+            "secret_mac_and_aead":"exercised by real journal fixture; not recomputed by public-only oracle"}
 
 
 if __name__ == "__main__":

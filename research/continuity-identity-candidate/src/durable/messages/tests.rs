@@ -111,7 +111,13 @@ impl Pair {
     }
 }
 fn id(session: [u8; 32], role: u8, ordinal: u64) -> MessageId {
-    MessageId::for_index(&session, role, ordinal - 1).expect("id")
+    MessageId::for_epoch(&session, role, 0, ordinal - 1).expect("id")
+}
+fn epoch(state: &State) -> &Traffic {
+    state.traffic(0).expect("initial epoch")
+}
+fn epoch_mut(state: &mut State) -> &mut Traffic {
+    state.traffic_mut(0).expect("initial epoch")
 }
 fn state(journal: &mut DeviceJournal, session: &[u8; 32]) -> State {
     State::decode(
@@ -221,8 +227,8 @@ fn confirmed_roots_transfer_atomically_and_both_directions_survive_reopen() {
     let second = p.send(id(p.session, 1, 2), message);
     assert_ne!(first, second);
     assert_eq!(p.receive(&second).as_bytes(), message);
-    assert_eq!(state(&mut p.ji, &p.session).sent, 2);
-    assert_eq!(state(&mut p.jr, &p.session).received, 2);
+    assert_eq!(epoch(&state(&mut p.ji, &p.session)).sent, 2);
+    assert_eq!(epoch(&state(&mut p.jr, &p.session)).received, 2);
 }
 
 #[test]
@@ -260,7 +266,7 @@ fn forged_header_ciphertext_tag_and_ad_leave_persisted_chains_unchanged() {
         b"first",
         "failed authentication consumed skipped key"
     );
-    assert!(state(&mut p.jr, &p.session).skipped.is_empty());
+    assert!(epoch(&state(&mut p.jr, &p.session)).skipped.is_empty());
 }
 
 #[test]
@@ -278,10 +284,12 @@ fn authenticated_image_rejects_missing_or_grafted_session_and_consumed_key_state
         .get_mut(&record_id(&p.session))
         .expect("record");
     let mut value = State::decode(&record.payload).expect("state");
-    value.skipped.insert(0, ZeroizingBytes::zeroed());
+    epoch_mut(&mut value)
+        .skipped
+        .insert(0, ZeroizingBytes::zeroed());
     record.payload = value.encode();
     assert!(matches!(validate_image(&image), Err(DurableError::Corrupt)));
-    value.skipped.clear();
+    epoch_mut(&mut value).skipped.clear();
     value.source = [99; 32];
     image
         .records
@@ -315,7 +323,7 @@ fn out_of_order_receipts_and_resource_admission_preserve_exact_outputs() {
     for (n, wire) in wires.iter().enumerate().rev() {
         assert_eq!(p.receive(wire).as_bytes(), &[n as u8 + 1]);
     }
-    assert!(state(&mut p.jr, &p.session).skipped.is_empty());
+    assert!(epoch(&state(&mut p.jr, &p.session)).skipped.is_empty());
     assert_eq!(
         p.send(id(p.session, 1, 1), &[1]),
         *wires.first().expect("first")
@@ -380,7 +388,8 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
                 *journal = reopen(path, device);
                 if operation == "send" {
                     let saved = state(journal, &p.session);
-                    if saved.pending.is_some() || saved.outgoing.contains_key(&id(p.session, 1, 1))
+                    if epoch(&saved).pending.is_some()
+                        || epoch(&saved).outgoing.contains_key(&id(p.session, 1, 1))
                     {
                         assert!(journal
                             .send_message(
@@ -400,8 +409,8 @@ fn every_message_sync_failure_reconciles_without_early_output_or_replacement() {
                     assert_eq!(actual, wire);
                 }
                 assert_eq!(p.receive(&actual).as_bytes(), b"persist before release");
-                assert_eq!(state(&mut p.ji, &p.session).sent, 1);
-                assert_eq!(state(&mut p.jr, &p.session).received, 1);
+                assert_eq!(epoch(&state(&mut p.ji, &p.session)).sent, 1);
+                assert_eq!(epoch(&state(&mut p.jr, &p.session)).received, 1);
             }
         }
     }
@@ -460,21 +469,30 @@ fn initial_and_chain_keys_match_independent_hmac_sha256_vectors() {
     let initial = format!(
         "{}{}{}",
         hex(s.rekey.as_bytes()),
-        hex(s.send.as_bytes()),
-        hex(s.receive.as_bytes())
+        hex(epoch(&s).send.as_bytes()),
+        hex(epoch(&s).receive.as_bytes())
     );
     assert_eq!(initial, "c94afb4355b05a32f9cf8682a7231596c40e5d5fd8a6b9328d13109a5cd6e33e99fda0772b0f13582050c1f206a8ba3dfd8ec32ec2b35f6d86ff647e4bef6aa4f588f6ad682062e0df2c21e474aaa8b77ca58f3ca5e37e4e42c0acb0374d95e1");
-    let (next, message) = step(&s.send, 0).expect("first step");
+    let (next, message) = step(&epoch(&s).send, 0).expect("first step");
     assert_eq!(format!("{}{}", hex(next.as_bytes()), hex(message.as_bytes())), "5d88de809323126e111f0b711a1ba04bff9f3864ed4781191d6be635ad4f287eef0229693f35b1952dfde7d459cabcb337dd9f83b570c4ce08a83dbef5b0189f");
     let (next, message) = step(&next, 1).expect("second step");
     assert_eq!(format!("{}{}", hex(next.as_bytes()), hex(message.as_bytes())), "51e5a3a82942e7790bd6706ba7316ff05246b47da9a2ef4f5064155c5bbe040f5f7d6c48d6dc918f54c0e8e0ef934fee0140ad80146e2b567085309570957771");
     let reverse = State::new([8; 32], [9; 32], 2, key(&[7; 32]).expect("root"), &[11; 32])
         .expect("responder state");
-    assert_eq!(s.send.as_bytes(), reverse.receive.as_bytes());
-    assert_eq!(s.receive.as_bytes(), reverse.send.as_bytes());
-    assert_ne!(s.send.as_bytes(), s.receive.as_bytes());
-    assert_eq!(s.send_ack.as_bytes(), reverse.receive_ack.as_bytes());
-    assert_eq!(hex(&s.acknowledgement().expect("known acknowledgement")), "5150434d41434b310909090909090909090909090909090909090909090909090909090909090909020000000000000000d7011dd0974bf86048eedd1cdb1aafe537a48ef6c0f08e3145b960fc11efa172");
+    assert_eq!(
+        epoch(&s).send.as_bytes(),
+        epoch(&reverse).receive.as_bytes()
+    );
+    assert_eq!(
+        epoch(&s).receive.as_bytes(),
+        epoch(&reverse).send.as_bytes()
+    );
+    assert_ne!(epoch(&s).send.as_bytes(), epoch(&s).receive.as_bytes());
+    assert_eq!(
+        epoch(&s).send_ack.as_bytes(),
+        epoch(&reverse).receive_ack.as_bytes()
+    );
+    assert_eq!(hex(&epoch(&s).acknowledgement().expect("known acknowledgement")), "5150434d41434b310909090909090909090909090909090909090909090909090909090909090909020000000000000000d7011dd0974bf86048eedd1cdb1aafe537a48ef6c0f08e3145b960fc11efa172");
     let bytes = s.encode();
     assert_eq!(
         State::decode(&bytes).expect("decode").encode().as_slice(),
@@ -524,7 +542,10 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
     let is_i = matches!(
         operation.as_str(),
         "activate_i" | "reserved" | "sent" | "acknowledged"
-    ) || operation == "rekey";
+    ) || matches!(
+        operation.as_str(),
+        "rekey" | "rekey-final" | "rekey-accept-receipt"
+    );
     let mut journal = reopen(
         path,
         if is_i {
@@ -538,6 +559,38 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .expect("width");
     match operation.as_str() {
+        "rekey-final" => {
+            journal
+                .accept_rekey_response(
+                    &f.initiator,
+                    session,
+                    &fs::read(path.join("rekey-response")).expect("response"),
+                    &f.signer_i,
+                    150,
+                )
+                .expect("durable final");
+        }
+        "rekey-receipt" => {
+            journal
+                .finish_rekey(
+                    &f.responder,
+                    session,
+                    &fs::read(path.join("rekey-final")).expect("final"),
+                    &f.signer_r,
+                    150,
+                )
+                .expect("durable receipt");
+        }
+        "rekey-accept-receipt" => {
+            journal
+                .accept_rekey_receipt(
+                    &f.initiator,
+                    session,
+                    &fs::read(path.join("rekey-receipt")).expect("receipt"),
+                    150,
+                )
+                .expect("durable receive cutover");
+        }
         "rekey-response" => {
             journal
                 .respond_rekey_offer(
@@ -634,6 +687,805 @@ fn rekey_digest(label: &[u8], bytes: &[u8]) -> [u8; 32] {
     )
 }
 
+fn complete_rekey(p: &mut Pair) -> u64 {
+    let current =
+        p.ji.rekey_progress(&p.f.initiator, p.session)
+            .expect("initiator progress")
+            .confirmed_epoch;
+    assert_eq!(
+        p.jr.rekey_progress(&p.f.responder, p.session)
+            .expect("responder progress")
+            .confirmed_epoch,
+        current
+    );
+    let target = current + 1;
+    let (proposer, responder, pc, rc, ps, rs) = if target % 2 == 1 {
+        (
+            &mut p.ji,
+            &mut p.jr,
+            &p.f.initiator,
+            &p.f.responder,
+            &p.f.signer_i,
+            &p.f.signer_r,
+        )
+    } else {
+        (
+            &mut p.jr,
+            &mut p.ji,
+            &p.f.responder,
+            &p.f.initiator,
+            &p.f.signer_r,
+            &p.f.signer_i,
+        )
+    };
+    let offer = proposer
+        .prepare_rekey_offer(pc, p.session, ps, 150)
+        .expect("offer");
+    let response = responder
+        .respond_rekey_offer(rc, p.session, &offer, rs, 150)
+        .expect("response");
+    let final_wire = proposer
+        .accept_rekey_response(pc, p.session, &response, ps, 150)
+        .expect("final");
+    let receipt = responder
+        .finish_rekey(rc, p.session, &final_wire, rs, 150)
+        .expect("receipt");
+    assert_eq!(
+        proposer
+            .accept_rekey_receipt(pc, p.session, &receipt, 150)
+            .expect("accept receipt"),
+        target
+    );
+    assert_eq!(
+        proposer
+            .accept_rekey_response(pc, p.session, &response, ps, 150)
+            .expect("exact final replay"),
+        final_wire
+    );
+    assert_eq!(
+        responder
+            .finish_rekey(rc, p.session, &final_wire, rs, 150)
+            .expect("exact receipt replay"),
+        receipt
+    );
+    assert_eq!(
+        proposer
+            .accept_rekey_receipt(pc, p.session, &receipt, 150)
+            .expect("duplicate receipt"),
+        target
+    );
+    target
+}
+
+#[test]
+fn rekey_epoch_cutover_preserves_old_outboxes_and_separates_new_ids_and_acks() {
+    use hmac::{Hmac, Mac};
+    let mut p = Pair::new();
+    p.activate();
+    let first = p.send(id(p.session, 1, 1), b"old first");
+    let second = p.send(id(p.session, 1, 2), b"old second");
+    assert_eq!(p.receive(&second).as_bytes(), b"old second");
+    let offer =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("offer");
+    let response =
+        p.jr.respond_rekey_offer(&p.f.responder, p.session, &offer, &p.f.signer_r, 150)
+            .expect("response");
+    let old_reverse_id =
+        p.jr.next_message_id(&p.f.responder, p.session, 150)
+            .expect("old reverse id");
+    let old_reverse =
+        p.jr.send_message(
+            &p.f.responder,
+            p.session,
+            old_reverse_id,
+            b"old reverse during rekey",
+            b"application",
+            150,
+        )
+        .expect("old reverse remains open after response");
+    let final_wire =
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &response, &p.f.signer_i, 150)
+            .expect("final");
+    assert_eq!(
+        p.ji.rekey_progress(&p.f.initiator, p.session)
+            .expect("half cutover"),
+        RekeyProgress {
+            confirmed_epoch: 0,
+            sending_epoch: 1,
+            receiving_epoch: 0,
+            pending_epoch: Some(1)
+        }
+    );
+    let new_id =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("new id");
+    assert_eq!(
+        (
+            new_id.epoch().expect("epoch"),
+            new_id.index().expect("index")
+        ),
+        (1, 0)
+    );
+    assert_ne!(new_id, id(p.session, 1, 1));
+    let new_wire = p.send(new_id, b"new first");
+    let before = p.jr.image().expect("before early packet").digest;
+    assert!(matches!(
+        p.jr.receive_message(&p.f.responder, p.session, &new_wire, b"application", 150),
+        Err(DurableError::Suspended)
+    ));
+    assert_eq!(
+        p.jr.image().expect("early data consumes nothing").digest,
+        before
+    );
+    let receipt =
+        p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150)
+            .expect("finish");
+    assert_eq!(p.receive(&new_wire).as_bytes(), b"new first");
+    let reverse_id =
+        p.jr.next_message_id(&p.f.responder, p.session, 150)
+            .expect("new reverse");
+    let reverse =
+        p.jr.send_message(
+            &p.f.responder,
+            p.session,
+            reverse_id,
+            b"new reverse",
+            b"application",
+            150,
+        )
+        .expect("new reverse send");
+    let before = p.ji.image().expect("before receipt").digest;
+    assert!(matches!(
+        p.ji.receive_message(&p.f.initiator, p.session, &reverse, b"application", 150),
+        Err(DurableError::Suspended)
+    ));
+    assert_eq!(
+        p.ji.image()
+            .expect("unadmitted receiving epoch unchanged")
+            .digest,
+        before
+    );
+    assert_eq!(
+        p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &receipt, 150)
+            .expect("receipt"),
+        1
+    );
+    assert_eq!(
+        p.ji.receive_message(&p.f.initiator, p.session, &reverse, b"application", 150)
+            .expect("new reverse delivery")
+            .as_bytes(),
+        b"new reverse"
+    );
+    assert_eq!(
+        p.ji.receive_message(&p.f.initiator, p.session, &old_reverse, b"application", 150)
+            .expect("delayed old reverse")
+            .as_bytes(),
+        b"old reverse during rekey"
+    );
+    assert_eq!(p.receive(&first).as_bytes(), b"old first");
+    assert_eq!(
+        p.ji.resume_message(&p.f.initiator, p.session, id(p.session, 1, 1), 150)
+            .expect("old outbox replay"),
+        first
+    );
+    for old in [id(p.session, 1, 1), id(p.session, 1, 2)] {
+        p.jr.consume_message(&p.f.responder, p.session, old, 150)
+            .expect("consume old");
+    }
+    let old_ack =
+        p.jr.message_acknowledgement_for_epoch(&p.f.responder, p.session, 0, 150)
+            .expect("old epoch ACK");
+    assert_eq!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &old_ack, 150)
+            .expect("retire old only"),
+        2
+    );
+    assert_eq!(
+        p.ji.message_status(&p.f.initiator, p.session, new_id)
+            .expect("new remains"),
+        MessageStatus::Committed
+    );
+    let mut forged = b"QPCMACK2".to_vec();
+    forged.extend_from_slice(&p.session);
+    forged.push(1);
+    forged.extend_from_slice(&1u64.to_be_bytes());
+    forged.extend_from_slice(&1u64.to_be_bytes());
+    let old_state = state(&mut p.jr, &p.session);
+    let mut mac =
+        <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(epoch(&old_state).receive_ack.as_bytes())
+            .expect("disclosed old ACK key");
+    mac.update(&label(b"acknowledgement"));
+    mac.update(&forged);
+    forged.extend_from_slice(&mac.finalize().into_bytes());
+    assert!(matches!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &forged, 150),
+        Err(DurableError::Protocol(Error::Authentication))
+    ));
+    p.jr.consume_message(&p.f.responder, p.session, new_id, 150)
+        .expect("consume new");
+    let new_ack =
+        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+            .expect("new ACK");
+    assert_eq!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &new_ack, 150)
+            .expect("new retirement"),
+        1
+    );
+    for (flight, wire) in [
+        (RekeyFlight::Offer, &offer),
+        (RekeyFlight::Response, &response),
+        (RekeyFlight::Final, &final_wire),
+        (RekeyFlight::Receipt, &receipt),
+    ] {
+        assert_eq!(
+            p.ji.rekey_outbox(&p.f.initiator, p.session, 1, flight, 150)
+                .expect("retained exact control"),
+            *wire
+        );
+    }
+    let root_i = state(&mut p.ji, &p.session);
+    let root_r = state(&mut p.jr, &p.session);
+    assert_eq!(root_i.rekey.as_bytes(), root_r.rekey.as_bytes());
+    assert_eq!(root_i.traffic(0).expect("old").send.as_bytes(), &[0; 32]);
+    p.ji.close();
+    p.jr.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    p.jr = reopen(&p.pr, p.f.local_device());
+    for expected in [2, 3] {
+        assert_eq!(complete_rekey(&mut p), expected);
+        let next =
+            p.ji.next_message_id(&p.f.initiator, p.session, 150)
+                .expect("later id");
+        assert_eq!(
+            (next.epoch().expect("epoch"), next.index().expect("index")),
+            (expected, 0)
+        );
+        let wire = p.send(next, b"later epoch");
+        assert_eq!(p.receive(&wire).as_bytes(), b"later epoch");
+    }
+    let revision = p.jr.image().expect("before capacity").revision;
+    assert!(matches!(
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150),
+        Err(DurableError::Capacity)
+    ));
+    assert_eq!(
+        p.jr.image().expect("no replacement at bound").revision,
+        revision
+    );
+}
+
+#[test]
+fn drained_history_allows_repeated_rekeys_without_reusing_retired_ids() {
+    let mut p = Pair::new();
+    p.activate();
+    let old_id = id(p.session, 1, 1);
+    let old_wire = p.send(old_id, b"initial delivery");
+    p.receive(&old_wire);
+    p.jr.consume_message(&p.f.responder, p.session, old_id, 150)
+        .expect("consume initial");
+    let old_ack =
+        p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+            .expect("initial ACK");
+    p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &old_ack, 150)
+        .expect("acknowledge initial");
+    for target in 1..=8 {
+        assert_eq!(complete_rekey(&mut p), target);
+        let next =
+            p.ji.next_message_id(&p.f.initiator, p.session, 150)
+                .expect("fresh ID");
+        assert_eq!(next.epoch().expect("epoch"), target);
+        let wire = p.send(next, b"ongoing traffic");
+        assert_eq!(p.receive(&wire).as_bytes(), b"ongoing traffic");
+        p.jr.consume_message(&p.f.responder, p.session, next, 150)
+            .expect("consume");
+        let ack =
+            p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
+                .expect("ACK");
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+            .expect("acknowledge");
+        assert!(state(&mut p.ji, &p.session).epochs.len() <= MAX_TRAFFIC_EPOCHS);
+        assert!(state(&mut p.jr, &p.session).epochs.len() <= MAX_TRAFFIC_EPOCHS);
+        p.ji.close();
+        p.jr.close();
+        p.ji = reopen(&p.pi, p.f.initiator_device());
+        p.jr = reopen(&p.pr, p.f.local_device());
+    }
+    assert!(matches!(
+        p.ji.send_message(
+            &p.f.initiator,
+            p.session,
+            old_id,
+            b"initial delivery",
+            b"application",
+            150
+        ),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    assert!(matches!(
+        p.jr.receive_message(&p.f.responder, p.session, &old_wire, b"application", 150),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    assert!(matches!(
+        p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &old_ack, 150),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+}
+
+#[test]
+fn epoch_retirement_waits_for_consumption_and_lost_ack_recovery_on_both_peers() {
+    let mut p = Pair::new();
+    p.activate();
+    let old_id = id(p.session, 1, 1);
+    let wire = p.send(old_id, b"retained delivery");
+    p.receive(&wire);
+    for target in 1..=3 {
+        assert_eq!(complete_rekey(&mut p), target);
+    }
+    let before = p.jr.image().expect("before blocked offer").revision;
+    assert!(matches!(
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150),
+        Err(DurableError::Capacity)
+    ));
+    assert_eq!(p.jr.image().expect("no discarded inbox").revision, before);
+    assert_eq!(p.receive(&wire).as_bytes(), b"retained delivery");
+    p.jr.consume_message(&p.f.responder, p.session, old_id, 150)
+        .expect("consume old delivery");
+    let offer =
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150)
+            .expect("locally drained proposer");
+    let before = p.ji.image().expect("before lost ACK").revision;
+    assert!(matches!(
+        p.ji.respond_rekey_offer(&p.f.initiator, p.session, &offer, &p.f.signer_i, 150),
+        Err(DurableError::Capacity)
+    ));
+    assert_eq!(p.ji.image().expect("outbox remains").revision, before);
+    assert_eq!(
+        p.ji.resume_message(&p.f.initiator, p.session, old_id, 150)
+            .expect("exact old replay"),
+        wire
+    );
+    p.jr.close();
+    p.jr = reopen(&p.pr, p.f.local_device());
+    let ack =
+        p.jr.message_acknowledgement_for_epoch(&p.f.responder, p.session, 0, 150)
+            .expect("lost ACK recoverable while offer is pending");
+    p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, &ack, 150)
+        .expect("sender learns consumption");
+    let response =
+        p.ji.respond_rekey_offer(&p.f.initiator, p.session, &offer, &p.f.signer_i, 150)
+            .expect("both peers drained old history");
+    let final_wire =
+        p.jr.accept_rekey_response(&p.f.responder, p.session, &response, &p.f.signer_r, 150)
+            .expect("retire proposer old epoch with exact final");
+    assert!(!state(&mut p.jr, &p.session).epochs.contains_key(&0));
+    assert!(state(&mut p.ji, &p.session).epochs.contains_key(&0));
+    p.jr.close();
+    p.jr = reopen(&p.pr, p.f.local_device());
+    assert_eq!(
+        p.jr.accept_rekey_response(&p.f.responder, p.session, &response, &p.f.signer_r, 150)
+            .expect("lost final exact replay"),
+        final_wire
+    );
+    let receipt =
+        p.ji.finish_rekey(&p.f.initiator, p.session, &final_wire, &p.f.signer_i, 150)
+            .expect("retire responder old epoch with receipt");
+    assert!(!state(&mut p.ji, &p.session).epochs.contains_key(&0));
+    p.ji.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    assert_eq!(
+        p.ji.finish_rekey(&p.f.initiator, p.session, &final_wire, &p.f.signer_i, 150)
+            .expect("lost receipt exact replay"),
+        receipt
+    );
+    assert_eq!(
+        p.jr.accept_rekey_receipt(&p.f.responder, p.session, &receipt, 150)
+            .expect("receipt"),
+        4
+    );
+    assert_eq!(complete_rekey(&mut p), 5);
+    let next =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("fresh ID");
+    let wire = p.send(next, b"traffic after asymmetric retirement");
+    assert_eq!(
+        p.receive(&wire).as_bytes(),
+        b"traffic after asymmetric retirement"
+    );
+}
+
+#[test]
+fn rekey_epoch_rejects_bad_kem_confirmation_signatures_and_revoked_completion() {
+    use crate::crypto::{envelope, open_envelope, Purpose};
+    let mut p = Pair::new();
+    p.activate();
+    let offer =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("offer");
+    let reply =
+        p.jr.respond_rekey_offer(&p.f.responder, p.session, &offer, &p.f.signer_r, 150)
+            .expect("reply");
+    let before = p.ji.image().expect("before").digest;
+    let (body, _) = open_envelope(&reply).expect("reply body");
+    let mut changed = body.to_vec();
+    *changed.get_mut(185).expect("ML-KEM ciphertext byte") ^= 1;
+    let signature =
+        p.f.signer_r
+            .sign(Purpose::RekeyResponse, &changed)
+            .expect("valid identity proof for altered ciphertext");
+    let invalid = envelope(&changed, &signature).expect("wire");
+    assert!(matches!(
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &invalid, &p.f.signer_i, 150),
+        Err(DurableError::Protocol(Error::Authentication))
+    ));
+    assert_eq!(
+        p.ji.image()
+            .expect("no signature reservation after failed KEM confirmation")
+            .digest,
+        before
+    );
+    let final_wire =
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &reply, &p.f.signer_i, 150)
+            .expect("real final");
+    let before = p.jr.image().expect("before final").digest;
+    let (body, signature) = open_envelope(&final_wire).expect("final body");
+    for offset in [0, signature.len() - 1] {
+        let mut invalid = signature.to_vec();
+        *invalid.get_mut(offset).expect("signature component") ^= 1;
+        let wire = envelope(body, &invalid).expect("wire");
+        assert!(p
+            .jr
+            .finish_rekey(&p.f.responder, p.session, &wire, &p.f.signer_r, 150)
+            .is_err());
+        assert_eq!(p.jr.image().expect("no mutation").digest, before);
+    }
+    let mut changed = body.to_vec();
+    *changed.last_mut().expect("confirmation MAC") ^= 1;
+    let signature =
+        p.f.signer_i
+            .sign(Purpose::RekeyFinal, &changed)
+            .expect("valid identity signature");
+    assert!(matches!(
+        p.jr.finish_rekey(
+            &p.f.responder,
+            p.session,
+            &envelope(&changed, &signature).expect("wire"),
+            &p.f.signer_r,
+            150
+        ),
+        Err(DurableError::Protocol(Error::Authentication))
+    ));
+    assert_eq!(
+        p.jr.image()
+            .expect("no mutation after bad confirmation")
+            .digest,
+        before
+    );
+    let receipt =
+        p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150)
+            .expect("real receipt");
+    let before = p.ji.image().expect("before receipt").digest;
+    let (body, _) = open_envelope(&receipt).expect("receipt body");
+    let mut changed = body.to_vec();
+    *changed.last_mut().expect("receipt MAC") ^= 1;
+    let signature =
+        p.f.signer_r
+            .sign(Purpose::RekeyReceipt, &changed)
+            .expect("valid identity signature");
+    assert!(matches!(
+        p.ji.accept_rekey_receipt(
+            &p.f.initiator,
+            p.session,
+            &envelope(&changed, &signature).expect("wire"),
+            150
+        ),
+        Err(DurableError::Protocol(Error::Authentication))
+    ));
+    assert_eq!(
+        p.ji.image().expect("no early receiving cutover").digest,
+        before
+    );
+    p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &receipt, 150)
+        .expect("real receipt");
+    p.f.signer_i.close();
+    p.f.signer_r.close();
+    assert_eq!(
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &reply, &p.f.signer_i, 150)
+            .expect("cached final after signer close"),
+        final_wire
+    );
+    assert_eq!(
+        p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150)
+            .expect("cached receipt after signer close"),
+        receipt
+    );
+    let revoked = rosters::tests::update(p.f.initiator_device(), 90, 2, false);
+    p.ji.install_roster(&revoked, 150).expect("revocation");
+    p.ji.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    assert_eq!(
+        p.ji.rekey_progress(&p.f.initiator, p.session)
+            .expect("read-only progress")
+            .confirmed_epoch,
+        1
+    );
+    assert!(matches!(
+        p.ji.rekey_outbox(&p.f.initiator, p.session, 1, RekeyFlight::Final, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert!(matches!(
+        p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &receipt, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+}
+
+fn prepared_cutover(operation: &str, completed: u64) -> (Pair, Vec<u8>) {
+    assert_eq!(completed % 2, 0, "this harness uses the initiator proposer");
+    let mut p = Pair::new();
+    p.activate();
+    for target in 1..=completed {
+        assert_eq!(complete_rekey(&mut p), target);
+    }
+    let offer =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("offer");
+    let reply =
+        p.jr.respond_rekey_offer(&p.f.responder, p.session, &offer, &p.f.signer_r, 150)
+            .expect("reply");
+    if operation == "rekey-final" {
+        return (p, reply);
+    }
+    let final_wire =
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &reply, &p.f.signer_i, 150)
+            .expect("final");
+    if operation == "rekey-receipt" {
+        return (p, final_wire);
+    }
+    assert_eq!(operation, "rekey-accept-receipt");
+    let receipt =
+        p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150)
+            .expect("receipt");
+    (p, receipt)
+}
+
+fn cutover_call(
+    journal: &mut DeviceJournal,
+    f: &Fixture,
+    session: [u8; 32],
+    operation: &str,
+    input: &[u8],
+) -> Result<Vec<u8>, DurableError> {
+    match operation {
+        "rekey-final" => {
+            journal.accept_rekey_response(&f.initiator, session, input, &f.signer_i, 150)
+        }
+        "rekey-receipt" => journal.finish_rekey(&f.responder, session, input, &f.signer_r, 150),
+        "rekey-accept-receipt" => journal
+            .accept_rekey_receipt(&f.initiator, session, input, 150)
+            .map(|epoch| epoch.to_be_bytes().to_vec()),
+        _ => Err(DurableError::Protocol(Error::State)),
+    }
+}
+
+fn finish_after_cutover(p: &mut Pair, operation: &str, output: &[u8], target: u64) {
+    if operation == "rekey-final" {
+        let receipt =
+            p.jr.finish_rekey(&p.f.responder, p.session, output, &p.f.signer_r, 150)
+                .expect("peer consumes recovered final");
+        p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &receipt, 150)
+            .expect("recover proposer receive chain");
+    } else if operation == "rekey-receipt" {
+        p.ji.accept_rekey_receipt(&p.f.initiator, p.session, output, 150)
+            .expect("consume recovered receipt");
+    }
+    let id =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("fresh epoch slot");
+    assert_eq!(id.epoch().expect("epoch"), target);
+    let expected_first = first_retained_epoch(target);
+    for journal in [&mut p.ji, &mut p.jr] {
+        let state = state(journal, &p.session);
+        assert_eq!(
+            state.epochs.first_key_value().expect("retained history").0,
+            &expected_first
+        );
+        assert!(state.epochs.len() <= MAX_TRAFFIC_EPOCHS);
+    }
+    let wire = p.send(id, b"real new epoch after fault");
+    assert_eq!(p.receive(&wire).as_bytes(), b"real new epoch after fault");
+}
+
+#[test]
+fn rekey_epoch_sync_faults_cover_every_observed_cutover_barrier() {
+    rekey_epoch_sync_recovery(0);
+}
+
+#[test]
+fn rekey_history_retirement_sync_faults_preserve_exact_cutovers() {
+    rekey_epoch_sync_recovery(4);
+}
+
+fn rekey_epoch_sync_recovery(completed: u64) {
+    for operation in ["rekey-final", "rekey-receipt", "rekey-accept-receipt"] {
+        let (mut baseline, input) = prepared_cutover(operation, completed);
+        let is_i = operation != "rekey-receipt";
+        let (path, device) = if is_i {
+            baseline.ji.close();
+            (&baseline.pi, baseline.f.initiator_device())
+        } else {
+            baseline.jr.close();
+            (&baseline.pr, baseline.f.local_device())
+        };
+        let (mut normal, _, count, _) = fault_store(path, device, false);
+        count.store(0, Ordering::SeqCst);
+        cutover_call(
+            &mut normal,
+            &baseline.f,
+            baseline.session,
+            operation,
+            &input,
+        )
+        .expect("measure cutover");
+        let barriers = count.load(Ordering::SeqCst);
+        let persists = if operation == "rekey-accept-receipt" {
+            1
+        } else {
+            2
+        };
+        assert!(
+            (persists * 4..=48).contains(&barriers),
+            "{operation} barriers={barriers}"
+        );
+        normal.close();
+        for cut in 1..=barriers {
+            for after in [false, true] {
+                let (mut p, input) = prepared_cutover(operation, completed);
+                let revision = if is_i {
+                    p.ji.image().expect("before").revision
+                } else {
+                    p.jr.image().expect("before").revision
+                };
+                let (path, device) = if is_i {
+                    p.ji.close();
+                    (&p.pi, p.f.initiator_device())
+                } else {
+                    p.jr.close();
+                    (&p.pr, p.f.local_device())
+                };
+                let (mut failed, remaining, _, _) = fault_store(path, device, after);
+                remaining.store(cut, Ordering::SeqCst);
+                crate::durable::tests::assert_sync_failure(
+                    cutover_call(&mut failed, &p.f, p.session, operation, &input),
+                    after,
+                );
+                assert!(failed.active.is_none());
+                let mut recovered = reopen(path, device);
+                let output = cutover_call(&mut recovered, &p.f, p.session, operation, &input)
+                    .expect("recover exact cutover");
+                assert_eq!(
+                    cutover_call(&mut recovered, &p.f, p.session, operation, &input)
+                        .expect("same committed output"),
+                    output
+                );
+                assert_eq!(
+                    recovered.image().expect("one cutover").revision,
+                    revision + persists as u64
+                );
+                if is_i {
+                    p.ji = recovered;
+                } else {
+                    p.jr = recovered;
+                }
+                finish_after_cutover(&mut p, operation, &output, completed + 1);
+            }
+        }
+        eprintln!(
+            "REKEY_EPOCH_SYNC_RECOVERY prior={completed} operation={operation} barriers={barriers} faults={}",
+            barriers * 2
+        );
+    }
+}
+
+#[test]
+fn killed_rekey_epoch_cutovers_preserve_signed_outputs_and_real_traffic() {
+    killed_rekey_epoch_cutovers(0);
+}
+
+#[test]
+fn killed_rekey_history_retirement_preserves_signed_outputs_and_real_traffic() {
+    killed_rekey_epoch_cutovers(4);
+}
+
+fn killed_rekey_epoch_cutovers(completed: u64) {
+    use crate::durable::tests::ChildGuard;
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+    for (operation, stage, input_name) in [
+        ("rekey-final", "rekey-final-reserved", "rekey-response"),
+        ("rekey-final", "rekey-final-computed", "rekey-response"),
+        ("rekey-final", "rekey-final-committed", "rekey-response"),
+        ("rekey-receipt", "rekey-receipt-reserved", "rekey-final"),
+        ("rekey-receipt", "rekey-receipt-computed", "rekey-final"),
+        ("rekey-receipt", "rekey-receipt-committed", "rekey-final"),
+        (
+            "rekey-accept-receipt",
+            "rekey-receipt-accepted",
+            "rekey-receipt",
+        ),
+    ] {
+        let (mut p, input) = prepared_cutover(operation, completed);
+        let is_i = operation != "rekey-receipt";
+        let (path, device) = if is_i {
+            p.ji.close();
+            (&p.pi, p.f.initiator_device())
+        } else {
+            p.jr.close();
+            (&p.pr, p.f.local_device())
+        };
+        let mut public =
+            p.f.reusable
+                .public_key()
+                .expect("public")
+                .to_bytes()
+                .to_vec();
+        public.extend_from_slice(&p.f.once.public_key().expect("public").to_bytes());
+        fs::write(path.join("public-keys"), public).expect("public keys");
+        fs::write(path.join("session"), p.session).expect("session");
+        fs::write(path.join("operation"), operation).expect("operation");
+        fs::write(path.join(input_name), &input).expect("control input");
+        let log = fs::File::create(path.join("child.log")).expect("log");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "durable::messages::tests::message_crash_child",
+                    "--nocapture",
+                ])
+                .env("QPERIAPT_MESSAGES_CRASH_DIR", path)
+                .env("QPERIAPT_MESSAGES_STAGE", stage)
+                .stdout(Stdio::from(log.try_clone().expect("clone log")))
+                .stderr(Stdio::from(log))
+                .spawn()
+                .expect("owned child"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !path.join("ready").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "{stage} did not reach actual barrier"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!path.join("returned").exists());
+        child.0.kill().expect("kill owned child");
+        assert!(!child.0.wait().expect("reap").success());
+        let mut recovered = reopen(path, device);
+        if stage.ends_with("reserved") {
+            let context = if is_i { &p.f.initiator } else { &p.f.responder };
+            assert!(matches!(
+                recovered.next_message_id(context, p.session, 150),
+                Err(DurableError::Suspended)
+            ));
+        }
+        let output = cutover_call(&mut recovered, &p.f, p.session, operation, &input)
+            .expect("recover exact cutover");
+        if stage.ends_with("computed") {
+            assert_eq!(
+                output,
+                fs::read(path.join("rekey-effect")).expect("original signed output")
+            );
+        }
+        if is_i {
+            p.ji = recovered;
+        } else {
+            p.jr = recovered;
+        }
+        finish_after_cutover(&mut p, operation, &output, completed + 1);
+    }
+}
+
 #[test]
 fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacement() {
     // One receiver-chain disclosure, before any send. All forged frames are
@@ -645,10 +1497,11 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
             let (next, message) = step(&chain, index).expect("disclosed chain step");
             chain = next;
             let mut wire = Header {
+                epoch: 0,
                 session,
                 role: 1,
                 index,
-                id: MessageId::for_index(&session, 1, index).expect("public ID"),
+                id: MessageId::for_epoch(&session, 1, 0, index).expect("public ID"),
                 length: b"forged old epoch".len(),
             }
             .encode();
@@ -670,7 +1523,7 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
     let mut p = Pair::new();
     p.activate();
     let receiver = state(&mut p.jr, &p.session);
-    let stolen = key(receiver.receive.as_bytes()).expect("one disclosed chain key");
+    let stolen = key(epoch(&receiver).receive.as_bytes()).expect("one disclosed chain key");
     drop(receiver);
     let packets = forge(stolen, p.session);
     for packet in &packets {
@@ -679,14 +1532,17 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
         p.jr.consume_message(&p.f.responder, p.session, delivery.message_id(), 150)
             .expect("application consumes authenticated old-epoch delivery");
     }
-    assert_eq!(state(&mut p.ji, &p.session).sent, 0);
+    assert_eq!(epoch(&state(&mut p.ji, &p.session)).sent, 0);
     let poisoned = state(&mut p.jr, &p.session);
-    assert_eq!((poisoned.received, poisoned.receive_floor), (8, 8));
-    assert!(poisoned.incoming.is_empty() && poisoned.skipped.is_empty());
+    assert_eq!(
+        (epoch(&poisoned).received, epoch(&poisoned).receive_floor),
+        (8, 8)
+    );
+    assert!(epoch(&poisoned).incoming.is_empty() && epoch(&poisoned).skipped.is_empty());
     drop(poisoned);
     p.jr.close();
     p.jr = reopen(&p.pr, p.f.local_device());
-    assert_eq!(state(&mut p.jr, &p.session).receive_floor, 8);
+    assert_eq!(epoch(&state(&mut p.jr, &p.session)).receive_floor, 8);
     let honest_id = id(p.session, 1, 1);
     let honest_wire = p.send(honest_id, b"honest sender after interference");
     assert!(matches!(
@@ -707,7 +1563,7 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
         .key
         .verify(crate::crypto::Purpose::RekeyResponse, body, signature)
         .expect("uncompromised identity signatures");
-    assert_eq!(state(&mut p.jr, &p.session).receive_floor, 8);
+    assert_eq!(epoch(&state(&mut p.jr, &p.session)).receive_floor, 8);
 
     // A deliberately isolated candidate transition: replace ONLY traffic keys,
     // retaining the current namespace/counters. This is not an installed rekey
@@ -717,16 +1573,16 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
     let mut receiver = state(&mut p.jr, &p.session);
     let mut fresh = ZeroizingBytes::<32>::zeroed();
     getrandom::fill(fresh.as_mut_bytes()).expect("post-interference entropy");
-    sender.send = key(fresh.as_bytes()).expect("fresh sending chain");
-    receiver.receive = key(fresh.as_bytes()).expect("same fresh receiving chain");
-    let index = sender.sent;
-    let fresh_id = MessageId::for_index(&p.session, 1, index).expect("unchanged namespace");
-    sender.pending = Some(SendPlan {
+    epoch_mut(&mut sender).send = key(fresh.as_bytes()).expect("fresh sending chain");
+    epoch_mut(&mut receiver).receive = key(fresh.as_bytes()).expect("same fresh receiving chain");
+    let index = epoch(&sender).sent;
+    let fresh_id = MessageId::for_epoch(&p.session, 1, 0, index).expect("unchanged namespace");
+    epoch_mut(&mut sender).pending = Some(SendPlan {
         id: fresh_id,
         plaintext: Zeroizing::new(b"fresh-key packet".to_vec()),
         ad: b"application".to_vec(),
     });
-    let wire = sender
+    let wire = epoch_mut(&mut sender)
         .send(fresh_id, b"fresh-key packet", b"application")
         .expect("key-only candidate packet");
     let (_, message) = step(&fresh, index).expect("direct key schedule");
@@ -753,11 +1609,38 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
         .expect("fresh-key packet is cryptographically valid");
     assert_eq!(clear, b"fresh-key packet");
     assert!(matches!(
-        receiver.receive(&wire, b"application"),
+        epoch_mut(&mut receiver).receive(&wire, b"application"),
         Err(Error::Retired)
     ));
-    assert_eq!(receiver.receive_floor, 8);
-    eprintln!("OLD_CHAIN_RETENTION_POISON forged=8 honest_sent_before=0 persisted_floor=8 actual_honest_receive=retired signed_rekey_response=valid isolated_fresh_aead=valid key_only_candidate_receive=retired");
+    assert_eq!(epoch(&receiver).receive_floor, 8);
+    // The real epoch-scoped transition now separates those retired IDs while
+    // retaining the old state. This is the positive control for the rejected
+    // key-only projection above, using actual KEM-derived traffic keys.
+    let final_wire =
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &response, &p.f.signer_i, 150)
+            .expect("real final");
+    let receipt =
+        p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150)
+            .expect("real receipt");
+    p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &receipt, 150)
+        .expect("real receive cutover");
+    let recovered_id =
+        p.ji.next_message_id(&p.f.initiator, p.session, 150)
+            .expect("fresh epoch ID");
+    assert_eq!(recovered_id.epoch().expect("epoch"), 1);
+    assert_ne!(recovered_id, honest_id);
+    let recovered = p.send(recovered_id, b"honest new epoch survives old poisoning");
+    assert_eq!(
+        p.receive(&recovered).as_bytes(),
+        b"honest new epoch survives old poisoning"
+    );
+    assert_eq!(epoch(&state(&mut p.jr, &p.session)).receive_floor, 8);
+    assert_eq!(
+        p.ji.resume_message(&p.f.initiator, p.session, honest_id, 150)
+            .expect("old outbox preserved"),
+        honest_wire
+    );
+    eprintln!("OLD_CHAIN_RETENTION_POISON forged=8 honest_sent_before=0 persisted_floor=8 actual_honest_receive=retired signed_rekey_response=valid isolated_fresh_aead=valid key_only_candidate_receive=retired real_epoch_one_receive=accepted old_outbox=retained");
 }
 
 #[test]
@@ -857,14 +1740,17 @@ fn rekey_response_agrees_with_real_decapsulation_and_replays_without_advancing_t
         .expect("real peer key confirmation");
     for (current, previous) in [
         (&after.rekey, &before.rekey),
-        (&after.send, &before.send),
-        (&after.receive, &before.receive),
-        (&after.send_ack, &before.send_ack),
-        (&after.receive_ack, &before.receive_ack),
+        (&epoch(&after).send, &epoch(&before).send),
+        (&epoch(&after).receive, &epoch(&before).receive),
+        (&epoch(&after).send_ack, &epoch(&before).send_ack),
+        (&epoch(&after).receive_ack, &epoch(&before).receive_ack),
     ] {
         assert_eq!(current.as_bytes(), previous.as_bytes());
     }
-    assert_eq!((after.sent, after.received), (before.sent, before.received));
+    assert_eq!(
+        (epoch(&after).sent, epoch(&after).received),
+        (epoch(&before).sent, epoch(&before).received)
+    );
     assert_eq!(p.jr.image().expect("committed").revision, revision + 3);
     p.f.signer_r.close();
     p.jr.close();
@@ -1325,14 +2211,15 @@ fn killed_process_recovers_each_root_transfer_and_message_release_boundary() {
                 .expect("committed"),
             MessageStatus::Committed
         );
-        assert_eq!(state(&mut p.ji, &p.session).sent, 1);
-        assert_eq!(state(&mut p.jr, &p.session).received, 1);
+        assert_eq!(epoch(&state(&mut p.ji, &p.session)).sent, 1);
+        assert_eq!(epoch(&state(&mut p.jr, &p.session)).received, 1);
     }
 }
 
 #[test]
 fn frame_length_is_bounded_before_arithmetic_and_future_epochs_are_rejected() {
     let mut wire = Header {
+        epoch: 0,
         session: [9; 32],
         role: 1,
         index: 0,
@@ -1405,7 +2292,9 @@ fn acknowledged_sessions_pass_the_old_capacity_without_retaining_history_or_reus
         let send = state(&mut p.ji, &p.session);
         let receive = state(&mut p.jr, &p.session);
         assert!(
-            send.outgoing.is_empty() && receive.incoming.is_empty() && receive.skipped.is_empty()
+            epoch(&send).outgoing.is_empty()
+                && epoch(&receive).incoming.is_empty()
+                && epoch(&receive).skipped.is_empty()
         );
         assert_eq!(send.encode().len(), initial_size);
         if index == 0 {
@@ -1484,13 +2373,13 @@ fn consumption_waits_for_gaps_and_authenticated_acknowledgements_cannot_regress_
         0
     );
     let consumed = state(&mut p.jr, &p.session);
-    assert!(consumed
+    assert!(epoch(&consumed)
         .incoming
         .get(&b)
         .expect("retained marker")
         .plaintext
         .is_empty());
-    assert_eq!(consumed.skipped.len(), 1);
+    assert_eq!(epoch(&consumed).skipped.len(), 1);
     let ack0 =
         p.jr.message_acknowledgement(&p.f.responder, p.session, 150)
             .expect("zero contiguous progress");
@@ -1499,7 +2388,7 @@ fn consumption_waits_for_gaps_and_authenticated_acknowledgements_cannot_regress_
             .expect("no retirement"),
         0
     );
-    assert_eq!(state(&mut p.ji, &p.session).outgoing.len(), 2);
+    assert_eq!(epoch(&state(&mut p.ji, &p.session)).outgoing.len(), 2);
     assert!(matches!(
         p.jr.receive_message(&p.f.responder, p.session, &second, b"application", 150),
         Err(DurableError::Protocol(Error::Retired))
@@ -1529,8 +2418,8 @@ fn consumption_waits_for_gaps_and_authenticated_acknowledgements_cannot_regress_
         .accept_message_acknowledgement(&p.f.responder, p.session, &ack, 150)
         .is_err());
     let mut dishonest = state(&mut p.jr, &p.session);
-    dishonest.receive_floor = 3;
-    let future = dishonest
+    epoch_mut(&mut dishonest).receive_floor = 3;
+    let future = epoch(&dishonest)
         .acknowledgement()
         .expect("authenticated impossible peer claim");
     assert!(p
@@ -1558,7 +2447,7 @@ fn consumption_waits_for_gaps_and_authenticated_acknowledgements_cannot_regress_
             .expect("older cumulative ack"),
         2
     );
-    assert!(state(&mut p.ji, &p.session).outgoing.is_empty());
+    assert!(epoch(&state(&mut p.ji, &p.session)).outgoing.is_empty());
     let reverse_id =
         p.jr.next_message_id(&p.f.responder, p.session, 150)
             .expect("reverse slot");
@@ -1679,10 +2568,10 @@ fn every_retention_commit_fault_preserves_a_monotonic_consumption_boundary() {
 fn retired_boundaries_are_canonical_and_counter_exhaustion_cannot_recreate_a_slot() {
     let mut s =
         State::new([8; 32], [9; 32], 1, key(&[7; 32]).expect("root"), &[11; 32]).expect("state");
-    s.sent = u64::MAX;
-    s.send_floor = u64::MAX;
-    s.received = u64::MAX;
-    s.receive_floor = u64::MAX;
+    epoch_mut(&mut s).sent = u64::MAX;
+    epoch_mut(&mut s).send_floor = u64::MAX;
+    epoch_mut(&mut s).received = u64::MAX;
+    epoch_mut(&mut s).receive_floor = u64::MAX;
     assert_eq!(
         State::decode(&s.encode())
             .expect("terminal counters")
@@ -1690,13 +2579,13 @@ fn retired_boundaries_are_canonical_and_counter_exhaustion_cannot_recreate_a_slo
             .as_slice(),
         s.encode().as_slice()
     );
-    assert!(MessageId::for_index(&s.session, s.role, u64::MAX).is_err());
-    let retired = MessageId::for_index(&s.session, s.role, u64::MAX - 1).expect("last old slot");
+    assert!(MessageId::for_epoch(&s.session, s.role, 0, u64::MAX).is_err());
+    let retired = MessageId::for_epoch(&s.session, s.role, 0, u64::MAX - 1).expect("last old slot");
     assert!(matches!(
-        s.send(retired, b"replacement", b""),
+        epoch_mut(&mut s).send(retired, b"replacement", b""),
         Err(Error::Retired)
     ));
-    s.sent -= 1;
+    epoch_mut(&mut s).sent -= 1;
     assert!(State::decode(&s.encode()).is_err(), "floor exceeds counter");
     let mut p = Pair::new();
     p.activate();
@@ -1961,14 +2850,17 @@ fn rekey_offer_is_signed_once_replays_after_restart_and_preserves_traffic_state(
     .expect("state");
     assert_eq!(after.revision, before.revision + 3);
     assert_eq!(
-        (after_state.sent, after_state.received),
-        (before_state.sent, before_state.received)
+        (epoch(&after_state).sent, epoch(&after_state).received),
+        (epoch(&before_state).sent, epoch(&before_state).received)
     );
     assert_eq!(after_state.rekey.as_bytes(), before_state.rekey.as_bytes());
-    assert_eq!(after_state.send.as_bytes(), before_state.send.as_bytes());
     assert_eq!(
-        after_state.receive.as_bytes(),
-        before_state.receive.as_bytes()
+        epoch(&after_state).send.as_bytes(),
+        epoch(&before_state).send.as_bytes()
+    );
+    assert_eq!(
+        epoch(&after_state).receive.as_bytes(),
+        epoch(&before_state).receive.as_bytes()
     );
     p.f.signer_i.close();
     p.ji.close();
@@ -2041,7 +2933,7 @@ fn rekey_offer_rejects_authenticated_epoch_invention_and_corrupt_cached_signatur
         .records
         .get_mut(&record_id(&p.session))
         .expect("state");
-    let offset = saved.payload.len() - 49; // fixed empty QPRKST01 control record
+    let offset = saved.payload.len() - 50; // fixed empty QPRKST02 control record
     saved
         .payload
         .get_mut(offset + 8..offset + 16)
