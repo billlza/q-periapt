@@ -4229,7 +4229,8 @@ esac
                         "ActivityManager:I", "SystemServer:E", "PackageManager:E",
                         "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
                         "Zygote:E", "lmkd:*",
-                        "libc:F", "DEBUG:*", "*:S",
+                        "libc:F", "DEBUG:*",
+                        "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",
                     ))
                     self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], commands.OPERATION_SPECS[operation].timeout_maximum)
                     self.assertEqual(write.call_args.kwargs["maximum_bytes"], 16777216)
