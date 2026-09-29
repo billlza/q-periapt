@@ -226,6 +226,20 @@ creating output or invoking build tools. No primitive, SDK ABI, journal or wire
 contract changes. These checks do not replace full Android packaging/device
 execution or the preceding native Continuity qualification.
 
+The `f151c136` Windows 2022 and Windows jobs in run `36637764476` subsequently
+failed the existing symlink-loop/non-directory-parent checks. The helper returned
+only through its `FileNotFoundError` branch: those invalid child lookups could
+therefore be mistaken for a valid missing output on Windows. The repair walks
+back to an existing parent and requires positive ordinary-directory metadata;
+symlinks, Windows reparse points and non-directories are refused. It still creates
+nothing and retains the exclusive-workspace assumption. A portable regression
+models that reported missing-child result while reading the real parent metadata:
+the old helper fails both subcases, and the repaired three affected modules pass
+**48 tests** with warnings as errors. This local error-mapping regression does not
+claim native Windows execution; exact-head Windows CI remains pending. The prior
+hosted failures and their six existing platform skips remain in the raw record;
+no new skip or suppression is introduced.
+
 ## Validation and remaining review
 
 The clean source passes 2,268 artifact tests in 453.901 seconds without skips,

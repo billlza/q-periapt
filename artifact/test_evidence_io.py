@@ -23,6 +23,28 @@ from evidence_io import (
 
 
 class FreshOutputDirectoryTests(unittest.TestCase):
+    def test_missing_child_error_does_not_hide_an_invalid_existing_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            (root / "file").write_bytes(b"not a directory")
+            (root / "loop").symlink_to(root / "loop", target_is_directory=True)
+            real_lstat = pathlib.Path.lstat
+            for parent in (root / "file", root / "loop"):
+                selected = parent / "new"
+
+                def missing_child(path, *args, **kwargs):
+                    if path == selected:
+                        # These native Windows failures can appear as absence;
+                        # the existing parent's metadata remains real filesystem I/O.
+                        raise FileNotFoundError("reported missing child")
+                    return real_lstat(path, *args, **kwargs)
+
+                with self.subTest(parent=parent), mock.patch.object(pathlib.Path, "lstat", missing_child):
+                    with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                        evidence_io.fresh_output_directory(selected, within=root, label="fixture output")
+            self.assertEqual((root / "file").read_bytes(), b"not a directory")
+            self.assertEqual({p.name for p in root.iterdir()}, {"file", "loop"})
+
     def test_resolved_destination_is_used_for_actual_exclusive_writes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()

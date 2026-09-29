@@ -49,11 +49,28 @@ def fresh_output_directory(
         selected = requested.resolve()
         if not selected.is_relative_to(boundary):
             raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
-        try:
-            selected.lstat()
-        except FileNotFoundError:
+        # A missing-child result does not establish a valid parent. Windows can
+        # report this for a non-directory parent or an unresolved reparse loop.
+        # Walk back to positive directory evidence, without creating anything.
+        existing = selected
+        while True:
+            try:
+                metadata = existing.lstat()
+            except FileNotFoundError:
+                parent = existing.parent
+                if parent == existing:
+                    raise EvidenceIOError(f"cannot resolve {label}: no existing directory parent")
+                existing = parent
+                continue
+            if existing == selected:
+                raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or stat.S_ISLNK(metadata.st_mode)
+                or (os.name == "nt" and metadata.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            ):
+                raise EvidenceIOError(f"cannot resolve {label}: existing parent is not a plain directory")
             return selected
-        raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
     except (OSError, RuntimeError) as exc:
         raise EvidenceIOError(f"cannot resolve {label}: {exc}") from exc
 
