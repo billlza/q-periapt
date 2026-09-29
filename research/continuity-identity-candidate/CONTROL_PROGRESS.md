@@ -92,7 +92,7 @@ process cuts. Signed wrong context/profile/role/epoch/parent and signature-purpo
 substitution must leave the recipient's revision unchanged. Separate public-byte
 vectors include the request and verify both signatures with OpenSSL.
 
-The final 2026-09-29 source passes **166 release tests in 248.18 seconds** (278.681
+The pre-carrier `a08a41c7` source passes **166 release tests in 248.18 seconds** (278.681
 including compilation). The five control-specific tests measure eight sync
 barriers for request preparation and thirteen for request-driven offer admission;
 all **42 before/after faults** recover. Three process cuts cover request reservation,
@@ -118,7 +118,13 @@ tests were corrected without allowing or suppressing a lint. A preceding full
 166-test pass is retained separately from the final run after replay admission
 was reordered to avoid demanding a future epoch when replaying completed work.
 
+The later optional [native TLS carrier](CONTROL_TLS.md) reuses these APIs with
+finite retries, an unchanged absolute deadline and explicit cancellation. It adds
+real separate-process loopback delivery and recovery after journal commit but
+before a network reply. It does not change the v6 signed control grammar or v17
+journal format.
+
 These finite schedules do not establish arbitrary network liveness, global directory
-consistency or continuous PQ secrecy recovery. Product transport scheduling,
-periodic trigger policy, installed cross-language service integration and the
-matched durable-performance comparison remain required.
+consistency or continuous PQ secrecy recovery. Cross-host and multi-session
+scheduling, periodic trigger policy, installed cross-language service integration
+and the matched durable-performance comparison remain required.

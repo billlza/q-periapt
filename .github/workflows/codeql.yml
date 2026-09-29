@@ -93,6 +93,9 @@ jobs:
             RUSTFLAGS='-D warnings' \
               CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-whole-kem-check-${reference_toolchain}" \
               cargo +"$reference_toolchain" check --manifest-path research/continuity-whole-kem-reference/Cargo.toml --all-targets --locked
+            RUSTFLAGS='-D warnings' \
+              CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-continuity-check-${reference_toolchain}" \
+              cargo +"$reference_toolchain" check --manifest-path research/continuity-identity-candidate/Cargo.toml --all-targets --all-features --locked
           done
           test ! -e target && test ! -L target
 

@@ -134,8 +134,11 @@ The [send-progress contract](SEND_PROGRESS_V1.md) defines the signed budget and
 the counter window across asymmetric confirmation. The isolated candidate
 now implements that governor through actual journal admission. Its v6
 [control path](../../research/continuity-identity-candidate/CONTROL_PROGRESS.md)
-adds signed requests and exact-target steps for an idle proposer. Product
-transport scheduling and the chosen product value remain implementation and
+adds signed requests and exact-target steps for an idle proposer. The optional
+[native TLS carrier](../../research/continuity-identity-candidate/CONTROL_TLS.md)
+delivers them with explicit per-invocation retry and deadline bounds, cancellation
+and exact committed replay. Cross-host and multi-session scheduling, installed
+language integration and the chosen product budget remain implementation and
 qualification requirements.
 Network loss remains an explicit liveness assumption in the recovery condition.
 The [recovery-condition ledger](RECOVERY_CONDITIONS_V1.md) distinguishes pending

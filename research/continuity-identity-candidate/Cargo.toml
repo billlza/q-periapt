@@ -26,11 +26,17 @@ zeroize = "1"
 hkdf = "=0.13.0"
 hmac = { version = "=0.13.0", features = ["zeroize"] }
 sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
+q-periapt-rustls = { path = "../../crates/q-periapt-rustls", features = ["reference-connection"], optional = true }
+
+[features]
+# Explicit standard TLS carrier; no plaintext or classic-only fallback.
+control-tls = ["dep:q-periapt-rustls"]
 
 [dev-dependencies]
 q-periapt-policy = { path = "../../crates/q-periapt-policy" }
 q-periapt-sig = { path = "../../crates/q-periapt-sig" }
 tempfile = "=3.27.0"
+rcgen = "=0.14.10"
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -46,4 +52,12 @@ unwrap_used = "deny"
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+overflow-checks = true
+
+# The journal/state machine stays unoptimized in debug tests. Run primitive,
+# TLS and storage dependencies at normal speed while retaining their debug
+# assertions and arithmetic overflow checks; no fault case is skipped.
+[profile.dev.package."*"]
+opt-level = 3
+debug-assertions = true
 overflow-checks = true

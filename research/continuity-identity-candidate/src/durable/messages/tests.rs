@@ -8,6 +8,8 @@ use crate::{
 use std::{fs, sync::atomic::Ordering};
 
 mod control_progress;
+#[cfg(feature = "control-tls")]
+mod control_tls;
 mod epoch_resolution;
 mod reservation_disclosure;
 mod send_budget;

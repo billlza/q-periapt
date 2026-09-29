@@ -112,9 +112,13 @@ explicit [closed-epoch outcome reports](EPOCH_RESOLUTION.md) account for unresol
 old deliveries without labelling them successful. A signed application-send
 budget now bounds new reservations without locally completed rekey progress.
 The [control-progress path](CONTROL_PROGRESS.md) adds a durable signed request
-and one-target step driver for an otherwise idle proposer. Host transport
-scheduling, device lifecycle and multi-device contracts remain required within
-0.2.0.
+and one-target step driver for an otherwise idle proposer. Its optional native
+[TLS carrier](CONTROL_TLS.md) now delivers those controls through the SDK's
+standard mutually authenticated TLS engine with explicit deadlines, cancellation
+and finite retries. Real separate-process loopback tests cover either initiating
+role and restart after committed replies are lost. Installed language integration,
+cross-host scheduling, device lifecycle and multi-device contracts remain required
+within 0.2.0.
 
 The [durable hybrid rekey path](REKEY_OFFERS.md) now commits four signed flights
 and switches sending/receiving epochs at authenticated, crash-recoverable boundaries.

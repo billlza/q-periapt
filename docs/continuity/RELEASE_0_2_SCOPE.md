@@ -85,7 +85,12 @@ the existing public-commitment model into a working cryptographic protocol.
   matched comparisons and product control scheduling remain open. Its
   [independent control steps](../../research/continuity-identity-candidate/CONTROL_PROGRESS.md)
   now reserve signed requests for an idle proposer and resume one explicit target
-  through the existing flight transactions. A measured product budget, full device
+  through the existing flight transactions. An optional
+  [native TLS carrier](../../research/continuity-identity-candidate/CONTROL_TLS.md)
+  now exchanges them over the standard SDK connection in separate same-host Rust
+  processes, with finite retry/cancel/deadline semantics and restart after each
+  committed reply is lost. This does not qualify installed bindings, bootstrap
+  delivery or cross-host operation. A measured product budget, full device
   lifecycle, cryptographic erasure and product integration remain required work.
 
 ## Required completion evidence

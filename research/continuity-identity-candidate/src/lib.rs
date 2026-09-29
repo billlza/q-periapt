@@ -10,6 +10,8 @@
 mod anchor;
 mod bootstrap;
 mod codec;
+#[cfg(feature = "control-tls")]
+pub mod control_transport;
 mod crypto;
 mod durable;
 mod identity;

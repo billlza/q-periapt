@@ -72,12 +72,40 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 188 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 191 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The isolated Continuity v6 candidate now has a durable, identity-signed request
+The isolated Continuity v6 candidate now has an optional native
+[standard TLS control carrier](../research/continuity-identity-candidate/CONTROL_TLS.md).
+It reuses the SDK connection engine and exact journal outboxes, with explicit
+finite retries, a fixed invocation deadline, fallible trusted time and cancellation.
+Two native processes complete three alternating rekeys from either initiating
+role. Five process kills after journal commit but before network reply recover
+the original committed bytes. Live ClientHello cancellation closes the socket and
+releases endpoint capacity; timeout, protocol expiry, wrong certificate pin,
+clock failure, empty acknowledgement and old-target receipt tests also pass.
+The old-target case first reproduced an incorrect successful epoch-1 return for
+an epoch-2 request; checking the exact target at the transport boundary repairs
+that classification without changing legitimate journal replay.
+
+Both complete local all-feature runs pass **175 tests**, with no failures or
+ignored tests: debug 466.19 seconds, release 368.31 seconds. They overlapped and
+are not a controlled performance comparison. Strict all-target/all-feature Clippy
+passes on Rust 1.90 and 1.98.1. Earlier Linux candidate jobs reached the unchanged
+25-minute deadline in debug tests; debug dependencies are now optimized with
+debug assertions and overflow checks retained, while the state-machine crate
+stays unoptimized. A Rust 1.90 dependency probe records optimized compiler flags
+and an actual caught overflow. Fresh hosted completion remains required.
+The candidate's 55 added lock identities already occur in the root SDK lock;
+no existing candidate version/checksum changed. This native optional feature
+does not change v6 controls, v17 journals or any published binding.
+These checks begin with admitted journals on one host; installed cross-language
+connections, bootstrap transport, cross-host/device execution, multi-session
+scheduling, periodic policy and matched performance remain open.
+
+The preceding `a08a41c7` Continuity v6 candidate has a durable, identity-signed request
 for an idle designated proposer and a control driver for one explicit target.
 The driver reuses the existing flight transactions; repeated calls cannot silently
 start another target after completion. Its bounded test schedules complete three

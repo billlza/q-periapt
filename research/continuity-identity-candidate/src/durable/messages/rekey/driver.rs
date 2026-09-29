@@ -49,6 +49,70 @@ enum Work {
     Receive(Vec<u8>),
 }
 impl DeviceJournal {
+    #[cfg(feature = "control-tls")]
+    pub(crate) fn start_control_delivery(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        target: u64,
+        signer: &DeviceSigningKey,
+        now: u64,
+    ) -> Result<RekeyControlStep, DurableError> {
+        let step = self.advance_rekey_control(context, session, target, signer, now)?;
+        if matches!(step, RekeyControlStep::LocallyConfirmed(_)) {
+            let image = self.image()?;
+            let state = self.message_state(&image, context, &session, now)?;
+            // A process may have committed its receipt before any network byte
+            // escaped. Re-dispatch it on an explicit delivery run. A later local
+            // exchange already implies that this predecessor was accepted.
+            if !state.control.has_pending() && state.role != proposer(target)? {
+                return output(self.rekey_outbox(
+                    context,
+                    session,
+                    target,
+                    RekeyFlight::Receipt,
+                    now,
+                )?);
+            }
+        }
+        Ok(step)
+    }
+
+    #[cfg(feature = "control-tls")]
+    pub(crate) fn replay_control_delivery(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        message: &RekeyControlMessage,
+        signer: &DeviceSigningKey,
+        now: u64,
+    ) -> Result<Vec<u8>, DurableError> {
+        let tag = open_envelope(message.as_bytes())?
+            .0
+            .get(..8)
+            .ok_or(Error::Encoding)?;
+        let wire = if tag == request::TAG {
+            self.prepare_rekey_request(context, session, signer, now)?
+        } else {
+            let flight = if tag == TAG {
+                RekeyFlight::Offer
+            } else if tag == response::TAG {
+                RekeyFlight::Response
+            } else if tag == completion::FINAL_TAG {
+                RekeyFlight::Final
+            } else if tag == completion::RECEIPT_TAG {
+                RekeyFlight::Receipt
+            } else {
+                return Err(Error::Encoding.into());
+            };
+            self.rekey_outbox(context, session, message.target_epoch(), flight, now)?
+        };
+        if wire != message.as_bytes() {
+            return Err(DurableError::Conflict);
+        }
+        Ok(wire)
+    }
+
     /// Start/resume one explicit target without dummy application traffic. Each
     /// call executes at most one existing flight preparation and returns at most
     /// one bounded output. The host bounds transport retries and deadlines; it
