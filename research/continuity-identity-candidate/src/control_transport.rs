@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Bounded native control delivery over the SDK's standard mutually authenticated
 //! TLS connection. TLS carrier acknowledgements never advance protocol state.
-use crate::{BootstrapContext, DeviceJournal, DeviceSigningKey, DurableError, RekeyControlStep};
-use q_periapt_rustls::connection::{self, Credentials, Endpoint, Limits};
+use crate::native_transport::{check, remaining, retryable};
+pub use crate::native_transport::{Cancellation, Error, RunLimits};
+use crate::{BootstrapContext, DeviceJournal, DeviceSigningKey, RekeyControlStep};
+use q_periapt_rustls::connection::{Credentials, Endpoint, Limits};
 use std::{
     io,
     net::{SocketAddr, TcpStream},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::{Duration, Instant},
+    sync::Arc,
 };
 
 mod socket;
@@ -18,134 +16,6 @@ use socket::Channel;
 
 const MAGIC: &[u8; 8] = b"QPCCTL01";
 const MAX_CONTROL: usize = 8192;
-
-/// Shared one-way cancellation signal. Cancellation cannot undo a journal commit.
-#[derive(Clone)]
-pub struct Cancellation(Arc<AtomicBool>);
-impl Default for Cancellation {
-    fn default() -> Self {
-        Self(Arc::new(AtomicBool::new(false)))
-    }
-}
-impl Cancellation {
-    /// Stop further dispatch; the owner and exact pending operation remain available.
-    pub fn cancel(&self) {
-        self.0.store(true, Ordering::Release);
-    }
-    /// Whether cancellation has been requested; there is no reset operation.
-    pub fn is_cancelled(&self) -> bool {
-        self.0.load(Ordering::Acquire)
-    }
-}
-
-/// Explicit per-invocation bounds; reconnecting never refreshes the total deadline.
-#[derive(Clone, Copy)]
-pub struct RunLimits {
-    /// Total control exchanges, including failed attempts, from 1 through 128.
-    pub exchanges: u16,
-    /// Entire run/accepted-connection duration, nonzero and at most 120 seconds.
-    pub timeout: Duration,
-    /// Each TCP connect bound, nonzero and at most five seconds. Cancellation
-    /// during connect is observed by the end of this bound; later I/O polls at 25 ms.
-    pub connect_timeout: Duration,
-}
-impl RunLimits {
-    fn deadline(self) -> Result<Instant, Error> {
-        if !(1..=128).contains(&self.exchanges)
-            || self.timeout.is_zero()
-            || self.timeout > Duration::from_secs(120)
-            || self.connect_timeout.is_zero()
-            || self.connect_timeout > Duration::from_secs(5)
-        {
-            return Err(Error::InvalidOptions);
-        }
-        Instant::now()
-            .checked_add(self.timeout)
-            .ok_or(Error::InvalidOptions)
-    }
-}
-
-/// Transport outcomes retain the distinction between local state and peer delivery.
-#[derive(Debug)]
-pub enum Error {
-    /// Invalid capacity, deadline, address or endpoint role.
-    InvalidOptions,
-    /// Cancellation observed before further dispatch; local work may have committed.
-    Cancelled,
-    /// One unchanged absolute run deadline elapsed; local work may have committed.
-    Deadline,
-    /// Finite exchange allowance exhausted; exact work remains in the journal.
-    AttemptsExhausted,
-    /// The endpoint is bound to another protocol context or session.
-    Binding,
-    /// Malformed carrier bytes or a no-output reply without local completion.
-    Protocol,
-    /// Current Continuity authority or trusted-time admission failed.
-    Authority(crate::Error),
-    /// Trusted time could not be obtained; no timestamp is substituted or retried.
-    Clock(io::Error),
-    /// Original durable failure; the caller must reopen/reconcile when required.
-    Durable(DurableError),
-    /// Original SDK TLS/identity/policy/framing failure.
-    Connection(connection::Error),
-    /// Original network failure; no peer commit/absence is inferred.
-    Io(io::Error),
-    /// Transient network failure exhausted the finite exchange allowance.
-    RetryExhausted {
-        /// Actual number of attempted exchanges.
-        attempts: u16,
-        /// Last observed network error; earlier attempts did not reset the journal.
-        last: Box<Error>,
-    },
-}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::InvalidOptions => "invalid control transport options",
-            Self::Cancelled => "control dispatch cancelled; reconcile local target",
-            Self::Deadline => "control deadline expired; reconcile local target",
-            Self::AttemptsExhausted => "control exchange allowance exhausted",
-            Self::Binding => "control transport context or session differs",
-            Self::Protocol => "invalid control carrier reply",
-            Self::Authority(_) => "control authority rejected dispatch",
-            Self::Clock(_) => "trusted control time is unavailable",
-            Self::Durable(_) => "control journal operation failed",
-            Self::Connection(_) => "control TLS connection failed",
-            Self::Io(_) => "control network outcome unavailable",
-            Self::RetryExhausted { .. } => {
-                "control network retries exhausted; reconcile local target"
-            }
-        })
-    }
-}
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Authority(e) => Some(e),
-            Self::Clock(e) => Some(e),
-            Self::Durable(e) => Some(e),
-            Self::Connection(e) => Some(e),
-            Self::Io(e) => Some(e),
-            Self::RetryExhausted { last, .. } => Some(last.as_ref()),
-            _ => None,
-        }
-    }
-}
-impl From<DurableError> for Error {
-    fn from(e: DurableError) -> Self {
-        Self::Durable(e)
-    }
-}
-impl From<connection::Error> for Error {
-    fn from(e: connection::Error) -> Self {
-        Self::Connection(e)
-    }
-}
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Self::Io(e)
-    }
-}
 
 /// Result established by local authenticated journal state, not an independently
 /// authenticated acknowledgement of peer receipt or a secrecy-recovery proof.
@@ -271,13 +141,7 @@ impl ControlEndpoint {
         if !self.client {
             return Err(Error::InvalidOptions);
         }
-        if address.port() == 0
-            || address.ip().is_unspecified()
-            || address.ip().is_multicast()
-            || matches!(address.ip(),std::net::IpAddr::V4(ip) if ip.is_broadcast())
-        {
-            return Err(Error::InvalidOptions);
-        }
+        crate::native_transport::address(address)?;
         let deadline = limits.deadline()?;
         check(context, cancel, deadline, &mut clock)?;
         let mut step = journal.start_control_delivery(
@@ -474,12 +338,6 @@ impl ControlEndpoint {
     }
 }
 
-fn remaining(deadline: Instant) -> Result<Duration, Error> {
-    deadline
-        .checked_duration_since(Instant::now())
-        .filter(|d| !d.is_zero())
-        .ok_or(Error::Deadline)
-}
 fn require_target(wire: &[u8], expected: u64) -> Result<(), Error> {
     let (body, _) = crate::crypto::open_envelope(wire).map_err(|_| Error::Protocol)?;
     let bytes = body.get(112..120).ok_or(Error::Protocol)?;
@@ -489,38 +347,6 @@ fn require_target(wire: &[u8], expected: u64) -> Result<(), Error> {
     }
     Ok(())
 }
-fn check(
-    context: &BootstrapContext,
-    cancel: &Cancellation,
-    deadline: Instant,
-    clock: &mut impl FnMut() -> io::Result<u64>,
-) -> Result<(), Error> {
-    if cancel.is_cancelled() {
-        return Err(Error::Cancelled);
-    }
-    remaining(deadline)?;
-    context
-        .check_session_identity(clock().map_err(Error::Clock)?)
-        .map_err(Error::Authority)
-}
-fn retryable(error: &Error) -> bool {
-    let io = match error {
-        Error::Io(e) | Error::Connection(connection::Error::Io(e)) => e,
-        _ => return false,
-    };
-    matches!(
-        io.kind(),
-        io::ErrorKind::ConnectionRefused
-            | io::ErrorKind::ConnectionReset
-            | io::ErrorKind::ConnectionAborted
-            | io::ErrorKind::BrokenPipe
-            | io::ErrorKind::UnexpectedEof
-            | io::ErrorKind::TimedOut
-            | io::ErrorKind::WouldBlock
-            | io::ErrorKind::NotConnected
-    )
-}
-
 #[cfg(all(test, unix))]
 mod test_support {
     use super::*;

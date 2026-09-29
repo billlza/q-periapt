@@ -8,7 +8,7 @@ const ACK_PREFIX: usize = 8 + 32 + 1 + 8;
 const ACK_LENGTH: usize = ACK_PREFIX + 32;
 const EPOCH_ACK_TAG: &[u8; 8] = b"QPCMACK2";
 
-fn wire_epoch(wire: &[u8]) -> Result<u64, Error> {
+pub(super) fn wire_epoch(wire: &[u8]) -> Result<u64, Error> {
     if wire.len() == ACK_LENGTH && wire.get(..8) == Some(ACK_TAG.as_slice()) {
         return Ok(0);
     }

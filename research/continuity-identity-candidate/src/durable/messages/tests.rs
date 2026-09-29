@@ -7,6 +7,8 @@ use crate::{
 };
 use std::{fs, sync::atomic::Ordering};
 
+#[cfg(feature = "connection-tls")]
+mod connection_tls;
 mod control_progress;
 #[cfg(feature = "control-tls")]
 mod control_tls;
@@ -14,6 +16,8 @@ mod epoch_resolution;
 mod fanout;
 mod reservation_disclosure;
 mod send_budget;
+#[cfg(any(feature = "connection-tls", feature = "control-tls"))]
+mod tls_identity;
 
 struct Pair {
     f: Fixture,

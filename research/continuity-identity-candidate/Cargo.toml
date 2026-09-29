@@ -31,6 +31,8 @@ q-periapt-rustls = { path = "../../crates/q-periapt-rustls", features = ["refere
 [features]
 # Explicit standard TLS carrier; no plaintext or classic-only fallback.
 control-tls = ["dep:q-periapt-rustls"]
+# Complete bootstrap and application delivery over the same standard TLS engine.
+connection-tls = ["dep:q-periapt-rustls"]
 
 [dev-dependencies]
 q-periapt-policy = { path = "../../crates/q-periapt-policy" }

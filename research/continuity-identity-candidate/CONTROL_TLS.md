@@ -129,3 +129,10 @@ Later source changes retain their own qualification requirements.
 Native Windows/device execution, installed language consumers, real cross-host
 endpoints, transport scheduling across multiple sessions, periodic trigger policy,
 matched performance and all remaining 0.2.0 requirements are still required.
+
+The socket/TLS/cancellation implementation is now shared with the separately
+identified [bootstrap and application carrier](CONNECTION_TLS.md). The original
+QPCCTL01 grammar and context/session binding remain unchanged. The combined
+reference trace establishes from inventory, performs three network rekeys, and
+transfers application bytes in both directions with independent file readback.
+Its own source-bound qualification does not retroactively change this checkpoint.

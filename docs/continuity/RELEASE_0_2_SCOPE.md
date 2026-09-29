@@ -96,10 +96,19 @@ the existing public-commitment model into a working cryptographic protocol.
   now derives the complete recipient set from the installed signed roster. One
   device journal reserves all required inputs and commits all pairwise chain/outbox
   changes before releasing any member. A required witness covers that same whole
-  image. Its v18 format preserves batch ownership and monotonic IDs across crashes;
+  image. Its v19 format preserves batch ownership and monotonic IDs across crashes;
   per-recipient ACK and unknown-delivery accounting remain distinct. This does not
   provide atomic remote application execution or a distributed transaction among
   independently owned sending-device journals.
+  Its [reserved-session abandonment](../../research/continuity-identity-candidate/FANOUT_ABANDONMENT.md)
+  now freezes all member sessions, requires durable loss accounting, and replaces
+  private state with terminal source/session records without resetting IDs.
+  Its optional [native connection carrier](../../research/continuity-identity-candidate/CONNECTION_TLS.md)
+  now carries the inventory-backed bootstrap and real application traffic over the
+  same standard TLS engine. A complete process trace performs three network rekeys
+  and confirms application consumption with independent disk readback in both
+  directions. Installed bindings, independent implementations/cross-host/device
+  qualification and the remaining product protocol requirements stay open.
 
 ## Required completion evidence
 

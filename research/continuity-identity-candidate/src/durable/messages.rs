@@ -6,6 +6,10 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+#[cfg(feature = "connection-tls")]
+mod delivery;
+#[cfg(feature = "connection-tls")]
+pub(crate) use delivery::{acknowledgement_epoch, message_epoch, message_route, Delivery};
 mod fanout;
 pub use fanout::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, FanoutAbandonment, FanoutAbandonmentId,

@@ -13,7 +13,7 @@ use zeroize::Zeroize;
 pub(super) const MAX_PREKEY_RECORDS: usize = 1024;
 
 #[cfg(all(test, unix))]
-mod tests;
+pub(in crate::durable) mod tests;
 
 /// Public correlation ID retained before a prekey provisioning request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

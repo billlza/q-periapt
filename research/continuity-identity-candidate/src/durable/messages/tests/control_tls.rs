@@ -4,7 +4,7 @@ use crate::{
     control_transport::{Cancellation, ControlEndpoint, Run, RunLimits, Session},
     durable::tests::ChildGuard,
 };
-use q_periapt_rustls::connection::{Credentials, Limits};
+use q_periapt_rustls::connection::Credentials;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpListener},
@@ -12,35 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-struct Identity {
-    certificate: Vec<u8>,
-    key: Zeroizing<Vec<u8>>,
-}
-impl Identity {
-    fn new(name: &str) -> Self {
-        let identity =
-            rcgen::generate_simple_self_signed(vec![name.into()]).expect("TLS test identity");
-        Self {
-            certificate: identity.cert.der().to_vec(),
-            key: Zeroizing::new(identity.signing_key.serialize_der()),
-        }
-    }
-    fn credentials<'a>(&'a self, peer: &'a Self) -> Credentials<'a> {
-        Credentials {
-            certificate: &self.certificate,
-            private_key: &self.key,
-            peer_certificate: &peer.certificate,
-        }
-    }
-}
-fn tls_limits() -> Limits {
-    Limits {
-        max_connections: 1,
-        handshake_ms: 10_000,
-        request_ms: 10_000,
-        idle_ms: 10_000,
-    }
-}
+use super::tls_identity::{tls_limits, Identity};
 fn limits() -> RunLimits {
     RunLimits {
         exchanges: 12,

@@ -10,6 +10,8 @@
 mod anchor;
 mod bootstrap;
 mod codec;
+#[cfg(feature = "connection-tls")]
+pub mod connection_transport;
 #[cfg(feature = "control-tls")]
 pub mod control_transport;
 mod crypto;
@@ -17,6 +19,8 @@ mod durable;
 mod identity;
 mod manifest;
 mod merkle;
+#[cfg(any(feature = "control-tls", feature = "connection-tls"))]
+mod native_transport;
 mod selection;
 mod session_policy;
 #[cfg(test)]

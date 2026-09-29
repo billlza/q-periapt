@@ -274,3 +274,9 @@ Explicit [fanout abandonment](FANOUT_ABANDONMENT.md) freezes a reserved batch's
 whole sessions and requires durable metadata-only loss accounting before logical
 key erasure. Journal v19 rejects v18 images; pairwise v6 wire bytes are unchanged.
 This scoped lifecycle operation does not complete account-wide device replacement.
+
+The optional [native connection carrier](CONNECTION_TLS.md) runs the original
+bootstrap through the encrypted prekey inventory, delivers actual application
+frames and confirms only authenticated consumption prefixes after durable host
+accounting. It shares TLS I/O with the control carrier. This is a native candidate
+execution path; installed bindings and account-directory integration remain open.

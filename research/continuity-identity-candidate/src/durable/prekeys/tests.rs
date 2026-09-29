@@ -14,18 +14,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-struct Inventory {
-    store: DeviceJournal,
-    peer: Fixture,
-    ids: [PrekeyId; 4],
-    public: (
+pub(in crate::durable) struct Inventory {
+    pub(in crate::durable) store: DeviceJournal,
+    pub(in crate::durable) peer: Fixture,
+    pub(in crate::durable) ids: [PrekeyId; 4],
+    pub(in crate::durable) public: (
         [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
         [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
     ),
-    path: PathBuf,
+    pub(in crate::durable) path: PathBuf,
     _dir: Option<tempfile::TempDir>,
 }
-fn inventory(quality: PrekeyQuality) -> Inventory {
+pub(in crate::durable) fn inventory(quality: PrekeyQuality) -> Inventory {
     let dir = directory();
     let path = dir.path().canonicalize().expect("path");
     inventory_at(quality, path, Some(dir))

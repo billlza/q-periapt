@@ -40,6 +40,8 @@ mod rosters;
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
+#[cfg(feature = "connection-tls")]
+pub(crate) use messages::{acknowledgement_epoch, message_epoch, message_route, Delivery};
 pub use messages::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, ClosedEpochResolution, CommittedPlaintext,
     EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId, FanoutId,
