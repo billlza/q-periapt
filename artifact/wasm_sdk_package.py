@@ -80,6 +80,31 @@ def sources() -> dict:
             "inputs": {p.relative_to(ROOT).as_posix(): snapshot(p).sha256 for p in paths}}
 
 
+def verify_packlist(value: object, expected: dict) -> None:
+    """Bind npm 12's package-name keyed report to the complete staged payload."""
+    require(isinstance(value, dict) and set(value) == {NAME},
+            "npm packlist must describe exactly the SDK package")
+    package = value[NAME]
+    require(isinstance(package, dict) and package.get("name") == NAME
+            and package.get("version") == VERSION and package.get("id") == f"{NAME}@{VERSION}"
+            and package.get("filename") == f"{NAME}-{VERSION}.tgz",
+            "npm packlist package identity differs")
+    files = package.get("files")
+    require(isinstance(files, list) and len(files) == len(expected), "npm packlist file count differs")
+    seen = set()
+    for entry in files:
+        require(isinstance(entry, dict) and set(entry) == {"path", "size", "mode"},
+                "npm packlist file record differs")
+        path = entry["path"]
+        require(isinstance(path, str) and path in expected and path not in seen,
+                "npm packlist contains an unexpected or duplicate file")
+        require(type(entry["size"]) is int and entry["size"] == expected[path]["bytes"]
+                and type(entry["mode"]) is int and 0 <= entry["mode"] <= 0o777,
+                "npm packlist file size or mode differs")
+        seen.add(path)
+    require(seen == set(expected), "npm packlist omitted or added package files")
+
+
 def run(argv: list[str], log: Path, cwd: Path, *, environment=None) -> bytes:
     with contextlib.chdir(cwd):
         result = capture_output(argv, timeout_seconds=900, maximum_stdout_bytes=8 * 1024 * 1024,
@@ -189,11 +214,11 @@ def consume(archive: Path, archive_sha: str, manifest_sha: str, output: Path, *,
         result = run([str(node), str(consumer / name)], log, consumer, environment=env)
         require(result.decode().splitlines() == [marker], "WASM SDK consumer completion record differs")
         require(log.with_suffix(".stderr").read_bytes() == b"", "WASM SDK consumer emitted diagnostics")
-    compiler = [*npm, "exec", "--offline", "--ignore-scripts", "--yes", "--package", "typescript@5.9.3", "--", "tsc"]
+    compiler = [*npm, "exec", "--offline", "--ignore-scripts", "--yes", "--package", "typescript@7.0.2", "--", "tsc"]
     compiler_env = dict(env)
     del compiler_env["npm_config_cache"]  # Read the preinstalled tool cache offline.
     typescript_version = run([*compiler, "--version"], output / "typescript-version", consumer, environment=compiler_env)
-    require(typescript_version.decode().strip() == "Version 5.9.3", "TypeScript compiler identity differs")
+    require(typescript_version.decode().strip() == "Version 7.0.2", "TypeScript compiler identity differs")
     run([*compiler, "--noEmit", "--strict", "--module", "nodenext", "--target", "es2022",
          "--lib", "es2022,dom,esnext.disposable", "types.mts", "types.cts"],
         output / "typescript", consumer, environment=compiler_env)
@@ -208,7 +233,7 @@ def consume(archive: Path, archive_sha: str, manifest_sha: str, output: Path, *,
         "expected_node_version": expected_node_version,
         "consumer_inputs": {name: snapshot(consumer / name).sha256 for name in CONSUMER_FILES},
         "license_packages": len(licenses["packages"]), "installed_node_tests": "passed",
-        "browser_runtime": "not-run", "typescript": "5.9.3 strict NodeNext passed", "release_claim_eligible": False}
+        "browser_runtime": "not-run", "typescript": "7.0.2 strict NodeNext passed", "release_claim_eligible": False}
     return report
 
 
@@ -224,6 +249,7 @@ def build(output: Path) -> dict:
     for tool in ("rustc", "cargo", "node", "npm", "wasm-pack"):
         tools[tool] = run([tool, "--version"], output / f"version-{tool}", ROOT).decode().strip()
     require(tools["rustc"].startswith("rustc 1.98.1 "), "Rust notices require the pinned Rust 1.98.1 toolchain")
+    require(tools["npm"] == "12.1.0", "WASM SDK producer requires npm 12.1.0")
     require(tools["wasm-pack"] == "wasm-pack 0.15.0", "WASM SDK requires pinned wasm-pack 0.15.0")
     require(int(tools["node"].split(".")[0].lstrip("v")) >= 24, "WASM SDK requires Node >=24")
     for target in ("nodejs", "web"):
@@ -252,9 +278,7 @@ def build(output: Path) -> dict:
     # tar writer; npm consumes its standard package/ layout without any scripts.
     packlist = parse_strict_json_bytes(run(["npm", "pack", "--dry-run", "--ignore-scripts", "--json"],
         output / "npm-packlist", package), label="npm package file list")
-    require(len(packlist) == 1, "npm packlist must describe one package")
-    require({entry["path"] for entry in packlist[0]["files"]} == set(entries(package)),
-            "npm packlist omitted or added package files")
+    verify_packlist(packlist, entries(package))
     archive = output / f"{NAME}-{VERSION}.tgz"
     create_tar_gz(package, archive, root_name="package", mtime=MTIME)
     archive_sha = snapshot(archive).sha256

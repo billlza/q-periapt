@@ -10,6 +10,30 @@ import wasm_sdk_package as wasm
 
 
 class WasmSDKPackageTests(unittest.TestCase):
+    def test_npm12_packlist_requires_exact_package_and_unique_payload(self):
+        expected = {"index.cjs": {"bytes": 3}, "README.md": {"bytes": 4}}
+        value = {wasm.NAME: {"id": f"{wasm.NAME}@{wasm.VERSION}", "name": wasm.NAME,
+            "version": wasm.VERSION, "filename": f"{wasm.NAME}-{wasm.VERSION}.tgz",
+            "files": [{"path": "index.cjs", "size": 3, "mode": 0o644},
+                      {"path": "README.md", "size": 4, "mode": 0o644}]}}
+        wasm.verify_packlist(value, expected)
+        for mutate in (
+            lambda row: row.update(version="0.1.5"),
+            lambda row: row["files"].pop(),
+            lambda row: row["files"].__setitem__(1, row["files"][0]),
+            lambda row: row["files"][0].update(path="../index.cjs"),
+            lambda row: row["files"][0].update(size=True),
+            lambda row: row["files"][0].update(size=2),
+            lambda row: row["files"][0].update(mode=True),
+        ):
+            changed = copy.deepcopy(value)
+            mutate(changed[wasm.NAME])
+            with self.assertRaises(ValueError):
+                wasm.verify_packlist(changed, expected)
+        for wrong in ([value[wasm.NAME]], {}, {**value, "extra": value[wasm.NAME]}):
+            with self.assertRaises(ValueError):
+                wasm.verify_packlist(wrong, expected)
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

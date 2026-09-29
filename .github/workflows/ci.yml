@@ -371,7 +371,7 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
           toolchain: 1.98.1
@@ -809,8 +809,12 @@ jobs:
         run: wasm-pack test --node crates/q-periapt-wasm
       - name: Test signed-policy WebAssembly face on Node
         run: wasm-pack test --node crates/q-periapt-wasm --features signed-policy
+      - name: Install pinned SDK npm producer in a private tool directory
+        run: |
+          npm install --prefix "$RUNNER_TEMP/qperiapt-npm" --ignore-scripts --no-fund npm@12.1.0
+          echo "$RUNNER_TEMP/qperiapt-npm/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Prepare pinned SDK TypeScript consumer compiler
-        run: npm exec --yes --ignore-scripts --package typescript@5.9.3 -- tsc --version
+        run: npm exec --yes --ignore-scripts --package typescript@7.0.2 -- tsc --version
       - name: Build and install product WASM package outside the checkout
         run: sh artifact/python-run.sh artifact/wasm_sdk_package.py --output target/sdk-wasm-package
       - name: Select the exact minimum Node runtime
@@ -880,7 +884,7 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
       - name: Test Darwin release transaction adapters
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
@@ -1149,7 +1153,7 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
           toolchain: 1.98.1
@@ -1256,7 +1260,7 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
           toolchain: 1.98.1

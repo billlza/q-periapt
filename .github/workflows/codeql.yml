@@ -145,7 +145,7 @@ jobs:
 
       - name: Initialize CodeQL
         id: codeql_init
-        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           build-mode: ${{ matrix.build_mode }}
           config: |
@@ -160,7 +160,7 @@ jobs:
         env:
           CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
         run: |
-          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql
+          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/codeql
           test "$CODEQL_BINARY" = "$fixed_codeql"
           stat --format='CODEQL_TOOLCACHE_STAT type=%F mode=%a uid=%u gid=%g nlink=%h' \
             -- "$fixed_codeql"
@@ -168,7 +168,7 @@ jobs:
       - name: Verify linked CodeQL bundle
         env:
           CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
-        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"
+        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.1"
 
       - name: Build Kotlin binding
         if: matrix.language == 'java-kotlin'
@@ -199,7 +199,7 @@ jobs:
 
       - name: Analyze
         id: codeql_analyze
-        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: /language:${{ matrix.language }}
           upload: ${{ matrix.language == 'rust' && 'never' || 'always' }}
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload quality-gated Rust CodeQL results
         if: matrix.language == 'rust'
-        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: /language:${{ matrix.language }}
           sarif_file: ${{ steps.codeql_analyze.outputs.sarif-output }}

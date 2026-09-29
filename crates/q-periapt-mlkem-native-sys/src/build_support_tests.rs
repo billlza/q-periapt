@@ -116,11 +116,12 @@ fn x86_candidate_requires_opt_in_and_exact_linux_metadata() {
 fn x86_dispatch_compiler_baseline_cannot_be_overridden_or_duplicated() {
     use super::build_support::{validate_x86_compiler_arguments, X86_BASELINE_FLAGS};
     assert_eq!(
-        validate_x86_compiler_arguments(
-            X86_BASELINE_FLAGS
-                .into_iter()
-                .chain(["-O3", "-m64", "-fPIC"])
-        ),
+        validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([
+            "-O3",
+            "-m64",
+            "-mno-omit-leaf-frame-pointer",
+            "-fPIC"
+        ])),
         Ok(())
     );
     for flag in X86_BASELINE_FLAGS {

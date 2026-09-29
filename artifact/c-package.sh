@@ -808,7 +808,7 @@ require(
     all(token in vendor_license for token in ("Apache-2.0 license", "ISC license", "MIT license")),
     "mlkem-native license choices are incomplete",
 )
-require("118 vendored" in vendor_inventory and "CC-BY-4.0" in vendor_inventory, "mlkem-native license inventory is incomplete")
+require("119 vendored" in vendor_inventory and "CC-BY-4.0" in vendor_inventory, "mlkem-native license inventory is incomplete")
 require("0ba906cb14b1c241476134d7403a811b382ca498" in vendor_provenance, "mlkem-native provenance commit is missing")
 require("f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677" in vendor_provenance, "mlkem-native provenance archive hash is missing")
 

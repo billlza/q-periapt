@@ -36,8 +36,8 @@ def projection(profile: str = "agp_full_release") -> dict[str, object]:
         run_id=RUN_ID,
         source_commit="c" * 40,
         passed_tests=list(contract.PROFILE_TESTS[profile]),
-        agp_version="9.4.0",
-        gradle_version="9.7.1",
+        agp_version=contract.profile_spec(profile).agp_version,
+        gradle_version=contract.profile_spec(profile).gradle_version,
     )
     return value
 

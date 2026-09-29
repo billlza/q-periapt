@@ -11,11 +11,11 @@ deliberate plaintext-transfer API is available only through `/expert` or
 `/web/expert`. The old deterministic/KAT crate remains separate. The exports map
 is an integration boundary, not a same-realm adversarial isolation mechanism.
 
-Build from the repository root with pinned Rust 1.98.1, wasm-pack 0.15.0,
+Build from the repository root with pinned Rust 1.98.1, wasm-pack 0.15.0, npm 12.1.0,
 a WASM-capable C compiler and Node >=24:
 
 ```sh
-npm exec --yes --ignore-scripts --package typescript@5.9.3 -- tsc --version
+npm exec --yes --ignore-scripts --package typescript@7.0.2 -- tsc --version
 CC_wasm32_unknown_unknown=/absolute/path/to/clang \
   sh artifact/python-run.sh artifact/wasm_sdk_package.py --output target/sdk-wasm-package
 ```
@@ -29,7 +29,7 @@ with a pinned archive digest, then installs it offline in a fresh directory
 outside the checkout. The package has no npm runtime dependencies or scripts.
 Its original manifest digest and every installed file are checked before and
 after the actual lifecycle/policy/entropy and CJS/ESM consumer executions. Strict
-TypeScript 5.9.3 NodeNext compilation checks both module modes without skipping
+TypeScript 7.0.2 NodeNext compilation checks both module modes without skipping
 declaration checking. Source inputs must remain unchanged through the run.
 
 The producer and standalone archive consumer share the same installation and

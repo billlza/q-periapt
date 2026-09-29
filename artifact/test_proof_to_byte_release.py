@@ -79,8 +79,8 @@ PINNED_UPLOAD_ARTIFACT_ACTION = (
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"
 )
 PINNED_CODEQL_ACTION = (
-    "github/codeql-action/{action}@5595ccaf912efad79be6eef63a5619ff05969be3 "
-    "# v4.37.6"
+    "github/codeql-action/{action}@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 "
+    "# v4.38.2"
 )
 PINNED_SETUP_JAVA_ACTION = (
     "actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0"
@@ -1339,7 +1339,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             exact_bundle,
         )
         self.assertIn(
-            'run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"',
+            'run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.1"',
             exact_bundle,
         )
         fixed_bundle = extract_named_workflow_step(
@@ -1352,7 +1352,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             fixed_bundle,
         )
         self.assertIn(
-            "          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.26.2/x64/"
+            "          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.27.1/x64/"
             "codeql/codeql\n",
             fixed_bundle,
         )
@@ -1453,7 +1453,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
         self.assertNotIn('os.environ.get("CODEQL_RUNNER_TEMP"', quality_source)
         self.assertIn(
-            '"/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql"',
+            '"/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/codeql"',
             quality_source,
         )
         self.assertIn(
@@ -2373,7 +2373,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS", source)
         self.assertIn("RUST_BACKENDS_INSPECTION_PACKAGE_PASS", source)
 
-        self.assertIn("cargo +1.98.1 package $ALLOW_DIRTY_ARG --locked", source)
+        self.assertIn("cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked", source)
         self.assertIn("--registry crates-io", source)
         self.assertEqual(source.count("run_cargo_captured"), 8)
         self.assertIn("validate_cargo_output", source)
@@ -6073,7 +6073,7 @@ with _temporary_release_test_directories(parents):
         exact_version_check = (
             '          "$QPERIAPT_PYTHON" -I -S -c \'import sys; '
             'raise SystemExit(0 if sys.implementation.name == "cpython" and '
-            "sys.version_info[:3] == (3, 13, 14) else 2)'\n"
+            "sys.version_info[:3] == (3, 14, 7) else 2)'\n"
         )
         cases = (
             (

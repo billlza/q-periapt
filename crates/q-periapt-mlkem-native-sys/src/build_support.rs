@@ -128,7 +128,10 @@ pub(crate) fn validate_x86_compiler_arguments<'argument>(
             continue;
         }
         if is_forbidden_native_compiler_argument(argument)
-            || (argument.starts_with("-m") && argument != "-m64")
+            // cc 1.5 keeps leaf frame pointers in debug builds. This exact flag
+            // changes unwinding, not the baseline instruction-set contract.
+            || (argument.starts_with("-m")
+                && !matches!(argument, "-m64" | "-mno-omit-leaf-frame-pointer"))
         {
             return Err(NativeCompilerArgumentsError::Forbidden(argument));
         }

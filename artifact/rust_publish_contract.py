@@ -2680,8 +2680,8 @@ _EXPECTED_LOCAL_SOURCE_SHA256 = {
 # the historical 0.1.5 profile above remains immutable. See SDK_X86_CANDIDATE.md.
 _SDK_020_LOCAL_SOURCE_SHA256 = {
     "build.rs": "423984f4ff9ce17c71087b0cb5fb7208edca6b8a5b2ba47c44fa7c74ccb3002d",
-    "src/build_support.rs": "99bc174061332beb75a32ad77141ad05396d34492c25ed5fff2eccbcf72fe46d",
-    "src/build_support_tests.rs": "20424277b435eacc51d5302b5f3fcd893a6654f8dca3a1b02bf1e24b11eb4a40",
+    "src/build_support.rs": "567e1bb28a9218e59bc4655915126016342c45b09b52e893e9ce7edde55eba01",
+    "src/build_support_tests.rs": "2e0a1370eb78cf9557839e208e4c461940babddea6cc506a1f0214c2914f6c0a",
     "src/lib.rs": "2248aa6ec5f6fb67993cd8454455efc2f214e0e70e2946961dce82386ce77ab6",
     "src/mlkem_bridge.c": "8984b98849b7a11212ce41c93ea1ff83103bc5eece07195e4b1da7ce401f2120",
     "src/mlkem_bridge.h": "4d4b8db62d555405d3add46af7eb3c46b178b83982e0db1ebdabb650fbe382e1",

@@ -49,7 +49,8 @@ format conversion alone cannot establish freshness. See [host storage](SDK_HOST_
   complete extraction and consistency checks.
 
 The current source also selects native ML-KEM 2.0.0, Kotlin 2.4.20, Gradle 9.8.0,
-AGP 9.4.1, Node 26.10.0 and Python 3.14.7. The native import pins upstream commit
+AGP 9.4.1, Node 26.10.0, npm 12.1.0, TypeScript 7.0.2 and Python 3.14.7.
+CodeQL Action 4.38.2 is pinned to its immutable commit and linked CLI 2.27.1. The native import pins upstream commit
 `d1b2fe782888bdb761a50336012923180be7f502` and its verified archive and per-file
 hashes. Its new operation-specific error codes preserve strict public-key,
 expanded-secret-key and implicit-rejection behavior; internal symbol namespaces

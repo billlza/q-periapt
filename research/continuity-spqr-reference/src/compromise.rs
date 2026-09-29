@@ -106,7 +106,7 @@ impl Direction {
             "snapshot skipped key size",
         )?;
         let mut retained = BTreeMap::new();
-        for record in value.prev.chunks_exact(36) {
+        for record in value.prev.as_chunks::<36>().0 {
             let (index, key) = record.split_at(4);
             let index = u32::from_be_bytes(index.try_into()?);
             require(

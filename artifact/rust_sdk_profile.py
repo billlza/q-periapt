@@ -386,7 +386,7 @@ def build(output: Path) -> dict:
     cargo_home = output / "cargo-home"
     cargo_home.mkdir(mode=0o700)
     environment = dict(os.environ, CARGO_HOME=str(cargo_home), CARGO_NET_OFFLINE="true",
-                       CARGO_TERM_COLOR="never", RUSTFLAGS="-D warnings")
+                       CARGO_TERM_COLOR="never", RUSTFLAGS="-D warnings", RUSTUP_TOOLCHAIN="1.98.1")
     version = command(["rustc", "--version"], output / "rustc-version", ROOT, environment=environment).decode().strip()
     require(version.startswith("rustc 1.98.1 "), "Rust SDK package toolchain differs")
     cargo_version = command(["cargo", "--version"], output / "cargo-version", ROOT, environment=environment).decode().strip()
