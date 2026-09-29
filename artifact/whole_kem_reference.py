@@ -250,7 +250,17 @@ def main() -> None:
     parser.add_argument("--binary",type=Path)
     parser.add_argument("--baseline",type=Path)
     parser.add_argument("--chunk64",type=Path)
+    parser.add_argument("--active-fork",action="store_true",help="verify the separate active session-disclosure counterexample")
     args = parser.parse_args()
+    if args.active_fork:
+        ref.require(not (args.binary or args.baseline or args.chunk64), "active-fork arguments")
+        result = active_fork(args.directory)
+        if args.compare:
+            repeated = active_fork(args.compare)
+            ref.require(ref.identical(result,repeated), "active-fork repeated bytes differ")
+            result["repeat_public_bytes_equal"] = True
+        print(json.dumps(result,sort_keys=True))
+        return
     result = verify(args.directory)
     corpus = ref.decode_json(ref.snapshot(CRATE/"TRACE_CORPUS.json",1024*1024))
     ref.require(ref.identical(corpus,result), "whole-KEM locked corpus differs")
@@ -270,6 +280,92 @@ def main() -> None:
             "license_sha256":hashlib.sha256(ref.snapshot(CRATE/"LICENSE",128*1024)).hexdigest(),
             "rustc":ref.command(["rustc","-vV"]),"system":platform.system(),"machine":platform.machine()}
     print(json.dumps(result,sort_keys=True))
+
+
+def active_event(row: dict, profile: int, sequence: int) -> tuple[dict, dict]:
+    fields = {"sequence","sender","original_wire","replacement_wire",
+              "original_message_epoch","replacement_message_epoch","sender_key_sha256",
+              "attacker_received_key_sha256","attacker_sent_key_sha256","receiver_key_sha256",
+              "honest_a_confirmed_epoch","honest_b_confirmed_epoch"}
+    ref.require(isinstance(row,dict) and set(row) == fields, "active-fork event fields")
+    ref.require(ref.integer(row["sequence"],0,511,"active-fork sequence") == sequence
+                and ref.integer(row["sender"],0,1,"active-fork sender") == sequence%2,
+                "active-fork exact schedule")
+    parsed = []
+    for name in ("original","replacement"):
+        encoded = row[name+"_wire"]
+        ref.require(isinstance(encoded,str) and re.fullmatch(r"(?:[0-9a-f]{2}){6,1250}",encoded), "active-fork packet hex")
+        packet = wire(bytes.fromhex(encoded))
+        ref.require(packet["profile"] == profile and packet["message_epoch"] ==
+                    ref.integer(row[name+"_message_epoch"],0,512,"active-fork epoch"), "active-fork packet metadata")
+        parsed.append(packet)
+    for field in ("sender_key_sha256","attacker_received_key_sha256","attacker_sent_key_sha256","receiver_key_sha256"):
+        ref.require(isinstance(row[field],str) and re.fullmatch(r"[0-9a-f]{64}",row[field]), "active-fork key commitment")
+    ref.require(row["sender_key_sha256"] == row["attacker_received_key_sha256"]
+                and row["attacker_sent_key_sha256"] == row["receiver_key_sha256"], "active-fork actual key agreement")
+    return parsed[0], parsed[1]
+
+
+def active_fork(path: Path) -> dict:
+    raw = ref.snapshot(path,16*1024*1024)
+    report = ref.decode_json(raw)
+    expected = {"schema":1,"construction":CONSTRUCTION,
+                "experiment":"continuous_active_fork_after_initial_b_session_disclosure",
+                "public_test_entropy":True,"production_claim_eligible":False,
+                "attacker_inputs":"one initial B session snapshot, public packets, own entropy",
+                "interpretation":"confirmed fresh epochs do not establish recovery while session-authenticator impersonation continues; component key exposure, not full application execution"}
+    ref.require(isinstance(report,dict) and set(report) == set(expected)|{"cases"}, "active-fork report fields")
+    ref.require(all(ref.identical(report[k],v) for k,v in expected.items()), "active-fork experiment scope")
+    cases = report["cases"]
+    ref.require(isinstance(cases,list) and len(cases) == 3, "active-fork profiles")
+    summaries = []
+    for case,profile in zip(cases,PROFILES,strict=True):
+        ref.require(isinstance(case,dict) and set(case) == {"profile","events","intercepted_keys","divergent_message_keys","replaced_packets","confirmed_a","confirmed_b","wrong_authenticator_rejected"}, "active-fork case fields")
+        ref.require(ref.identical(case["profile"],profile) and case["wrong_authenticator_rejected"] is True, "active-fork profile/control")
+        rows = case["events"]
+        ref.require(isinstance(rows,list) and len(rows) == 512, "active-fork complete event count")
+        confirmed = [0,0]
+        indices, controls, offers, ciphertexts = {}, {}, {}, {}
+        original_keys, replacement_keys = set(),set()
+        different_keys = different_packets = 0
+        for sequence,row in enumerate(rows):
+            packets = active_event(row,profile,sequence)
+            sender = sequence%2
+            for stream,packet in enumerate(packets):
+                leg = sender if stream == 0 else 1-sender
+                slot = leg,sender,packet["message_epoch"]
+                ref.require(packet["index"] == indices.get(slot,0)+1, "active-fork per-leg key sequence")
+                indices[slot] = packet["index"]
+                kind,epoch,body = packet["kind"],packet["epoch"],packet["body"]
+                if kind:
+                    ref.require(sender == ((epoch-1)%2 if kind in (1,3) else epoch%2), "active-fork control role")
+                    control = leg,kind,epoch
+                    ref.require(control not in controls or controls[control] == body, "active-fork control replacement within one leg")
+                    controls[control] = body
+                    if kind == 1:
+                        offers[leg,epoch] = hashlib.sha256(body[:1184]).digest()
+                    elif kind == 2:
+                        ref.require(body[:32] == offers.get((leg,epoch)), "active-fork ciphertext key binding")
+                        ciphertexts[leg,epoch] = body[32:1120]
+                    else:
+                        ref.require((leg,epoch) in ciphertexts, "active-fork confirmation without ciphertext")
+                        expected_id = hashlib.sha256(b"QPWKR1:confirmation"+offers[leg,epoch]+hashlib.sha256(ciphertexts[leg,epoch]).digest()).digest()
+                        ref.require(body[:32] == expected_id, "active-fork exact confirmation")
+            if packets[1]["kind"] in (2,3):
+                confirmed[1-sender] = max(confirmed[1-sender],packets[1]["epoch"])
+            ref.require([ref.integer(row[f"honest_{role}_confirmed_epoch"],0,512,"active-fork confirmed epoch") for role in ("a","b")] == confirmed, "active-fork confirmation transition")
+            ref.require(row["sender_key_sha256"] not in original_keys and row["receiver_key_sha256"] not in replacement_keys, "active-fork reused directional message key")
+            original_keys.add(row["sender_key_sha256"])
+            replacement_keys.add(row["receiver_key_sha256"])
+            different_keys += row["sender_key_sha256"] != row["receiver_key_sha256"]
+            different_packets += row["original_wire"] != row["replacement_wire"]
+        summary = {"profile":profile,"intercepted_keys":512,"divergent_message_keys":different_keys,
+                   "replaced_packets":different_packets,"confirmed_a":confirmed[0],"confirmed_b":confirmed[1]}
+        ref.require(different_keys > 0 and different_packets > 0 and min(confirmed) >= 3, "active-fork fresh separated epochs")
+        ref.require(all(ref.identical(case[k],v) for k,v in summary.items()), "active-fork summary accounting")
+        summaries.append(summary)
+    return {"schema":1,"experiment":expected["experiment"],"report_sha256":hashlib.sha256(raw).hexdigest(),
+            "intercepted_keys":1536,"wrong_authenticator_controls":3,"cases":summaries,"production_claim_eligible":False}
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """Independent grammar, public-state and package-boundary controls."""
 import json
+import copy
 from pathlib import Path
 import tomllib
 import unittest
@@ -8,6 +9,27 @@ from artifact import spqr_reference as ref
 
 
 class WholeKemTests(unittest.TestCase):
+    def test_active_fork_events_bind_both_actual_keys_and_exact_packet_metadata(self):
+        row = {"sequence":0,"sender":0,"original_wire":"d10100010000","replacement_wire":"d10100010000",
+               "original_message_epoch":0,"replacement_message_epoch":0,"sender_key_sha256":"11"*32,
+               "attacker_received_key_sha256":"11"*32,"attacker_sent_key_sha256":"22"*32,
+               "receiver_key_sha256":"22"*32,"honest_a_confirmed_epoch":0,"honest_b_confirmed_epoch":0}
+        original,replacement = whole.active_event(row,1,0)
+        self.assertEqual((original["message_epoch"],replacement["message_epoch"]),(0,0))
+        for field,value,error in (("sender_key_sha256","33"*32,"actual key agreement"),
+                                  ("receiver_key_sha256","33"*32,"actual key agreement"),
+                                  ("attacker_sent_key_sha256","gg"*32,"key commitment"),
+                                  ("original_message_epoch",1,"packet metadata"),
+                                  ("sequence",1,"exact schedule"),
+                                  ("sender",1,"exact schedule"),
+                                  ("replacement_wire","d12000010000","packet metadata")):
+            changed=copy.deepcopy(row);changed[field]=value
+            with self.subTest(field=field),self.assertRaisesRegex(ref.ReferenceError,error):
+                whole.active_event(changed,1,0)
+        changed=dict(row,private_key="00"*32)
+        with self.assertRaisesRegex(ref.ReferenceError,"event fields"):
+            whole.active_event(changed,1,0)
+
     def test_exact_wire_shapes_and_closed_profiles(self):
         for profile in whole.PROFILES:
             for kind,size in ((0,0),(1,1216),(2,1152),(3,64)):

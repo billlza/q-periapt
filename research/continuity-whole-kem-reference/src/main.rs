@@ -1064,6 +1064,148 @@ mod tests {
     use super::*;
     use hmac::{Hmac, Mac};
 
+    // The attacker receives exactly B's initial serialized session state once.
+    // It never receives a later honest state, private KEM input or RNG state.
+    // Both impersonated roles are reconstructed from that one disclosure, then
+    // evolve using ordinary protocol calls, public packets and attacker entropy.
+    struct ActiveFork {
+        toward_a: Vec<u8>,
+        toward_b: Vec<u8>,
+        rng: StdRng,
+    }
+    impl ActiveFork {
+        fn from_initial_b_disclosure(stolen: &[u8]) -> Result<Self> {
+            let mut opposite = State::read(stolen)?;
+            require(
+                opposite.owner == 1
+                    && opposite.epoch == 0
+                    && opposite.confirmed_epoch == 0
+                    && opposite.phase == IDLE
+                    && opposite.private_key.is_empty()
+                    && opposite.chains.len() == 1,
+                Fault::Invalid,
+            )?;
+            opposite.owner = 0;
+            for chain in &mut opposite.chains {
+                require(
+                    chain.number == 0 && chain.send_count == 0 && chain.receive_count == 0,
+                    Fault::Invalid,
+                )?;
+                std::mem::swap(&mut chain.send_key, &mut chain.receive_key);
+                std::mem::swap(
+                    &mut chain.previous_send_count,
+                    &mut chain.previous_receive_count,
+                );
+            }
+            let toward_b = opposite.encode_to_vec();
+            State::read(&toward_b)?;
+            Ok(Self {
+                toward_a: stolen.to_vec(),
+                toward_b,
+                rng: StdRng::seed_from_u64(SEED ^ 0x41545441434b),
+            })
+        }
+        fn replace(&mut self, sender: u32, wire: &[u8]) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+            let (source, destination) = match sender {
+                0 => (&mut self.toward_a, &mut self.toward_b),
+                1 => (&mut self.toward_b, &mut self.toward_a),
+                _ => return Err(Fault::Invalid),
+            };
+            let (received, intercepted_key) = receive(source, wire)?;
+            *source = received;
+            let (sent, replacement, replacement_key) = send(destination, &mut self.rng)?;
+            *destination = sent;
+            Ok((replacement, intercepted_key, replacement_key))
+        }
+    }
+
+    #[test]
+    fn confirmed_fresh_epochs_do_not_end_continuous_active_session_impersonation(
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let mut cases = Vec::new();
+        for profile in [1, 32, 64] {
+            let mut a = State::initial(0, profile)?;
+            let mut b = State::initial(1, profile)?;
+            let mut attacker = ActiveFork::from_initial_b_disclosure(&b)?;
+            let mut a_rng = StdRng::seed_from_u64(SEED ^ 0x484f4e45535441);
+            let mut b_rng = StdRng::seed_from_u64(SEED ^ 0x484f4e45535442);
+            let mut rows = Vec::new();
+            let mut divergent_keys = 0;
+            let mut divergent_packets = 0;
+            for sequence in 0..512 {
+                let sender = sequence % 2;
+                let (origin, destination, entropy) = if sender == 0 {
+                    (&mut a, &mut b, &mut a_rng)
+                } else {
+                    (&mut b, &mut a, &mut b_rng)
+                };
+                let (sent, wire, sender_key) = send(origin, entropy)?;
+                *origin = sent;
+                if sequence == 0 {
+                    let mut wrong = State::read(&attacker.toward_a)?;
+                    *take(wrong.root.first_mut())? ^= 1;
+                    assert!(
+                        matches!(
+                            receive(&wrong.encode_to_vec(), &wire),
+                            Err(Fault::Authentication)
+                        ),
+                        "a fork without the disclosed authenticator must fail"
+                    );
+                }
+                let (replacement, intercepted_key, replacement_key) =
+                    attacker.replace(sender, &wire)?;
+                let (accepted, receiver_key) = receive(destination, &replacement)?;
+                *destination = accepted;
+                assert_eq!(sender_key, intercepted_key);
+                assert_eq!(receiver_key, replacement_key);
+                divergent_keys += usize::from(sender_key != receiver_key);
+                divergent_packets += usize::from(wire != replacement);
+                let original = Packet::read(&wire)?;
+                let substituted = Packet::read(&replacement)?;
+                rows.push(json!({
+                    "sequence":sequence,"sender":sender,
+                    "original_wire":hex(&wire),"replacement_wire":hex(&replacement),
+                    "original_message_epoch":original.message_epoch,
+                    "replacement_message_epoch":substituted.message_epoch,
+                    "sender_key_sha256":hex(&hash(&sender_key)),
+                    "attacker_received_key_sha256":hex(&hash(&intercepted_key)),
+                    "attacker_sent_key_sha256":hex(&hash(&replacement_key)),
+                    "receiver_key_sha256":hex(&hash(&receiver_key)),
+                    "honest_a_confirmed_epoch":State::read(&a)?.confirmed_epoch,
+                    "honest_b_confirmed_epoch":State::read(&b)?.confirmed_epoch,
+                }));
+            }
+            let a = State::read(&a)?;
+            let b = State::read(&b)?;
+            assert!(a.confirmed_epoch >= 3 && b.confirmed_epoch >= 3);
+            assert!(divergent_packets > 0 && divergent_keys > 0);
+            assert_ne!(
+                a.root, b.root,
+                "the honest endpoints confirm different attacker-held roots"
+            );
+            cases.push(
+                json!({"profile":profile,"events":rows,"intercepted_keys":512,
+                "divergent_message_keys":divergent_keys,"replaced_packets":divergent_packets,
+                "confirmed_a":a.confirmed_epoch,"confirmed_b":b.confirmed_epoch,
+                "wrong_authenticator_rejected":true}),
+            );
+        }
+        let report = json!({"schema":1,"construction":"experimental_whole_kem_v1",
+            "experiment":"continuous_active_fork_after_initial_b_session_disclosure",
+            "public_test_entropy":true,"production_claim_eligible":false,
+            "attacker_inputs":"one initial B session snapshot, public packets, own entropy",
+            "interpretation":"confirmed fresh epochs do not establish recovery while session-authenticator impersonation continues; component key exposure, not full application execution",
+            "cases":cases});
+        if let Some(path) = std::env::var_os("QPERIAPT_WHOLE_KEM_ACTIVE_REPORT") {
+            let mut file = File::create_new(path)?;
+            serde_json::to_writer_pretty(&mut file, &report)?;
+            file.write_all(b"\n")?;
+            file.sync_all()?;
+        }
+        println!("WHOLE_KEM_ACTIVE_FORK_PASS profiles=3 intercepted_keys=1536 wrong_authenticator_controls=3");
+        Ok(())
+    }
+
     #[test]
     fn control_mac_matches_independent_hmac_sha256() -> Result<()> {
         for length in [0, 9, 1024] {

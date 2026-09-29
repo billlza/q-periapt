@@ -121,6 +121,12 @@ proofs. The full hybrid composition, active/repeated compromise, durable recover
 controlled latency/energy and a justified policy floor remain necessary before
 product profile selection.
 
+The separate [active session-disclosure experiment](ACTIVE_COMPROMISE.md) executes
+continuous packet replacement from one initial endpoint snapshot. All 1,536
+actual sender keys remain known to the attacker while confirmed epochs advance.
+This rejects unconditional recovery claims based on epoch counters;
+repeated-compromise and full hybrid/identity composition remain separate work.
+
 ## Verification
 
 `artifact/whole_kem_reference.py` independently parses the public wire and checks

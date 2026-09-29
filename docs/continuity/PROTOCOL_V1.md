@@ -116,6 +116,26 @@ work; they never claim to know that an endpoint has recovered from an unknown
 compromise. Recovery arguments state which fresh entropy was mixed, what the
 attacker learned, which authentication remains trusted and which deliveries occur.
 
+The whole-KEM control now has an [active-fork counterexample](../../research/continuity-whole-kem-reference/ACTIVE_COMPROMISE.md):
+one disclosed initial session state permits continuous two-sided impersonation
+while both honest endpoints confirm fresh KEM epochs. A session-root MAC cannot
+establish recovery from continuing active intervention after that root was
+disclosed. Accountable rekey controls must bind independently trusted device
+authority to the exact prior/target epoch, role and complete exchange. The proof
+obligations must distinguish session-only disclosure, pending KEM keys,
+identity-key disclosure and RNG compromise. Revocation/replacement is required
+when independent identity authority is lost; a progress counter cannot restore it.
+
+The one-way no-progress traces require the product scheduler to expose control
+traffic independently of application sends. A fixed, authenticated PQ-progress
+budget must bound new application traffic without a completed fresh contribution;
+exhaustion suspends new work while retaining exact control retransmissions.
+This is a design obligation, not an implemented governor or chosen numeric floor.
+Network loss remains an explicit liveness assumption in the recovery condition.
+The [recovery-condition ledger](RECOVERY_CONDITIONS_V1.md) distinguishes pending
+entropy reservations, identity/RNG compromise, active intervention and rollback;
+its remaining implementation-correspondence checks belong to this release.
+
 An authenticated revocation prevents new affected sends/receives and new dispatch
 of retained outgoing work according to its committed fence. Work admitted before
 that fence has an explicit completion rule; a transport reconnect cannot revoke

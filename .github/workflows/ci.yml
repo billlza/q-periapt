@@ -1699,7 +1699,16 @@ jobs:
           evidence=target/continuity-spqr-evidence
           cargo fmt --manifest-path "$manifest" -- --check
           cargo clippy --manifest-path "$manifest" --locked --all-targets -- -D warnings
-          cargo test --manifest-path "$manifest" --locked > "$evidence/whole-kem-tests.log" 2>&1
+          QPERIAPT_WHOLE_KEM_ACTIVE_REPORT="$evidence/whole-kem-active-fork.json" \
+            cargo test --manifest-path "$manifest" --locked > "$evidence/whole-kem-tests.log" 2>&1
+          QPERIAPT_WHOLE_KEM_ACTIVE_REPORT="$evidence/whole-kem-active-fork-repeated.json" \
+            cargo test --manifest-path "$manifest" --locked --release \
+            confirmed_fresh_epochs_do_not_end_continuous_active_session_impersonation \
+            -- --nocapture > "$evidence/whole-kem-active-repeat.log" 2>&1
+          sh artifact/python-run.sh artifact/whole_kem_reference.py \
+            "$evidence/whole-kem-active-fork.json" --active-fork \
+            --compare "$evidence/whole-kem-active-fork-repeated.json" \
+            > "$evidence/whole-kem-active-verification.json"
           cargo run --manifest-path "$manifest" --locked --release -- "$evidence/whole-kem-first"
           cargo run --manifest-path "$manifest" --locked --release -- "$evidence/whole-kem-repeated"
           sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_whole_kem_reference"],warnings="error")'
