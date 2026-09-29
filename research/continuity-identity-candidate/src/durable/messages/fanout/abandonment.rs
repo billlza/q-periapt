@@ -2,8 +2,6 @@
 //! Explicit local abandonment closes whole sessions; it never rewinds a send slot.
 use super::*;
 use hmac::{Hmac, Mac};
-mod retired;
-pub(in crate::durable::messages) use retired::Retired;
 
 /// Private-keyed identifier of an immutable, metadata-only loss report.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -127,13 +125,44 @@ pub(super) fn validate_report(image: &Image, batch: &Batch) -> Result<(), Durabl
         .verify_slice(&report.0)
         .map_err(|_| DurableError::Corrupt)
 }
-fn progress(state: &State) -> Result<RekeyProgress, Error> {
+pub(in crate::durable::messages) fn progress(state: &State) -> Result<RekeyProgress, Error> {
     Ok(RekeyProgress {
         confirmed_epoch: state.control.confirmed_epoch(),
         sending_epoch: state.send_epoch,
         receiving_epoch: state.receive_epoch,
         pending_epoch: state.control.pending_epoch()?,
     })
+}
+pub(in crate::durable::messages) fn epoch_accounting(state: &State) -> Vec<AbandonedEpoch> {
+    let mut epochs = Vec::with_capacity(state.epochs.len());
+    for traffic in state.epochs.values() {
+        epochs.push(AbandonedEpoch {
+            epoch: traffic.epoch,
+            acknowledged_before: traffic.send_floor,
+            sent: traffic.sent,
+            consumed_before: traffic.receive_floor,
+            received: traffic.received,
+            peer_sent: traffic.receive_limit,
+            resolution: traffic.resolution,
+            unconfirmed: traffic
+                .outgoing
+                .iter()
+                .map(|(id, saved)| UnconfirmedMessage::new(*id, &saved.wire))
+                .collect(),
+            deliveries: traffic
+                .incoming
+                .iter()
+                .filter(|(_, s)| !s.consumed)
+                .map(|(id, s)| AbandonedDelivery {
+                    message: *id,
+                    index: s.index,
+                    plaintext_bytes: s.plaintext.len(),
+                })
+                .collect(),
+            skipped: traffic.skipped.keys().copied().collect(),
+        });
+    }
+    epochs
 }
 fn report(image: &Image, batch: &Batch) -> Result<FanoutAbandonment, DurableError> {
     validate_report(image, batch)?;
@@ -152,34 +181,7 @@ fn report(image: &Image, batch: &Batch) -> Result<FanoutAbandonment, DurableErro
             .pending
             .as_ref()
             .ok_or(DurableError::Corrupt)?;
-        let mut epochs = Vec::with_capacity(state.epochs.len());
-        for traffic in state.epochs.values() {
-            epochs.push(AbandonedEpoch {
-                epoch: traffic.epoch,
-                acknowledged_before: traffic.send_floor,
-                sent: traffic.sent,
-                consumed_before: traffic.receive_floor,
-                received: traffic.received,
-                peer_sent: traffic.receive_limit,
-                resolution: traffic.resolution,
-                unconfirmed: traffic
-                    .outgoing
-                    .iter()
-                    .map(|(id, saved)| UnconfirmedMessage::new(*id, &saved.wire))
-                    .collect(),
-                deliveries: traffic
-                    .incoming
-                    .iter()
-                    .filter(|(_, s)| !s.consumed)
-                    .map(|(id, s)| AbandonedDelivery {
-                        message: *id,
-                        index: s.index,
-                        plaintext_bytes: s.plaintext.len(),
-                    })
-                    .collect(),
-                skipped: traffic.skipped.keys().copied().collect(),
-            });
-        }
+        let epochs = epoch_accounting(&state);
         sessions.push(AbandonedSession {
             device: member.device,
             generation: member.generation,
@@ -349,12 +351,12 @@ pub(in crate::durable::messages) fn require_live_source(
         .filter(|r| r.kind == RecordKind::Messages)
     {
         match record.phase {
-            DurableStatus::MessagesAbandoning
+            DurableStatus::MessagesAbandoning | DurableStatus::MessagesClosing
                 if State::decode(&record.payload)?.source == *source =>
             {
                 return Err(DurableError::Suspended)
             }
-            DurableStatus::MessagesAbandoned
+            DurableStatus::MessagesAbandoned | DurableStatus::MessagesClosed
                 if Retired::decode(&record.payload)?.source == *source =>
             {
                 return Err(Error::Retired.into())
@@ -369,17 +371,18 @@ pub(in crate::durable::messages) fn validate_message_record(
     record: &Record,
 ) -> Result<([u8; 32], [u8; 32], u8), DurableError> {
     let retired = Retired::decode(&record.payload)?;
-    if retired.batch.check(&image.id)? >= image.next_fanout {
+    let id = retired.batch.ok_or(DurableError::Corrupt)?;
+    if id.check(&image.id)? >= image.next_fanout {
         return Err(DurableError::Corrupt);
     }
     // Metadata can be retired; the session tombstone remains independently bound.
-    if let Some(record) = image.records.get(&batch_key(retired.batch)) {
-        let batch = Batch::decode(image, &batch_key(retired.batch), record)?;
-        if !matches!(batch.state, BatchState::Abandoned(report) if report == retired.report)
+    if let Some(record) = image.records.get(&batch_key(id)) {
+        let batch = Batch::decode(image, &batch_key(id), record)?;
+        if !matches!(batch.state, BatchState::Abandoned(report) if *report.as_bytes() == retired.report)
             || !batch.members.iter().any(|m| {
                 m.session == retired.session
                     && m.role == retired.role
-                    && m.message == retired.pending
+                    && Some(m.message) == retired.pending
             })
         {
             return Err(DurableError::Corrupt);

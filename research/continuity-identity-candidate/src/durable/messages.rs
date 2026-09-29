@@ -6,6 +6,10 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+mod closure;
+pub use closure::{SessionClosure, SessionClosureId, SessionClosureStatus};
+mod terminal;
+use terminal::Retired;
 #[cfg(feature = "connection-tls")]
 mod delivery;
 #[cfg(feature = "connection-tls")]
@@ -38,7 +42,7 @@ const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
 const MESSAGE_TAG: &[u8; 8] = b"QPCMSG03";
 const MAX_TRAFFIC_EPOCHS: usize = 4;
-const STATE_TAG: &[u8; 8] = b"QPMST010";
+const STATE_TAG: &[u8; 8] = b"QPMST011";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
 fn first_retained_epoch(newest: u64) -> u64 {
@@ -173,6 +177,7 @@ struct State {
     send_epoch: u64,
     receive_epoch: u64,
     epochs: BTreeMap<u64, Traffic>,
+    closure: Option<closure::Pending>,
 }
 fn key(bytes: &[u8]) -> Result<ZeroizingBytes<32>, Error> {
     let bytes: &[u8; 32] = bytes.try_into().map_err(|_| Error::Encoding)?;
@@ -306,6 +311,7 @@ impl State {
             send_epoch: 0,
             receive_epoch: 0,
             epochs: BTreeMap::from([(0, traffic)]),
+            closure: None,
         })
     }
     fn traffic(&self, epoch: u64) -> Result<&Traffic, Error> {
@@ -335,6 +341,7 @@ impl State {
             bytes.extend_from_slice(&encoded);
         }
         self.control.encode(&mut bytes);
+        closure::encode_pending(&self.closure, &mut bytes);
         bytes
     }
     fn decode(bytes: &[u8]) -> Result<Self, Error> {
@@ -385,6 +392,7 @@ impl State {
             }
         }
         let control = rekey::Control::decode(&mut d)?;
+        let closure = closure::decode_pending(&mut d)?;
         d.finish()?;
         Ok(Self {
             source,
@@ -395,6 +403,7 @@ impl State {
             send_epoch,
             receive_epoch,
             epochs,
+            closure,
         })
     }
 }
@@ -545,8 +554,12 @@ impl DeviceJournal {
         }
         match record.phase {
             DurableStatus::Messages => {}
-            DurableStatus::MessagesAbandoning => return Err(DurableError::Suspended),
-            DurableStatus::MessagesAbandoned => return Err(Error::Retired.into()),
+            DurableStatus::MessagesAbandoning | DurableStatus::MessagesClosing => {
+                return Err(DurableError::Suspended)
+            }
+            DurableStatus::MessagesAbandoned | DurableStatus::MessagesClosed => {
+                return Err(Error::Retired.into())
+            }
             _ => return Err(DurableError::Corrupt),
         }
         let state = State::decode(&record.payload)?;
@@ -682,8 +695,11 @@ impl DeviceJournal {
     ) -> Result<MessageStatus, DurableError> {
         let image = self.image()?;
         let record = self.message_record_for_status(&image, context, session)?;
-        if record.phase == DurableStatus::MessagesAbandoned {
-            let retired = fanout::Retired::decode(&record.payload)?;
+        if matches!(
+            record.phase,
+            DurableStatus::MessagesAbandoned | DurableStatus::MessagesClosed
+        ) {
+            let retired = Retired::decode(&record.payload)?;
             check_message_owner(&image, context, retired.role)?;
             return Ok(retired.status(id)?);
         }
@@ -697,7 +713,8 @@ impl DeviceJournal {
         } else if index < traffic.sent && traffic.resolution.acknowledged() {
             MessageStatus::DeliveryUnknown
         } else if index < traffic.sent
-            && matches!(traffic.resolution, EpochResolutionStatus::Pending(_))
+            && (matches!(traffic.resolution, EpochResolutionStatus::Pending(_))
+                || record.phase == DurableStatus::MessagesClosing)
         {
             MessageStatus::ResolutionPending
         } else if traffic.outgoing.contains_key(&id) {
@@ -734,7 +751,10 @@ impl DeviceJournal {
     ) -> Result<State, DurableError> {
         let image = self.image()?;
         let record = self.message_record_for_status(&image, context, session)?;
-        if record.phase == DurableStatus::MessagesAbandoned {
+        if matches!(
+            record.phase,
+            DurableStatus::MessagesAbandoned | DurableStatus::MessagesClosed
+        ) {
             return Err(Error::Retired.into());
         }
         let state = State::decode(&record.payload)?;
@@ -843,8 +863,11 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             return Err(DurableError::Corrupt);
         }
         let (source_id, session, role) = match record.phase {
-            DurableStatus::Messages | DurableStatus::MessagesAbandoning => {
+            DurableStatus::Messages
+            | DurableStatus::MessagesAbandoning
+            | DurableStatus::MessagesClosing => {
                 let state = State::decode(&record.payload).map_err(|_| DurableError::Corrupt)?;
+                closure::validate_record(image, record, &state)?;
                 fanout::validate_pending(image, &state, record.phase)
                     .map_err(|_| DurableError::Corrupt)?;
                 state
@@ -862,6 +885,13 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
                 (state.source, state.session, state.role)
             }
             DurableStatus::MessagesAbandoned => fanout::validate_message_record(image, record)?,
+            DurableStatus::MessagesClosed => {
+                let retired = Retired::decode(&record.payload)?;
+                if retired.batch.is_some() {
+                    return Err(DurableError::Corrupt);
+                }
+                (retired.source, retired.session, retired.role)
+            }
             _ => return Err(DurableError::Corrupt),
         };
         if *id != record_id(&session) || !sources.insert(source_id) {

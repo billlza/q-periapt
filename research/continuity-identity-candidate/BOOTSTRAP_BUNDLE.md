@@ -113,7 +113,8 @@ exercise. This is cross-language **input verification**, not an installed C/JVM/
 Swift/Android/WASM SDK connection or independent protocol implementation claim.
 The example and exercise are also wired into the existing public-vector CI lane.
 
-Journal v19, QPMST010, QPTEPO04, QPCNET01, QPCCTL01, v6 rekey controls, SDK KATs and
-published ABI contracts are unchanged. The candidate stays outside the published
+Bundle import preserves QPTEPO04, QPCNET01, QPCCTL01, v6 rekey controls, SDK KATs
+and published ABI contracts. The current durable lifecycle format is documented
+in [session closure](SESSION_CLOSURE.md). The candidate stays outside the published
 SDK dependency graph. Product admission, lifecycle completion, protocol/recovery
 analysis, matched performance and current-device qualification remain required.

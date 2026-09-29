@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{fs, sync::atomic::Ordering};
 
+mod closure;
 #[cfg(feature = "connection-tls")]
 mod connection_tls;
 mod control_progress;
@@ -144,6 +145,24 @@ fn state(journal: &mut DeviceJournal, session: &[u8; 32]) -> State {
             .payload,
     )
     .expect("state")
+}
+
+// Locate actual stored Control bytes and check correspondence before disclosure
+// or mutation. QPMST011's final 64 bytes belong to local closure.
+fn captured_control_range(payload: &[u8]) -> std::ops::Range<usize> {
+    let captured = State::decode(payload).expect("captured checkpoint");
+    assert!(captured.closure.is_none(), "capture precedes closure");
+    let mut encoded = Zeroizing::new(Vec::new());
+    captured.control.encode(&mut encoded);
+    let end = payload.len().checked_sub(64).expect("closure tail");
+    let start = end.checked_sub(encoded.len()).expect("control width");
+    assert!(payload.get(start..end).expect("stored control") == encoded.as_slice());
+    assert!(payload
+        .get(end..)
+        .expect("open closure tail")
+        .iter()
+        .all(|b| *b == 0));
+    start..end
 }
 
 #[test]
@@ -603,6 +622,28 @@ fn message_crash_child() -> Result<(), Box<dyn std::error::Error>> {
         .try_into()
         .expect("width");
     match operation.as_str() {
+        "session-reserved" => {
+            let message = journal.next_message_id(&f.responder, session, 150)?;
+            journal.send_message(
+                &f.responder,
+                session,
+                message,
+                b"reserved session input",
+                b"pending",
+                150,
+            )?;
+        }
+        "session-closure-begin" => {
+            journal.begin_session_closure(&f.responder, session)?;
+        }
+        "session-closure-ack" => {
+            let report = SessionClosureId::from_trusted_state(
+                fs::read(path.join("closure-id"))?
+                    .try_into()
+                    .map_err(|_| "report width")?,
+            )?;
+            journal.acknowledge_session_closure(&f.responder, session, report)?;
+        }
         "rekey-request" => {
             journal
                 .prepare_rekey_request(&f.responder, session, &f.signer_r, 150)
@@ -1862,7 +1903,12 @@ fn rekey_response_agrees_with_real_decapsulation_and_replays_without_advancing_t
         .get(&record_id(&p.session))
         .expect("message state")
         .payload;
-    let token_end = payload.len() - offer.len();
+    // The reservation is a Control field. QPMST011 also has a fixed lifecycle
+    // tail, so the end of State is no longer the end of the captured Control.
+    let token_end = captured_control_range(payload)
+        .end
+        .checked_sub(offer.len())
+        .expect("retained offer");
     let token = SealedOperation::from_bytes(
         payload
             .get(token_end - 277..token_end)
@@ -1897,8 +1943,11 @@ fn rekey_response_agrees_with_real_decapsulation_and_replays_without_advancing_t
         .expect("root KDF");
     let after = state(&mut p.jr, &p.session);
     let encoded = after.encode();
+    let control = captured_control_range(&encoded);
     assert_eq!(
-        encoded.get(encoded.len() - 32..).expect("pending root"),
+        encoded
+            .get(control.end - 32..control.end)
+            .expect("pending root"),
         root.as_bytes()
     );
     assert_ne!(root.as_bytes(), before.rekey.as_bytes());
@@ -2114,7 +2163,7 @@ fn rekey_response_rejects_corrupt_pending_root_and_cached_signature() {
         .records
         .get_mut(&record_id(&p.session))
         .expect("state");
-    let end = saved.payload.len();
+    let end = captured_control_range(&saved.payload).end;
     *saved.payload.get_mut(end - 1).expect("pending root") ^= 1;
     assert!(matches!(validate_image(&image), Err(DurableError::Corrupt)));
     let mut image = p.jr.image().expect("unaltered image");
@@ -3109,7 +3158,7 @@ fn rekey_offer_rejects_authenticated_epoch_invention_and_corrupt_cached_signatur
         .records
         .get_mut(&record_id(&p.session))
         .expect("state");
-    let offset = saved.payload.len() - 51; // fixed empty QPRKST03 control record
+    let offset = captured_control_range(&saved.payload).start;
     saved
         .payload
         .get_mut(offset + 8..offset + 16)

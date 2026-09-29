@@ -53,9 +53,16 @@ impl Disclosure {
             .payload;
         let prior = State::decode(payload).expect("authenticated checkpoint");
         assert_eq!((prior.send_epoch, prior.receive_epoch), (0, 0));
+        // Capture the same actual sealed Control reservation. The independent
+        // lifecycle tail appended to State contains no attacker input here.
+        let control = captured_control_range(payload);
+        let token_start = control
+            .end
+            .checked_sub(cut.token_len())
+            .expect("reservation width");
         let token = SealedOperation::from_bytes(
             payload
-                .get(payload.len() - cut.token_len()..)
+                .get(token_start..control.end)
                 .expect("exact final reservation field"),
         )
         .expect("sealed reservation");

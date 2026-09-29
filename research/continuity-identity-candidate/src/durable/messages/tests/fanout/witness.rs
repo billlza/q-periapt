@@ -366,3 +366,143 @@ fn account_fanout_abandonment_every_witness_loss_preserves_exact_whole_report() 
         eprintln!("FANOUT_ABANDONMENT_WITNESS finish={finish} calls={calls} before_after_losses={} reservation_cut={reservation_cut}", calls*2);
     }
 }
+
+#[test]
+fn independent_session_closure_every_witness_loss_keeps_required_protection_and_exact_report() {
+    for finish in [false, true] {
+        let prepare = || {
+            let mut c = Anchored::new();
+            let id = c.network.sender.next_fanout_id().expect("ID");
+            c.network
+                .send(id, b"anchored unknown delivery")
+                .expect("committed");
+            let context = c.network.f.contexts.first().expect("context");
+            let session = *c.network.sessions.first().expect("session");
+            let frozen = if finish {
+                let report = c
+                    .network
+                    .sender
+                    .begin_session_closure(context, session)
+                    .expect("freeze");
+                super::super::closure::account(&c.network.sender_path, &report);
+                Some(report.report)
+            } else {
+                None
+            };
+            (c, frozen)
+        };
+        let action =
+            |c: &mut Anchored, frozen: Option<SessionClosureId>| -> Result<(), DurableError> {
+                let n = &mut c.network;
+                let context = n.f.contexts.first().expect("context");
+                let session = *n.sessions.first().expect("session");
+                match frozen {
+                    Some(report) => n
+                        .sender
+                        .acknowledge_session_closure(context, session, report),
+                    None => n.sender.begin_session_closure(context, session).map(|_| ()),
+                }
+            };
+        let (mut baseline, frozen) = prepare();
+        let before = baseline.witness.lock().expect("witness").calls;
+        action(&mut baseline, frozen).expect("measure actual exchanges");
+        let calls = baseline.witness.lock().expect("witness").calls - before;
+        assert!((3..=12).contains(&calls));
+        for offset in 1..=calls {
+            for after in [false, true] {
+                let (mut c, frozen) = prepare();
+                {
+                    let mut witness = c.witness.lock().expect("witness");
+                    witness.fail = Some((witness.calls + offset, after));
+                }
+                assert!(
+                    matches!(action(&mut c, frozen), Err(DurableError::Anchor(_))),
+                    "finish={finish} offset={offset} after={after}"
+                );
+                assert!(c.network.sender.active.is_none());
+                let n = &c.network;
+                match DeviceJournal::open(
+                    &n.sender_path.join("state.redb"),
+                    JournalKey::open(&n.sender_path.join("key")).expect("key"),
+                    &n.f.local,
+                    crate::durable::tests::identity(&n.sender_path),
+                ) {
+                    Ok(mut ordinary) => {
+                        assert!(matches!(
+                            ordinary.session_closure_status(
+                                n.f.contexts.first().expect("context"),
+                                *n.sessions.first().expect("session")
+                            ),
+                            Err(DurableError::AnchorRequired)
+                        ));
+                        ordinary.close();
+                    }
+                    Err(error) => assert!(matches!(error, DurableError::AnchorRequired)),
+                }
+                c.witness.lock().expect("witness").fail = None;
+                c.reopen_sender();
+                let n = &mut c.network;
+                let context = n.f.contexts.first().expect("context");
+                let session = *n.sessions.first().expect("session");
+                let phase = n
+                    .sender
+                    .session_closure_status(context, session)
+                    .expect("reconciled");
+                let report_id = match phase {
+                    SessionClosureStatus::Closed(report) => {
+                        assert_eq!(Some(report), frozen);
+                        report
+                    }
+                    SessionClosureStatus::Open | SessionClosureStatus::Pending(_) => {
+                        if finish {
+                            assert!(matches!(phase, SessionClosureStatus::Pending(_)));
+                        }
+                        let report = n
+                            .sender
+                            .begin_session_closure(context, session)
+                            .expect("exact frozen report");
+                        if let Some(saved) = frozen {
+                            assert_eq!(report.report, saved);
+                        } else {
+                            super::super::closure::account(&n.sender_path, &report);
+                        }
+                        n.sender
+                            .acknowledge_session_closure(context, session, report.report)
+                            .expect("finish");
+                        report.report
+                    }
+                };
+                assert_eq!(
+                    n.sender
+                        .session_closure_status(context, session)
+                        .expect("terminal"),
+                    SessionClosureStatus::Closed(report_id)
+                );
+                assert_eq!(
+                    n.sender
+                        .message_status(
+                            context,
+                            session,
+                            MessageId::for_epoch(&session, 1, 0, 0).expect("original ID")
+                        )
+                        .expect("unknown"),
+                    MessageStatus::DeliveryUnknown
+                );
+                let other_context = n.f.contexts.get(1).expect("other context");
+                assert_eq!(
+                    n.sender
+                        .session_closure_status(
+                            other_context,
+                            *n.sessions.get(1).expect("other session")
+                        )
+                        .expect("unrelated"),
+                    SessionClosureStatus::Open
+                );
+            }
+        }
+        eprintln!(
+            "SESSION_CLOSURE_WITNESS finish={finish} calls={calls} before_after_losses={}",
+            calls * 2
+        );
+    }
+}

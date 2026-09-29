@@ -304,16 +304,19 @@ pub(in crate::durable::messages) fn validate_image(image: &Image) -> Result<(), 
             {
                 return Err(DurableError::Corrupt);
             }
-            if record.phase == DurableStatus::MessagesAbandoned {
+            if matches!(
+                record.phase,
+                DurableStatus::MessagesAbandoned | DurableStatus::MessagesClosed
+            ) {
                 let retired = Retired::decode(&record.payload)?;
                 if retired.session != member.session || retired.role != member.role {
                     return Err(DurableError::Corrupt);
                 }
                 match batch.state {
                     BatchState::Abandoned(report)
-                        if retired.batch == batch.id
-                            && retired.report == report
-                            && retired.pending == member.message => {}
+                        if retired.batch == Some(batch.id)
+                            && retired.report == *report.as_bytes()
+                            && retired.pending == Some(member.message) => {}
                     BatchState::Committed(_) => {
                         record_output(image, &batch, member)?;
                     }
@@ -399,7 +402,10 @@ pub(super) fn record_output(
         .records
         .get(&record_id(&member.session))
         .ok_or(DurableError::Corrupt)?;
-    if record.phase == DurableStatus::MessagesAbandoned {
+    if matches!(
+        record.phase,
+        DurableStatus::MessagesAbandoned | DurableStatus::MessagesClosed
+    ) {
         return match Retired::decode(&record.payload)?.status(member.message) {
             Ok(MessageStatus::Acknowledged) => Ok(FanoutOutput::Acknowledged),
             Ok(MessageStatus::DeliveryUnknown) => Ok(FanoutOutput::DeliveryUnknown),

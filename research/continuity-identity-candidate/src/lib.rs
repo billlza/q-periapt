@@ -51,8 +51,8 @@ pub use durable::{
     FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, InitiationId,
     JournalIdentity, JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus,
     RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
-    RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, UnconfirmedMessage,
-    UnconsumedDelivery,
+    RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure,
+    SessionClosureId, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,

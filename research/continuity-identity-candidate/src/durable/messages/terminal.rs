@@ -1,37 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Terminal grammar contains no key, plaintext, signing coin, KEM coin or outbox.
+use super::closure::SessionClosureId;
 use super::*;
 
 struct Counts {
     epoch: u64,
     sent: u64,
     acknowledged: u64,
+    reserved: bool,
 }
 pub(in crate::durable::messages) struct Retired {
     pub(in crate::durable::messages) source: [u8; 32],
     pub(in crate::durable::messages) session: [u8; 32],
     pub(in crate::durable::messages) role: u8,
-    pub(in crate::durable::messages) batch: FanoutId,
-    pub(in crate::durable::messages) report: FanoutAbandonmentId,
-    pub(in crate::durable::messages) pending: MessageId,
+    pub(in crate::durable::messages) batch: Option<FanoutId>,
+    pub(in crate::durable::messages) report: [u8; 32],
+    pub(in crate::durable::messages) pending: Option<MessageId>,
     progress: RekeyProgress,
     epochs: Vec<Counts>,
 }
 impl Retired {
-    pub(super) fn new(
+    pub(in crate::durable::messages) fn new(
         state: &State,
         batch: FanoutId,
         report: FanoutAbandonmentId,
         pending: MessageId,
     ) -> Result<Self, Error> {
+        let mut retired = Self::from_state(state, *report.as_bytes())?;
+        retired.batch = Some(batch);
+        retired.pending = Some(pending);
+        Ok(retired)
+    }
+    pub(in crate::durable::messages) fn closed(
+        state: &State,
+        report: SessionClosureId,
+    ) -> Result<Self, Error> {
+        Self::from_state(state, *report.as_bytes())
+    }
+    fn from_state(state: &State, report: [u8; 32]) -> Result<Self, Error> {
         Ok(Self {
             source: state.source,
             session: state.session,
             role: state.role,
-            batch,
+            batch: None,
             report,
-            pending,
-            progress: progress(state)?,
+            pending: None,
+            progress: fanout::abandoned_progress(state)?,
             epochs: state
                 .epochs
                 .values()
@@ -39,18 +53,19 @@ impl Retired {
                     epoch: t.epoch,
                     sent: t.sent,
                     acknowledged: t.send_floor,
+                    reserved: t.pending.is_some(),
                 })
                 .collect(),
         })
     }
-    pub(super) fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(b"QPABND01".to_vec());
+    pub(in crate::durable::messages) fn encode(&self) -> Zeroizing<Vec<u8>> {
+        let mut bytes = Zeroizing::new(b"QPABND02".to_vec());
         for value in [
             &self.source,
             &self.session,
-            self.batch.as_bytes(),
-            self.report.as_bytes(),
-            self.pending.as_bytes(),
+            &self.batch.map(|id| *id.as_bytes()).unwrap_or([0; 32]),
+            &self.report,
+            &self.pending.map(|id| *id.as_bytes()).unwrap_or([0; 32]),
         ] {
             bytes.extend_from_slice(value);
         }
@@ -74,21 +89,36 @@ impl Retired {
             for value in [c.epoch, c.sent, c.acknowledged] {
                 bytes.extend_from_slice(&value.to_be_bytes());
             }
+            bytes.push(u8::from(c.reserved));
         }
         bytes
     }
     pub(in crate::durable::messages) fn decode(bytes: &[u8]) -> Result<Self, Error> {
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPABND01" {
+        if d.array::<8>()? != *b"QPABND02" {
             return Err(Error::Encoding);
         }
         let source = d.array()?;
         let session = d.array()?;
         crate::codec::nonzero(&source)?;
         crate::codec::nonzero(&session)?;
-        let batch = FanoutId::from_trusted_state(d.array()?)?;
-        let report = FanoutAbandonmentId::from_trusted_state(d.array()?)?;
-        let pending = MessageId::from_trusted_state(d.array()?)?;
+        let batch_bytes = d.array()?;
+        let batch = if batch_bytes == [0; 32] {
+            None
+        } else {
+            Some(FanoutId::from_trusted_state(batch_bytes)?)
+        };
+        let report = d.array()?;
+        crate::codec::nonzero(&report)?;
+        let pending_bytes = d.array()?;
+        let pending = if pending_bytes == [0; 32] {
+            None
+        } else {
+            Some(MessageId::from_trusted_state(pending_bytes)?)
+        };
+        if batch.is_some() != pending.is_some() {
+            return Err(Error::Encoding);
+        }
         let [role] = d.array()?;
         let confirmed_epoch = d.u64()?;
         let sending_epoch = d.u64()?;
@@ -118,6 +148,11 @@ impl Retired {
             let epoch = d.u64()?;
             let sent = d.u64()?;
             let acknowledged = d.u64()?;
+            let reserved = match d.array::<1>()? {
+                [0] => false,
+                [1] => true,
+                _ => return Err(Error::Encoding),
+            };
             if epoch != expected || sent == u64::MAX || acknowledged > sent {
                 return Err(Error::Encoding);
             }
@@ -125,16 +160,22 @@ impl Retired {
                 epoch,
                 sent,
                 acknowledged,
+                reserved,
             });
         }
         d.finish()?;
-        let index = pending.check(&session, role)?;
-        if pending.epoch()? != sending_epoch
-            || !epochs
-                .iter()
-                .any(|c| c.epoch == sending_epoch && c.sent == index)
-        {
+        if !matches!(role, 1 | 2) {
             return Err(Error::Encoding);
+        }
+        if let Some(pending) = pending {
+            let index = pending.check(&session, role)?;
+            if pending.epoch()? != sending_epoch
+                || !epochs
+                    .iter()
+                    .any(|c| c.epoch == sending_epoch && c.sent == index && c.reserved)
+            {
+                return Err(Error::Encoding);
+            }
         }
         Ok(Self {
             source,
@@ -165,7 +206,7 @@ impl Retired {
             }
             None => return Ok(MessageStatus::Absent),
         };
-        Ok(if id == self.pending {
+        Ok(if index == c.sent && c.reserved {
             MessageStatus::ReservationAbandoned
         } else if index < c.acknowledged {
             MessageStatus::Acknowledged

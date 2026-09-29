@@ -72,10 +72,52 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 216 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 218 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The native [independent-session closure](../research/continuity-identity-candidate/SESSION_CLOSURE.md)
+adds permanent freeze, complete metadata-only host loss accounting and keyless
+terminal records for ordinary sessions and incomplete rekeys. It preserves
+authenticated ACK prefixes and unknown outcomes, cannot split a reserved fanout,
+and lets committed fanout members close separately. Source-linked bootstrap
+fences prevent old flights from reactivating a closed session. Journal v20 uses
+QPMST011's preallocated closure tail and the shared QPABND02 terminal grammar;
+older candidate images fail closed without implicit migration. Wire controls,
+messages, SDK primitives and published bindings retain their existing contracts.
+
+The final local debug/release suites pass **213 tests each**, zero failures or
+ignored tests, in **591.800/582.903 runner seconds**. These overlapping runs are
+not a performance comparison. Seven new tests cover retained-context cleanup
+after revocation/policy close, both roles, actual pending input, incomplete rekey
+flights before/after cutover, partial fanout ACKs, aggregate reservation fencing,
+**16 measured before/after sync faults**, **16 signed witness response losses**,
+and two observed closure-commit process kills with bounded competing writers.
+A separate real reservation cut also verifies Busy ownership and exact input
+accounting. The two existing reservation-disclosure controls still recover six
+messages each, retaining their finite counterexample scope.
+
+Initial full runs pass 210 tests and fail three tests that incorrectly treat the
+end of State as the end of Control. The repair verifies the actual serialized
+Control range before extracting reservations or mutating a pending root/epoch;
+it also corrects two negative tests which had accidentally mutated the new tail.
+All original decapsulation, signature, key agreement and attack assertions remain.
+Rust 1.90/1.98.1 strict all-target/all-feature Clippy and 45 clean source checks
+pass; the carrier-only feature checks, no-default build, docs and fmt pass with
+the same library code. Only test extraction changed after those feature checks.
+There are 218 Rust files. Current-head hosted qualification remains pending.
+
+The prior `f151c136` completes all six CodeQL analyses, with its finding scope
+separate from job completion, but both Windows jobs fail output-parent admission.
+The shared helper now requires positive ordinary-directory metadata after a
+missing-child result, preserving reparse/non-directory errors across platforms.
+The old helper fails both portable error-mapping controls; the current three
+affected Python modules pass **48 tests**, with warnings as errors and no skips.
+The native Windows rerun is still required. No alert, assertion or platform check
+is suppressed. Installed bindings, archived-context reconstruction after policy
+expiry, initial-bootstrap cancellation, device replacement, native cross-host/
+device execution and construction-specific recovery/performance remain open.
 
 The [Python input-flow assessment](SDK_INTERNAL_REVIEW.md#python-input-flow-assessment-and-output-admission-2026-09-29)
 matches all 36 prior CodeQL annotations to their actual CLI/environment sources;

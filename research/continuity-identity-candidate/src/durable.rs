@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v19");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v20");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -47,8 +47,8 @@ pub use messages::{
     EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId, FanoutId,
     FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, MessageId, MessageStatus,
     RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
-    RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, UnconfirmedMessage,
-    UnconsumedDelivery,
+    RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure,
+    SessionClosureId, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
@@ -312,6 +312,10 @@ pub enum DurableStatus {
     FanoutAbandoning = 25,
     /// Host acknowledged the exact report; every member session is terminal.
     FanoutAbandoned = 26,
+    /// One independent session is frozen for explicit local loss accounting.
+    MessagesClosing = 27,
+    /// Host acknowledged session closure; only keyless reconciliation remains.
+    MessagesClosed = 28,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -342,6 +346,8 @@ impl DurableStatus {
             24 => Ok(Self::MessagesAbandoned),
             25 => Ok(Self::FanoutAbandoning),
             26 => Ok(Self::FanoutAbandoned),
+            27 => Ok(Self::MessagesClosing),
+            28 => Ok(Self::MessagesClosed),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -750,7 +756,7 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG19".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG20".to_vec());
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&image.local_account);
     plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
@@ -792,7 +798,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT019".to_vec();
+    let mut wire = b"QPVLT020".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -819,7 +825,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT019" {
+    if outer.array::<8>()? != *b"QPVLT020" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -845,7 +851,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG19" {
+    if inner.array::<8>()? != *b"QPVIMG20" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;

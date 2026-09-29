@@ -99,9 +99,10 @@ retain their existing rollback and availability assumptions.
 
 ## Storage contract
 
-Journal v19: `continuity_device_candidate_v19`, `QPVLT019`, `QPVIMG19`. Older
+Journal v20: `continuity_device_candidate_v20`, `QPVLT020`, `QPVIMG20`. Older
 candidate images fail closed with no reset or implicit migration. Pairwise v6,
-QPSESP03, QPMST010, QPTEPO04, KATs and published SDK/binding ABIs are unchanged.
+QPSESP03, QPTEPO04, KATs and published SDK/binding ABIs are unchanged. QPMST011
+reserves the independent-closure tail described in [session closure](SESSION_CLOSURE.md).
 
 QPFANO02 keeps canonical sorted members and uses a fixed 64-byte tail:
 
@@ -119,10 +120,10 @@ reservation as a committed message.
 
 A terminal payload is canonical and contains no trailing bytes:
 
-`QPABND01[8] || source[32] || session[32] || batch[32] || report[32] || pending_message[32] || role:u8 || confirmed:u64 || sending:u64 || receiving:u64 || pending_control:option<u64> || count:u8 || counts`.
+`QPABND02[8] || source[32] || session[32] || batch[32] || report[32] || pending_message[32] || role:u8 || confirmed:u64 || sending:u64 || receiving:u64 || pending_control:option<u64> || count:u8 || counts`.
 
 The option uses 0 or 1 followed by a u64 only for 1. Each retained epoch is
-`epoch:u64 || sent:u64 || acknowledged:u64`. Epochs are consecutive and bounded by
+`epoch:u64 || sent:u64 || acknowledged:u64 || reserved:u8`, with reserved exactly 0 or 1. Epochs are consecutive and bounded by
 the existing four-epoch window. The pending ID is bound to the terminal session,
 role, sending epoch and unchanged uncommitted slot. Shared source validation still
 recomputes the session ID from the admitted final bootstrap transcript.
@@ -137,7 +138,7 @@ responses are lost before and after every measured exchange. These observations
 cannot qualify installed foreign-language clients, cross-host or physical-device
 behavior, a complete protocol security proof, or the remaining 0.2.0 release gates.
 
-Current macOS ARM64 validation passes **192 tests each** in debug and release,
+The original v19 macOS ARM64 qualification passed **192 tests each** in debug and release,
 with zero failures or ignored tests. Runner times are 503.38 and
 350.78 seconds; overlapping runs are not a controlled performance comparison.
 Six added regression tests include the actual keystream counterexample, two terminal

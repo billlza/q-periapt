@@ -134,8 +134,9 @@ routing and platform integration remain explicit host/product work.
 
 ## State and qualification boundary
 
-There is no new journal schema, cryptographic primitive or wire ratchet version.
-Journal v19, QPMST010, QPTEPO04, QPCMSG03, authenticated ACKs, v6 controls and signed
+The carrier introduction did not change the then-current journal v19/QPMST010,
+cryptographic primitive or wire ratchet version. The later durable lifecycle uses
+[session closure](SESSION_CLOSURE.md); QPTEPO04, QPCMSG03, authenticated ACKs, v6 controls and signed
 policy bytes retain their contracts. Ordinary `receive_message` still rejects
 retired input. The carrier's internal reconciliation path can return only a prior
 consumption identity or the ordinary committed plaintext owner.

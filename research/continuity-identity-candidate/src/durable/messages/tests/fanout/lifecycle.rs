@@ -208,3 +208,117 @@ fn account_fanout_partial_ack_resolution_and_retired_history_never_invent_delive
         FanoutStatus::Retired
     );
 }
+
+#[test]
+fn independent_session_closure_preserves_committed_fanout_outcomes_and_reserved_atomicity() {
+    let mut n = Network::new(4, false);
+    let id = n.sender.next_fanout_id().expect("batch");
+    let result = n
+        .send(id, b"partly consumed before closure")
+        .expect("complete commit");
+    let first = result.first().expect("first");
+    let context = n.f.contexts.first().expect("context");
+    let receiver = n.receivers.first_mut().expect("receiver");
+    receiver
+        .receive_message(
+            context,
+            first.session,
+            committed_wire(first),
+            b"account-message",
+            150,
+        )
+        .expect("delivery");
+    receiver
+        .consume_message(context, first.session, first.message, 150)
+        .expect("consumption");
+    let ack = receiver
+        .message_acknowledgement(context, first.session, 150)
+        .expect("ACK");
+    n.sender
+        .accept_message_acknowledgement(context, first.session, &ack, 150)
+        .expect("authenticated prefix");
+    for (index, member) in result.iter().enumerate() {
+        let context = n.f.contexts.get(index).expect("context");
+        let report = n
+            .sender
+            .begin_session_closure(context, member.session)
+            .expect("committed member can close");
+        assert!(report.reserved.is_empty());
+        assert_eq!(
+            report.epochs.first().expect("epoch").acknowledged_before,
+            u64::from(index == 0)
+        );
+        super::super::closure::account(&n.sender_path, &report);
+        n.sender
+            .acknowledge_session_closure(context, member.session, report.report)
+            .expect("accounted");
+        assert_eq!(
+            n.sender
+                .message_status(context, member.session, member.message)
+                .expect("outcome"),
+            if index == 0 {
+                MessageStatus::Acknowledged
+            } else {
+                MessageStatus::DeliveryUnknown
+            }
+        );
+        if index == 0 {
+            assert!(matches!(
+                n.sender.retire_fanout(id, &targets(&n.f, &n.sessions)),
+                Err(DurableError::Suspended)
+            ));
+            let second = result.get(1).expect("second");
+            assert_eq!(
+                n.sender
+                    .resume_message(
+                        n.f.contexts.get(1).expect("second context"),
+                        second.session,
+                        second.message,
+                        150
+                    )
+                    .expect("unrelated live member")
+                    .as_slice(),
+                committed_wire(second).as_slice()
+            );
+        }
+    }
+    n.reopen();
+    n.sender
+        .retire_fanout(id, &targets(&n.f, &n.sessions))
+        .expect("all outcomes accounted");
+    n.reopen();
+    for (context, session) in n.f.contexts.iter().zip(&n.sessions) {
+        assert!(n.sender.next_message_id(context, *session, 150).is_err());
+    }
+    let mut reserved = Network::new(4, false);
+    let batch = process::reserved(&mut reserved, "fanout-computed");
+    let before = reserved
+        .sender
+        .image()
+        .expect("complete reservation")
+        .digest;
+    for (context, session) in reserved.f.contexts.iter().zip(&reserved.sessions) {
+        assert!(matches!(
+            reserved.sender.begin_session_closure(context, *session),
+            Err(DurableError::Suspended)
+        ));
+    }
+    assert_eq!(
+        reserved.sender.image().expect("unchanged aggregate").digest,
+        before
+    );
+    assert_eq!(
+        reserved.sender.fanout_status(batch).expect("retained"),
+        FanoutStatus::Reserved
+    );
+    let selected = targets(&reserved.f, &reserved.sessions);
+    let report = reserved
+        .sender
+        .begin_fanout_abandonment(batch, &selected)
+        .expect("complete aggregate cleanup still works");
+    super::abandonment::account(&reserved.sender_path, &report);
+    reserved
+        .sender
+        .acknowledge_fanout_abandonment(batch, report.report, &selected)
+        .expect("whole aggregate terminal");
+}

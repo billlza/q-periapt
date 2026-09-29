@@ -96,7 +96,7 @@ the existing public-commitment model into a working cryptographic protocol.
   now derives the complete recipient set from the installed signed roster. One
   device journal reserves all required inputs and commits all pairwise chain/outbox
   changes before releasing any member. A required witness covers that same whole
-  image. Its v19 format preserves batch ownership and monotonic IDs across crashes;
+  image. Its current v20 format preserves batch ownership and monotonic IDs across crashes;
   per-recipient ACK and unknown-delivery accounting remain distinct. This does not
   provide atomic remote application execution or a distributed transaction among
   independently owned sending-device journals.
@@ -115,6 +115,15 @@ the existing public-commitment model into a working cryptographic protocol.
   independent of received bytes. A Python producer exercises the actual Rust
   consumer, and native endpoint processes reverify saved bundles. This closes a
   serialization/admission prerequisite, not the installed binding requirement.
+
+The native [independent-session lifecycle](../../research/continuity-identity-candidate/SESSION_CLOSURE.md)
+now freezes ordinary sessions and incomplete rekeys, retains complete metadata for
+host loss accounting, and commits keyless terminal state without refunding any
+slot. Committed fanout members retain separate ACK/unknown outcomes; a reserved
+aggregate cannot be split by this API. It shares journal v20 accounting/terminal
+codecs with batch abandonment. This closes the local established-session terminal
+path, not device replacement, initial bootstrap cancellation, whole-account
+coordination or installed binding integration.
 
 ## Required completion evidence
 

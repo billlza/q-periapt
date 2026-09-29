@@ -57,7 +57,7 @@ fn closed(n: &mut Network, id: FanoutId, report: FanoutAbandonmentId) {
         assert_eq!(record.phase, DurableStatus::MessagesAbandoned);
         assert!(State::decode(&record.payload).is_err());
         let retired =
-            super::super::super::fanout::Retired::decode(&record.payload).expect("keyless grammar");
+            super::super::super::Retired::decode(&record.payload).expect("keyless grammar");
         let source = image.records.get(&retired.source).expect("source");
         let request = InitiationId::from_trusted_state(
             source

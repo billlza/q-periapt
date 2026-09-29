@@ -272,7 +272,8 @@ dependency fence prevents the candidate from entering SDK package manifests.
 
 Explicit [fanout abandonment](FANOUT_ABANDONMENT.md) freezes a reserved batch's
 whole sessions and requires durable metadata-only loss accounting before logical
-key erasure. Journal v19 rejects v18 images; pairwise v6 wire bytes are unchanged.
+key erasure. Its original v19 storage is superseded by the shared v20 lifecycle
+format; pairwise v6 wire bytes remain unchanged.
 This scoped lifecycle operation does not complete account-wide device replacement.
 
 The optional [native connection carrier](CONNECTION_TLS.md) runs the original
@@ -286,3 +287,9 @@ contract for subsequent language integration. Verification retains an existing
 policy owner and independently pinned, exact device expectations; parsing the
 container grants no authority. Native endpoint tests consume this file boundary,
 and a separate Python producer exercises the compiled Rust importer.
+
+[Permanent independent session closure](SESSION_CLOSURE.md) now freezes ordinary
+sessions and incomplete rekeys for explicit host loss accounting, then replaces
+private state with keyless tombstones. It cannot split a reserved fanout or turn
+unknown delivery into acknowledgement. Journal v20 shares its terminal codec and
+accounting projection with aggregate abandonment.

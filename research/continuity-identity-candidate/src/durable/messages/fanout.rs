@@ -6,7 +6,9 @@ use crate::{RosterCheckpoint, MAX_DEVICES};
 mod codec;
 use codec::{batch_key, Batch, BatchState, Member};
 mod abandonment;
-pub(super) use abandonment::{require_live_source, validate_message_record, Retired};
+pub(super) use abandonment::{
+    epoch_accounting, progress as abandoned_progress, require_live_source, validate_message_record,
+};
 pub use abandonment::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, FanoutAbandonment, FanoutAbandonmentId,
     ReservedAbandonment,
