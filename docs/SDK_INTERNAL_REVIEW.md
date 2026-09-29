@@ -167,6 +167,65 @@ Python scan removes the eleven preceding path warnings without new alerts.
 The remaining 41 IDs/rules and thirteen location-file blobs match `10de0c7`;
 these existing dispositions retain their prior scope.
 
+## Python input-flow assessment and output admission (2026-09-29)
+
+CodeQL check `109631309472` on `fb98db1c` reports 36 Python path/command
+annotations. The retained Python SARIF is analysis `1862706844`, merge
+`b1ab7aba235cc8feb808706fb786fea62d43d96e`. All thirteen files on those
+reported source-to-sink flows have identical Git blobs at `a9fcf139`; this
+comparison does not equate all branch alerts or languages with this snapshot.
+The earlier internal dispositions above already identified operator-controlled
+harness inputs. The current assessment records the actual flows rather than
+relying only on stable alert counts.
+
+| Alert IDs | Reported boundary | Source-specific assessment |
+| --- | --- | --- |
+| 467, 468 | Android/JVM JDK path checks | Local `JAVA_HOME` read from the invoking environment; no package or network value is the reported source. These commands require a caller-selected trusted JDK. |
+| 439 | Shared process launch | Reported callers select JDK/Gradle through environment/CLI and LLVM tooling through the Apple CLI. The helper uses an argv sequence and `shell=False`; it bounds execution, not the caller's authority to select an executable. It must not be exposed as a service accepting untrusted commands. |
+| 485–492 | Reference connection files | Local CLI selects binaries and output; `run_boundary` resolves and exclusively creates the output, freezes selected executables and records hashes. Peer protocol messages do not select these paths. This does not sandbox the selected binaries. |
+| 493–501 | Installed connection files/output | Local CLI selects pinned archives, report, cache and output. Archive intake uses the existing strict extractor; the output destination is resolved and confined under `target`. Current helper behavior is exercised below. |
+| 471, 482, 502–506 | OpenSSL/reference file paths | Sources are local connection CLI arguments. The harness uses resolved/exclusive output and fixed child names; executable identity reads use the bounded no-follow snapshot reader. The operator selects the root, not an HTTP or protocol field. |
+| 476, 483 | OpenSSL/reference processes | Fixed command structures contain explicitly selected local tools and fixture paths. Calls use argument lists without a shell. CLI tool selection remains trusted configuration; an arbitrary tool path is intentionally not treated as authenticated package data. |
+| 477, 478 | JNI contract compiler inspection | Test-only `JAVA_HOME` selects `javac`/`javap`; fixed flags, fixed source discovery and a disposable compilation directory. It is not a remotely invocable compile API. |
+| 472 | Third-party license cleanup | CLI selects the package root. Cleanup names are fixed `THIRD_PARTY/rust[.staging]`; package name/version and license basenames are validated before construction. Cleanup still requires exclusive control of that selected workspace. |
+| 473, 474 | WASM runtime identity reads | CLI explicitly selects Node and npm; resolved paths are read through bounded no-follow snapshots and compared after consumption. Archive contents do not select those executables in the reported flow. |
+| 484 | Windows static-copy output | Local CLI selects the output; exclusive `xb` creation prevents replacing an existing final entry. This is an operator filesystem operation, not a confined service endpoint. |
+| 581 | SPQR variant inventory | Local experiment CLI selects the tree; recorded entries have symlink rejection, bounded snapshots/count/size and retained preparation identity. This is isolated research tooling, not a product receive path. |
+
+These are internal dispositions of the named reported flows under a trusted
+local-operator/workspace model, not proof that every caller of those helpers is
+safe. No alert has been suppressed or dismissed. They do not assess the whole
+223-result Python analysis, later Rust results, missing configurations or the
+latest source. Hosted aggregate status and complete release review remain open.
+
+The same inspection found a real adjacent Android output-admission defect:
+`Path.absolute()` followed by lexical `is_relative_to(ROOT / "target")` admitted
+both `target/../escaped` and `target/redirect/escaped` when `redirect` was a
+symlink to an outside directory. Executing the original admission and mkdir
+nodes in disposable directories writes actual marker bytes outside the intended
+tree. This is an operator-supplied-path confinement violation; the experiment
+does not claim a remote exploit or execute a complete Android package build.
+
+Android packaging and the installed connection now share
+`evidence_io.fresh_output_directory`. It returns the actual resolved destination,
+requires a canonical boundary, rejects final symlinks/existing output/escapes,
+and uses `lstat` so a filesystem error cannot masquerade as absence. Tests caught
+the non-strict resolver preserving a symlink loop while `exists()` returned
+false; both that loop and a non-directory parent now fail explicitly. This is
+read-only admission, not a held directory capability. The caller must own the
+workspace throughout external-tool execution; hostile concurrent ancestor
+replacement is not claimed to be prevented by a returned `Path`.
+
+The old Android code fails three admission regression subcases. The fixed
+Android, installed-connection and evidence-I/O modules pass **47 tests** with
+Python warnings treated as errors and no skips. The retained old/new filesystem
+probe has two old escapes, two new rejections with no output, and valid writes
+inside the target on both versions. Three real CLI calls additionally distinguish
+invalid destination rejection from the subsequent invalid-pin check, without
+creating output or invoking build tools. No primitive, SDK ABI, journal or wire
+contract changes. These checks do not replace full Android packaging/device
+execution or the preceding native Continuity qualification.
+
 ## Validation and remaining review
 
 The clean source passes 2,268 artifact tests in 453.901 seconds without skips,

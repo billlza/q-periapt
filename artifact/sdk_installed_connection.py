@@ -16,7 +16,8 @@ import rust_sdk_profile as rust
 from bounded_process import capture_output
 from c_package_manifest import rust_workspace_source_digest
 from deterministic_archive import extract_zip
-from evidence_io import load_json_object_snapshot, parse_strict_json_bytes, read_regular_snapshot
+from evidence_io import (fresh_output_directory, load_json_object_snapshot,
+                         parse_strict_json_bytes, read_regular_snapshot)
 from sdk_connection_interop import StaticClientLinkage, run_boundary
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -102,12 +103,7 @@ def run_command(args: list[str], output: Path, label: str, cwd: Path, environmen
 
 
 def fresh_output_path(path: Path) -> Path:
-    requested = path.absolute()
-    require(not requested.is_symlink(), "installed connection output cannot be a symlink")
-    selected = requested.resolve()
-    require(not selected.exists() and selected.is_relative_to(ROOT / "target"),
-            "installed connection output must be fresh and under target")
-    return selected
+    return fresh_output_directory(path, within=ROOT / "target", label="installed connection output")
 
 
 def qualify(args: argparse.Namespace) -> dict:

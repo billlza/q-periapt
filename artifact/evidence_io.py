@@ -26,7 +26,36 @@ DEFAULT_JSON_MAX_BYTES = 16 * 1024 * 1024
 
 
 class EvidenceIOError(ValueError):
-    """An evidence file cannot be read as one stable, strict snapshot."""
+    """An evidence input or output violates its filesystem contract."""
+
+
+def fresh_output_directory(
+    path: pathlib.Path, *, within: pathlib.Path, label: str
+) -> pathlib.Path:
+    """Select the actual fresh destination inside a caller-owned directory tree.
+
+    This read-only admission returns the resolved path for all subsequent writes.
+    It is not a held directory capability: callers must retain control of the
+    workspace and use exclusive creation, including when external tools write.
+    """
+
+    requested = pathlib.Path(path).absolute()
+    boundary = pathlib.Path(within).absolute()
+    try:
+        if boundary.is_symlink() or boundary.resolve() != boundary:
+            raise EvidenceIOError(f"{label} boundary must be canonical, without symlinks")
+        if requested.is_symlink():
+            raise EvidenceIOError(f"{label} cannot be a symlink")
+        selected = requested.resolve()
+        if not selected.is_relative_to(boundary):
+            raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
+        try:
+            selected.lstat()
+        except FileNotFoundError:
+            return selected
+        raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
+    except (OSError, RuntimeError) as exc:
+        raise EvidenceIOError(f"cannot resolve {label}: {exc}") from exc
 
 
 _OwnedDescriptorStatus = Literal["owned", "released", "unknown"]

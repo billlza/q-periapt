@@ -1,13 +1,51 @@
 """Maven metadata and bundle mutations; synthetic AAR bytes are never runtime evidence."""
 import hashlib
 import json
+from argparse import Namespace
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 import android_elf
 import android_sdk_package as sdk
+
+
+class AndroidSDKOutputAdmissionTests(unittest.TestCase):
+    def test_build_rejects_output_escapes_before_reading_packages_or_starting_tools(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            target, outside = root / "target", root / "outside"
+            target.mkdir()
+            outside.mkdir()
+            (target / "redirect").symlink_to(outside, target_is_directory=True)
+            (target / "dangling").symlink_to(target / "missing", target_is_directory=True)
+            retained = target / "retained"
+            retained.mkdir()
+            (retained / "marker").write_bytes(b"retained evidence")
+            for output in (target / "../escaped", target / "redirect/escaped",
+                           target / "dangling", retained, outside / "new"):
+                with self.subTest(output=output), patch.object(sdk, "ROOT", root):
+                    # Deliberately invalid pins distinguish output admission from
+                    # a later rejection. No package, toolchain or subprocess mock.
+                    args = Namespace(output=output, aar_sha256="invalid", manifest_sha256="invalid")
+                    with self.assertRaisesRegex(ValueError, "output.*(?:under|fresh|symlink)"):
+                        sdk.build(args)
+            self.assertFalse((root / "escaped").exists())
+            self.assertEqual(list(outside.iterdir()), [])
+            self.assertFalse((target / "missing").exists())
+            self.assertEqual((retained / "marker").read_bytes(), b"retained evidence")
+
+    def test_valid_nested_output_reaches_the_existing_pin_check_without_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            output = root / "target/nested/new"
+            with patch.object(sdk, "ROOT", root):
+                args = Namespace(output=output, aar_sha256="invalid", manifest_sha256="invalid")
+                with self.assertRaisesRegex(ValueError, "pinned AAR and manifest"):
+                    sdk.build(args)
+            self.assertFalse((root / "target").exists())
 
 
 class AndroidSDKPackageTests(unittest.TestCase):

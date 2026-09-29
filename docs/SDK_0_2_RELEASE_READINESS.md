@@ -77,6 +77,21 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The [Python input-flow assessment](SDK_INTERNAL_REVIEW.md#python-input-flow-assessment-and-output-admission-2026-09-29)
+matches all 36 prior CodeQL annotations to their actual CLI/environment sources;
+all thirteen flow files at `a9fcf139` match the analyzed merge blobs. These are
+source-specific internal dispositions under the local-operator model, not a
+claim that the complete scan is clean or that every possible caller is safe.
+An adjacent Android output-confinement defect is reproduced with actual writes
+outside a disposable target via `..` and a symlinked parent. The shared fixed
+admission returns the resolved in-target destination and preserves filesystem
+errors, including link loops and non-directory parents. The old code fails three
+regression subcases; the fixed affected modules pass **47 tests**, no skips, with
+warnings as errors, plus the retained old/new filesystem and three real CLI
+admission checks. No SDK runtime/ABI or Continuity source changes in this patch;
+current hosted security analysis and complete package/device qualification remain
+separate requirements. No alert is suppressed or dismissed.
+
 The [public bootstrap material importer](../research/continuity-identity-candidate/BOOTSTRAP_BUNDLE.md)
 now reconstructs the original verified context from a bounded QPBNDL01 input.
 Its existing policy/runtime owner, account pins, exact intended device IDs and

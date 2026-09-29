@@ -22,7 +22,7 @@ from android_agp_build import collector_gradle_home, normalized
 from bounded_process import capture_output
 from claim_ledger import canonical_tree_digest, repository_paths
 from deterministic_archive import create_tar_gz, extract_tar_gz
-from evidence_io import load_json_object_snapshot, read_regular_snapshot
+from evidence_io import fresh_output_directory, load_json_object_snapshot, read_regular_snapshot
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME = "q-periapt-android"
@@ -175,8 +175,7 @@ def inspect_apk(apk: Path, aar_entries: dict, output: Path, sdk: Path, env: dict
 
 
 def build(args: argparse.Namespace) -> dict:
-    output = args.output.absolute()
-    require(not output.exists() and output.is_relative_to(ROOT / "target"), "Android SDK output must be fresh and under this checkout's target")
+    output = fresh_output_directory(args.output, within=ROOT / "target", label="Android SDK output")
     require(all(re.fullmatch(r"[0-9a-f]{64}", digest) for digest in (args.aar_sha256, args.manifest_sha256)),
             "Android SDK requires pinned AAR and manifest SHA-256")
     require(shutil.disk_usage(ROOT).free >= 1024 ** 3, "Android SDK packaging needs at least 1 GiB free")
