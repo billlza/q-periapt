@@ -171,6 +171,17 @@ any outgoing item becomes dispatchable. Partial anchor progress remains a pendin
 aggregate. It cannot become a successful partial delivery. Explicit recipient
 exclusion is part of the caller-visible signed-policy decision.
 
+The isolated [account-send implementation](../../research/continuity-identity-candidate/FANOUT.md)
+now covers one sending device's complete-roster transaction. It accepts no optional
+recipient exclusions, freezes the exact installed roster head, reserves every
+member before computation, and commits every chain/outbox before release. The
+required witness advances the same aggregate image. Persisted member-to-batch
+links prevent an ordinary send/resume call from releasing a reserved prefix.
+Acknowledged, unresolved and retired-history outcomes remain separate; none
+asserts atomic remote application delivery. Device replacement, account-wide
+coordination among independent sender stores and installed service integration
+remain release work.
+
 The rollback profile must retain an authenticated monotonic account checkpoint
 outside the restorable session database. Local redb atomicity protects against
 partial commits, not restoration of a complete older database. Restoring ordinary

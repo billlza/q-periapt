@@ -123,6 +123,9 @@ fn get(image: &Image, account: &[u8; 32]) -> Result<Stored, DurableError> {
     let key = id(account);
     decode(&key, image.records.get(&key).ok_or(DurableError::Absent)?)
 }
+pub(super) fn current(image: &Image, account: &[u8; 32]) -> Result<VerifiedRoster, DurableError> {
+    Ok(get(image, account)?.roster)
+}
 pub(super) fn genesis(device: &VerifiedDevice) -> BTreeMap<[u8; 32], Record> {
     BTreeMap::from([(
         id(&device.account_id()),

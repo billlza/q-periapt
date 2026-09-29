@@ -94,13 +94,17 @@ no construction-specific recovery result from it.
 
 ## Storage, bounds and remaining work
 
-Journal schema v17 rejects schemas v1–v16 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v17`, `QPVLT017`, `QPVIMG17`.
+Journal schema v18 rejects schemas v1–v17 without reset. The outer table/header and
+inner image are `continuity_device_candidate_v18`, `QPVLT018`, `QPVIMG18`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
-phase 19 and `QPMST009`. Image admission enforces a one-to-one link with the
+phase 19 and `QPMST010`. Image admission enforces a one-to-one link with the
 matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap
 root, canonical sorted records, and disjoint consumed/skipped receive indices.
 A restored root cannot coexist with a valid linked message state.
+An optional batch ID in each pending send links both ways to its kind-6 fanout
+record. A reserved [account fanout](FANOUT.md) cannot be released through the
+individual send/resume APIs. Whole-batch commit preserves the same application
+wire format and per-session ACK semantics.
 
 Candidate resource bounds are 16 KiB plaintext, 1 KiB application associated data,
 128 skipped receive keys and 64 outstanding records per direction **per retained

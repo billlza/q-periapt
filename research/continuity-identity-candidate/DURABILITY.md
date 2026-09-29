@@ -39,18 +39,18 @@ The network bootstrap bytes and SDK ABI major **2** are unchanged.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v17`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v18`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT017[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT018[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG17[8] || protection[73] || local_account[32] || count:u16 || records`
+`QPVIMG18[8] || protection[73] || local_account[32] || next_fanout:u64 || count:u16 || records`
 
 `protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
 Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and
@@ -63,6 +63,10 @@ Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 ||
 authority_count:u8 || accounts[authority_count*32] || key_count:u8 ||
 fingerprints[key_count*32] || reference_count:u8 || prekeys[reference_count*32] ||
 payload_length:u32 || payload`.
+The monotonic `next_fanout` ordinal starts at zero and never resets on batch
+retirement. Kind 6 records bind all members of an [atomic account send](FANOUT.md);
+phases 21/22 distinguish whole-batch reservation and commit. Its at most 16 live
+records also count against the aggregate operation limit.
 The [roster contract](ROSTER_AUTHORITY.md) requires retained account heads for each
 record and keeps the local account immutable across pending writes. There are at
 most 64 roster records, 128 session-operation records, 1024 prekey records, two one-time

@@ -6,6 +6,8 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 
 mod acknowledgement;
+mod fanout;
+pub use fanout::{FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget};
 mod progress;
 pub use progress::SendProgress;
 mod resolution;
@@ -28,7 +30,7 @@ const MAX_RECEIPTS: usize = 64;
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
 const MESSAGE_TAG: &[u8; 8] = b"QPCMSG03";
 const MAX_TRAFFIC_EPOCHS: usize = 4;
-const STATE_TAG: &[u8; 8] = b"QPMST009";
+const STATE_TAG: &[u8; 8] = b"QPMST010";
 const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
 
 fn first_retained_epoch(newest: u64) -> u64 {
@@ -138,6 +140,7 @@ impl CommittedPlaintext {
 
 struct SendPlan {
     id: MessageId,
+    fanout: Option<FanoutId>,
     plaintext: Zeroizing<Vec<u8>>,
     ad: Vec<u8>,
 }
@@ -563,6 +566,7 @@ impl DeviceJournal {
             state.send_epoch,
             state.traffic(state.send_epoch)?.sent,
         )?;
+        fanout::require_individual(&image, session, id)?;
         context.check_session_identity(now)?;
         self.check_context_release(&image, context, now)?;
         Ok(id)
@@ -579,6 +583,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let mut image = self.image()?;
+        fanout::require_individual(&image, session, id)?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if plaintext.len() > MAX_PLAINTEXT || associated_data.len() > MAX_AD {
             return Err(DurableError::Capacity);
@@ -617,6 +622,7 @@ impl DeviceJournal {
                 }
                 traffic.pending = Some(SendPlan {
                     id,
+                    fanout: None,
                     plaintext: Zeroizing::new(plaintext.to_vec()),
                     ad: associated_data.to_vec(),
                 });
@@ -714,6 +720,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let image = self.image()?;
+        fanout::require_individual(&image, session, id)?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let index = id.check(&session, state.role)?;
         let traffic = state.traffic_mut(id.epoch()?)?;
@@ -787,6 +794,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             return Err(DurableError::Corrupt);
         }
         let state = State::decode(&record.payload).map_err(|_| DurableError::Corrupt)?;
+        fanout::validate_pending(image, &state).map_err(|_| DurableError::Corrupt)?;
         state
             .control
             .validate(&state.session, state.role, &record.context, &state.rekey)
@@ -848,7 +856,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             return Err(DurableError::Corrupt);
         }
     }
-    Ok(())
+    fanout::validate_image(image).map_err(|_| DurableError::Corrupt)
 }
 
 #[cfg(all(test, unix))]

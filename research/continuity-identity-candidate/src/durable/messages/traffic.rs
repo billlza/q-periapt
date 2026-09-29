@@ -94,7 +94,7 @@ impl Traffic {
         })
     }
     pub(super) fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(b"QPTEPO03".to_vec());
+        let mut bytes = Zeroizing::new(b"QPTEPO04".to_vec());
         bytes.extend_from_slice(&self.epoch.to_be_bytes());
         bytes.push(u8::from(self.send_closed));
         bytes.push(u8::from(self.receive_limit.is_some()));
@@ -121,6 +121,10 @@ impl Traffic {
         bytes.push(u8::from(self.pending.is_some()));
         if let Some(plan) = &self.pending {
             bytes.extend_from_slice(&plan.id.0);
+            bytes.push(u8::from(plan.fanout.is_some()));
+            if let Some(fanout) = plan.fanout {
+                bytes.extend_from_slice(fanout.as_bytes());
+            }
             bytes.extend_from_slice(&(plan.plaintext.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&plan.plaintext);
             bytes.extend_from_slice(&(plan.ad.len() as u16).to_be_bytes());
@@ -149,7 +153,7 @@ impl Traffic {
             return Err(Error::Capacity);
         }
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPTEPO03" {
+        if d.array::<8>()? != *b"QPTEPO04" {
             return Err(Error::Encoding);
         }
         let epoch = d.u64()?;
@@ -204,6 +208,11 @@ impl Traffic {
             [0] => None,
             [1] => {
                 let id = MessageId::from_trusted_state(d.array()?)?;
+                let fanout = match d.array::<1>()? {
+                    [0] => None,
+                    [1] => Some(FanoutId::from_trusted_state(d.array()?)?),
+                    _ => return Err(Error::Encoding),
+                };
                 let length = u32::from_be_bytes(d.array()?) as usize;
                 if length > MAX_PLAINTEXT {
                     return Err(Error::Capacity);
@@ -215,6 +224,7 @@ impl Traffic {
                 }
                 Some(SendPlan {
                     id,
+                    fanout,
                     plaintext,
                     ad: d.take(length)?.to_vec(),
                 })

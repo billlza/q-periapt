@@ -109,7 +109,7 @@ All added dependency versions/checksums already occur in the SDK workspace lock;
 no existing candidate dependency was upgraded. `rcgen` is a test-only certificate
 issuer. The SDK publication graph still excludes this research workspace.
 
-The complete macOS ARM64 runs pass **175 tests each**, with no failed or ignored
+The `5f324607` macOS ARM64 runs pass **175 tests each**, with no failed or ignored
 tests: 466.19 seconds in debug and 368.31 seconds in release. These runs overlapped;
 their timings are verification observations, not a controlled performance
 comparison. Strict all-target/all-feature Clippy passes on Rust 1.90 and 1.98.1;
@@ -121,7 +121,10 @@ dependencies in debug builds while retaining their debug assertions and arithmet
 overflow checks; the journal/state-machine crate remains unoptimized. A separate
 Rust 1.90 probe records the actual dependency compiler flags and catches an actual
 overflow. This adjustment does not omit a test, relax an assertion, alter release
-optimization or increase the CI timeout. Fresh hosted completion is still required.
+optimization or increase the CI timeout. That commit subsequently passed all three
+hosted candidate jobs, including complete Linux debug/release runs on Rust 1.90 and
+1.98.1, as part of 42 successful CI jobs and six successful CodeQL analyses.
+Later source changes retain their own qualification requirements.
 
 Native Windows/device execution, installed language consumers, real cross-host
 endpoints, transport scheduling across multiple sessions, periodic trigger policy,

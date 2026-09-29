@@ -72,12 +72,38 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 191 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 198 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The isolated Continuity v6 candidate now has an optional native
+The isolated [account-send candidate](../research/continuity-identity-candidate/FANOUT.md)
+now binds every required device in the installed signed roster. It reserves all
+pairwise input slots together, then commits all chain/outbox advances before
+releasing any member. A real unary-loop counterexample discloses the first
+recipient's plaintext before the second recipient exhausts its budget; the batch
+API rejects that case before any reservation. v18 journal metadata and reverse
+member links prevent unary release of a reserved prefix. The global batch counter
+does not reset on retirement. Existing pairwise control and data wire bytes remain
+unchanged; acknowledgement, unresolved delivery and retired history are explicit
+per-member outcomes.
+
+Eleven focused tests now cover peer and own-account rosters, mixed bootstrap roles,
+scope/capacity/expiry/revocation, partial ACK plus durable closed-epoch accounting,
+18 measured before/after sync faults, three process kills with deadline-bounded
+competing writers and all 18 before/after losses across nine actual witness calls.
+Both recipient journals decrypt real messages. The final complete runs pass
+**186 tests each**, zero failures/ignored: debug 518.46 seconds and release
+443.62 seconds. The overlapping runs are not a controlled performance comparison.
+The preceding 184-test runs remain separate. Strict Clippy on Rust 1.90/1.98.1,
+no-default-feature compilation, formatting, warning-strict docs and 45 standalone
+source/inventory checks pass. Current public-only oracles verify 20 envelopes/100
+signature negatives and 12 witness envelopes/60 negatives. This is
+one sender's journal transaction, not atomic remote application execution or
+coordination across independent sender stores. Full lifecycle, installed language
+and cross-host/device qualification remain required.
+
+At `5f324607`, the Continuity v6 candidate added an optional native
 [standard TLS control carrier](../research/continuity-identity-candidate/CONTROL_TLS.md).
 It reuses the SDK connection engine and exact journal outboxes, with explicit
 finite retries, a fixed invocation deadline, fallible trusted time and cancellation.
@@ -97,7 +123,11 @@ passes on Rust 1.90 and 1.98.1. Earlier Linux candidate jobs reached the unchang
 25-minute deadline in debug tests; debug dependencies are now optimized with
 debug assertions and overflow checks retained, while the state-machine crate
 stays unoptimized. A Rust 1.90 dependency probe records optimized compiler flags
-and an actual caught overflow. Fresh hosted completion remains required.
+and an actual caught overflow. Its later hosted run passes all **42 CI jobs**
+and **six CodeQL analyses**. Both Linux compiler jobs and macOS pass all 175
+debug and release tests. The tested merge `59f736480deb8af8c882861c9e593e9da14aacea`
+has the same tree as `5f324607`. This closes the earlier Linux timeout for that
+source; it does not qualify the later fanout changes.
 The candidate's 55 added lock identities already occur in the root SDK lock;
 no existing candidate version/checksum changed. This native optional feature
 does not change v6 controls, v17 journals or any published binding.

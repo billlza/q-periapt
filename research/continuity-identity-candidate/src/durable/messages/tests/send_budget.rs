@@ -488,6 +488,7 @@ fn send_budget_rejects_authenticated_over_limit_frames_and_stored_own_counts() {
     let slot = MessageId::for_epoch(&p.session, 1, 0, 3).expect("one past budget");
     let t = exceeded.traffic_mut(0).expect("traffic");
     t.pending = Some(SendPlan {
+        fanout: None,
         id: slot,
         plaintext: Zeroizing::new(b"bypassing the public governor".to_vec()),
         ad: b"application".to_vec(),

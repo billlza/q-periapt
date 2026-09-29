@@ -92,6 +92,14 @@ the existing public-commitment model into a working cryptographic protocol.
   committed reply is lost. This does not qualify installed bindings, bootstrap
   delivery or cross-host operation. A measured product budget, full device
   lifecycle, cryptographic erasure and product integration remain required work.
+  Its [account-send candidate](../../research/continuity-identity-candidate/FANOUT.md)
+  now derives the complete recipient set from the installed signed roster. One
+  device journal reserves all required inputs and commits all pairwise chain/outbox
+  changes before releasing any member. A required witness covers that same whole
+  image. Its v18 format preserves batch ownership and monotonic IDs across crashes;
+  per-recipient ACK and unknown-delivery accounting remain distinct. This does not
+  provide atomic remote application execution or a distributed transaction among
+  independently owned sending-device journals.
 
 ## Required completion evidence
 

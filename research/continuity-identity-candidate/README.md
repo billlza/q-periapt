@@ -120,6 +120,14 @@ role and restart after committed replies are lost. Installed language integratio
 cross-host scheduling, device lifecycle and multi-device contracts remain required
 within 0.2.0.
 
+The [atomic account-send candidate](FANOUT.md) binds the complete installed
+signed roster, reserves all required pairwise inputs together and commits every
+chain/outbox before releasing any member. Its v18 journal prevents individual
+release of a reserved batch member, preserves monotonic aggregate IDs, and
+reconciles the existing required witness over the whole local image. This is
+one sending device's transaction; remote application execution and transactions
+across independently owned sender journals remain separate boundaries.
+
 The [durable hybrid rekey path](REKEY_OFFERS.md) now commits four signed flights
 and switches sending/receiving epochs at authenticated, crash-recoverable boundaries.
 Message IDs and ACK authority are scoped to epochs, preserving old outboxes and

@@ -47,12 +47,15 @@ retires the unused reservation. Cancellation of dispatch never clears or replace
 the journal's pending state. A lost commit/release result requires exact journal
 reconciliation, just like the other flights.
 
-The unpublished journal advances to **v17** (`continuity_device_candidate_v17`,
+The `a08a41c7` control-request checkpoint advanced the unpublished journal to **v17** (`continuity_device_candidate_v17`,
 `QPVLT017`, `QPVIMG17`), message state **QPMST009** and control **QPRKST03**.
 The request phase (`0` absent, `1` plus a 64-byte signing reservation, `2` plus
 the fixed signed request) precedes the existing offer/response/completion plan.
 Earlier images are refused without reset or implicit migration. Traffic records
-remain QPTEPO03; the signed policy remains the 200-byte QPSESP03 grammar.
+were QPTEPO03; the signed policy remains the 200-byte QPSESP03 grammar.
+The later [atomic account-send path](FANOUT.md) advances only the local image
+to v18 and adds bidirectional pending-batch links in QPMST010/QPTEPO04;
+v6 signed controls and QPRKST03 are unchanged.
 
 ## Control steps and host scheduling
 

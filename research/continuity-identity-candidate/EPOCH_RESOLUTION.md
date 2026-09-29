@@ -89,8 +89,8 @@ and zeroed traffic/ACK keys with no retained report key. Preserving its original
 unacknowledged range is essential: setting the floor to the send count would
 invent delivery success.
 
-Journal v17 uses `continuity_device_candidate_v17`, `QPVLT017` and `QPVIMG17`;
-message state is `QPMST009`, and each traffic entry is `QPTEPO03`. After the
+Journal v18 uses `continuity_device_candidate_v18`, `QPVLT018` and `QPVIMG18`;
+message state is `QPMST010`, and each traffic entry is `QPTEPO04`. After the
 existing epoch/closed/receive-limit fields, traffic records encode the resolution
 phase (0=ordinary, 1=frozen, 2=acknowledged), the 32-byte ID for phases 1/2, and a
 0/1 key-presence tag followed by 32 secret bytes only for phase 1. The existing

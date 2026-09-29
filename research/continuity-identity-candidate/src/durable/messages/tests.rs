@@ -11,6 +11,7 @@ mod control_progress;
 #[cfg(feature = "control-tls")]
 mod control_tls;
 mod epoch_resolution;
+mod fanout;
 mod reservation_disclosure;
 mod send_budget;
 
@@ -536,6 +537,18 @@ pub(super) fn after_stage(stage: &str) {
     loop {
         std::thread::park();
     }
+}
+
+pub(super) fn after_fanout_computation(wire: &[u8]) {
+    if std::env::var("QPERIAPT_MESSAGES_STAGE").ok().as_deref() != Some("fanout-computed") {
+        return;
+    }
+    let path = std::env::var_os("QPERIAPT_MESSAGES_CRASH_DIR").expect("owned fixture");
+    let mut file = fs::File::create_new(Path::new(&path).join("fanout-computed-wire"))
+        .expect("new effect record");
+    file.write_all(wire).expect("exact computed public wire");
+    file.sync_all().expect("effect record sync");
+    after_stage("fanout-computed");
 }
 
 #[test]
@@ -1627,6 +1640,7 @@ fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacem
     let index = epoch(&sender).sent;
     let fresh_id = MessageId::for_epoch(&p.session, 1, 0, index).expect("unchanged namespace");
     epoch_mut(&mut sender).pending = Some(SendPlan {
+        fanout: None,
         id: fresh_id,
         plaintext: Zeroizing::new(b"fresh-key packet".to_vec()),
         ad: b"application".to_vec(),

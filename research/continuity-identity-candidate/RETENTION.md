@@ -150,8 +150,8 @@ accounting, unresolved records remain and apply backpressure. The signed progres
 budget/control scheduler, full lifecycle/fanout, complete construction analysis
 and product binding integration remain mandatory 0.2.0 work.
 
-Journal v17 uses `continuity_device_candidate_v17`, `QPVLT017`, `QPVIMG17` and
-message state `QPMST009`. Earlier candidate journals are rejected unchanged,
+Journal v18 uses `continuity_device_candidate_v18`, `QPVLT018`, `QPVIMG18` and
+message state `QPMST010`. Earlier candidate journals are rejected unchanged,
 without migration or reset. Logical erasure does not erase old encrypted pages,
 write intents, snapshots or backups. Local-only journals do not detect whole-file
 rollback; required-witness journals depend on the independently retained head.

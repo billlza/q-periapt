@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v17");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v18");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -41,10 +41,10 @@ mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
 pub use messages::{
-    ClosedEpochResolution, CommittedPlaintext, EpochResolutionId, EpochResolutionStatus, MessageId,
-    MessageStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus,
-    RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, SendProgress, UnconfirmedMessage,
-    UnconsumedDelivery,
+    ClosedEpochResolution, CommittedPlaintext, EpochResolutionId, EpochResolutionStatus, FanoutId,
+    FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, MessageId, MessageStatus,
+    RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
+    RekeyRequestStatus, RekeyResponseStatus, SendProgress, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
@@ -56,6 +56,7 @@ enum RecordKind {
     Prekey = 3,
     Messages = 4,
     Roster = 5,
+    Fanout = 6,
 }
 
 /// Explicit local persistence failures. No storage error is reported as absence.
@@ -295,6 +296,10 @@ pub enum DurableStatus {
     Messages = 19,
     /// Monotonic authenticated account roster in this journal image.
     Roster = 20,
+    /// All required fanout input slots are reserved in one aggregate transaction.
+    FanoutReserved = 21,
+    /// All fanout ciphertexts and chain advances committed in one transaction.
+    FanoutCommitted = 22,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -319,6 +324,8 @@ impl DurableStatus {
             18 => Ok(Self::PrekeyRetired),
             19 => Ok(Self::Messages),
             20 => Ok(Self::Roster),
+            21 => Ok(Self::FanoutReserved),
+            22 => Ok(Self::FanoutCommitted),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -360,6 +367,7 @@ impl Record {
 }
 struct Image {
     local_account: [u8; 32],
+    next_fanout: u64,
     id: [u8; 32],
     owner: [u8; 32],
     revision: u64,
@@ -413,6 +421,7 @@ impl DeviceJournal {
         JournalIdentity::from_trusted_state(id)?;
         let image = Image {
             local_account: device.account_id(),
+            next_fanout: 0,
             id,
             owner,
             revision: 1,
@@ -723,9 +732,10 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG17".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG18".to_vec());
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&image.local_account);
+    plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
     for (id, record) in &image.records {
         plaintext.extend_from_slice(id);
@@ -764,7 +774,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT017".to_vec();
+    let mut wire = b"QPVLT018".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -791,7 +801,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT017" {
+    if outer.array::<8>()? != *b"QPVLT018" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -817,11 +827,12 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG17" {
+    if inner.array::<8>()? != *b"QPVIMG18" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
     let local_account = inner.array::<32>()?;
+    let next_fanout = inner.u64()?;
     let count = usize::from(inner.u16()?);
     if count > MAX_RECORDS + prekeys::MAX_PREKEY_RECORDS + rosters::MAX_ROSTERS {
         return Err(DurableError::Capacity);
@@ -843,6 +854,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
             3 => RecordKind::Prekey,
             4 => RecordKind::Messages,
             5 => RecordKind::Roster,
+            6 => RecordKind::Fanout,
             _ => return Err(DurableError::Corrupt),
         };
         let phase = DurableStatus::decode(phase)?;
@@ -904,6 +916,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
     inner.finish()?;
     let image = Image {
         local_account,
+        next_fanout,
         id,
         owner,
         revision,
