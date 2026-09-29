@@ -492,6 +492,117 @@ mod redb_header_tests {
     use redb::backends::FileBackend;
     use std::io::{Seek, SeekFrom, Write};
 
+    #[cfg(windows)]
+    #[test]
+    fn stock_redb_windows_contention_child() -> Result<(), Box<dyn std::error::Error>> {
+        let Some(directory) = std::env::var_os("QPERIAPT_REDB_CONTENTION_DIR") else {
+            return Ok(());
+        };
+        let directory = std::path::PathBuf::from(directory);
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .open(directory.join("owned.redb"))?;
+        std::fs::write(directory.join("probe-ready"), b"ready")?;
+        let database = redb::Database::builder().create_file(file)?;
+        drop(database);
+        std::fs::write(directory.join("probe-complete"), b"opened-after-release")?;
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn windows_stock_contention(
+        directory: &std::path::Path,
+        backend: LockedFileBackend,
+    ) -> Result<LockedFileBackend, Box<dyn std::error::Error>> {
+        use std::{
+            process::Command,
+            thread,
+            time::{Duration, Instant},
+        };
+        let mut child = Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "filesystem::redb_header_tests::stock_redb_windows_contention_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_REDB_CONTENTION_DIR", directory)
+            .spawn()?;
+        let inspected = (|| -> std::io::Result<()> {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while !directory.join("probe-ready").is_file() {
+                if child.try_wait()?.is_some() {
+                    return Err(std::io::Error::other(
+                        "stock redb child exited before attempting open",
+                    ));
+                }
+                if Instant::now() >= deadline {
+                    return Err(std::io::Error::other(
+                        "stock redb child did not reach open deadline",
+                    ));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            // redb 4.3's Windows range-lock retry waits on its reserved query
+            // byte, which the existing whole-file owner also covers. This
+            // stock open must not finish or mutate the file while that owner lives.
+            thread::sleep(Duration::from_millis(100));
+            if child.try_wait()?.is_some()
+                || directory.join("probe-complete").exists()
+                || std::fs::metadata(directory.join("owned.redb"))?.len() != 0
+            {
+                return Err(std::io::Error::other(
+                    "stock redb escaped the held whole-file lock",
+                ));
+            }
+            Ok(())
+        })();
+        // Release on both observation success and failure, then reap this exact
+        // child within a bound. Never leave a blocked test process behind.
+        drop(backend);
+        let completed = (|| -> std::io::Result<()> {
+            let deadline = Instant::now() + Duration::from_secs(20);
+            loop {
+                if let Some(status) = child.try_wait()? {
+                    return if status.success() {
+                        Ok(())
+                    } else {
+                        Err(std::io::Error::other(format!(
+                            "stock redb child failed: {status}"
+                        )))
+                    };
+                }
+                if Instant::now() >= deadline {
+                    child.kill()?;
+                    child.wait()?;
+                    return Err(std::io::Error::other(
+                        "stock redb child remained blocked after owner release",
+                    ));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+        })();
+        match (inspected, completed) {
+            (Err(first), Err(second)) => {
+                return Err(
+                    std::io::Error::other(format!("{first}; child cleanup: {second}")).into(),
+                )
+            }
+            (Err(error), Ok(())) | (Ok(()), Err(error)) => return Err(error.into()),
+            (Ok(()), Ok(())) => {}
+        }
+        assert_eq!(
+            std::fs::read(directory.join("probe-complete"))?,
+            b"opened-after-release"
+        );
+        Ok(LockedFileBackend::new(
+            File::options()
+                .read(true)
+                .write(true)
+                .open(directory.join("owned.redb"))?,
+        )?)
+    }
+
     #[test]
     fn backend_lock_precedes_inspection_and_excludes_stock_redb(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -508,11 +619,17 @@ mod redb_header_tests {
             LockedFileBackend::new(open()?),
             Err(redb::DatabaseError::DatabaseAlreadyOpen)
         ));
-        assert!(matches!(
-            redb::Database::builder().create_file(open()?),
-            Err(redb::DatabaseError::DatabaseAlreadyOpen)
-        ));
         assert_eq!(std::fs::metadata(&path)?.len(), 0);
+        #[cfg(not(windows))]
+        {
+            assert!(matches!(
+                redb::Database::builder().create_file(open()?),
+                Err(redb::DatabaseError::DatabaseAlreadyOpen)
+            ));
+            assert_eq!(std::fs::metadata(&path)?.len(), 0);
+        }
+        #[cfg(windows)]
+        let backend = windows_stock_contention(directory.path(), backend)?;
         let database = redb::Database::builder().create_with_backend(BoundedBackend(backend))?;
         let transaction = database.begin_write()?;
         drop(database);
