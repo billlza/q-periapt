@@ -1774,6 +1774,9 @@ jobs:
           candidate_manifest=research/continuity-identity-candidate/Cargo.toml
           cargo +"$CANDIDATE_TOOLCHAIN" check --manifest-path "$candidate_manifest" --all-targets --locked --no-default-features
           cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --all-features --locked -- -D warnings
+          for candidate_feature in control-tls connection-tls; do
+            cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --no-default-features --features "$candidate_feature" --locked -- -D warnings
+          done
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture
       - name: Verify sealed SDK operations with the selected compiler
