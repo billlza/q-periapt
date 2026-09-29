@@ -90,6 +90,11 @@ future DH/PQ update construction. They still rely on the chosen rollback profile
 restoring a whole local-only database can restore old counters, whereas required
 witness journals must reconcile against the independently protected witness head.
 
+These floors are scoped to the currently implemented initial epoch. The
+[old-chain poisoning trace](EPOCH_CUTOVER.md) shows why future key epochs must use
+separate message IDs, receive floors and ACK authority. The current global index
+must not be treated as a trusted cross-epoch cutover coordinate after disclosure.
+
 Consumption and acknowledgement application each use one existing exact-intent
 journal persist: the same crash reconciliation, atomic image installation and
 post-commit release checks apply, including the installed [roster](ROSTER_AUTHORITY.md).

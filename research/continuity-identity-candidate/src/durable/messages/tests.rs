@@ -635,6 +635,132 @@ fn rekey_digest(label: &[u8], bytes: &[u8]) -> [u8; 32] {
 }
 
 #[test]
+fn disclosed_old_chain_can_poison_retention_across_restart_and_key_only_replacement() {
+    // One receiver-chain disclosure, before any send. All forged frames are
+    // computed now, before further access to either honest journal. Identity,
+    // root, ACK, storage and later KEM secrets are not inputs to this attacker.
+    fn forge(mut chain: ZeroizingBytes<32>, session: [u8; 32]) -> Vec<Vec<u8>> {
+        let mut packets = Vec::new();
+        for index in 0..8 {
+            let (next, message) = step(&chain, index).expect("disclosed chain step");
+            chain = next;
+            let mut wire = Header {
+                session,
+                role: 1,
+                index,
+                id: MessageId::for_index(&session, 1, index).expect("public ID"),
+                length: b"forged old epoch".len(),
+            }
+            .encode();
+            let mut plaintext = b"forged old epoch".to_vec();
+            let cipher = ChaCha20Poly1305::new_from_slice(message.as_bytes()).expect("key");
+            let tag = cipher
+                .encrypt_inout_detached(
+                    &Nonce::from([0; 12]),
+                    &associated(&wire, b"application"),
+                    plaintext.as_mut_slice().into(),
+                )
+                .expect("attacker-owned AEAD calculation");
+            wire.extend_from_slice(&plaintext);
+            wire.extend_from_slice(&tag);
+            packets.push(wire);
+        }
+        packets
+    }
+    let mut p = Pair::new();
+    p.activate();
+    let receiver = state(&mut p.jr, &p.session);
+    let stolen = key(receiver.receive.as_bytes()).expect("one disclosed chain key");
+    drop(receiver);
+    let packets = forge(stolen, p.session);
+    for packet in &packets {
+        let delivery = p.receive(packet);
+        assert_eq!(delivery.as_bytes(), b"forged old epoch");
+        p.jr.consume_message(&p.f.responder, p.session, delivery.message_id(), 150)
+            .expect("application consumes authenticated old-epoch delivery");
+    }
+    assert_eq!(state(&mut p.ji, &p.session).sent, 0);
+    let poisoned = state(&mut p.jr, &p.session);
+    assert_eq!((poisoned.received, poisoned.receive_floor), (8, 8));
+    assert!(poisoned.incoming.is_empty() && poisoned.skipped.is_empty());
+    drop(poisoned);
+    p.jr.close();
+    p.jr = reopen(&p.pr, p.f.local_device());
+    assert_eq!(state(&mut p.jr, &p.session).receive_floor, 8);
+    let honest_id = id(p.session, 1, 1);
+    let honest_wire = p.send(honest_id, b"honest sender after interference");
+    assert!(matches!(
+        p.jr.receive_message(&p.f.responder, p.session, &honest_wire, b"application", 150),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+
+    // Fresh, independently identity-signed control flights are not affected by
+    // this old-chain disclosure. They do not yet install an epoch in the API.
+    let offer =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("honest offer");
+    let response =
+        p.jr.respond_rekey_offer(&p.f.responder, p.session, &offer, &p.f.signer_r, 150)
+            .expect("honest response");
+    let (body, signature) = crate::crypto::open_envelope(&response).expect("envelope");
+    p.f.local_device()
+        .key
+        .verify(crate::crypto::Purpose::RekeyResponse, body, signature)
+        .expect("uncompromised identity signatures");
+    assert_eq!(state(&mut p.jr, &p.session).receive_floor, 8);
+
+    // A deliberately isolated candidate transition: replace ONLY traffic keys,
+    // retaining the current namespace/counters. This is not an installed rekey
+    // API or a proposed repair. Direct AEAD verification shows the packet has a
+    // valid fresh key; normal receive still rejects it at the retired-ID guard.
+    let mut sender = state(&mut p.ji, &p.session);
+    let mut receiver = state(&mut p.jr, &p.session);
+    let mut fresh = ZeroizingBytes::<32>::zeroed();
+    getrandom::fill(fresh.as_mut_bytes()).expect("post-interference entropy");
+    sender.send = key(fresh.as_bytes()).expect("fresh sending chain");
+    receiver.receive = key(fresh.as_bytes()).expect("same fresh receiving chain");
+    let index = sender.sent;
+    let fresh_id = MessageId::for_index(&p.session, 1, index).expect("unchanged namespace");
+    sender.pending = Some(SendPlan {
+        id: fresh_id,
+        plaintext: Zeroizing::new(b"fresh-key packet".to_vec()),
+        ad: b"application".to_vec(),
+    });
+    let wire = sender
+        .send(fresh_id, b"fresh-key packet", b"application")
+        .expect("key-only candidate packet");
+    let (_, message) = step(&fresh, index).expect("direct key schedule");
+    let header = Header::decode(&wire).expect("public header");
+    let mut clear = wire
+        .get(MESSAGE_HEADER..MESSAGE_HEADER + header.length)
+        .expect("ciphertext")
+        .to_vec();
+    let tag = Tag::from(
+        <[u8; 16]>::try_from(
+            wire.get(MESSAGE_HEADER + header.length..)
+                .expect("AEAD tag"),
+        )
+        .expect("tag length"),
+    );
+    ChaCha20Poly1305::new_from_slice(message.as_bytes())
+        .expect("fresh key")
+        .decrypt_inout_detached(
+            &Nonce::from([0; 12]),
+            &associated(wire.get(..MESSAGE_HEADER).expect("header"), b"application"),
+            clear.as_mut_slice().into(),
+            &tag,
+        )
+        .expect("fresh-key packet is cryptographically valid");
+    assert_eq!(clear, b"fresh-key packet");
+    assert!(matches!(
+        receiver.receive(&wire, b"application"),
+        Err(Error::Retired)
+    ));
+    assert_eq!(receiver.receive_floor, 8);
+    eprintln!("OLD_CHAIN_RETENTION_POISON forged=8 honest_sent_before=0 persisted_floor=8 actual_honest_receive=retired signed_rekey_response=valid isolated_fresh_aead=valid key_only_candidate_receive=retired");
+}
+
+#[test]
 fn rekey_response_agrees_with_real_decapsulation_and_replays_without_advancing_traffic() {
     use hmac::{Hmac, Mac};
     use q_periapt_sdk::expert::replay::{RecoveryKey, SealedOperation};

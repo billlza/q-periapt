@@ -14,7 +14,7 @@ progress budget permits another application send. It cannot observe an adversary
 knowledge. A valid confirmation demonstrates possession of a transcript-bound key;
 it does not demonstrate that nobody else holds that key.
 
-Two executed counterexamples make this distinction operational:
+Three executed counterexamples make this distinction operational:
 
 - The [passive state predictor](../../research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md)
   derives an additional epoch from a disclosed pending decapsulation key and later
@@ -23,6 +23,14 @@ Two executed counterexamples make this distinction operational:
   obtains all 1,536 actual sender keys while honest endpoints confirm fresh epochs
   on two attacker-controlled exchanges. More frequent rekeying does not remove
   continuing impersonation by a disclosed session authenticator.
+- The [old-chain retention trace](../../research/continuity-identity-candidate/EPOCH_CUTOVER.md)
+  uses one initial receiving-chain disclosure to forge eight real application
+  frames. Their committed consumption advances the receiver floor to eight while
+  the honest sender is still at zero. Restart preserves that difference. A
+  cryptographically valid fresh-key packet is still rejected by an isolated
+  key-replacement-only transition that retains the original message namespace.
+  The actual candidate's signed offer and response do not yet install an epoch;
+  the trace falsifies that proposed shortcut, not a completed rekey implementation.
 
 These observations do not establish that every unpredicted message is secure.
 They falsify unconditional recovery labels and identify assumptions that must be
@@ -35,6 +43,7 @@ tested in the complete hybrid construction.
 | Current root and traffic-chain state; adversary subsequently only observes | Existing chains remain derivable | A later authenticated exchange must contribute unknown fresh secret material to the keys actually used for subsequent traffic |
 | Pending KEM private key or its recoverable generation reservation | A later public ciphertext can expose the corresponding future epoch | Do not classify that pending exchange as fresh relative to this disclosure; follow all derivable descendants before identifying a later candidate recovery point |
 | Session authenticators plus continued active packet replacement | The active-fork experiment maintains two accepted conversations | State the end of active intervention, or establish transcript binding to separately uncompromised authority; the old root MAC is insufficient |
+| Old traffic chain plus a finite period of authenticated packet injection | Consumption floors, skipped-key state and application-visible records can remain poisoned after intervention stops | Isolate subsequent epoch IDs, receive/consumption accounting and ACK authority; fresh secret material alone cannot repair a shared retired-ID namespace |
 | Device signing authority | Fresh signatures from that key no longer distinguish the honest device | Independently authenticated revocation and replacement generation; no silent session repair or reused journal owner |
 | Account root / independently retained authority | Device replacement issued solely by the compromised root does not restore trust | Explicit authenticated root-replacement procedure and new independent trust configuration |
 | RNG state or a compromised entropy source | Later API calls need not introduce unknown randomness | State when the entropy source becomes trustworthy; counters and wall-clock time cannot supply this evidence |
@@ -101,6 +110,15 @@ delivery, budget exhaustion, revoked peers, expired authority, process loss and
 unknown commit results. The required witness and device-generation rules apply
 to the same transaction as each ratchet transition. A component trace, a journal
 unit test and a formal model each establish different parts of this obligation.
+
+Epoch installation must also be tested after old-key-authenticated traffic has
+advanced the receiver beyond the honest sender's prior count. Such counts are
+observations under potentially disclosed authority, not globally trustworthy
+cutover coordinates. A fresh epoch must not inherit that old retirement floor.
+Retained old plaintext, outboxes and skipped keys remain explicitly accounted for;
+passing this case by silently clearing them or weakening authentication is invalid.
+Old ACK keys must never retire outboxes from a later epoch. See the candidate's
+[cutover obligations](../../research/continuity-identity-candidate/EPOCH_CUTOVER.md).
 
 The [Double Ratchet recovery discussion](https://signal.org/docs/specifications/doubleratchet/#recovery-from-compromise)
 and [ML-KEM Braid vulnerable-message analysis](https://signal.org/docs/specifications/mlkembraid/#the-vulnerable-message-set)

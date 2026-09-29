@@ -149,6 +149,10 @@ installed as the traffic root. Neither role reports epoch 1 as confirmed. Existi
 application chains, counters, skipped keys, outboxes and acknowledgement keys
 retain their current epoch-zero meaning. No caller can import a pending root.
 The final flight and safe traffic/acknowledgement cutover remain required.
+The executed [old-chain state-poisoning trace](EPOCH_CUTOVER.md) rules out replacing
+keys while reusing the original global message/consumption namespace. Epoch
+installation must give new traffic and ACKs separate authority while retaining
+bounded old-epoch delivery and replay state.
 
 The control record uses mutually exclusive phases. Offer phases remain 0–3.
 Response phase 4 retains the exact 4,746-byte offer and 245-byte token; phase 5
@@ -167,7 +171,7 @@ confirmation MAC. The Rust integration test performs actual decapsulation using
 the retained offer key and independently reconstructs the pending-root and MAC
 schedule, while checking that active traffic state is unchanged.
 
-Current local validation passes 136 release tests, strict all-target Clippy and
+Current local validation passes 137 release tests, strict all-target Clippy and
 actual Rust 1.90 all-target checking. Response recovery measures 12 storage sync
 barriers and injects all 24 before/after failures. Five actual process kills cover
 encapsulation reservation/computation, signature reservation/computation and the
