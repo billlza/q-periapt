@@ -4,6 +4,7 @@ use crate::{
     crypto::{digest, envelope, open_envelope, Purpose},
     Error, PublicKey, RootSigningKey, PUBLIC_KEY_BYTES,
 };
+use std::sync::Arc;
 
 /// Maximum active device generations in one candidate roster.
 pub const MAX_DEVICES: usize = 32;
@@ -307,7 +308,32 @@ impl AccountPin {
         }
         credential.description.validity.check(trusted_time)?;
         let certificate = certificate_digest(body);
-        let (body, signature) = open_envelope(roster)?;
+        let verified_roster = self.verify_roster(roster, trusted_time)?;
+        let mut authority = Vec::with_capacity(104);
+        authority.extend_from_slice(&self.account);
+        authority.extend_from_slice(&self.checkpoint.version.to_be_bytes());
+        authority.extend_from_slice(&self.checkpoint.digest);
+        authority.extend_from_slice(&self.family);
+        let device = VerifiedDevice {
+            authority_key: self.root.clone(),
+            account: self.account,
+            description: credential.description,
+            key: credential.key,
+            certificate,
+            checkpoint: self.checkpoint,
+            roster_validity: verified_roster.validity,
+            roster: Arc::new(verified_roster),
+            authority: digest(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", &authority),
+        };
+        device.roster.authorize_device(&device, trusted_time)?;
+        Ok(device)
+    }
+
+    /// Authenticate the complete roster, including an empty revocation roster.
+    /// The exact checkpoint must come from independently trusted configuration.
+    /// This immutable snapshot does not advance a journal's durable authority.
+    pub fn verify_roster(&self, wire: &[u8], trusted_time: u64) -> Result<VerifiedRoster, Error> {
+        let (body, signature) = open_envelope(wire)?;
         self.root.verify(Purpose::Roster, body, signature)?;
         let mut decoder = Decoder::new(body);
         if decoder.array::<8>()? != *ROSTER_TAG {
@@ -320,14 +346,14 @@ impl AccountPin {
         if RosterCheckpoint::from_trusted_state(version, roster_digest(body))? != self.checkpoint {
             return Err(Error::Checkpoint);
         }
-        let roster_validity = Validity::decode(&mut decoder)?;
-        roster_validity.check(trusted_time)?;
+        let validity = Validity::decode(&mut decoder)?;
+        validity.check(trusted_time)?;
         let count = usize::from(decoder.u16()?);
         if count > MAX_DEVICES {
             return Err(Error::Capacity);
         }
+        let mut entries = Vec::with_capacity(count);
         let mut previous = None;
-        let mut matched = false;
         for _ in 0..count {
             let id = decoder.array::<16>()?;
             nonzero(&id)?;
@@ -337,34 +363,79 @@ impl AccountPin {
             previous = Some(id);
             let device_generation = decoder.u64()?;
             generation(device_generation)?;
-            let digest = decoder.array::<32>()?;
-            nonzero(&digest)?;
-            if id == credential.description.id
-                && device_generation == credential.description.generation
-                && digest == certificate
-            {
-                matched = true;
-            }
+            let certificate = decoder.array::<32>()?;
+            nonzero(&certificate)?;
+            entries.push(RosterEntry {
+                account: self.account,
+                id,
+                generation: device_generation,
+                certificate,
+            });
         }
         decoder.finish()?;
-        if !matched {
+        Ok(VerifiedRoster {
+            root: self.root.clone(),
+            account: self.account,
+            checkpoint: self.checkpoint,
+            family: self.family,
+            validity,
+            entries,
+            wire: wire.to_vec(),
+        })
+    }
+}
+
+/// An authenticated complete account roster under an independently pinned head.
+/// A snapshot is not a freshness lease or a durable revocation fence.
+#[derive(Clone)]
+pub struct VerifiedRoster {
+    root: PublicKey,
+    account: [u8; 32],
+    checkpoint: RosterCheckpoint,
+    family: [u8; 32],
+    validity: Validity,
+    entries: Vec<RosterEntry>,
+    wire: Vec<u8>,
+}
+impl VerifiedRoster {
+    /// Account identity authenticated by both root signature components.
+    pub fn account_id(&self) -> [u8; 32] {
+        self.account
+    }
+    /// Exact canonical roster revision and digest.
+    pub fn checkpoint(&self) -> RosterCheckpoint {
+        self.checkpoint
+    }
+    /// Original authenticated public envelope, retained without re-signing.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.wire
+    }
+    /// Recheck an existing device against this exact roster at trusted time.
+    /// A newer roster may retain a credential; missing or replaced generations
+    /// fail. An older or same-version conflicting roster cannot authorize it.
+    pub fn authorize_device(&self, device: &VerifiedDevice, now: u64) -> Result<(), Error> {
+        self.validity.check(now)?;
+        device.description.validity.check(now)?;
+        if self.account != device.account
+            || self.family != device.description.family
+            || self.root.encode() != device.authority_key.encode()
+        {
             return Err(Error::Scope);
         }
-        let mut authority = Vec::with_capacity(104);
-        authority.extend_from_slice(&self.account);
-        authority.extend_from_slice(&self.checkpoint.version.to_be_bytes());
-        authority.extend_from_slice(&self.checkpoint.digest);
-        authority.extend_from_slice(&self.family);
-        Ok(VerifiedDevice {
-            authority_key: self.root.clone(),
-            account: self.account,
-            description: credential.description,
-            key: credential.key,
-            certificate,
-            checkpoint: self.checkpoint,
-            roster_validity,
-            authority: digest(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", &authority),
-        })
+        if self.checkpoint.version < device.checkpoint.version
+            || (self.checkpoint.version == device.checkpoint.version
+                && self.checkpoint.digest != device.checkpoint.digest)
+        {
+            return Err(Error::Checkpoint);
+        }
+        if !self.entries.iter().any(|entry| {
+            entry.id == device.description.id
+                && entry.generation == device.description.generation
+                && entry.certificate == device.certificate
+        }) {
+            return Err(Error::Scope);
+        }
+        Ok(())
     }
 }
 
@@ -380,9 +451,16 @@ pub struct VerifiedDevice {
     pub(crate) certificate: [u8; 32],
     pub(crate) checkpoint: RosterCheckpoint,
     pub(crate) roster_validity: Validity,
+    pub(crate) roster: Arc<VerifiedRoster>,
     authority: [u8; 32],
 }
 impl VerifiedDevice {
+    /// Complete verified roster used for initial admission. Retaining it does
+    /// not observe later account updates; the durable service must advance its head.
+    pub fn roster(&self) -> &VerifiedRoster {
+        &self.roster
+    }
+
     /// Account identifier authenticated under the provisioned root.
     pub fn account_id(&self) -> [u8; 32] {
         self.account

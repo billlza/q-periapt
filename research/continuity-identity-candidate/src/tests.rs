@@ -1039,3 +1039,131 @@ fn malicious_signer_cannot_relabel_a_reusable_public_key_as_one_time_in_selectio
         Error::Scope,
     );
 }
+
+#[test]
+fn complete_roster_updates_reauthorize_only_exact_retained_devices() {
+    let f = fixture();
+    let original = device(&f);
+    let entry = f.root.roster_entry(&f.certificate).expect("entry");
+    let updated = f
+        .root
+        .issue_roster(2, interval(), &[entry])
+        .expect("update");
+    let pin = AccountPin::new(
+        original.account_id(),
+        f.root.public_key().expect("root"),
+        updated.checkpoint(),
+        [6; 32],
+    )
+    .expect("updated pin");
+    let roster = pin
+        .verify_roster(updated.as_bytes(), 150)
+        .expect("whole roster");
+    assert_eq!(roster.account_id(), original.account_id());
+    assert_eq!(roster.checkpoint(), updated.checkpoint());
+    assert_eq!(roster.as_bytes(), updated.as_bytes());
+    roster
+        .authorize_device(&original, 150)
+        .expect("retained credential");
+    let current = pin
+        .verify_device(&f.certificate, updated.as_bytes(), 150)
+        .expect("current");
+    fail(
+        original.roster().authorize_device(&current, 150),
+        Error::Checkpoint,
+    );
+    fail(roster.authorize_device(&original, 200), Error::Validity);
+
+    let removed = f.root.issue_roster(3, interval(), &[]).expect("revoke all");
+    let pin = AccountPin::new(
+        original.account_id(),
+        f.root.public_key().expect("root"),
+        removed.checkpoint(),
+        [6; 32],
+    )
+    .expect("revocation pin");
+    let roster = pin
+        .verify_roster(removed.as_bytes(), 150)
+        .expect("empty roster is authenticated");
+    fail(roster.authorize_device(&original, 150), Error::Scope);
+    fail(roster.authorize_device(&current, 150), Error::Scope);
+    fail(
+        pin.verify_device(&f.certificate, removed.as_bytes(), 150),
+        Error::Scope,
+    );
+}
+
+#[test]
+fn complete_roster_rejects_forks_replacements_and_each_forged_signature() {
+    let f = fixture();
+    let original = device(&f);
+    let fork = f
+        .root
+        .issue_roster(1, interval(), &[])
+        .expect("signed fork");
+    let fork_pin = AccountPin::new(
+        original.account_id(),
+        f.root.public_key().expect("root"),
+        fork.checkpoint(),
+        [6; 32],
+    )
+    .expect("fork pin");
+    let roster = fork_pin
+        .verify_roster(fork.as_bytes(), 150)
+        .expect("independent fork expectation");
+    fail(roster.authorize_device(&original, 150), Error::Checkpoint);
+    fail(f.pin.verify_roster(fork.as_bytes(), 150), Error::Checkpoint);
+
+    let replacement = DeviceSigningKey::deterministic([23; 32], [24; 32]).expect("replacement");
+    let certificate = f
+        .root
+        .issue_device(
+            DeviceDescription::new([5; 16], 2, [6; 32], interval()).expect("generation"),
+            replacement.public_key().expect("public"),
+        )
+        .expect("replacement certificate");
+    let updated = f
+        .root
+        .issue_roster(
+            2,
+            interval(),
+            &[f.root.roster_entry(&certificate).expect("entry")],
+        )
+        .expect("replacement roster");
+    let pin = AccountPin::new(
+        original.account_id(),
+        f.root.public_key().expect("root"),
+        updated.checkpoint(),
+        [6; 32],
+    )
+    .expect("replacement pin");
+    let roster = pin.verify_roster(updated.as_bytes(), 150).expect("roster");
+    fail(roster.authorize_device(&original, 150), Error::Scope);
+    let current = pin
+        .verify_device(&certificate, updated.as_bytes(), 150)
+        .expect("new device");
+    roster
+        .authorize_device(&current, 150)
+        .expect("exact new generation");
+
+    let (body, signature) = open_envelope(updated.as_bytes()).expect("envelope");
+    for offset in [0, ML_DSA_65_SIG_LEN + 63] {
+        let mut forged = signature.to_vec();
+        *forged.get_mut(offset).expect("signature byte") ^= 1;
+        fail(
+            pin.verify_roster(&envelope(body, &forged).expect("encoded"), 150),
+            Error::Authentication,
+        );
+    }
+    let wrong_purpose = envelope(
+        body,
+        &f.root
+            .sign(Purpose::Credential, body)
+            .expect("wrong purpose"),
+    )
+    .expect("encoded");
+    fail(
+        pin.verify_roster(&wrong_purpose, 150),
+        Error::Authentication,
+    );
+}

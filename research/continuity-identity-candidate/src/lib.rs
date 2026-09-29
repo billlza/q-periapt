@@ -39,7 +39,7 @@ pub use durable::{
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,
-    VerifiedDevice, MAX_DEVICES,
+    VerifiedDevice, VerifiedRoster, MAX_DEVICES,
 };
 pub use manifest::{
     AuthenticatedLeaf, IssuedManifest, LeafKind, LeafProof, ManifestContext, PrekeyLeaf,
