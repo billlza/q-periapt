@@ -4258,6 +4258,11 @@ tool=${0##*/}
 printf '%s %s\n' "$tool" "$*" >>"$QPERIAPT_TEST_CALLS"
 printf 'native fixture %s\n' "$*"
 case "$tool" in
+    cat)
+        case "$1" in
+            /proc/vmstat) exit "$QPERIAPT_TEST_VMSTAT_STATUS" ;;
+            /proc/zoneinfo) exit "$QPERIAPT_TEST_ZONEINFO_STATUS" ;;
+        esac ;;
     df) exit "$QPERIAPT_TEST_DF_STATUS" ;;
     ps) exit "$QPERIAPT_TEST_PS_STATUS" ;;
 esac
@@ -4268,21 +4273,30 @@ esac
             path.chmod(0o700)
         argv = commands._emulator_state_argv(self.load_capability())
         program = " ".join(argv[argv.index("shell") + 1:])
-        for df_status, ps_status, expected in ((0, 0, 0), (7, 9, 7)):
+        for vmstat_status, zoneinfo_status, df_status, ps_status, expected in (
+            (0, 0, 0, 0, 0), (0, 0, 7, 9, 7),
+            (13, 5, 7, 9, 13), (0, 5, 7, 9, 5),
+        ):
             calls.write_text("")
             result = self.run_guest_fixture(
                 ["/bin/sh", "-c", program],
                 {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                     "QPERIAPT_TEST_VMSTAT_STATUS": str(vmstat_status),
+                     "QPERIAPT_TEST_ZONEINFO_STATUS": str(zoneinfo_status),
                      "QPERIAPT_TEST_DF_STATUS": str(df_status), "QPERIAPT_TEST_PS_STATUS": str(ps_status)},
             )
             self.assertEqual(result.returncode, expected, result.stderr)
             status, payload = commands._parse_guest_completion(result.stdout, self.run_id, "emulator-state")
             self.assertEqual(status, expected)
-            self.assertEqual(payload.count(b"QPERIAPT_STATE_STATUS:"), 11)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:memory-vmstat:{vmstat_status}".encode(), payload)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:memory-zones:{zoneinfo_status}".encode(), payload)
+            self.assertEqual(payload.count(b"QPERIAPT_STATE_STATUS:"), 13)
+            self.assertTrue(payload.startswith(b"QPERIAPT_EMULATOR_STATE_VERSION=2\n"))
             self.assertIn(f"QPERIAPT_STATE_STATUS:data-space:{df_status}".encode(), payload)
             self.assertIn(f"QPERIAPT_STATE_STATUS:processes:{ps_status}".encode(), payload)
             self.assertEqual(calls.read_text().splitlines(), [
                 "cat /proc/sys/kernel/random/boot_id", "cat /proc/uptime", "cat /proc/meminfo",
+                "cat /proc/vmstat", "cat /proc/zoneinfo",
                 "df /data", "cat /proc/mounts", "getprop ro.crypto.state", "getprop vold.decrypt",
                 "getprop ro.zygote", "getprop init.svc.zygote",
                 "getprop init.svc.zygote_secondary", "ps ",

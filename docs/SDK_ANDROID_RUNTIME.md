@@ -142,6 +142,19 @@ Read these snapshots together with the runtime result and system log when
 distinguishing kernel reboot, framework restart and resource pressure. CI keeps
 the baseline on successful runs as well as the available failure diagnostics.
 
+State format version 2 additionally retains the original `/proc/vmstat` counters
+and `/proc/zoneinfo` per-zone free/reserve/watermark data. This fills a gap exposed
+by retained 16-KiB failures: `MemAvailable` snapshots alone cannot explain the
+reported lowmemorykiller watermark decisions or distinguish them from transport
+loss. Keep kernel-reported page units and the independently checked runtime page
+size; do not assume 4-KiB pages or label these point samples as peak memory.
+The fixed native reads also run on the API 23 emulator lane. All 13 probe statuses
+remain explicit, and the first failed read remains the guest completion status.
+The same 15-second baseline/failure, five-second recovery and 64-KiB output bounds
+apply. There is no additional retry, RAM change, routing change, or relaxed
+package/cleanup acceptance. These fields support diagnosis; they do not themselves
+prove a memory or ADB defect was repaired.
+
 Failure diagnostics also attempt `emulator-app-exit-info.txt` for the fixed
 `dev.qperiapt.androidsmoke` package, before cleanup after an instrumentation
 failure. The read-only `dumpsys activity exit-info` query uses Android's recorded

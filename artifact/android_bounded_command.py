@@ -604,6 +604,11 @@ def _emulator_state_argv(
         ("boot-id", ("cat", "/proc/sys/kernel/random/boot_id")),
         ("uptime", ("cat", "/proc/uptime")),
         ("memory", ("cat", "/proc/meminfo")),
+        # MemAvailable alone does not describe per-zone watermarks or reclaim
+        # pressure. Preserve the kernel's original counters and page units;
+        # these snapshots are diagnostics, not peak-memory measurements.
+        ("memory-vmstat", ("cat", "/proc/vmstat")),
+        ("memory-zones", ("cat", "/proc/zoneinfo")),
         ("data-space", ("df", "/data")),
         ("data-mounts", ("cat", "/proc/mounts")),
         ("crypto-state", ("getprop", "ro.crypto.state")),
@@ -623,7 +628,7 @@ def _emulator_state_argv(
         '"$qperiapt_probe_name" "$qperiapt_probe_status"; '
         'if [ "$qperiapt_state_status" -eq 0 ]; then '
         'qperiapt_state_status=$qperiapt_probe_status; fi; }; '
-        "printf 'QPERIAPT_EMULATOR_STATE_VERSION=1\\n'; "
+        "printf 'QPERIAPT_EMULATOR_STATE_VERSION=2\\n'; "
     )
     program += "; ".join(shlex.join(("qperiapt_state_probe", label, *argv)) for label, argv in probes)
     program += (

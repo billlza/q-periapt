@@ -77,6 +77,19 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Android emulator state format v2 adds raw `/proc/vmstat` and `/proc/zoneinfo` to
+the existing before-install, failure and one-shot-recovery captures. The retained
+16-KiB failures have `MemAvailable` snapshots and watermark-kill messages but lack
+the kernel free/reserve/watermark and reclaim counters needed to assess that
+relationship. All 13 native probe statuses remain visible and the first failed
+read remains the completion status. Timeouts, 64-KiB output bounds, RAM, routing,
+retry allowances and package/cleanup acceptance are unchanged. The precise old
+producer fails the new-field assertion; the corrected producer passes all 184
+command tests and 198 related runtime-state/device-proof/SDK-runtime tests with
+warnings treated as errors. These are local collector contracts. Actual runtime
+snapshots and package execution retain their own source/host scope; this addition
+does not establish an OOM or ADB repair.
+
 The native [installation recovery entry](../research/continuity-identity-candidate/INSTALLATION.md#recovery-after-operational-authority-expires)
 now reaches existing session cleanup after live policy/credential admission is
 unavailable. `InstallationRecovery` admits original Active configuration, exact
