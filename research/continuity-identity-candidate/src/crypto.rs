@@ -20,8 +20,8 @@ const CLASSIC_SIGNATURE_BYTES: usize = 64;
 /// Exact ML-DSA-65 public key followed by a compressed SEC1 P-256 public key.
 pub const PUBLIC_KEY_BYTES: usize = ML_DSA_65_VK_LEN + CLASSIC_PUBLIC_BYTES;
 pub(crate) const SIGNATURE_BYTES: usize = ML_DSA_65_SIG_LEN + CLASSIC_SIGNATURE_BYTES;
-pub(crate) const MAX_SIGNED_BODY_BYTES: usize = 16 * 1024;
-const SIGNATURE_CONTEXT: &[u8] = b"Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1";
+pub(crate) use crate::contract::MAX_SIGNED_BODY_BYTES;
+use crate::contract::SIGNATURE_CONTEXT;
 
 #[derive(Clone, Copy)]
 pub(crate) enum Purpose {

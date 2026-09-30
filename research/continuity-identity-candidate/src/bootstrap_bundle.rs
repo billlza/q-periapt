@@ -9,7 +9,7 @@ use std::sync::Arc;
 mod codec;
 
 /// Maximum complete public bootstrap bundle, including all length prefixes.
-pub const MAX_BOOTSTRAP_BUNDLE_BYTES: usize = 65_536;
+pub use crate::contract::MAX_BOOTSTRAP_BUNDLE_BYTES;
 
 /// An exact intended device under an independently retained account pin.
 #[derive(Clone, Copy)]

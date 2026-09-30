@@ -15,7 +15,7 @@ mod socket;
 use socket::Channel;
 
 const MAGIC: &[u8; 8] = b"QPCCTL01";
-const MAX_CONTROL: usize = 8192;
+use crate::contract::MAX_CONTROL_BYTES as MAX_CONTROL;
 
 /// Result established by local authenticated journal state, not an independently
 /// authenticated acknowledgement of peer receipt or a secrecy-recovery proof.

@@ -96,7 +96,7 @@ the existing public-commitment model into a working cryptographic protocol.
   now derives the complete recipient set from the installed signed roster. One
   device journal reserves all required inputs and commits all pairwise chain/outbox
   changes before releasing any member. A required witness covers that same whole
-  image. Its current v20 format preserves batch ownership and monotonic IDs across crashes;
+  image. Its current v21 format preserves batch ownership and monotonic IDs across crashes;
   per-recipient ACK and unknown-delivery accounting remain distinct. This does not
   provide atomic remote application execution or a distributed transaction among
   independently owned sending-device journals.
@@ -197,6 +197,14 @@ language adapters. Same-run Linux CI and the remaining platform gates require
 their own completed results.
 
 ## Required completion evidence
+
+The current candidate's consolidated [wire grammar](WIRE_V1.md) and
+[numeric budgets](BUDGETS_V1.json) now have a shared implementation surface and
+a compiled-descriptor comparison. They distinguish import/network/local formats,
+signature purposes, epoch-zero versus positive-epoch ACKs, carrier limits and
+independent trust inputs. This does not close the remaining state/storage/privacy
+specifications, product budget choice, construction analysis or final specification
+lock. Adapter work must preserve the actual signed policy and owner semantics.
 
 | Capability | Implementation obligation | Evidence required before completion |
 | --- | --- | --- |

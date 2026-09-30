@@ -5,6 +5,13 @@ shared engine and exercises the public connection/recovery trace through exact
 crate archives outside the checkout. It retains the unpublished candidate boundary;
 foreign bindings and the product protocol freeze remain separate release work.
 
+The consolidated [wire contract](../../docs/continuity/WIRE_V1.md) covers the exact
+current public record/carrier grammars, domains and verification boundaries.
+`contract` exposes the resource constants consumed by the real codecs and journal;
+the compiled `contract_report` example is checked against
+[BUDGETS_V1.json](../../docs/continuity/BUDGETS_V1.json). This metadata is not an
+authorization object or a claim that the product protocol is frozen.
+
 This unpublished, isolated implementation exercises the accountable identity
 chain proposed for [Continuity in 0.2.0](../../docs/continuity/RELEASE_0_2_SCOPE.md).
 An independently pinned account root verifies a device credential and an exact

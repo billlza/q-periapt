@@ -72,12 +72,51 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 234 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 236 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The installed Continuity Rust candidate now consumes a Cargo-produced 0.0.0 archive
+The Continuity [wire grammar](continuity/WIRE_V1.md) and
+[resource descriptor](continuity/BUDGETS_V1.json) now describe the implemented
+candidate profile. The codecs, journal and native carriers consume shared Rust
+constants; CI executes a compiled descriptor and compares every limit and the
+independently recomputed rekey-profile commitment with the reviewed JSON. These
+documents explicitly retain an unfrozen product contract and do not authorize
+foreign bindings to bypass the existing verifiers or durable owners.
+
+That inventory exposed an actual quota defect: image validation counted account
+rosters against the prekey limit, although generation and sealing use separate
+quotas. The public-API regression fails on the old predicate and passes after
+counting records by kind. It generates/retires 1,023 actual keys, admits a peer
+roster and the 1,024th prekey, rejects the 1,025th, then commits local revocation
+and verifies it after reopening. Quotas, tombstones and journal formats remain
+unchanged. Both full Debug and Release suites pass 281 unit tests and two public
+integration tests without failures or ignored tests. The capacity regression
+also passes on Rust 1.90; strict all-target Clippy passes on 1.90 and 1.98.1.
+Independent OpenSSL checks cover 20 identity/control envelopes and 12 witness
+envelopes from fresh public vectors, retaining their finite oracle scope.
+
+The updated installed macOS candidate archive has SHA-256
+`5e41e4ffe057ddc9521aef8f77b5cea6c8755a433e09bdbc9c493d01d9de10a0`.
+Outside-checkout Debug/Release consumers both execute a network rekey, reconcile
+unknown delivery, verify application readback and clean up after durable
+revocation. Input sources remain unchanged throughout execution. This qualifies
+the installed same-host Rust path; it does not execute a foreign Continuity API
+or close protocol freeze, lifecycle, security or performance obligations.
+
+At `41da8962`, push CI run `36706327650` passes all 43 jobs and CodeQL run
+`36706338664` passes all six jobs. Both push and PR installed Linux consumers
+complete Debug/Release on x86_64 with the earlier byte-identical candidate archive
+`7681ac4b8adc0040705ad1cfbfa444e98589bb06a2668901513f76355f0b76ad`.
+The PR source is synthetic merge `9f40d4a1dc9515d3e504ef56acb55922841a0833`.
+These receipts precede the quota correction and do not qualify that later source.
+The PR's Android 16-KiB job fails during APK installation, before SDK execution;
+its retained system-service restart and kernel/user page-unit observations are
+recorded in [Android runtime evidence](SDK_ANDROID_RUNTIME.md). A passing push
+does not close that failure.
+
+The earlier installed Continuity Rust candidate consumes a Cargo-produced 0.0.0 archive
 and nine 0.2.0 SDK archives outside the checkout. The macOS arm64 qualification
 completes both Debug and Release public connection traces, independent application
 and cleanup readback, strict Clippy, and post-execution source/lock/binary identity
@@ -90,11 +129,11 @@ a rejected Release run whose compiler helper could not find `libLLVM.dylib`.
 Explicit compiler-private library lookup fixes that launch environment; application
 test processes run without loader overrides. No warning is suppressed.
 
-The exact candidate engine, public workload and lock bytes are unchanged from
+At that earlier checkpoint the candidate engine, public workload and lock bytes are unchanged from
 `91554a16`; this is an installed Rust boundary, not another protocol implementation.
 The candidate remains `publish = false`, and the twelve-crate SDK publication
-topology and ABI 2 remain unchanged. The new `continuity-installed-rust` CI lane
-must execute the same run's SDK packages on Linux. Foreign Continuity adapters,
+topology and ABI 2 remain unchanged. The `continuity-installed-rust` CI lane
+executes the same run's SDK packages on Linux. Foreign Continuity adapters,
 independent/cross-host interoperability, protocol freeze, lifecycle/security and
 performance obligations remain open within 0.2.0. Local actionlint 1.7.12 retains
 the identical pre-existing unknown `ubuntu-26.04` label diagnostic; the added job

@@ -146,14 +146,29 @@ State format version 2 additionally retains the original `/proc/vmstat` counters
 and `/proc/zoneinfo` per-zone free/reserve/watermark data. This fills a gap exposed
 by retained 16-KiB failures: `MemAvailable` snapshots alone cannot explain the
 reported lowmemorykiller watermark decisions or distinguish them from transport
-loss. Keep kernel-reported page units and the independently checked runtime page
-size; do not assume 4-KiB pages or label these point samples as peak memory.
+loss. Keep kernel counter units and the independently checked runtime page size
+separate. The [AOSP 16-KiB configuration](https://source.android.com/docs/core/architecture/16kb-page-size/16kb)
+distinguishes x86_64 userspace simulation from an arm64 16-KiB kernel. Do not
+multiply vmstat/zoneinfo counters by the application page size without validating
+their units, or label these point samples as peak memory.
 The fixed native reads also run on the API 23 emulator lane. All 13 probe statuses
 remain explicit, and the first failed read remains the guest completion status.
 The same 15-second baseline/failure, five-second recovery and 64-KiB output bounds
 apply. There is no additional retry, RAM change, routing change, or relaxed
 package/cleanup acceptance. These fields support diagnosis; they do not themselves
 prove a memory or ADB defect was repaired.
+
+At `41da8962`, [PR run 36706338677](https://github.com/billlza/q-periapt/actions/runs/36706338677/job/109864412248)
+fails during APK installation with Package Manager `Broken pipe (32)`, before SDK
+instrumentation. Its log records lowmemorykiller activity, a networkstack SIGSEGV
+and termination/restart of system_server. Both v2 captures complete all 13 probes
+within 64 KiB and retain the same kernel boot ID. `MemTotal = 2,532,416 KiB` and
+the sum of managed zone counters `633,104` imply 4,096-byte counter units, while
+the separately observed application page size is 16,384 bytes. This does not
+establish which conversion the running lmkd used. `oom_kill` remains zero; this
+does not rule out userspace low-memory kills. Cleanup verifies the owned APK,
+uninstalls it and confirms absence, but the runtime result remains failed.
+The matching push run passes; the intermittent failure remains unresolved.
 
 Failure diagnostics also attempt `emulator-app-exit-info.txt` for the fixed
 `dev.qperiapt.androidsmoke` package, before cleanup after an instrumentation

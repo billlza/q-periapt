@@ -49,11 +49,12 @@ pub struct RunLimits {
 }
 impl RunLimits {
     pub(crate) fn deadline(self) -> Result<Instant, Error> {
-        if !(1..=128).contains(&self.exchanges)
+        if !(1..=crate::contract::MAX_NETWORK_EXCHANGES).contains(&self.exchanges)
             || self.timeout.is_zero()
-            || self.timeout > Duration::from_secs(120)
+            || self.timeout > Duration::from_secs(crate::contract::MAX_RUN_TIMEOUT_SECONDS)
             || self.connect_timeout.is_zero()
-            || self.connect_timeout > Duration::from_secs(5)
+            || self.connect_timeout
+                > Duration::from_secs(crate::contract::MAX_CONNECT_TIMEOUT_SECONDS)
         {
             return Err(Error::InvalidOptions);
         }

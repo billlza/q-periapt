@@ -1868,6 +1868,10 @@ jobs:
           mkdir -p target
           candidate_openssl="$(brew --prefix openssl@3)/bin/openssl"
           test -x "$candidate_openssl"
+          cargo +1.98.1 build --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --all-features --example contract_report
+          sh artifact/python-run.sh artifact/continuity_contract.py \
+            --consumer "$CARGO_TARGET_DIR/debug/examples/contract_report" \
+            --output target/continuity-wire-contract
           cargo +1.98.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-anchor --with-rekey
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py \
             --fixtures target/continuity-public-vectors --output target/continuity-public-verification \
@@ -1888,6 +1892,7 @@ jobs:
             target/continuity-public-verification
             target/continuity-anchor-verification
             target/continuity-bootstrap-bundle-verification
+            target/continuity-wire-contract
           if-no-files-found: error
           retention-days: 14
 

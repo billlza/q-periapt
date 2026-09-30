@@ -13,6 +13,7 @@ mod bootstrap_bundle;
 mod codec;
 #[cfg(feature = "connection-tls")]
 pub mod connection_transport;
+pub mod contract;
 #[cfg(feature = "control-tls")]
 pub mod control_transport;
 mod crypto;

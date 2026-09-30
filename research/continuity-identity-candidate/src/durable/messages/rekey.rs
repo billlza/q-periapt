@@ -18,7 +18,7 @@ pub use response::RekeyResponseStatus;
 
 const TAG: &[u8; 8] = b"QPRKOF01";
 const CONTROL_TAG: &[u8; 8] = b"QPRKST03";
-const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/";
+use crate::contract::REKEY_DOMAIN as DOMAIN;
 const KEY_TOKEN_LEN: usize = 277;
 const BODY_LEN: usize = 8 + 32 + 32 + 32 + 8 + 8 + 1 + 32 + PUBLIC_KEY_LEN;
 const WIRE_LEN: usize = 4 + BODY_LEN + SIGNATURE_BYTES;
@@ -27,10 +27,7 @@ fn hash(label: &[u8], data: &[u8]) -> [u8; 32] {
     digest(&[DOMAIN, label].concat(), data)
 }
 fn profile() -> [u8; 32] {
-    hash(
-        b"offer-profile",
-        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1",
-    )
+    crate::contract::rekey_profile_digest()
 }
 fn genesis(session: &[u8; 32], context: &[u8; 32]) -> [u8; 32] {
     hash(

@@ -2,7 +2,7 @@
 use super::*;
 use crate::codec::Decoder;
 const TAG: &[u8; 8] = b"QPBNDL01";
-const MAX_PART: usize = 8192;
+use crate::contract::MAX_BOOTSTRAP_FIELD_BYTES as MAX_PART;
 
 fn modes(quality: PrekeyQuality) -> (bool, bool) {
     match quality {

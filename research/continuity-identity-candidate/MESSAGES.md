@@ -94,10 +94,11 @@ no construction-specific recovery result from it.
 
 ## Storage, bounds and remaining work
 
-Journal schema v18 rejects schemas v1–v17 without reset. The outer table/header and
-inner image are `continuity_device_candidate_v19`, `QPVLT019`, `QPVIMG19`.
+The current journal schema v21 rejects earlier images without reset or implicit
+migration. The outer table/header and inner image are
+`continuity_device_candidate_v21`, `QPVLT021`, `QPVIMG21`.
 Bootstrap phase 19 means its root was transferred; message records use kind 4,
-phase 19 and `QPMST010`. Image admission enforces a one-to-one link with the
+phase 19 and `QPMST011`. Image admission enforces a one-to-one link with the
 matching bootstrap role, context, retained account references and session transcript, zero retired bootstrap
 root, canonical sorted records, and disjoint consumed/skipped receive indices.
 A restored root cannot coexist with a valid linked message state.
@@ -109,13 +110,15 @@ wire format and per-session ACK semantics.
 Candidate resource bounds are 16 KiB plaintext, 1 KiB application associated data,
 128 skipped receive keys and 64 outstanding records per direction **per retained
 epoch**. The current candidate retains at most four traffic epochs, retiring a
-settled prefix only through the signed v4 rekey contract; the existing 2 MiB
+settled prefix only through the signed v6 rekey contract; the existing 2 MiB
 aggregate limit remains enforced. Capacity exhaustion does not discard pending
 application records or reset a session.
 [Consumption acknowledgements](RETENTION.md) retire contiguous consumed ranges
 without resetting counters or allowing old request IDs to become new work. The
-existing aggregate journal limit is 2 MiB/128 session-operation records; each activated
-pairwise session uses its bootstrap and message records. Capacity exhaustion is
+aggregate image limit is 2 MiB, with separate limits of 128 session-operation
+records, 1024 prekey records and 64 account-roster records. Each activated
+pairwise session uses its bootstrap and message records. Prekey tombstones retain
+their slots; rosters do not consume prekey slots. Capacity exhaustion is
 explicit. Application consumption and peer acknowledgements are committed
 explicitly; there is no timeout-based dropping, silent gap skipping or chain reset. Root transfer and receive each use one
 journal persist (four storage sync boundaries); a new send uses two (eight).
@@ -126,7 +129,8 @@ across restart. Tests exercise repeated alternating rekeys, bounded history and
 recovery from the specific old-chain retention-poisoning trace. They are not a
 completed security argument. Explicit [closed-epoch resolution](EPOCH_RESOLUTION.md)
 now records application-acknowledged unknown outcomes while preserving the old
-ACK floor. An authenticated progress budget/control scheduler, full device lifecycle, multi-device
-fanout and product/binding integration remain required work. Logical root/key removal does not erase old encrypted database
+ACK floor. The signed send budget, explicit control path and atomic account fanout
+are implemented; product scheduling/budget selection, complete device lifecycle
+and foreign binding integration remain required. Logical root/key removal does not erase old encrypted database
 pages, write intents, snapshots or backups. The witness profile detects local
 rollback only while its separately protected authority remains current.

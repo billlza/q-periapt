@@ -123,8 +123,8 @@ decryption of post-confirmation application frames after restart.
 
 ## Stored state and retained authority
 
-Journal v19 uses `continuity_device_candidate_v19`, `QPVLT019` and `QPVIMG19`, and
-rejects earlier candidate journals unchanged. `QPMST010` stores common session
+The current journal v21 uses `continuity_device_candidate_v21`, `QPVLT021` and
+`QPVIMG21`, and rejects earlier images without an implicit migration. `QPMST011` stores common session
 identity/rekey state, current send/receive epoch IDs, bounded length-delimited
 `QPTEPO04` traffic records and the `QPRKST03` control record. Each traffic record
 owns its independent counters, chains, ACK keys, receipts and pending input;

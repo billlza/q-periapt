@@ -10,7 +10,7 @@ use q_periapt_sdk::{
 };
 use zeroize::Zeroize;
 
-pub(super) const MAX_PREKEY_RECORDS: usize = 1024;
+pub(super) use crate::contract::MAX_PREKEY_RECORDS;
 
 #[cfg(all(test, unix))]
 pub(in crate::durable) mod tests;
@@ -315,13 +315,7 @@ impl DeviceJournal {
             }
             entry
         } else {
-            if image
-                .records
-                .values()
-                .filter(|r| r.kind == RecordKind::Prekey)
-                .count()
-                >= MAX_PREKEY_RECORDS
-            {
+            if image.record_count(RecordKind::Prekey) >= MAX_PREKEY_RECORDS {
                 return Err(DurableError::Capacity);
             }
             let mut entry = Entry {
@@ -634,7 +628,7 @@ pub(super) fn consume(image: &mut Image, operation: &[u8; 32]) -> Result<(), Dur
 
 pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
     if image.operation_count() > MAX_RECORDS
-        || image.records.len() - image.operation_count() > MAX_PREKEY_RECORDS
+        || image.record_count(RecordKind::Prekey) > MAX_PREKEY_RECORDS
     {
         return Err(DurableError::Capacity);
     }

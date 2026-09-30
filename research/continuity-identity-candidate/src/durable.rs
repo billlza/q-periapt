@@ -28,8 +28,9 @@ use std::{
 use zeroize::Zeroizing;
 
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v21");
-const MAX_RECORDS: usize = 128;
-const MAX_IMAGE: usize = 2 * 1024 * 1024;
+use crate::contract::{
+    MAX_JOURNAL_IMAGE_BYTES as MAX_IMAGE, MAX_SESSION_OPERATION_RECORDS as MAX_RECORDS,
+};
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
 const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
@@ -490,6 +491,12 @@ struct Image {
     records: BTreeMap<[u8; 32], Record>,
 }
 impl Image {
+    fn record_count(&self, kind: RecordKind) -> usize {
+        self.records
+            .values()
+            .filter(|record| record.kind == kind)
+            .count()
+    }
     fn operation_count(&self) -> usize {
         self.records
             .values()
@@ -903,18 +910,8 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
         plaintext.extend_from_slice(&record.payload);
     }
     if image.operation_count() > MAX_RECORDS
-        || image
-            .records
-            .values()
-            .filter(|r| r.kind == RecordKind::Prekey)
-            .count()
-            > prekeys::MAX_PREKEY_RECORDS
-        || image
-            .records
-            .values()
-            .filter(|r| r.kind == RecordKind::Roster)
-            .count()
-            > rosters::MAX_ROSTERS
+        || image.record_count(RecordKind::Prekey) > prekeys::MAX_PREKEY_RECORDS
+        || image.record_count(RecordKind::Roster) > rosters::MAX_ROSTERS
         || plaintext.len() > MAX_IMAGE
     {
         return Err(DurableError::Capacity);

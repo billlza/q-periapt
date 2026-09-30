@@ -3,12 +3,12 @@
 use super::*;
 use crate::{RosterCheckpoint, VerifiedRoster};
 
-pub(super) const MAX_ROSTERS: usize = 64;
+pub(super) use crate::contract::MAX_ACCOUNT_ROSTER_RECORDS as MAX_ROSTERS;
 
 fn id(account: &[u8; 32]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-JOURNAL-ROSTER/v1", account)
 }
-const MAX_DEVICE_HISTORY: usize = 256;
+use crate::contract::MAX_DEVICE_HISTORY_PER_ACCOUNT as MAX_DEVICE_HISTORY;
 
 #[cfg(all(test, unix))]
 pub(crate) mod tests;

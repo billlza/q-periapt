@@ -38,15 +38,15 @@ pub use rekey::{
     RekeyRequestStatus, RekeyResponseStatus,
 };
 
-const MAX_PLAINTEXT: usize = 16 * 1024;
-const MAX_AD: usize = 1024;
-const MAX_SKIPPED: usize = 128;
-const MAX_RECEIPTS: usize = 64;
+use crate::contract::{
+    MAX_ASSOCIATED_DATA_BYTES as MAX_AD, MAX_OUTSTANDING_MESSAGES as MAX_RECEIPTS,
+    MAX_PLAINTEXT_BYTES as MAX_PLAINTEXT, MAX_SKIPPED_MESSAGE_KEYS as MAX_SKIPPED,
+    MAX_TRAFFIC_EPOCHS,
+};
 const MESSAGE_HEADER: usize = 8 + 32 + 1 + 8 + 8 + 32 + 4;
 const MESSAGE_TAG: &[u8; 8] = b"QPCMSG03";
-const MAX_TRAFFIC_EPOCHS: usize = 4;
 const STATE_TAG: &[u8; 8] = b"QPMST011";
-const DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/";
+use crate::contract::MESSAGE_DOMAIN as DOMAIN;
 
 fn first_retained_epoch(newest: u64) -> u64 {
     newest.saturating_sub((MAX_TRAFFIC_EPOCHS - 1) as u64)

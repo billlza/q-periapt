@@ -76,6 +76,113 @@ pub(in crate::durable) fn inventory_at(
 }
 
 #[test]
+fn full_prekey_inventory_keeps_roster_admission_and_revocation_available() {
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let folder = directory();
+    let path = folder.path().canonicalize().expect("private path");
+    let (policy, device, _) = f.responder.inventory_inputs();
+    let mut store = new_store(&path, device);
+    let request = |index: usize| {
+        let mut bytes = [0; 32];
+        bytes
+            .get_mut(24..)
+            .expect("counter bytes")
+            .copy_from_slice(&u64::try_from(index).expect("bounded counter").to_be_bytes());
+        PrekeyId::from_trusted_state(bytes).expect("nonzero request")
+    };
+    // Actual owned generation and retirement leave bounded public tombstones.
+    // They fit inside the image limit and still count as prekey records.
+    for index in 1..MAX_PREKEY_RECORDS {
+        let id = request(index);
+        store
+            .generate_prekey(
+                policy,
+                device,
+                id,
+                LeafKind::SignedClassical,
+                interval(),
+                150,
+            )
+            .expect("generate within prekey capacity");
+        assert_eq!(
+            store.retire_prekey(policy, device, id).expect("retire"),
+            PrekeyStatus::Retired
+        );
+    }
+    store
+        .install_roster(f.initiator_device().roster(), 150)
+        .expect("a peer roster must not consume a prekey slot");
+    let last = request(MAX_PREKEY_RECORDS);
+    store
+        .generate_prekey(
+            policy,
+            device,
+            last,
+            LeafKind::SignedClassical,
+            interval(),
+            150,
+        )
+        .expect("the last prekey slot remains available");
+    store.close();
+    store = reopen(&path, device);
+    assert_eq!(
+        store
+            .prekey_status(policy, device, last)
+            .expect("last saved key"),
+        PrekeyStatus::Available
+    );
+    assert!(matches!(
+        store.generate_prekey(
+            policy,
+            device,
+            request(MAX_PREKEY_RECORDS + 1),
+            LeafKind::SignedClassical,
+            interval(),
+            150,
+        ),
+        Err(DurableError::Capacity)
+    ));
+    // Genuine exhaustion is refused before persistence and leaves the owner usable.
+    assert_eq!(
+        store
+            .prekey_status(policy, device, last)
+            .expect("still open"),
+        PrekeyStatus::Available
+    );
+    let revoked = rosters::tests::update(device, 94, 2, false);
+    store
+        .install_roster(&revoked, 150)
+        .expect("revocation at capacity");
+    store.close();
+    store = reopen(&path, device);
+    assert_eq!(
+        store
+            .roster_checkpoint(device.account_id())
+            .expect("durable head"),
+        revoked.checkpoint()
+    );
+    assert!(matches!(
+        store.prekey_leaf(policy, device, last, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert_eq!(
+        store.retire_prekey(policy, device, last).expect("cleanup"),
+        PrekeyStatus::Retired
+    );
+    for index in 1..=MAX_PREKEY_RECORDS {
+        assert_eq!(
+            store
+                .prekey_status(policy, device, request(index))
+                .expect("retained identity"),
+            PrekeyStatus::Retired
+        );
+    }
+    let image = store.image().expect("authenticated image");
+    assert_eq!(image.operation_count(), 0);
+    assert_eq!(image.records.len(), MAX_PREKEY_RECORDS + 2);
+}
+
+#[test]
 fn installed_revocation_fences_prekey_generation_and_cached_leaf_but_allows_retirement() {
     let mut f = inventory(PrekeyQuality::OneTimeBoth);
     let (policy, device, _) = f.peer.responder.inventory_inputs();
