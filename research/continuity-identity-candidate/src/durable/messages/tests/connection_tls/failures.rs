@@ -3,7 +3,14 @@ use super::*;
 
 #[test]
 fn connection_tls_process_cuts_preserve_prekeys_inbox_external_effect_and_exact_ack() {
-    for cut in ["reply", "activation", "inbox", "application", "ack"] {
+    for cut in [
+        "reply",
+        "server-archive",
+        "activation",
+        "inbox",
+        "application",
+        "ack",
+    ] {
         let mut n = Network::new();
         let endpoint = n.endpoint();
         let application = matches!(cut, "inbox" | "application" | "ack");

@@ -403,14 +403,14 @@ impl fmt::Display for InjectedSyncFault {
 impl std::error::Error for InjectedSyncFault {}
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(super) enum SyncFailureSite {
+pub(crate) enum SyncFailureSite {
     Commit,
     BeforeCommit,
 }
 /// redb may sync a growing allocation during insert, before commit() is called.
 /// Accept only this test backend's exact typed injected I/O error, and keep its
 /// before/after-sync identity; unrelated storage and protocol errors must fail.
-pub(super) fn assert_sync_failure<T>(
+pub(crate) fn assert_sync_failure<T>(
     result: Result<T, DurableError>,
     after_sync: bool,
 ) -> SyncFailureSite {

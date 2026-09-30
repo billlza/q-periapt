@@ -18,12 +18,14 @@ impl ConnectionEndpoint {
     ) -> Result<Served, Error> {
         let Actor {
             journal,
+            archives,
             context,
             signer,
         } = actor;
         self.binding(context, false)?;
         let deadline = limits.deadline()?;
         check(context, cancel, deadline, &mut clock)?;
+        archives.check_journal(journal).map_err(Error::Archive)?;
         let mut channel = Channel::new(stream, self.endpoint.accept()?)?;
         for _ in 0..limits.exchanges {
             let request = channel.request(context, cancel, deadline, &mut clock)?;
@@ -49,6 +51,19 @@ impl ConnectionEndpoint {
                         final_wire,
                         clock().map_err(Error::Clock)?,
                     )?;
+                    check(context, cancel, deadline, &mut clock)?;
+                    let archive = journal.archive_session_closure(context, session)?;
+                    archives
+                        .retain(journal, context, session, &archive)
+                        .map_err(Error::Archive)?;
+                    #[cfg(all(test, unix))]
+                    super::test_support::archive_boundary(
+                        "server-archive",
+                        &session,
+                        cancel,
+                        deadline,
+                    )?;
+                    check(context, cancel, deadline, &mut clock)?;
                     let activated = journal.activate_responder_messages(
                         Arc::clone(context),
                         initial,
@@ -63,6 +78,9 @@ impl ConnectionEndpoint {
                     let (ad, wire) = codec::split(body)?;
                     let (session, message, epoch) =
                         crate::durable::message_route(wire).map_err(|_| Error::Protocol)?;
+                    archives
+                        .require(journal, context, session)
+                        .map_err(Error::Archive)?;
                     let delivered = journal.receive_delivery(
                         context,
                         session,

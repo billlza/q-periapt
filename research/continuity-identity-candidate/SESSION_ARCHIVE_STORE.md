@@ -1,0 +1,132 @@
+# Durable native session archive index
+
+Status: unpublished native candidate. `SessionArchiveStore` persists QPCSCA01
+cleanup archives for the actual QPCNET01 reference connection. The `Actor` now
+requires a mutable index owner in addition to its journal, verified context and
+signer. This is a local service prerequisite; it does not add a wire attestation
+of the remote host's filesystem or publish a language binding.
+
+## Provisioning and order
+
+Provision the index explicitly with the independently retained JournalIdentity.
+On restart, use `open` with the same pin. Missing, invalid, wrong-journal, busy or
+nonprivate paths fail; they never create an empty replacement. The existing shared
+private-file/database capability provides the owner-only inode, pinned parent,
+nonblocking lifetime lock, size bound and two-phase recovery checks. The index owns
+no wrapping or signing keys. Its rows are public archive metadata with their own
+MACs, not private session state.
+
+`establish` and `serve` enforce the following order:
+
+1. Validate endpoint/options/current authority and the index's journal identity.
+2. Use the existing bootstrap transactions to obtain the exact committed session ID.
+3. Prepare its cleanup archive and authenticate it through the active journal's
+   wrapping-key owner. Commit the immutable archive/index row with immediate
+   two-phase durability, and read it back exactly.
+4. Recheck cancellation, the original deadline and current authority.
+5. Activate message state through the original journal transaction. The initiator
+   requires its own archive before sending the final flight; the responder requires
+   its archive before activation and READY. The initiator activates only after the
+   matching response, as before.
+
+The two databases are intentionally ordered by an immutable prerequisite. There is
+no compensating deletion, cross-store rollback, nonce refund or new handshake ID.
+A crash after archive commit but before activation leaves harmless public metadata;
+a crash after activation retains its cleanup input. An uncertain index commit stops
+this invocation and closes the index owner. Reopen it and retry the same archive:
+actual readback may prove the original bytes or genuine absence. Exact duplicates
+need no new write, even at the 128-record capacity. Changed bytes conflict.
+
+Before each client application submission and each server application delivery,
+the connection verifies the stored archive's MAC, original context, session, owner
+and storage protection through the live journal. Missing or changed metadata stops
+work before a client send reservation or a server inbox/application effect. If the
+client already committed its outbox before discovering a peer-side archive failure,
+that exact outbox stays uncertain; no consumption is invented. Explicit restoration
+of the original metadata permits retry of the same message.
+
+`Error::Archive` distinguishes index persistence/authentication from network failure,
+peer consumption and journal activation. It is not an automatically retried network
+error. A remote endpoint that cannot dispatch its response leaves the other peer
+with an uncertain network outcome, not a transmitted proof of local absence.
+Synchronous filesystem calls remain cooperative cancellation/deadline boundaries.
+The post-archive check prevents further activation after such a boundary is crossed;
+it does not promise to preempt a blocked operating-system call.
+
+## Schema and admission
+
+The separate redb database has exactly one table named
+`continuity_session_archives_v1`, with fixed 32-byte keys and byte-string values.
+The reserved zero[32] key contains `QPCSIX01[8] || journal_id[32]`. Every other key is
+a nonzero exact session ID and contains one canonical 362-byte QPCSCA01 archive. Opening validates all rows;
+the application data path then reads only its indexed row in a fresh read transaction,
+without scanning/copying all archives or retaining a stale pre-lock cache.
+At most 128 archives plus the header are accepted. Unknown tables, wrong header,
+excess capacity, invalid archive grammar or index/archive scope disagreement fail.
+There is no implicit migration, record replacement or automatic retirement.
+
+Opening the public index does not authenticate every MAC or grant cleanup authority.
+`retain` authenticates its input with the owning journal before writing; actual
+message use verifies the retained MAC again. Cleanup uses the restricted
+SessionClosureJournal opener with the independent journal ID and wrapping key.
+A canonically parsed public archive is not a VerifiedDevice or BootstrapContext.
+The immutable 128-entry index is bounded; unused prepared entries still consume
+capacity, and product-wide catalogue migration/retirement is not provided here.
+
+The index has no independent anti-rollback witness. Loss or rollback may remove
+archive discovery and block the service; it cannot rewind the journal's message,
+nonce, roster or witness state. Restoring archival metadata still requires the
+correct MAC and the original authenticated session in the current protected journal.
+A required-witness session never obtains local-only cleanup permission from this
+index. Historical copies and hostile wrapping-key possession remain outside the
+logical-erasure and trusted-host guarantees.
+
+## Reference recovery and qualification
+
+The actual native reference path now bootstraps, performs three network rekeys,
+confirms both application directions with independent disk readback, closes the
+original policy owners, and launches separate cleanup processes for both endpoints.
+Each process reads its indexed archive and original private wrapping-key file,
+without constructing a fixture, policy, verified device or BootstrapContext. It
+persists the complete host loss report before terminal acknowledgement. Separate
+readback confirms both final terminal identities.
+
+Focused index tests exercise exact idempotence, capacity, wrong identity, busy and
+symlink paths, valid-MAC conflicting context, wrong index keys, and all four
+before/after faults at two measured storage barriers. Outcomes are classified from
+reopened storage, not from the injected cut number. The TLS tests independently
+measure two archive barriers on each endpoint and inject all eight corresponding
+before/after faults. Neither side reports activation before the failed archive
+operation is reconciled under its original session.
+
+Actual client and server process kills observe the committed archive before
+activation, alongside the five previous connection kill stages. Server-cut contenders check both journal and index leases; the client-cut
+observer also confirms that the index is Busy. Cancellation and an elapsed
+absolute deadline immediately after the real archive commit both prevent activation.
+Missing and MAC-modified archives block client mutations and server inbox/effects;
+a peer-side failure preserves the original committed sender outbox for explicit
+metadata restoration and exact retry.
+
+These are native same-host processes and actual files/TLS sockets. They do not
+qualify installed foreign-language packages, an independent implementation or
+cross-host/current physical devices. Aggregate archival abandonment, initial
+bootstrap cancellation, catalogue retirement, witness enrollment renewal and
+device/root replacement remain separate lifecycle work. Source-bound full suite
+results and broader release requirements are recorded in the release ledger.
+
+
+## Source-bound local result
+
+The final native Debug and Release suites each pass 225 tests, zero failed or
+ignored, in 618.479/608.068 runner seconds under overlapping load. The focused
+connection run passes 13 tests in 32.224 runner seconds; the separate two-test index
+run passes in 9.109 seconds. All 223 Rust source files are retained with the exact
+suite snapshot. Both test executables and their hashes are retained separately.
+These times include build/qualification work and are not performance measurements.
+
+Rust 1.90/1.98.1 strict all-target/all-feature Clippy, both independent carrier
+features and no-default Clippy on each compiler, warning-strict docs, formatting
+and 45 clean source/isolation checks pass. Existing disclosure experiments still
+recover 12 future messages; this persistence change does not establish a recovery
+point. Final explanatory text and the separately tested CI audit move occur after
+the complete suites, without changing Rust source.

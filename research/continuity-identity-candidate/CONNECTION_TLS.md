@@ -12,8 +12,9 @@ provide an account-directory service or qualify physical devices.
 session ID exists. TLS certificate pins are configured separately. The host must
 pin the intended account/roster and verify both identities, the policy and prekey
 manifest before constructing that context; network bytes cannot install trust.
-`Actor` exclusively borrows the corresponding journal, context and controlled
-device signer. No wrapping key, raw session root or naked prekey enters this API.
+`Actor` exclusively borrows the corresponding journal, durable `SessionArchiveStore`,
+context and controlled device signer. Provision the [archive index](SESSION_ARCHIVE_STORE.md)
+explicitly once and reopen it with the independent journal ID on restart. No wrapping key, raw session root or naked prekey enters this API.
 
 The complete reference path is exercised by
 `connection_tls_bootstrap_rekeys_and_both_application_directions_use_actual_network`:
@@ -24,8 +25,11 @@ The complete reference path is exercised by
 2. Retain an `InitiationId`, construct exact pinned TLS endpoints, and call
    `establish`. Initial, reply and final flights use the original journal
    transactions. The server consumes selected one-time keys with its reply outbox,
-   confirms the final flight and activates durable traffic state. The client
-   verifies the matching activation response before its own activation.
+   confirms the final flight and activates durable traffic state. Both endpoints
+   first commit and read back their exact cleanup archive; the client does this
+   before sending the final flight. The client verifies the matching activation
+   response before its own activation. Cancellation, deadline or archive failure
+   at that boundary cannot report an established connection.
 3. Use `ControlEndpoint` with that exact session for three alternating network
    rekeys. This is the existing independently identified control carrier; it
    shares the same bounded socket engine, not a second TLS implementation.
@@ -38,6 +42,9 @@ The complete reference path is exercised by
    prefix, and confirm the original ID through local journal readback. Independently
    reopen the peer's application file and compare all ID and plaintext bytes.
    Reverse the TCP/TLS roles and repeat under the same established session.
+6. Close the original policy owners. New processes load each indexed archive and
+   perform loss accounting and terminal acknowledgement without reconstructing any
+   verified context. Independently reopen and confirm both terminal identities.
 
 These tests use independent native processes on one host and real TLS sockets,
 journals and files. Their trusted enrollment fixtures are local test inputs.
@@ -116,7 +123,7 @@ Application direction is independent of TLS or bootstrap role.
 attempt consumes the finite 1–128 exchange allowance. Bootstrap normally uses two
 exchanges. Reconnecting never resets the unchanged total deadline (at most 120
 seconds) or the bounded TCP connect (at most five seconds). Only the existing
-classified transient network errors are retried; local authority, journal,
+classified transient network errors are retried; local authority, archive, journal,
 application, parsing and trusted-clock failures are explicit errors.
 
 I/O polls at most every 25 ms, with the original deadline checked again. Synchronous
@@ -175,3 +182,10 @@ The later [portable-material input](BOOTSTRAP_BUNDLE.md) reuses this execution
 path with contexts reverified from saved public bundle bytes in each process.
 The existing policy owner, trust pins, intended devices and requested quality
 remain independent host inputs. QPCNET01 and journal semantics are unchanged.
+
+
+The current native path requires [durable archive indexing](SESSION_ARCHIVE_STORE.md)
+before activation and authenticates that retained input before data submission or
+delivery. This changes the unpublished Actor API and adds Error::Archive; QPCNET01,
+v20 journal state, rekey/message cryptography and published SDK bindings are unchanged.
+The earlier 200-test cohort above remains a historical carrier checkpoint.

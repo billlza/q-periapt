@@ -84,6 +84,9 @@ pub enum Error {
     Clock(io::Error),
     /// External application transaction failed; no consumption ACK is produced.
     Application(io::Error),
+    /// Cleanup archive persistence or authentication failed; no activation or
+    /// delivery success is inferred. Reopen/reconcile the original archive index.
+    Archive(DurableError),
     /// Original durable failure; the caller must reopen/reconcile when required.
     Durable(DurableError),
     /// Original SDK TLS/identity/policy/framing failure.
@@ -110,6 +113,7 @@ impl std::fmt::Display for Error {
             Self::Authority(_) => "Continuity authority rejected dispatch",
             Self::Clock(_) => "trusted Continuity time is unavailable",
             Self::Application(_) => "application consumption was not confirmed",
+            Self::Archive(_) => "Continuity cleanup archive operation failed",
             Self::Durable(_) => "Continuity journal operation failed",
             Self::Connection(_) => "Continuity TLS connection failed",
             Self::Io(_) => "Continuity network outcome unavailable",
@@ -125,6 +129,7 @@ impl std::error::Error for Error {
             Self::Authority(e) => Some(e),
             Self::Clock(e) => Some(e),
             Self::Application(e) => Some(e),
+            Self::Archive(e) => Some(e),
             Self::Durable(e) => Some(e),
             Self::Connection(e) => Some(e),
             Self::Io(e) => Some(e),

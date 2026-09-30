@@ -112,6 +112,17 @@ impl SessionClosureArchive {
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
+    pub(crate) fn check_index(
+        &self,
+        journal: JournalIdentity,
+        session: [u8; 32],
+    ) -> Result<(), DurableError> {
+        let scope = Scope::decode(&self.0[..BODY_BYTES])?;
+        if scope.journal != journal.0 || scope.binding.session != session {
+            return Err(DurableError::Conflict);
+        }
+        Ok(())
+    }
     fn authenticate(
         &self,
         key: &JournalKey,
@@ -130,6 +141,24 @@ impl SessionClosureArchive {
     }
 }
 impl DeviceJournal {
+    pub(crate) fn verify_closure_archive(
+        &self,
+        session: [u8; 32],
+        context: [u8; 32],
+        archive: &SessionClosureArchive,
+    ) -> Result<(), DurableError> {
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let scope = archive.authenticate(&active.key, JournalIdentity(active.id))?;
+        if scope.binding.session != session
+            || scope.binding.context != context
+            || scope.binding.owner != active.owner
+            || scope.protection != active.protection
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(())
+    }
+
     /// Prepare cleanup-only metadata for an exact intended session while its
     /// original verified context is retained. Persist this archive before message
     /// activation to avoid losing cleanup scope in a crash after activation.

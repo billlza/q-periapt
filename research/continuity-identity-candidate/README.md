@@ -299,3 +299,8 @@ through a restricted `SessionClosureJournal`. Persist that archive before messag
 activation; reopening verifies an existing exact session or its already sealed
 activation transaction. It never rebuilds operational policy/device/context authority,
 and all original witness requirements remain. See [archived admission](SESSION_CLOSURE.md#archived-admission-and-restart).
+
+[The bounded native archive index](SESSION_ARCHIVE_STORE.md) is now mandatory in the
+connection Actor. Both endpoints durably retain their archive before activation and
+verify its original scope/MAC before application traffic. The reference connection
+then closes both endpoints from the index in new processes without verified contexts.

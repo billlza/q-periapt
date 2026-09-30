@@ -6,7 +6,7 @@ use crate::native_transport::{self, check, remaining, retryable, Channel};
 pub use crate::native_transport::{Cancellation, Error, RunLimits};
 use crate::{
     BootstrapContext, CommittedPlaintext, DeviceJournal, DeviceSigningKey, InitiationId, MessageId,
-    MessageStatus,
+    MessageStatus, SessionArchiveStore,
 };
 use q_periapt_rustls::connection::{Credentials, Endpoint, Limits};
 use std::{
@@ -25,6 +25,9 @@ use codec::{frame, payload, ACK, BOOTSTRAP, INITIAL, MESSAGE, READY, REPLY};
 pub struct Actor<'a> {
     /// Exact store, independently provisioned before transport use.
     pub journal: &'a mut DeviceJournal,
+    /// Exact durable cleanup index. Bootstrap must commit its archive here before
+    /// activation; data delivery requires the original authenticated archive.
+    pub archives: &'a mut SessionArchiveStore,
     /// Independently verified account, roster, policy and manifest selection.
     pub context: &'a Arc<BootstrapContext>,
     /// Matching device owner; bootstrap may sign, application delivery does not.
@@ -183,6 +186,36 @@ mod test_support {
                 .map_err(io::Error::other);
         }
         Ok(expected)
+    }
+    pub(super) fn archive_boundary(
+        stage: &str,
+        session: &[u8],
+        cancel: &super::Cancellation,
+        deadline: std::time::Instant,
+    ) -> io::Result<()> {
+        after_stage(stage, session)?;
+        let mode = std::env::var("QPERIAPT_CONNECTION_TLS_CUT").ok();
+        if stage == "server-archive"
+            && matches!(
+                mode.as_deref(),
+                Some("cancel-server-archive" | "deadline-server-archive")
+            )
+        {
+            let path = std::env::var_os("QPERIAPT_CONNECTION_TLS_DIR")
+                .ok_or(io::ErrorKind::InvalidInput)?;
+            let mut file = fs::File::create_new(Path::new(&path).join("archive-boundary"))?;
+            file.write_all(session)?;
+            file.sync_all()?;
+            if mode.as_deref() == Some("cancel-server-archive") {
+                cancel.cancel();
+            } else {
+                std::thread::sleep(
+                    deadline.saturating_duration_since(std::time::Instant::now())
+                        + Duration::from_millis(5),
+                );
+            }
+        }
+        Ok(())
     }
     pub(super) fn after_reply(kind: u8, bytes: &[u8]) -> io::Result<()> {
         let stage = match kind {

@@ -10,6 +10,7 @@ use crate::{
         prekeys::tests::{inventory, Inventory},
         tests::ChildGuard,
     },
+    SessionArchiveStore,
 };
 use q_periapt_rustls::connection::Credentials;
 use std::{
@@ -21,6 +22,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod archives;
 mod failures;
 #[cfg(feature = "control-tls")]
 mod lifecycle;
@@ -91,6 +93,7 @@ impl Consumer for StoreConsumer {
 struct Network {
     inventory: Inventory,
     journal: DeviceJournal,
+    archives: SessionArchiveStore,
     client_path: PathBuf,
     _dir: tempfile::TempDir,
     client_tls: Identity,
@@ -109,6 +112,17 @@ impl Network {
         let dir = directory();
         let client_path = dir.path().canonicalize().expect("client path");
         let journal = new_store(&client_path, inventory.peer.initiator_device());
+        let archives = SessionArchiveStore::provision(
+            &client_path.join("archives.redb"),
+            journal.identity().expect("independent store identity"),
+        )
+        .expect("client archive index");
+        SessionArchiveStore::provision(
+            &inventory.path.join("archives.redb"),
+            inventory.store.identity().expect("server identity"),
+        )
+        .expect("server archive index")
+        .close();
         let client_tls = Identity::new("client.test");
         let server_tls = Identity::new("localhost");
         for (name, data) in [
@@ -126,6 +140,7 @@ impl Network {
         Self {
             inventory,
             journal,
+            archives,
             client_path,
             _dir: dir,
             client_tls,
@@ -144,6 +159,7 @@ impl Network {
     fn actor(&mut self) -> Actor<'_> {
         Actor {
             journal: &mut self.journal,
+            archives: &mut self.archives,
             context: &self.inventory.peer.initiator,
             signer: &self.inventory.peer.signer_i,
         }
@@ -151,6 +167,12 @@ impl Network {
     fn reopen(&mut self) {
         self.journal.close();
         self.journal = reopen(&self.client_path, self.inventory.peer.initiator_device());
+        self.archives.close();
+        self.archives = SessionArchiveStore::open(
+            &self.client_path.join("archives.redb"),
+            self.journal.identity().expect("identity"),
+        )
+        .expect("reopen exact archive index");
     }
     fn establish(
         &mut self,
@@ -285,12 +307,56 @@ fn connection_tls_peer_child() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         (f.local_device(), &f.responder, &f.signer_r)
     };
+    if role == 1 && mode == "client-archive" {
+        let mut journal = reopen(path, device);
+        let mut archives =
+            SessionArchiveStore::open(&path.join("archives.redb"), journal.identity()?)?;
+        let endpoint = ConnectionEndpoint::client(
+            context,
+            Credentials {
+                certificate: &certificate,
+                private_key: &key,
+                peer_certificate: &peer,
+            },
+            tls_limits(),
+        )?;
+        let request = InitiationId::from_trusted_state(
+            fs::read(path.join("client-request"))?
+                .try_into()
+                .map_err(|_| "request width")?,
+        )?;
+        let address = fs::read_to_string(path.join("client-address"))?.parse()?;
+        endpoint.establish(
+            Actor {
+                journal: &mut journal,
+                archives: &mut archives,
+                context,
+                signer,
+            },
+            request,
+            Run {
+                address,
+                server_name: "localhost",
+                limits: limits(),
+                cancel: &Cancellation::default(),
+            },
+            || Ok(150),
+        )?;
+        return Err("client must stop at the observed archival boundary".into());
+    }
     if mode == "contender" {
         assert!(matches!(
             DeviceJournal::open(
                 &path.join("state.redb"),
                 crate::JournalKey::open(&path.join("key"))?,
                 device,
+                crate::durable::tests::identity(path)
+            ),
+            Err(DurableError::Database(PrivateDatabaseError::Busy))
+        ));
+        assert!(matches!(
+            SessionArchiveStore::open(
+                &path.join("archives.redb"),
                 crate::durable::tests::identity(path)
             ),
             Err(DurableError::Database(PrivateDatabaseError::Busy))
@@ -307,6 +373,27 @@ fn connection_tls_peer_child() -> Result<(), Box<dyn std::error::Error>> {
         tls_limits(),
     )?;
     let mut journal = reopen(path, device);
+    let mut archives = SessionArchiveStore::open(&path.join("archives.redb"), journal.identity()?)?;
+    let mut archive_sync_count = None;
+    if mode.starts_with("archive-sync-") || mode == "measure-archive" {
+        archives.close();
+        let (cut, after) = if mode == "measure-archive" {
+            (0, false)
+        } else {
+            let suffix = mode.strip_prefix("archive-sync-").ok_or("mode")?;
+            let (cut, after) = suffix.split_once('-').ok_or("fault mode")?;
+            (cut.parse::<usize>()?, after.parse::<bool>()?)
+        };
+        let (owner, remaining, count) = crate::session_archives::tests::fault_index(
+            &path.join("archives.redb"),
+            journal.identity()?,
+            after,
+        );
+        remaining.store(cut, Ordering::SeqCst);
+        archives = owner;
+        archive_sync_count = Some(count);
+    }
+
     let listener = TcpListener::bind("127.0.0.1:0")?;
     listener.set_nonblocking(true)?;
     atomic(
@@ -360,6 +447,7 @@ fn connection_tls_peer_child() -> Result<(), Box<dyn std::error::Error>> {
             accept(&listener)?,
             Actor {
                 journal: &mut journal,
+                archives: &mut archives,
                 context,
                 signer,
             },
@@ -368,6 +456,55 @@ fn connection_tls_peer_child() -> Result<(), Box<dyn std::error::Error>> {
             &cancel,
             || Ok(150),
         );
+        if mode.starts_with("archive-sync-") {
+            let after: bool = mode.rsplit_once('-').ok_or("fault mode")?.1.parse()?;
+            let err = match result {
+                Err(crate::connection_transport::Error::Archive(error)) => Err(error),
+                other => {
+                    other.expect_err("archive failure");
+                    return Err("wrong archive error boundary".into());
+                }
+            };
+            crate::durable::tests::assert_sync_failure::<()>(err, after);
+            atomic(path, "expected-archive-failure", b"no activation reply");
+            return Ok(());
+        }
+        if matches!(
+            mode.as_str(),
+            "cancel-server-archive" | "deadline-server-archive"
+        ) {
+            if mode == "cancel-server-archive" {
+                assert!(matches!(
+                    result,
+                    Err(crate::connection_transport::Error::Cancelled)
+                ));
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(crate::connection_transport::Error::Deadline)
+                ));
+            }
+            atomic(
+                path,
+                "expected-archive-boundary-stop",
+                b"archive durable; message state absent",
+            );
+            return Ok(());
+        }
+        if mode == "invalid-archive" {
+            assert!(matches!(
+                result,
+                Err(crate::connection_transport::Error::Archive(
+                    DurableError::Absent | DurableError::Authentication
+                ))
+            ));
+            atomic(
+                path,
+                "expected-invalid-archive",
+                b"no inbox or external effect",
+            );
+            return Ok(());
+        }
         match mode.as_str() {
             "fail-application" | "unknown-application" => {
                 assert!(matches!(
@@ -397,6 +534,13 @@ fn connection_tls_peer_child() -> Result<(), Box<dyn std::error::Error>> {
         }
         let event = result?;
         if let Served::Established(session) = event {
+            if let Some(count) = &archive_sync_count {
+                atomic(
+                    path,
+                    "archive-barriers",
+                    &(count.load(Ordering::SeqCst) as u64).to_be_bytes(),
+                );
+            }
             let file = path.join("connection-established");
             if file.exists() {
                 assert_eq!(fs::read(file)?, session);

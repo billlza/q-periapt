@@ -292,3 +292,26 @@ image rollback in the local-only profile, host archive/index durability, aggrega
 recipient-set archive recovery and witness renewal remain separate assumptions or
 integration work. No erased private session data is recovered from the archive.
 The new path changes no v20 disk grammar, wire KDF, KAT or published ABI.
+
+
+### Native connection archive persistence (2026-09-30)
+
+The native Actor now owns both the device journal lease and its separate bounded
+SessionArchiveStore lease. Index provisioning/opening reuses the protected database
+capability and shared immediate/two-phase transaction helper. The index holds public
+MAC-bearing records and no wrapping key. Header/grammar/index scope admission is
+separate from archive MAC authentication by the actual journal owner.
+
+The initiator commits its exact archive before sending the final bootstrap flight;
+the responder commits its archive before message activation/READY. Both recheck
+cancellation/deadline/authority afterward. Unknown index commits close the index
+owner and require exact readback/retry; no index error creates a new session ID or
+refunds crypto work. Application send/receive additionally require the original
+scope/MAC before send reservation or inbox mutation. This is an immutable local
+prerequisite, not a new two-database rollback scheme or proof of remote filesystem
+compliance. An older index can block availability but cannot reset the protected
+journal. No automatic reset, removal, replacement or silent network retry is added.
+
+The native complete path now includes context-free cleanup processes using the
+actual indexes. Other bindings/service adapters, catalogue lifecycle, missing archive
+restoration, witness renewal and initial-bootstrap cancellation remain explicit work.

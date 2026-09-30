@@ -127,8 +127,16 @@ coordination or installed binding integration. A QPCSCA01 cleanup archive can no
 be persisted before activation and reopened without an operational context through
 the restricted SessionClosureJournal. Existing or sealed session admission, original
 owner/context and required witness remain mandatory. Expired witness enrollment,
-archival aggregate abandonment and installed-service archive persistence still need
+archival aggregate abandonment and installed-language service integration still need
 explicit lifecycle integration; no fresh permission is reconstructed from stale data.
+
+The native QPCNET01 [archive index](../../research/continuity-identity-candidate/SESSION_ARCHIVE_STORE.md)
+now persists exact cleanup scope before both endpoint activations. Archive failure,
+cancellation and deadline crossings cannot be relabeled as a completed connection;
+data paths require the retained authenticated archive. Full native execution includes
+both terminal cleanup processes after three network rekeys and bidirectional actual
+consumption. This closes a native service-persistence prerequisite, while published
+bindings, catalogue retirement, initial-bootstrap and device/root lifecycle remain open.
 
 ## Required completion evidence
 

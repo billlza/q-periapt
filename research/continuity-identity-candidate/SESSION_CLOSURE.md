@@ -64,8 +64,10 @@ freezing, activation or network authorization. A crash before activation can lea
 only a harmless archive. A crash after the activation write intent is sealed can
 reconcile exactly that authenticated transaction. Without an existing exact session
 or that already sealed transaction, archival open returns Absent rather than creating
-state. The host's atomic persistence of its own archive/index is an integration duty;
-this API does not claim to fsync a buffer returned to the caller.
+state. The standalone export itself does not fsync a returned buffer. The native connection
+now uses [SessionArchiveStore](SESSION_ARCHIVE_STORE.md) to commit and read back the
+indexed archive before activation. Other callers/bindings must implement that same
+ordering; returning an archive alone remains insufficient.
 
 `SessionClosureArchive::from_bytes` checks only a fixed public grammar. The
 `SessionClosureJournal` owner authenticates it with the original wrapping key and
@@ -255,3 +257,9 @@ executables, exact commands, source identities and initial compile/lint errors a
 retained. Earlier 12-message disclosure witnesses remain unchanged and successful.
 These checks do not establish installed binding/service archive persistence,
 aggregate archival recovery, witness renewal or a complete recovery proof.
+
+
+The [native connection archive index](SESSION_ARCHIVE_STORE.md) now implements the
+archive/index persistence prerequisite for QPCNET01. The earlier archive-only
+qualification above remains source-specific; installed language/service integration,
+aggregate cleanup and witness renewal are still separate obligations.

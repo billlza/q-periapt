@@ -93,10 +93,12 @@ impl ConnectionEndpoint {
     ) -> Result<Established, Error> {
         let Actor {
             journal,
+            archives,
             context,
             signer,
         } = actor;
         let mut invocation = Invocation::new(self, context, run)?;
+        archives.check_journal(journal).map_err(Error::Archive)?;
         let reply = invocation.call(&mut clock, |now| {
             frame(
                 INITIAL,
@@ -111,6 +113,29 @@ impl ConnectionEndpoint {
             clock().map_err(Error::Clock)?,
         )?;
         let expected = committed.session_id();
+        check(
+            context,
+            invocation.run.cancel,
+            invocation.deadline,
+            &mut clock,
+        )?;
+        let archive = journal.archive_session_closure(context, expected)?;
+        archives
+            .retain(journal, context, expected, &archive)
+            .map_err(Error::Archive)?;
+        #[cfg(all(test, unix))]
+        super::test_support::archive_boundary(
+            "client-archive",
+            &expected,
+            invocation.run.cancel,
+            invocation.deadline,
+        )?;
+        check(
+            context,
+            invocation.run.cancel,
+            invocation.deadline,
+            &mut clock,
+        )?;
         let ready = invocation.call(&mut clock, |now| {
             let initial = journal.resume_initial(Arc::clone(context), request, now)?;
             let final_wire = journal.resume_reply(Arc::clone(context), request, now)?;
@@ -161,9 +186,15 @@ impl ConnectionEndpoint {
         mut clock: impl FnMut() -> io::Result<u64>,
     ) -> Result<Delivered, Error> {
         let Actor {
-            journal, context, ..
+            journal,
+            archives,
+            context,
+            ..
         } = actor;
         let mut invocation = Invocation::new(self, context, run)?;
+        archives
+            .require(journal, context, input.session)
+            .map_err(Error::Archive)?;
         let reply = invocation.call(&mut clock, |now| {
             let wire = journal.send_message(
                 context,

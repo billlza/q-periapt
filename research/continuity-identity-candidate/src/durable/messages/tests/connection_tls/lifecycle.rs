@@ -77,6 +77,7 @@ fn connection_tls_bootstrap_rekeys_and_both_application_directions_use_actual_ne
     wait(&n, &mut child, 4);
     readback(&n, session, id, b"forward after three fresh contributions");
     n.journal.close();
+    n.archives.close();
     fs::copy(
         n.inventory.path.join("connection-bundle"),
         n.client_path.join("connection-bundle"),
@@ -100,6 +101,11 @@ fn connection_tls_bootstrap_rekeys_and_both_application_directions_use_actual_ne
     let (mut child, address) = spawn_at(&n.client_path, 1, 5, "none", 1);
     let context = &n.inventory.peer.responder;
     n.inventory.store = reopen(&n.inventory.path, n.inventory.peer.local_device());
+    let mut reverse_archives = SessionArchiveStore::open(
+        &n.inventory.path.join("archives.redb"),
+        n.inventory.store.identity().expect("identity"),
+    )
+    .expect("server archives for reverse delivery");
     let reverse = ConnectionEndpoint::client(
         context,
         n.server_tls.credentials(&n.client_tls),
@@ -115,6 +121,7 @@ fn connection_tls_bootstrap_rekeys_and_both_application_directions_use_actual_ne
         .send(
             Actor {
                 journal: &mut n.inventory.store,
+                archives: &mut reverse_archives,
                 context,
                 signer: &n.inventory.peer.signer_r,
             },
@@ -151,7 +158,9 @@ fn connection_tls_bootstrap_rekeys_and_both_application_directions_use_actual_ne
         fs::read(entries.first().expect("effect")).expect("independent readback"),
         expected
     );
-    eprintln!("CONNECTION_TLS_LIFECYCLE network_bootstrap=true network_rekeys=3 network_application_directions=2 consumption_proofs=2 independent_readbacks=2");
+    reverse_archives.close();
+    archives::close_endpoints(&mut n, session);
+    eprintln!("CONNECTION_TLS_LIFECYCLE network_bootstrap=true network_rekeys=3 network_application_directions=2 consumption_proofs=2 independent_readbacks=2 indexed_cleanup_endpoints=2");
 }
 #[test]
 fn connection_tls_valid_old_epoch_ack_cannot_confirm_a_new_message() {
