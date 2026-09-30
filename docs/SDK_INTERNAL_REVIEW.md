@@ -379,3 +379,24 @@ regression now passes with strict diagnostic rejection; fetching both lockfiles
 before auditing supplies the missing entries. The corrected real package run has
 empty workspace/fuzz/consumer audit stderr and zero reported advisories/warnings.
 This closes incomplete audit acceptance, not every dependency or protocol risk.
+
+The archive catalogue recovery path retains the cleanup owner's restricted
+authority. Index IDs are only discovery hints; grammar checks cannot authenticate
+their MACs or grant message permissions. Restoration checks the independently
+pinned journal, original authenticated session scope and fresh witness head before
+reconstructing the original QPCSCA01 bytes. The canonical encoder/HMAC and immutable
+retention transaction are shared with normal archive preparation/retention.
+
+Retirement additionally requires `Closed` with the exact acknowledged host report
+ID. It refuses open/pending state, another report, aggregate abandonment and changed
+index bytes. Absence is an idempotent result only after the same fresh witness
+checks and a successful schema-checked index read. Storage errors close the index;
+witness failures close the cleanup owner before index mutation. Exact reopen/retry
+reconciles unknown commits. No journal tombstone, budget, claim, sequence or slot
+is removed or refunded. A separate process readback checks the unchanged terminal
+journal digest and retained unknown-delivery outcome.
+
+Index rollback/loss still affects discovery and availability, and the original
+archive backup is needed when the index is gone. This adds no hardware erasure,
+new anti-rollback anchor or operational context reconstruction. Installed service
+initialization, authoritative device lineage and binding integration remain open.

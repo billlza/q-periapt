@@ -155,6 +155,16 @@ index/restore UX, witness renewal and installed-language integration retain thei
 separate requirements. These native additions do not close the broader completion
 table below; candidate storage is v21 with no implicit migration from old formats.
 
+The native archive index now adds bounded discovery and exact restoration through
+an existing `SessionClosureJournal`, without reconstructing expired operational
+context objects. Explicit index retirement requires the original protected
+`Closed(report)` state and independently retained host report ID. Fresh original
+witness checks still precede every present or absent disposition; journal
+tombstones, claims, budgets and capacity remain unchanged. This supplies a native
+catalogue API, not an installed recovery flow or permission to initialize a new
+device lineage. Aggregate history and service/device lifecycle integration remain
+required within 0.2.0.
+
 ## Required completion evidence
 
 | Capability | Implementation obligation | Evidence required before completion |

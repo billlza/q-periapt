@@ -25,6 +25,13 @@ struct Scope {
     signer: [u8; 32],
 }
 impl Scope {
+    fn archive(&self, key: &JournalKey) -> Result<SessionClosureArchive, DurableError> {
+        let mut wire = self.encode();
+        let mut auth = authenticator(key)?;
+        auth.update(&wire);
+        wire.extend_from_slice(&auth.finalize().into_bytes());
+        SessionClosureArchive::from_bytes(&wire)
+    }
     fn encode(&self) -> Vec<u8> {
         let b = &self.binding;
         let mut bytes = TAG.to_vec();
@@ -210,13 +217,9 @@ impl DeviceJournal {
             protection: image.protection,
             signer: cleanup_signer_binding(&device.key),
         };
-        let mut wire = scope.encode();
         self.check_release(&image)?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let mut auth = authenticator(&active.key)?;
-        auth.update(&wire);
-        wire.extend_from_slice(&auth.finalize().into_bytes());
-        SessionClosureArchive::from_bytes(&wire)
+        scope.archive(&active.key)
     }
 }
 
@@ -230,6 +233,29 @@ pub struct SessionClosureJournal {
     scope: Scope,
 }
 impl SessionClosureJournal {
+    pub(crate) fn index_material(
+        &mut self,
+        expected: JournalIdentity,
+        terminal: Option<SessionClosureId>,
+    ) -> Result<([u8; 32], SessionClosureArchive), DurableError> {
+        if self.scope.journal != *expected.as_bytes() {
+            return Err(DurableError::Conflict);
+        }
+        let image = self.journal.image()?;
+        self.scope.check(&image)?;
+        // This checks the original witness again even for an already closed
+        // session or an eventual absent index row. No cached disposition is enough.
+        let status = self.journal.closure_status(image, &self.scope.binding)?;
+        if let Some(expected) = terminal {
+            match status {
+                SessionClosureStatus::Closed(actual) if actual == expected => {}
+                SessionClosureStatus::Closed(_) => return Err(DurableError::Conflict),
+                _ => return Err(DurableError::Suspended),
+            }
+        }
+        let active = self.journal.active.as_ref().ok_or(DurableError::Closed)?;
+        Ok((self.scope.binding.session, self.scope.archive(&active.key)?))
+    }
     /// Reopen an existing local-only journal using an authenticated cleanup archive.
     /// Missing/invalid storage fails; required-witness journals cannot use this path.
     pub fn open(

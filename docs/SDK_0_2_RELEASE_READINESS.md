@@ -77,6 +77,30 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The native session archive catalogue now supports bounded discovery, exact
+restoration through an existing cleanup-only owner, and explicit retirement after
+the original journal confirms the host's complete closure report. Restoration
+does not recreate operational context; deletion changes only the public index,
+never journal tombstones, claims, budgets or capacity. Present and absent outcomes
+retain fresh original-witness admission. Unknown index commits close the owner
+and require exact reopen/readback; conflicts are never overwritten. See the
+[catalogue contract](../research/continuity-identity-candidate/SESSION_ARCHIVE_STORE.md#discovery-exact-restoration-and-terminal-retirement).
+This is a native recovery API prerequisite, not installed Continuity binding or
+device/root lifecycle completion.
+
+Frozen Debug and Release catalogue suites each pass 264 tests, zero failed or
+ignored, in 727.584/722.472 runner seconds under overlapping load (not performance
+measurements). Focused execution covers eight before/after storage faults and
+sixteen witness request/reply losses across present and absent dispositions,
+both local roles and separate-process restore/retire/repeat recovery. Strict
+Clippy on Rust 1.90/1.98.1, six independent feature variants, warning-strict docs
+and formatting pass; the clean snapshot passes 45 source/isolation/release checks.
+The `20260930-sdk-archive-catalogue` cohort retains source identities, exact
+executables and outputs. Its frozen archive SHA-256 is
+`9fc06163712fe46406732efe90019269232fa3b01f599651ebeb7a2934ea68b1`.
+The changes are confined to the unpublished candidate and its documentation;
+the earlier actual SDK package results retain their own source/report identity.
+
 The native [archived whole-batch cleanup](../research/continuity-identity-candidate/FANOUT_ABANDONMENT.md#archived-whole-batch-cleanup)
 now loads the original complete fanout membership from the authenticated journal,
 then reads and authenticates every member's QPCSCA01 record from its existing

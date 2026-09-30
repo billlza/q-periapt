@@ -1,7 +1,367 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 use crate::durable::tests::{identity, ChildGuard};
+use crate::SessionArchiveStore;
 use crate::{BootstrapRole, SessionClosureArchive, SessionClosureJournal};
+
+#[test]
+fn archived_catalogue_restore_and_retirement_require_exact_terminal_accounting() {
+    for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
+        let mut p = populated();
+        let (journal, context, path) = match role {
+            BootstrapRole::Initiator => (&mut p.ji, &p.f.initiator, &p.pi),
+            BootstrapRole::Responder => (&mut p.jr, &p.f.responder, &p.pr),
+        };
+        let expected = journal.identity().expect("independent journal pin");
+        let archive = journal
+            .archive_session_closure(context, p.session)
+            .expect("original scope");
+        retain(path, "cleanup.archive", archive.as_bytes());
+        let file = path.join("archives.redb");
+        let mut index = SessionArchiveStore::provision(&file, expected).expect("explicit index");
+        assert!(index.session_ids().expect("actual empty index").is_empty());
+        context.policy().close();
+        journal.close();
+        let mut owner = archived(path);
+        let wrong = SessionClosureId::from_trusted_state([99; 32]).expect("wrong report");
+        assert!(matches!(
+            index.retire_closed(&mut owner, wrong),
+            Err(DurableError::Suspended)
+        ));
+        index
+            .restore(&mut owner)
+            .expect("restore without operational context");
+        index.restore(&mut owner).expect("exact retry");
+        assert_eq!(index.session_ids().expect("discovery"), vec![p.session]);
+        assert_eq!(
+            index.get(p.session).expect("original archive").as_bytes(),
+            archive.as_bytes()
+        );
+        let report = owner.begin().expect("freeze");
+        assert!(matches!(
+            index.retire_closed(&mut owner, report.report),
+            Err(DurableError::Suspended)
+        ));
+        account(path, &report);
+        owner
+            .acknowledge(report.report)
+            .expect("after complete host accounting");
+        assert!(matches!(
+            index.retire_closed(&mut owner, wrong),
+            Err(DurableError::Conflict)
+        ));
+        assert!(index
+            .retire_closed(&mut owner, report.report)
+            .expect("remove exact closed row"));
+        assert!(!index
+            .retire_closed(&mut owner, report.report)
+            .expect("authenticated absence"));
+        assert!(index.session_ids().expect("real absence").is_empty());
+        assert_eq!(
+            owner.status().expect("still closed"),
+            SessionClosureStatus::Closed(report.report)
+        );
+        index
+            .restore(&mut owner)
+            .expect("terminal metadata restoration grants no authority");
+        assert_eq!(
+            index.get(p.session).expect("same bytes").as_bytes(),
+            archive.as_bytes()
+        );
+        index.close();
+        owner.close();
+        index = SessionArchiveStore::open(&file, expected).expect("restart discovery");
+        assert_eq!(index.session_ids().expect("persisted ID"), vec![p.session]);
+        assert!(matches!(
+            index.restore(&mut owner),
+            Err(DurableError::Closed)
+        ));
+        let mut owner = archived(path);
+        let other_id = JournalIdentity::from_trusted_state([81; 32]).expect("different pin");
+        let mut other = SessionArchiveStore::provision(&path.join("other-index.redb"), other_id)
+            .expect("other index");
+        assert!(matches!(
+            other.restore(&mut owner),
+            Err(DurableError::Conflict)
+        ));
+        assert!(other.session_ids().expect("other remains empty").is_empty());
+        index
+            .retire_closed(&mut owner, report.report)
+            .expect("exact terminal retry");
+        owner.close();
+        let device = match role {
+            BootstrapRole::Initiator => p.f.initiator_device(),
+            BootstrapRole::Responder => p.f.local_device(),
+        };
+        let mut ordinary = reopen(path, device);
+        assert!(ordinary.next_message_id(context, p.session, 150).is_err());
+        let image = ordinary.image().expect("original keyless journal");
+        let record = image
+            .records
+            .get(&record_id(&p.session))
+            .expect("terminal is never erased");
+        assert_eq!(record.phase, DurableStatus::MessagesClosed);
+        assert_eq!(
+            Retired::decode(&record.payload)
+                .expect("keyless state")
+                .report,
+            *report.report.as_bytes()
+        );
+    }
+}
+
+#[test]
+fn archived_catalogue_refuses_conflicting_rows_without_replacement() {
+    let mut p = Pair::new();
+    p.activate();
+    let expected = p.jr.identity().expect("pin");
+    let archive =
+        p.jr.archive_session_closure(&p.f.responder, p.session)
+            .expect("archive");
+    retain(&p.pr, "cleanup.archive", archive.as_bytes());
+    p.jr.close();
+    let mut owner = archived(&p.pr);
+    let file = p.pr.join("archives.redb");
+    let mut index = SessionArchiveStore::provision(&file, expected).expect("index");
+    index.restore(&mut owner).expect("original row");
+    index.close();
+    let mut changed = archive.as_bytes().to_vec();
+    *changed.last_mut().expect("MAC byte") ^= 1;
+    crate::session_archives::tests::rewrite_archive(&file, p.session, Some(&changed));
+    index = SessionArchiveStore::open(&file, expected)
+        .expect("public parsing alone is not authentication");
+    assert_eq!(
+        index.session_ids().expect("discovery only"),
+        vec![p.session]
+    );
+    assert!(matches!(
+        index.restore(&mut owner),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(index.session_ids(), Err(DurableError::Closed)));
+    let report = owner
+        .begin()
+        .expect("original journal independent of index");
+    account(&p.pr, &report);
+    owner.acknowledge(report.report).expect("closed");
+    index = SessionArchiveStore::open(&file, expected).expect("conflicting public row");
+    assert!(matches!(
+        index.retire_closed(&mut owner, report.report),
+        Err(DurableError::Conflict)
+    ));
+    index = SessionArchiveStore::open(&file, expected).expect("no overwrite or deletion");
+    assert_eq!(
+        index.get(p.session).expect("retained conflict").as_bytes(),
+        changed
+    );
+}
+
+#[test]
+fn archived_catalogue_unknown_restore_and_retirement_results_keep_exact_recovery() {
+    use crate::session_archives::tests::fault_index;
+    let mut p = Pair::new();
+    p.activate();
+    let expected = p.jr.identity().expect("pin");
+    let archive =
+        p.jr.archive_session_closure(&p.f.responder, p.session)
+            .expect("archive");
+    retain(&p.pr, "cleanup.archive", archive.as_bytes());
+    p.f.responder.policy().close();
+    p.jr.close();
+    let mut owner = archived(&p.pr);
+    let report = owner.begin().expect("freeze original");
+    account(&p.pr, &report);
+    owner.acknowledge(report.report).expect("terminal original");
+    for retiring in [false, true] {
+        let baseline = p.pr.join(format!("index-baseline-{retiring}.redb"));
+        let mut index = SessionArchiveStore::provision(&baseline, expected).expect("baseline");
+        if retiring {
+            index.restore(&mut owner).expect("row to retire");
+        }
+        index.close();
+        let (mut index, _, count) = fault_index(&baseline, expected, false);
+        count.store(0, Ordering::SeqCst);
+        if retiring {
+            assert!(index
+                .retire_closed(&mut owner, report.report)
+                .expect("baseline retirement"));
+        } else {
+            index.restore(&mut owner).expect("baseline restoration");
+        }
+        let barriers = count.load(Ordering::SeqCst);
+        assert!((2..=8).contains(&barriers));
+        index.close();
+        let mut outcomes = std::collections::BTreeSet::new();
+        for cut in 1..=barriers {
+            for after in [false, true] {
+                let file =
+                    p.pr.join(format!("catalogue-{retiring}-{cut}-{after}.redb"));
+                let mut index =
+                    SessionArchiveStore::provision(&file, expected).expect("fresh test index");
+                if retiring {
+                    index.restore(&mut owner).expect("original row");
+                }
+                index.close();
+                let (mut failed, remaining, _) = fault_index(&file, expected, after);
+                remaining.store(cut, Ordering::SeqCst);
+                let result = if retiring {
+                    failed.retire_closed(&mut owner, report.report).map(|_| ())
+                } else {
+                    failed.restore(&mut owner)
+                };
+                crate::durable::tests::assert_sync_failure(result, after);
+                assert!(matches!(failed.session_ids(), Err(DurableError::Closed)));
+                let mut recovered =
+                    SessionArchiveStore::open(&file, expected).expect("exact redb recovery");
+                let outcome = recovered.get(p.session);
+                let found = !matches!(&outcome, Err(DurableError::Absent));
+                if found {
+                    assert_eq!(
+                        outcome.expect("only exact or absent readback").as_bytes(),
+                        archive.as_bytes()
+                    );
+                }
+                outcomes.insert(found);
+                if retiring {
+                    assert_eq!(
+                        recovered
+                            .retire_closed(&mut owner, report.report)
+                            .expect("same terminal report"),
+                        found
+                    );
+                    assert!(!recovered
+                        .retire_closed(&mut owner, report.report)
+                        .expect("repeat absence"));
+                } else {
+                    recovered
+                        .restore(&mut owner)
+                        .expect("same admitted original");
+                    recovered.restore(&mut owner).expect("exact repeat");
+                    assert_eq!(
+                        recovered
+                            .get(p.session)
+                            .expect("original metadata")
+                            .as_bytes(),
+                        archive.as_bytes()
+                    );
+                }
+            }
+        }
+        assert_eq!(outcomes, std::collections::BTreeSet::from([false, true]));
+        eprintln!("ARCHIVED_CATALOGUE_SYNC retiring={retiring} barriers={barriers} faults={} outcomes={outcomes:?}", barriers * 2);
+    }
+}
+
+// The child imports only the original private key and independently retained
+// public identity/archive/report. It creates no policy, device or context owner.
+#[test]
+fn archived_catalogue_recovery_process_child() -> Result<(), Box<dyn std::error::Error>> {
+    let Some(path) = std::env::var_os("QPERIAPT_CATALOGUE_RECOVERY_DIR") else {
+        return Ok(());
+    };
+    let path = Path::new(&path);
+    let mut owner = archived(path);
+    let mut index = SessionArchiveStore::open(&path.join("archives.redb"), identity(path))?;
+    let action = std::env::var("QPERIAPT_CATALOGUE_ACTION")?;
+    match action.as_str() {
+        "restore" => {
+            index.restore(&mut owner)?;
+            assert_eq!(index.session_ids()?.len(), 1);
+            assert_eq!(owner.status()?, SessionClosureStatus::Open);
+        }
+        "retire" | "retire-repeat" => {
+            let report = SessionClosureId::from_trusted_state(
+                fs::read(path.join("catalogue-report-id"))?
+                    .try_into()
+                    .map_err(|_| "report width")?,
+            )?;
+            assert_eq!(owner.status()?, SessionClosureStatus::Closed(report));
+            assert_eq!(index.retire_closed(&mut owner, report)?, action == "retire");
+            assert!(index.session_ids()?.is_empty());
+        }
+        _ => return Err("unknown catalogue recovery action".into()),
+    }
+    index.close();
+    owner.close();
+    println!("ARCHIVED_CATALOGUE_PROCESS_PASS {action}");
+    Ok(())
+}
+
+#[test]
+fn archived_catalogue_fresh_process_recovery_keeps_journal_tombstones() {
+    let mut p = populated();
+    let archive =
+        p.jr.archive_session_closure(&p.f.responder, p.session)
+            .expect("original archive");
+    retain(&p.pr, "cleanup.archive", archive.as_bytes());
+    SessionArchiveStore::provision(&p.pr.join("archives.redb"), identity(&p.pr))
+        .expect("empty recovery index")
+        .close();
+    p.f.responder.policy().close();
+    p.jr.close();
+    let run = |action: &str| {
+        let log_path = p.pr.join(format!("catalogue-{action}.log"));
+        let log = fs::File::create_new(&log_path).expect("log");
+        let mut child = ChildGuard(Command::new(std::env::current_exe().expect("binary"))
+            .args(["--exact", "durable::messages::tests::closure::archive::archived_catalogue_recovery_process_child", "--nocapture"])
+            .env("QPERIAPT_CATALOGUE_RECOVERY_DIR", &p.pr)
+            .env("QPERIAPT_CATALOGUE_ACTION", action)
+            .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone().expect("log"))).stderr(Stdio::from(log))
+            .spawn().expect("recovery child"));
+        let deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            if let Some(status) = child.0.try_wait().expect("status") {
+                assert!(
+                    status.success(),
+                    "catalogue {action}: {}",
+                    fs::read_to_string(&log_path).expect("log")
+                );
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "catalogue child exceeded deadline"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(fs::read_to_string(log_path)
+            .expect("result")
+            .contains(&format!("ARCHIVED_CATALOGUE_PROCESS_PASS {action}")));
+    };
+    run("restore");
+    let mut index = SessionArchiveStore::open(&p.pr.join("archives.redb"), identity(&p.pr))
+        .expect("independent readback");
+    assert_eq!(
+        index.get(p.session).expect("exact original").as_bytes(),
+        archive.as_bytes()
+    );
+    index.close();
+    let mut owner = archived(&p.pr);
+    let report = owner.begin().expect("complete loss report");
+    account(&p.pr, &report);
+    retain(&p.pr, "catalogue-report-id", report.report.as_bytes());
+    owner.acknowledge(report.report).expect("terminal");
+    owner.close();
+    p.jr = reopen(&p.pr, p.f.local_device());
+    let terminal_digest = p.jr.image().expect("terminal snapshot").digest;
+    p.jr.close();
+    run("retire");
+    run("retire-repeat");
+    p.jr = reopen(&p.pr, p.f.local_device());
+    assert_eq!(
+        p.jr.image().expect("unchanged journal").digest,
+        terminal_digest
+    );
+    assert!(p
+        .jr
+        .next_message_id(&p.f.responder, p.session, 150)
+        .is_err());
+    assert_eq!(
+        p.jr.message_status(&p.f.responder, p.session, id(p.session, 2, 1))
+            .expect("unknown retained"),
+        MessageStatus::DeliveryUnknown
+    );
+}
 
 fn archived(path: &Path) -> SessionClosureJournal {
     SessionClosureJournal::open(

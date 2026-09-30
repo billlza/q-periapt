@@ -70,8 +70,9 @@ Opening the public index does not authenticate every MAC or grant cleanup author
 message use verifies the retained MAC again. Cleanup uses the restricted
 SessionClosureJournal opener with the independent journal ID and wrapping key.
 A canonically parsed public archive is not a VerifiedDevice or BootstrapContext.
-The immutable 128-entry index is bounded; unused prepared entries still consume
-capacity, and product-wide catalogue migration/retirement is not provided here.
+The 128-entry index is bounded; unused prepared entries still consume capacity.
+Explicit retirement of independently closed sessions is described below; prepared
+but unadmitted sessions and aggregate abandonment require their separate lifecycle.
 
 The index has no independent anti-rollback witness. Loss or rollback may remove
 archive discovery and block the service; it cannot rewind the journal's message,
@@ -80,6 +81,50 @@ correct MAC and the original authenticated session in the current protected jour
 A required-witness session never obtains local-only cleanup permission from this
 index. Historical copies and hostile wrapping-key possession remain outside the
 logical-erasure and trusted-host guarantees.
+
+## Discovery, exact restoration and terminal retirement
+
+`session_ids` enumerates the bounded index in sorted order through a fresh,
+schema-checked read. These public IDs are discovery hints; neither the listing
+nor parsing an archive authenticates its MAC, proves that a session exists or
+grants an operating owner. A corrupt index is an error, never an empty catalogue.
+
+If original operational context objects are unavailable, open a
+`SessionClosureJournal` from the independently retained journal ID, original
+wrapping key and backed-up QPCSCA01 archive. Required-witness storage still needs
+its original pinned witness and signer. `SessionArchiveStore::restore` then uses
+that restricted owner to validate the existing session and fresh witness head,
+reconstruct the exact original public archive, and run the same immutable index
+transaction as normal retention. Existing equal bytes are idempotent, including
+at capacity; conflicting bytes cannot be overwritten. No context, device or policy
+is fabricated from the backup. Missing journal state is never replaced or created.
+Loss of both the index and its independent archive backup remains an availability
+failure; enumeration cannot discover a record no longer retained anywhere.
+
+`retire_closed` requires that same restricted owner and the exact independently
+retained host loss-report ID. The protected session must be `Closed(report)`;
+`Open`, pending accounting, another report and aggregate abandonment are refused.
+Only a byte-identical index row can be deleted. The method returns true after a
+durable removal and readback, or false after a successful authoritative absence
+lookup. Both outcomes require fresh original-witness checks, including an
+already-retired repeat. Journal terminal records, prekey claims, send budgets,
+operation IDs and journal capacity are unchanged. No message authority or slot is
+restored by retiring or later restoring the public archive.
+
+Storage errors close the index owner; reopen the exact file and repeat the same
+restore or terminal report. An unknown commit may have retained or removed the
+row, which only readback resolves. A witness failure closes the cleanup owner
+without mutating the index. Ordinary recovery never substitutes local-only
+admission. The index has no new rollback witness and remains public metadata,
+separate from the protected journal and host's full accounting records.
+
+Native tests cover both bootstrap roles, conflicting MACs and journal pins,
+closed owners, pending/wrong accounting, all measured before/after sync cuts for
+restore and retirement, and witness failures before/after every query for present
+and absent rows. Separate processes restore, retire and reconcile absence without
+constructing policy/device/context objects; independent journal readback preserves
+the exact terminal digest and unknown-delivery disposition. Installed SDK service
+initialization, aggregate history retirement and device/root lifecycle remain open.
 
 ## Reference recovery and qualification
 
@@ -109,9 +154,9 @@ metadata restoration and exact retry.
 
 These are native same-host processes and actual files/TLS sockets. They do not
 qualify installed foreign-language packages, an independent implementation or
-cross-host/current physical devices. Aggregate archival abandonment, initial
-bootstrap cancellation, catalogue retirement, witness enrollment renewal and
-device/root replacement remain separate lifecycle work. Source-bound full suite
+cross-host/current physical devices. Aggregate history retirement, installed
+catalogue recovery flows, witness enrollment renewal and device/root replacement
+remain separate lifecycle work. Source-bound full suite
 results and broader release requirements are recorded in the release ledger.
 
 

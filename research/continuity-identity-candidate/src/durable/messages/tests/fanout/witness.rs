@@ -50,6 +50,108 @@ fn client(pin: &AnchorPin, witness: &Arc<Mutex<Witness>>, device: &VerifiedDevic
     )
     .expect("witness client")
 }
+
+#[test]
+fn archived_catalogue_every_disposition_requires_fresh_original_witness() {
+    let mut c = Anchored::new();
+    let n = &mut c.network;
+    let context = Arc::clone(n.f.contexts.first().expect("original context"));
+    let session = *n.sessions.first().expect("original session");
+    let id = n.sender.identity().expect("independent identity");
+    let archive = n
+        .sender
+        .archive_session_closure(&context, session)
+        .expect("original archive");
+    let file = n.sender_path.join("catalogue.redb");
+    let mut index = crate::SessionArchiveStore::provision(&file, id).expect("index");
+    n.sender.close();
+    context.policy().close();
+    assert!(matches!(
+        crate::SessionClosureJournal::open(
+            &n.sender_path.join("state.redb"),
+            JournalKey::open(&n.sender_path.join("key")).expect("key"),
+            id,
+            &archive
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    let open = || {
+        crate::SessionClosureJournal::open_anchored(
+            &n.sender_path.join("state.redb"),
+            JournalKey::open(&n.sender_path.join("key")).expect("key"),
+            id,
+            &archive,
+            client(&c.pin, &c.witness, &n.f.local),
+        )
+        .expect("same original witness")
+    };
+    let mut owner = open();
+    let report = owner.begin().expect("freeze original session");
+    let accounting = n.sender_path.join("catalogue-host-accounting");
+    let mut saved = fs::File::create_new(&accounting).expect("host record");
+    saved
+        .write_all(format!("{report:#?}\n").as_bytes())
+        .expect("complete report");
+    saved.sync_all().expect("durable report");
+    fs::File::open(&n.sender_path)
+        .expect("parent")
+        .sync_all()
+        .expect("durable name");
+    owner
+        .acknowledge(report.report)
+        .expect("closed only after accounting");
+    for retiring in [false, true] {
+        for present in [false, true] {
+            index
+                .restore(&mut owner)
+                .expect("prepare exact original row");
+            if !present {
+                index
+                    .retire_closed(&mut owner, report.report)
+                    .expect("prepare verified absence");
+            }
+            let before = c.witness.lock().expect("witness").calls;
+            if retiring {
+                index
+                    .retire_closed(&mut owner, report.report)
+                    .expect("measure retirement");
+            } else {
+                index.restore(&mut owner).expect("measure restoration");
+            }
+            let calls = c.witness.lock().expect("witness").calls - before;
+            assert!((2..=8).contains(&calls), "no cached witness disposition");
+            for at in 1..=calls {
+                for after in [false, true] {
+                    index.restore(&mut owner).expect("prepare row");
+                    if !present {
+                        index
+                            .retire_closed(&mut owner, report.report)
+                            .expect("prepare absence");
+                    }
+                    let ids = index.session_ids().expect("before failure");
+                    {
+                        let mut w = c.witness.lock().expect("witness");
+                        w.fail = Some((w.calls + at, after));
+                    }
+                    let result = if retiring {
+                        index.retire_closed(&mut owner, report.report).map(|_| ())
+                    } else {
+                        index.restore(&mut owner)
+                    };
+                    assert!(
+                        matches!(result, Err(DurableError::Anchor(_))),
+                        "at={at}, after={after}"
+                    );
+                    assert_eq!(index.session_ids().expect("index unmodified"), ids);
+                    assert!(matches!(owner.status(), Err(DurableError::Closed)));
+                    c.witness.lock().expect("witness").fail = None;
+                    owner = open();
+                }
+            }
+            eprintln!("ARCHIVED_CATALOGUE_WITNESS retiring={retiring} present={present} calls={calls} lost_replies={}", calls * 2);
+        }
+    }
+}
 struct Anchored {
     network: Network,
     witness: Arc<Mutex<Witness>>,

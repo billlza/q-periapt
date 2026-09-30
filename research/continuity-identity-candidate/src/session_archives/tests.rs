@@ -10,7 +10,7 @@ use std::{fs, sync::atomic::Ordering};
 
 #[test]
 fn session_archive_index_rejects_extra_multimap_schema_on_open_and_live_lookup() {
-    for live in [false, true] {
+    for boundary in ["open", "get", "session_ids"] {
         let dir = directory();
         let path = dir.path().canonicalize().expect("path");
         let id = JournalIdentity::from_trusted_state([42; 32]).expect("independent identity");
@@ -25,12 +25,15 @@ fn session_archive_index_rejects_extra_multimap_schema_on_open_and_live_lookup()
         .insert("unrecognized", b"not part of QPCSIX01".as_slice())
         .expect("extra row");
         tx.commit().expect("persist different schema");
-        if live {
+        if boundary == "get" {
             assert!(
                 matches!(store.get([1; 32]), Err(DurableError::Corrupt)),
                 "live lookup must not mistake unsupported storage for absence"
             );
             assert!(matches!(store.get([1; 32]), Err(DurableError::Closed)));
+        } else if boundary == "session_ids" {
+            assert!(matches!(store.session_ids(), Err(DurableError::Corrupt)));
+            assert!(matches!(store.session_ids(), Err(DurableError::Closed)));
         } else {
             store.close();
             assert!(
@@ -230,7 +233,6 @@ fn session_archive_index_every_sync_fault_recovers_exact_or_absent_without_repla
     eprintln!("SESSION_ARCHIVE_INDEX_SYNC barriers={barriers} before_after_faults={} outcomes={outcomes:?}",barriers*2);
 }
 
-#[cfg(feature = "connection-tls")]
 pub(crate) fn fault_index(
     path: &Path,
     journal: JournalIdentity,

@@ -3,6 +3,7 @@
 use crate::{
     durable::{storage, transaction},
     BootstrapContext, DeviceJournal, DurableError, JournalIdentity, SessionClosureArchive,
+    SessionClosureId, SessionClosureJournal,
 };
 use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
 use redb::{
@@ -144,6 +145,68 @@ impl SessionArchiveStore {
         }
         result
     }
+    /// Enumerate at most 128 indexed IDs in canonical order. These are discovery
+    /// hints from the public index, not authenticated session membership or state.
+    /// Each archive still requires original journal/key/witness admission. An empty
+    /// result follows a successful schema-checked read, never a storage failure.
+    pub fn session_ids(&mut self) -> Result<Vec<[u8; 32]>, DurableError> {
+        let result = (|| {
+            let db = self.active.as_ref().ok_or(DurableError::Closed)?;
+            Ok(load(db, self.journal)?.into_keys().collect())
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    /// Restore the exact archive admitted by an existing cleanup-only owner.
+    /// Original session and fresh required-witness checks precede the write; no
+    /// live policy/context or new operational authority is reconstructed. Open the
+    /// cleanup owner from independently retained archive bytes first. Conflicting
+    /// rows are never overwritten, and unknown commits require exact reopen/retry.
+    pub fn restore(&mut self, owner: &mut SessionClosureJournal) -> Result<(), DurableError> {
+        self.active.as_ref().ok_or(DurableError::Closed)?;
+        let (session, archive) = owner.index_material(self.journal, None)?;
+        self.retain_exact(session, &archive)
+    }
+    /// Retire only the exact index row for a session whose complete host loss
+    /// report has already been acknowledged in its protected journal. The caller
+    /// supplies that independently retained report ID. True means a row was removed;
+    /// false means a fresh validated lookup found it already absent. Both require
+    /// current original-witness admission. Journal tombstones, claims, counters and
+    /// capacity are unchanged; this cannot retire reserved aggregate members.
+    pub fn retire_closed(
+        &mut self,
+        owner: &mut SessionClosureJournal,
+        report: SessionClosureId,
+    ) -> Result<bool, DurableError> {
+        self.active.as_ref().ok_or(DurableError::Closed)?;
+        let (session, archive) = owner.index_material(self.journal, Some(report))?;
+        let result = (|| {
+            let db = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let records = load(db, self.journal)?;
+            let Some(saved) = records.get(&session) else {
+                return Ok(false);
+            };
+            if saved.as_bytes() != archive.as_bytes() {
+                return Err(DurableError::Conflict);
+            }
+            let tx = transaction(db)?;
+            tx.open_table(TABLE)
+                .map_err(storage)?
+                .remove(&session)
+                .map_err(storage)?;
+            tx.commit().map_err(DurableError::CommitUncertain)?;
+            if load(db, self.journal)?.contains_key(&session) {
+                return Err(DurableError::Conflict);
+            }
+            Ok(true)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     /// Authenticate and durably index an exact archive before session activation.
     /// Exact repeats are idempotent; changed bytes under a retained ID conflict.
     /// Commit errors close this index owner. Reopen and retry the same archive;
@@ -158,6 +221,13 @@ impl SessionArchiveStore {
     ) -> Result<(), DurableError> {
         self.check_journal(journal)?;
         journal.verify_closure_archive(session, context.digest(), archive)?;
+        self.retain_exact(session, archive)
+    }
+    fn retain_exact(
+        &mut self,
+        session: [u8; 32],
+        archive: &SessionClosureArchive,
+    ) -> Result<(), DurableError> {
         let result = (|| {
             let db = self.active.as_ref().ok_or(DurableError::Closed)?;
             let records = load(db, self.journal)?;
