@@ -202,9 +202,14 @@ The current candidate's consolidated [wire grammar](WIRE_V1.md) and
 [numeric budgets](BUDGETS_V1.json) now have a shared implementation surface and
 a compiled-descriptor comparison. They distinguish import/network/local formats,
 signature purposes, epoch-zero versus positive-epoch ACKs, carrier limits and
-independent trust inputs. This does not close the remaining state/storage/privacy
-specifications, product budget choice, construction analysis or final specification
-lock. Adapter work must preserve the actual signed policy and owner semantics.
+independent trust inputs. The source-grounded [state contract](STATE_MACHINE_V1.md),
+[storage/recovery contract](STORAGE_RECOVERY_V1.md) and
+[metadata inventory](METADATA_PRIVACY_V1.md) now consolidate the implemented
+native boundaries. They keep original-operation reconciliation, independent
+application commits, required-witness authority and logical-erasure limits
+explicit for adapter work. Product adoption, measured budgets, complete lifecycle,
+construction analysis and final specification lock remain open. Adapter work must
+preserve the actual signed policy and owner semantics.
 
 | Capability | Implementation obligation | Evidence required before completion |
 | --- | --- | --- |

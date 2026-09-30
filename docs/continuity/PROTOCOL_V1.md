@@ -3,7 +3,12 @@
 Status: **candidate, not frozen**. This records the implementation decisions and
 proof obligations for the [0.2.0 scope](RELEASE_0_2_SCOPE.md). It is not a wire
 specification or a completed security argument. Open decisions below must close
-before the product session core is admitted. ABI major remains **2**.
+before the product session core is admitted. ABI major remains **2**. The
+implemented candidate's [wire grammar](WIRE_V1.md),
+[state/operation contract](STATE_MACHINE_V1.md),
+[storage recovery](STORAGE_RECOVERY_V1.md) and
+[metadata boundary](METADATA_PRIVACY_V1.md) now supply concrete implementation
+correspondence. Their existence does not mark these open product decisions frozen.
 
 ## Identity and authority
 
@@ -25,7 +30,9 @@ authority/family/floor. A signed roster binds the exact active device generation
 roster version and validity. An accepted roster cannot be replaced by a lower
 version or a different digest at the same version. A newer roster is authenticated
 before it can authorize enrollment, fanout or revocation. The exact credential and
-roster encodings and signature composition remain an open decision.
+roster encodings and required ML-DSA-65 AND P-256 signature composition are
+implemented in the candidate wire contract; product adoption and its security
+analysis remain open.
 
 The isolated [identity candidate](../../research/continuity-identity-candidate)
 exercises a concrete ML-DSA-65 AND P-256 composition and canonical credential,
@@ -54,9 +61,14 @@ Permissions are derived from verified evidence and committed state:
 | Local evidence | Permitted effect |
 | --- | --- |
 | Authenticated responder prekeys; initiator bootstrap pending | Persist and dispatch the exact initial envelope; no mutually confirmed application privilege |
-| Responder verifies the initiator's fresh proof and initial envelope | Atomically consume the selected one-time prekeys and retain a sealed initial inbox; emit a fresh responder confirmation bound to this bootstrap |
+| Responder verifies the initiator's fresh proof and initial envelope | Atomically consume the selected one-time prekeys with the exact committed response outbox/private bootstrap result; emit fresh responder confirmation bound to this bootstrap |
 | Initiator verifies fresh responder proof and key confirmation | Persist its exact final confirmation and the authenticated peer state; dispatch the final confirmation before messages that require it |
-| Responder verifies the final initiator key confirmation | Commit mutually confirmed responder state and release eligible retained application delivery |
+| Responder verifies the final initiator key confirmation | Commit mutually confirmed responder bootstrap state; message activation follows its separate durable transition and cleanup-archive prerequisite in the native connection path |
+
+The implemented initial flight carries bootstrap material, not a 0-RTT application
+payload. Its private bootstrap result is not an application inbox. Application
+frames use the separately activated message state and its commit-before-release
+rules; the final-confirmation and activation states must remain distinct in bindings.
 
 The exact transcript graph, KDF outputs, signature inputs and confirmation MACs
 must be specified together so no key derivation contains its own output. Local
@@ -78,9 +90,11 @@ device generation and validity. The two-leg quality representation in
 [PrekeySelectionV1](PREKEY_SELECTION_V1.md) is retained as a candidate projection;
 it is not accepted as evidence of a manifest signature or service lease.
 
-The receiver commits one-time consumption, session creation, deduplication and the
-sealed inbox together. An exact previously committed initial envelope resolves to
-that operation's retained result. Different authenticated bytes naming an already
+The responder commits one-time consumption and the immutable response outbox in
+the same bootstrap aggregate. Its operation record retains exact-input
+deduplication and private bootstrap state; operational message activation follows
+confirmation separately. An exact previously committed initial envelope resolves
+to that operation's retained result. Different authenticated bytes naming an already
 consumed one-time key fail without creating another session. Invalid envelopes
 cannot consume the key. A malicious directory can double-lease a key; receiver
 at-most-once acceptance and attributable conflicting lease evidence are separate
@@ -190,16 +204,20 @@ generation and authenticates its enrollment and prior-generation retirement.
 
 ## Decisions still required for the frozen protocol
 
-1. Exact hybrid credential/root signature composition, authenticated enrollment and
-   root replacement, trusted-time source, directory checkpoint and witness format.
-2. Exact manifest/leaf/lease grammar, signed prekey modes, consumption and retention
-   bounds, and lease-accountability/linkability evidence.
-3. The non-circular bootstrap transcript/KDF graph and stage-specific confirmation
-   privileges, including loss/replay and key-compromise impersonation analysis.
-4. The measured PQ ratchet profile, complete wire grammar, padding and downgrade
-   behavior, resource/cadence limits and construction-specific recovery condition.
-5. Sealed record/key ownership, external anchor protocol, crash reconciliation,
-   revocation fences and atomic account-wide fanout/recovery behavior.
+1. Product adoption of the implemented hybrid signature/credential and witness
+   formats, authenticated enrollment/root replacement, the trusted-time source and
+   independently fresh/consistent directory checkpoint distribution.
+2. Product manifest/leaf/mode and retention selection, plus the still separate
+   lease-accountability/linkability and directory-service contract. The candidate's
+   exact grammar and local one-time consumption are already implemented.
+3. Agreement and key-compromise impersonation analysis for the implemented
+   non-circular bootstrap graph and stage-specific confirmation privileges.
+4. Measured ratchet/profile selection, product padding or explicit no-padding
+   policy, resource/cadence limits and construction-specific recovery analysis.
+   Current v6 full-hybrid rekey progress is not itself that analysis.
+5. Product admission of the implemented ownership/intent/witness/revocation and
+   single-sender fanout contracts, with complete authority/key/device renewal,
+   backup/upgrade semantics and independent deployment verification.
 6. Numeric device/workload budgets and the content-locked normative specification
    set. Candidate text does not satisfy this lock.
 
