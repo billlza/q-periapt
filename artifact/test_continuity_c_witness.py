@@ -84,10 +84,10 @@ class ContinuityCWitnessTests(unittest.TestCase):
 
     def test_report_cannot_promote_missing_execution_or_wrong_scope_to_success(self):
         stdout = (f"test {w.TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for output in (b"", stdout + stdout, stdout.replace(b"3 filtered out", b"2 filtered out")):
+            for output in (b"", stdout + stdout, stdout.replace(b"6 filtered out", b"2 filtered out")):
                 with self.subTest(output=output), self.assertRaises(ValueError):
                     w.verify_execution(output, root)
             for report in ({"completed": True}, {"completed": 1}, {"release_claim_eligible": True}):

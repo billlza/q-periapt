@@ -3,8 +3,50 @@
 use super::*;
 use p::anchor_tls::{AnchorTlsServer, PeerBinding};
 use q_periapt_rustls::standard::MutualTlsServer;
-use rustls::{pki_types::PrivatePkcs8KeyDer, RootCertStore};
+use rustls::RootCertStore;
 use std::sync::atomic::AtomicUsize;
+
+pub(super) struct Provisioned {
+    pub(super) native: AnchorTlsServer,
+    pub(super) certificate: Vec<u8>,
+    pub(super) key: zeroize::Zeroizing<Vec<u8>>,
+}
+pub(super) fn provision(paths: [&Path; 2]) -> Result<Provisioned> {
+    let server = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
+    let mut roots = RootCertStore::empty();
+    let mut bindings = Vec::new();
+    for (index, path) in paths.into_iter().enumerate() {
+        // Distinct directly trusted leaves need distinct issuer names: OpenSSL
+        // otherwise selects the first same-name self-signed trust anchor.
+        let mut params = rcgen::CertificateParams::new(vec!["device.test".into()])?;
+        params
+            .distinguished_name
+            .push(rcgen::DnType::CommonName, format!("witness-client-{index}"));
+        let key = rcgen::KeyPair::generate()?;
+        let client = params.self_signed(&key)?;
+        let certificate = client.der().to_vec();
+        roots.add(client.der().clone())?;
+        let subject =
+            p::AnchorSubject::from_trusted_state(&fixture::read(path, "witness-subject", 96)?)?;
+        bindings.push(PeerBinding::new(certificate.clone(), subject)?);
+        fixture::store(path, "witness-tls-cert", &certificate)?;
+        fixture::store(path, "witness-tls-key", &key.serialize_der())?;
+        fixture::store(path, "witness-tls-peer", server.cert.der())?;
+        fixture::store(path, "witness-tls-name", b"localhost")?;
+    }
+    let certificate = server.cert.der().to_vec();
+    let key = zeroize::Zeroizing::new(server.signing_key.serialize_der());
+    let config = MutualTlsServer::new(
+        roots,
+        vec![server.cert.der().clone()],
+        rustls::pki_types::PrivateKeyDer::try_from(key.as_slice())?.clone_key(),
+    )?;
+    Ok(Provisioned {
+        native: AnchorTlsServer::new(config, bindings)?,
+        certificate,
+        key,
+    })
+}
 
 struct TlsWitness {
     address: SocketAddr,
@@ -14,27 +56,7 @@ struct TlsWitness {
 }
 impl TlsWitness {
     fn start(store: Arc<Mutex<p::AnchorStore>>, paths: [&Path; 2]) -> Result<Self> {
-        let server = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
-        let mut roots = RootCertStore::empty();
-        let mut bindings = Vec::new();
-        for path in paths {
-            let client = rcgen::generate_simple_self_signed(vec!["device.test".into()])?;
-            let certificate = client.cert.der().to_vec();
-            roots.add(client.cert.der().clone())?;
-            let subject =
-                p::AnchorSubject::from_trusted_state(&fixture::read(path, "witness-subject", 96)?)?;
-            bindings.push(PeerBinding::new(certificate.clone(), subject)?);
-            fixture::store(path, "witness-tls-cert", &certificate)?;
-            fixture::store(path, "witness-tls-key", &client.signing_key.serialize_der())?;
-            fixture::store(path, "witness-tls-peer", server.cert.der())?;
-            fixture::store(path, "witness-tls-name", b"localhost")?;
-        }
-        let config = MutualTlsServer::new(
-            roots,
-            vec![server.cert.der().clone()],
-            PrivatePkcs8KeyDer::from(server.signing_key.serialize_der()).into(),
-        )?;
-        let server = AnchorTlsServer::new(config, bindings)?;
+        let server = provision(paths)?.native;
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
@@ -102,7 +124,7 @@ impl Drop for TlsWitness {
         }
     }
 }
-fn run_tls(
+pub(super) fn run_tls(
     path: &Path,
     label: &str,
     mode: &str,
@@ -115,7 +137,7 @@ fn run_tls(
         expected,
     )
 }
-fn serve_tls(
+pub(super) fn serve_tls(
     path: &Path,
     label: &str,
     mode: &str,

@@ -32,7 +32,7 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
-        "artifact/continuity_c_witness_tls.py", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
+        "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     for path in files:
         sdk.require(not path.is_symlink(), "candidate source contains a symlink")
@@ -160,6 +160,8 @@ def compiler_identity(toolchain: Path) -> dict:
 
 
 def qualify(args: argparse.Namespace) -> dict:
+    sdk.require(args.witness_openssl_prefix is None or args.with_c_consumer,
+                "OpenSSL witness qualification requires the installed C consumer")
     sdk.validate_no_registry_credentials(os.environ)
     sdk.require(os.uname().sysname in {"Darwin", "Linux"}, "candidate host store requires Unix")
     commit, dirty = sdk.inspect_package_source(ROOT, allow_dirty=False)
@@ -281,10 +283,11 @@ def qualify(args: argparse.Namespace) -> dict:
         if args.with_c_consumer:
             from continuity_c_consumer import qualify_c
             result["c_consumer"] = qualify_c(outside, output, cargo, environment, files,
-                                              original, args.report.parent, cohort["crates"])
+                                              original, args.report.parent, cohort["crates"],
+                                              openssl_prefix=args.witness_openssl_prefix)
             result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
-                               "and C client/server/recovery with local and signed-TCP required-witness profiles; "
-                               "no witness metadata encryption, other foreign bindings or cross-host qualification")
+                               "and C client/server/recovery with local, signed-TCP and mutual-TLS witness profiles; "
+                               "no independent witness engine, other foreign bindings or cross-host qualification")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -311,6 +314,8 @@ def main() -> None:
     parser.add_argument("--report-sha256", required=True)
     parser.add_argument("--with-c-consumer", action="store_true",
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
+    parser.add_argument("--witness-openssl-prefix", type=Path,
+                        help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
                                                   "c_consumer", "release_claim_eligible") if key in result}, indent=2))

@@ -13,7 +13,7 @@ SCOPE = "installed C operational/recovery owners over native mutual TLS witness;
 def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
                 "installed C TLS witness workload did not execute completely")
     public = {}
 
@@ -37,17 +37,6 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
         sdk.require(type(report[name]) is str and re.fullmatch(r"[0-9a-f]{64}", report[name])
                     and report[name] != "0" * 64, "C TLS witness identity differs")
     session, message = report["session"], report["message"]
-    effect = "initiator/application-" + message
-    sdk.require(read(effect) == bytes.fromhex(session + message) + b"persisted before process exit"
-                and len(list(directory.glob("*/application-*"))) == 1, "C TLS receiver effect differs")
-    loss = read("responder/c-loss-report").decode()
-    match = re.fullmatch(r"QPC-C-LOSS/1\nreport ([0-9a-f]{64})\nheader " + session +
-                        r" ([0-9a-f]{64}) ([0-9a-f]{64}) ([0-9a-f]{32}) 2 1 0 0 0 0 0 0 1\n" +
-                        r"epoch 0 0 1 1 0 0 0 0 0 " + "0" * 64 + r" 0 0 0\n", loss)
-    sdk.require(match is not None and all(set(value) != {"0"} for value in match.groups()),
-                "C TLS closure accounting differs")
-    archive = read("responder/c-closure-archive")
-    sdk.require(len(archive) == 362 and archive.startswith(b"QPCSCA01"), "C TLS closure archive differs")
     expected = {
         "initiator/tls-missing-key": "rejected:500\n", "initiator/tls-wrong-name": "rejected:218\n",
         "initiator/tls-wrong-subject": "rejected:218\n", "initiator/tls-owner-kind": "operational-owner-not-recovery\n",
@@ -59,6 +48,23 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     }
     servers = {"responder/tls-bootstrap-server": f"served:1:0:0:0\n{session}\n{'0' * 64}\n",
                "initiator/tls-message-server": f"served:2:0:1:1\n{session}\n{message}\n"}
+    logs = verify_owner_readbacks(read, directory, session, message, expected, servers)
+    return dict(report, scope=SCOPE, public_readbacks=public, command_logs=logs,
+                independent_implementation_qualified=False, full_tls_fault_matrix_qualified=False)
+
+
+def verify_owner_readbacks(read, directory: Path, session: str, message: str, expected: dict, servers: dict) -> dict:
+    effect = "initiator/application-" + message
+    sdk.require(read(effect) == bytes.fromhex(session + message) + b"persisted before process exit"
+                and len(list(directory.glob("*/application-*"))) == 1, "C TLS receiver effect differs")
+    loss = read("responder/c-loss-report").decode()
+    match = re.fullmatch(r"QPC-C-LOSS/1\nreport ([0-9a-f]{64})\nheader " + session +
+                        r" ([0-9a-f]{64}) ([0-9a-f]{64}) ([0-9a-f]{32}) 2 1 0 0 0 0 0 0 1\n" +
+                        r"epoch 0 0 1 1 0 0 0 0 0 " + "0" * 64 + r" 0 0 0\n", loss)
+    sdk.require(match is not None and all(set(value) != {"0"} for value in match.groups()),
+                "C TLS closure accounting differs")
+    archive = read("responder/c-closure-archive")
+    sdk.require(len(archive) == 362 and archive.startswith(b"QPCSCA01"), "C TLS closure archive differs")
     logs = {}
     for label in expected | servers:
         role, name = label.split("/")
@@ -77,8 +83,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
                             "C TLS witness server outcome differs")
     sdk.require({p.relative_to(directory).as_posix() for p in directory.glob("*/witness-*.std*")} == logs.keys(),
                 "unexpected or missing C TLS witness command logs")
-    return dict(report, scope=SCOPE, public_readbacks=public, command_logs=logs,
-                independent_implementation_qualified=False, full_tls_fault_matrix_qualified=False)
+    return logs
 
 
 def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:

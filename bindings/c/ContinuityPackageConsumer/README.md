@@ -33,8 +33,9 @@ The CLI selects it only with `--witness-tls address`. It never falls back to TCP
 The witness's separately configured exact TLS leaf-to-enrolled-subject table
 rejects cross-device credential use before durable handling. Original witness
 signing pins and signatures are still mandatory. Classical TLS certificate
-authentication is not PQ identity authentication. Installed-package qualification,
-independent service deployment, other language surfaces and product dependency/ABI
+authentication is not PQ identity authentication. The native TLS installed-package
+path has Debug/Release qualification on Rust 1.98.1 and 1.90 at source `1c1d7c80`.
+Independent service deployment, other language surfaces and product dependency/ABI
 admission remain unfinished for the TLS extension.
 
 The consumer configuration is the same private fixture layout used by the
@@ -196,6 +197,33 @@ sh artifact/python-run.sh artifact/continuity_package.py \
   --output target/continuity-installed-rust-c \
   --with-c-consumer
 ```
+
+Add `--witness-openssl-prefix /absolute/openssl-installation` to require the
+independent OpenSSL TLS reference peer (`bin/openssl`, `include/openssl`, `lib`).
+The installed-consumer CI selects `/usr` on Ubuntu 26.04. The collector compiles
+`witness_tls_peer.c` with strict warnings, matches CLI/header/runtime versions,
+records the actual linked `libssl` and `libcrypto` bytes, and rechecks those inputs
+after execution. Group support is established by actual TLS 1.3
+`X25519MLKEM768` connections with `q-periapt-anchor/1` ALPN; unsupported libraries
+fail the requested qualification. No version number alone establishes support.
+
+The OpenSSL client sends real signed query/advance requests to the native server.
+The reverse direction runs actual installed C owners through 142 witness
+exchanges, application delivery, SDK revocation and crash/reopen cleanup. Four
+separate OpenSSL server processes must reject wrong-subject credentials, trailing
+data, missing authenticated close and wrong ALPN before any store dispatch.
+Both authenticated TLS close notifications are required. The reference process
+uses exact certificate/subject bindings, five-second connect/exchange deadlines,
+fixed frame widths, at most 1,024 exchanges, and only explicit IPv4 loopback.
+An invalid connection terminates its isolated reference process; this is not a
+production listener availability or concurrency design.
+
+The independent component is the TLS implementation. Signed witness verification
+and durable transitions still run in the native `AnchorStore` host over bounded
+IPC; this does not qualify an independent witness state machine, cross-host
+deployment, a full TLS fault matrix, or a product provisioning API. Public exports
+omit credentials and journals. The reference peer is outside the product C ABI
+and does not add OpenSSL to its runtime dependencies.
 
 It first executes the original archive-shipped Rust trace. The C phase then builds
 both Debug/Release libraries and native C executables, checks the exact 31

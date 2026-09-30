@@ -9,6 +9,7 @@ import continuity_package as package
 import continuity_c_recovery as recovery
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
+import continuity_c_witness_openssl as witness_openssl
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
@@ -189,11 +190,11 @@ def verify_linkage(dependencies: str, loader: str, filename: str, *, darwin: boo
 
 def qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
               candidate_files: dict[str, bytes], original_lock: bytes,
-              sdk_output: Path, records: dict) -> dict:
+              sdk_output: Path, records: dict, *, openssl_prefix: Path | None = None) -> dict:
     result = {"completed": False, "scope": QUALIFICATION_SCOPE, "release_claim_eligible": False, "execution": {}}
     try:
         return _qualify_c(outside, output, cargo, environment, candidate_files,
-                          original_lock, sdk_output, records, result)
+                          original_lock, sdk_output, records, result, openssl_prefix=openssl_prefix)
     except Exception as error:
         result["failure"] = str(error)
         raise
@@ -203,7 +204,7 @@ def qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
 
 def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                candidate_files: dict[str, bytes], original_lock: bytes,
-               sdk_output: Path, records: dict, result: dict) -> dict:
+               sdk_output: Path, records: dict, result: dict, *, openssl_prefix: Path | None = None) -> dict:
     consumer = outside / "c-consumer"
     for path in FIXTURE.rglob("*"):
         sdk.require(not path.is_symlink(), "C consumer fixture contains a symlink")
@@ -225,7 +226,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
     env = dict(environment)
     for key in ("CC", "CXX", "AR", "LD", "CPP", "CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS",
                 "CPATH", "C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH", "LIBRARY_PATH",
-                "SDKROOT", "MACOSX_DEPLOYMENT_TARGET"):
+                "SDKROOT", "MACOSX_DEPLOYMENT_TARGET", "OPENSSL_CONF", "OPENSSL_CONF_INCLUDE", "OPENSSL_MODULES",
+                "OPENSSL_ENGINES", "SSL_CERT_FILE", "SSL_CERT_DIR"):
         env.pop(key, None)
     def run(argv, label, cwd=consumer, *, runtime=None):
         return sdk.command(argv, output / ("c-" + label), cwd, environment=env if runtime is None else runtime)
@@ -338,6 +340,24 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         result["execution"][profile]["witness_tls"] = witness_tls.verify_execution(tested, tls_evidence)
         result["execution"][profile]["witness_tls"]["exported_public_files"] = witness_tls.export_public(
             tested, tls_evidence, output / "c-witness-tls-public" / profile)
+        if openssl_prefix is not None:
+            peer, peer_identity = witness_openssl.build_peer(
+                openssl_prefix, cc, platform_flags, consumer, installed, run, darwin=darwin, profile=profile)
+            runtime["QPERIAPT_WITNESS_OPENSSL_PEER"] = str(peer)
+            qualification = {"completed": False, "peer": peer_identity, "execution": {}}
+            result["execution"][profile]["witness_openssl"] = qualification
+            for kind, test in witness_openssl.TESTS.items():
+                interop_evidence = outside / f"c-{profile}-witness-openssl-{kind}-runtime"
+                runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(interop_evidence)
+                tested = run([str(witness_helper), "--exact", test, "--nocapture"],
+                             f"witness-openssl-{kind}-{profile}", runtime=runtime)
+                checked = witness_openssl.verify_execution(kind, tested, interop_evidence)
+                checked["exported_public_files"] = witness_openssl.export_public(
+                    kind, tested, interop_evidence, output / "c-witness-openssl-public" / profile / kind)
+                qualification["execution"][kind] = checked
+            witness_openssl.verify_dependencies(peer_identity["dependency_files"])
+            qualification["completed"] = True
+            runtime.pop("QPERIAPT_WITNESS_OPENSSL_PEER")
         sdk.require(sdk.snapshot(witness_helper, maximum=MAX_BINARY).sha256 == witness_identity.sha256,
                     "installed witness helper changed during execution")
         result["execution"][profile]["witness"]["binary"] = {
@@ -362,6 +382,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
     for relative, digest in template_hashes.items():
         if relative != "Cargo.toml":
             sdk.require(sdk.snapshot(consumer / relative).sha256 == digest, "C consumer input changed")
+    for profile in result["execution"].values():
+        if "witness_openssl" in profile:
+            witness_openssl.verify_dependencies(profile["witness_openssl"]["peer"]["dependency_files"])
     actual = set()
     for path in consumer.rglob("*"):
         relative = path.relative_to(consumer)

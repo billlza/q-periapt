@@ -104,7 +104,7 @@ def cancellation_latency(data: bytes) -> int:
 def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
                 "installed C witness test did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-witness-public-result.json").data, label="C witness result")
     names = {"session", "message", "unknown", "context", "peer_account", "peer_device", "report"}

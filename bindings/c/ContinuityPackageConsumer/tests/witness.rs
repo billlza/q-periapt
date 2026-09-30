@@ -2,6 +2,8 @@
 //! Actual installed C owners against an independently owned native witness socket.
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
+#[path = "witness/openssl.rs"]
+mod openssl;
 #[path = "witness/tls.rs"]
 mod tls;
 use q_periapt_continuity_identity_candidate as p;
