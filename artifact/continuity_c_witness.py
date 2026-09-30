@@ -88,6 +88,19 @@ def transcript(data: bytes, authority: bytes) -> dict:
             "lost_commands": sorted(value.hex() for value in lost), "fresh_challenges": len(challenges)}
 
 
+def cancelled_reply_prefix(prefix: bytes, data: bytes) -> None:
+    sdk.require(data and len(data) % RECORD_BYTES == 0, "partial witness transcript framing differs")
+    lost = [data[n:n + RECORD_BYTES] for n in range(0, len(data), RECORD_BYTES) if data[n] == 0]
+    sdk.require(len(lost) == 2 and prefix == (3659).to_bytes(4, "big") + lost[0][3675:3675 + 1800],
+                "cancelled partial reply differs from original committed witness response")
+
+
+def cancellation_latency(data: bytes) -> int:
+    match = re.fullmatch(rb"witness-cancelled-outcome-unavailable:(0|[1-9][0-9]{0,2})\n", data)
+    sdk.require(match is not None, "held witness cancellation exceeded its one-second qualification bound")
+    return int(match[1])
+
+
 def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
@@ -114,7 +127,12 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
         return result.data
     identity, key = read("responder/witness-id"), read("responder/witness-public")
     sdk.require(len(identity) == 32 and len(key) == 1985, "witness original pin shape differs")
-    trace = transcript(read("witness-transcript"), commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-AUTHORITY/v1", identity + key))
+    trace_bytes = read("witness-transcript")
+    trace = transcript(trace_bytes, commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-AUTHORITY/v1", identity + key))
+    cancelled_reply_prefix(read("responder/witness-cancelled-prefix", maximum=1804), trace_bytes)
+    sdk.require(read("responder/witness-cancel-ready", maximum=1) == b"1", "witness cancellation barrier differs")
+    cancelled = sdk.snapshot(directory / "responder/witness-lost-send.stdout", maximum=65536).data
+    cancellation_ms = cancellation_latency(cancelled)
     sdk.require(type(report["witness_exchanges"]) is int and trace["exchanges"] == report["witness_exchanges"],
                 "witness exchange census differs")
     wire = read("responder/witness-unknown-wire")
@@ -134,7 +152,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     expected = {"initiator/missing": "rejected:216\n", "initiator/wrong-pin": "rejected:211\n",
                 "initiator/bad-signature": "rejected:218\n", "initiator/bootstrap-client": report["session"] + "\n",
                 "initiator/rekey-client": "rekey-1-confirmed\n", "responder/next": report["message"] + "\n",
-                "responder/lost-send": "witness-outcome-unavailable\n", "responder/reserved": "1\n",
+                "responder/lost-send": cancelled.decode(), "responder/reserved": "1\n",
                 "responder/exact-send": "consumed\n", "responder/next-after-rekey": report["unknown"] + "\n",
                 "responder/unknown-send": "delivery-unknown-committed\n", "responder/revoked": "rejected:603\n",
                 "responder/cleanup-missing": "selection-refused:216\n", "responder/cleanup-cancel": "cancelled-cleanup-not-frozen\n",
@@ -162,7 +180,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     sdk.require({p.relative_to(directory).as_posix() for p in directory.glob("*/witness-*.std*")} == logs.keys(),
                 "unexpected or missing C witness command logs")
     return dict(report, scope=SCOPE, transcript=trace, public_readbacks=public, command_logs=logs,
-                ciphertext_digest=digest, witness_tls_qualified=False)
+                ciphertext_digest=digest, witness_tls_qualified=False, held_socket_cancellation_ms=cancellation_ms)
 
 
 def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:

@@ -31,6 +31,30 @@ def fixture():
 
 
 class ContinuityCWitnessTests(unittest.TestCase):
+    def test_partial_reply_must_match_the_original_committed_advance(self):
+        authority, rows = fixture()
+        data = b"".join(rows)
+        w.transcript(data, authority)
+        prefix = (3659).to_bytes(4, "big") + rows[1][3675:3675 + 1800]
+        w.cancelled_reply_prefix(prefix, data)
+        for altered in (b"", prefix[:-1], prefix + b"x", bytes(1804),
+                        (3659).to_bytes(4, "big") + rows[4][3675:3675 + 1800]):
+            with self.subTest(prefix=altered[:12]), self.assertRaises(ValueError):
+                w.cancelled_reply_prefix(altered, data)
+        for altered in (b"", data[:-1], b"".join(rows[:3])):
+            with self.subTest(transcript=altered[:12]), self.assertRaises(ValueError):
+                w.cancelled_reply_prefix(prefix, altered)
+
+    def test_cancellation_cannot_be_relabelled_from_timeout_or_missing_outcome(self):
+        for value in (0, 25, 999):
+            self.assertEqual(w.cancellation_latency(f"witness-cancelled-outcome-unavailable:{value}\n".encode()), value)
+        for value in (b"", b"consumed\n", b"witness-outcome-unavailable\n",
+                      b"witness-cancelled-outcome-unavailable:1000\n",
+                      b"witness-cancelled-outcome-unavailable:-1\n",
+                      b"witness-cancelled-outcome-unavailable:025\n"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                w.cancellation_latency(value)
+
     def test_two_lost_advances_reconcile_without_a_second_mutation(self):
         authority, rows = fixture()
         result = w.transcript(b"".join(rows), authority)

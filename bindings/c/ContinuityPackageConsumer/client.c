@@ -336,26 +336,44 @@ int main(int argc, char **argv) {
     } else {
         int uncertain = strcmp(argv[1], "uncertain-send") == 0;
         int witness_failed = strcmp(argv[1], "witness-failed-send") == 0;
+        int witness_cancel = strcmp(argv[1], "cancel-witness-send") == 0;
         int cancelled = strcmp(argv[1], "cancel-send") == 0;
         int busy = strcmp(argv[1], "busy-cancel") == 0;
-        if ((!uncertain && !cancelled && !busy && !witness_failed && strcmp(argv[1], "send") != 0) ||
-            argc != (busy ? 7 : 6)) fail("send arguments");
+        if ((!uncertain && !cancelled && !busy && !witness_failed && !witness_cancel && strcmp(argv[1], "send") != 0) ||
+            argc != (busy || witness_cancel ? 7 : 6)) fail("send arguments");
         struct Send s = {.handle = handle, .peer = argv[3]};
+        int64_t cancellation_ms = -1;
         decode(argv[4], s.session); decode(argv[5], s.message);
         if (cancelled) require(qpc_owner_v1_cancel(handle, &error), &error);
-        if (busy) {
+        if (busy || witness_cancel) {
             pthread_t worker;
             if (pthread_create(&worker, NULL, send_call, &s)) fail("worker creation failed");
-            wait_marker(argv[6]); /* Parent has observed actual TLS bytes on the socket. */
+            /* Parent observed TLS bytes, or the witness committed and sent a partial reply. */
+            wait_marker(argv[6]);
             int32_t code = qpc_owner_v1_close(handle, &error);
             record(code, &error);
             if (code != QPC_BUSY) fail("close did not preserve active owner");
+            struct timespec before, after;
+            if (clock_gettime(CLOCK_MONOTONIC, &before)) fail("clock unavailable");
             require(qpc_owner_v1_cancel(handle, &error), &error);
             if (pthread_join(worker, NULL)) fail("worker join failed");
+            if (clock_gettime(CLOCK_MONOTONIC, &after)) fail("clock unavailable");
+            cancellation_ms = ((int64_t)after.tv_sec - (int64_t)before.tv_sec) * 1000
+                + ((int64_t)after.tv_nsec - (int64_t)before.tv_nsec) / 1000000;
         } else {
             send_call(&s);
         }
         record(s.code, &s.error);
+        if (witness_cancel) {
+            if (!witness || s.code != QPC_ANCHOR || s.consumption || s.exchanges)
+                fail("cancelled witness commit lost its unknown outcome");
+            close_owner(handle);
+            if (printf("witness-cancelled-outcome-unavailable:%lld\n", (long long)cancellation_ms) < 0
+                || fflush(stdout)) fail("output failed");
+            if (cancellation_ms < 0 || cancellation_ms >= 1000)
+                fail("held witness socket did not observe cancellation promptly");
+            return 0;
+        }
         if (witness_failed) {
             if (!witness || s.code!=QPC_ANCHOR || s.consumption || s.exchanges)
                 fail("witness loss was relabelled or dispatched");

@@ -79,9 +79,11 @@ accept, then run the shared carrier's separate 20-second/eight-exchange budget.
 Accept cancellation polls every 25 milliseconds subject to OS scheduling.
 Filesystem and application callbacks remain synchronous/cooperative; cancellation
 does not preempt an arbitrary kernel call, foreign callback or undo a commit.
-Witness dispatch checks the same owner cancellation signal before and after each
-native exchange. An already running socket call uses that exchange's original
-deadline. This per-exchange bound is not a global constructor or invocation bound;
+Witness dispatch shares the native one-way cancellation signal with TLS dispatch.
+Connected reads/writes use at most 25-ms socket timeouts, subject to OS scheduling,
+and check cancellation between calls, including partial frames. A pending connect
+still uses the exchange's original deadline. Polling never refreshes that deadline.
+This per-exchange bound is not a global constructor or invocation bound;
 the native journal can require several witness admissions. A completed witness
 mutation followed by cancellation remains an unknown outcome requiring exact
 reconciliation. Native witness failures retain their typed diagnostics.
@@ -152,8 +154,11 @@ The required-witness trace provisions and explicitly enrolls both original
 installations with a separately owned native witness store. Actual C client and
 server processes use its real socket for bootstrap, application delivery, rekey
 and cleanup. Wrong witness pins and a corrupted signed reply refuse admission.
-The witness deliberately drops one already committed send advance and one already
-committed cleanup advance. Reopening must retry the same command with a fresh
+After committing the send advance, the witness sends only a signed-response prefix
+and holds the socket. A concurrent C call observes Busy close, requests cancellation
+and requires its sending worker to return the native unknown-outcome error within
+one second. The witness observes connection closure. The trace also drops one
+already committed cleanup advance. Reopening must retry the same command with a fresh
 challenge and obtain `AlreadyAppliedExact`, without another logical advance.
 SDK revocation blocks operational open; witnessed cleanup remains available.
 Cancellation prevents freezing, and the reopened native journal confirms Open.
@@ -163,11 +168,13 @@ The public transcript verifier checks every request/reply envelope length,
 authority/subject, command and attempt commitment, challenge uniqueness and
 monotonic head transition. It independently recomputes the unknown ciphertext
 commitment and compares every loss-report row and the actual application record.
+It binds the held partial reply to the original committed response and checks the
+measured cancellation interval; the one-second test bound is not a latency SLA.
 It does not independently verify signatures: the actual native witness and C
 client engine perform those checks. The earlier OpenSSL vector oracle remains
 a separate finite validation. This trace does not qualify witness TLS, independent
-implementation, external service deployment, witness-store rollback resistance
-or cancellation during a held witness socket.
+implementation, external service deployment, witness-store rollback resistance,
+or cancellation of an in-progress connect or arbitrary filesystem call.
 
 Run the existing installed package collector with `--with-c-consumer`:
 

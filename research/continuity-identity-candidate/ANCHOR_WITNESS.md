@@ -128,6 +128,15 @@ queries for reconciliation, but rejects new state/fence changes.
 
 ## Evidence and trust boundary
 
+`AnchorTcpTransport::with_cancellation` shares the same one-way signal as the
+native TLS carriers without requiring operational SDK activation. Connected
+reads/writes use socket timeouts of at most 25 milliseconds and check cancellation
+between calls, including partially received length and reply fields. Scheduling
+can delay observation; a pending connect still uses the original exchange
+deadline. Neither polling nor partial progress refreshes that deadline. Cancelling
+closes the connection and returns an unavailable outcome, never evidence that the
+witness failed to commit. Recovery must reconcile the original durable command.
+
 Tests use real signed enrollment, a real authenticated journal genesis, real redb
 commits, four before/after-sync failures and an independently killed/reopened witness
 process. They cover fresh challenges, stale fences, same-target/different-command
@@ -143,6 +152,6 @@ A retained counterexample restores the witness database itself and obtains an ol
 valid head: this software provider does not supply hardware anti-rollback or protect
 its own authority from whole-store restoration. The process test does not establish
 separate-host deployment or Byzantine consistency. Those deployment assumptions,
-transport cancellation, account-level coordination and the wider 0.2.0 lifecycle
+connect cancellation, global invocation bounds, account-level coordination and the wider 0.2.0 lifecycle
 remain required. Required-anchor journals retain their original writer fence;
 they reject externally changed fences rather than adopting a new writer authority.

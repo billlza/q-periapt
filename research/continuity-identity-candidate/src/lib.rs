@@ -10,6 +10,7 @@
 mod anchor;
 mod bootstrap;
 mod bootstrap_bundle;
+mod cancellation;
 mod codec;
 #[cfg(feature = "connection-tls")]
 pub mod connection_transport;
@@ -27,6 +28,7 @@ mod native_transport;
 mod selection;
 mod session_archives;
 mod session_policy;
+pub use cancellation::Cancellation;
 pub use installation::{
     DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
     InstallationRecovery, InstallationStatus, InstalledSessionRecovery,

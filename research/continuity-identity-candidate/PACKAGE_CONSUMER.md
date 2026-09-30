@@ -60,6 +60,9 @@ journal-sync process interruptions. Its explicit required-witness trace uses
 the same native engine and an independently owned witness socket/store for actual
 C bootstrap, application delivery, rekey and post-revocation cleanup. Lost committed
 witness replies retain the original command with fresh challenge attempts.
+The send case cancels a live C call after witness commit and a partial reply;
+Busy close retains the owner, connected I/O releases promptly, and reopening
+reconciles the exact command. Polling retains the original absolute deadline.
 The archive-shipped fixture provisions/enrolls test state through public APIs;
 it does not expose provisioning through the C owner API. The witness carrier is
 signed TCP, so this does not qualify encrypted metadata, an independent witness

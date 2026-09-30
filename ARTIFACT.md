@@ -5,11 +5,15 @@ reviewer with only Rust installed can run **Tier 1** in ~10 minutes; **Tier 2** 
 gates in ~1 hour given a few extra toolchains; **Tier 3** reproduces the hardware-dependent
 measurements (network shaping, binary constant-time) and needs specific hosts.
 
-This artifact evaluates the implemented hybrid-KEM, policy, bindings, four-flight
-demo handshake, and evidence chain. It does **not** evaluate a Q-Periapt Continuity
-protocol: there is no account/device directory, prekey service, wire protocol,
-persistent ratchet, multi-device manager, recovery adapter, or stateful protocol
-implementation in this repository. A separate `publish = false` lifecycle model has
+These paper artifact tiers evaluate the implemented hybrid-KEM, policy, bindings,
+four-flight demo handshake, and evidence chain. They do **not** establish release
+readiness for Q-Periapt Continuity. The separate `publish = false`
+[identity candidate](research/continuity-identity-candidate/README.md) implements
+authenticated identity/prekey operations, durable sessions, PQ rekey and witness
+reconciliation; it remains outside the published SDK dependency graph. Its
+[release ledger](docs/SDK_0_2_RELEASE_READINESS.md) retains source-bound results and
+open protocol, implementation, platform and deployment requirements.
+A separate `publish = false` lifecycle model has
 31 lifecycle integration tests, 12 canonical-context tests, eight strict canonical
 prekey-selection tests, and one private receipt-atomicity regression. It retains trusted pairwise session/current-context
 admission across reconstruction, exact version+digest state advances, and a candidate
@@ -44,7 +48,7 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-244 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+245 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
 format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
 sentinels. Path-resolution and type-inference internal-consistency categories are checked for a

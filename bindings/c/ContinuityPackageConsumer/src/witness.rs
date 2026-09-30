@@ -2,10 +2,7 @@
 //! Explicit trusted witness configuration, reusing the native authenticated carrier.
 use super::*;
 use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
-use std::{
-    io,
-    time::{Duration, Instant},
-};
+use std::time::Duration;
 
 /// Borrowed endpoint options; no caller pointer is retained by the owner.
 #[repr(C)]
@@ -54,34 +51,12 @@ impl Configuration {
         p::AnchorClient::new(
             pin,
             signer,
-            Box::new(Transport {
-                inner: p::AnchorTcpTransport::new(self.address),
+            Box::new(p::AnchorTcpTransport::with_cancellation(
+                self.address,
                 cancel,
-            }),
+            )),
             self.timeout,
         )
         .map_err(|error| p::DurableError::from(error).into())
-    }
-}
-struct Transport {
-    inner: p::AnchorTcpTransport,
-    cancel: Cancellation,
-}
-impl p::AnchorTransport for Transport {
-    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
-        if self.cancel.is_cancelled() {
-            return Err(io::Error::new(
-                io::ErrorKind::Interrupted,
-                "witness dispatch cancelled",
-            ));
-        }
-        let reply = self.inner.exchange(request, deadline)?;
-        if self.cancel.is_cancelled() {
-            return Err(io::Error::new(
-                io::ErrorKind::Interrupted,
-                "witness dispatch cancelled after exchange; reconcile original command",
-            ));
-        }
-        Ok(reply)
     }
 }

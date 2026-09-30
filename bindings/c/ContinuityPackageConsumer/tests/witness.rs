@@ -28,6 +28,7 @@ struct Witness {
     configured: fixture::WitnessFixture,
     stop: Arc<AtomicBool>,
     fault: Arc<AtomicU8>,
+    hold_marker: Arc<Mutex<Option<PathBuf>>>,
     captured: Arc<Mutex<Vec<Capture>>>,
     worker: Option<thread::JoinHandle<Result<()>>>,
 }
@@ -51,6 +52,8 @@ impl Witness {
         let stop = Arc::new(AtomicBool::new(false));
         let fault = Arc::new(AtomicU8::new(0));
         let captured = Arc::new(Mutex::new(Vec::new()));
+        let hold_marker: Arc<Mutex<Option<PathBuf>>> = Arc::new(Mutex::new(None));
+        let held = Arc::clone(&hold_marker);
         let control = Arc::clone(&stop);
         let pending = Arc::clone(&fault);
         let records = Arc::clone(&captured);
@@ -91,6 +94,39 @@ impl Witness {
                 let advanced = reply.get(204) == Some(&2);
                 let mut delivered = true;
                 if advanced
+                    && pending
+                        .compare_exchange(3, 0, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok()
+                {
+                    let marker = held
+                        .lock()
+                        .map_err(|_| "hold lock poisoned")?
+                        .take()
+                        .ok_or("missing cancellation barrier")?;
+                    let mut prefix = (reply.len() as u32).to_be_bytes().to_vec();
+                    prefix.extend_from_slice(reply.get(..1800).ok_or("reply prefix")?);
+                    stream.write_all(&prefix)?;
+                    fixture::store(
+                        marker.parent().ok_or("marker parent")?,
+                        "witness-cancelled-prefix",
+                        &prefix,
+                    )?;
+                    fixture::store(
+                        marker.parent().ok_or("marker parent")?,
+                        marker
+                            .file_name()
+                            .ok_or("marker name")?
+                            .to_str()
+                            .ok_or("marker encoding")?,
+                        b"1",
+                    )?;
+                    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+                    let mut byte = [0];
+                    if stream.read(&mut byte)? != 0 {
+                        return Err("cancelled witness connection sent extra bytes".into());
+                    }
+                    delivered = false;
+                } else if advanced
                     && pending
                         .compare_exchange(1, 0, Ordering::AcqRel, Ordering::Acquire)
                         .is_ok()
@@ -134,6 +170,7 @@ impl Witness {
             stop,
             fault,
             captured,
+            hold_marker,
             worker: Some(worker),
         })
     }
@@ -141,6 +178,15 @@ impl Witness {
         self.fault
             .compare_exchange(0, fault, Ordering::AcqRel, Ordering::Acquire)
             .map_err(|_| "unconsumed witness fault")?;
+        Ok(())
+    }
+    fn hold_next_advance(&self, marker: PathBuf) -> Result<()> {
+        let mut pending = self.hold_marker.lock().map_err(|_| "hold lock poisoned")?;
+        if pending.is_some() {
+            return Err("unconsumed hold marker".into());
+        }
+        self.arm(3)?;
+        *pending = Some(marker);
         Ok(())
     }
     fn join(&mut self) -> Result<()> {
@@ -328,18 +374,27 @@ fn c_witness_owners_reconcile_actual_lost_advances_and_revoked_cleanup() -> Resu
         Some(endpoint),
         0,
     )?)?;
-    witness.arm(1)?;
-    assert_eq!(
-        run(
-            right,
-            "lost-send",
-            "witness-failed-send",
-            &["127.0.0.1:9".into(), session.clone(), message.clone()],
-            Some(endpoint),
-            0
-        )?,
-        "witness-outcome-unavailable\n"
-    );
+    let marker = right.join("witness-cancel-ready");
+    witness.hold_next_advance(marker.clone())?;
+    let cancelled = run(
+        right,
+        "lost-send",
+        "cancel-witness-send",
+        &[
+            "127.0.0.1:9".into(),
+            session.clone(),
+            message.clone(),
+            marker.to_str().ok_or("marker path")?.to_owned(),
+        ],
+        Some(endpoint),
+        0,
+    )?;
+    let cancellation_ms: u64 = cancelled
+        .strip_prefix("witness-cancelled-outcome-unavailable:")
+        .and_then(|value| value.strip_suffix('\n'))
+        .ok_or("cancellation output")?
+        .parse()?;
+    assert!(cancellation_ms < 1000);
     assert_eq!(
         run(
             right,

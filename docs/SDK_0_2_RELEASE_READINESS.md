@@ -77,6 +77,58 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The C witness carrier now observes the owner's shared one-way cancellation
+between connected socket reads/writes, with at most 25-ms socket timeouts and
+one unchanged absolute exchange deadline. The signal is available without TLS
+features or operational SDK activation; existing TLS re-exports remain valid.
+An in-progress connect still has its original deadline, and arbitrary filesystem
+work is not preempted. Cancellation never proves that a witness mutation was absent.
+
+The retained old-library counterexample waits 2,982 ms after cancellation when the
+real witness has committed an advance, sent a partial signed reply and held the
+socket. The corrected development run returns in 42 ms. Clean runtime snapshot
+`547fe920` then qualifies actual installed Rust/C packages with Rust 1.98.1 and
+Rust 1.90 in Debug and Release. The four C cancellation intervals are respectively
+14/43 ms and 47/21 ms. These are finite functional observations under a one-second
+test bound, not a latency SLA or general performance comparison. Busy close retains
+the live owner, cancellation releases the socket, and reopening reconciles the
+same committed command with a fresh challenge instead of another logical advance.
+
+Each profile retains 274 witness exchanges, two subjects, 44 logical advances,
+48 command logs, ten public readbacks, complete revoked-session loss accounting
+and 59 sync-interruption cases / 771 command records, including eight actual
+Reserved sends. All prior C client/server/recovery and original Rust public traces
+pass. The canonical collector completes in 2,017.048 seconds and the minimum C
+graph in 1,279.171 seconds. The native Debug/Release suites each pass 284 tests;
+the three new transport tests also pass on Rust 1.90. Strict Clippy, installed
+formatting, a build without TLS features and 134 final source/package/inventory
+checks pass. The initial source test failure was a stale 244-file guide count;
+the corrected guide and gate now require all 245 Rust sources.
+
+The candidate archive is
+`30990b4971c8de9f3f14069c7e3c2de39b8ba2dc2d2d667535706b458d58ac31`.
+Only four native source files and two candidate guides differ from the preceding
+archive; manifests, dependency lock and consumed SDK archives are unchanged.
+Final validation snapshot `afe52f15` preserves all 174 package-qualification input
+hashes; its artifact guide separately corrects the source census and distinguishes
+the implemented candidate from the abstract lifecycle model. This ledger is added
+after execution. Public outputs are retained as
+`20260930-continuity-c-witness-cancel`; a collector summary initially used an old
+record filename, then resumed with independent copied-file hash verification.
+That metadata repair did not rerun or alter SDK execution.
+
+Predecessor `e97ea9f8` completes native Linux installed Debug/Release witness and
+59-case sync matrices. Downloaded evidence independently rechecks 56 witness-file
+hashes and a 274-exchange transcript per profile, 771 command records per profile
+and all 192 raw sync receipts. Its CodeQL run `36761687553` passes six jobs and the
+244-file Rust gate at synthetic PR merge `e06480e1706ef89b38fca7b5356fada18a84cd82`.
+The push workflow was 42/43 at the captured checkpoint, with one native job still
+running. These results exclude the cancellation patch and its new 245-file census.
+Witness metadata remains plaintext on the signed TCP carrier. Witness TLS/service
+deployment, connect cancellation, global invocation bounds, independent cross-host
+and current-device qualification, remaining product/language/lifecycle integration
+and controlled performance/security/release requirements remain open.
+
 The unpublished C surface now adds explicit operational and cleanup witness
 constructors, for 29 isolated exports. They retain the original independently
 configured witness identity/public key and device signer and reuse native witness

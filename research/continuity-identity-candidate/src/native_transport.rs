@@ -1,40 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Shared native TLS I/O, cancellation and invocation bounds. Carrier grammars
 //! and journal transitions remain the responsibility of each protocol endpoint.
+pub use crate::Cancellation;
 use crate::{BootstrapContext, DurableError};
 use q_periapt_rustls::connection;
 use std::{
     io,
     net::{SocketAddr, TcpStream},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
     time::{Duration, Instant},
 };
 mod socket;
 pub(crate) use socket::Channel;
 #[cfg(feature = "control-tls")]
 pub(crate) use socket::Request;
-
-/// Shared one-way cancellation signal. Cancellation cannot undo a journal commit.
-#[derive(Clone)]
-pub struct Cancellation(Arc<AtomicBool>);
-impl Default for Cancellation {
-    fn default() -> Self {
-        Self(Arc::new(AtomicBool::new(false)))
-    }
-}
-impl Cancellation {
-    /// Stop further dispatch; the owner and exact pending operation remain available.
-    pub fn cancel(&self) {
-        self.0.store(true, Ordering::Release);
-    }
-    /// Whether cancellation has been requested; there is no reset operation.
-    pub fn is_cancelled(&self) -> bool {
-        self.0.load(Ordering::Acquire)
-    }
-}
 
 /// Explicit per-invocation bounds; reconnecting never refreshes the total deadline.
 #[derive(Clone, Copy)]

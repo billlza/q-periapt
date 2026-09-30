@@ -77,8 +77,8 @@ extern "C" {
  * replaces pins, repairs files or downgrades required-witness protection.
  * quality is independently caller-selected: 1=one-time both, 2=reusable both,
  * 3=signed classical + one-time PQ, 4=one-time classical + last-resort PQ.
- * This initial client consumes local-profile installations; required protection
- * returns its actual admission error. Required-witness adapter remains unfinished.
+ * Ordinary open consumes local-profile installations; required protection needs
+ * the explicit witnessed constructor and otherwise returns its admission error.
  * Both signing/key owners are loaded from their protected original files.
  * The config format is a qualification fixture, not a frozen product provisioning API.
  */
@@ -92,8 +92,9 @@ typedef struct {
  * device signing owner come from the protected installation. timeout_ms is
  * 1..10000 per native authenticated exchange. Options/bytes are borrowed only
  * for construction. The signed TCP carrier authenticates but does not encrypt
- * public metadata. Cancellation checks before/after each bounded exchange;
- * an in-progress socket call may run until that attempt's original deadline.
+ * public metadata. Connected reads/writes check cancellation between socket calls
+ * with at most 25-ms timeouts, subject to OS scheduling. A pending connect can
+ * still run until the attempt's original deadline; polling never refreshes it.
  * Witness errors retain their native unknown-outcome status, not retry permission.
  */
 int32_t qpc_owner_v1_open_witness(const uint8_t *path, size_t length, uint8_t quality,
