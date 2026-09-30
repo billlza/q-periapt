@@ -46,7 +46,7 @@ pub(crate) fn array<const N: usize>(
         .try_into()
         .map_err(|_| Failure::argument())
 }
-fn private_bytes(
+pub(crate) fn private_bytes(
     directory: &OwnedPrivateDirectory,
     name: &str,
     maximum: usize,

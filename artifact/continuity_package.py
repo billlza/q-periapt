@@ -32,7 +32,7 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
-        "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
+        "artifact/continuity_c_witness_tls.py", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     for path in files:
         sdk.require(not path.is_symlink(), "candidate source contains a symlink")
@@ -65,7 +65,8 @@ def validate_candidate(data: bytes, expected_files: set[str]) -> dict[str, bytes
 
 
 def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: bytes,
-                      *, consumer_name: str = CONSUMER) -> dict:
+                      *, consumer_name: str = CONSUMER,
+                      required_features=frozenset({"connection-tls", "control-tls"})) -> dict:
     candidate = [row for row in metadata["packages"] if row["name"] == NAME]
     sdk.require(len(candidate) == 1, "consumer must resolve one candidate engine")
     row = candidate[0]
@@ -81,7 +82,7 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
     result = sdk.verify_consumer_resolution(filtered, consumer, lock, original, consumer_name=consumer_name)
     nodes = metadata["resolve"]["nodes"]
     selected = [n for n in nodes if n["id"] == row["id"]]
-    sdk.require(len(selected) == 1 and {"connection-tls", "control-tls"} <= set(selected[0]["features"]),
+    sdk.require(len(selected) == 1 and required_features <= set(selected[0]["features"]),
                 "installed candidate omitted a transport feature")
     return dict(result, candidate_crates=1)
 
@@ -309,7 +310,7 @@ def main() -> None:
         parser.add_argument("--" + name, required=True, type=Path)
     parser.add_argument("--report-sha256", required=True)
     parser.add_argument("--with-c-consumer", action="store_true",
-                        help="also execute unpublished C client/server/cleanup, sync-interruption and signed witness profiles")
+                        help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
                                                   "c_consumer", "release_claim_eligible") if key in result}, indent=2))

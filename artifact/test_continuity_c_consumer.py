@@ -189,8 +189,12 @@ class ContinuityCConsumerTests(unittest.TestCase):
             row = next(row for row in graph["packages"] if row["name"] == package.CONSUMER)
             row["id"] = row["name"] = consumer.NAME
             lock = b"version = 4\npackage = []\n"
+            with self.assertRaisesRegex(ValueError, "feature"):
+                package.verify_resolution(graph, root, lock, lock, consumer_name=consumer.NAME,
+                                          required_features=consumer.FEATURES)
+            graph["resolve"]["nodes"][0]["features"].append("anchor-tls")
             self.assertEqual(package.verify_resolution(graph, root, lock, lock,
-                             consumer_name=consumer.NAME)["candidate_crates"], 1)
+                             consumer_name=consumer.NAME, required_features=consumer.FEATURES)["candidate_crates"], 1)
             bad = copy.deepcopy(graph)
             bad["packages"][-1]["manifest_path"] = str(root / "checkout/Cargo.toml")
             with self.assertRaisesRegex(ValueError, "resolved checkout"):

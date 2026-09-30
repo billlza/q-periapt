@@ -52,15 +52,17 @@ static void encode(const uint8_t bytes[32]) {
     for (size_t i = 0; i < 32; ++i) printf("%02x", bytes[i]);
     if (putchar('\n') == EOF || fflush(stdout) != 0) fail("output failed");
 }
-static int32_t open_configured(const char *path,const qpc_witness_v1 *witness,
+static int32_t open_configured(const char *path,const qpc_witness_v1 *witness,int witness_tls,
                               uint64_t *handle,qpc_error_v1 *error) {
+    if (witness && witness_tls)
+        return qpc_owner_v1_open_witness_tls((const uint8_t *)path,strlen(path),1,witness,handle,error);
     return witness ? qpc_owner_v1_open_witness((const uint8_t *)path,strlen(path),1,witness,handle,error)
                    : qpc_owner_v1_open((const uint8_t *)path,strlen(path),1,handle,error);
 }
-static uint64_t open_owner(const char *path,const qpc_witness_v1 *witness) {
+static uint64_t open_owner(const char *path,const qpc_witness_v1 *witness,int witness_tls) {
     qpc_error_v1 error;
     uint64_t handle = 0;
-    int32_t code = open_configured(path,witness,&handle,&error);
+    int32_t code = open_configured(path,witness,witness_tls,&handle,&error);
     require(code, &error);
     if (handle == 0) fail("success returned zero handle");
     return handle;
@@ -135,6 +137,14 @@ static void self_check(void) {
     code=qpc_owner_v1_open_witness(original,sizeof(original)-1,1,&witness,&handle,&error);
     record(code,&error);
     if (code!=QPC_ARGUMENT || handle) fail("oversized witness timeout accepted");
+    handle=99;
+    code=qpc_owner_v1_open_witness_tls(original,sizeof(original)-1,1,NULL,&handle,&error);
+    record(code,&error);
+    if (code!=QPC_ARGUMENT || handle) fail("missing TLS witness options accepted");
+    handle=99;
+    code=qpc_recovery_v1_open_witness_tls(original,sizeof(original)-1,&witness,&handle,&error);
+    record(code,&error);
+    if (code!=QPC_ARGUMENT || handle) fail("oversized TLS witness timeout accepted");
     /* Each failure occurs after reserving a construction slot. More than the
      * registry cap must not leak capacity or open/create a relative installation. */
     for (unsigned i = 0; i < 128; ++i) {
@@ -274,17 +284,18 @@ static void serve(uint64_t handle, const char *path, const char *mode, const cha
         encode(result.session); encode(result.message);
     }
 }
-int recovery_command(int argc, char **argv,const qpc_witness_v1 *witness);
+int recovery_command(int argc, char **argv,const qpc_witness_v1 *witness,int witness_tls);
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
-    qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL;
-    if (!strcmp(argv[1],"--witness")) {
+    qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
+    if (!strcmp(argv[1],"--witness") || !strcmp(argv[1],"--witness-tls")) {
         if (argc<5) fail("witness arguments");
+        witness_tls=!strcmp(argv[1],"--witness-tls");
         options=(qpc_witness_v1){.address=(const uint8_t *)argv[2],.address_length=strlen(argv[2]),.timeout_ms=3000};
         witness=&options; argc-=2; argv+=2;
     }
     self_check();
-    if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv,witness);
+    if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv,witness,witness_tls);
     if (strcmp(argv[1], "self-check") == 0) {
         if (argc != 2) fail("self-check arguments");
         if (puts("self-check-passed") == EOF || fflush(stdout)) fail("output failed");
@@ -294,13 +305,13 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "reject-open") == 0) {
         qpc_error_v1 error;
         uint64_t handle = 99;
-        int32_t code = open_configured(argv[2],witness,&handle,&error);
+        int32_t code = open_configured(argv[2],witness,witness_tls,&handle,&error);
         record(code, &error);
         if (code == 0 || handle != 0) fail("invalid original binding admitted");
         if (printf("rejected:%d\n", code) < 0 || fflush(stdout)) fail("output failed");
         return 0;
     }
-    uint64_t handle = open_owner(argv[2],witness);
+    uint64_t handle = open_owner(argv[2],witness,witness_tls);
     qpc_error_v1 error;
     if (strcmp(argv[1], "serve") == 0) {
         if (argc < 4 || argc != (!strcmp(argv[3], "rekey") ? 5 : 4)) fail("serve arguments");
@@ -397,7 +408,7 @@ int main(int argc, char **argv) {
         if (status(handle, s.session, s.message) != expected) fail("exact message status differs");
         if (busy) {
             close_owner(handle);
-            uint64_t reopened = open_owner(argv[2],witness);
+            uint64_t reopened = open_owner(argv[2],witness,witness_tls);
             if (reopened == handle || status(reopened, s.session, s.message) != QPC_MESSAGE_COMMITTED)
                 fail("reopen changed identity or durable result");
             handle = reopened;

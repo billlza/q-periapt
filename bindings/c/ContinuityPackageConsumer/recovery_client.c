@@ -92,10 +92,15 @@ static void retain(const char *path, const char *name, const uint8_t *bytes, siz
     if (unlinkat(dir,temporary,0) || fsync(dir)) bad("report directory sync");
     if (close(dir)) bad("report directory close");
 }
-static uint64_t open_recovery(const char *path,const qpc_witness_v1 *witness) {
+static uint64_t open_recovery(const char *path,const qpc_witness_v1 *witness,int witness_tls) {
     uint64_t handle=0; qpc_error_v1 e;
-    int32_t result=witness ? qpc_recovery_v1_open_witness((const uint8_t *)path,strlen(path),witness,&handle,&e)
-                          : qpc_recovery_v1_open((const uint8_t *)path,strlen(path),&handle,&e);
+    int32_t result;
+    if (witness && witness_tls)
+        result=qpc_recovery_v1_open_witness_tls((const uint8_t *)path,strlen(path),witness,&handle,&e);
+    else if (witness)
+        result=qpc_recovery_v1_open_witness((const uint8_t *)path,strlen(path),witness,&handle,&e);
+    else
+        result=qpc_recovery_v1_open((const uint8_t *)path,strlen(path),&handle,&e);
     code(result,&e,0);
     if (!handle) bad("zero recovery handle");
     uint16_t port=99; const uint8_t address[]="127.0.0.1:0";
@@ -173,19 +178,24 @@ static void snapshot(uint64_t handle, const char *path, int create, uint8_t repo
     qpc_closure_status_v1 current=status(handle);
     if (current.phase!=1 || memcmp(current.report,report,32)) bad("pending report identity");
 }
-int recovery_command(int argc,char **argv,const qpc_witness_v1 *witness) {
+int recovery_command(int argc,char **argv,const qpc_witness_v1 *witness,int witness_tls) {
     if (argc<3 || argc>4) bad("recovery arguments");
     const char *mode=argv[1], *path=argv[2]; qpc_error_v1 e;
     if (!strcmp(mode,"recover-kind")) {
         if (argc!=3) bad("kind arguments");
         uint64_t live=0;
-        int32_t result=witness ? qpc_owner_v1_open_witness((const uint8_t *)path,strlen(path),1,witness,&live,&e)
-                              : qpc_owner_v1_open((const uint8_t *)path,strlen(path),1,&live,&e);
+        int32_t result;
+        if (witness && witness_tls)
+            result=qpc_owner_v1_open_witness_tls((const uint8_t *)path,strlen(path),1,witness,&live,&e);
+        else if (witness)
+            result=qpc_owner_v1_open_witness((const uint8_t *)path,strlen(path),1,witness,&live,&e);
+        else
+            result=qpc_owner_v1_open((const uint8_t *)path,strlen(path),1,&live,&e);
         code(result,&e,0);
         qpc_closure_header_v1 h; code(qpc_recovery_v1_begin(live,&h,&e),&e,QPC_OWNER_KIND);
         close_recovery(live); puts("operational-owner-not-recovery");
     } else {
-        uint64_t handle=open_recovery(path,witness); uint32_t count=0;
+        uint64_t handle=open_recovery(path,witness,witness_tls); uint32_t count=0;
         code(qpc_recovery_v1_session_count(handle,&count,&e),&e,0);
         if (!strcmp(mode,"recover-reject-select")) {
             if (argc!=4 || count!=1) bad("selection refusal setup");

@@ -445,6 +445,9 @@ pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Set
         match (witness, install.prepare(wrapping, device, &policy, time)?) {
             (None, p::InstallationPreparation::Local) => {}
             (Some(witness), p::InstallationPreparation::RequiresEnrollment(genesis)) => {
+                // Retain the operator's original enrollment scope for TLS peer
+                // authorization; never infer that scope from an incoming request.
+                store(path, "witness-subject", &genesis.subject().to_bytes())?;
                 witness
                     .store
                     .lock()

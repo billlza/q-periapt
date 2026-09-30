@@ -28,6 +28,8 @@ mod native_transport;
 mod selection;
 mod session_archives;
 mod session_policy;
+#[cfg(feature = "anchor-tls")]
+pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use installation::{
     DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,

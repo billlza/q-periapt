@@ -2,6 +2,8 @@
 //! Actual installed C owners against an independently owned native witness socket.
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
+#[path = "witness/tls.rs"]
+mod tls;
 use q_periapt_continuity_identity_candidate as p;
 use std::{
     fs,
@@ -223,6 +225,16 @@ fn start(
     tail: &[String],
     witness: Option<SocketAddr>,
 ) -> Result<Process> {
+    start_carrier(path, label, mode, tail, witness, "--witness")
+}
+fn start_carrier(
+    path: &Path,
+    label: &str,
+    mode: &str,
+    tail: &[String],
+    witness: Option<SocketAddr>,
+    carrier: &str,
+) -> Result<Process> {
     let client = PathBuf::from(
         std::env::var_os("QPERIAPT_C_OWNER_CLIENT").ok_or("installed C client missing")?,
     );
@@ -240,7 +252,7 @@ fn start(
     };
     let mut command = Command::new(client);
     if let Some(address) = witness {
-        command.args(["--witness", &address.to_string()]);
+        command.args([carrier, &address.to_string()]);
     }
     command
         .arg(mode)
@@ -284,7 +296,9 @@ fn server(
     if let Some(session) = session {
         tail.push(session.to_owned());
     }
-    let mut process = start(path, label, "serve", &tail, Some(witness))?;
+    listening(start(path, label, "serve", &tail, Some(witness))?)
+}
+fn listening(mut process: Process) -> Result<(Process, SocketAddr)> {
     let until = Instant::now() + Duration::from_secs(25);
     loop {
         let output = fs::read_to_string(&process.stdout)?;

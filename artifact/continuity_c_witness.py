@@ -104,7 +104,7 @@ def cancellation_latency(data: bytes) -> int:
 def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
                 "installed C witness test did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-witness-public-result.json").data, label="C witness result")
     names = {"session", "message", "unknown", "context", "peer_account", "peer_device", "report"}
@@ -186,6 +186,11 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
 def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:
     """Recheck the complete trace and retain only verifier-selected public files."""
     result = verify_execution(stdout, directory)
+    return export_selected(result, directory, destination, SCOPE)
+
+
+def export_selected(result: dict, directory: Path, destination: Path, scope: str) -> dict:
+    """Copy only independently rechecked public byte snapshots, never a whole runtime."""
     selected = result["public_readbacks"] | result["command_logs"]
     sources = {}
     for name, expected in selected.items():
@@ -205,5 +210,5 @@ def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:
         sdk.require(sdk.snapshot(target).sha256 == original.sha256, "witness public export readback differs")
         exported[relative.as_posix()] = original.sha256
     sdk.write_json(destination / "PUBLIC_FILES.json", {"schema_version": 1, "completed": True, "files": exported,
-                                                       "scope": SCOPE, "release_claim_eligible": False})
+                                                       "scope": scope, "release_claim_eligible": False})
     return exported

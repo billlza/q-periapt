@@ -307,12 +307,41 @@ pub unsafe extern "C" fn qpc_recovery_v1_open_witness(
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
-    unsafe { open_recovery(path, size, Some(options), handle, error) }
+    unsafe {
+        open_recovery(
+            path,
+            size,
+            Some((options, witness::Carrier::SignedTcp)),
+            handle,
+            error,
+        )
+    }
+}
+/// Open cleanup-only original ownership with explicitly pinned witness mutual TLS.
+/// # Safety
+/// All borrowed input, options and output regions satisfy the C header contract.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_recovery_v1_open_witness_tls(
+    path: *const u8,
+    size: usize,
+    options: *const witness::Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    unsafe {
+        open_recovery(
+            path,
+            size,
+            Some((options, witness::Carrier::Tls)),
+            handle,
+            error,
+        )
+    }
 }
 unsafe fn open_recovery(
     path: *const u8,
     size: usize,
-    witness: Option<*const witness::Options>,
+    witness: Option<(*const witness::Options, witness::Carrier)>,
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
@@ -322,7 +351,7 @@ unsafe fn open_recovery(
         unsafe { put(handle, 0) };
         let path = unsafe { text(path, size, 4096) }?;
         let witness = witness
-            .map(|value| unsafe { witness::Configuration::read(value) })
+            .map(|(value, carrier)| unsafe { witness::Configuration::read(value, carrier) })
             .transpose()?;
         let reservation = Reservation::new()?;
         let owner = Recovery::open(Path::new(&path), witness, reservation.cancel.clone())?;

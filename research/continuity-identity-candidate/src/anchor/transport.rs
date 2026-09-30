@@ -40,7 +40,7 @@ fn remaining(deadline: Instant) -> io::Result<Duration> {
         .filter(|duration| !duration.is_zero())
         .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "anchor attempt deadline expired"))
 }
-fn checked_remaining(deadline: Instant, cancel: &Cancellation) -> io::Result<Duration> {
+pub(super) fn checked_remaining(deadline: Instant, cancel: &Cancellation) -> io::Result<Duration> {
     if cancel.is_cancelled() {
         return Err(io::Error::new(
             io::ErrorKind::Interrupted,

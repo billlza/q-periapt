@@ -29,12 +29,15 @@ hkdf = "=0.13.0"
 hmac = { version = "=0.13.0", features = ["zeroize"] }
 sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
 q-periapt-rustls = { version = "=0.2.0", path = "../../crates/q-periapt-rustls", features = ["reference-connection"], optional = true }
+rustls = { version = "=0.23.45", default-features = false, features = ["std"], optional = true }
 
 [features]
 # Explicit standard TLS carrier; no plaintext or classic-only fallback.
 control-tls = ["dep:q-periapt-rustls"]
 # Complete bootstrap and application delivery over the same standard TLS engine.
 connection-tls = ["dep:q-periapt-rustls"]
+# Separate encrypted witness carrier; no operational SDK activation or fallback.
+anchor-tls = ["dep:q-periapt-rustls", "dep:rustls"]
 
 [dev-dependencies]
 q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }

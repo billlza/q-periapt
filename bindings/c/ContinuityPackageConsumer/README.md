@@ -25,8 +25,17 @@ incoming replies never select the witness. Local/required mismatch is an error.
 Missing pins, wrong identity, invalid signatures, unavailable transport and stale
 witness state cannot enroll, reset or downgrade an installation. This adapter
 reuses the native signed TCP witness protocol; it authenticates messages but does
-not encrypt public metadata. Witness TLS/service deployment, other language
-surfaces and product dependency/ABI admission remain unfinished.
+not encrypt public metadata. The additive `qpc_owner_v1_open_witness_tls` and
+`qpc_recovery_v1_open_witness_tls` constructors explicitly select the native
+`anchor-tls` carrier, using protected `witness-tls-cert`, `witness-tls-key`,
+`witness-tls-peer` and `witness-tls-name` files (see the header for exact bounds).
+The CLI selects it only with `--witness-tls address`. It never falls back to TCP.
+The witness's separately configured exact TLS leaf-to-enrolled-subject table
+rejects cross-device credential use before durable handling. Original witness
+signing pins and signatures are still mandatory. Classical TLS certificate
+authentication is not PQ identity authentication. Installed-package qualification,
+independent service deployment, other language surfaces and product dependency/ABI
+admission remain unfinished for the TLS extension.
 
 The consumer configuration is the same private fixture layout used by the
 archive's public Rust workload: original installation/journal/archive/SDK policy
@@ -119,7 +128,8 @@ create sending, receiving, rekeying or provisioning authority. Required-witness
 state still requires the original native witness admission, including closed
 session selection and catalogue restoration. Its explicit recovery constructor
 loads the original device signer only for witness requests, without activating
-SDK operational policy or TLS owners. The ordinary constructor returns
+SDK operational policy or application TLS owners. The explicit TLS variant owns
+independent witness credentials for reconciliation only. The ordinary constructor returns
 `AnchorRequired` and cannot downgrade that state.
 
 Open the original installation, enumerate its authenticated catalogue hints, then
@@ -188,7 +198,7 @@ sh artifact/python-run.sh artifact/continuity_package.py \
 ```
 
 It first executes the original archive-shipped Rust trace. The C phase then builds
-both Debug/Release libraries and native C executables, checks the exact 29
+both Debug/Release libraries and native C executables, checks the exact 31
 exports and installed sibling-library lookup, and runs the shared archive's Rust
 peer fixture. C controls the actual owner open/close, TLS bootstrap, message IDs,
 delivery and rekey calls. The client trace covers:

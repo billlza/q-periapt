@@ -449,13 +449,45 @@ pub unsafe extern "C" fn qpc_owner_v1_open_witness(
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
-    unsafe { open_owner(path, length, quality, Some(options), handle, error) }
+    unsafe {
+        open_owner(
+            path,
+            length,
+            quality,
+            Some((options, witness::Carrier::SignedTcp)),
+            handle,
+            error,
+        )
+    }
+}
+/// Open a required-witness installation using explicitly pinned mutual TLS.
+/// # Safety
+/// All borrowed input, options and output regions satisfy the C header contract.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_owner_v1_open_witness_tls(
+    path: *const u8,
+    length: usize,
+    quality: u8,
+    options: *const witness::Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    unsafe {
+        open_owner(
+            path,
+            length,
+            quality,
+            Some((options, witness::Carrier::Tls)),
+            handle,
+            error,
+        )
+    }
 }
 unsafe fn open_owner(
     path: *const u8,
     length: usize,
     quality: u8,
-    witness: Option<*const witness::Options>,
+    witness: Option<(*const witness::Options, witness::Carrier)>,
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
@@ -466,7 +498,7 @@ unsafe fn open_owner(
         unsafe { put(handle, 0) };
         let path = unsafe { text(path, length, 4096) }?;
         let witness = witness
-            .map(|value| unsafe { witness::Configuration::read(value) })
+            .map(|(value, carrier)| unsafe { witness::Configuration::read(value, carrier) })
             .transpose()?;
         let quality = match quality {
             1 => p::PrekeyQuality::OneTimeBoth,

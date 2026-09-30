@@ -99,6 +99,18 @@ typedef struct {
  */
 int32_t qpc_owner_v1_open_witness(const uint8_t *path, size_t length, uint8_t quality,
                                 const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
+/* Explicit encrypted carrier; same address, deadline and signing-pin contract.
+ * Protected original files: witness-tls-cert (DER leaf), witness-tls-key (DER
+ * private key), witness-tls-peer (exact trusted server DER leaf), witness-tls-name
+ * (UTF-8 DNS name or IP). Certificates/keys are bounded to 8192 bytes, name to 128.
+ * Mutual TLS 1.3 requires X25519MLKEM768 and ALPN q-periapt-anchor/1, fresh full
+ * handshakes, CA/name validation AND exact leaf pinning. No automatic fallback.
+ * Classical certificates are not PQ identity authentication. The original dual
+ * witness signatures still authorize commands/replies. TLS credentials are
+ * independent of application TLS credentials and SDK operational permission.
+ */
+int32_t qpc_owner_v1_open_witness_tls(const uint8_t *path, size_t length, uint8_t quality,
+                                    const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_open(const uint8_t *path, size_t length, uint8_t quality,
                         uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_cancel(uint64_t handle, qpc_error_v1 *error);
@@ -210,6 +222,9 @@ int32_t qpc_recovery_v1_open(const uint8_t *path, size_t length, uint64_t *handl
  */
 int32_t qpc_recovery_v1_open_witness(const uint8_t *path, size_t length,
                                    const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
+/* Same cleanup-only authority, using the explicit witness TLS files above. */
+int32_t qpc_recovery_v1_open_witness_tls(const uint8_t *path, size_t length,
+                                       const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_session_count(uint64_t handle, uint32_t *count, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_session_at(uint64_t handle, uint32_t index, uint8_t session[32], qpc_error_v1 *error);
 int32_t qpc_recovery_v1_select(uint64_t handle, const uint8_t session[32], qpc_error_v1 *error);

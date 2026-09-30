@@ -839,6 +839,7 @@ dependencies = [
  "q-periapt-sig",
  "rcgen",
  "redb",
+ "rustls",
  "sha2 0.11.0",
  "sha3 0.12.0",
  "tempfile",

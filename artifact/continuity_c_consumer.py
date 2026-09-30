@@ -8,18 +8,20 @@ import re
 import continuity_package as package
 import continuity_c_recovery as recovery
 import continuity_c_witness as witness
+import continuity_c_witness_tls as witness_tls
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
 NAME = "q-periapt-continuity-c-consumer"
 LIBRARY = "q_periapt_continuity_c_consumer"
+FEATURES = frozenset({"connection-tls", "control-tls", "anchor-tls"})
 MAX_BINARY = 256 * 1024**2
 FIXTURE = package.ROOT / "bindings/c/ContinuityPackageConsumer"
 TEST = "c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery"
 SERVER_TEST = "c_server_preserves_callback_failures_unknown_commits_replay_and_rekey"
 SERVER_SCOPE = "installed native Rust client to unpublished C server; same host; local journal profile"
 SCOPE = "unpublished C client to installed Rust peer; same host; local journal profile"
-QUALIFICATION_SCOPE = "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles; signed TCP witness metadata is not encrypted"
+QUALIFICATION_SCOPE = "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles with explicit signed TCP or mutual TLS witness carrier"
 EXPORTS = {"qpc_owner_v1_" + name for name in
            ("open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
             "listen", "serve", "serve_rekey")}
@@ -27,6 +29,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
             "archive", "begin", "status", "reserved", "epoch", "unconfirmed", "delivery", "skipped",
             "acknowledge", "retire", "restore_index")}
 EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
+EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
 
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
@@ -229,7 +232,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
     metadata = parse_strict_json_bytes(run([*cargo, "metadata", "--offline", "--format-version", "1"],
                                          "metadata"), label="C installed dependency resolution")
     lock = sdk.snapshot(consumer / "Cargo.lock")
-    result["resolution"] = package.verify_resolution(metadata, consumer, lock.data, original_lock, consumer_name=NAME)
+    result["resolution"] = package.verify_resolution(metadata, consumer, lock.data, original_lock,
+                                                     consumer_name=NAME, required_features=FEATURES)
     darwin = os.uname().sysname == "Darwin"
     cc = Path(run(["/usr/bin/xcrun", "--sdk", "macosx", "--find", "clang"], "cc-path").decode().strip()) if darwin else Path("/usr/bin/cc")
     cc = cc.resolve(strict=True)
@@ -327,6 +331,13 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         result["execution"][profile]["witness"] = witness.verify_execution(tested, witness_evidence)
         result["execution"][profile]["witness"]["exported_public_files"] = witness.export_public(
             tested, witness_evidence, output / "c-witness-public" / profile)
+        tls_evidence = outside / ("c-" + profile + "-witness-tls-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(tls_evidence)
+        tested = run([str(witness_helper), "--exact", witness_tls.TEST, "--nocapture"],
+                     "witness-tls-trace-" + profile, runtime=runtime)
+        result["execution"][profile]["witness_tls"] = witness_tls.verify_execution(tested, tls_evidence)
+        result["execution"][profile]["witness_tls"]["exported_public_files"] = witness_tls.export_public(
+            tested, tls_evidence, output / "c-witness-tls-public" / profile)
         sdk.require(sdk.snapshot(witness_helper, maximum=MAX_BINARY).sha256 == witness_identity.sha256,
                     "installed witness helper changed during execution")
         result["execution"][profile]["witness"]["binary"] = {

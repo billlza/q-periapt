@@ -152,6 +152,13 @@ authenticity. Product transport scheduling and complete lifecycle remain open.
 `public_vectors --with-rekey` completes the real journals, restarts them, exercises
 new traffic and exports public control/frame bytes for the independent oracle.
 
+The optional [encrypted witness carrier](ANCHOR_TLS.md) uses standard mutual TLS,
+an exact server certificate pin, and explicit client-certificate/subject bindings.
+It reuses the signed witness protocol without requiring an active SDK runtime.
+This native feature is under validation; installed C/other-language TLS witness
+paths and deployed service lifecycle remain separate work. The reference signed
+TCP path remains explicitly unencrypted, with no automatic transport fallback.
+
 The [monotonic witness](ANCHOR_WITNESS.md) adds actual signed requests/replies,
 trusted enrollment from journal genesis, durable full-head/fence comparison and
 unknown-outcome recovery. Fresh challenges and one-result-per-attempt admission

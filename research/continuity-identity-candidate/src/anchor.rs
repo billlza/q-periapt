@@ -13,6 +13,8 @@ mod store;
 pub use store::AnchorStore;
 mod transport;
 pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};
+#[cfg(feature = "anchor-tls")]
+pub mod tls;
 
 /// Independently provisioned identity of one witness instance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
