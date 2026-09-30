@@ -341,10 +341,41 @@ The initial full-suite failures were a test-marker publication race. Atomic mark
 publication preserves the assertions and removes the partial-observation window;
 the frozen Debug and Release suites then each pass 252 tests.
 
-A separate source-inspection follow-up remains at `JournalKey::open`: it admits an
-exact existing 40-byte file but does not synchronize the file before releasing the
-owner, unlike signing-owner reopening. A complete file observed after interrupted
-initial writing needs explicit durability reconciliation before higher SDK owners
-rely on it. This observation is not a reproduced power-loss result. Installed owner
-initialization must also retain the creation intent and enforce one authoritative
-journal per device lineage; a public ID alone supplies no rollback protection.
+The wrapping-key follow-up now reconciles an exact single-link file through file
+and pinned-parent synchronization before returning an owner. A separate real-process
+counterexample exposed shared initializer cleanup: a concurrent opener had already
+used the complete key for a durable signing owner when the creator's failure
+unlinked the wrapping file. `provision_private_file` now propagates the original
+error while preserving admitted state. This fixes the root helper used by both the
+native candidate and actual SDK policy/authority stores; no replacement file or
+permissive fallback is introduced. Private admission failures before initialization
+retain their existing empty-file cleanup.
+
+Targeted tests preserve the same dependent signer across creator failure, seven
+process cuts and six before/after sync injections. The actual SDK signed-policy
+path also preserves a committed image when the creation result is lost; exact
+reopening restores its runtime, and closing the store revokes its key aliases.
+An incomplete authority-store image stays refused and exclusive provisioning
+cannot replace it. redb may change its own recovery header during a refused open;
+the preservation assertion is placed around provisioning, not that independent
+engine operation. A failed creation can now leave a reserved path that requires
+explicit diagnosis; automatically deleting it would reintroduce the observed race.
+
+Installed owner initialization still must retain creation intent and enforce one
+authoritative journal per device lineage. A public ID supplies no rollback
+protection, and these tests do not prove hardware power-loss behavior.
+
+The same shared storage behavior is exercised through the actual packaged Rust
+SDK on Rust 1.98.1 and 1.90. A bounded child process imposes a real kernel file-size
+limit and checks explicit failure, preservation, no replacement and no runtime
+from partial storage. The native candidate's 258 Debug/258 Release tests and the
+shared SDK suites cover the same frozen Rust source. Installed Continuity owners
+and independent endpoint/device qualification remain separate unfinished work.
+
+Package qualification also exposed an audit false green: cargo-audit 0.22.2
+reported missing fuzz registry entries on stderr while returning zero and empty
+JSON warnings. The original result remains unqualified. A failing acceptance
+regression now passes with strict diagnostic rejection; fetching both lockfiles
+before auditing supplies the missing entries. The corrected real package run has
+empty workspace/fuzz/consumer audit stderr and zero reported advisories/warnings.
+This closes incomplete audit acceptance, not every dependency or protocol risk.

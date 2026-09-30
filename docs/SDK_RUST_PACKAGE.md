@@ -88,6 +88,22 @@ consumers. The default input profile remains the ten-crate legacy handoff.
 Generating this executable makes no registry request and grants no publication
 authorization.
 
+The producer fetches both the workspace and separate fuzz lock into its private
+Cargo home before auditing. `cargo-audit` JSON mode must also produce empty stderr:
+version 0.22.2 can return zero with empty JSON warnings while reporting that a crate
+is missing from the registry index and its yank status was not checked. Such a run
+is incomplete and rejected. Fetching the fuzz lock supplies its distinct registry
+entries; no advisory, warning, or yanked-package check is disabled.
+
+The private-store consumer group also runs an exact child invocation under a real
+OS file-size limit. Only that child ignores `SIGXFSZ`, so the kernel returns a write
+error to the packaged SDK; the parent process is unchanged. The test requires an
+explicit storage failure, retained partial state, refusal of replacement and no
+runtime admitted from malformed storage. It has a 30-second process deadline and
+requires the child result marker. This supplements the existing restart, rollback,
+reenabling and owner-close cases without filtering out any consumer test. An ambient
+child marker outside the exact invocation is rejected.
+
 ## Coordinated registry transaction
 
 Use the SDK coordinator with the report digest and its exact producer commit:

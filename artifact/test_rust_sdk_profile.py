@@ -8,6 +8,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import rust_sdk_profile as sdk
 import rust_sdk_msrv as msrv
@@ -106,6 +107,27 @@ class RustSDKProfileTests(unittest.TestCase):
                     good + good.split("version = 4\n", 1)[1]):
             with self.assertRaisesRegex(ValueError, "identity/source/checksum"):
                 sdk.external_lock(bad.encode())
+
+    def test_zero_exit_audit_diagnostics_cannot_claim_complete_registry_checks(self):
+        report = {"database": {"last-commit": "c" * 40},
+            "settings": {"ignore": [], "target_arch": [], "target_os": [], "severity": None,
+                         "informational_warnings": ["unmaintained", "unsound", "notice"]},
+            "vulnerabilities": {"found": False, "count": 0}, "warnings": {},
+            "lockfile": {"dependency-count": 1}}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); lock = root / "Cargo.lock"
+            lock.write_text('version = 4\n[[package]]\nname = "fixture"\nversion = "1.0.0"\n')
+            diagnostics = b"error: couldn't check if the package is yanked: not found: No such crate in crates.io index: arbitrary\n"
+            def zero_exit(argv, prefix, cwd, *, environment):
+                prefix.with_suffix(".stderr").write_bytes(diagnostics)
+                return json.dumps(report).encode()
+            with patch.object(sdk, "command", side_effect=zero_exit), \
+                 patch.object(sdk, "validate_rustsec_advisory_database", return_value="c" * 40):
+                with self.assertRaisesRegex(ValueError, "audit.*diagnostics"):
+                    sdk.audit_lockfile(lock, root, "audit", {}, fetch=True)
+                diagnostics = b""
+                result = sdk.audit_lockfile(lock, root, "audit", {}, fetch=True)
+                self.assertEqual(result["packages"], 1)
 
     def test_audit_filters_and_incomplete_lock_coverage_are_rejected(self):
         report = {"settings": {"ignore": [], "target_arch": [], "target_os": [], "severity": None,

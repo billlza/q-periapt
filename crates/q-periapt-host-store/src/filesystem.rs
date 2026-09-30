@@ -215,7 +215,8 @@ pub fn open_private_database(path: &Path) -> Result<redb::Database, PrivateDatab
 
 /// Exclusively create a private database and initialize its application schema
 /// through the same pinned parent/descriptor. The initializer must durably commit
-/// before returning its owner; failure retains the original initialization error.
+/// before returning its owner. Once initialization starts, failure preserves the
+/// file and original error for exact reconciliation, including unknown commits.
 pub fn provision_private_database<T, E>(
     path: &Path,
     initialize: impl FnOnce(redb::Database) -> Result<T, E>,
@@ -379,8 +380,8 @@ pub fn open_private_file(path: &Path, create: bool) -> Result<File, PrivateFileE
 /// Every filesystem action -- the `openat`, the validation, and the failure
 /// unlink -- goes through `parent`'s descriptor, so nothing here ever
 /// re-resolves the path by name. Splitting this out of [`open_private_file`]
-/// lets [`provision_private_file`] reuse the *same* pinned parent for its own
-/// post-initialization cleanup.
+/// lets [`provision_private_file`] retain the same authenticated parent throughout
+/// initialization. Initialization errors never unlink an admitted state file.
 #[cfg(unix)]
 fn open_private_leaf(
     parent: &OwnedPrivateDirectory,
@@ -800,25 +801,23 @@ pub fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileError> {
     Err(PrivateFileError)
 }
 
-/// Create a private store file and initialize it, removing the file again if the
-/// initialization does not complete.
+/// Exclusively reserve a private store file and initialize it.
 ///
-/// Creation uses `O_CREAT|O_EXCL`, so a leftover from a failed attempt makes
-/// every later provision fail with `EEXIST`, while the open path rejects the
-/// half-written store it finds. One transient failure -- unavailable entropy, a
-/// clock before the epoch, `ENOSPC` or `EIO` partway through the first commit --
-/// would therefore brick the path permanently instead of leaving it retryable.
+/// Once initialization starts, any error retains both the original error and
+/// the admitted file. A callback failure does not prove that its data is absent:
+/// a commit may already have completed, or a concurrent opener may have admitted
+/// a complete immutable file. Unlinking here could destroy that owner's backing
+/// state after its descriptor lease has been released.
 ///
-/// The removal is best effort and the caller still receives the original error,
-/// which is the one that explains what actually went wrong.
+/// Reconcile the same file using independently retained expectations. Partial or
+/// malformed state must fail closed; neither another provisioning attempt nor a
+/// missing-file fallback may silently replace it. Failures during private-file
+/// admission, before the initializer receives the empty file, retain the existing
+/// admission cleanup behavior.
 ///
-/// The parent is pinned once and both the create and the cleanup unlink go
-/// through that single descriptor. The cleanup therefore removes the exact leaf
-/// this call created, never a same-named file reached by re-resolving `path`:
-/// an initialization closure that (or an adversary who) replaces an ancestor of
-/// the leaf after it is created cannot redirect the removal onto an unrelated
-/// file. `std::fs::remove_file(path)` re-resolved every component by name and
-/// could do exactly that.
+/// Creation is descriptor-relative to one authenticated pinned parent and uses
+/// `O_CREAT|O_EXCL`. The callback receives that exact file; this function performs
+/// no path lookup or removal after invoking it.
 #[cfg(unix)]
 pub fn provision_private_file<T, E>(
     path: &Path,
@@ -833,14 +832,7 @@ pub fn provision_private_file<T, E>(
         Ok(file) => file,
         Err(error) => return Err(on_open_failure(error)),
     };
-    match initialize(file) {
-        Ok(provisioned) => Ok(provisioned),
-        Err(error) => {
-            let _ =
-                rustix::fs::unlinkat(&parent.descriptor, filename, rustix::fs::AtFlags::empty());
-            Err(error)
-        }
-    }
+    initialize(file)
 }
 
 #[cfg(not(unix))]
@@ -1018,12 +1010,10 @@ mod cleanup_boundary {
         Ok(())
     }
 
-    /// A failed initialization must unlink the exact leaf it created, even when
-    /// the initialization replaced the leaf's parent with a symlink to an
-    /// unrelated directory holding a same-named file. The unrelated file must
-    /// survive, and the created leaf must be gone.
+    /// A failed initializer must preserve both the admitted file and an unrelated
+    /// same-named file even when its parent was replaced during initialization.
     #[test]
-    fn failed_provision_cleanup_keeps_the_pinned_parent() -> Result<(), io::Error> {
+    fn failed_provision_preserves_state_under_a_replaced_parent() -> Result<(), io::Error> {
         let temporary = tempfile::Builder::new()
             .prefix("private-file-cleanup-")
             .permissions(std::fs::Permissions::from_mode(0o700))
@@ -1041,10 +1031,10 @@ mod cleanup_boundary {
         let outcome: Result<(), io::Error> = provision_private_file(
             &original_path,
             |_| io::Error::other("open failed before the probe could run"),
-            |created| {
-                // Swap the pinned parent out from under the path name after the
-                // leaf is created, then fail. A by-name cleanup would follow the
-                // symlink into `replacement_parent`.
+            |mut created| {
+                created.write_all(b"admitted state before unknown result")?;
+                created.sync_all()?;
+                // A callback error cannot authorize removing either namespace.
                 std::fs::rename(&original_parent, &moved_parent)?;
                 symlink(&replacement_parent, &original_parent)?;
                 drop(created);
@@ -1062,10 +1052,11 @@ mod cleanup_boundary {
             unrelated_file.exists(),
             "cleanup followed the swapped path and deleted the unrelated file"
         );
-        assert!(
-            !moved_parent.join("state.redb").exists(),
-            "cleanup did not remove the leaf it actually created"
+        assert_eq!(
+            std::fs::read(moved_parent.join("state.redb"))?,
+            b"admitted state before unknown result"
         );
+        assert_eq!(std::fs::read(&unrelated_file)?, b"unrelated existing file");
         Ok(())
     }
 }

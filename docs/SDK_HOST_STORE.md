@@ -16,6 +16,17 @@ an existing path. `open(path, root, limits)` opens existing state, validates its
 schema/root/exact state and re-verifies the stored signed policy. Missing, empty,
 corrupt, foreign or unsupported storage does not become first installation.
 
+A failed creation is not proof that no state was installed. Once the private file
+has been admitted to the initializer, the shared filesystem layer preserves that
+file and the original error, including an unknown commit result. It does not unlink
+a potentially committed store or a complete key file already admitted by another
+process. A later `provision` still refuses the existing path. Reconcile with the
+same independently retained root and configured signed policy; a partial or
+malformed store remains an explicit error and must be preserved for diagnosis.
+No error path silently resets it or starts a new lineage. Admission failures before
+initialization retain the existing cleanup of a newly created empty file; no owner
+can be opened from that empty file.
+
 `open_configured(path, policy, signature, root, limits)` also reconciles the
 host's configured policy before exposing the runtime: the same exact state is
 idempotent, a strictly newer valid policy is durably applied, and an older or

@@ -54,6 +54,87 @@ fn provision(path: &Path, document: &Signed) -> std::result::Result<PolicyStore,
     )
 }
 
+#[derive(Debug)]
+struct GenesisResultLoss;
+impl std::fmt::Display for GenesisResultLoss {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("injected policy genesis result loss")
+    }
+}
+impl StdError for GenesisResultLoss {}
+thread_local! {
+    static LOSE_GENESIS_RESULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+pub(super) fn after_provision_commit() -> std::result::Result<(), StoreError> {
+    if LOSE_GENESIS_RESULT.with(|flag| flag.replace(false)) {
+        Err(StoreError::CommitUncertain(redb::CommitError::Storage(
+            redb::StorageError::Io(io::Error::other(GenesisResultLoss)),
+        )))
+    } else {
+        Ok(())
+    }
+}
+struct GenesisFailureGuard;
+impl Drop for GenesisFailureGuard {
+    fn drop(&mut self) {
+        LOSE_GENESIS_RESULT.with(|flag| flag.set(false));
+    }
+}
+
+#[test]
+fn unknown_policy_genesis_result_preserves_the_actual_signed_sdk_runtime() -> Result<()> {
+    let folder = directory()?;
+    let path = folder.path().canonicalize()?.join("policy.redb");
+    let document = signed(3, true);
+    let expected = Runtime::from_signed_policy(
+        &document.policy,
+        &document.signature,
+        &document.root,
+        None,
+        Limits::default(),
+    )?
+    .trusted_state();
+    LOSE_GENESIS_RESULT.with(|flag| {
+        assert!(!flag.replace(true));
+    });
+    let guard = GenesisFailureGuard;
+    let result = provision(&path, &document);
+    assert!(
+        matches!(result, Err(StoreError::CommitUncertain(redb::CommitError::Storage(
+        redb::StorageError::Io(ref error)))) if error.get_ref().is_some_and(|cause| cause.is::<GenesisResultLoss>()))
+    );
+    assert!(
+        !LOSE_GENESIS_RESULT.with(|flag| flag.get()),
+        "exact post-commit failure was not exercised"
+    );
+    drop(guard);
+    assert!(
+        path.exists(),
+        "a lost creation result erased a committed signed image"
+    );
+    let retained = std::fs::read(&path)?;
+    assert!(matches!(
+        provision(&path, &document),
+        Err(StoreError::PrivateFile)
+    ));
+    assert_eq!(std::fs::read(&path)?, retained);
+    let mut reopened = PolicyStore::open(&path, &document.root, Limits::default())?;
+    let runtime = reopened.runtime()?;
+    assert_eq!(runtime.trusted_state(), expected);
+    let key = runtime.generate_key()?;
+    key.public_key()?;
+    reopened.close();
+    assert!(matches!(
+        runtime.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    assert!(matches!(
+        key.public_key(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    Ok(())
+}
+
 #[test]
 fn signed_update_revocation_recovery_and_close_preserve_owned_lifetimes() -> Result<()> {
     let folder = directory()?;

@@ -286,6 +286,10 @@ def audit_lockfile(lock: Path, output: Path, label: str, environment: dict, *, f
         argv.append("--no-fetch")
     report = parse_strict_json_bytes(command(argv, output / label, lock.parent,
         environment=dict(environment, CARGO_NET_OFFLINE="false")), label="Cargo audit report")
+    # cargo-audit 0.22.2 can exit zero with warnings={} while stderr reports
+    # that registry/yank checks could not run. JSON counts alone are insufficient.
+    require(not snapshot((output / label).with_suffix(".stderr")).data.strip(),
+            "dependency audit emitted diagnostics; refusing an incomplete result")
     validate_audit_report(report, len(tomllib.loads(before.data.decode())["package"]))
     commit = validate_rustsec_advisory_database(output / "advisory-db")
     # cargo-audit 0.22.2 omits Git metadata in --no-fetch JSON.
@@ -400,6 +404,11 @@ def build(output: Path) -> dict:
     command(["sh", "artifact/python-run.sh", "crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"],
             output / "vendor", ROOT, environment=environment)
     command(["cargo", "fetch", "--locked"], output / "fetch", ROOT,
+            environment=dict(environment, CARGO_NET_OFFLINE="false"))
+    # The separate fuzz lock has registry packages absent from the workspace.
+    # Populate their index/cache before cargo-audit checks their yank status.
+    command(["cargo", "fetch", "--locked", "--manifest-path", "fuzz/Cargo.toml"],
+            output / "fetch-fuzz", ROOT,
             environment=dict(environment, CARGO_NET_OFFLINE="false"))
     audits = {"workspace": audit_lockfile(ROOT / "Cargo.lock", output, "workspace-audit", environment, fetch=True),
               "fuzz": audit_lockfile(ROOT / "fuzz/Cargo.lock", output, "fuzz-audit", environment, fetch=False)}

@@ -72,7 +72,7 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 228 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 229 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
@@ -128,6 +128,54 @@ Installed SDK adapters, committed-history/catalogue restoration UX, witness rene
 device/root lifecycle, independent endpoints, current devices and construction-
 specific recovery/security/performance remain separate requirements.
 
+The immutable-file follow-up closes two related initialization gaps. Wrapping-key
+reopening synchronizes the exact admitted single-link file and pinned directory
+before returning its owner. The shared `provision_private_file` no longer unlinks
+an admitted file when its callback returns an error: a real concurrent opener had
+already used a complete key to persist a signing owner when the old creator cleanup
+removed the wrapping file. The original counterexample fails before this correction
+and passes afterward. SDK policy stores, policy-agent authority/repository/witness
+stores, and candidate signing/journal/witness/archive owners share this root fix.
+Errors still propagate, existing paths are never overwritten, and partial state is
+refused. The observable error contract now preserves a reserved path for explicit
+reconciliation instead of automatically making it retryable.
+
+Targeted validation covers seven key creation/open process cuts, six before/after
+sync failures, linked/partial/public-file refusal and the actual signed-policy SDK
+runtime recovered after a committed-but-unknown creation result. The latter generates
+a real controlled key and verifies alias revocation on close. Frozen candidate
+Debug and Release suites each pass 258 tests (zero failed/ignored); the shared
+SDK checks pass 41 FFI, 18 host-store and 259 policy-agent tests, plus the existing
+process-global umask test run separately. Strict Clippy passes on Rust 1.90 and
+1.98.1; feature splits, documentation and formatting pass. The clean qualification
+snapshot passes 108 source, isolation, release and package-profile contracts.
+
+The twelve real Rust archives are produced at clean snapshot
+`de5e6cd78ba8e1a84a5587f6a459552d1d4f3154`. An external consumer of nine archives
+passes all four public API groups on Rust 1.98.1 and 1.90, including a real child
+process file-size-limit failure that preserves partial storage and refuses both
+replacement and runtime admission. Package report SHA-256 is
+`dad33b81aa2b4340c6d0ebf8a9029365d127bc4fb341d96c26fca1181890f704`.
+The first producer run is retained as **unqualified**: cargo-audit returned zero
+while stderr reported missing registry entries and incomplete yank checks. The
+producer now fetches the separate fuzz lock and rejects any JSON-mode audit
+diagnostic. The corrected workspace, fuzz and consumer audits have empty stderr,
+zero reported vulnerabilities/warnings and a pinned advisory database. These are
+dependency audit results, not a cryptographic security proof.
+
+The source/evidence cohort is `20260930-sdk-key-owner`; frozen native suites and
+qualified packages use identical Rust source. Final documentation records results
+without changing package inputs. This does not promote the unpublished Continuity
+candidate into installed bindings or prove hardware power-loss durability.
+
+For predecessor `7d0bdfcc`, PR CI run `36666337606` terminates with 41 successful
+jobs and one Android 16K instrumentation crash; CodeQL `36666337627` passes all
+six jobs. Native candidate macOS and both Linux compiler jobs pass. The Android
+workload emits three SDK pass markers, but its instrumentation process dies before
+a complete result and is correctly rejected. Cleanup confirms removal. No matching
+process backtrace establishes the crash cause; this differs from the older cleanup
+transport failure below. It remains a release blocker, not a tolerated flaky pass.
+
 The [journal creation follow-up](../research/continuity-identity-candidate/DURABILITY.md#creation-with-an-unknown-result)
 requires a caller-retained public identity before provisioning. A real process cut
 after durable genesis but before owner return failed against the old internally
@@ -177,7 +225,7 @@ remains failed; the underlying second-disconnect cause is unproven. The same-hea
 push's 16K job succeeds, which does not erase this retained failure. No cleanup
 acceptance or transport retry budget is relaxed.
 
-Installed SDK owners/adapters, wrapping-key reopen durability, independent endpoints,
+Installed SDK owners/adapters, independent endpoints,
 current physical devices and the broader release obligations remain open. The user
 handles external human review separately.
 

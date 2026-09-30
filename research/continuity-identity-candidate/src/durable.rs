@@ -7,9 +7,12 @@ use crate::{
 };
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use q_periapt_core::ZeroizingBytes;
+#[cfg(any(not(unix), test))]
+use q_periapt_host_store::filesystem::open_private_file;
+#[cfg(unix)]
+use q_periapt_host_store::filesystem::open_private_parent;
 use q_periapt_host_store::filesystem::{
-    open_private_database, open_private_file, provision_private_database, provision_private_file,
-    PrivateDatabaseError,
+    open_private_database, provision_private_database, provision_private_file, PrivateDatabaseError,
 };
 use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use redb::{
@@ -219,19 +222,69 @@ impl JournalKey {
             path,
             |_| DurableError::PrivateFile,
             |mut file| {
+                Self::check_file(&file, 0)?;
+                #[cfg(all(test, unix))]
+                tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Reserved)?;
                 file.write_all(b"QPVKEY01")?;
+                #[cfg(all(test, unix))]
+                tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Header)?;
                 file.write_all(key.as_bytes())?;
+                #[cfg(all(test, unix))]
+                tests::key_files::after_key_write()?;
+                Self::check_file(&file, 40)?;
+                #[cfg(all(test, unix))]
+                tests::key_files::at_sync(tests::key_files::Barrier::ProvisionFile, false)?;
                 file.sync_all()?;
+                #[cfg(all(test, unix))]
+                tests::key_files::at_sync(tests::key_files::Barrier::ProvisionFile, true)?;
+                #[cfg(all(test, unix))]
+                tests::key_files::at_checkpoint(tests::key_files::Checkpoint::ProvisionFileSynced)?;
                 Ok(Self(key))
             },
         )
     }
-    /// Load only an existing exact private key file. No raw-key export is provided.
+    /// Reopen an existing immutable private key file and reconcile its durability
+    /// before returning the owner. Partial files are refused, never replaced.
+    #[cfg(unix)]
+    pub fn open(path: &Path) -> Result<Self, DurableError> {
+        let (parent, leaf) = open_private_parent(path).map_err(|_| DurableError::PrivateFile)?;
+        let mut file = parent
+            .open_state_file(leaf)
+            .map_err(|_| DurableError::PrivateFile)?;
+        let key = Self::read_file(&mut file)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::OpenDirectory, false)?;
+        parent
+            .sync_entries()
+            .map_err(|_| DurableError::PrivateFile)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::OpenDirectory, true)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenDirectorySynced)?;
+        Ok(key)
+    }
+    /// Refuse platforms without reviewed private-file admission.
+    #[cfg(not(unix))]
     pub fn open(path: &Path) -> Result<Self, DurableError> {
         let mut file = open_private_file(path, false).map_err(|_| DurableError::PrivateFile)?;
-        if file.metadata()?.len() != 40 {
+        Self::read_file(&mut file)
+    }
+    fn check_file(file: &std::fs::File, length: u64) -> Result<(), DurableError> {
+        let metadata = file.metadata()?;
+        if metadata.len() != length {
             return Err(DurableError::PrivateFile);
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if metadata.nlink() != 1 {
+                return Err(DurableError::PrivateFile);
+            }
+        }
+        Ok(())
+    }
+    fn read_file(file: &mut std::fs::File) -> Result<Self, DurableError> {
+        Self::check_file(file, 40)?;
         let mut header = [0u8; 8];
         file.read_exact(&mut header)?;
         if header != *b"QPVKEY01" {
@@ -243,6 +296,16 @@ impl JournalKey {
         if file.read(&mut extra)? != 0 {
             return Err(DurableError::PrivateFile);
         }
+        Self::check_file(file, 40)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenRead)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::OpenFile, false)?;
+        file.sync_all()?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::OpenFile, true)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenFileSynced)?;
         Ok(Self(key))
     }
 }

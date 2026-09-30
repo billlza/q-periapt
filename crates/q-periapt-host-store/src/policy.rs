@@ -162,6 +162,8 @@ impl PolicyStore {
                     return Err(error);
                 }
                 transaction.commit().map_err(StoreError::CommitUncertain)?;
+                #[cfg(all(test, unix))]
+                tests::after_provision_commit()?;
                 Ok(Self {
                     active: Some(Active {
                         database,

@@ -85,8 +85,126 @@ mod tests {
         Ok(())
     }
 
+    // This same test runs once in a tightly selected child with a real OS file-size
+    // limit. An ambient marker cannot replace the normal four-test qualification.
+    const STORAGE_CHILD_ARGS: [&str; 4] = [
+        "--exact",
+        "tests::private_store_restart_rollback_rejection_and_reenable",
+        "--nocapture",
+        "--test-threads=1",
+    ];
+    fn limited_storage_child() -> Result<bool> {
+        let Some(path) = std::env::var_os("QPERIAPT_PACKAGE_STORAGE_LIMIT_CHILD") else {
+            return Ok(false);
+        };
+        if std::env::args().skip(1).collect::<Vec<_>>() != STORAGE_CHILD_ARGS {
+            return Err("reserved storage-fault marker outside the exact child invocation".into());
+        }
+        let path = std::path::PathBuf::from(path);
+        let outcome = PolicyStore::provision(&path, POLICY, SIGNATURE, ROOT, Limits::default());
+        assert!(
+            matches!(
+                outcome,
+                Err(StoreError::Storage(_) | StoreError::Io(_) | StoreError::CommitUncertain(_))
+            ),
+            "OS file-size limit did not produce an explicit storage failure"
+        );
+        assert!(
+            path.is_file(),
+            "storage failure erased the reserved state file"
+        );
+        let retained = std::fs::read(&path)?;
+        assert!(matches!(
+            PolicyStore::provision(&path, POLICY, SIGNATURE, ROOT, Limits::default()),
+            Err(StoreError::PrivateFile)
+        ));
+        assert_eq!(std::fs::read(&path)?, retained);
+        assert!(
+            PolicyStore::open_configured(&path, POLICY, SIGNATURE, ROOT, Limits::default())
+                .is_err()
+        );
+        println!("RUST_SDK_STORAGE_FAILURE_RETAINED");
+        Ok(true)
+    }
+    struct OwnedChild(Option<std::process::Child>);
+    impl OwnedChild {
+        fn child(&mut self) -> &mut std::process::Child {
+            self.0
+                .as_mut()
+                .expect("owned child before output collection")
+        }
+        fn output(mut self) -> std::io::Result<std::process::Output> {
+            self.0
+                .take()
+                .expect("one output collection")
+                .wait_with_output()
+        }
+    }
+    impl Drop for OwnedChild {
+        fn drop(&mut self) {
+            let Some(child) = self.0.as_mut() else {
+                return;
+            };
+            match child.try_wait() {
+                Ok(Some(_)) => return,
+                Ok(None) => {}
+                Err(error) => eprintln!("storage child status: {error}"),
+            }
+            if let Err(error) = child.kill() {
+                eprintln!("storage child cleanup: {error}");
+            }
+            if let Err(error) = child.wait() {
+                eprintln!("storage child reap: {error}");
+            }
+        }
+    }
+    fn exercise_limited_storage(path: &std::path::Path) -> Result {
+        use std::process::{Command, Stdio};
+        use std::time::{Duration, Instant};
+        // The ignored signal makes the kernel return EFBIG to the SDK. Both the
+        // signal disposition and limit are confined to this child process.
+        let child = Command::new("/bin/sh")
+            .args([
+                "-c",
+                "trap '' XFSZ; ulimit -f 1 || exit 97; exec \"$@\"",
+                "storage-fault-child",
+            ])
+            .arg(std::env::current_exe()?)
+            .args(STORAGE_CHILD_ARGS)
+            .env("QPERIAPT_PACKAGE_STORAGE_LIMIT_CHILD", path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut child = OwnedChild(Some(child));
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            if child.child().try_wait()?.is_some() {
+                break;
+            }
+            if Instant::now() >= deadline {
+                return Err("limited storage child exceeded its deadline".into());
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let result = child.output()?;
+        assert!(
+            result.status.success(),
+            "storage-fault child failed: {} {}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stdout)
+            .lines()
+            .any(|line| line.ends_with("RUST_SDK_STORAGE_FAILURE_RETAINED")));
+        Ok(())
+    }
+
     #[test]
     fn private_store_restart_rollback_rejection_and_reenable() -> Result {
+        if limited_storage_child()? {
+            return Ok(());
+        }
         let directory = tempfile::Builder::new()
             .prefix("qperiapt-rust-consumer-")
             .permissions(std::fs::Permissions::from_mode(0o700))
@@ -111,6 +229,7 @@ mod tests {
         assert_eq!(key.public_key()?.to_bytes().len(), 1216);
         reopened.close();
         assert!(matches!(key.public_key(), Err(Error::Closed)));
+        exercise_limited_storage(&directory.path().canonicalize()?.join("limited-policy.redb"))?;
         Ok(())
     }
 

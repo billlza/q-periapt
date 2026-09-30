@@ -10,6 +10,10 @@ store, ratchet or recovery contract.
 `JournalKey::provision` generates a fresh OS-random 256-bit wrapping key and writes
 `QPVKEY01[8] || key[32]` to a new private file without replacing an existing path.
 `open` requires that exact existing file and never creates a replacement on error.
+It checks the exact 40-byte shape and single-link inode, reads through the admitted
+file descriptor, synchronizes that inode and its still-pinned private parent, and
+only then returns an owner. A complete file left by interrupted initialization can
+thus be reconciled; missing, partial, linked or unprotected files remain errors.
 The owner has no raw-key export and erases its memory on drop. Keep its file outside
 database backups. This provider assumes a trusted same-UID host and supplies
 neither a hardware keystore nor per-record cryptographic erasure.
@@ -23,6 +27,22 @@ bootstrap `storage-owner` domain. Roster updates can retain this owner; a differ
 credential/generation cannot silently reuse it. One authoritative journal per
 device lineage is a host configuration requirement; a new empty journal is not
 recovery.
+
+Once a private file reaches its initializer, the shared provider retains the file
+on any callback error. An initializer error is not evidence that its output was
+never admitted by another opener or committed by the database. The actual race
+regression admits a complete wrapping key in a second process, persists a dependent
+signer, then makes the creator fail before its own sync: the old callback cleanup
+removed that key and made the signer unrecoverable. The shared correction preserves
+the file; the opener synchronizes it before exposing the key. This also applies to
+signing owners, journal/witness/index genesis, and the SDK's signed policy store.
+Original errors still propagate; partial creation never becomes implicit success.
+
+Key tests terminate real child processes at seven creation/open boundaries and
+inject failures before/after the key-data sync and both reopen syncs. No interrupted
+owner returns. Complete files recover the same dependent signing key, while partial
+files remain refused and cannot be overwritten by provisioning. These are bounded
+process-loss and I/O-fault tests, not hardware power-loss qualification.
 
 The candidate reuses `q-periapt-host-store::filesystem` private path admission,
 exclusive provisioning and lifetime database locking. Path traversal is descriptor
