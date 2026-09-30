@@ -238,6 +238,36 @@ fn reserve(active: &Active, pending: &PendingWrite) -> Result<(), DurableError> 
     tx.commit().map_err(DurableError::CommitUncertain)
 }
 
+/// Read-only cleanup admission. An untrusted header is only a decryption hint;
+/// the complete image and independent expected ID authenticate before any write.
+pub(super) fn load_cleanup_snapshot(
+    db: &Database,
+    key: &JournalKey,
+    expected: JournalIdentity,
+) -> Result<(Image, Option<PendingWrite>), DurableError> {
+    let owner = {
+        let read = db.begin_read().map_err(storage)?;
+        let table = image_table(&read)?;
+        let value = table
+            .get("image")
+            .map_err(storage)?
+            .ok_or(DurableError::Corrupt)?;
+        let wire = value.value();
+        if !(HEADER + 16..=HEADER + MAX_IMAGE + 16).contains(&wire.len()) {
+            return Err(DurableError::Corrupt);
+        }
+        wire.get(40..72)
+            .ok_or(DurableError::Corrupt)?
+            .try_into()
+            .map_err(|_| DurableError::Corrupt)?
+    };
+    let (image, pending) = load_snapshot(db, key, owner)?;
+    if image.id != expected.0 {
+        return Err(DurableError::Conflict);
+    }
+    Ok((image, pending))
+}
+
 pub(super) fn recover(
     db: &Database,
     key: &JournalKey,

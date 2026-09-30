@@ -3,7 +3,6 @@
 use super::*;
 use crate::{AnchorClient, BootstrapRole, LeafKind};
 use hmac::{Hmac, Mac};
-use redb::ReadableDatabase;
 use sha2::Sha256;
 
 const METADATA_BYTES: usize = 170;
@@ -415,28 +414,8 @@ impl BootstrapCancellationJournal {
         client: Option<AnchorClient>,
     ) -> Result<Self, DurableError> {
         let db = open_private_database(path)?;
-        // Header bytes select only the decryption candidate. Neither authority nor
-        // writes are admitted until the entire image and independent ID authenticate.
-        let owner = {
-            let read = db.begin_read().map_err(storage)?;
-            let table = image_table(&read)?;
-            let value = table
-                .get("image")
-                .map_err(storage)?
-                .ok_or(DurableError::Corrupt)?;
-            let wire = value.value();
-            if !(HEADER + 16..=HEADER + MAX_IMAGE + 16).contains(&wire.len()) {
-                return Err(DurableError::Corrupt);
-            }
-            wire.get(40..72)
-                .ok_or(DurableError::Corrupt)?
-                .try_into()
-                .map_err(|_| DurableError::Corrupt)?
-        };
-        let (image, pending) = write_intent::load_snapshot(&db, &key, owner)?;
-        if image.id != expected.0 {
-            return Err(DurableError::Conflict);
-        }
+        let (image, pending) = write_intent::load_cleanup_snapshot(&db, &key, expected)?;
+        let owner = image.owner;
         match (image.protection, client.is_some()) {
             (Protection::Local, false) | (Protection::Required { .. }, true) => {}
             (Protection::Required { .. }, false) => return Err(DurableError::AnchorRequired),

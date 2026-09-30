@@ -20,8 +20,8 @@ pub(crate) use delivery::{acknowledgement_epoch, message_epoch, message_route, D
 mod fanout;
 pub use fanout::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, FanoutAbandonment, FanoutAbandonmentId,
-    FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget,
-    ReservedAbandonment,
+    FanoutAbandonmentJournal, FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus,
+    FanoutTarget, ReservedAbandonment,
 };
 mod progress;
 pub use progress::SendProgress;

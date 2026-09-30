@@ -130,3 +130,18 @@ and 45 clean source/isolation checks pass. Existing disclosure experiments still
 recover 12 future messages; this persistence change does not establish a recovery
 point. Final explanatory text and the separately tested CI audit move occur after
 the complete suites, without changing Rust source.
+
+
+## Aggregate cleanup admission
+
+`FanoutAbandonmentJournal` uses this same persisted index to authenticate every
+member of a whole reserved batch before any saved intent can be reconciled. It
+requires no reconstructed policy/context and does not accept a caller-selected
+subset. Missing member metadata is `ArchiveRequired`, distinct from an absent
+batch. See [archived whole-batch cleanup](FANOUT_ABANDONMENT.md#archived-whole-batch-cleanup)
+for the host accounting, witness and metadata-retirement contract.
+
+The exact schema check covers ordinary and multimap table namespaces on open and
+every fresh indexed lookup. An unexpected multimap table is corrupt storage, never
+an empty index or a missing archive. The rejection regression records the old
+opener accepting that unsupported schema and verifies both corrected boundaries.

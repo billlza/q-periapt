@@ -2,7 +2,7 @@
 use super::*;
 
 #[derive(Clone)]
-pub(super) struct Member {
+pub(in crate::durable::messages) struct Member {
     pub device: [u8; 16],
     pub generation: u64,
     pub credential: [u8; 32],

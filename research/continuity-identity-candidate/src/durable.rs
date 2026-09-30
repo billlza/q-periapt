@@ -49,12 +49,12 @@ pub use initiator::{CommittedInitiation, InitiationId};
 pub(crate) use messages::{acknowledgement_epoch, message_epoch, message_route, Delivery};
 pub use messages::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, ClosedEpochResolution, CommittedPlaintext,
-    EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId, FanoutId,
-    FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, MessageId, MessageStatus,
-    RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
-    RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure,
-    SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
-    UnconfirmedMessage, UnconsumedDelivery,
+    EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId,
+    FanoutAbandonmentJournal, FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus,
+    FanoutTarget, MessageId, MessageStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight,
+    RekeyOfferStatus, RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment,
+    SendProgress, SessionClosure, SessionClosureArchive, SessionClosureId, SessionClosureJournal,
+    SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
 
@@ -104,6 +104,8 @@ pub enum DurableError {
     Suspended,
     /// This journal or policy requires an attached authenticated witness.
     AnchorRequired,
+    /// An existing operation lacks a required original session cleanup archive.
+    ArchiveRequired,
     /// Fresh witness evidence is unavailable or conflicts with the saved state.
     Anchor(Box<crate::AnchorClientError>),
     /// This exact input already has a durable definitive-failure record.
@@ -130,6 +132,7 @@ impl fmt::Display for DurableError {
             Self::Capacity => "journal capacity exhausted",
             Self::Suspended => "reserved computation requires reconciliation",
             Self::AnchorRequired => "authenticated witness is required",
+            Self::ArchiveRequired => "original session cleanup archive is required",
             Self::Anchor(_) => "journal witness admission failed",
             Self::Rejected => "operation has a durable failure record",
             Self::Protocol(_) => "authenticated bootstrap failed",

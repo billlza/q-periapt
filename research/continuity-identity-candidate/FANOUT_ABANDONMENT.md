@@ -99,7 +99,7 @@ retain their existing rollback and availability assumptions.
 
 ## Storage contract
 
-Journal v20: `continuity_device_candidate_v20`, `QPVLT020`, `QPVIMG20`. Older
+Current journal v21: `continuity_device_candidate_v21`, `QPVLT021`, `QPVIMG21`. Older
 candidate images fail closed with no reset or implicit migration. Pairwise v6,
 QPSESP03, QPTEPO04, KATs and published SDK/binding ABIs are unchanged. QPMST011
 reserves the independent-closure tail described in [session closure](SESSION_CLOSURE.md).
@@ -127,6 +127,75 @@ The option uses 0 or 1 followed by a u64 only for 1. Each retained epoch is
 the existing four-epoch window. The pending ID is bound to the terminal session,
 role, sending epoch and unchanged uncommitted slot. Shared source validation still
 recomputes the session ID from the admitted final bootstrap transcript.
+
+## Archived whole-batch cleanup
+
+`FanoutAbandonmentJournal::open` / `open_anchored` take an existing private
+journal, original wrapping key, independently retained JournalIdentity and FanoutId,
+and its existing SessionArchiveStore. Complete membership comes from the
+AEAD-authenticated batch record; every original QPCSCA01 session archive must
+match the journal, owner, account, session, context, role and peer device/generation.
+The admitted context digest retains its credential binding. All member archives
+also name the same original local signer. There is no caller-supplied recipient
+subset or a fabricated BootstrapContext. The index owns no private key, and its
+mere presence grants no cleanup permission.
+
+The owner exposes only `status`, `begin`, `acknowledge`, `retire_metadata` and
+`close`. Freeze/acknowledgement reuse the original transaction engine and complete
+report: the application must durably account for all losses and unknown outcomes
+before acknowledgement. `retire_metadata` accepts only an acknowledged abandoned
+batch; it cannot retire ordinary committed fanout history. It removes the batch
+record, leaves every terminal session, bootstrap and one-time claim in place, and
+never resets the monotonic counter or frees a terminal session slot. Same-owner
+repeat retirement is idempotent; a later authenticated opener returns Retired.
+The owner releases its database, key and witness client on close. The caller keeps
+ownership of the index and may close it independently after successful admission;
+the restricted owner retains only authenticated public scope bytes for rechecking.
+
+The header selects only a bounded decryption candidate. The complete sealed image
+and independent ID authenticate before any write. An operation missing from the
+current image can be recovered only from its **already sealed exact reservation**.
+Every member archive and the complete target membership authenticate before any
+saved transaction is reconciled. The same checks apply to pending freeze, terminal
+and metadata-retirement intents. Missing archives return `ArchiveRequired`; they
+cannot be mislabeled as an absent batch or trigger replacement provisioning. An
+invalid MAC or a valid-MAC archive for a different context fails without applying
+the original intent. Restoring the exact original public metadata can recover it.
+
+Required-witness open preserves its pinned witness, subject and original enrolled
+signer. Returning Absent or Retired also requires a fresh authenticated head query;
+a stale local counter cannot certify that disposition. With an unresolved unrelated
+intent, the opener reports suspension instead of guessing. An expired enrollment
+can confirm an already applied freeze but cannot perform an unperformed freeze,
+terminal acknowledgement or metadata-retirement advance. There is no fallback.
+All uncertain commits close the owner and require exact reopen/reconciliation.
+
+No new wire or archive format is introduced: QPCSCA01/QPCSIX01, QPFANO02, QPMST011,
+QPABND02 and journal v21 remain unchanged. The shared loader is also used by the
+bootstrap cancellation owner; it does not broaden either owner's public methods.
+Logical erasure and witness trust/availability/rollback limits above still apply.
+
+Focused tests cover three observed process kills (freeze, terminal commit, metadata
+retirement), three contenders checking both database leases, and fresh cleanup
+processes that construct no verified policy/device/context objects. Mixed local
+handshake roles and installed peer revocation retain all prior unknown sends and
+unconsumed inbox losses. The single-session archive owner still refuses to split
+the same reserved batch; the aggregate owner returns the exact shared-engine report.
+Each shared transition has four observed sync barriers, for 24 before/after faults
+reopened through the indexed owner. Open plus each archived transition has five
+signed witness exchanges, for 30 before/after response losses. Exact pending birth,
+missing/tampered/substituted archives before pending writes, wrong wrapping key/ID,
+committed-batch refusal, expired enrollment and fresh Retired disposition are checked.
+The corrected full Debug/Release suites pass 246 tests each, zero failures or
+ignored tests; runner times are 716.265/710.917 seconds under overlapping load,
+not comparative performance. Strict all-feature, individual-carrier and no-default
+Clippy pass on Rust 1.90/1.98.1, along with warning-strict docs, fmt and 95 clean
+source/isolation/release-contract checks. The initial feature check identified the
+archive-mutation test helper's unnecessary connection-tls gate; the helper now serves
+these unconditional tests. An extra-multimap schema counterexample fails on the old
+index validator and passes after the common read boundary rejects unsupported
+namespaces. Both corrected full suites were rerun; initial diagnostics are retained.
+These tests do not qualify installed foreign SDK consumers or independent hosts/devices.
 
 ## Qualification boundary
 

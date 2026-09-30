@@ -227,6 +227,218 @@ fn reserve_with_loss(c: &mut Anchored, offset: usize) -> FanoutId {
     c.reopen_sender();
     id
 }
+
+fn indexed_cleanup(
+    c: &Anchored,
+    id: FanoutId,
+) -> Result<(crate::SessionArchiveStore, crate::FanoutAbandonmentJournal), DurableError> {
+    let path = &c.network.sender_path;
+    let identity = crate::durable::tests::identity(path);
+    let mut index = crate::SessionArchiveStore::open(&path.join("archives.redb"), identity)?;
+    let owner = crate::FanoutAbandonmentJournal::open_anchored(
+        &path.join("state.redb"),
+        JournalKey::open(&path.join("key"))?,
+        identity,
+        id,
+        &mut index,
+        client(&c.pin, &c.witness, &c.network.f.local),
+    )?;
+    Ok((index, owner))
+}
+fn retain_cleanup(c: &mut Anchored) {
+    let mut index = archive::retain(&mut c.network);
+    index.close();
+    for context in &c.network.f.contexts {
+        context.policy().close();
+    }
+    c.network.sender.close();
+}
+fn discover_reserved() -> (Anchored, FanoutId, usize) {
+    for offset in 1..=12 {
+        let mut c = Anchored::new();
+        let id = reserve_with_loss(&mut c, offset);
+        if c.network.sender.fanout_status(id).expect("phase") == FanoutStatus::Reserved {
+            return (c, id, offset);
+        }
+    }
+    unreachable!("no observed reservation boundary")
+}
+fn prepare_indexed(stage: u8, cut: usize) -> (Anchored, FanoutId, Option<FanoutAbandonmentId>) {
+    let mut c = Anchored::new();
+    let id = reserve_with_loss(&mut c, cut);
+    assert_eq!(
+        c.network.sender.fanout_status(id).expect("actual phase"),
+        FanoutStatus::Reserved
+    );
+    retain_cleanup(&mut c);
+    let report = if stage > 0 {
+        let (_index, mut owner) = indexed_cleanup(&c, id).expect("original scope");
+        let report = owner.begin().expect("freeze");
+        abandonment::account(&c.network.sender_path, &report);
+        if stage == 2 {
+            owner
+                .acknowledge(report.report)
+                .expect("accounted terminal");
+        }
+        Some(report.report)
+    } else {
+        None
+    };
+    (c, id, report)
+}
+fn indexed_transition(
+    c: &Anchored,
+    id: FanoutId,
+    stage: u8,
+    report: Option<FanoutAbandonmentId>,
+) -> Result<(), DurableError> {
+    let (_index, mut owner) = indexed_cleanup(c, id)?;
+    match stage {
+        0 => owner.begin().map(|_| ()),
+        1 => owner.acknowledge(report.expect("accounted receipt")),
+        2 => owner.retire_metadata(),
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn archived_fanout_preserves_every_witness_loss_through_terminal_metadata_retirement() {
+    let (_, _, cut) = discover_reserved();
+    for stage in 0..3 {
+        let (baseline, id, report) = prepare_indexed(stage, cut);
+        let before = baseline.witness.lock().expect("witness").calls;
+        indexed_transition(&baseline, id, stage, report).expect("measure open and transition");
+        let calls = baseline.witness.lock().expect("witness").calls - before;
+        assert_eq!(calls, 5, "measured original witness queries and advance");
+        for after in [false, true] {
+            for at in 1..=calls {
+                let (c, id, report) = prepare_indexed(stage, cut);
+                {
+                    let mut witness = c.witness.lock().expect("witness");
+                    witness.fail = Some((witness.calls + at, after));
+                }
+                assert!(
+                    matches!(
+                        indexed_transition(&c, id, stage, report),
+                        Err(DurableError::Anchor(_))
+                    ),
+                    "stage={stage} at={at} after={after}"
+                );
+                c.witness.lock().expect("witness").fail = None;
+                let reopened = indexed_cleanup(&c, id);
+                if matches!(&reopened, Err(DurableError::Protocol(Error::Retired))) {
+                    assert_eq!(stage, 2);
+                    continue;
+                }
+                let (_index, mut owner) = reopened.expect("reconcile original sealed work");
+                if stage == 0 {
+                    let report = owner.begin().expect("whole frozen report");
+                    assert_eq!(report.sessions.len(), c.network.sessions.len());
+                    assert_eq!(owner.begin().expect("same immutable report"), report);
+                } else if stage == 1 {
+                    let report = report.expect("receipt");
+                    owner.acknowledge(report).expect("exact ack");
+                    assert_eq!(
+                        owner.status().expect("state"),
+                        FanoutStatus::Abandoned(report)
+                    );
+                } else {
+                    owner.retire_metadata().expect("exact retirement");
+                    assert_eq!(owner.status().expect("state"), FanoutStatus::Retired);
+                }
+            }
+        }
+        eprintln!("ARCHIVED_FANOUT_WITNESS stage={stage} measured_open_and_transition_calls={calls} before_after_losses={}",calls*2);
+    }
+}
+
+#[test]
+fn archived_fanout_expired_witness_only_confirms_already_applied_freeze() {
+    let (_, _, cut) = discover_reserved();
+    for after in [false, true] {
+        let (c, id, _) = prepare_indexed(0, cut);
+        let (mut index, mut owner) = indexed_cleanup(&c, id).expect("owner");
+        {
+            let mut witness = c.witness.lock().expect("witness");
+            witness.fail = Some((witness.calls + 2, after));
+        }
+        assert!(matches!(owner.begin(), Err(DurableError::Anchor(_))));
+        assert!(matches!(owner.status(), Err(DurableError::Closed)));
+        index.close();
+        {
+            let mut witness = c.witness.lock().expect("witness");
+            witness.fail = None;
+            witness.now = 250;
+        }
+        let result = indexed_cleanup(&c, id);
+        if after {
+            let (_index, mut owner) = result.expect("already applied original freeze");
+            let report = owner.begin().expect("read-only exact loss report");
+            abandonment::account(&c.network.sender_path, &report);
+            assert!(
+                matches!(
+                    owner.acknowledge(report.report),
+                    Err(DurableError::Anchor(_))
+                ),
+                "expiry must not permit a fresh terminal advance"
+            );
+        } else {
+            assert!(
+                matches!(result, Err(DurableError::Anchor(_))),
+                "expiry must not perform the pending freeze"
+            );
+        }
+    }
+}
+
+#[test]
+fn archived_fanout_retired_disposition_still_requires_fresh_original_witness() {
+    let (_, _, cut) = discover_reserved();
+    let (c, id, _) = prepare_indexed(2, cut);
+    let (mut index, mut owner) = indexed_cleanup(&c, id).expect("terminal owner");
+    let path = &c.network.sender_path;
+    owner.retire_metadata().expect("retirement");
+    owner.close();
+    assert!(matches!(
+        crate::FanoutAbandonmentJournal::open(
+            &path.join("state.redb"),
+            JournalKey::open(&path.join("key")).expect("key"),
+            crate::durable::tests::identity(path),
+            id,
+            &mut index
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    assert!(matches!(
+        crate::FanoutAbandonmentJournal::open_anchored(
+            &path.join("state.redb"),
+            JournalKey::open(&path.join("key")).expect("key"),
+            crate::durable::tests::identity(path),
+            id,
+            &mut index,
+            client(
+                &c.pin,
+                &c.witness,
+                c.network.f.peers.first().expect("wrong enrolled signer")
+            )
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    index.close();
+    {
+        let mut witness = c.witness.lock().expect("witness");
+        witness.fail = Some((witness.calls + 1, false));
+    }
+    assert!(
+        matches!(indexed_cleanup(&c, id), Err(DurableError::Anchor(_))),
+        "local retirement alone is not an authoritative disposition"
+    );
+    c.witness.lock().expect("witness").fail = None;
+    assert!(matches!(
+        indexed_cleanup(&c, id),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+}
 #[test]
 fn account_fanout_abandonment_every_witness_loss_preserves_exact_whole_report() {
     // Discover the actual boundary from authenticated readback; do not assume

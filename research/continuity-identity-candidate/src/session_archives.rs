@@ -24,7 +24,14 @@ fn table(
     journal: JournalIdentity,
 ) -> Result<redb::ReadOnlyTable<&'static [u8; 32], &'static [u8]>, DurableError> {
     let names: Vec<_> = read.list_tables().map_err(storage)?.collect();
-    if names.len() != 1 || names.first().ok_or(DurableError::Corrupt)?.name() != TABLE.name() {
+    if names.len() != 1
+        || names.first().ok_or(DurableError::Corrupt)?.name() != TABLE.name()
+        || read
+            .list_multimap_tables()
+            .map_err(storage)?
+            .next()
+            .is_some()
+    {
         return Err(DurableError::Corrupt);
     }
     let table = read.open_table(TABLE).map_err(storage)?;
@@ -104,8 +111,11 @@ impl SessionArchiveStore {
         self.active = None;
     }
     pub(crate) fn check_journal(&self, journal: &DeviceJournal) -> Result<(), DurableError> {
+        self.check_identity(journal.identity()?)
+    }
+    pub(crate) fn check_identity(&self, journal: JournalIdentity) -> Result<(), DurableError> {
         self.active.as_ref().ok_or(DurableError::Closed)?;
-        if self.journal != journal.identity()? {
+        if self.journal != journal {
             return Err(DurableError::Conflict);
         }
         Ok(())

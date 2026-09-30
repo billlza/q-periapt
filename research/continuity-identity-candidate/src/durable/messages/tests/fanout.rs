@@ -8,6 +8,7 @@ use crate::{
 use q_periapt_sdk::HybridKey;
 
 mod abandonment;
+mod archive;
 mod lifecycle;
 mod process;
 mod roles;

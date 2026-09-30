@@ -4,8 +4,10 @@ use super::*;
 use crate::{RosterCheckpoint, MAX_DEVICES};
 
 mod codec;
-use codec::{batch_key, Batch, BatchState, Member};
+pub(super) use codec::Member;
+use codec::{batch_key, Batch, BatchState};
 mod abandonment;
+mod archive;
 pub(super) use abandonment::{
     epoch_accounting, progress as abandoned_progress, require_live_source, validate_message_record,
 };
@@ -13,6 +15,7 @@ pub use abandonment::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, FanoutAbandonment, FanoutAbandonmentId,
     ReservedAbandonment,
 };
+pub use archive::FanoutAbandonmentJournal;
 const MAX_FANOUTS: usize = 16;
 
 /// Journal-bound monotonic correlation ID. It contains no plaintext commitment.
@@ -409,7 +412,7 @@ impl DeviceJournal {
         id: FanoutId,
         targets: &[FanoutTarget<'_>],
     ) -> Result<(), DurableError> {
-        let mut image = self.image()?;
+        let image = self.image()?;
         let batch = codec::get(&image, id)?;
         if matches!(
             batch.state,
@@ -418,6 +421,20 @@ impl DeviceJournal {
             return Err(DurableError::Suspended);
         }
         self.check_fanout_cleanup(&image, &batch, targets)?;
+        self.retire_fanout_cleanup(image, batch)
+    }
+    fn retire_fanout_cleanup(
+        &mut self,
+        mut image: Image,
+        batch: Batch,
+    ) -> Result<(), DurableError> {
+        if matches!(
+            batch.state,
+            BatchState::Reserved(_) | BatchState::Abandoning { .. }
+        ) {
+            return Err(DurableError::Suspended);
+        }
+        let id = batch.id;
         for member in &batch.members {
             if matches!(
                 codec::record_output(&image, &batch, member)?,

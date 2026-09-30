@@ -9,6 +9,42 @@ use q_periapt_host_store::filesystem::PrivateDatabaseError;
 use std::{fs, sync::atomic::Ordering};
 
 #[test]
+fn session_archive_index_rejects_extra_multimap_schema_on_open_and_live_lookup() {
+    for live in [false, true] {
+        let dir = directory();
+        let path = dir.path().canonicalize().expect("path");
+        let id = JournalIdentity::from_trusted_state([42; 32]).expect("independent identity");
+        let file = path.join("archives.redb");
+        let mut store = SessionArchiveStore::provision(&file, id).expect("index");
+        let tx = transaction(store.active.as_ref().expect("active database"))
+            .expect("owned schema mutation");
+        tx.open_multimap_table(redb::MultimapTableDefinition::<&str, &[u8]>::new(
+            "unexpected_archive_metadata",
+        ))
+        .expect("extra multimap")
+        .insert("unrecognized", b"not part of QPCSIX01".as_slice())
+        .expect("extra row");
+        tx.commit().expect("persist different schema");
+        if live {
+            assert!(
+                matches!(store.get([1; 32]), Err(DurableError::Corrupt)),
+                "live lookup must not mistake unsupported storage for absence"
+            );
+            assert!(matches!(store.get([1; 32]), Err(DurableError::Closed)));
+        } else {
+            store.close();
+            assert!(
+                matches!(
+                    SessionArchiveStore::open(&file, id),
+                    Err(DurableError::Corrupt)
+                ),
+                "opening must validate the complete schema"
+            );
+        }
+    }
+}
+
+#[test]
 fn session_archive_index_is_exact_bounded_private_and_never_resets_existing_storage() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let dir = directory();
@@ -216,7 +252,6 @@ pub(crate) fn fault_index(
     )
 }
 
-#[cfg(feature = "connection-tls")]
 pub(crate) fn rewrite_archive(path: &Path, session: [u8; 32], bytes: Option<&[u8]>) {
     let db = open_private_database(path).expect("owned adversarial index edit");
     let tx = transaction(&db).expect("transaction");

@@ -126,8 +126,7 @@ path, not device replacement, initial bootstrap cancellation, whole-account
 coordination or installed binding integration. A QPCSCA01 cleanup archive can now
 be persisted before activation and reopened without an operational context through
 the restricted SessionClosureJournal. Existing or sealed session admission, original
-owner/context and required witness remain mandatory. Expired witness enrollment,
-archival aggregate abandonment and installed-language service integration still need
+owner/context and required witness remain mandatory. Expired witness enrollment and installed-language service integration still need
 explicit lifecycle integration; no fresh permission is reconstructed from stale data.
 
 The native QPCNET01 [archive index](../../research/continuity-identity-candidate/SESSION_ARCHIVE_STORE.md)
@@ -136,7 +135,25 @@ cancellation and deadline crossings cannot be relabeled as a completed connectio
 data paths require the retained authenticated archive. Full native execution includes
 both terminal cleanup processes after three network rekeys and bidirectional actual
 consumption. This closes a native service-persistence prerequisite, while published
-bindings, catalogue retirement, initial-bootstrap and device/root lifecycle remain open.
+bindings, catalogue restoration and device/root lifecycle remain open.
+
+Native [permanent bootstrap cancellation](../../research/continuity-identity-candidate/BOOTSTRAP_CANCELLATION.md)
+now removes private pre-activation plans while retaining their original operation,
+context and one-time claims. Its cleanup-only restart owner does not need live
+verified policy/device/context objects. Cancellation cannot recall peer messages
+or refund a claimed key, and established application sessions require session closure.
+
+Native [archived whole-batch abandonment](../../research/continuity-identity-candidate/FANOUT_ABANDONMENT.md#archived-whole-batch-cleanup)
+loads complete membership from the authenticated journal and verifies every original
+session archive before recovery or mutation. After explicit host loss accounting,
+it closes every reserved member and can retire that abandoned batch's metadata,
+while all terminal sessions, sources/claims and the monotonic ID remain. It cannot
+split the set, cancel a committed batch or bypass the original witness. Fresh
+required-witness evidence also gates absence/retirement dispositions. This closes
+native archival cleanup of reserved fanout; ordinary committed-history retirement,
+index/restore UX, witness renewal and installed-language integration retain their
+separate requirements. These native additions do not close the broader completion
+table below; candidate storage is v21 with no implicit migration from old formats.
 
 ## Required completion evidence
 

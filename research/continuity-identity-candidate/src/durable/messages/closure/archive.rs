@@ -100,6 +100,31 @@ impl Scope {
 /// Account/device linkage is public in this archive and may be privacy sensitive.
 pub struct SessionClosureArchive([u8; ARCHIVE_BYTES]);
 impl SessionClosureArchive {
+    // Each immutable batch member must match independently MAC-authenticated
+    // original session scope. A valid archive for a different member is not enough.
+    pub(in crate::durable::messages) fn authenticate_fanout_member(
+        &self,
+        key: &JournalKey,
+        expected: JournalIdentity,
+        image: &Image,
+        account: [u8; 32],
+        member: &fanout::Member,
+    ) -> Result<[u8; 32], DurableError> {
+        let scope = self.authenticate(key, expected)?;
+        scope.check(image)?;
+        let binding = &scope.binding;
+        if binding.session != member.session
+            || binding.context != member.context
+            || binding.role != member.role
+            || binding.peer_account != account
+            || binding.peer_device != member.device
+            || binding.peer_generation != member.generation
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(scope.signer)
+    }
+
     /// Parse the exact bounded grammar. Authentication occurs only when opening
     /// the existing journal with its wrapping key and independently retained ID.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, DurableError> {

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
-#[test]
-fn account_fanout_mixed_bootstrap_roles_use_the_correct_independent_send_chains() {
+pub(super) fn mixed_roles() -> Network {
     let mut n = Network::new(4, false);
     let (_, issued, pin, runtime) = session_policy_fixture_with_budget(
         &[PrekeyQuality::ReusableBoth],
@@ -123,6 +122,12 @@ fn account_fanout_mixed_bootstrap_roles_use_the_correct_independent_send_chains(
         state(&mut n.sender, n.sessions.get(1).expect("other session")).role,
         1
     );
+    n
+}
+
+#[test]
+fn account_fanout_mixed_bootstrap_roles_use_the_correct_independent_send_chains() {
+    let mut n = mixed_roles();
     let id = n.sender.next_fanout_id().expect("ID");
     let result = n
         .send(id, b"roles are pairwise, recipients are account-wide")

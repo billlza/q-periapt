@@ -320,3 +320,16 @@ slot. Earlier v19/v20 lifecycle checkpoints above retain their historical scope;
 old candidate images are refused without implicit migration. Primitive, SDK ABI and
 network wire contracts are unchanged. See the cancellation contract and release
 ledger for exact source-bound verification and remaining integration requirements.
+
+
+## Archived aggregate cleanup
+
+[Whole-batch archived cleanup](FANOUT_ABANDONMENT.md#archived-whole-batch-cleanup)
+loads every original session archive from the persisted index and checks the
+complete authenticated batch before recovery or mutation. Its restricted owner
+freezes the whole reserved set, requires full durable host loss accounting before
+logical erasure, and can retire acknowledged abandoned-batch metadata while keeping
+terminal sessions and monotonic IDs. No operational context is reconstructed, and
+required witnesses still gate readback and advancement. Ordinary committed-history
+retirement, catalogue restoration and installed-language service integration remain
+separate lifecycle requirements.

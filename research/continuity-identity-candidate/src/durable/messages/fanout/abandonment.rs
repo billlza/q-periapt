@@ -258,9 +258,17 @@ impl DeviceJournal {
         id: FanoutId,
         targets: &[FanoutTarget<'_>],
     ) -> Result<FanoutAbandonment, DurableError> {
-        let mut image = self.image()?;
-        let mut batch = codec::get(&image, id)?;
+        let image = self.image()?;
+        let batch = codec::get(&image, id)?;
         self.check_fanout_cleanup(&image, &batch, targets)?;
+        self.begin_fanout_cleanup(image, batch)
+    }
+    pub(in crate::durable::messages::fanout) fn begin_fanout_cleanup(
+        &mut self,
+        mut image: Image,
+        mut batch: Batch,
+    ) -> Result<FanoutAbandonment, DurableError> {
+        let id = batch.id;
         match batch.state {
             BatchState::Reserved(_) => {
                 let mut key = ZeroizingBytes::<32>::zeroed();
@@ -307,9 +315,18 @@ impl DeviceJournal {
         report: FanoutAbandonmentId,
         targets: &[FanoutTarget<'_>],
     ) -> Result<(), DurableError> {
-        let mut image = self.image()?;
-        let mut batch = codec::get(&image, id)?;
+        let image = self.image()?;
+        let batch = codec::get(&image, id)?;
         self.check_fanout_cleanup(&image, &batch, targets)?;
+        self.acknowledge_fanout_cleanup(image, batch, report)
+    }
+    pub(in crate::durable::messages::fanout) fn acknowledge_fanout_cleanup(
+        &mut self,
+        mut image: Image,
+        mut batch: Batch,
+        report: FanoutAbandonmentId,
+    ) -> Result<(), DurableError> {
+        let id = batch.id;
         match batch.state {
             BatchState::Abandoned(saved) if saved == report => {}
             BatchState::Abandoning { report: saved, .. } if saved == report => {
