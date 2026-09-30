@@ -30,7 +30,7 @@ pub(in crate::durable) fn inventory(quality: PrekeyQuality) -> Inventory {
     let path = dir.path().canonicalize().expect("path");
     inventory_at(quality, path, Some(dir))
 }
-fn inventory_at(
+pub(in crate::durable) fn inventory_at(
     quality: PrekeyQuality,
     path: PathBuf,
     dir: Option<tempfile::TempDir>,

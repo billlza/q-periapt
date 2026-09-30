@@ -85,6 +85,7 @@ impl Batch {
             authorities,
             keys: Vec::new(),
             prekeys: Vec::new(),
+            cancellation: None,
             payload,
         }
     }

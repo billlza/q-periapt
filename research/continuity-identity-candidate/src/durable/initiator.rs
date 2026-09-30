@@ -65,6 +65,7 @@ pub(super) fn checkpoint(record: &Record) -> Result<&[u8], DurableError> {
         | DurableStatus::InitialKemReserved
         | DurableStatus::InitialSignatureReserved => return Err(DurableError::Suspended),
         DurableStatus::Rejected => return Err(DurableError::Rejected),
+        DurableStatus::BootstrapCancelled => return Err(Error::Retired.into()),
         _ => return Err(DurableError::Corrupt),
     };
     record
@@ -72,12 +73,12 @@ pub(super) fn checkpoint(record: &Record) -> Result<&[u8], DurableError> {
         .get(32..32 + length)
         .ok_or(DurableError::Corrupt)
 }
-fn initial(record: &Record) -> Result<&[u8], DurableError> {
+pub(super) fn initial(record: &Record) -> Result<&[u8], DurableError> {
     checkpoint(record)?
         .get(40..PREFIX)
         .ok_or(DurableError::Corrupt)
 }
-fn selected_reply(record: &Record) -> Result<&[u8], DurableError> {
+pub(super) fn selected_reply(record: &Record) -> Result<&[u8], DurableError> {
     match record.phase {
         DurableStatus::ProcessingReply => record.payload.get(32 + WAITING..),
         DurableStatus::FinalPrepared | DurableStatus::FinalCommitted | DurableStatus::Messages => {
@@ -212,6 +213,7 @@ impl DeviceJournal {
                     authorities: rosters::context_accounts(&context),
                     keys: Vec::new(),
                     prekeys: Vec::new(),
+                    cancellation: None,
                     payload: pack(request, &plan.encode()),
                 },
             );
@@ -446,6 +448,7 @@ impl DeviceJournal {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
         let image = self.image()?;
+        messages::require_live_source(&image, &id)?;
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         check_request(record, &context, request)?;
         if !matches!(
@@ -491,7 +494,7 @@ pub(super) fn validate_record(
         return Ok(());
     }
     let (length, marker) = match phase {
-        DurableStatus::Rejected => {
+        DurableStatus::Rejected | DurableStatus::BootstrapCancelled => {
             return if payload.len() == 32 {
                 Ok(())
             } else {

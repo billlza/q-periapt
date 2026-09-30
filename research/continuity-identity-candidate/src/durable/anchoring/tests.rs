@@ -1075,6 +1075,150 @@ fn expiry_allows_only_confirmation_of_an_already_committed_exact_intent() {
     }
 }
 
+fn cancellation_owner(
+    c: &Case,
+    initiator: bool,
+) -> Result<BootstrapCancellationJournal, DurableError> {
+    BootstrapCancellationJournal::open_anchored(
+        &c.path.join("state.redb"),
+        JournalKey::open(&c.path.join("key")).expect("key"),
+        c.identity,
+        client(&c.pin, &c.server, initiator),
+    )
+}
+
+#[test]
+fn bootstrap_cancellation_requires_original_witness_and_enrolled_signer() {
+    let mut c = case();
+    initiate(&mut c).expect("initial");
+    let revision = c.journal.image().expect("image").revision;
+    c.journal.close();
+    assert!(matches!(
+        BootstrapCancellationJournal::open(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.identity
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    assert!(matches!(
+        cancellation_owner(&c, false),
+        Err(DurableError::Anchor(_))
+    ));
+    let foreign = case();
+    assert!(matches!(
+        BootstrapCancellationJournal::open_anchored(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.identity,
+            client(&foreign.pin, &foreign.server, true)
+        ),
+        Err(DurableError::Conflict)
+    ));
+    c.peer.close_initiator_policy();
+    let mut normal = reopen(&c).expect("reconcile original subject");
+    assert_eq!(
+        normal.image().expect("unchanged after refusals").revision,
+        revision
+    );
+    normal.close();
+    let mut owner = cancellation_owner(&c, true).expect("original subject without live policy");
+    owner
+        .cancel(
+            c.peer.initiator.digest(),
+            BootstrapOperationId::for_initiation(request_id()),
+        )
+        .expect("cancel after local close with live original witness");
+    owner.close();
+}
+
+#[test]
+fn bootstrap_cancellation_witness_failures_reconcile_exact_receipt() {
+    // One read query, one exact advance, one post-commit query.
+    for after in [false, true] {
+        for offset in 1..=3 {
+            let mut c = case();
+            initiate(&mut c).expect("initial");
+            let image = c.journal.image().expect("image");
+            let op = initiator::operation_id(request_id());
+            let expected =
+                cancellation::metadata(&c.journal.active.as_ref().expect("active").key, &image, op)
+                    .expect("original receipt")
+                    .report;
+            c.journal.close();
+            let mut owner = cancellation_owner(&c, true).expect("cleanup owner");
+            {
+                let mut server = c.server.lock().expect("server");
+                server.fail = Some((server.requests.len() + offset, after));
+            }
+            assert!(matches!(
+                owner.cancel(
+                    c.peer.initiator.digest(),
+                    BootstrapOperationId::for_initiation(request_id())
+                ),
+                Err(DurableError::Anchor(_))
+            ));
+            assert!(matches!(owner.entries(), Err(DurableError::Closed)));
+            c.server.lock().expect("server").fail = None;
+            let mut owner = cancellation_owner(&c, true).expect("reconcile original command");
+            let receipt = owner
+                .cancel(
+                    c.peer.initiator.digest(),
+                    BootstrapOperationId::for_initiation(request_id()),
+                )
+                .expect("exact retry");
+            assert_eq!(receipt.report, expected);
+            owner.close();
+        }
+    }
+}
+
+#[test]
+fn bootstrap_cancellation_expired_witness_only_reconciles_already_applied_intent() {
+    for after in [false, true] {
+        let mut c = case();
+        initiate(&mut c).expect("initial");
+        c.journal.close();
+        let mut owner = cancellation_owner(&c, true).expect("owner");
+        {
+            let mut server = c.server.lock().expect("server");
+            server.fail = Some((server.requests.len() + 2, after));
+        }
+        assert!(matches!(
+            owner.cancel(
+                c.peer.initiator.digest(),
+                BootstrapOperationId::for_initiation(request_id())
+            ),
+            Err(DurableError::Anchor(_))
+        ));
+        {
+            let mut server = c.server.lock().expect("server");
+            server.fail = None;
+            server.now = 250;
+        }
+        let result = cancellation_owner(&c, true);
+        if after {
+            let mut owner = result.expect("exact already applied cancellation");
+            assert_eq!(
+                owner
+                    .cancel(
+                        c.peer.initiator.digest(),
+                        BootstrapOperationId::for_initiation(request_id())
+                    )
+                    .expect("existing immutable receipt")
+                    .entry
+                    .status,
+                DurableStatus::BootstrapCancelled
+            );
+        } else {
+            assert!(
+                matches!(result, Err(DurableError::Anchor(_))),
+                "cleanup must not bypass an expired unperformed advance"
+            );
+        }
+    }
+}
+
 #[test]
 fn actual_tcp_carrier_verifies_real_witness_and_bounds_frames_and_total_deadline() {
     use std::net::TcpListener;

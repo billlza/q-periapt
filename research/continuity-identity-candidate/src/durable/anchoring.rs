@@ -89,15 +89,24 @@ impl Active {
         client: AnchorClient,
         signer: [u8; 32],
     ) -> Result<(), DurableError> {
+        if signer != cleanup_signer_binding(&client.signer_public_key()?) {
+            return Err(DurableError::Conflict);
+        }
+        self.attach_retained_cleanup_subject(client)
+    }
+    // The pinned witness authenticates the original enrolled signing owner.
+    // This path can only attach to a subject from an already authenticated image.
+    pub(super) fn attach_retained_cleanup_subject(
+        &mut self,
+        client: AnchorClient,
+    ) -> Result<(), DurableError> {
         let Protection::Required {
             policy, witness, ..
         } = self.protection
         else {
             return Err(DurableError::AnchorRequired);
         };
-        if witness != client.pin().binding()
-            || signer != cleanup_signer_binding(&client.signer_public_key()?)
-        {
+        if witness != client.pin().binding() {
             return Err(DurableError::Conflict);
         }
         let mut bytes = self.id.to_vec();

@@ -30,7 +30,7 @@ const FINAL_PREFIX: usize = 8 + 32 + 32 + 32;
 pub(crate) mod response_staged;
 pub(crate) mod staged;
 
-fn hash(label: &[u8], bytes: &[u8]) -> [u8; 32] {
+pub(crate) fn hash(label: &[u8], bytes: &[u8]) -> [u8; 32] {
     let mut domain = b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/".to_vec();
     domain.extend_from_slice(label);
     digest(&domain, bytes)

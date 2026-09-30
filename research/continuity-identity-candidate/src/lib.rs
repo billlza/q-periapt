@@ -47,15 +47,16 @@ pub use crypto::{
     PUBLIC_KEY_BYTES,
 };
 pub use durable::{
-    AbandonedDelivery, AbandonedEpoch, AbandonedSession, ClosedEpochResolution,
-    CommittedInitiation, CommittedPlaintext, DeviceJournal, DurableError, DurableStatus,
-    EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId, FanoutId,
-    FanoutInput, FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, InitiationId,
-    JournalIdentity, JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus,
-    RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress,
-    RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure,
-    SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
-    UnconfirmedMessage, UnconsumedDelivery,
+    AbandonedDelivery, AbandonedEpoch, AbandonedSession, BootstrapCancellation,
+    BootstrapCancellationJournal, BootstrapEntry, BootstrapOperationId, BootstrapPrekeyDisposition,
+    BootstrapPrekeyUse, ClosedEpochResolution, CommittedInitiation, CommittedPlaintext,
+    DeviceJournal, DurableError, DurableStatus, EpochResolutionId, EpochResolutionStatus,
+    FanoutAbandonment, FanoutAbandonmentId, FanoutId, FanoutInput, FanoutMember, FanoutOutput,
+    FanoutStatus, FanoutTarget, InitiationId, JournalIdentity, JournalKey, MessageId,
+    MessageStatus, PrekeyId, PrekeyStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight,
+    RekeyOfferStatus, RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment,
+    SendProgress, SessionClosure, SessionClosureArchive, SessionClosureId, SessionClosureJournal,
+    SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use identity::{
     AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,

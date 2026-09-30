@@ -526,6 +526,7 @@ impl DeviceJournal {
                 authorities: rosters::context_accounts(context),
                 keys: Vec::new(),
                 prekeys: Vec::new(),
+                cancellation: None,
                 payload: state.encode(),
             },
         );
@@ -853,6 +854,13 @@ fn check_message_owner(
 }
 
 pub(super) fn require_live_source(image: &Image, source: &[u8; 32]) -> Result<(), DurableError> {
+    if image
+        .records
+        .get(source)
+        .is_some_and(|r| r.phase == DurableStatus::BootstrapCancelled)
+    {
+        return Err(Error::Retired.into());
+    }
     fanout::require_live_source(image, source)
 }
 

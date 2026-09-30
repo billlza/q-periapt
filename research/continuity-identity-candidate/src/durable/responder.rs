@@ -17,7 +17,10 @@ pub(super) fn is_plan(phase: DurableStatus) -> bool {
     )
 }
 pub(super) fn initial_bytes(phase: DurableStatus, payload: &[u8]) -> Result<&[u8], DurableError> {
-    let bytes = if matches!(phase, DurableStatus::Executing | DurableStatus::Rejected) {
+    let bytes = if matches!(
+        phase,
+        DurableStatus::Executing | DurableStatus::Rejected | DurableStatus::BootstrapCancelled
+    ) {
         Some(payload)
     } else if is_plan(phase) {
         payload.get(response_staged::INITIAL_OFFSET..response_staged::INITIAL_OFFSET + 5817)
@@ -36,7 +39,8 @@ pub(super) fn validate_record(
     payload: &[u8],
 ) -> Result<(), DurableError> {
     match phase {
-        DurableStatus::Executing | DurableStatus::Rejected if payload.len() == 5817 => {}
+        DurableStatus::Executing | DurableStatus::Rejected | DurableStatus::BootstrapCancelled
+            if payload.len() == 5817 => {}
         DurableStatus::ResponseKemReserved | DurableStatus::ResponseSignatureReserved => {
             ResponsePlan::decode(context, &scope(journal, context, op), phase as u8, payload)
                 .map_err(|_| DurableError::Corrupt)?;
@@ -118,6 +122,7 @@ impl DeviceJournal {
                     authorities: rosters::context_accounts(&context),
                     keys,
                     prekeys: Vec::new(),
+                    cancellation: None,
                     payload: Zeroizing::new(initial.to_vec()),
                 },
             );

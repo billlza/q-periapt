@@ -304,3 +304,19 @@ and all original witness requirements remain. See [archived admission](SESSION_C
 connection Actor. Both endpoints durably retain their archive before activation and
 verify its original scope/MAC before application traffic. The reference connection
 then closes both endpoints from the index in new processes without verified contexts.
+
+
+## Permanent bootstrap cancellation
+
+[Bootstrap cancellation](BOOTSTRAP_CANCELLATION.md) provides an explicit terminal
+operation before application activation, including a cleanup-only reopening owner
+that needs no live verified policy/context. The original operation and one-time
+claims remain reserved; early selected one-time inventory becomes abandoned and
+cannot be reused. Receipts describe local durable state, never peer delivery or
+remote cancellation. Existing application sessions still require session closure.
+
+The current candidate disk format is v21 with a preallocated cancellation metadata
+slot. Earlier v19/v20 lifecycle checkpoints above retain their historical scope;
+old candidate images are refused without implicit migration. Primitive, SDK ABI and
+network wire contracts are unchanged. See the cancellation contract and release
+ledger for exact source-bound verification and remaining integration requirements.

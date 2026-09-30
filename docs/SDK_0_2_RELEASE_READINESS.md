@@ -72,12 +72,57 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 223 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 225 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The native [connection archive index](../research/continuity-identity-candidate/SESSION_ARCHIVE_STORE.md)
+The native [bootstrap cancellation contract](../research/continuity-identity-candidate/BOOTSTRAP_CANCELLATION.md)
+adds permanent cancellation before application activation. It atomically removes
+private plans/checkpoints, retains exact operation/context/authority/one-time claims,
+and persists a stable public receipt. Early one-time inventory becomes permanently
+abandoned; already consumed keys remain consumed; reusable inventory stays usable.
+Existing application sessions require session closure. A restricted cleanup owner
+reopens using only the wrapping key and independently retained journal ID, with the
+original witness/pin/enrolled signer still mandatory where required.
+
+Candidate disk v21 preallocates a 170-byte cancellation slot per bootstrap record,
+so terminalization never needs an extra record or a larger image. Earlier candidate
+images fail closed without implicit migration. Public wire protocols, primitive
+contracts, SDK ABI and bindings are unchanged. Local logical erasure does not erase
+old pages, backups or external owners and cannot recall already released messages.
+
+The focused run passes 14 tests in 32.781 runner seconds, including
+20 observed handshake process cuts, 20 cancellation-commit cuts, 20 Busy contenders,
+all four prekey modes, exact receipt replay and prevention of one-time key reuse.
+Four measured sync barriers cover eight before/after storage faults; six witness
+losses cover query/advance/readback. Wrong key/ID/context/pin/signer, canonical
+encoding, local policy closure and enrollment expiry are covered. The full local
+Debug/Release suites each pass **235 tests**, zero failed or ignored, in
+**647.944/637.999 runner seconds** under overlapping load. Both disclosure witnesses
+still recover six messages each. Strict Clippy passes on Rust 1.90 and 1.98.1 for
+all features, each independent carrier and no defaults; warning-strict docs and fmt
+also pass. The clean 1,009-file source snapshot passes **95** source/isolation/release
+contract tests with warnings as errors and no skips, including all 225 Rust sources.
+An initial run from the managed worktree is retained as a failure because release
+provenance requires a real .git directory; the same files pass from an independent
+clean Git snapshot without weakening that requirement. Native cancellation does
+not close installed language integration, cross-host
+and current-device qualification, witness renewal, aggregate archival cleanup,
+device/root lifecycle or construction-specific recovery/performance requirements.
+
+At predecessor 1cb996af, the hosted check job runs 2,354 artifact tests and reports
+one failure (three existing platform skips): its compiler-pinning test still expects
+the candidate job to install cargo-audit after that install moved to the shared
+audit job. The exact test fails locally before the repair and passes afterward.
+Its candidate install expectation is now explicitly empty; total install accounting,
+per-job compiler selectors and independent warning-denied candidate-lock audit
+checks remain enforced. Shared audit job 109689571991 actually completes the
+warning-denied candidate-lock scan of 170 dependencies. Predecessor CodeQL completes
+six analyses; that is not a claim of an empty finding set. New-head hosted execution
+remains required. This repairs the stale test contract, not an audit bypass.
+
+At **1cb996af**, the native [connection archive index](../research/continuity-identity-candidate/SESSION_ARCHIVE_STORE.md)
 now makes cleanup persistence mandatory in the actual QPCNET01 Actor. Its immutable,
 128-entry protected index is committed and read back before either message-state
 activation; the initiator retains its archive before sending the final bootstrap

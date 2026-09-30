@@ -47,6 +47,8 @@ pub enum PrekeyStatus {
     Available,
     /// A response atomically consumed the one-time key and removed its recovery command.
     Consumed,
+    /// Cancellation permanently removed a claimed one-time recovery command.
+    Abandoned,
     /// Explicit retirement removed the logical recovery command.
     Retired,
 }
@@ -73,6 +75,7 @@ fn phase_status(phase: DurableStatus) -> Result<PrekeyStatus, DurableError> {
         DurableStatus::PrekeyReserved => Ok(PrekeyStatus::Reserved),
         DurableStatus::PrekeyAvailable => Ok(PrekeyStatus::Available),
         DurableStatus::PrekeyConsumed => Ok(PrekeyStatus::Consumed),
+        DurableStatus::PrekeyAbandoned => Ok(PrekeyStatus::Abandoned),
         DurableStatus::PrekeyRetired => Ok(PrekeyStatus::Retired),
         _ => Err(DurableError::Corrupt),
     }
@@ -129,7 +132,7 @@ impl Entry {
         let public = d.take(kind.key_bytes())?.to_vec();
         let length = match phase_status(record.phase)? {
             PrekeyStatus::Reserved | PrekeyStatus::Available => 277,
-            PrekeyStatus::Consumed => 32,
+            PrekeyStatus::Consumed | PrekeyStatus::Abandoned => 32,
             PrekeyStatus::Retired => 0,
             PrekeyStatus::Absent => return Err(DurableError::Corrupt),
         };
@@ -150,7 +153,9 @@ impl Entry {
             DurableStatus::PrekeyReserved if result.has_public() => {
                 return Err(DurableError::Corrupt)
             }
-            DurableStatus::PrekeyAvailable | DurableStatus::PrekeyConsumed => {
+            DurableStatus::PrekeyAvailable
+            | DurableStatus::PrekeyConsumed
+            | DurableStatus::PrekeyAbandoned => {
                 result.leaf()?;
             }
             DurableStatus::PrekeyRetired if result.has_public() => {
@@ -161,8 +166,10 @@ impl Entry {
         if length == 277 {
             SealedOperation::from_bytes(&result.data).map_err(|_| DurableError::Corrupt)?;
         }
-        if record.phase == DurableStatus::PrekeyConsumed
-            && (!one_time(kind) || result.data.iter().all(|v| *v == 0))
+        if matches!(
+            record.phase,
+            DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned
+        ) && (!one_time(kind) || result.data.iter().all(|v| *v == 0))
         {
             return Err(DurableError::Corrupt);
         }
@@ -338,6 +345,7 @@ impl DeviceJournal {
                     authorities: vec![image.local_account],
                     keys: Vec::new(),
                     prekeys: Vec::new(),
+                    cancellation: None,
                     payload: entry.encode(),
                 },
             );
@@ -349,7 +357,9 @@ impl DeviceJournal {
                 self.check_device_release(&image, device, now)?;
                 return entry.leaf();
             }
-            DurableStatus::PrekeyConsumed => return Err(DurableError::PrekeyClaimed),
+            DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned => {
+                return Err(DurableError::PrekeyClaimed)
+            }
             DurableStatus::PrekeyRetired => return Err(DurableError::KeyRetired),
             DurableStatus::PrekeyReserved => {}
             _ => return Err(DurableError::Corrupt),
@@ -411,7 +421,9 @@ impl DeviceJournal {
                 entry.leaf()
             }
             DurableStatus::PrekeyReserved => Err(DurableError::Suspended),
-            DurableStatus::PrekeyConsumed => Err(DurableError::PrekeyClaimed),
+            DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned => {
+                Err(DurableError::PrekeyClaimed)
+            }
             DurableStatus::PrekeyRetired => Err(DurableError::KeyRetired),
             _ => Err(DurableError::Corrupt),
         }
@@ -430,7 +442,10 @@ impl DeviceJournal {
         let mut entry = self.inventory_entry(&image, policy, request)?;
         let op = id(request);
         let status = phase_status(image.records.get(&op).ok_or(DurableError::Absent)?.phase)?;
-        if matches!(status, PrekeyStatus::Consumed | PrekeyStatus::Retired) {
+        if matches!(
+            status,
+            PrekeyStatus::Consumed | PrekeyStatus::Abandoned | PrekeyStatus::Retired
+        ) {
             return Ok(status);
         }
         if image.records.values().any(|r| {
@@ -440,6 +455,7 @@ impl DeviceJournal {
                     DurableStatus::AwaitingFinal
                         | DurableStatus::Complete
                         | DurableStatus::Messages
+                        | DurableStatus::BootstrapCancelled
                 )
         }) {
             return Err(DurableError::PrekeyClaimed);
@@ -540,6 +556,7 @@ impl DeviceJournal {
                     authorities: rosters::context_accounts(&context),
                     keys,
                     prekeys: refs.to_vec(),
+                    cancellation: None,
                     payload: Zeroizing::new(initial.to_vec()),
                 },
             );
@@ -650,8 +667,18 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             if !entry.has_public() || pq(entry.kind) != (index == 0) {
                 return Err(DurableError::Corrupt);
             }
+            let cancelled = record.phase == DurableStatus::BootstrapCancelled;
+            let previous = if cancelled {
+                record
+                    .cancellation
+                    .as_ref()
+                    .ok_or(DurableError::Corrupt)?
+                    .previous
+            } else {
+                record.phase
+            };
             let committed = matches!(
-                record.phase,
+                previous,
                 DurableStatus::AwaitingFinal | DurableStatus::Complete | DurableStatus::Messages
             );
             if one_time(entry.kind) {
@@ -660,11 +687,15 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
                     if *phase != DurableStatus::PrekeyConsumed || entry.data.as_slice() != op {
                         return Err(DurableError::Corrupt);
                     }
+                } else if cancelled {
+                    if *phase != DurableStatus::PrekeyAbandoned || entry.data.as_slice() != op {
+                        return Err(DurableError::Corrupt);
+                    }
                 } else if *phase != DurableStatus::PrekeyAvailable {
                     return Err(DurableError::Corrupt);
                 }
             } else if *phase != DurableStatus::PrekeyAvailable
-                && !(committed && *phase == DurableStatus::PrekeyRetired)
+                && !((committed || cancelled) && *phase == DurableStatus::PrekeyRetired)
             {
                 return Err(DurableError::Corrupt);
             }
@@ -675,20 +706,33 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
         }
     }
     for (id, (phase, entry)) in inventory {
-        if phase == DurableStatus::PrekeyConsumed {
+        if matches!(
+            phase,
+            DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned
+        ) {
             let owner: [u8; 32] = entry
                 .data
                 .as_slice()
                 .try_into()
                 .map_err(|_| DurableError::Corrupt)?;
             let record = image.records.get(&owner).ok_or(DurableError::Corrupt)?;
+            let previous = if record.phase == DurableStatus::BootstrapCancelled {
+                record
+                    .cancellation
+                    .as_ref()
+                    .ok_or(DurableError::Corrupt)?
+                    .previous
+            } else {
+                record.phase
+            };
+            let committed = matches!(
+                previous,
+                DurableStatus::AwaitingFinal | DurableStatus::Complete | DurableStatus::Messages
+            );
             if record.kind != RecordKind::Responder
-                || !matches!(
-                    record.phase,
-                    DurableStatus::AwaitingFinal
-                        | DurableStatus::Complete
-                        | DurableStatus::Messages
-                )
+                || (phase == DurableStatus::PrekeyConsumed && !committed)
+                || (phase == DurableStatus::PrekeyAbandoned
+                    && (record.phase != DurableStatus::BootstrapCancelled || committed))
                 || !record.prekeys.contains(&id)
             {
                 return Err(DurableError::Corrupt);
@@ -696,4 +740,63 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
         }
     }
     Ok(())
+}
+
+/// Remove only claimed one-time recovery commands, preserving all reverse links.
+pub(super) fn cancel_claims(image: &mut Image, operation: &[u8; 32]) -> Result<(), DurableError> {
+    let refs = image
+        .records
+        .get(operation)
+        .ok_or(DurableError::Corrupt)?
+        .prekeys
+        .clone();
+    for id in refs {
+        let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
+        let mut entry = Entry::decode(record)?;
+        if one_time(entry.kind) {
+            match record.phase {
+                DurableStatus::PrekeyAvailable => {
+                    entry.data.zeroize();
+                    entry.data.extend_from_slice(operation);
+                    record.phase = DurableStatus::PrekeyAbandoned;
+                    record.payload = entry.encode();
+                }
+                DurableStatus::PrekeyConsumed if entry.data.as_slice() == operation => {}
+                _ => return Err(DurableError::Corrupt),
+            }
+        }
+    }
+    Ok(())
+}
+pub(super) fn cancellation_inventory(
+    image: &Image,
+    operation: &[u8; 32],
+) -> Result<Vec<BootstrapPrekeyUse>, DurableError> {
+    let r = image.records.get(operation).ok_or(DurableError::Corrupt)?;
+    let previous = r
+        .cancellation
+        .as_ref()
+        .ok_or(DurableError::Corrupt)?
+        .previous;
+    r.prekeys
+        .iter()
+        .map(|id| {
+            let entry = Entry::decode(image.records.get(id).ok_or(DurableError::Corrupt)?)?;
+            let disposition = if !one_time(entry.kind) {
+                BootstrapPrekeyDisposition::ReusableUnchanged
+            } else if matches!(
+                previous,
+                DurableStatus::AwaitingFinal | DurableStatus::Complete
+            ) {
+                BootstrapPrekeyDisposition::AlreadyConsumed
+            } else {
+                BootstrapPrekeyDisposition::AbandonedByCancellation
+            };
+            Ok(BootstrapPrekeyUse {
+                request: entry.request,
+                kind: entry.kind,
+                disposition,
+            })
+        })
+        .collect()
 }

@@ -28,6 +28,7 @@ fn proposal(path: &Path, f: &Fixture) -> (DeviceJournal, PendingWrite) {
             authorities: rosters::context_accounts(&f.responder),
             keys: f.responder.one_time_fingerprints(),
             prekeys: Vec::new(),
+            cancellation: None,
             payload: Zeroizing::new(initial.to_vec()),
         },
     );

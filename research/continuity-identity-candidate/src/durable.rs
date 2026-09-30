@@ -24,7 +24,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v20");
+const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_device_candidate_v21");
 const MAX_RECORDS: usize = 128;
 const MAX_IMAGE: usize = 2 * 1024 * 1024;
 const HEADER: usize = 8 + 32 + 32 + 8 + 24;
@@ -32,6 +32,11 @@ const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
 mod anchoring;
+mod cancellation;
+pub use cancellation::{
+    BootstrapCancellation, BootstrapCancellationJournal, BootstrapEntry, BootstrapOperationId,
+    BootstrapPrekeyDisposition, BootstrapPrekeyUse,
+};
 mod initiator;
 mod messages;
 mod prekeys;
@@ -317,6 +322,10 @@ pub enum DurableStatus {
     MessagesClosing = 27,
     /// Host acknowledged session closure; only keyless reconciliation remains.
     MessagesClosed = 28,
+    /// Permanently cancelled bootstrap; only public input and cancellation metadata remain.
+    BootstrapCancelled = 29,
+    /// An early cancelled bootstrap burned this claimed one-time key without a response release.
+    PrekeyAbandoned = 30,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -349,6 +358,8 @@ impl DurableStatus {
             26 => Ok(Self::FanoutAbandoned),
             27 => Ok(Self::MessagesClosing),
             28 => Ok(Self::MessagesClosed),
+            29 => Ok(Self::BootstrapCancelled),
+            30 => Ok(Self::PrekeyAbandoned),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -361,6 +372,7 @@ struct Record {
     authorities: Vec<[u8; 32]>,
     keys: Vec<[u8; 32]>,
     prekeys: Vec<[u8; 32]>,
+    cancellation: Option<cancellation::Metadata>,
     payload: Zeroizing<Vec<u8>>,
 }
 impl Record {
@@ -555,6 +567,7 @@ impl DeviceJournal {
     }
     fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
         let result = (|| {
+            cancellation::validate_image(image)?;
             prekeys::validate_image(image)?;
             messages::validate_image(image)?;
             rosters::validate_image(image)?;
@@ -757,7 +770,7 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG20".to_vec());
+    let mut plaintext = Zeroizing::new(b"QPVIMG21".to_vec());
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&image.local_account);
     plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
@@ -779,6 +792,11 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
         for key in &record.prekeys {
             plaintext.extend_from_slice(key);
         }
+        if matches!(record.kind, RecordKind::Initiator | RecordKind::Responder) {
+            cancellation::encode(&record.cancellation, &mut plaintext);
+        } else if record.cancellation.is_some() {
+            return Err(DurableError::Corrupt);
+        }
         plaintext.extend_from_slice(&(record.payload.len() as u32).to_be_bytes());
         plaintext.extend_from_slice(&record.payload);
     }
@@ -799,7 +817,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT020".to_vec();
+    let mut wire = b"QPVLT021".to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -826,7 +844,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT020" {
+    if outer.array::<8>()? != *b"QPVLT021" {
         return Err(DurableError::Corrupt);
     }
     let id = outer.array::<32>()?;
@@ -852,7 +870,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG20" {
+    if inner.array::<8>()? != *b"QPVIMG21" {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
@@ -918,6 +936,11 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         for _ in 0..reference_count {
             prekeys.push(inner.array()?);
         }
+        let cancellation = if matches!(kind, RecordKind::Initiator | RecordKind::Responder) {
+            cancellation::decode(&mut inner)?
+        } else {
+            None
+        };
         let length = u32::from_be_bytes(inner.array()?) as usize;
         let payload = Zeroizing::new(inner.take(length)?.to_vec());
         if kind == RecordKind::Initiator {
@@ -934,6 +957,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
                 authorities,
                 keys,
                 prekeys,
+                cancellation,
                 payload,
             },
         );
@@ -949,6 +973,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         protection,
         records,
     };
+    cancellation::validate_image(&image)?;
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
     messages::validate_image(&image)?;
     rosters::validate_image(&image).map_err(|_| DurableError::Corrupt)?;

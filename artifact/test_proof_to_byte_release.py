@@ -5594,7 +5594,8 @@ with _temporary_release_test_directories(parents):
                     "bindings-android-aar": (CANONICAL_RUST_TOOLCHAIN,),
                     "audit": (CANONICAL_RUST_TOOLCHAIN,),
                     "hqc-draft-candidate": (CANONICAL_RUST_TOOLCHAIN,),
-                    "continuity-identity-candidate": (CANONICAL_RUST_TOOLCHAIN,),
+                    # The unconditional audit job reuses its pinned tool for this lock.
+                    "continuity-identity-candidate": (),
                 },
             ),
             (
