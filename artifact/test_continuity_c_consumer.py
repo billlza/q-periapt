@@ -11,7 +11,7 @@ from test_continuity_package import metadata
 
 
 STDOUT = (f"test {consumer.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
 
 
 def evidence(root):
@@ -151,7 +151,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder)
             report = evidence(root)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
-                           STDOUT.replace(b"3 filtered out", b"4 filtered out"), STDOUT + STDOUT):
+                           STDOUT.replace(b"4 filtered out", b"5 filtered out"), STDOUT + STDOUT):
                 with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "completely"):
                     consumer.verify_execution(stdout, root)
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),

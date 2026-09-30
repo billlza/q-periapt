@@ -33,7 +33,7 @@ typedef struct {
 
 enum {
     QPC_OK = 0, QPC_ARGUMENT = 1, QPC_CLOSED = 2, QPC_BUSY = 3,
-    QPC_RESOURCE_LIMIT = 4, QPC_INTERNAL = 5,
+    QPC_RESOURCE_LIMIT = 4, QPC_INTERNAL = 5, QPC_OWNER_KIND = 6,
     QPC_ENCODING = 101, QPC_AUTHENTICATION = 102, QPC_SCOPE = 103,
     QPC_VALIDITY = 104, QPC_CHECKPOINT = 105, QPC_POLICY_DENIED = 106,
     QPC_INPUT_CONFLICT = 107, QPC_STATE = 108,
@@ -138,6 +138,68 @@ int32_t qpc_owner_v1_serve(uint64_t handle, qpc_commit_v1 commit, void *context,
                          qpc_served_v1 *result, qpc_error_v1 *error);
 int32_t qpc_owner_v1_serve_rekey(uint64_t handle, const uint8_t session[32],
                                uint64_t *completed_epoch, qpc_error_v1 *error);
+/* Cleanup-only original-installation owner. Shares the same 64-owner/call
+ * budgets and generic close/cancel functions, but operational calls return
+ * OWNER_KIND. It loads no live SDK policy, TLS credential or signing authority.
+ * Discovery IDs are hints; select authenticates the original journal/key/archive.
+ * Required-witness selection still refuses admission without its original witness.
+ * A failed native selection consumes/closes discovery; reopen the ORIGINAL input.
+ * No function provisions, rewinds, repairs or grants sending permission.
+ */
+enum { QPC_CLOSURE_ARCHIVE_BYTES = 362 };
+typedef struct {
+    uint64_t peer_generation, confirmed_epoch, sending_epoch, receiving_epoch, pending_epoch;
+    uint32_t has_pending_epoch, role, reserved_count, epoch_count;
+    uint8_t session[32], context[32], report[32], peer_account[32], peer_device[16];
+} qpc_closure_header_v1;
+typedef struct {
+    uint64_t epoch, acknowledged_before, sent, consumed_before, received, peer_sent;
+    uint32_t has_peer_sent, resolution, unconfirmed_count, delivery_count, skipped_count, reserved_zero;
+    uint8_t resolution_report[32];
+} qpc_closure_epoch_v1;
+typedef struct {
+    uint64_t plaintext_bytes, associated_data_bytes;
+    uint8_t message[32];
+} qpc_closure_reserved_v1;
+typedef struct { uint8_t message[32], ciphertext_digest[32]; } qpc_closure_unconfirmed_v1;
+typedef struct { uint64_t index, plaintext_bytes; uint8_t message[32]; } qpc_closure_delivery_v1;
+typedef struct { uint32_t phase; uint8_t report[32]; } qpc_closure_status_v1;
+/* status: 0=open,1=pending,2=closed. resolution: 0=unrequested,1=pending,
+ * 2=acknowledged. Optional counters are meaningful only with their presence flag.
+ * Skipped positions do not prove corresponding peer messages existed.
+ * Ciphertext digests are the native domain-separated ciphertext commitments,
+ * never plaintext/content hashes. These records contain no application plaintext.
+ * Raw struct bytes are not a portable serialization; hosts encode every field.
+ *
+ * begin permanently freezes an independent session and retains its complete
+ * immutable report. Read ALL reserved/epoch/nested entries before acknowledging.
+ * Getters read that snapshot, not new network authority or a refreshed lifecycle.
+ * Persist the complete report + ID in a durable deduplicated host transaction.
+ * Only then acknowledge that same ID. Unknown commit/cancellation requires
+ * original-ID reopen/status reconciliation, never a new report or empty default.
+ * retire removes catalogue metadata only after exact closed-state admission;
+ * it neither deletes the journal tombstone nor refunds identity/key budgets.
+ * Export/retain the authenticated archive before retiring the catalogue row.
+ * select_archive + restore_index restores metadata only, never operational keys.
+ * Local queries remain available after cancel; mutations check cancellation before
+ * and after native work but cannot preempt an arbitrary filesystem call.
+ */
+int32_t qpc_recovery_v1_open(const uint8_t *path, size_t length, uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_session_count(uint64_t handle, uint32_t *count, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_session_at(uint64_t handle, uint32_t index, uint8_t session[32], qpc_error_v1 *error);
+int32_t qpc_recovery_v1_select(uint64_t handle, const uint8_t session[32], qpc_error_v1 *error);
+int32_t qpc_recovery_v1_select_archive(uint64_t handle, const uint8_t *archive, size_t length, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_archive(uint64_t handle, uint8_t archive[QPC_CLOSURE_ARCHIVE_BYTES], qpc_error_v1 *error);
+int32_t qpc_recovery_v1_begin(uint64_t handle, qpc_closure_header_v1 *header, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_status(uint64_t handle, qpc_closure_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_reserved(uint64_t handle, uint32_t index, qpc_closure_reserved_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_epoch(uint64_t handle, uint32_t index, qpc_closure_epoch_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_unconfirmed(uint64_t handle, uint32_t epoch, uint32_t index, qpc_closure_unconfirmed_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_delivery(uint64_t handle, uint32_t epoch, uint32_t index, qpc_closure_delivery_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_skipped(uint64_t handle, uint32_t epoch, uint32_t index, uint64_t *position, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_acknowledge(uint64_t handle, const uint8_t report[32], qpc_error_v1 *error);
+int32_t qpc_recovery_v1_retire(uint64_t handle, const uint8_t report[32], uint8_t *removed, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_restore_index(uint64_t handle, qpc_error_v1 *error);
 #ifdef __cplusplus
 }
 #endif

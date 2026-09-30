@@ -603,3 +603,350 @@ fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Re
     eprintln!("C_SERVER_PUBLIC_SERVICE_RESULT {}", report.trim());
     Ok(())
 }
+
+fn recovery_call(
+    path: &Path,
+    label: &str,
+    command: &str,
+    tail: &[String],
+    exit: i32,
+) -> Result<String> {
+    let mut process = start(path, label, &args(command, path, tail))?;
+    let status = fixture::wait(&mut process.child)?;
+    let stdout = log(&process.stdout)?;
+    let stderr = log(&process.stderr)?;
+    if status.code() != Some(exit) || !stderr.is_empty() {
+        return Err(
+            format!("C recovery {label}: {status}, expected {exit}: {stdout}; {stderr}").into(),
+        );
+    }
+    Ok(stdout)
+}
+#[test]
+fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_exit() -> Result<()> {
+    let setup = fixture::setup()?;
+    let session = {
+        let request = p::InitiationId::generate()?;
+        let (mut server, address) = fixture::spawn(&setup.responder, 60, "bootstrap")?;
+        let session = id(&run(
+            &setup.initiator,
+            "recovery-bootstrap",
+            &args(
+                "connect",
+                &setup.initiator,
+                &[address.to_string(), fixture::hex(request.as_bytes())],
+            ),
+        )?)?;
+        assert!(fixture::wait(&mut server)?.success());
+        session
+    };
+    let mut left = fixture::Peer::open(&setup.initiator)?;
+    let mut right = fixture::Peer::open(&setup.responder)?;
+    let ad = b"owned-service";
+    let old = left
+        .service
+        .stores()?
+        .0
+        .next_message_id(&left.context, session, fixture::now()?)?;
+    let wire = left.service.stores()?.0.send_message(
+        &left.context,
+        session,
+        old,
+        PAYLOAD,
+        ad,
+        fixture::now()?,
+    )?;
+    let received = right.service.stores()?.0.receive_message(
+        &right.context,
+        session,
+        &wire,
+        ad,
+        fixture::now()?,
+    )?;
+    assert_eq!(received.message_id(), old);
+    assert_eq!(received.as_bytes(), PAYLOAD);
+    drop(received);
+    right.close();
+    let (mut server, address) = fixture::spawn(&setup.responder, 61, "rekey")?;
+    let control = p::control_transport::ControlEndpoint::client(
+        &left.context,
+        session,
+        left.credentials(),
+        fixture::tls_limits(),
+    )?;
+    let name = left.peer_name.clone();
+    let (journal, _) = left.service.stores()?;
+    assert_eq!(
+        control
+            .run(
+                p::control_transport::Session {
+                    journal,
+                    context: &left.context,
+                    signer: &left.signer
+                },
+                p::control_transport::Run {
+                    target: 1,
+                    address,
+                    server_name: &name,
+                    limits: fixture::limits(),
+                    cancel: &p::connection_transport::Cancellation::default()
+                },
+                fixture::now
+            )?
+            .epoch,
+        1
+    );
+    assert!(fixture::wait(&mut server)?.success());
+    right = fixture::Peer::open(&setup.responder)?;
+    let mut incoming = Vec::new();
+    for index in 0..3 {
+        let message =
+            left.service
+                .stores()?
+                .0
+                .next_message_id(&left.context, session, fixture::now()?)?;
+        let wire = left.service.stores()?.0.send_message(
+            &left.context,
+            session,
+            message,
+            PAYLOAD,
+            ad,
+            fixture::now()?,
+        )?;
+        if index != 1 {
+            let received = right.service.stores()?.0.receive_message(
+                &right.context,
+                session,
+                &wire,
+                ad,
+                fixture::now()?,
+            )?;
+            assert_eq!(received.message_id(), message);
+            assert_eq!(received.as_bytes(), PAYLOAD);
+            drop(received);
+            incoming.push(*message.as_bytes());
+        }
+    }
+    let unknown =
+        right
+            .service
+            .stores()?
+            .0
+            .next_message_id(&right.context, session, fixture::now()?)?;
+    let unknown_wire = right.service.stores()?.0.send_message(
+        &right.context,
+        session,
+        unknown,
+        PAYLOAD,
+        ad,
+        fixture::now()?,
+    )?;
+    fixture::store(&setup.responder, "cleanup-unconfirmed-wire", &unknown_wire)?;
+    let resolution = right.service.stores()?.0.begin_closed_epoch_resolution(
+        &right.context,
+        session,
+        0,
+        fixture::now()?,
+    )?;
+    let old_resolution = *resolution.resolution_id().as_bytes();
+    drop(resolution);
+    let _offer = right.service.stores()?.0.prepare_rekey_offer(
+        &right.context,
+        session,
+        &right.signer,
+        fixture::now()?,
+    )?;
+    let progress = right
+        .service
+        .stores()?
+        .0
+        .rekey_progress(&right.context, session)?;
+    assert_eq!(
+        (
+            progress.confirmed_epoch,
+            progress.sending_epoch,
+            progress.receiving_epoch,
+            progress.pending_epoch
+        ),
+        (1, 1, 1, Some(2))
+    );
+    let context = right.context.digest();
+    let archive = right.service.stores()?.1.get(session)?;
+    fixture::store(
+        &setup.responder,
+        "native-closure-archive",
+        archive.as_bytes(),
+    )?;
+    left.close();
+    right.close();
+    assert_eq!(
+        recovery_call(&setup.responder, "recovery-kind", "recover-kind", &[], 0)?,
+        "operational-owner-not-recovery\n"
+    );
+    let mut store = fixture::sdk(&setup.responder)?;
+    let prior = store.runtime()?.trusted_state();
+    let (policy, signature) = setup.issuer.policy(2, false)?;
+    store.replace_policy(prior, &policy, &signature)?;
+    assert!(!store.runtime()?.is_enabled()?);
+    store.close();
+    assert_eq!(
+        run(
+            &setup.responder,
+            "recovery-denied",
+            &args("reject-open", &setup.responder, &[])
+        )?,
+        "rejected:603\n"
+    );
+    let session_text = fixture::hex(&session);
+    let tail = std::slice::from_ref(&session_text);
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-list-before",
+            "recover-list",
+            &[],
+            0
+        )?,
+        "catalogue:1\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-missing",
+            "recover-missing",
+            tail,
+            0
+        )?,
+        "missing-session-refused\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-tamper",
+            "recover-tamper",
+            &[],
+            0
+        )?,
+        "tampered-archive-refused\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-cancel",
+            "recover-cancel",
+            tail,
+            0
+        )?,
+        "cancelled-cleanup-not-frozen\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-freeze",
+            "recover-freeze",
+            tail,
+            77
+        )?,
+        ""
+    );
+    let original = fixture::read(&setup.responder, "c-loss-report", 1048576)?;
+    let retained_archive = fixture::read(&setup.responder, "c-closure-archive", 1024)?;
+    assert_eq!(retained_archive, archive.as_bytes());
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-ack-crash",
+            "recover-ack-crash",
+            tail,
+            77
+        )?,
+        ""
+    );
+    assert_eq!(
+        fixture::read(&setup.responder, "c-loss-report", 1048576)?,
+        original
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-finish",
+            "recover-finish",
+            tail,
+            0
+        )?,
+        "original-report-closed-retired\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-list-after",
+            "recover-list",
+            &[],
+            0
+        )?,
+        "catalogue:0\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-archive",
+            "recover-archive",
+            &[],
+            0
+        )?,
+        "archive-closed-metadata-only\n"
+    );
+    assert_eq!(
+        recovery_call(
+            &setup.responder,
+            "recovery-list-final",
+            "recover-list",
+            &[],
+            0
+        )?,
+        "catalogue:0\n"
+    );
+    assert_eq!(
+        fixture::read(&setup.responder, "c-loss-report", 1048576)?,
+        original
+    );
+    let mut discovery = p::InstallationRecovery::open(
+        p::InstallationPaths::new(
+            &setup.responder.join("installation.redb"),
+            &setup.responder.join("journal.redb"),
+            &setup.responder.join("archives.redb"),
+        )?,
+        p::JournalKey::open(&setup.responder.join("wrap.key"))?,
+    )?;
+    assert!(discovery.session_ids()?.is_empty());
+    let mut recovered = discovery.open_session_from_archive(&archive, None)?;
+    let p::SessionClosureStatus::Closed(report) = recovered.stores()?.0.status()? else {
+        return Err("C cleanup did not remain closed".into());
+    };
+    recovered.close();
+    let incoming = incoming
+        .iter()
+        .map(|x| format!("\"{}\"", fixture::hex(x)))
+        .collect::<Vec<_>>()
+        .join(",");
+    let report = format!(concat!("{{\"schema_version\":1,\"completed\":true,",
+        "\"scope\":\"installed C recovery of original local-profile session after SDK revocation; same host\",",
+        "\"session\":\"{}\",\"context\":\"{}\",\"report\":\"{}\",",
+        "\"peer_account\":\"{}\",\"peer_device\":\"{}\",",
+        "\"old_incoming\":\"{}\",\"incoming\":[{}],\"unconfirmed\":\"{}\",\"old_resolution\":\"{}\",",
+        "\"revoked_operation_refused\":true,\"owner_kinds_separated\":true,",
+        "\"report_exit_reconciled\":true,\"ack_exit_reconciled\":true,",
+        "\"original_report_unchanged\":true,\"catalogue_retired\":true,\"archive_metadata_only\":true,\"cancelled_cleanup_unfrozen\":true,",
+        "\"reserved_positive_case_executed\":false,\"release_claim_eligible\":false}}\n"),
+        session_text, fixture::hex(&context), fixture::hex(report.as_bytes()),
+        fixture::hex(&fixture::array::<32>(&setup.responder, "initiator-account")?),
+        fixture::hex(&fixture::array::<16>(&setup.responder, "initiator-device")?),
+        fixture::hex(old.as_bytes()), incoming, fixture::hex(unknown.as_bytes()), fixture::hex(&old_resolution));
+    fixture::store(
+        setup.responder.parent().ok_or("runtime root")?,
+        "c-recovery-public-result.json",
+        report.as_bytes(),
+    )?;
+    eprintln!("C_RECOVERY_PUBLIC_SERVICE_RESULT {}", report.trim());
+    Ok(())
+}

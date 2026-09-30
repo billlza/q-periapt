@@ -31,7 +31,7 @@ TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_recon
 def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
-        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/rust_sdk_msrv.py",
+        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/rust_sdk_msrv.py",
         "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     for path in files:
@@ -282,7 +282,7 @@ def qualify(args: argparse.Namespace) -> dict:
             result["c_consumer"] = qualify_c(outside, output, cargo, environment, files,
                                               original, args.report.parent, cohort["crates"])
             result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
-                               "and local-profile C client/server; no other foreign bindings or cross-host qualification")
+                               "and local-profile C client/server/recovery; no other foreign bindings or cross-host qualification")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -308,7 +308,7 @@ def main() -> None:
         parser.add_argument("--" + name, required=True, type=Path)
     parser.add_argument("--report-sha256", required=True)
     parser.add_argument("--with-c-consumer", action="store_true",
-                        help="also execute the unpublished C client against installed Rust peers")
+                        help="also execute unpublished C client, server and cleanup owners with installed Rust peers")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
                                                   "c_consumer", "release_claim_eligible") if key in result}, indent=2))

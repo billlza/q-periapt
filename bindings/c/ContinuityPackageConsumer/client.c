@@ -254,9 +254,11 @@ static void serve(uint64_t handle, const char *path, const char *mode, const cha
         encode(result.session); encode(result.message);
     }
 }
+int recovery_command(int argc, char **argv);
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     self_check();
+    if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv);
     if (strcmp(argv[1], "self-check") == 0) {
         if (argc != 2) fail("self-check arguments");
         if (puts("self-check-passed") == EOF || fflush(stdout)) fail("output failed");

@@ -44,7 +44,7 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-240 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+241 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
 format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
 sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
@@ -1124,7 +1124,7 @@ These produce the paper's primary network table and the binary constant-time dis
   nested `profile_inputs` records the fixed suite/version/application context for ContextBound and
   canonical absence (`[]`, `0`, `[]`) for CompatXWing. `implementation_improvement` is a
   separate ContextBound `hybrid_core` native/portable comparison over an
-  `expanded_fips203_2400` key and the same coins, corpus, suite, version, and context.
+  `expanded_fips203_2410` key and the same coins, corpus, suite, version, and context.
   It covers encapsulation and decapsulation only; `includes_ffi=false` and
   `includes_os_rng=false`, so it is not a C-ABI, policy, entropy, rustls, or complete-product
   measurement. The portable implementation is a symbol-renamed static

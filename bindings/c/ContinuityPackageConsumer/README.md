@@ -18,8 +18,9 @@ directory pins remain separate from untrusted public bundle bytes.
 The initial C caller opens an already provisioned local-profile installation on
 macOS/Linux. It does not initialize a new lineage. Required-witness activation
 returns the engine's refusal instead of falling back to local mode; the required
-witness C adapter, cleanup/recovery API, other language
-surfaces and product dependency/ABI admission remain unfinished.
+witness C adapter, other language surfaces and product dependency/ABI admission
+remain unfinished. The separate cleanup owner described below opens the original
+installation without activating operational SDK policy or TLS/signing owners.
 
 The consumer configuration is the same private fixture layout used by the
 archive's public Rust workload: original installation/journal/archive/SDK policy
@@ -95,6 +96,40 @@ The native sender refuses to regenerate already acknowledged/retired ciphertext.
 `qpc_owner_v1_serve_rekey` delegates the caller-selected session to the native
 control endpoint; it does not mix application and control protocol identifiers.
 
+## Cleanup after operational revocation
+
+The sixteen `qpc_recovery_v1_*` functions share the handle registry, cancellation,
+close and call budgets. Operational and recovery handles are distinct owner kinds;
+using one for the other's operations returns `QPC_OWNER_KIND`. Recovery does not
+create sending, receiving, rekeying or provisioning authority. Required-witness
+state still requires the native witness admission; this local-profile adapter
+returns `AnchorRequired` and cannot downgrade that state.
+
+Open the original installation, enumerate its authenticated catalogue hints, then
+select one session or supply its original 362-byte QPCSCA01 archive. Selection
+consumes the discovery owner. A failed native selection leaves it closed; callers
+must close the handle and reopen the original installation. Malformed foreign
+input rejected before selection does not consume discovery. Archive restore only
+restores catalogue metadata; it never recreates keys or operational permissions.
+
+`begin` permanently freezes the selected session and returns an immutable report
+header. Read every reservation and epoch, including all unknown sends with their
+original ciphertext commitments, unconsumed delivery IDs and lengths, skipped
+positions, pending rekey and old-epoch resolution state. Optional counters have
+explicit presence flags. No private key or delivery plaintext is exported.
+The host must durably record the entire report with its exact report ID before
+calling `acknowledge`; recording only the ID loses required loss accounting.
+After an uncertain result, reopen the original installation and reconcile the
+native status and the durable host record. A matching acknowledgement is
+idempotent. Catalogue retirement requires the same closed report and does not
+erase the journal or permit session-ID reuse.
+
+Cancellation prevents further cleanup mutations. Metadata queries remain
+available, including the cached report lists, to reconcile an operation that may
+already have committed. Closing releases ownership, never refunds a transition
+or acknowledges a report. The C fixture's `QPC-C-LOSS/1` text is only its explicit
+host accounting format, not a new network or cryptographic protocol identifier.
+
 ## Qualification path
 
 Run the existing installed package collector with `--with-c-consumer`:
@@ -109,7 +144,7 @@ sh artifact/python-run.sh artifact/continuity_package.py \
 ```
 
 It first executes the original archive-shipped Rust trace. The C phase then builds
-both Debug/Release libraries and native C executables, checks the exact eleven
+both Debug/Release libraries and native C executables, checks the exact 27
 exports and installed sibling-library lookup, and runs the shared archive's Rust
 peer fixture. C controls the actual owner open/close, TLS bootstrap, message IDs,
 delivery and rekey calls. The client trace covers:
@@ -132,11 +167,24 @@ has received any ACK. The C receiver then accepts the retained original cipherte
 without invoking its callback. No journal file is edited or rewound to prepare
 this case. The trace also checks reentrant Busy close, cancelled listener release,
 refusal to resend acknowledged ciphertext, and a real network rekey followed by
-application delivery. This qualifies that explicit native recovery transition;
-it does not supply a C cleanup/recovery API.
+application delivery. This qualifies that explicit native consumption transition;
+cleanup accounting is exercised separately below.
+
+The cleanup trace uses public native APIs to retain messages across two epochs,
+an unknown committed send, three unconsumed deliveries, a skipped receive position,
+a pending old-epoch resolution and an unconfirmed target-2 rekey. It then revokes
+the SDK policy and requires operational admission to fail while the C cleanup
+owner can report the original state. Real C process exits after full-report fsync
+and after acknowledgement force restart reconciliation. Independent verification
+checks every report row, recomputes the ciphertext commitment from retained public
+wire bytes, and compares the C-exported archive with the original native archive.
+Missing sessions, altered archives, wrong owner kinds, pre-freeze cancellation,
+wrong acknowledgement, repeat retirement and metadata-only restoration are checked.
+This trace has zero uncommitted reservations: a positive reservation case and
+cleanup commit fault injection through the installed C library remain unqualified.
 
 The call-budget unit is also executed in each profile, including drain availability
-at capacity. Each C trace selects one integration test; the other trace and two
+at capacity. Each C trace selects one integration test; the other two traces and two
 included native fixture tests are already executed through the original Rust
 collector/C phase, and each peer selects the correct nonempty helper test name.
 No test is replaced by a receipt flag. The collector separately checks command logs,
@@ -151,5 +199,5 @@ that still loads the build-tree library is rejected as installation evidence.
 Private test runtime directories contain wrapping/signing keys and journal images;
 do not publish them. Retain the collector's public JSON, command logs, hashes and
 dependency/loader records. Results qualify only the executed source/platform and
-these finite local-profile client/server scenarios. They are not a release, independent
+these finite local-profile client/server/cleanup scenarios. They are not a release, independent
 implementation, cross-host connection, production C distribution or security proof.

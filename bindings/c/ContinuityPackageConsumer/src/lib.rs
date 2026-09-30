@@ -3,6 +3,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod owner;
+mod recovery;
 mod server;
 use p::connection_transport::{Cancellation, Consumption, Submission};
 use q_periapt_continuity_identity_candidate as p;
@@ -29,6 +30,7 @@ fn failure(code: i32) -> Failure {
         2 => "owner handle is closed or unknown",
         3 => "owner has an active call; cancel and join before close",
         4 => "owner, invocation capacity or handle counter exhausted",
+        6 => "operation requires a different owner kind",
         _ => "C boundary failed; reconcile original durable operation",
     };
     Failure {
@@ -197,9 +199,13 @@ impl From<p::connection_transport::Error> for Failure {
     }
 }
 
+enum Owned {
+    Operational(Box<owner::Owner>),
+    Recovery(Box<recovery::Recovery>),
+}
 struct Entry {
     cancel: Cancellation,
-    owner: Mutex<Option<owner::Owner>>,
+    owner: Mutex<Option<Owned>>,
 }
 struct Table {
     next: u64,
@@ -248,7 +254,7 @@ impl Reservation {
             published: false,
         })
     }
-    fn publish(mut self, owner: owner::Owner) -> Result<u64> {
+    fn publish(mut self, owner: Owned) -> Result<u64> {
         let mut table = TABLE.lock().map_err(|_| failure(5))?;
         let slot = table.slots.get_mut(&self.id).ok_or(failure(5))?;
         if slot.is_some() {
@@ -287,6 +293,15 @@ fn entry(id: u64) -> Result<Arc<Entry>> {
 fn with<T>(
     id: u64,
     action: impl FnOnce(&mut owner::Owner, &Cancellation) -> Result<T>,
+) -> Result<T> {
+    with_owned(id, |owner, cancel| match owner {
+        Owned::Operational(owner) => action(owner, cancel),
+        Owned::Recovery(_) => Err(failure(6)),
+    })
+}
+fn with_owned<T>(
+    id: u64,
+    action: impl FnOnce(&mut Owned, &Cancellation) -> Result<T>,
 ) -> Result<T> {
     let entry = entry(id)?;
     let mut locked = match entry.owner.try_lock() {
@@ -432,7 +447,7 @@ pub unsafe extern "C" fn qpc_owner_v1_open(
         };
         let slot = Reservation::new()?;
         let owner = owner::Owner::open(Path::new(&path), quality)?;
-        let id = slot.publish(owner)?;
+        let id = slot.publish(Owned::Operational(Box::new(owner)))?;
         unsafe { put(handle, id) };
         Ok(())
     };

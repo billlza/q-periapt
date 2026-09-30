@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 
 import continuity_package as package
+import continuity_c_recovery as recovery
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
@@ -17,10 +18,13 @@ TEST = "c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery"
 SERVER_TEST = "c_server_preserves_callback_failures_unknown_commits_replay_and_rekey"
 SERVER_SCOPE = "installed native Rust client to unpublished C server; same host; local journal profile"
 SCOPE = "unpublished C client to installed Rust peer; same host; local journal profile"
-QUALIFICATION_SCOPE = "unpublished C client and server using the installed shared Rust engine; same host; local journal profile"
+QUALIFICATION_SCOPE = "unpublished C client and server using the installed shared Rust engine; same host; local journal profile; cleanup after SDK revocation"
 EXPORTS = {"qpc_owner_v1_" + name for name in
            ("open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
             "listen", "serve", "serve_rekey")}
+EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "session_at", "select", "select_archive",
+            "archive", "begin", "status", "reserved", "epoch", "unconfirmed", "delivery", "skipped",
+            "acknowledge", "retire", "restore_index")}
 
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False) -> Path:
@@ -52,7 +56,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(passed == [TEST] and re.search(
-        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE),
         "installed C trace was not executed completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-public-result.json").data,
                                     label="C connection execution")
@@ -102,7 +106,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
 def verify_server_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;",
                               text, re.MULTILINE), "installed C server trace did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-server-public-result.json").data,
                                     label="C server execution")
@@ -255,7 +259,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         executable = installed / "qpc-c-client"
         run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-pthread",
              *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
-             str(consumer / "client.c"), "-I", str(consumer), "-L", str(installed), "-l" + LIBRARY,
+             str(consumer / "client.c"), str(consumer / "recovery_client.c"), "-I", str(consumer), "-L", str(installed), "-l" + LIBRARY,
              "-Wl,-rpath," + ("@loader_path" if darwin else "$ORIGIN"), "-o", str(executable)], "compile-" + profile)
         symbols = run(["/usr/bin/nm", *( ["-gU"] if darwin else ["-D", "--defined-only"] ),
                        str(installed / filename)], "exports-" + profile).decode()
@@ -291,6 +295,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(server_evidence)
         tested = run([str(trace), "--exact", SERVER_TEST, "--nocapture"], "server-trace-" + profile, runtime=runtime)
         result["execution"][profile]["server"] = verify_server_execution(tested, server_evidence)
+        recovery_evidence = outside / ("c-" + profile + "-recovery-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(recovery_evidence)
+        tested = run([str(trace), "--exact", recovery.TEST, "--nocapture"], "recovery-trace-" + profile, runtime=runtime)
+        result["execution"][profile]["recovery"] = recovery.verify_execution(tested, recovery_evidence)
         binaries = {}
         for name, path, identity in (("C_client", executable, client_identity),
                                      ("C_library", installed / filename, library_identity),
