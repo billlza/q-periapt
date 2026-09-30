@@ -5,6 +5,7 @@
 mod owner;
 mod recovery;
 mod server;
+mod witness;
 use p::connection_transport::{Cancellation, Consumption, Submission};
 use q_periapt_continuity_identity_candidate as p;
 use std::{
@@ -239,6 +240,7 @@ impl Drop for CallPermit {
 struct Reservation {
     id: u64,
     published: bool,
+    cancel: Cancellation,
 }
 impl Reservation {
     fn new() -> Result<Self> {
@@ -252,6 +254,7 @@ impl Reservation {
         Ok(Self {
             id,
             published: false,
+            cancel: Cancellation::default(),
         })
     }
     fn publish(mut self, owner: Owned) -> Result<u64> {
@@ -261,7 +264,7 @@ impl Reservation {
             return Err(failure(5));
         }
         *slot = Some(Arc::new(Entry {
-            cancel: Cancellation::default(),
+            cancel: self.cancel.clone(),
             owner: Mutex::new(Some(owner)),
         }));
         self.published = true;
@@ -432,12 +435,39 @@ pub unsafe extern "C" fn qpc_owner_v1_open(
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
+    unsafe { open_owner(path, length, quality, None, handle, error) }
+}
+/// Open a required-witness installation using independent original witness pins.
+/// # Safety
+/// The header's readable options/input and writable output regions must be valid and distinct.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_owner_v1_open_witness(
+    path: *const u8,
+    length: usize,
+    quality: u8,
+    options: *const witness::Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    unsafe { open_owner(path, length, quality, Some(options), handle, error) }
+}
+unsafe fn open_owner(
+    path: *const u8,
+    length: usize,
+    quality: u8,
+    witness: Option<*const witness::Options>,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
     let action = || {
         output(handle)?;
         // SAFETY: validated output pointer and header input preconditions.
         unsafe { put(handle, 0) };
         let path = unsafe { text(path, length, 4096) }?;
+        let witness = witness
+            .map(|value| unsafe { witness::Configuration::read(value) })
+            .transpose()?;
         let quality = match quality {
             1 => p::PrekeyQuality::OneTimeBoth,
             2 => p::PrekeyQuality::ReusableBoth,
@@ -446,7 +476,7 @@ pub unsafe extern "C" fn qpc_owner_v1_open(
             _ => return Err(Failure::argument()),
         };
         let slot = Reservation::new()?;
-        let owner = owner::Owner::open(Path::new(&path), quality)?;
+        let owner = owner::Owner::open(Path::new(&path), quality, witness, slot.cancel.clone())?;
         let id = slot.publish(Owned::Operational(Box::new(owner)))?;
         unsafe { put(handle, id) };
         Ok(())

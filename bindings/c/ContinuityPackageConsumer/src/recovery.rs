@@ -15,9 +15,14 @@ struct Session {
 }
 pub(crate) struct Recovery {
     state: State,
+    anchor: Option<p::AnchorClient>,
 }
 impl Recovery {
-    fn open(path: &Path) -> Result<Self> {
+    fn open(
+        path: &Path,
+        witness: Option<witness::Configuration>,
+        cancel: Cancellation,
+    ) -> Result<Self> {
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
             &path.join("journal.redb"),
@@ -25,6 +30,9 @@ impl Recovery {
         )?;
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
         Ok(Self {
+            anchor: witness
+                .map(|value| value.client(path, cancel))
+                .transpose()?,
             state: State::Discovery(Box::new(p::InstallationRecovery::open(paths, key)?)),
         })
     }
@@ -39,6 +47,7 @@ impl Recovery {
         &mut self,
         select: impl FnOnce(
             p::InstallationRecovery,
+            Option<p::AnchorClient>,
         ) -> Result<(p::InstalledSessionRecovery, p::SessionClosureArchive)>,
     ) -> Result<()> {
         if !matches!(self.state, State::Discovery(_)) {
@@ -50,7 +59,7 @@ impl Recovery {
         let State::Discovery(discovery) = state else {
             return Err(failure(5));
         };
-        let (owner, archive) = select(*discovery)?;
+        let (owner, archive) = select(*discovery, self.anchor.take())?;
         self.state = State::Session(Box::new(Session {
             owner,
             archive,
@@ -285,13 +294,38 @@ pub unsafe extern "C" fn qpc_recovery_v1_open(
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
+    unsafe { open_recovery(path, size, None, handle, error) }
+}
+/// Open original cleanup discovery with its explicitly selected witness signer/pins.
+/// # Safety
+/// All borrowed options, input/output and diagnostic regions satisfy the C header contract.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_recovery_v1_open_witness(
+    path: *const u8,
+    size: usize,
+    options: *const witness::Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    unsafe { open_recovery(path, size, Some(options), handle, error) }
+}
+unsafe fn open_recovery(
+    path: *const u8,
+    size: usize,
+    witness: Option<*const witness::Options>,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
     let run = || {
         output(handle)?;
         // SAFETY: exact header regions; no caller pointer is retained.
         unsafe { put(handle, 0) };
         let path = unsafe { text(path, size, 4096) }?;
+        let witness = witness
+            .map(|value| unsafe { witness::Configuration::read(value) })
+            .transpose()?;
         let reservation = Reservation::new()?;
-        let owner = Recovery::open(Path::new(&path))?;
+        let owner = Recovery::open(Path::new(&path), witness, reservation.cancel.clone())?;
         let id = reservation.publish(Owned::Recovery(Box::new(owner)))?;
         unsafe { put(handle, id) };
         Ok(())
@@ -342,8 +376,8 @@ pub unsafe extern "C" fn qpc_recovery_v1_select(
         let session = unsafe { fixed(session) }?;
         with_recovery(handle, |owner, cancel| {
             cancelled(cancel)?;
-            owner.select(|discovery| {
-                let mut selected = discovery.open_session(session, None)?;
+            owner.select(|discovery, anchor| {
+                let mut selected = discovery.open_session(session, anchor)?;
                 let archive = selected.stores()?.1.get(session)?;
                 Ok((selected, archive))
             })?;
@@ -367,8 +401,8 @@ pub unsafe extern "C" fn qpc_recovery_v1_select_archive(
         let archive = p::SessionClosureArchive::from_bytes(&bytes)?;
         with_recovery(handle, |owner, cancel| {
             cancelled(cancel)?;
-            owner.select(|discovery| {
-                let selected = discovery.open_session_from_archive(&archive, None)?;
+            owner.select(|discovery, anchor| {
+                let selected = discovery.open_session_from_archive(&archive, anchor)?;
                 Ok((selected, archive))
             })?;
             cancelled(cancel)

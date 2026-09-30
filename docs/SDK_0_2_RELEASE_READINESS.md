@@ -72,10 +72,57 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 242 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 244 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The unpublished C surface now adds explicit operational and cleanup witness
+constructors, for 29 isolated exports. They retain the original independently
+configured witness identity/public key and device signer and reuse native witness
+admission; missing, wrong, unavailable or invalidly signed evidence cannot trigger
+enrollment, reset or a local-profile fallback. SDK-revoked cleanup can still use
+the original witness signer. Cancellation shares the owner signal across native
+exchanges; fresh status queries still require witness admission after cancellation.
+
+Clean snapshot `bfcb81d4` passes actual installed C-to-C TLS bootstrap, message
+delivery, target-1 rekey and cleanup against a separate native witness socket/store.
+Rust 1.98.1 and Rust 1.90 each execute Debug and Release. Two
+committed advance responses are deliberately lost; fresh attempts recover the
+same commands as AlreadyAppliedExact. The independent public transcript readback
+checks 274 exchanges, two subjects, 44 logical advances, fresh challenges and
+both lost-command recoveries, plus 48 C command logs and eight public readbacks.
+It checks complete loss accounting and an actual application record; native
+endpoints verify signatures. This is not a second signature implementation.
+The canonical original Rust+C collector completes in 1,205.706 seconds; the minimum
+toolchain's C graph completes in 1,146.070 seconds. Both retain all prior client,
+server, two-epoch recovery and 59-case sync-interruption traces per profile.
+Strict Clippy, installed formatting and 132 source/package/inventory tests pass.
+The candidate archive is
+`808c7a660b93a8231d0d86a6a19ba88f466f69e514205da95d252926ea8158ce`;
+its changed members are fixture/documentation inputs, with native protocol
+implementation and lock unchanged. These elapsed times are run durations, not
+performance claims. Evidence is retained as `20260930-continuity-c-witness`.
+
+After execution, the collector adds a post-verification public-file export and
+CI upload glob. The prior verification AST and all native/C workload inputs remain
+unchanged. The new exporter is separately replayed against all four actual results:
+56 verifier-selected files per profile preserve their original hashes and refuse
+an existing destination. Raw witness transcript and public readbacks are retained
+without private keys or journals. This export-only replay is not relabeled as a
+second SDK execution. The new carrier
+is signed TCP and does not encrypt witness metadata; witness TLS/service deployment,
+held-socket cancellation, and independent cross-host qualification remain open.
+The new source inventory requires 244 Rust files in hosted extraction.
+
+Predecessor `2c584a8b` additionally completes native Linux installed Debug/Release
+sync matrices: 59 cases and 771 command records per profile, including eight actual
+Reserved outcomes. All 192 uploaded raw `.events` files and recorded command hashes
+are independently checked again after download. CodeQL `36754770998` completes all
+six jobs; its 242-file Rust gate analyzes PR synthetic merge
+`f5219567c2291c450dfa558038b11fad045c1b53`. Those results do not include the new C
+witness source. The full workflow's longer native/proof jobs were still running
+at this checkpoint; the Linux component result is not a whole-run completion claim.
 
 At `25db790c`, push CI `36746031054` completes all 43 jobs and CodeQL
 `36746042255` completes all six. Hosted Linux x86_64/GCC 13.3 executes the

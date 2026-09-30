@@ -15,12 +15,18 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Scope and original configuration
 
-The initial C caller opens an already provisioned local-profile installation on
-macOS/Linux. It does not initialize a new lineage. Required-witness activation
-returns the engine's refusal instead of falling back to local mode; the required
-witness C adapter, other language surfaces and product dependency/ABI admission
-remain unfinished. The separate cleanup owner described below opens the original
-installation without activating operational SDK policy or TLS/signing owners.
+The C caller opens an already provisioned installation on macOS/Linux. It does
+not initialize a new lineage. Ordinary constructors require the original local
+profile; required-witness activation returns the native refusal. Explicit
+`qpc_owner_v1_open_witness` and `qpc_recovery_v1_open_witness` accept a numeric
+socket address and a 1..10000-ms per-exchange bound. They use independently retained
+`witness-id` and `witness-public` files and the original encrypted device signer;
+incoming replies never select the witness. Local/required mismatch is an error.
+Missing pins, wrong identity, invalid signatures, unavailable transport and stale
+witness state cannot enroll, reset or downgrade an installation. This adapter
+reuses the native signed TCP witness protocol; it authenticates messages but does
+not encrypt public metadata. Witness TLS/service deployment, other language
+surfaces and product dependency/ABI admission remain unfinished.
 
 The consumer configuration is the same private fixture layout used by the
 archive's public Rust workload: original installation/journal/archive/SDK policy
@@ -73,6 +79,12 @@ accept, then run the shared carrier's separate 20-second/eight-exchange budget.
 Accept cancellation polls every 25 milliseconds subject to OS scheduling.
 Filesystem and application callbacks remain synchronous/cooperative; cancellation
 does not preempt an arbitrary kernel call, foreign callback or undo a commit.
+Witness dispatch checks the same owner cancellation signal before and after each
+native exchange. An already running socket call uses that exchange's original
+deadline. This per-exchange bound is not a global constructor or invocation bound;
+the native journal can require several witness admissions. A completed witness
+mutation followed by cancellation remains an unknown outcome requiring exact
+reconciliation. Native witness failures retain their typed diagnostics.
 AD is visible to the TLS endpoint and must not be treated as message-encrypted
 private content. This boundary inherits the candidate's trusted-host and logical-
 erasure limits; C in-process memory validity still depends on the caller contract.
@@ -98,12 +110,15 @@ control endpoint; it does not mix application and control protocol identifiers.
 
 ## Cleanup after operational revocation
 
-The sixteen `qpc_recovery_v1_*` functions share the handle registry, cancellation,
+The seventeen `qpc_recovery_v1_*` functions share the handle registry, cancellation,
 close and call budgets. Operational and recovery handles are distinct owner kinds;
 using one for the other's operations returns `QPC_OWNER_KIND`. Recovery does not
 create sending, receiving, rekeying or provisioning authority. Required-witness
-state still requires the native witness admission; this local-profile adapter
-returns `AnchorRequired` and cannot downgrade that state.
+state still requires the original native witness admission, including closed
+session selection and catalogue restoration. Its explicit recovery constructor
+loads the original device signer only for witness requests, without activating
+SDK operational policy or TLS owners. The ordinary constructor returns
+`AnchorRequired` and cannot downgrade that state.
 
 Open the original installation, enumerate its authenticated catalogue hints, then
 select one session or supply its original 362-byte QPCSCA01 archive. Selection
@@ -124,13 +139,35 @@ native status and the durable host record. A matching acknowledgement is
 idempotent. Catalogue retirement requires the same closed report and does not
 erase the journal or permit session-ID reuse.
 
-Cancellation prevents further cleanup mutations. Metadata queries remain
-available, including the cached report lists, to reconcile an operation that may
-already have committed. Closing releases ownership, never refunds a transition
+Cancellation prevents further cleanup mutations. Cached report/metadata queries
+remain available, but current witnessed status requires a fresh exchange and can
+fail after cancellation. Close/reopen original state to reconcile the result.
+Closing releases ownership, never refunds a transition
 or acknowledges a report. The C fixture's `QPC-C-LOSS/1` text is only its explicit
 host accounting format, not a new network or cryptographic protocol identifier.
 
 ## Qualification path
+
+The required-witness trace provisions and explicitly enrolls both original
+installations with a separately owned native witness store. Actual C client and
+server processes use its real socket for bootstrap, application delivery, rekey
+and cleanup. Wrong witness pins and a corrupted signed reply refuse admission.
+The witness deliberately drops one already committed send advance and one already
+committed cleanup advance. Reopening must retry the same command with a fresh
+challenge and obtain `AlreadyAppliedExact`, without another logical advance.
+SDK revocation blocks operational open; witnessed cleanup remains available.
+Cancellation prevents freezing, and the reopened native journal confirms Open.
+Closed archives still refuse admission without the original reachable witness.
+
+The public transcript verifier checks every request/reply envelope length,
+authority/subject, command and attempt commitment, challenge uniqueness and
+monotonic head transition. It independently recomputes the unknown ciphertext
+commitment and compares every loss-report row and the actual application record.
+It does not independently verify signatures: the actual native witness and C
+client engine perform those checks. The earlier OpenSSL vector oracle remains
+a separate finite validation. This trace does not qualify witness TLS, independent
+implementation, external service deployment, witness-store rollback resistance
+or cancellation during a held witness socket.
 
 Run the existing installed package collector with `--with-c-consumer`:
 
@@ -144,7 +181,7 @@ sh artifact/python-run.sh artifact/continuity_package.py \
 ```
 
 It first executes the original archive-shipped Rust trace. The C phase then builds
-both Debug/Release libraries and native C executables, checks the exact 27
+both Debug/Release libraries and native C executables, checks the exact 29
 exports and installed sibling-library lookup, and runs the shared archive's Rust
 peer fixture. C controls the actual owner open/close, TLS bootstrap, message IDs,
 delivery and rekey calls. The client trace covers:

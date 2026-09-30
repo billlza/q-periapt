@@ -222,6 +222,9 @@ pub(crate) struct Peer {
 }
 impl Peer {
     pub(crate) fn open(path: &Path) -> Result<Self> {
+        Self::open_with_witness(path, None)
+    }
+    pub(crate) fn open_with_witness(path: &Path, witness: Option<&WitnessFixture>) -> Result<Self> {
         let policy_store = sdk(path)?;
         let context = context(path, &policy_store)?;
         let role = role(path)?;
@@ -231,7 +234,8 @@ impl Peer {
         let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
         let owner =
             p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), now()?)?;
-        let service = owner.activate(key, device, context.policy(), now()?, None)?;
+        let anchor = witness.map(|value| value.client(path)).transpose()?;
+        let service = owner.activate(key, device, context.policy(), now()?, anchor)?;
         Ok(Self {
             service,
             signer,
@@ -274,6 +278,37 @@ pub(crate) struct Setup {
     pub(crate) issuer: SdkIssuer,
 }
 pub(crate) fn setup() -> Result<Setup> {
+    setup_with_witness(None)
+}
+/// Qualification-only explicit real witness store and socket, not incoming trust.
+pub(crate) struct WitnessFixture {
+    pub(crate) store: Arc<std::sync::Mutex<p::AnchorStore>>,
+    pub(crate) address: SocketAddr,
+}
+impl WitnessFixture {
+    fn pin(&self) -> Result<p::AnchorPin> {
+        Ok(self
+            .store
+            .lock()
+            .map_err(|_| "witness store poisoned")?
+            .pin()?)
+    }
+    pub(crate) fn client(&self, path: &Path) -> Result<p::AnchorClient> {
+        let key = key(path)?;
+        let signer = p::DeviceSigningKey::open(
+            &path.join("signer.key"),
+            &key,
+            p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?,
+        )?;
+        Ok(p::AnchorClient::new(
+            self.pin()?,
+            signer,
+            Box::new(p::AnchorTcpTransport::new(self.address)),
+            Duration::from_secs(3),
+        )?)
+    }
+}
+pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Setup> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let path = PathBuf::from(path);
         if !path.is_absolute() {
@@ -334,12 +369,20 @@ pub(crate) fn setup() -> Result<Setup> {
             1,
             validity,
             p::AllowedPrekeyModes::new(&[p::PrekeyQuality::OneTimeBoth])?,
-            p::AnchorRequirement::local_only(),
+            match witness {
+                Some(witness) => p::AnchorRequirement::required(&witness.pin()?),
+                None => p::AnchorRequirement::local_only(),
+            },
             p::ApplicationSendBudget::new(1024)?,
         )?,
     )?;
     let family = authority.policy_family()?;
     for path in [&left, &right] {
+        if let Some(witness) = witness {
+            let pin = witness.pin()?;
+            store(path, "witness-id", pin.identity().as_bytes())?;
+            store(path, "witness-public", &pin.public_key().encode())?;
+        }
         for (name, bytes) in [
             ("family", family.to_vec()),
             ("policy-root", authority.public_key()?.encode()),
@@ -399,11 +442,19 @@ pub(crate) fn setup() -> Result<Setup> {
         let device = devices.get(index).ok_or("device")?;
         let mut install =
             p::DeviceInstallation::provision(paths(path)?, &wrapping, device, &policy, time)?;
-        assert!(matches!(
-            install.prepare(wrapping, device, &policy, time)?,
-            p::InstallationPreparation::Local
-        ));
-        services.push(install.activate(key(path)?, device, &policy, time, None)?);
+        match (witness, install.prepare(wrapping, device, &policy, time)?) {
+            (None, p::InstallationPreparation::Local) => {}
+            (Some(witness), p::InstallationPreparation::RequiresEnrollment(genesis)) => {
+                witness
+                    .store
+                    .lock()
+                    .map_err(|_| "witness enrollment lock poisoned")?
+                    .enroll(&genesis, device, &policy, time)?;
+            }
+            _ => return Err("installation changed the requested witness profile".into()),
+        }
+        let anchor = witness.map(|witness| witness.client(path)).transpose()?;
+        services.push(install.activate(key(path)?, device, &policy, time, anchor)?);
     }
     let server_device = devices.get(1).ok_or("responder")?;
     let server_policy = protocol_policy(&right, stores.get(1).ok_or("responder SDK")?)?;

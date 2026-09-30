@@ -21,7 +21,11 @@ pub(crate) fn now() -> io::Result<u64> {
         .map_err(io::Error::other)?
         .as_secs())
 }
-fn read(directory: &OwnedPrivateDirectory, name: &str, maximum: usize) -> Result<Vec<u8>> {
+pub(crate) fn read(
+    directory: &OwnedPrivateDirectory,
+    name: &str,
+    maximum: usize,
+) -> Result<Vec<u8>> {
     let file = directory
         .open_config_file(name, maximum)
         .map_err(Failure::configuration)?;
@@ -34,7 +38,10 @@ fn read(directory: &OwnedPrivateDirectory, name: &str, maximum: usize) -> Result
     }
     Ok(bytes)
 }
-fn array<const N: usize>(directory: &OwnedPrivateDirectory, name: &str) -> Result<[u8; N]> {
+pub(crate) fn array<const N: usize>(
+    directory: &OwnedPrivateDirectory,
+    name: &str,
+) -> Result<[u8; N]> {
     read(directory, name, N)?
         .try_into()
         .map_err(|_| Failure::argument())
@@ -95,7 +102,12 @@ pub(crate) struct Owner {
     pub(crate) peer_name: String,
 }
 impl Owner {
-    pub(crate) fn open(path: &Path, quality: p::PrekeyQuality) -> Result<Self> {
+    pub(crate) fn open(
+        path: &Path,
+        quality: p::PrekeyQuality,
+        witness: Option<crate::witness::Configuration>,
+        cancel: Cancellation,
+    ) -> Result<Self> {
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
             &path.join("journal.redb"),
@@ -172,14 +184,17 @@ impl Owner {
             context.policy(),
             now().map_err(Failure::configuration)?,
         )?;
-        // This initial consumer exposes only local-profile installation. Required
-        // protection is refused by activate; it can never fall back to local mode.
+        // A witnessed constructor must match the policy exactly; absence never
+        // retries activation under a different persistence profile.
+        let anchor = witness
+            .map(|configured| configured.client(path, cancel))
+            .transpose()?;
         let service = installation.activate(
             key,
             device,
             context.policy(),
             now().map_err(Failure::configuration)?,
-            None,
+            anchor,
         )?;
         let owner = Self {
             listener: None,

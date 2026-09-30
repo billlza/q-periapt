@@ -92,9 +92,11 @@ static void retain(const char *path, const char *name, const uint8_t *bytes, siz
     if (unlinkat(dir,temporary,0) || fsync(dir)) bad("report directory sync");
     if (close(dir)) bad("report directory close");
 }
-static uint64_t open_recovery(const char *path) {
+static uint64_t open_recovery(const char *path,const qpc_witness_v1 *witness) {
     uint64_t handle=0; qpc_error_v1 e;
-    code(qpc_recovery_v1_open((const uint8_t *)path,strlen(path),&handle,&e),&e,0);
+    int32_t result=witness ? qpc_recovery_v1_open_witness((const uint8_t *)path,strlen(path),witness,&handle,&e)
+                          : qpc_recovery_v1_open((const uint8_t *)path,strlen(path),&handle,&e);
+    code(result,&e,0);
     if (!handle) bad("zero recovery handle");
     uint16_t port=99; const uint8_t address[]="127.0.0.1:0";
     code(qpc_owner_v1_listen(handle,address,sizeof(address)-1,&port,&e),&e,QPC_OWNER_KIND);
@@ -171,18 +173,37 @@ static void snapshot(uint64_t handle, const char *path, int create, uint8_t repo
     qpc_closure_status_v1 current=status(handle);
     if (current.phase!=1 || memcmp(current.report,report,32)) bad("pending report identity");
 }
-int recovery_command(int argc,char **argv) {
+int recovery_command(int argc,char **argv,const qpc_witness_v1 *witness) {
     if (argc<3 || argc>4) bad("recovery arguments");
     const char *mode=argv[1], *path=argv[2]; qpc_error_v1 e;
     if (!strcmp(mode,"recover-kind")) {
         if (argc!=3) bad("kind arguments");
-        uint64_t live=0; code(qpc_owner_v1_open((const uint8_t *)path,strlen(path),1,&live,&e),&e,0);
+        uint64_t live=0;
+        int32_t result=witness ? qpc_owner_v1_open_witness((const uint8_t *)path,strlen(path),1,witness,&live,&e)
+                              : qpc_owner_v1_open((const uint8_t *)path,strlen(path),1,&live,&e);
+        code(result,&e,0);
         qpc_closure_header_v1 h; code(qpc_recovery_v1_begin(live,&h,&e),&e,QPC_OWNER_KIND);
         close_recovery(live); puts("operational-owner-not-recovery");
     } else {
-        uint64_t handle=open_recovery(path); uint32_t count=0;
+        uint64_t handle=open_recovery(path,witness); uint32_t count=0;
         code(qpc_recovery_v1_session_count(handle,&count,&e),&e,0);
-        if (!strcmp(mode,"recover-list")) {
+        if (!strcmp(mode,"recover-reject-select")) {
+            if (argc!=4 || count!=1) bad("selection refusal setup");
+            uint8_t session[32]; decode(argv[3],session);
+            int32_t result=qpc_recovery_v1_select(handle,session,&e);
+            if (!result) bad("required original witness was bypassed");
+            code(result,&e,result);
+            code(qpc_recovery_v1_session_count(handle,&count,&e),&e,QPC_DURABLE_CLOSED);
+            printf("selection-refused:%d\n",result);
+        } else if (!strcmp(mode,"recover-reject-archive")) {
+            if (argc!=3 || count!=0) bad("archive refusal setup");
+            size_t size=0; uint8_t *archive=read_file(path,"c-closure-archive",&size);
+            int32_t result=qpc_recovery_v1_select_archive(handle,archive,size,&e);free(archive);
+            if (!result) bad("closed archive bypassed original witness");
+            code(result,&e,result);
+            code(qpc_recovery_v1_session_count(handle,&count,&e),&e,QPC_DURABLE_CLOSED);
+            printf("archive-refused:%d\n",result);
+        } else if (!strcmp(mode,"recover-list")) {
             if (argc!=3) bad("list arguments");
             printf("catalogue:%u\n",count);
         } else if (!strcmp(mode,"recover-tamper")) {
@@ -228,13 +249,25 @@ int recovery_command(int argc,char **argv) {
                 retain(path,"c-closure-archive",archive,sizeof(archive),1);
                 uint8_t report[32];
                 if (!strcmp(mode,"recover-cancel")) {
+                    qpc_closure_status_v1 before=status(handle);
+                    if (before.phase!=0) bad("cancellation fixture already frozen");
                     code(qpc_owner_v1_cancel(handle,&e),&e,0);
                     qpc_closure_header_v1 h;
                     code(qpc_recovery_v1_begin(handle,&h,&e),&e,QPC_CANCELLED);
-                    qpc_closure_status_v1 s=status(handle);
-                    if (s.phase!=0) bad("cancelled cleanup froze the session");
+                    if (witness) {
+                        qpc_closure_status_v1 s;
+                        code(qpc_recovery_v1_status(handle,&s,&e),&e,QPC_ANCHOR);
+                    } else {
+                        qpc_closure_status_v1 s=status(handle);
+                        if (s.phase!=0) bad("cancelled cleanup froze the session");
+                    }
                     code(qpc_recovery_v1_restore_index(handle,&e),&e,QPC_CANCELLED);
                     puts("cancelled-cleanup-not-frozen");
+                } else if (!strcmp(mode,"recover-witness-failed-freeze")) {
+                    if (!witness) bad("missing explicit witness");
+                    qpc_closure_header_v1 h;
+                    code(qpc_recovery_v1_begin(handle,&h,&e),&e,QPC_ANCHOR);
+                    puts("witness-freeze-outcome-unavailable");
                 } else if (!strcmp(mode,"recover-freeze")) {
                     snapshot(handle,path,1,report); exit(77);
                 } else if (!strcmp(mode,"recover-ack-crash")) {

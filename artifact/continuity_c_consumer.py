@@ -7,6 +7,7 @@ import re
 
 import continuity_package as package
 import continuity_c_recovery as recovery
+import continuity_c_witness as witness
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
@@ -18,18 +19,19 @@ TEST = "c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery"
 SERVER_TEST = "c_server_preserves_callback_failures_unknown_commits_replay_and_rekey"
 SERVER_SCOPE = "installed native Rust client to unpublished C server; same host; local journal profile"
 SCOPE = "unpublished C client to installed Rust peer; same host; local journal profile"
-QUALIFICATION_SCOPE = "unpublished C client and server using the installed shared Rust engine; same host; local journal profile; cleanup after SDK revocation"
+QUALIFICATION_SCOPE = "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles; signed TCP witness metadata is not encrypted"
 EXPORTS = {"qpc_owner_v1_" + name for name in
            ("open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
             "listen", "serve", "serve_rekey")}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "session_at", "select", "select_archive",
             "archive", "begin", "status", "reserved", "epoch", "unconfirmed", "delivery", "skipped",
             "acknowledge", "retire", "restore_index")}
+EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
 
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -315,6 +317,20 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         run([*c_flags, str(consumer / "sync_probe_smoke.c"), "-o", str(smoke)], "fault-smoke-" + profile)
         result["execution"][profile]["sync_faults"] = Matrix(
             outside, output, profile, runtime, executable, fault_helper, probe, smoke).execute()
+        witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
+                             "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
+        witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")
+        witness_identity = sdk.snapshot(witness_helper, maximum=MAX_BINARY)
+        witness_evidence = outside / ("c-" + profile + "-witness-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(witness_evidence)
+        tested = run([str(witness_helper), "--exact", witness.TEST, "--nocapture"], "witness-trace-" + profile, runtime=runtime)
+        result["execution"][profile]["witness"] = witness.verify_execution(tested, witness_evidence)
+        result["execution"][profile]["witness"]["exported_public_files"] = witness.export_public(
+            tested, witness_evidence, output / "c-witness-public" / profile)
+        sdk.require(sdk.snapshot(witness_helper, maximum=MAX_BINARY).sha256 == witness_identity.sha256,
+                    "installed witness helper changed during execution")
+        result["execution"][profile]["witness"]["binary"] = {
+            "path": str(witness_helper), "sha256": witness_identity.sha256, "bytes": witness_identity.size}
         binaries = {}
         for name, path, identity in (("C_client", executable, client_identity),
                                      ("C_library", installed / filename, library_identity),

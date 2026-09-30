@@ -51,3 +51,16 @@ network lifecycle, minimum/compiler/device execution and all foreign adapters ke
 their separate acceptance requirements. The `continuity-installed-rust` CI job
 uses the same run's SDK producer artifact; Linux results must actually finish
 before being claimed.
+
+`--with-c-consumer` adds the unpublished
+[C owner consumer](../../bindings/c/ContinuityPackageConsumer/README.md), which
+retains its own precise installation and verification scope. Its local traces
+cover both application directions, complete revoked-session accounting and real
+journal-sync process interruptions. Its explicit required-witness trace uses
+the same native engine and an independently owned witness socket/store for actual
+C bootstrap, application delivery, rekey and post-revocation cleanup. Lost committed
+witness replies retain the original command with fresh challenge attempts.
+The archive-shipped fixture provisions/enrolls test state through public APIs;
+it does not expose provisioning through the C owner API. The witness carrier is
+signed TCP, so this does not qualify encrypted metadata, an independent witness
+implementation, external service operation or cross-host deployment.

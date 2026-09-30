@@ -1790,6 +1790,7 @@ jobs:
             target/continuity-installed-rust/*.stdout
             target/continuity-installed-rust/*.stderr
             target/continuity-installed-rust/*.events
+            target/continuity-installed-rust/c-witness-public/**
             target/continuity-installed-rust/consumer-Cargo.lock
             target/continuity-installed-rust/c-consumer-Cargo.lock
           if-no-files-found: error

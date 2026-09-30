@@ -82,6 +82,22 @@ extern "C" {
  * Both signing/key owners are loaded from their protected original files.
  * The config format is a qualification fixture, not a frozen product provisioning API.
  */
+typedef struct {
+    const uint8_t *address;
+    size_t address_length;
+    uint32_t timeout_ms;
+} qpc_witness_v1;
+/* Explicit existing witness, never enrollment or fallback. The exact numeric
+ * socket address is caller-selected; original witness-id/witness-public pins and
+ * device signing owner come from the protected installation. timeout_ms is
+ * 1..10000 per native authenticated exchange. Options/bytes are borrowed only
+ * for construction. The signed TCP carrier authenticates but does not encrypt
+ * public metadata. Cancellation checks before/after each bounded exchange;
+ * an in-progress socket call may run until that attempt's original deadline.
+ * Witness errors retain their native unknown-outcome status, not retry permission.
+ */
+int32_t qpc_owner_v1_open_witness(const uint8_t *path, size_t length, uint8_t quality,
+                                const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_open(const uint8_t *path, size_t length, uint8_t quality,
                         uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_cancel(uint64_t handle, qpc_error_v1 *error);
@@ -140,7 +156,7 @@ int32_t qpc_owner_v1_serve_rekey(uint64_t handle, const uint8_t session[32],
                                uint64_t *completed_epoch, qpc_error_v1 *error);
 /* Cleanup-only original-installation owner. Shares the same 64-owner/call
  * budgets and generic close/cancel functions, but operational calls return
- * OWNER_KIND. It loads no live SDK policy, TLS credential or signing authority.
+ * OWNER_KIND. Ordinary open loads no live SDK policy, TLS credential or signer.
  * Discovery IDs are hints; select authenticates the original journal/key/archive.
  * Required-witness selection still refuses admission without its original witness.
  * A failed native selection consumes/closes discovery; reopen the ORIGINAL input.
@@ -181,10 +197,18 @@ typedef struct { uint32_t phase; uint8_t report[32]; } qpc_closure_status_v1;
  * it neither deletes the journal tombstone nor refunds identity/key budgets.
  * Export/retain the authenticated archive before retiring the catalogue row.
  * select_archive + restore_index restores metadata only, never operational keys.
- * Local queries remain available after cancel; mutations check cancellation before
- * and after native work but cannot preempt an arbitrary filesystem call.
+ * Cached report/metadata queries remain available after cancel. Fresh witnessed
+ * status admission can fail when cancellation prevents its required exchange;
+ * close and reopen original state to reconcile it. Mutations check cancellation
+ * before/after native work but cannot preempt an arbitrary filesystem/socket call.
  */
 int32_t qpc_recovery_v1_open(const uint8_t *path, size_t length, uint64_t *handle, qpc_error_v1 *error);
+/* Witnessed cleanup retains only the original device signer for native witness
+ * requests, not operational SDK permission. Selection authenticates original
+ * required-witness state even for already closed sessions and archived metadata.
+ */
+int32_t qpc_recovery_v1_open_witness(const uint8_t *path, size_t length,
+                                   const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_session_count(uint64_t handle, uint32_t *count, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_session_at(uint64_t handle, uint32_t index, uint8_t session[32], qpc_error_v1 *error);
 int32_t qpc_recovery_v1_select(uint64_t handle, const uint8_t session[32], qpc_error_v1 *error);
