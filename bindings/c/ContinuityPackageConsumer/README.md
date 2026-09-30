@@ -180,8 +180,34 @@ checks every report row, recomputes the ciphertext commitment from retained publ
 wire bytes, and compares the C-exported archive with the original native archive.
 Missing sessions, altered archives, wrong owner kinds, pre-freeze cancellation,
 wrong acknowledgement, repeat retirement and metadata-only restoration are checked.
-This trace has zero uncommitted reservations: a positive reservation case and
-cleanup commit fault injection through the installed C library remain unqualified.
+This trace has zero uncommitted reservations. The separate system-sync fault
+matrix below prepares real positive reservations without changing journal bytes.
+
+The fault matrix uses a separately compiled and hashed test-process probe, never
+linked into the SDK library. It first checks that the probe distinguishes the
+selected inode from an unrelated control file and can stop before/after both
+real sync operations. It then calibrates the actual owner-open/send/close journal
+syncs and interrupts a fresh process before and after every observed boundary.
+Each case establishes a fresh original session through the real C/Rust bootstrap.
+After restart, C status and a native public query must agree on Absent, Reserved
+or Committed. A real post-sync Reserved case is mandatory, not a fabricated image.
+The host signs and durably applies SDK revocation before C cleanup. Complete report
+readback preserves the original ID and all reserved input lengths, or independently
+checks the committed ciphertext digest. Exact report acknowledgement, retirement,
+archive restoration and native closed-state readback complete every case.
+
+Fresh retained reservations also precede every calibrated cleanup-begin and
+acknowledgement cut. Recovery must expose both Open/Pending and Pending/Closed
+outcomes, respectively, and preserve the same complete host report across restart.
+No new report, empty default or revived operation replaces an unknown commit.
+The collector rejects missing or repeated cut positions and all unexecuted phases.
+The probe recognizes only typed supported Darwin fcntl calls, forwarding their
+actual argument types; an unfamiliar operation stops qualification explicitly.
+On Linux it wraps the real fsync/fdatasync calls. Real sync failure also stops
+this process-cut profile rather than being classified as a successful injected cut.
+This is process interruption with the OS/filesystem still running. It does not
+qualify power loss, injected EIO, required-witness recovery, concurrent updates
+or every archive-index commit through C.
 
 The call-budget unit is also executed in each profile, including drain availability
 at capacity. Each C trace selects one integration test; the other two traces and two
@@ -189,12 +215,16 @@ included native fixture tests are already executed through the original Rust
 collector/C phase, and each peer selects the correct nonempty helper test name.
 No test is replaced by a receipt flag. The collector separately checks command logs,
 application bytes, distinct epoch IDs, Cargo origins/lock, source/executable hashes
-and absence of runtime loader overrides.
+and absence of runtime loader overrides in the normal connection traces.
 
 The C application and library must load from their private installed directory.
 On macOS the library uses an explicit `@rpath` install name and the executable uses
 `@loader_path`; on Linux it uses the fixed soname with `$ORIGIN`. A successful start
 that still loads the build-tree library is rejected as installation evidence.
+Only selected fault children add the separately hashed probe through
+`DYLD_INSERT_LIBRARIES` or `LD_PRELOAD`. The probe does not replace SDK symbols or
+change the installed library; those binaries are rehashed after the fault matrix.
+Uninstrumented installation and connection checks remain independently required.
 
 Private test runtime directories contain wrapping/signing keys and journal images;
 do not publish them. Retain the collector's public JSON, command logs, hashes and

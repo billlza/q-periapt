@@ -27,14 +27,16 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
             "acknowledge", "retire", "restore_index")}
 
 
-def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False) -> Path:
+def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
+                   test_name: str = "c_owner") -> Path:
+    sdk.require(test_name in ("c_owner", "sync_fault"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
-    target = LIBRARY if library or unit else "c_owner"
+    target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
              and (not unit or m.get("executable"))]
     sdk.require(len(items) == 1, "C consumer must build one exact target")
     item = items[0]
-    expected = consumer / ("src/lib.rs" if library or unit else "tests/c_owner.rs")
+    expected = consumer / ("src/lib.rs" if library or unit else "tests/" + test_name + ".rs")
     sdk.require(Path(item["target"]["src_path"]).resolve() == expected,
                 "C consumer target came from another source")
     if library:
@@ -299,6 +301,20 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(recovery_evidence)
         tested = run([str(trace), "--exact", recovery.TEST, "--nocapture"], "recovery-trace-" + profile, runtime=runtime)
         result["execution"][profile]["recovery"] = recovery.verify_execution(tested, recovery_evidence)
+        from continuity_c_faults import Matrix
+        fault_build = run([*cargo, "test", "--locked", "--offline", "--test", "sync_fault", "--no-run",
+                           "--message-format=json", "-j", "2", *extra], "fault-build-" + profile)
+        fault_helper = built_artifact(fault_build, consumer, build, library=False, test_name="sync_fault")
+        probe = installed / ("sync-probe.dylib" if darwin else "sync-probe.so")
+        smoke = installed / "sync-probe-smoke"
+        c_flags = [str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
+                   *(["-O2"] if profile == "release" else ["-O0", "-g"])]
+        run([*c_flags, *( ["-dynamiclib"] if darwin else ["-fPIC", "-shared"] ),
+             str(consumer / "sync_probe.c"), *( [] if darwin else ["-ldl"] ), "-o", str(probe)],
+            "fault-probe-" + profile)
+        run([*c_flags, str(consumer / "sync_probe_smoke.c"), "-o", str(smoke)], "fault-smoke-" + profile)
+        result["execution"][profile]["sync_faults"] = Matrix(
+            outside, output, profile, runtime, executable, fault_helper, probe, smoke).execute()
         binaries = {}
         for name, path, identity in (("C_client", executable, client_identity),
                                      ("C_library", installed / filename, library_identity),

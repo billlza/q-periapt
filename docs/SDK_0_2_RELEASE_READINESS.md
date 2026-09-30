@@ -72,10 +72,49 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 241 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 242 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+At `25db790c`, push CI `36746031054` completes all 43 jobs and CodeQL
+`36746042255` completes all six. Hosted Linux x86_64/GCC 13.3 executes the
+installed C client, server and SDK-revoked cleanup in Debug and Release; each
+cleanup trace independently checks 26 commands and four public readbacks.
+Rust's 241-file quality gate is bound to PR synthetic merge
+`2f4f0bd9b6f7af94a27ba2d9dcbc039197cab6e3`. This closes that checkpoint's Linux
+C cleanup/extraction gates, not the newly added syscall-interruption matrix,
+cross-host connection or current-device qualification.
+
+The installed C collector now includes a separately hashed, test-only syscall
+probe and public Rust fixture to interrupt real journal syncs in owned C processes.
+It requires complete before/after matrices for owner-open/send/close, cleanup
+begin and exact-report acknowledgement, with a real retained reservation before
+every cleanup cut. SDK revocation precedes full C loss accounting and subsequent
+native closed-state verification. Clean snapshot `fe3688b7` qualifies fresh
+macOS arm64 installed packages with Rust 1.98.1 and Rust 1.90, both Debug and
+Release. Every combination completes 59 independent cases: 27 send cases (13 sync
+points; eight positive Reserved outcomes), 13 cleanup-begin cases (six sync points)
+and 19 acknowledgement cases (nine sync points). Each profile checks 771 command
+records and original complete loss-report readbacks. The canonical original
+Rust+C collector completes in 1,146.549 seconds; the minimum-toolchain C graph
+completes in 1,085.640 seconds. These durations are functional qualification
+records, not performance comparisons. Strict Clippy, installed formatting and
+129 source/package/inventory/verifier tests pass. The unchanged candidate archive
+remains `ef58a03d80f5b7e2f8ea0083e04ce57f17288feacf555f886799bb774cf671a2`.
+Evidence is retained as `20260930-continuity-c-sync-fault`. The matrix retains
+failed development attempts, including dyld self-resolution diagnosed by comparing
+the resolved function address with the wrapper, and an incorrect auxiliary numeric
+status mapping corrected to compare the public C constants with native named states.
+Fresh native Linux execution of this matrix, power loss, injected EIO and all C
+archive-index commit faults remain
+separate gaps. Normal installation/connection tests still run without loader
+overrides; only fault children receive the explicitly identified probe. The
+current helper adds a 242nd tracked Rust file for the hosted extraction gate.
+After execution, the workflow upload list adds only `*.events` to retain the raw
+cut receipts; no workload, library, verifier or compiler input changes. The complete
+actionlint invocation retains the predecessor's identical unknown `ubuntu-26.04`
+runner-label diagnostic, with no additional current diagnostic.
 
 The unpublished C consumer now implements a separate cleanup owner with sixteen
 `qpc_recovery_v1_*` exports, for 27 isolated exports in total. It opens original
@@ -84,8 +123,9 @@ loss-accounting field, and requires the host's durable complete report before
 exact-ID acknowledgement and catalogue retirement. Handles cannot cross owner
 kinds. Original archive restoration restores metadata only; it does not revive
 session keys or operational authority. Required-witness admission still refuses
-without its missing C adapter. A nonzero uncommitted-reservation C case and
-installed cleanup commit fault injection remain open.
+without its missing C adapter. This preceding checkpoint did not execute a
+nonzero uncommitted-reservation C case or installed cleanup commit fault injection;
+the later process-interruption qualification above adds those bounded cases.
 
 Clean snapshot `e6af1399` executes fresh installed archives on macOS arm64:
 Rust 1.98.1's original Rust plus C client/server/cleanup Debug and Release collector
