@@ -165,6 +165,17 @@ catalogue API, not an installed recovery flow or permission to initialize a new
 device lineage. Aggregate history and service/device lifecycle integration remain
 required within 0.2.0.
 
+The native [installation owner](../../research/continuity-identity-candidate/INSTALLATION.md)
+now retains the journal identity and exact original key/device/policy/path bindings
+in separate trusted configuration before creating children. It distinguishes
+Creating from Active, commits Active before releasing the existing journal/index
+engines, and holds the configuration lease for their service lifetime. Missing
+active files are refused, never interpreted as first install. Required-witness
+preparation returns the original enrollment metadata; activation and restart keep
+fresh witness admission/release. This implements a native initialization boundary,
+not published bindings, policy/credential renewal, global lineage uniqueness or
+rollback protection for the independent trusted configuration.
+
 ## Required completion evidence
 
 | Capability | Implementation obligation | Evidence required before completion |

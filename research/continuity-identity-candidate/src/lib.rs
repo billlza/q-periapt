@@ -18,6 +18,7 @@ pub mod control_transport;
 mod crypto;
 mod durable;
 mod identity;
+mod installation;
 mod manifest;
 mod merkle;
 #[cfg(any(feature = "control-tls", feature = "connection-tls"))]
@@ -25,6 +26,10 @@ mod native_transport;
 mod selection;
 mod session_archives;
 mod session_policy;
+pub use installation::{
+    DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
+    InstallationStatus,
+};
 pub use session_archives::SessionArchiveStore;
 #[cfg(test)]
 mod tests;

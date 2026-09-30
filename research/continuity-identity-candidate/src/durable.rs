@@ -184,6 +184,12 @@ pub(crate) fn storage(e: impl Into<redb::Error>) -> DurableError {
 /// neither a hardware key store nor an anti-rollback anchor.
 pub struct JournalKey(Box<ZeroizingBytes<32>>);
 impl JournalKey {
+    pub(crate) fn installation_binding(&self) -> [u8; 32] {
+        digest(
+            b"Q-PERIAPT-CONTINUITY-INSTALLATION-KEY/v1",
+            self.0.as_bytes(),
+        )
+    }
     pub(crate) fn anchor_state_key(&self) -> Result<ZeroizingBytes<32>, Error> {
         let mut key = ZeroizingBytes::zeroed();
         hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
@@ -509,6 +515,21 @@ pub struct DeviceJournal {
     active: Option<Active>,
 }
 impl DeviceJournal {
+    pub(crate) fn check_installation_state(
+        &mut self,
+        device: &VerifiedDevice,
+        policy: &crate::VerifiedSessionPolicy,
+        require_genesis: bool,
+    ) -> Result<(), DurableError> {
+        self.check_policy(policy)?;
+        let image = self.image()?;
+        if image.owner != bootstrap::storage_owner(device)
+            || (require_genesis && (image.revision != 1 || !rosters::is_genesis(&image, device)?))
+        {
+            return Err(DurableError::Conflict);
+        }
+        self.check_release(&image)
+    }
     /// Explicitly provision a new empty journal for the independently verified local device.
     /// The caller must durably retain this fresh identity before calling. After an
     /// unknown result, reopen this exact path/key/device/identity; never create a

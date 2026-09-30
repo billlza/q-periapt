@@ -6,6 +6,41 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Native installation ownership checkpoint
+
+The separate native installation change is reviewed against frozen source archive
+`6812fe42a9498e417c5d02009c17d509a9ea93257b0d4f93d4ceaf4e0a1326d1`, not the earlier
+product checkpoint named above. `installation.rs` reuses the private-file,
+exclusive redb, journal and archive-index implementations. It creates no new
+primitive or transport path and remains outside the published SDK dependency graph.
+
+- Provisioning commits the independent journal identity and original key commitment,
+  storage owner, policy, witness and normalized path bindings before child creation.
+  The shared file admission synchronizes the reserved name through its pinned parent
+  before initialization; unknown callback results preserve the file.
+- Only Creating can prepare absent initial children. Existing children must prove
+  exact empty genesis, including the original required protection. Activation opens
+  existing children and commits Active before returning the service; it repeats
+  current policy and original-witness checks after that commit. An uncertain commit
+  or post-commit refusal returns no service but can leave Active persisted.
+- Active restart cannot create children. Tests first commit an actual initial
+  outbox, remove each child in turn, observe refusal without replacement, and
+  recover the exact outbox only after restoring the original file.
+- The service retains the configuration lease with both child owners. Child fields
+  drop before the installation field. Bounded contender processes check exclusion
+  at real process-cut boundaries; activation sync faults are measured before owner
+  destruction, separately from database-close synchronization.
+- Configuration is trusted host state outside journal backups. It is neither an
+  authenticated remote directory nor a rollback witness. The host must choose its
+  authoritative path and must not use direct low-level provisioning or an alternate
+  path as recovery. Simultaneous rollback of configuration and journal is outside
+  the local-only guarantee. Required-witness checks preserve their original model.
+
+This review covers initialization order, binding and owner/error propagation. It
+does not complete protocol security analysis, installed language integration,
+device/root replacement or physical power-loss qualification. Source-bound executed
+results are recorded in the release ledger and retained installation cohort.
+
 ## Owned runtime and C boundary
 
 | Contract | Inspected implementation | Observation |

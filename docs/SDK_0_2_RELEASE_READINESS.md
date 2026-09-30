@@ -72,10 +72,55 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 229 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 231 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The native [installation owner](../research/continuity-identity-candidate/INSTALLATION.md)
+now durably retains an independent journal identity and its exact key/device/
+policy/witness/path bindings before creating children. Creating permits only
+initial genesis preparation; Active permanently removes permission to recreate
+missing children. Activation commits and reads back Active before releasing the
+service, rechecks the original witness/policy and retains all three owner leases.
+Unknown activation outcomes return no service and reconcile the same record.
+Required-witness enrollment remains explicit. This supplies a native service
+initialization boundary, not published Continuity bindings or a global device
+registry/configuration rollback witness.
+
+The frozen installation Debug/Release suites each pass 277 tests, zero failed or
+ignored, in 832.271/826.724 runner seconds (827.07/746.33 harness seconds) under
+overlapping load. These are not performance measurements. Focused execution
+covers six actual process cuts, bounded competing owners, two measured activation
+sync barriers with four before/after faults, and sixteen signed witness request/
+reply losses across first activation and active restart. Tests commit a real
+bootstrap outbox before removing active child files, refuse regeneration, and
+recover identical bytes only after restoring the originals. Malformed/partial
+configuration, changed bindings, closed policy and stale Creating state against
+an advanced journal are refused.
+
+Rust 1.90/1.98.1 strict Clippy, six independent feature variants, warning-strict
+docs/formatting and 95 clean source/isolation/release checks pass. The retained
+`20260930-sdk-installation` cohort includes the initial incorrect phase assertion,
+the corrected sync measurement (excluding database-close barriers), the initial
+strict test-code lint errors, and all final source/binary/log evidence. Frozen
+source has 1,016 files / 231 Rust files; archive SHA-256:
+`6812fe42a9498e417c5d02009c17d509a9ea93257b0d4f93d4ceaf4e0a1326d1`.
+Published SDK ABI, journal v21 and network/archive wire formats are unchanged.
+
+Clean source `f89e0632` completes the official `sdk-020` physical matrix on both
+wired devices: iPad Pro 11-inch (M4), iPadOS 27.0.1 (24A446), and iPhone 16 Pro,
+iOS 27.0 (24A437). All four SDK groups pass on each device. Independent console/
+app-container readbacks agree, all eight per-device proof checks pass, and each
+nonce-owned app has three consecutive cleanup absence observations. Exact app
+and static-library hashes are rechecked and retained privately. Both embedded
+profiles match the pre-existing profile bytes; provisioning updates and device
+registration were disabled. Matrix proof SHA-256:
+`1b5107b67ed1845fd716478724281b194036b4af47053d703ea20ac1449db21a`.
+This closes that commit's source-built two-device SDK matrix. Installed XCFramework,
+minimum-OS, durable policy and Continuity device qualification remain separate;
+the harness explicitly uses test-only in-memory policy updates. It does not
+qualify the new native initialization API or transfer its receipt to a later head.
 
 An observed aggregate-recovery counterexample is repaired: an authenticated
 member backup could open its cleanup owner after whole-batch freezing or

@@ -341,4 +341,12 @@ requires a public identity retained before provisioning. A process exit after
 commit can then reopen the exact original genesis. Required-witness creation can
 recover only enrollment metadata before explicit enrollment and fresh witness
 admission. Partial creation is refused without repair or replacement. This closes
-a native initialization gap; installed SDK owner integration remains outstanding.
+a native journal prerequisite; installed SDK owner integration remains outstanding.
+
+The [native installation owner](INSTALLATION.md) now durably binds that journal
+identity to the original key, device, policy and configured paths before child
+creation. It commits Active before releasing a service that retains all three
+leases. Required-witness enrollment remains explicit, unknown activation outcomes
+reconcile the original record, and missing active children are never recreated.
+This supplies the native service initialization boundary; published binding and
+complete device/root lifecycle integration remain required.
