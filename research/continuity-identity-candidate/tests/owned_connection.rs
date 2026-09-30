@@ -35,7 +35,7 @@ fn now() -> io::Result<u64> {
         .map_err(io::Error::other)?
         .as_secs())
 }
-fn store(path: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn store(path: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -54,7 +54,7 @@ fn publish_ready(path: &Path, name: &str, address: SocketAddr) -> io::Result<()>
         .map_err(|error| error.error)?;
     fs::File::open(path)?.sync_all()
 }
-fn read(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
+pub(crate) fn read(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
     let directory = OwnedPrivateDirectory::open(path)?;
     let file = directory.open_config_file(name, maximum)?;
     let mut bytes = Vec::new();
@@ -65,7 +65,7 @@ fn read(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
     }
     Ok(bytes)
 }
-fn array<const N: usize>(path: &Path, name: &str) -> Result<[u8; N]> {
+pub(crate) fn array<const N: usize>(path: &Path, name: &str) -> Result<[u8; N]> {
     read(path, name, N)?
         .try_into()
         .map_err(|_| "configured width differs".into())
@@ -103,7 +103,7 @@ fn tls_limits() -> Limits {
     }
 }
 
-struct SdkIssuer {
+pub(crate) struct SdkIssuer {
     key: Zeroizing<[u8; q_periapt_backends::ML_DSA_65_SK_LEN]>,
     public: [u8; q_periapt_backends::ML_DSA_65_VK_LEN],
 }
@@ -117,7 +117,7 @@ impl SdkIssuer {
             public,
         })
     }
-    fn policy(&self, revision: u64, enabled: bool) -> Result<(Vec<u8>, Vec<u8>)> {
+    pub(crate) fn policy(&self, revision: u64, enabled: bool) -> Result<(Vec<u8>, Vec<u8>)> {
         let kems = if enabled {
             "[\"ML-KEM-768\",\"X25519\"]"
         } else {
@@ -138,7 +138,7 @@ impl SdkIssuer {
         Ok((text, signature))
     }
 }
-fn sdk(path: &Path) -> Result<PolicyStore> {
+pub(crate) fn sdk(path: &Path) -> Result<PolicyStore> {
     Ok(PolicyStore::open_configured(
         &path.join("sdk.redb"),
         &read(path, "sdk-policy", 4096)?,
@@ -267,13 +267,13 @@ impl Peer {
     }
 }
 
-struct Setup {
+pub(crate) struct Setup {
     _directory: Option<tempfile::TempDir>,
-    initiator: PathBuf,
-    responder: PathBuf,
-    issuer: SdkIssuer,
+    pub(crate) initiator: PathBuf,
+    pub(crate) responder: PathBuf,
+    pub(crate) issuer: SdkIssuer,
 }
-fn setup() -> Result<Setup> {
+pub(crate) fn setup() -> Result<Setup> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let path = PathBuf::from(path);
         if !path.is_absolute() {
@@ -497,10 +497,15 @@ fn setup() -> Result<Setup> {
     })
 }
 
-fn hex(bytes: &[u8]) -> String {
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
-fn effect(path: &Path, session: [u8; 32], id: p::MessageId, plaintext: &[u8]) -> Result<()> {
+pub(crate) fn effect(
+    path: &Path,
+    session: [u8; 32],
+    id: p::MessageId,
+    plaintext: &[u8],
+) -> Result<()> {
     let mut expected = session.to_vec();
     expected.extend_from_slice(id.as_bytes());
     expected.extend_from_slice(plaintext);
@@ -550,7 +555,7 @@ impl Consumer for Application {
         Ok(())
     }
 }
-struct OwnedChild(Child);
+pub(crate) struct OwnedChild(pub(crate) Child);
 impl Drop for OwnedChild {
     fn drop(&mut self) {
         if matches!(self.0.try_wait(), Ok(Some(_))) {
@@ -564,7 +569,7 @@ impl Drop for OwnedChild {
         }
     }
 }
-fn wait(child: &mut OwnedChild) -> Result<ExitStatus> {
+pub(crate) fn wait(child: &mut OwnedChild) -> Result<ExitStatus> {
     let deadline = Instant::now() + Duration::from_secs(25);
     loop {
         if let Some(status) = child.0.try_wait()? {
@@ -582,9 +587,15 @@ fn child(path: &Path, attempt: u8, mode: &str) -> Result<OwnedChild> {
         .write(true)
         .mode(0o600)
         .open(path.join(format!("peer-{attempt}.log")))?;
+    // The same archive-shipped workload can be included as a consumer fixture
+    // module. Derive the real harness name rather than running an empty filter.
+    let process_test = module_path!().split_once("::").map_or_else(
+        || "service_peer_process".to_owned(),
+        |(_, module)| format!("{module}::service_peer_process"),
+    );
     Ok(OwnedChild(
         Command::new(std::env::current_exe()?)
-            .args(["--exact", "service_peer_process", "--nocapture"])
+            .args(["--exact", &process_test, "--nocapture"])
             .env("QPERIAPT_PUBLIC_SERVICE_ROOT", path)
             .env("QPERIAPT_PUBLIC_SERVICE_ATTEMPT", attempt.to_string())
             .env("QPERIAPT_PUBLIC_SERVICE_MODE", mode)
@@ -593,7 +604,7 @@ fn child(path: &Path, attempt: u8, mode: &str) -> Result<OwnedChild> {
             .spawn()?,
     ))
 }
-fn spawn(path: &Path, attempt: u8, mode: &str) -> Result<(OwnedChild, SocketAddr)> {
+pub(crate) fn spawn(path: &Path, attempt: u8, mode: &str) -> Result<(OwnedChild, SocketAddr)> {
     let mut child = child(path, attempt, mode)?;
     let marker = path.join(format!("ready-{attempt}"));
     let deadline = Instant::now() + Duration::from_secs(25);
@@ -613,7 +624,7 @@ fn spawn(path: &Path, attempt: u8, mode: &str) -> Result<(OwnedChild, SocketAddr
         std::thread::sleep(Duration::from_millis(5));
     }
 }
-fn accept(listener: &TcpListener) -> io::Result<TcpStream> {
+pub(crate) fn accept(listener: &TcpListener) -> io::Result<TcpStream> {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         if Instant::now() >= deadline {

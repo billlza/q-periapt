@@ -75,6 +75,32 @@ strict verification run. Node 24.0.0 remains the independent minimum-runtime
 check; it is not the package producer. Fresh platform, package and runtime
 qualification must bind this updated source before release.
 
+## C dependency and compiler selection
+
+The 2026-09-30 upstream check found the selected native implementation
+[mlkem-native 2.0.0](https://github.com/pq-code-package/mlkem-native/releases/tag/v2.0.0),
+TLS provider [aws-lc-rs 1.18.1](https://github.com/aws/aws-lc-rs/releases/tag/v1.18.1)
+and C build driver [cc 1.5.1](https://github.com/rust-lang/cc-rs/releases/tag/cc-v1.5.1)
+equal to their projects' latest stable releases. The workspace lock selects
+aws-lc-sys 0.45.0 underneath aws-lc-rs. The C API shares these native/Rust owners;
+it does not need another copy of the cryptographic protocol implementation.
+
+Compiler and SDK selection are separate qualification inputs. The local host
+reports Xcode 27.0 (27A266a) and Apple Clang 21.0.0 (clang-2100.3.34.2).
+The isolated Continuity C collector resolves the macOS SDK explicitly: after
+discarding inherited SDKROOT, directly invoking Xcode's resolved Clang failed to
+find errno.h. It now passes the selected SDK with -isysroot and records the
+compiler hash and SDK settings hash. Linux selects its actual system C compiler.
+These choices establish build inputs, not an all-platform performance guarantee.
+
+New C dependencies or compiler versions must preserve known-answer vectors,
+strict key validation, implicit rejection, ABI and owner lifetime behavior, and
+the existing constant-time checks. Compare the actual installed C path with the
+retained baseline on each qualified architecture before claiming a speedup;
+record tail latency, allocation and concurrency effects as applicable. The
+unpublished Continuity C client has its own installed-package execution scope
+and cannot extend the product ABI 2 support matrix merely by compiling.
+
 ## JVM executable selection after Gradle provisioning
 
 The selected JDK must remain first on `PATH` after `setup-gradle`. The pinned

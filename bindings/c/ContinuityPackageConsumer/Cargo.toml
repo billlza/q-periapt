@@ -1,0 +1,53 @@
+[package]
+name = "q-periapt-continuity-c-consumer"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+license = "Apache-2.0 OR MIT"
+
+# Unpublished installed-package consumer, outside the product ABI 2 graph.
+[workspace]
+
+[lib]
+name = "q_periapt_continuity_c_consumer"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["connection-tls", "control-tls"]
+connection-tls = ["q-periapt-continuity-identity-candidate/connection-tls"]
+control-tls = ["q-periapt-continuity-identity-candidate/control-tls"]
+
+[dependencies]
+q-periapt-continuity-identity-candidate = { version = "=0.0.0", features = ["connection-tls", "control-tls"] }
+q-periapt-host-store = "=0.2.0"
+q-periapt-sdk = { version = "=0.2.0", features = ["sealed-operations"] }
+q-periapt-rustls = { version = "=0.2.0", features = ["reference-connection"] }
+zeroize = "1"
+
+[dev-dependencies]
+q-periapt-backends = "=0.2.0"
+q-periapt-policy = "=0.2.0"
+q-periapt-sig = "=0.2.0"
+getrandom = "0.4"
+rcgen = "=0.14.10"
+tempfile = "=3.27.0"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+indexing_slicing = "deny"
+panic = "deny"
+unwrap_used = "deny"
+
+[profile.dev.package."*"]
+opt-level = 3
+debug-assertions = true
+overflow-checks = true
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true

@@ -196,6 +196,17 @@ Rust archive-consumption boundary, not the product protocol freeze or the foreig
 language adapters. Same-run Linux CI and the remaining platform gates require
 their own completed results.
 
+An isolated [C owner consumer](../../bindings/c/ContinuityPackageConsumer/README.md)
+now delegates client bootstrap, message/status, cancellation and rekey to that
+same installed engine. It retains original local-profile installations, distinct
+SDK/storage/transport errors, finite call/owner budgets and close/cancel drain
+availability. The collector's C phase uses an installed sibling library and the
+archive-shipped Rust peer, with independent application readback. Its unpublished
+`qpc-owner/1` surface is separate from ABI 2. Required-witness adapters, C receive
+and cleanup/recovery interfaces, remaining languages, product integration and
+cross-host/device execution remain required. See the exact executed platform and
+profile in the [readiness ledger](../SDK_0_2_RELEASE_READINESS.md).
+
 ## Required completion evidence
 
 The current candidate's consolidated [wire grammar](WIRE_V1.md) and

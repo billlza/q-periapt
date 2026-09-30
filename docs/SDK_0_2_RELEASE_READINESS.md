@@ -72,10 +72,54 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 236 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 239 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The unpublished [Continuity C owner consumer](../bindings/c/ContinuityPackageConsumer/README.md)
+now executes against the same installed engine and nine SDK archives. Its
+`qpc-owner/1` client surface keeps original protected installation/policy/signing
+owners, typed errors, 64 owner/call bounds and concurrent cancellation. It adds
+no raw private-key getter, parallel protocol implementation or product ABI 2
+exports. Required-witness C admission, receive callbacks, cleanup/recovery APIs,
+the remaining language adapters and product integration remain open.
+
+The clean macOS arm64 qualification snapshot `368a4295` completes in 503.246
+seconds. Both Debug and Release execute the original two Rust tests, the actual
+C client trace and the call-admission unit. C covers TLS bootstrap, original-ID
+delivery recovery after receiver fsync/exit, target-1 rekey, cancellation before
+reservation and after TLS dispatch, Busy close, original-installation reopen,
+exact resend and durable SDK revocation. Separate file readback checks application
+bytes across the rekey; the collector checks all 28 C command logs per profile,
+exact exports, installed sibling-library loading, archive origins and unchanged
+source/lock/binary identities. These durations are functional execution records,
+not controlled performance measurements.
+
+Strict consumer Clippy and formatting pass. Rust 1.90 also passes all-target
+Clippy and the real call-admission unit; this does not substitute for an MSRV
+network/package run. The 106 related source/package/inventory tests pass, and the
+source gate retains `release_claim_eligible=false`. Development failures remain
+recorded: build-tree dylib lookup, an inherited nonblocking test socket, an SDK
+policy denial collapsed into configuration error, and direct Clang missing its
+SDK root. The fixes select installed sibling lookup, bounded blocking observation,
+typed denial and an explicit macOS SDK; no failure assertion is relaxed.
+
+For the preceding `e00281e` head, the installed Linux x86_64 Debug/Release reports
+also complete with the same macOS archive SHA-256
+`5e41e4ffe057ddc9521aef8f77b5cea6c8755a433e09bdbc9c493d01d9de10a0`.
+Its push CI ends with 41 of 43 jobs successful, PR CI with 40 of 43; CodeQL passes
+all six jobs. Three candidate jobs hit the explicit 40-minute deadline, with one
+canonical Debug suite taking 2,059.56 seconds. The job budget is now 90 minutes
+with all tests unchanged; new-head completion remains required. The PR Swift
+consumer and packaging checks pass before artifact upload fails with ENOTFOUND.
+The push Android 16-KiB run fails its initial cleanup observation after a system
+service restart; the final trap observes three absent states and retires the
+failed receipt. That later cleanup does not erase the failed runtime result.
+Default actionlint still reports the identical pre-existing ubuntu-26.04 label
+diagnostic. No current-head full-CI, cross-host, independent-implementation,
+device, controlled-performance or release-completion claim follows from this
+local C checkpoint.
 
 The Continuity [wire grammar](continuity/WIRE_V1.md) and
 [resource descriptor](continuity/BUDGETS_V1.json) now describe the implemented

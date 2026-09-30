@@ -5252,7 +5252,7 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("continue-on-error:", audit_job)
         self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture', identity_job)
         self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture', identity_job)
-        self.assertIn("    timeout-minutes: 40\n", identity_job)
+        self.assertIn("    timeout-minutes: 90\n", identity_job)
 
     def test_ci_uses_warning_denied_audit_without_suppression(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")

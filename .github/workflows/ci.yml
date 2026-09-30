@@ -1768,7 +1768,7 @@ jobs:
         with:
           name: rust-sdk-package
           path: target/continuity-sdk-input
-      - name: Execute installed Continuity connection and recovery
+      - name: Execute installed Rust and C Continuity connections and recovery
         env:
           QPERIAPT_PYTHON: ${{ steps.continuity_python.outputs.python-path }}
         run: |
@@ -1777,6 +1777,7 @@ jobs:
           sh artifact/python-run.sh artifact/continuity_package.py \
             --report "$report" --report-sha256 "$report_sha256" \
             --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --with-c-consumer \
             --output target/continuity-installed-rust
       - name: Retain package and public execution evidence without private test state
         if: always()
@@ -1789,14 +1790,16 @@ jobs:
             target/continuity-installed-rust/*.stdout
             target/continuity-installed-rust/*.stderr
             target/continuity-installed-rust/consumer-Cargo.lock
+            target/continuity-installed-rust/c-consumer-Cargo.lock
           if-no-files-found: error
 
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
-    # The Linux MSRV debug suite alone took 1,251 s for 246 tests. Keep the
-    # complete Debug/Release, compiler, SDK and documentation checks within one bounded job.
-    timeout-minutes: 40
+    # At e00281e the canonical Linux Debug suite took 2,059.56 s for 281 tests;
+    # both MSRV jobs and one canonical job reached the 40-minute deadline.
+    # Budget the complete Debug/Release, compiler, SDK and documentation checks.
+    timeout-minutes: 90
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
     strategy:

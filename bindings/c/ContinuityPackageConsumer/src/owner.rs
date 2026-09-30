@@ -1,0 +1,237 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Original protected installation opened with independently retained public pins.
+//! This consumer configuration does not provision or infer trust from a bundle.
+use crate::{Failure, Result};
+use p::connection_transport::{Actor, Cancellation, ConnectionEndpoint, Run, RunLimits};
+use q_periapt_continuity_identity_candidate as p;
+use q_periapt_host_store::{filesystem::OwnedPrivateDirectory, PolicyStore};
+use q_periapt_rustls::connection::{Credentials, Limits};
+use std::{
+    io::{self, Read},
+    net::SocketAddr,
+    path::Path,
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
+use zeroize::Zeroizing;
+
+pub(crate) fn now() -> io::Result<u64> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_secs())
+}
+fn read(directory: &OwnedPrivateDirectory, name: &str, maximum: usize) -> Result<Vec<u8>> {
+    let file = directory
+        .open_config_file(name, maximum)
+        .map_err(Failure::configuration)?;
+    let mut bytes = Vec::new();
+    file.take(u64::try_from(maximum).map_err(Failure::configuration)? + 1)
+        .read_to_end(&mut bytes)
+        .map_err(Failure::configuration)?;
+    if bytes.is_empty() || bytes.len() > maximum {
+        return Err(Failure::argument());
+    }
+    Ok(bytes)
+}
+fn array<const N: usize>(directory: &OwnedPrivateDirectory, name: &str) -> Result<[u8; N]> {
+    read(directory, name, N)?
+        .try_into()
+        .map_err(|_| Failure::argument())
+}
+fn account(
+    directory: &OwnedPrivateDirectory,
+    label: &str,
+    family: [u8; 32],
+) -> Result<p::AccountPin> {
+    Ok(p::AccountPin::new(
+        array(directory, &format!("{label}-account"))?,
+        p::PublicKey::decode(&read(directory, &format!("{label}-root"), 8192)?)?,
+        p::RosterCheckpoint::from_trusted_state(
+            u64::from_be_bytes(array(directory, &format!("{label}-roster-version"))?),
+            array(directory, &format!("{label}-roster-digest"))?,
+        )?,
+        family,
+    )?)
+}
+
+/// One original local installation, never a reconstructed policy permission.
+pub(crate) struct Owner {
+    pub(crate) service: p::DeviceService,
+    pub(crate) signer: p::DeviceSigningKey,
+    pub(crate) context: Arc<p::BootstrapContext>,
+    policy_store: PolicyStore,
+    certificate: Vec<u8>,
+    tls_key: Zeroizing<Vec<u8>>,
+    peer_certificate: Vec<u8>,
+    pub(crate) peer_name: String,
+}
+impl Owner {
+    pub(crate) fn open(path: &Path, quality: p::PrekeyQuality) -> Result<Self> {
+        let paths = p::InstallationPaths::new(
+            &path.join("installation.redb"),
+            &path.join("journal.redb"),
+            &path.join("archives.redb"),
+        )?;
+        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+        let policy_store = PolicyStore::open_configured(
+            &path.join("sdk.redb"),
+            &read(&directory, "sdk-policy", 4096)?,
+            &read(&directory, "sdk-signature", 8192)?,
+            &read(&directory, "sdk-root", 8192)?,
+            q_periapt_sdk::Limits::default(),
+        )?;
+        let family = array(&directory, "family")?;
+        let pin = p::PolicyPin::new(
+            family,
+            p::PublicKey::decode(&read(&directory, "policy-root", 8192)?)?,
+            p::PolicyCheckpoint::from_trusted_state(
+                u64::from_be_bytes(array(&directory, "policy-version")?),
+                array(&directory, "policy-digest")?,
+            )?,
+        )?;
+        let policy = Arc::new(pin.verify(
+            &read(&directory, "protocol-policy", 8192)?,
+            policy_store.runtime()?,
+            now().map_err(Failure::configuration)?,
+        )?);
+        let initiator = account(&directory, "initiator", family)?;
+        let responder = account(&directory, "responder", family)?;
+        let context = Arc::new(
+            p::BootstrapBundle::from_bytes(&read(
+                &directory,
+                "bootstrap.bundle",
+                p::MAX_BOOTSTRAP_BUNDLE_BYTES,
+            )?)?
+            .verify(
+                policy,
+                p::BootstrapRequirements {
+                    initiator: p::ExpectedDevice::new(
+                        &initiator,
+                        array(&directory, "initiator-device")?,
+                        u64::from_be_bytes(array(&directory, "initiator-generation")?),
+                    )?,
+                    responder: p::ExpectedDevice::new(
+                        &responder,
+                        array(&directory, "responder-device")?,
+                        u64::from_be_bytes(array(&directory, "responder-generation")?),
+                    )?,
+                    quality,
+                    directory: p::DirectoryExpectation::from_trusted_state(array(
+                        &directory,
+                        "directory",
+                    )?)?,
+                },
+                now().map_err(Failure::configuration)?,
+            )?,
+        );
+        let role = match array(&directory, "role")? {
+            [1] => p::BootstrapRole::Initiator,
+            [2] => p::BootstrapRole::Responder,
+            _ => return Err(Failure::argument()),
+        };
+        let key = p::JournalKey::open(&path.join("wrap.key"))?;
+        let signer = p::DeviceSigningKey::open(
+            &path.join("signer.key"),
+            &key,
+            p::SigningKeyId::from_trusted_state(array(&directory, "signer-id")?)?,
+        )?;
+        let device = context.device(role);
+        let installation = p::DeviceInstallation::open(
+            paths,
+            &key,
+            device,
+            context.policy(),
+            now().map_err(Failure::configuration)?,
+        )?;
+        // This initial consumer exposes only local-profile installation. Required
+        // protection is refused by activate; it can never fall back to local mode.
+        let service = installation.activate(
+            key,
+            device,
+            context.policy(),
+            now().map_err(Failure::configuration)?,
+            None,
+        )?;
+        let owner = Self {
+            service,
+            signer,
+            context,
+            policy_store,
+            certificate: read(&directory, "tls-cert", 8192)?,
+            tls_key: Zeroizing::new(read(&directory, "tls-key", 8192)?),
+            peer_certificate: read(&directory, "tls-peer", 8192)?,
+            peer_name: String::from_utf8(read(&directory, "tls-peer-name", 128)?)
+                .map_err(Failure::configuration)?,
+        };
+        // Validate certificate/key/pin configuration before returning a handle.
+        owner.endpoint()?;
+        Ok(owner)
+    }
+    fn credentials(&self) -> Credentials<'_> {
+        Credentials {
+            certificate: &self.certificate,
+            private_key: &self.tls_key,
+            peer_certificate: &self.peer_certificate,
+        }
+    }
+    fn tls_limits() -> Limits {
+        Limits {
+            max_connections: 1,
+            handshake_ms: 10_000,
+            request_ms: 10_000,
+            idle_ms: 10_000,
+        }
+    }
+    pub(crate) fn endpoint(&self) -> Result<ConnectionEndpoint> {
+        Ok(ConnectionEndpoint::client(
+            &self.context,
+            self.credentials(),
+            Self::tls_limits(),
+        )?)
+    }
+    pub(crate) fn control(
+        &self,
+        session: [u8; 32],
+    ) -> Result<p::control_transport::ControlEndpoint> {
+        Ok(p::control_transport::ControlEndpoint::client(
+            &self.context,
+            session,
+            self.credentials(),
+            Self::tls_limits(),
+        )?)
+    }
+    pub(crate) fn actor(&mut self) -> Result<Actor<'_>> {
+        let (journal, archives) = self.service.stores()?;
+        Ok(Actor {
+            journal,
+            archives,
+            context: &self.context,
+            signer: &self.signer,
+        })
+    }
+    pub(crate) fn close(&mut self) {
+        self.service.close();
+        self.signer.close();
+        self.context.policy().close();
+        self.policy_store.close();
+    }
+}
+impl Drop for Owner {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
+pub(crate) fn run<'a>(address: SocketAddr, name: &'a str, cancel: &'a Cancellation) -> Run<'a> {
+    Run {
+        address,
+        server_name: name,
+        cancel,
+        limits: RunLimits {
+            exchanges: 8,
+            timeout: Duration::from_secs(20),
+            connect_timeout: Duration::from_secs(1),
+        },
+    }
+}

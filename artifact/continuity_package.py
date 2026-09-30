@@ -31,8 +31,9 @@ TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_recon
 def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
-        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/rust_sdk_msrv.py",
+        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/rust_sdk_msrv.py",
         "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
+    files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     for path in files:
         sdk.require(not path.is_symlink(), "candidate source contains a symlink")
         if path.is_file():
@@ -63,7 +64,8 @@ def validate_candidate(data: bytes, expected_files: set[str]) -> dict[str, bytes
     return files
 
 
-def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: bytes) -> dict:
+def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: bytes,
+                      *, consumer_name: str = CONSUMER) -> dict:
     candidate = [row for row in metadata["packages"] if row["name"] == NAME]
     sdk.require(len(candidate) == 1, "consumer must resolve one candidate engine")
     row = candidate[0]
@@ -76,7 +78,7 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
             sdk.require(package["source"] == "registry+https://github.com/rust-lang/crates.io-index",
                         "consumer resolved a non-registry external dependency")
     filtered = dict(metadata, packages=[p for p in metadata["packages"] if p["name"] != NAME])
-    result = sdk.verify_consumer_resolution(filtered, consumer, lock, original, consumer_name=CONSUMER)
+    result = sdk.verify_consumer_resolution(filtered, consumer, lock, original, consumer_name=consumer_name)
     nodes = metadata["resolve"]["nodes"]
     selected = [n for n in nodes if n["id"] == row["id"]]
     sdk.require(len(selected) == 1 and {"connection-tls", "control-tls"} <= set(selected[0]["features"]),
@@ -177,6 +179,7 @@ def qualify(args: argparse.Namespace) -> dict:
               "candidate_version": VERSION, "source_commit": commit, "source_inputs": before,
               "rust_report_sha256": pinned.sha256, "host_os": os.uname().sysname,
               "host_arch": os.uname().machine, "tool_binaries": tools,
+              "requested_consumers": ["Rust", "C"] if args.with_c_consumer else ["Rust"],
               "release_claim_eligible": False, "publication_performed": False,
               "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification"}
     try:
@@ -274,6 +277,12 @@ def qualify(args: argparse.Namespace) -> dict:
                                                        "bytes": binary.size}
         run([*cargo, "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
             "consumer-clippy", consumer)
+        if args.with_c_consumer:
+            from continuity_c_consumer import qualify_c
+            result["c_consumer"] = qualify_c(outside, output, cargo, environment, files,
+                                              original, args.report.parent, cohort["crates"])
+            result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
+                               "and local-profile C client; no other foreign bindings or cross-host qualification")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -298,9 +307,11 @@ def main() -> None:
     for name in ("output", "report", "toolchain-root"):
         parser.add_argument("--" + name, required=True, type=Path)
     parser.add_argument("--report-sha256", required=True)
+    parser.add_argument("--with-c-consumer", action="store_true",
+                        help="also execute the unpublished C client against installed Rust peers")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
-                                                  "release_claim_eligible")}, indent=2))
+                                                  "c_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 
 if __name__ == "__main__":
