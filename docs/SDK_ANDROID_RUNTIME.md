@@ -155,6 +155,17 @@ status. Its error is retained separately; it neither restarts the application
 nor changes the primary failure or cleanup rules. Physical-device runs cannot
 invoke this operation. CI retains both output and diagnostics.
 
+The `8067cd97` 16 KiB PR run recorded `LOW_MEMORY` with status 9 for the exact
+failed SDK process, while the preceding full workload passed. This identifies
+the recorded termination class, not its cause within the memory system: before
+and after snapshots still report about 1.5 GB available and do not capture a
+transient peak. The collector now retains the `lowmemorykiller` tag used by
+[Android 15 lmkd](https://android.googlesource.com/platform/system/memory/lmkd/+/refs/heads/android15-release/lmkd.cpp)
+as well as `lmkd`. Its kill records include process, adjustment score, released
+RSS/swap and the pressure reason when available. This corrects a missing diagnostic
+tag without changing guest RAM, workload, retry budgets or acceptance. A passing
+rerun alone does not resolve the retained low-memory failure.
+
 When the existing one-shot transport recovery observes the same owned emulator
 back in `device` state, it now immediately attempts `emulator-state-recovery.txt`
 and `emulator-recovery-logcat.txt` before another APK ownership read. Each capture

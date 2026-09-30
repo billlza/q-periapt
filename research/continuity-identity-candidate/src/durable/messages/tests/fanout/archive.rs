@@ -273,6 +273,117 @@ fn archived_fanout_restart_closes_and_retires_the_whole_reserved_batch() {
 }
 
 #[test]
+fn archived_fanout_catalogue_restores_frozen_and_terminal_members_without_split_authority() {
+    for acknowledged in [false, true] {
+        let mut n = Network::new(4, false);
+        let mut index = retain(&mut n);
+        let id = reserve(&mut n);
+        let session = *n.sessions.first().expect("member");
+        let backup = index.get(session).expect("independent original archive");
+        for context in &n.f.contexts {
+            context.policy().close();
+        }
+        n.sender.close();
+        let mut owner = open(&n.sender_path, id, &mut index).expect("complete original membership");
+        let report = owner.begin().expect("freeze whole batch");
+        if acknowledged {
+            abandonment::account(&n.sender_path, &report);
+            owner
+                .acknowledge(report.report)
+                .expect("complete host accounting");
+        }
+        owner.close();
+        index.close();
+        let before = observe(&n.sender_path, bootstrap::storage_owner(&n.f.local));
+        crate::session_archives::tests::rewrite_archive(
+            &n.sender_path.join("archives.redb"),
+            session,
+            None,
+        );
+        index = self::index(&n.sender_path);
+        assert!(matches!(
+            open(&n.sender_path, id, &mut index),
+            Err(DurableError::ArchiveRequired)
+        ));
+        assert_eq!(
+            observe(&n.sender_path, bootstrap::storage_owner(&n.f.local)),
+            before
+        );
+        let mut single = SessionClosureJournal::open(
+            &n.sender_path.join("state.redb"),
+            JournalKey::open(&n.sender_path.join("key")).expect("original key"),
+            identity(&n.sender_path),
+            &backup,
+        )
+        .expect("exact original member admitted for metadata recovery");
+        assert!(matches!(single.begin(), Err(DurableError::Suspended)));
+        index
+            .restore(&mut single)
+            .expect("original metadata must remain recoverable after aggregate freeze");
+        index.restore(&mut single).expect("same bytes idempotent");
+        assert_eq!(
+            index.get(session).expect("original row").as_bytes(),
+            backup.as_bytes()
+        );
+        let wrong_kind = crate::SessionClosureId::from_trusted_state(*report.report.as_bytes())
+            .expect("same bytes cannot change report kind");
+        assert!(matches!(
+            index.retire_closed(&mut single, wrong_kind),
+            Err(DurableError::Suspended)
+        ));
+        assert!(matches!(
+            single.acknowledge(wrong_kind),
+            Err(DurableError::Conflict)
+        ));
+        single.close();
+        assert_eq!(
+            observe(&n.sender_path, bootstrap::storage_owner(&n.f.local)),
+            before
+        );
+        let mut whole =
+            open(&n.sender_path, id, &mut index).expect("all original members restored");
+        assert_eq!(
+            whole.status().expect("unchanged disposition"),
+            if acknowledged {
+                FanoutStatus::Abandoned(report.report)
+            } else {
+                FanoutStatus::Abandoning(report.report)
+            }
+        );
+        if !acknowledged {
+            abandonment::account(&n.sender_path, &report);
+        }
+        whole
+            .acknowledge(report.report)
+            .expect("same whole-batch report");
+        whole
+            .retire_metadata()
+            .expect("original aggregate metadata");
+        assert_eq!(whole.status().expect("terminal ID"), FanoutStatus::Retired);
+        whole.close();
+        n.sender = reopen(&n.sender_path, &n.f.local);
+        let image = n.sender.image().expect("all terminal records retained");
+        for member in &n.sessions {
+            let record = image
+                .records
+                .get(&record_id(member))
+                .expect("terminal member");
+            assert_eq!(record.phase, DurableStatus::MessagesAbandoned);
+            assert_eq!(
+                Retired::decode(&record.payload)
+                    .expect("keyless member")
+                    .batch,
+                Some(id)
+            );
+        }
+        eprintln!(
+            "AGGREGATE_CATALOGUE_RECOVERY acknowledged={acknowledged} original_members={}",
+            n.sessions.len()
+        );
+    }
+}
+
+#[test]
 fn archived_fanout_requires_every_original_archive_before_recovery_writes() {
     let mut n = Network::new(4, false);
     let mut index = retain(&mut n);

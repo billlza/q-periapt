@@ -126,6 +126,23 @@ constructing policy/device/context objects; independent journal readback preserv
 the exact terminal digest and unknown-delivery disposition. Installed SDK service
 initialization, aggregate history retirement and device/root lifecycle remain open.
 
+### Aggregate members after freezing or acknowledgement
+
+Exact original metadata can also be restored while its member is
+`MessagesAbandoning` or `MessagesAbandoned`. An observed regression in `5d81c340`
+opened the correct member from its authenticated backup, but restoration returned
+`Suspended` because it unnecessarily requested independent-session closure status.
+The whole-batch owner then remained blocked by the missing index row.
+
+Restoration now requires the original scope and fresh witness release check without
+requiring an independent closure disposition. This changes no private journal
+state. Individual freeze/acknowledgement and `retire_closed` still reject those
+aggregate phases; only the complete original batch and its host accounting report
+can advance aggregate cleanup. Tests restore a lost row after both freezing and
+acknowledgement, preserve the exact journal digest, and then complete original
+whole-batch retirement. Present/absent rows retain every before/after witness-failure
+boundary. This does not add aggregate index retirement or new session authority.
+
 ## Reference recovery and qualification
 
 The actual native reference path now bootstraps, performs three network rekeys,

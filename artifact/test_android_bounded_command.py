@@ -31,7 +31,7 @@ from android_emulator_control import (
     OwnedUnixListenerDialect,
     OwnedUnixListenerObservation,
 )
-from bounded_process import BoundedResult
+from bounded_process import BoundedProcessError, BoundedResult, capture_output
 from process_identity import ProcessExecutionSnapshot
 from process_identity import parse_token as parse_process_identity_token
 
@@ -103,6 +103,15 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    @staticmethod
+    def run_guest_fixture(argv: list[str], environment: dict[str, str]) -> BoundedResult:
+        # Guest programs spawn native-command fixtures. A timeout must end the
+        # entire owned group before tearDown removes their writable directory.
+        return capture_output(
+            argv, timeout_seconds=5, maximum_stdout_bytes=65536,
+            maximum_stderr_bytes=65536, environment=environment,
+        )
 
     def test_shared_adb_profile_policy_rejects_non_text_and_unknown_values(
         self,
@@ -1581,11 +1590,9 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
         def legacy_shell(argv: tuple[str, ...], **kwargs: object) -> BoundedResult:
             program = " ".join(argv[argv.index("shell") + 1:])
-            guest = subprocess.run(
+            guest = self.run_guest_fixture(
                 ["/bin/sh", "-c", program],
-                env={"PATH": str(directory) + ":/usr/bin:/bin"},
-                stdin=subprocess.DEVNULL, capture_output=True, timeout=5,
-                check=False,
+                {"PATH": str(directory) + ":/usr/bin:/bin"},
             )
             exits.append(guest.returncode)
             return BoundedResult(0, guest.stdout + guest.stderr)
@@ -4047,14 +4054,15 @@ esac
         environment = {"PATH": str(guest_bin) + ":/usr/bin:/bin", "BOOT_VALUE": "1", "BOOT_STATUS": "0",
                        "DECRYPT_VALUE": "trigger_restart_min_framework", "DECRYPT_STATUS": "0"}
         # Reproduce the old admission condition while encryption is still active.
-        old = subprocess.run([str(getprop), "sys.boot_completed"], env=environment,
-                             capture_output=True, timeout=5, check=True)
+        old = self.run_guest_fixture([str(getprop), "sys.boot_completed"], environment)
+        self.assertEqual(old.returncode, 0, old.stderr)
         self.assertEqual(old.stdout, b"1\n")
         for decrypt in ("trigger_restart_min_framework", "trigger_encryption", "trigger_default_encryption",
                         "trigger_reset_main", "trigger_load_persist_props", "trigger_post_fs_data",
                         "trigger_shutdown_framework", "unexpected_state", "trigger_restart_framework", ""):
-            raw = subprocess.run(["/bin/sh", "-c", program], capture_output=True, timeout=5,
-                                 env=dict(environment, DECRYPT_VALUE=decrypt), check=True)
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program],
+                                         dict(environment, DECRYPT_VALUE=decrypt))
+            self.assertEqual(raw.returncode, 0, raw.stderr)
             with self.subTest(decrypt=decrypt), mock.patch.object(commands, "capture_stdout",
                     return_value=BoundedResult(0, raw.stdout)) as capture:
                 result = self.invoke(commands.AndroidOperation.BOOT_COMPLETED)
@@ -4062,12 +4070,13 @@ esac
             self.assertEqual(capture.call_args.args[0], argv)
             self.assertEqual(capture.call_args.kwargs["timeout_seconds"], 15)
         for boot in ("", "0"):
-            raw = subprocess.run(["/bin/sh", "-c", program], capture_output=True, timeout=5,
-                                 env=dict(environment, BOOT_VALUE=boot, DECRYPT_VALUE="trigger_restart_framework"), check=True)
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program],
+                                         dict(environment, BOOT_VALUE=boot, DECRYPT_VALUE="trigger_restart_framework"))
+            self.assertEqual(raw.returncode, 0, raw.stderr)
             self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw.stdout), self.run_id), BoundedResult(0, b"0\n"))
         for boot_status, decrypt_status, expected in ((7, 9, 7), (0, 9, 9)):
-            raw = subprocess.run(["/bin/sh", "-c", program], capture_output=True, timeout=5,
-                                 env=dict(environment, BOOT_STATUS=str(boot_status), DECRYPT_STATUS=str(decrypt_status)))
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program],
+                                         dict(environment, BOOT_STATUS=str(boot_status), DECRYPT_STATUS=str(decrypt_status)))
             self.assertEqual(raw.returncode, expected)
             # Legacy adb reports host success; the framed guest failure survives.
             self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw.stdout), self.run_id), BoundedResult(expected))
@@ -4121,9 +4130,9 @@ esac
         spec = commands.OPERATION_SPECS[commands.AndroidOperation.DEVICE_TIME_CALENDAR]
         argv = spec.build_argv(self.load_capability())
         shell_command = " ".join(argv[argv.index("shell") + 1:])
-        result = subprocess.run(
-            ["/bin/sh", "-c", shell_command], capture_output=True, timeout=5,
-            env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
+        result = self.run_guest_fixture(
+            ["/bin/sh", "-c", shell_command],
+            {"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, b"")
@@ -4229,7 +4238,7 @@ esac
                         "dalvikvm:E", "debuggerd:E", "Watchdog:*",
                         "ActivityManager:I", "SystemServer:E", "PackageManager:E",
                         "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
-                        "Zygote:E", "lmkd:*",
+                        "Zygote:E", "lmkd:*", "lowmemorykiller:*",
                         "libc:F", "DEBUG:*",
                         "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",
                     ))
@@ -4261,9 +4270,9 @@ esac
         program = " ".join(argv[argv.index("shell") + 1:])
         for df_status, ps_status, expected in ((0, 0, 0), (7, 9, 7)):
             calls.write_text("")
-            result = subprocess.run(
-                ["/bin/sh", "-c", program], capture_output=True, timeout=5,
-                env={"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+            result = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
                      "QPERIAPT_TEST_DF_STATUS": str(df_status), "QPERIAPT_TEST_PS_STATUS": str(ps_status)},
             )
             self.assertEqual(result.returncode, expected, result.stderr)
@@ -4293,9 +4302,9 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
         argv = commands._emulator_app_exit_info_argv(self.load_capability())
         program = " ".join(argv[argv.index("shell") + 1:])
         for status in (0, 7):
-            result = subprocess.run(
-                ["/bin/sh", "-c", program], capture_output=True, timeout=5,
-                env={"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+            result = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
                      "QPERIAPT_TEST_DUMP_STATUS": str(status)},
             )
             self.assertEqual(result.returncode, status, result.stderr)
@@ -4303,6 +4312,47 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
             self.assertEqual(remote_status, status)
             self.assertEqual(body, b"native exit history fixture\n")
             self.assertEqual(calls.read_text().splitlines(), ["activity", "exit-info", commands.PACKAGE])
+
+    def test_guest_state_timeout_closes_descendants_before_directory_cleanup(self) -> None:
+        guest_bin = self.root / "blocked-state-bin"
+        guest_bin.mkdir()
+        gate = self.root / "state-gate"
+        os.mkfifo(gate, 0o600)
+        ready = self.root / "state-probe-ready"
+        for name in ("cat", "df", "getprop", "ps"):
+            path = guest_bin / name
+            path.write_text('#!/bin/sh\nif [ "${0##*/}" = df ]; then\n'
+                            'printf ready > "$QPERIAPT_TEST_READY"\n'
+                            'read -r release < "$QPERIAPT_TEST_GATE"\nfi\nexit 0\n')
+            path.chmod(0o700)
+        argv = commands._emulator_state_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        try:
+            with self.assertRaises(BoundedProcessError) as raised:
+                self.run_guest_fixture(
+                    ["/bin/sh", "-c", program],
+                    {"PATH": str(guest_bin) + ":/usr/bin:/bin",
+                     "QPERIAPT_TEST_READY": str(ready), "QPERIAPT_TEST_GATE": str(gate)},
+                )
+            self.assertEqual(raised.exception.kind, "timeout")
+            self.assertFalse(raised.exception.cleanup_ambiguous)
+            self.assertEqual(ready.read_text(), "ready")
+        finally:
+            # Release a surviving fixture even when a regression makes the
+            # assertion fail; never leave it writing into the next test.
+            try:
+                descriptor = os.open(gate, os.O_WRONLY | os.O_NONBLOCK)
+            except OSError as exc:
+                if exc.errno != errno.ENXIO:
+                    raise
+                survived = False
+            else:
+                survived = True
+                try:
+                    os.write(descriptor, b"release\n")
+                finally:
+                    os.close(descriptor)
+        self.assertFalse(survived, "guest descendant survived the timeout")
 
     def test_emulator_state_capture_requires_completion_and_keeps_distinct_files(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()

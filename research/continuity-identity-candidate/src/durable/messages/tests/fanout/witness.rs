@@ -384,6 +384,102 @@ fn prepare_indexed(stage: u8, cut: usize) -> (Anchored, FanoutId, Option<FanoutA
     };
     (c, id, report)
 }
+
+#[test]
+fn archived_aggregate_catalogue_restore_keeps_every_original_witness_boundary() {
+    let (_, _, reserved_cut) = discover_reserved();
+    for stage in [1, 2] {
+        let (c, id, report) = prepare_indexed(stage, reserved_cut);
+        let (mut index, mut whole) = indexed_cleanup(&c, id).expect("complete original set");
+        let path = &c.network.sender_path;
+        let session = *c.network.sessions.first().expect("member");
+        let backup = index.get(session).expect("independently retained original");
+        let identity = crate::durable::tests::identity(path);
+        whole.close();
+        let open_member = || {
+            crate::SessionClosureJournal::open_anchored(
+                &path.join("state.redb"),
+                JournalKey::open(&path.join("key")).expect("original key"),
+                identity,
+                &backup,
+                client(&c.pin, &c.witness, &c.network.f.local),
+            )
+            .expect("original witness and original scope")
+        };
+        let mut member = open_member();
+        let before = c.witness.lock().expect("witness").calls;
+        index
+            .restore(&mut member)
+            .expect("aggregate metadata can be restored");
+        let calls = c.witness.lock().expect("witness").calls - before;
+        assert!(
+            (2..=8).contains(&calls),
+            "both admission and release require current evidence"
+        );
+        for present in [false, true] {
+            for at in 1..=calls {
+                for after in [false, true] {
+                    index.restore(&mut member).expect("reset exact metadata");
+                    if !present {
+                        index.close();
+                        crate::session_archives::tests::rewrite_archive(
+                            &path.join("archives.redb"),
+                            session,
+                            None,
+                        );
+                        index =
+                            crate::SessionArchiveStore::open(&path.join("archives.redb"), identity)
+                                .expect("retained index");
+                    }
+                    let ids = index.session_ids().expect("actual index before fault");
+                    {
+                        let mut w = c.witness.lock().expect("witness");
+                        w.fail = Some((w.calls + at, after));
+                    }
+                    assert!(
+                        matches!(index.restore(&mut member), Err(DurableError::Anchor(_))),
+                        "stage={stage} present={present} at={at} after={after}"
+                    );
+                    assert_eq!(index.session_ids().expect("no metadata mutation"), ids);
+                    assert!(matches!(member.status(), Err(DurableError::Closed)));
+                    c.witness.lock().expect("witness").fail = None;
+                    member = open_member();
+                }
+            }
+        }
+        index
+            .restore(&mut member)
+            .expect("same original after network recovery");
+        assert_eq!(
+            index.get(session).expect("original bytes").as_bytes(),
+            backup.as_bytes()
+        );
+        assert!(matches!(member.begin(), Err(DurableError::Suspended)));
+        member.close();
+        index.close();
+        let (_index, mut whole) =
+            indexed_cleanup(&c, id).expect("only complete aggregate owns cleanup");
+        let report = report.expect("original host report");
+        assert_eq!(
+            whole.status().expect("phase unchanged"),
+            if stage == 1 {
+                FanoutStatus::Abandoning(report)
+            } else {
+                FanoutStatus::Abandoned(report)
+            }
+        );
+        whole
+            .acknowledge(report)
+            .expect("full original accounting already retained");
+        whole
+            .retire_metadata()
+            .expect("complete original aggregate");
+        eprintln!(
+            "AGGREGATE_CATALOGUE_WITNESS stage={stage} calls={calls} before_after_losses={}",
+            calls * 4
+        );
+    }
+}
 fn indexed_transition(
     c: &Anchored,
     id: FanoutId,

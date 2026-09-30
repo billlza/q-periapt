@@ -245,13 +245,18 @@ impl SessionClosureJournal {
         self.scope.check(&image)?;
         // This checks the original witness again even for an already closed
         // session or an eventual absent index row. No cached disposition is enough.
-        let status = self.journal.closure_status(image, &self.scope.binding)?;
         if let Some(expected) = terminal {
+            let status = self.journal.closure_status(image, &self.scope.binding)?;
             match status {
                 SessionClosureStatus::Closed(actual) if actual == expected => {}
                 SessionClosureStatus::Closed(_) => return Err(DurableError::Conflict),
                 _ => return Err(DurableError::Suspended),
             }
+        } else {
+            // Public metadata is also needed to resume whole-batch cleanup after
+            // a member becomes Abandoning/Abandoned. Its original binding and
+            // fresh witness head suffice; independent closure remains forbidden.
+            self.journal.check_release(&image)?;
         }
         let active = self.journal.active.as_ref().ok_or(DurableError::Closed)?;
         Ok((self.scope.binding.session, self.scope.archive(&active.key)?))

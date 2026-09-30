@@ -4279,7 +4279,7 @@ def _capture_emulator_diagnostics(
         "AndroidRuntime:E", "art:W", "dalvikvm:E", "debuggerd:E",
         "Watchdog:*", "ActivityManager:I", "SystemServer:E",
         "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
-        "Zygote:E", "lmkd:*", "libc:F", "DEBUG:*",
+        "Zygote:E", "lmkd:*", "lowmemorykiller:*", "libc:F", "DEBUG:*",
         # An offline transport need not restart the guest or its adbd process.
         # Keep daemon/service evidence within the same owned-emulator/time bound.
         "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",

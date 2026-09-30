@@ -77,6 +77,53 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+An observed aggregate-recovery counterexample is repaired: an authenticated
+member backup could open its cleanup owner after whole-batch freezing or
+acknowledgement, but catalogue restoration returned `Suspended`, leaving the
+whole batch blocked by `ArchiveRequired`. Exact restoration now checks original
+scope and fresh witness admission/release without asking for an independent
+closure disposition. Individual member freeze, acknowledgement and retirement
+remain refused; original whole-batch accounting and journal tombstones are
+unchanged. Both phases and sixteen additional witness request/reply losses are
+covered by real journal/index tests.
+
+The frozen aggregate-recovery Debug/Release suites each pass 266 tests, zero
+failed or ignored, in 742.588/739.136 runner seconds under overlapping load.
+These are qualification times, not performance results. Rust 1.90/1.98.1 strict
+Clippy, six feature variants, warning-strict docs and formatting pass. The
+`20260930-sdk-aggregate-catalogue` cohort retains the old implementation's failure,
+an initially incorrect test error classification and its correction, original
+logs, exact executables and all 229 Rust sources. Frozen source archive SHA-256:
+`e55dbf51096a2e44f59ae2959d4157c96f0bd1f591f720f2d01c11bd11d61b69`.
+
+The first combined source/script check failed when a native-command fixture
+exceeded five seconds and a nested shell outlived its direct parent during
+temporary-directory cleanup. A controlled blocked probe reproduces a write after
+the old timeout. Guest fixtures now use the existing bounded process-group
+runner, retaining the five-second deadline and native exit/argument assertions;
+the same blocked probe leaves no surviving reader or late write. All 225 affected
+Android/process-boundary tests pass with warnings treated as errors. This repairs
+test subprocess ownership, without attributing the original five-second stall to
+an unmeasured cause. The repaired clean snapshot passes all 279 combined
+source/isolation/release/Android checks in 54.539 runner seconds; the original
+278-test failed run remains retained separately.
+
+Predecessor `5d81c340` completes all 42 PR CI jobs and six CodeQL jobs. Its Android
+minimum and 16 KiB package/runtime jobs pass, but that does not resolve the
+earlier `8067cd97` exact-process `LOW_MEMORY` termination. The collector now also
+captures AOSP's actual `lowmemorykiller` tag; RAM, workloads and acceptance are
+unchanged. See the [runtime diagnostic scope](SDK_ANDROID_RUNTIME.md).
+
+The same clean `5d81c340` source passes all four SDK workload groups on one wired
+iPad Pro 11-inch (M4), iPadOS 27.0.1 (24A446). Console and app-container readback
+agree on the run nonce; cleanup confirms three absent observations. Proof SHA-256:
+`28ccf1b9368bc952adedfb021ee214e1286bf4064655a9eb3d5ce19a16f8c97d`.
+The first manual-signing build failed before installation; automatic selection of
+the existing unchanged profile succeeded without account/profile provisioning.
+Raw device/signing evidence remains private. This is source-built Swift/C/Rust
+execution with test-only in-memory policy updates, not installed XCFramework,
+minimum-OS, persistent-policy, full device-matrix or Continuity device evidence.
+
 The native session archive catalogue now supports bounded discovery, exact
 restoration through an existing cleanup-only owner, and explicit retirement after
 the original journal confirms the host's complete closure report. Restoration
@@ -94,7 +141,8 @@ measurements). Focused execution covers eight before/after storage faults and
 sixteen witness request/reply losses across present and absent dispositions,
 both local roles and separate-process restore/retire/repeat recovery. Strict
 Clippy on Rust 1.90/1.98.1, six independent feature variants, warning-strict docs
-and formatting pass; the clean snapshot passes 45 source/isolation/release checks.
+and formatting pass; the clean snapshot passes 95 source/isolation/release checks
+(corrected from the earlier prose count of 45 against the retained raw log).
 The `20260930-sdk-archive-catalogue` cohort retains source identities, exact
 executables and outputs. Its frozen archive SHA-256 is
 `9fc06163712fe46406732efe90019269232fa3b01f599651ebeb7a2934ea68b1`.
