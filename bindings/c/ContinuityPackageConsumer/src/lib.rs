@@ -3,6 +3,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod owner;
+mod server;
 use p::connection_transport::{Cancellation, Consumption, Submission};
 use q_periapt_continuity_identity_candidate as p;
 use std::{
@@ -27,7 +28,7 @@ fn failure(code: i32) -> Failure {
         1 => "invalid C argument or configured shape",
         2 => "owner handle is closed or unknown",
         3 => "owner has an active call; cancel and join before close",
-        4 => "owner registry capacity or handle counter exhausted",
+        4 => "owner, invocation capacity or handle counter exhausted",
         _ => "C boundary failed; reconcile original durable operation",
     };
     Failure {
@@ -465,7 +466,15 @@ pub unsafe extern "C" fn qpc_owner_v1_close(handle: u64, error: *mut ErrorRecord
         };
         entry.cancel.cancel();
         owner.take();
-        TABLE.lock().map_err(|_| failure(5))?.slots.remove(&handle);
+        if TABLE
+            .lock()
+            .map_err(|_| failure(5))?
+            .slots
+            .remove(&handle)
+            .is_none()
+        {
+            return Err(failure(2));
+        }
         if poisoned {
             Err(failure(5))
         } else {

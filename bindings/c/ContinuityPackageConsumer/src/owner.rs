@@ -8,10 +8,10 @@ use q_periapt_host_store::{filesystem::OwnedPrivateDirectory, PolicyStore};
 use q_periapt_rustls::connection::{Credentials, Limits};
 use std::{
     io::{self, Read},
-    net::SocketAddr,
+    net::{SocketAddr, TcpListener, TcpStream},
     path::Path,
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use zeroize::Zeroizing;
 
@@ -39,6 +39,33 @@ fn array<const N: usize>(directory: &OwnedPrivateDirectory, name: &str) -> Resul
         .try_into()
         .map_err(|_| Failure::argument())
 }
+fn private_bytes(
+    directory: &OwnedPrivateDirectory,
+    name: &str,
+    maximum: usize,
+) -> Result<Zeroizing<Vec<u8>>> {
+    let mut file = directory
+        .open_config_file(name, maximum)
+        .map_err(Failure::configuration)?;
+    // Partial reads are erased on failure too, before a secret owner is returned.
+    let capacity = maximum.checked_add(1).ok_or_else(Failure::argument)?;
+    let mut bytes = Zeroizing::new(vec![0; capacity]);
+    let mut length = 0;
+    while length < capacity {
+        let count = file
+            .read(bytes.get_mut(length..).ok_or_else(Failure::argument)?)
+            .map_err(Failure::configuration)?;
+        if count == 0 {
+            break;
+        }
+        length += count;
+    }
+    if length == 0 || length > maximum {
+        return Err(Failure::argument());
+    }
+    bytes.truncate(length);
+    Ok(bytes)
+}
 fn account(
     directory: &OwnedPrivateDirectory,
     label: &str,
@@ -57,6 +84,7 @@ fn account(
 
 /// One original local installation, never a reconstructed policy permission.
 pub(crate) struct Owner {
+    listener: Option<TcpListener>,
     pub(crate) service: p::DeviceService,
     pub(crate) signer: p::DeviceSigningKey,
     pub(crate) context: Arc<p::BootstrapContext>,
@@ -154,12 +182,13 @@ impl Owner {
             None,
         )?;
         let owner = Self {
+            listener: None,
             service,
             signer,
             context,
             policy_store,
             certificate: read(&directory, "tls-cert", 8192)?,
-            tls_key: Zeroizing::new(read(&directory, "tls-key", 8192)?),
+            tls_key: private_bytes(&directory, "tls-key", 8192)?,
             peer_certificate: read(&directory, "tls-peer", 8192)?,
             peer_name: String::from_utf8(read(&directory, "tls-peer-name", 128)?)
                 .map_err(Failure::configuration)?,
@@ -201,6 +230,69 @@ impl Owner {
             Self::tls_limits(),
         )?)
     }
+    pub(crate) fn server(&self) -> Result<ConnectionEndpoint> {
+        Ok(ConnectionEndpoint::server(
+            &self.context,
+            self.credentials(),
+            Self::tls_limits(),
+        )?)
+    }
+    pub(crate) fn control_server(
+        &self,
+        session: [u8; 32],
+    ) -> Result<p::control_transport::ControlEndpoint> {
+        Ok(p::control_transport::ControlEndpoint::server(
+            &self.context,
+            session,
+            self.credentials(),
+            Self::tls_limits(),
+        )?)
+    }
+    pub(crate) fn listen(&mut self, address: SocketAddr) -> Result<u16> {
+        if self.listener.is_some() {
+            return Err(p::Error::State.into());
+        }
+        self.server()?;
+        let listener = TcpListener::bind(address).map_err(p::connection_transport::Error::Io)?;
+        listener
+            .set_nonblocking(true)
+            .map_err(p::connection_transport::Error::Io)?;
+        let port = listener
+            .local_addr()
+            .map_err(p::connection_transport::Error::Io)?
+            .port();
+        self.listener = Some(listener);
+        Ok(port)
+    }
+    pub(crate) fn accept(&self, cancel: &Cancellation) -> Result<TcpStream> {
+        let listener = self.listener.as_ref().ok_or(p::Error::State)?;
+        let deadline = Instant::now()
+            .checked_add(Duration::from_secs(20))
+            .ok_or(p::Error::State)?;
+        loop {
+            if cancel.is_cancelled() {
+                return Err(p::connection_transport::Error::Cancelled.into());
+            }
+            if Instant::now() >= deadline {
+                return Err(p::connection_transport::Error::Deadline.into());
+            }
+            match listener.accept() {
+                Ok((stream, _)) => return Ok(stream),
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                    ) =>
+                {
+                    std::thread::sleep(
+                        Duration::from_millis(25)
+                            .min(deadline.saturating_duration_since(Instant::now())),
+                    );
+                }
+                Err(error) => return Err(p::connection_transport::Error::Io(error).into()),
+            }
+        }
+    }
     pub(crate) fn actor(&mut self) -> Result<Actor<'_>> {
         let (journal, archives) = self.service.stores()?;
         Ok(Actor {
@@ -211,10 +303,19 @@ impl Owner {
         })
     }
     pub(crate) fn close(&mut self) {
+        self.listener.take();
         self.service.close();
         self.signer.close();
         self.context.policy().close();
         self.policy_store.close();
+    }
+}
+
+pub(crate) fn serve_limits() -> RunLimits {
+    RunLimits {
+        exchanges: 8,
+        timeout: Duration::from_secs(20),
+        connect_timeout: Duration::from_secs(1),
     }
 }
 impl Drop for Owner {

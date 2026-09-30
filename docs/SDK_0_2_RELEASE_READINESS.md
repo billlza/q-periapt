@@ -72,13 +72,57 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 239 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 240 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
 
-The unpublished [Continuity C owner consumer](../bindings/c/ContinuityPackageConsumer/README.md)
-now executes against the same installed engine and nine SDK archives. Its
+The [C owner consumer](../bindings/c/ContinuityPackageConsumer/README.md) now also
+owns a listener and receives bootstrap, application and rekey exchanges through
+the shared native engine. Its eleven isolated exports include a synchronous
+application callback: failure and unknown external commit leave the inbox
+unconsumed; success requires durable effect plus deduplication. The callback
+retains no borrowed pointers beyond its invocation. Reentrant close returns Busy,
+listener cancellation and release are checked, and acknowledged ciphertext remains
+retired. Required-witness C admission, C cleanup/recovery and product integration
+remain open; these functions are still outside product ABI 2.
+
+Snapshot `6221d0c1` produces candidate archive SHA-256
+`ef58a03d80f5b7e2f8ea0083e04ce57f17288feacf555f886799bb774cf671a2`.
+The actual Rust 1.98.1 installed Rust+C collector completes in 464.277 seconds.
+Rust 1.90 independently builds the same installed C/Rust graph and completes
+both C directions in Debug and Release in 387.569 seconds, including Clippy.
+Every server trace checks five independently read application records and 24 C
+command logs, covering failure before output, unknown commit after fsync,
+process exit after fsync, original-ID retry and target-1 rekey. One duplicate
+case uses the actual public native receiver API to consume a verified durable
+C application record before the sender receives an ACK; the C server then skips
+its callback on replay. This is explicitly a native recovery transition, not a
+C recovery API. The sender's refusal to regenerate acknowledged ciphertext is
+also asserted. No journal image is edited or rewound. The two original Rust tests
+and prior C client trace remain in the collector.
+
+At predecessor `bf2f569a`, Linux C qualification exposes a harness size-bound bug:
+the shared-library copy inherited the 32-MiB source/archive limit, although all
+binary identity reads already allowed 256 MiB. It failed before C execution.
+The copy now takes that explicit binary limit, compares the installed hash with
+the selected build output, and retains the default source limit. A real
+124,676,976-byte compiler binary reproduces the old refusal and copies exactly
+under the binary bound; oversized/default-limit and existing-target negative
+checks remain required. This is copy-boundary evidence, not a Linux runtime pass.
+The protocol, Rust/C binding and archive bytes executed above are unchanged by
+this collector fix; new-head Linux execution still must complete.
+
+The predecessor's CodeQL run `36730212717` completes all six jobs. Its Rust gate
+extracts all 239 files with checkout `fdf72f535bfcf4d4999fa8f92c76833def5d386c`,
+the PR's synthetic merge rather than a relabeled branch head. The current tree
+adds a 240th Rust file and requires its own hosted extraction. The predecessor's
+Android 16-KiB job again fails, this time at a structural cleanup observation;
+later diagnostic captures time out and app absence remains unresolved. The
+failed runtime receipt is retired with primary status 2, not converted to a pass.
+
+At `bf2f569a`, the initial unpublished Continuity C owner client executed
+against the same installed engine and nine SDK archives. Its
 `qpc-owner/1` client surface keeps original protected installation/policy/signing
 owners, typed errors, 64 owner/call bounds and concurrent cancellation. It adds
 no raw private-key getter, parallel protocol implementation or product ABI 2

@@ -1,15 +1,23 @@
 /* SPDX-License-Identifier: Apache-2.0 OR MIT */
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE 1 /* Darwin exposes its no-follow open flags here. */
+#endif
 #define _POSIX_C_SOURCE 200809L
 #include "qpc_owner.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 _Static_assert(sizeof(qpc_error_v1) == 524, "diagnostic ABI size");
 _Static_assert(offsetof(qpc_error_v1, message) == 12, "diagnostic ABI offset");
+_Static_assert(sizeof(qpc_served_v1) == 72, "served ABI size");
+_Static_assert(offsetof(qpc_served_v1, duplicate) == 68, "served ABI offset");
 static const uint8_t payload[] = "persisted before process exit";
 static const uint8_t ad[] = "owned-service";
 
@@ -119,6 +127,133 @@ static void self_check(void) {
     record(code, &error);
     if (code != QPC_CLOSED) fail("unknown handle accepted");
 }
+struct Application {
+    uint64_t handle;
+    const char *path, *mode;
+    unsigned calls, created;
+};
+/* This test application atomically publishes effect+dedup bytes under one ID.
+ * A retry compares the complete original record; it never overwrites a conflict.
+ * SDK callback success follows both file and directory fsync. */
+static int existing_effect(int directory, const char *name, const uint8_t *bytes, size_t length) {
+    int file = openat(directory, name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    if (file < 0) return errno == ENOENT ? 1 : -1;
+    struct stat info;
+    uint8_t observed[64 + sizeof(payload)];
+    size_t used = 0;
+    int bad = fstat(file, &info) || !S_ISREG(info.st_mode) || info.st_size != (off_t)length;
+    while (!bad && used < sizeof(observed)) {
+        ssize_t count = read(file, observed + used, sizeof(observed) - used);
+        if (count < 0) { if (errno == EINTR) continue; bad = 1; break; }
+        if (!count) break;
+        used += (size_t)count;
+    }
+    if (!bad && (used != length || memcmp(observed, bytes, length))) bad = 1;
+    if (!bad && fsync(file)) bad = 1;
+    if (close(file)) bad = 1;
+    if (!bad && fsync(directory)) bad = 1;
+    return bad ? -1 : 0;
+}
+static int persist_effect(struct Application *app, const uint8_t session[32],
+                          const uint8_t message[32], const uint8_t *plaintext, size_t length) {
+    if (length != sizeof(payload)-1 || memcmp(plaintext, payload, length)) return -1;
+    uint8_t bytes[64 + sizeof(payload)-1];
+    memcpy(bytes, session, 32); memcpy(bytes+32, message, 32); memcpy(bytes+64, plaintext, length);
+    char name[sizeof("application-") + 64], temporary[sizeof(name) + 64];
+    memcpy(name, "application-", sizeof("application-")-1);
+    for (size_t i = 0; i < 32; ++i) {
+        int n = snprintf(name + sizeof("application-")-1 + i*2, 3, "%02x", message[i]);
+        if (n != 2) return -1;
+    }
+    int n = snprintf(temporary, sizeof(temporary), ".%s.%ld.tmp", name, (long)getpid());
+    if (n < 0 || (size_t)n >= sizeof(temporary)) return -1;
+    int directory = open(app->path, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (directory < 0) return -1;
+    int found = existing_effect(directory, name, bytes, sizeof(bytes));
+    if (found != 1) { if (close(directory)) return -1; return found; }
+    int file = openat(directory, temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+    if (file < 0) { if (close(directory)) return -1; return -1; }
+    int bad = 0;
+    size_t used = 0;
+    while (used < sizeof(bytes)) {
+        ssize_t count = write(file, bytes+used, sizeof(bytes)-used);
+        if (count < 0 && errno == EINTR) continue;
+        if (count <= 0) { bad = 1; break; }
+        used += (size_t)count;
+    }
+    if (!bad && fsync(file)) bad = 1;
+    if (close(file)) bad = 1;
+    if (!bad) {
+        if (linkat(directory, temporary, directory, name, 0) == 0) app->created++;
+        else if (errno != EEXIST) bad = 1;
+    }
+    if (unlinkat(directory, temporary, 0)) bad = 1;
+    if (!bad && existing_effect(directory, name, bytes, sizeof(bytes)) != 0) bad = 1;
+    if (close(directory)) bad = 1;
+    return bad ? -1 : 0;
+}
+static int32_t commit_application(void *opaque, const uint8_t session[32],
+                                  const uint8_t message[32], const uint8_t *plaintext, size_t length) {
+    struct Application *app = opaque;
+    app->calls++;
+    qpc_error_v1 nested;
+    int32_t code = qpc_owner_v1_close(app->handle, &nested);
+    record(code, &nested);
+    if (code != QPC_BUSY) fail("callback reentrant close did not preserve owner");
+    if (!strcmp(app->mode, "fail-before")) return 17;
+    if (persist_effect(app, session, message, plaintext, length)) return 31;
+    if (!strcmp(app->mode, "uncertain")) return 29;
+    if (!strcmp(app->mode, "crash-after")) exit(77);
+    return 0;
+}
+static void serve(uint64_t handle, const char *path, const char *mode, const char *session_text) {
+    if (strcmp(mode, "bootstrap") && strcmp(mode, "message") && strcmp(mode, "fail-before") &&
+        strcmp(mode, "uncertain") && strcmp(mode, "crash-after") && strcmp(mode, "rekey") &&
+        strcmp(mode, "pre-cancel")) fail("unknown server mode");
+    struct Application app = {.handle=handle, .path=path, .mode=mode};
+    qpc_error_v1 error;
+    uint16_t port = 0;
+    const uint8_t bind_address[] = "127.0.0.1:0";
+    require(qpc_owner_v1_listen(handle, bind_address, sizeof(bind_address)-1, &port, &error), &error);
+    if (!port) fail("listener returned zero port");
+    if (printf("listening:%u\n", (unsigned)port) < 0 || fflush(stdout)) fail("readiness output failed");
+    uint16_t second = 0;
+    int32_t code = qpc_owner_v1_listen(handle, bind_address, sizeof(bind_address)-1, &second, &error);
+    record(code, &error);
+    if (code != QPC_STATE || second != 0) fail("listener replaced without closing its owner");
+    if (!strcmp(mode, "rekey")) {
+        uint8_t session[32]; uint64_t epoch = 0;
+        if (!session_text) fail("rekey server session missing");
+        decode(session_text, session);
+        require(qpc_owner_v1_serve_rekey(handle, session, &epoch, &error), &error);
+        if (epoch != 1) fail("server rekey target differs");
+        puts("server-rekey-1");
+        return;
+    }
+    qpc_served_v1 result;
+    code = qpc_owner_v1_serve(handle, NULL, &app, &result, &error);
+    record(code, &error);
+    if (code != QPC_ARGUMENT) fail("missing callback accepted");
+    if (!strcmp(mode, "pre-cancel")) require(qpc_owner_v1_cancel(handle, &error), &error);
+    code = qpc_owner_v1_serve(handle, commit_application, &app, &result, &error);
+    record(code, &error);
+    if (!strcmp(mode, "fail-before") || !strcmp(mode, "uncertain")) {
+        if (code != QPC_APPLICATION || app.calls != 1 || result.kind != 0)
+            fail("callback failure was relabelled as consumption");
+        char diagnostic[sizeof(error.message)+1];
+        memcpy(diagnostic, error.message, error.length); diagnostic[error.length] = 0;
+        if (!strstr(diagnostic, !strcmp(mode, "fail-before") ? "callback returned 17;" : "callback returned 29;"))
+            fail("callback status was replaced");
+        printf("application-failed:%u:%u\n", app.calls, app.created);
+    } else if (!strcmp(mode, "pre-cancel")) {
+        if (code != QPC_CANCELLED || app.calls || result.kind != 0) fail("cancelled listener consumed input");
+        puts("server-cancelled");
+    } else {
+        require(code, &error);
+        printf("served:%u:%u:%u:%u\n", result.kind, result.duplicate, app.calls, app.created);
+        encode(result.session); encode(result.message);
+    }
+}
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     self_check();
@@ -139,7 +274,10 @@ int main(int argc, char **argv) {
     }
     uint64_t handle = open_owner(argv[2]);
     qpc_error_v1 error;
-    if (strcmp(argv[1], "connect") == 0) {
+    if (strcmp(argv[1], "serve") == 0) {
+        if (argc < 4 || argc != (!strcmp(argv[3], "rekey") ? 5 : 4)) fail("serve arguments");
+        serve(handle, argv[2], argv[3], argc == 5 ? argv[4] : NULL);
+    } else if (strcmp(argv[1], "connect") == 0) {
         if (argc != 5) fail("connect arguments");
         uint8_t request[32], session[32];
         uint16_t exchanges = 0;

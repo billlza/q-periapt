@@ -11,7 +11,7 @@ from test_continuity_package import metadata
 
 
 STDOUT = (f"test {consumer.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
 
 
 def evidence(root):
@@ -42,6 +42,93 @@ def evidence(root):
 
 
 class ContinuityCConsumerTests(unittest.TestCase):
+    def test_binary_copy_uses_its_explicit_bound_without_relaxing_source_inputs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            binary = root / "library.so"
+            with binary.open("xb") as stream:
+                stream.seek(consumer.sdk.MAX_ARCHIVE)
+                stream.write(b"x")
+            # The actual Linux producer failed here before any C execution.
+            with self.assertRaisesRegex(ValueError, "exceeds"):
+                consumer.sdk.copy(binary, root / "source-copy")
+            self.assertFalse((root / "source-copy").exists())
+            target = root / "installed/library.so"
+            consumer.sdk.copy(binary, target, maximum=consumer.MAX_BINARY)
+            self.assertEqual(consumer.sdk.snapshot(binary, maximum=consumer.MAX_BINARY).sha256,
+                             consumer.sdk.snapshot(target, maximum=consumer.MAX_BINARY).sha256)
+            with self.assertRaises(FileExistsError):
+                consumer.sdk.copy(binary, target, maximum=consumer.MAX_BINARY)
+            with self.assertRaisesRegex(ValueError, "exceeds"):
+                consumer.sdk.copy(binary, root / "too-small", maximum=binary.stat().st_size - 1)
+            self.assertFalse((root / "too-small").exists())
+
+    def server_evidence(self, root):
+        messages = [(0).to_bytes(8, "big").hex() + n.to_bytes(8, "big").hex() + f"{n+2:02x}" * 16 for n in range(4)]
+        messages.append("0000000000000001" + "00" * 8 + "55" * 16)
+        report = {"schema_version": 1, "scope": consumer.SERVER_SCOPE, "session": "11" * 32,
+                  "messages": messages, "network_rekeys": 1, "application_records": 5,
+                  "release_claim_eligible": False}
+        for name in ("completed", "callback_failure_preserved", "unknown_commit_reconciled",
+                     "crash_after_application_reconciled", "duplicate_skips_callback",
+                     "reentrant_close_busy", "cancelled_listener_released",
+                     "acknowledged_send_refused", "native_recovery_consumption"):
+            report[name] = True
+        (root / "responder").mkdir()
+        (root / "initiator").mkdir()
+        for message in messages:
+            (root / "responder" / ("application-" + message)).write_bytes(
+                bytes.fromhex(report["session"] + message) + b"persisted before process exit")
+        def event(message, duplicate, calls, created):
+            return f"served:{1 if message == '0' * 64 else 2}:{duplicate}:{calls}:{created}\n{report['session']}\n{message}\n"
+        outputs = {"bootstrap": event("0" * 64, 0, 0, 0), "cancel": "server-cancelled\n",
+                   "fail-before": "application-failed:1:0\n", "retry-0": event(messages[0], 0, 1, 1),
+                   "duplicate-prepare": "application-failed:1:1\n",
+                   "duplicate": event(messages[3], 1, 0, 0), "uncertain": "application-failed:1:1\n",
+                   "retry-1": event(messages[1], 0, 1, 0), "crash-after": "",
+                   "retry-2": event(messages[2], 0, 1, 0), "rekey": "server-rekey-1\n",
+                   "after-rekey": event(messages[4], 0, 1, 1)}
+        for name, output in outputs.items():
+            (root / "responder" / f"c-server-{name}.stdout").write_text("listening:43210\n" + output)
+            (root / "responder" / f"c-server-{name}.stderr").write_bytes(b"")
+        (root / "c-server-public-result.json").write_text(json.dumps(report))
+        return report
+
+    def test_server_requires_all_callback_outcomes_and_exact_readback(self):
+        stdout = STDOUT.replace(consumer.TEST.encode(), consumer.SERVER_TEST.encode())
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            report = self.server_evidence(root)
+            observed = consumer.verify_server_execution(stdout, root)
+            self.assertEqual(len(observed["command_logs"]), 24)
+            self.assertEqual(len(observed["application_readbacks"]), 5)
+            path = root / "responder" / ("application-" + report["messages"][1])
+            data = path.read_bytes()
+            path.write_bytes(data[:-1])
+            with self.assertRaisesRegex(ValueError, "readback"):
+                consumer.verify_server_execution(stdout, root)
+            path.write_bytes(data)
+            (root / "responder/c-server-uncertain.stdout").write_text("listening:43210\nconsumed\n")
+            with self.assertRaisesRegex(ValueError, "command outcome"):
+                consumer.verify_server_execution(stdout, root)
+
+    def test_server_rejects_omitted_tests_claims_and_epoch_substitution(self):
+        stdout = STDOUT.replace(consumer.TEST.encode(), consumer.SERVER_TEST.encode())
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            report = self.server_evidence(root)
+            for output in (b"", STDOUT, stdout + stdout, stdout.replace(b"0 ignored", b"1 ignored")):
+                with self.subTest(output=output), self.assertRaises(ValueError):
+                    consumer.verify_server_execution(output, root)
+            for name, value in (("application_records", True), ("completed", 1),
+                                ("unknown_commit_reconciled", False), ("duplicate_skips_callback", False),
+                                ("reentrant_close_busy", False), ("cancelled_listener_released", False),
+                                ("release_claim_eligible", True), ("messages", report["messages"][:4]),
+                                ("messages", report["messages"][:4] + ["00" * 16 + "55" * 16])):
+                (root / "c-server-public-result.json").write_text(json.dumps(dict(report, **{name: value})))
+                with self.subTest(name=name, value=value), self.assertRaises(ValueError):
+                    consumer.verify_server_execution(stdout, root)
+
     def test_exact_trace_requires_independent_data_and_each_command(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -64,7 +151,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder)
             report = evidence(root)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
-                           STDOUT.replace(b"2 filtered out", b"3 filtered out"), STDOUT + STDOUT):
+                           STDOUT.replace(b"3 filtered out", b"4 filtered out"), STDOUT + STDOUT):
                 with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "completely"):
                     consumer.verify_execution(stdout, root)
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),

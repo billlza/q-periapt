@@ -197,13 +197,18 @@ language adapters. Same-run Linux CI and the remaining platform gates require
 their own completed results.
 
 An isolated [C owner consumer](../../bindings/c/ContinuityPackageConsumer/README.md)
-now delegates client bootstrap, message/status, cancellation and rekey to that
+now delegates client/server bootstrap, message/status, cancellation and rekey to that
 same installed engine. It retains original local-profile installations, distinct
 SDK/storage/transport errors, finite call/owner budgets and close/cancel drain
 availability. The collector's C phase uses an installed sibling library and the
-archive-shipped Rust peer, with independent application readback. Its unpublished
-`qpc-owner/1` surface is separate from ABI 2. Required-witness adapters, C receive
-and cleanup/recovery interfaces, remaining languages, product integration and
+archive-shipped Rust peer in both directions, with independent application readback.
+The synchronous C callback returns success only after durable application effect
+and deduplication; failure/unknown commit leaves the inbox pending. Reentrant close
+is Busy, and previously consumed traffic skips the callback. The duplicate test's
+intervening recovery consumption is performed by the public native API; it is not
+presented as a C recovery interface. Its unpublished
+`qpc-owner/1` surface is separate from ABI 2. Required-witness adapters, C
+cleanup/recovery interfaces, remaining languages, product integration and
 cross-host/device execution remain required. See the exact executed platform and
 profile in the [readiness ledger](../SDK_0_2_RELEASE_READINESS.md).
 

@@ -74,8 +74,8 @@ def write_json(path: Path, value: object) -> None:
         stream.write("\n")
 
 
-def copy(source: Path, target: Path) -> None:
-    data = snapshot(source).data
+def copy(source: Path, target: Path, *, maximum: int = MAX_ARCHIVE) -> None:
+    data = snapshot(source, maximum=maximum).data
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("xb") as stream:
         stream.write(data)

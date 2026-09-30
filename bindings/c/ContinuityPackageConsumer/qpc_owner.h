@@ -106,6 +106,38 @@ int32_t qpc_owner_v1_message_status(uint64_t handle, const uint8_t session[32],
 int32_t qpc_owner_v1_rekey(uint64_t handle, const uint8_t *peer, size_t peer_length,
                          const uint8_t session[32], uint64_t target,
                          uint64_t *completed_epoch, qpc_error_v1 *error);
+/* One listener belongs to the owner and closes with it. address is an explicit
+ * IP:port; zero port requests an ephemeral port. Repeated listen returns STATE.
+ * Serving waits at most 20 seconds for accept, then uses the shared carrier's
+ * 20-second/8-exchange bound. Cancel wakes accept polling within 25 ms, subject
+ * to OS scheduling. Synchronous application/filesystem calls are cooperative;
+ * the library cannot preempt a foreign callback or undo its effects.
+ */
+int32_t qpc_owner_v1_listen(uint64_t handle, const uint8_t *address, size_t length,
+                          uint16_t *port, qpc_error_v1 *error);
+typedef struct {
+    uint32_t kind; /* 1=bootstrap, 2=consumed message */
+    uint8_t session[32];
+    uint8_t message[32]; /* zero for bootstrap */
+    uint32_t duplicate; /* 1=already consumed; callback was not invoked */
+} qpc_served_v1;
+/* Borrowed immutable session/message/plaintext pointers expire on return.
+ * context remains caller-owned and must live until serve returns. The callback
+ * runs synchronously on the invoking thread and must not unwind or longjmp.
+ * Return zero ONLY after effect and session/message deduplication record are
+ * durable together. Every nonzero result (including unknown commit) leaves the
+ * inbox unconsumed and returns APPLICATION with the callback status in diagnostics.
+ * Exact retries may invoke the callback again; it must reconcile the same ID.
+ * No callback pointer/context is stored past serve. Reentrant operations/close
+ * return BUSY; cancellation is allowed with a separate per-call error record.
+ */
+typedef int32_t (*qpc_commit_v1)(void *context, const uint8_t session[32],
+                               const uint8_t message[32], const uint8_t *plaintext,
+                               size_t length);
+int32_t qpc_owner_v1_serve(uint64_t handle, qpc_commit_v1 commit, void *context,
+                         qpc_served_v1 *result, qpc_error_v1 *error);
+int32_t qpc_owner_v1_serve_rekey(uint64_t handle, const uint8_t session[32],
+                               uint64_t *completed_epoch, qpc_error_v1 *error);
 #ifdef __cplusplus
 }
 #endif

@@ -11,11 +11,16 @@ from evidence_io import parse_strict_json_bytes
 
 NAME = "q-periapt-continuity-c-consumer"
 LIBRARY = "q_periapt_continuity_c_consumer"
+MAX_BINARY = 256 * 1024**2
 FIXTURE = package.ROOT / "bindings/c/ContinuityPackageConsumer"
 TEST = "c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery"
+SERVER_TEST = "c_server_preserves_callback_failures_unknown_commits_replay_and_rekey"
+SERVER_SCOPE = "installed native Rust client to unpublished C server; same host; local journal profile"
 SCOPE = "unpublished C client to installed Rust peer; same host; local journal profile"
+QUALIFICATION_SCOPE = "unpublished C client and server using the installed shared Rust engine; same host; local journal profile"
 EXPORTS = {"qpc_owner_v1_" + name for name in
-           ("open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey")}
+           ("open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
+            "listen", "serve", "serve_rekey")}
 
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False) -> Path:
@@ -47,7 +52,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(passed == [TEST] and re.search(
-        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
         "installed C trace was not executed completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-public-result.json").data,
                                     label="C connection execution")
@@ -94,6 +99,67 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     return dict(report, application_readbacks=readbacks, command_logs=logs)
 
 
+def verify_server_execution(stdout: bytes, directory: Path) -> dict:
+    text = stdout.decode()
+    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;",
+                              text, re.MULTILINE), "installed C server trace did not execute completely")
+    report = parse_strict_json_bytes(sdk.snapshot(directory / "c-server-public-result.json").data,
+                                    label="C server execution")
+    flags = {"completed", "callback_failure_preserved", "unknown_commit_reconciled",
+             "crash_after_application_reconciled", "duplicate_skips_callback",
+             "reentrant_close_busy", "cancelled_listener_released",
+             "acknowledged_send_refused", "native_recovery_consumption"}
+    sdk.require(set(report) == flags | {"schema_version", "scope", "session", "messages", "network_rekeys",
+                                       "application_records", "release_claim_eligible"},
+                "C server execution fields differ")
+    sdk.require(all(report[name] is True for name in flags) and report["release_claim_eligible"] is False
+                and report["scope"] == SERVER_SCOPE, "C server required outcome or scope differs")
+    for name, value in (("schema_version", 1), ("network_rekeys", 1), ("application_records", 5)):
+        sdk.require(type(report[name]) is int and report[name] == value, "C server execution count differs")
+    messages = report["messages"]
+    sdk.require(type(messages) is list and len(messages) == 5
+                and all(type(x) is str and re.fullmatch(r"[0-9a-f]{64}", x) and x != "0" * 64
+                        for x in [report["session"], *messages]) and len(set(messages)) == 5,
+                "C server message identities differ")
+    for index, message in enumerate(messages):
+        epoch, sequence = (0, index) if index < 4 else (1, 0)
+        sdk.require(bytes.fromhex(message)[:16] == epoch.to_bytes(8, "big") + sequence.to_bytes(8, "big"),
+                    "C server message epoch/sequence differs")
+    readbacks = {}
+    for message in messages:
+        leaf = "responder/application-" + message
+        record = sdk.snapshot(directory / leaf)
+        sdk.require(record.data == bytes.fromhex(report["session"] + message) + b"persisted before process exit",
+                    "C server independent application readback differs")
+        readbacks[leaf] = record.sha256
+    sdk.require(len(list((directory / "responder").glob("application-*"))) == 5
+                and not list((directory / "initiator").glob("application-*")), "C server application effects differ")
+    def event(message: str, duplicate: int, calls: int, created: int) -> str:
+        return f"served:{1 if message == '0' * 64 else 2}:{duplicate}:{calls}:{created}\n{report['session']}\n{message}\n"
+    expected = {"server-bootstrap": event("0" * 64, 0, 0, 0), "server-cancel": "server-cancelled\n",
+                "server-fail-before": "application-failed:1:0\n", "server-retry-0": event(messages[0], 0, 1, 1),
+                "server-duplicate-prepare": "application-failed:1:1\n",
+                "server-duplicate": event(messages[3], 1, 0, 0), "server-uncertain": "application-failed:1:1\n",
+                "server-retry-1": event(messages[1], 0, 1, 0), "server-crash-after": "",
+                "server-retry-2": event(messages[2], 0, 1, 0), "server-rekey": "server-rekey-1\n",
+                "server-after-rekey": event(messages[4], 0, 1, 1)}
+    logs = {}
+    for name, wanted in expected.items():
+        leaf = f"responder/c-{name}.stdout"
+        record = sdk.snapshot(directory / leaf, maximum=65536)
+        ready, separator, output = record.data.decode().partition("\n")
+        sdk.require(separator and re.fullmatch(r"listening:[1-9][0-9]{0,4}", ready)
+                    and int(ready.split(":")[1]) <= 65535 and output == wanted,
+                    "C server command outcome differs")
+        logs[leaf] = record.sha256
+        leaf = f"responder/c-{name}.stderr"
+        record = sdk.snapshot(directory / leaf, maximum=65536)
+        sdk.require(record.data == b"", "C server diagnostic differs")
+        logs[leaf] = record.sha256
+    return dict(report, application_readbacks=readbacks, command_logs=logs)
+
+
 def verify_linkage(dependencies: str, loader: str, filename: str, *, darwin: bool) -> None:
     if darwin:
         names = [line.strip().split(" (", 1)[0] for line in dependencies.splitlines()[1:] if line.strip()]
@@ -113,7 +179,7 @@ def verify_linkage(dependencies: str, loader: str, filename: str, *, darwin: boo
 def qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
               candidate_files: dict[str, bytes], original_lock: bytes,
               sdk_output: Path, records: dict) -> dict:
-    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "execution": {}}
+    result = {"completed": False, "scope": QUALIFICATION_SCOPE, "release_claim_eligible": False, "execution": {}}
     try:
         return _qualify_c(outside, output, cargo, environment, candidate_files,
                           original_lock, sdk_output, records, result)
@@ -159,7 +225,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
     darwin = os.uname().sysname == "Darwin"
     cc = Path(run(["/usr/bin/xcrun", "--sdk", "macosx", "--find", "clang"], "cc-path").decode().strip()) if darwin else Path("/usr/bin/cc")
     cc = cc.resolve(strict=True)
-    compiler = sdk.snapshot(cc, maximum=256 * 1024**2)
+    compiler = sdk.snapshot(cc, maximum=MAX_BINARY)
     result["compiler"] = {"path": str(cc), "sha256": compiler.sha256,
                           "version": run([str(cc), "--version"], "cc-version").decode()}
     platform_flags = []
@@ -180,9 +246,12 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         built = run([*cargo, "rustc", "--locked", "--offline", "--lib", "--message-format=json", "-j", "2",
                      *extra, "--", "-C", "link-arg=" + linker_name], "library-" + profile)
         library = built_artifact(built, consumer, build, library=True)
+        library_identity = sdk.snapshot(library, maximum=MAX_BINARY)
         installed = outside / ("c-installed-" + profile)
         installed.mkdir(mode=0o700)
-        sdk.copy(library, installed / filename)
+        sdk.copy(library, installed / filename, maximum=MAX_BINARY)
+        sdk.require(sdk.snapshot(installed / filename, maximum=MAX_BINARY).sha256 == library_identity.sha256,
+                    "installed C library differs from the selected build output")
         executable = installed / "qpc-c-client"
         run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-pthread",
              *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
@@ -200,36 +269,39 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             dependencies = run(["/usr/bin/readelf", "-d", str(executable)], "dependencies-" + profile).decode()
             loader = dependencies
         verify_linkage(dependencies, loader, filename, darwin=darwin)
-        client_identity = sdk.snapshot(executable, maximum=256 * 1024**2)
-        library_identity = sdk.snapshot(installed / filename, maximum=256 * 1024**2)
+        client_identity = sdk.snapshot(executable, maximum=MAX_BINARY)
         built = run([*cargo, "test", "--locked", "--offline", "--test", "c_owner", "--no-run",
                      "--message-format=json", "-j", "2", *extra], "trace-build-" + profile)
         runtime = {k: v for k, v in env.items() if not k.startswith(("DYLD_", "LD_"))}
         unit_build = run([*cargo, "test", "--locked", "--offline", "--lib", "--no-run", "--message-format=json",
                           "-j", "2", *extra], "admission-build-" + profile)
         unit_test = built_artifact(unit_build, consumer, build, library=False, unit=True)
-        unit_identity = sdk.snapshot(unit_test, maximum=256 * 1024**2)
+        unit_identity = sdk.snapshot(unit_test, maximum=MAX_BINARY)
         checked = run([str(unit_test)], "admission-" + profile, runtime=runtime)
         sdk.require(re.search(rb"test tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure \.\.\. ok",
                               checked) and re.search(rb"test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", checked),
                     "C admission budget and drain contract did not execute")
         trace = built_artifact(built, consumer, build, library=False)
-        trace_identity = sdk.snapshot(trace, maximum=256 * 1024**2)
+        trace_identity = sdk.snapshot(trace, maximum=MAX_BINARY)
         evidence = outside / ("c-" + profile + "-runtime")
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        server_evidence = outside / ("c-" + profile + "-server-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(server_evidence)
+        tested = run([str(trace), "--exact", SERVER_TEST, "--nocapture"], "server-trace-" + profile, runtime=runtime)
+        result["execution"][profile]["server"] = verify_server_execution(tested, server_evidence)
         binaries = {}
         for name, path, identity in (("C_client", executable, client_identity),
                                      ("C_library", installed / filename, library_identity),
                                      ("Rust_admission", unit_test, unit_identity),
                                      ("Rust_trace", trace, trace_identity)):
-            sdk.require(sdk.snapshot(path, maximum=256 * 1024**2).sha256 == identity.sha256,
+            sdk.require(sdk.snapshot(path, maximum=MAX_BINARY).sha256 == identity.sha256,
                         "C qualification executable or library changed during execution")
             binaries[name] = {"path": str(path), "sha256": identity.sha256, "bytes": identity.size}
         result["execution"][profile]["binaries"] = binaries
     run([*cargo, "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"], "clippy")
-    sdk.require(sdk.snapshot(cc, maximum=256 * 1024**2).sha256 == compiler.sha256
+    sdk.require(sdk.snapshot(cc, maximum=MAX_BINARY).sha256 == compiler.sha256
                 and sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256
                 and sdk.snapshot(consumer / "Cargo.toml").sha256 == manifest_hash,
                 "C compiler or consumer resolution changed")

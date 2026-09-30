@@ -282,7 +282,7 @@ def qualify(args: argparse.Namespace) -> dict:
             result["c_consumer"] = qualify_c(outside, output, cargo, environment, files,
                                               original, args.report.parent, cohort["crates"])
             result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
-                               "and local-profile C client; no other foreign bindings or cross-host qualification")
+                               "and local-profile C client/server; no other foreign bindings or cross-host qualification")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])

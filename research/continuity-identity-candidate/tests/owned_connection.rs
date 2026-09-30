@@ -29,7 +29,7 @@ use std::{
 use zeroize::Zeroizing;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-fn now() -> io::Result<u64> {
+pub(crate) fn now() -> io::Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(io::Error::other)?
@@ -87,14 +87,14 @@ fn role(path: &Path) -> Result<p::BootstrapRole> {
         _ => Err("unknown configured bootstrap role".into()),
     }
 }
-fn limits() -> RunLimits {
+pub(crate) fn limits() -> RunLimits {
     RunLimits {
         exchanges: 8,
         timeout: Duration::from_secs(20),
         connect_timeout: Duration::from_secs(1),
     }
 }
-fn tls_limits() -> Limits {
+pub(crate) fn tls_limits() -> Limits {
     Limits {
         max_connections: 1,
         handshake_ms: 10_000,
@@ -210,18 +210,18 @@ fn context(path: &Path, sdk: &PolicyStore) -> Result<Arc<p::BootstrapContext>> {
     Ok(context)
 }
 
-struct Peer {
-    service: p::DeviceService,
-    signer: p::DeviceSigningKey,
-    context: Arc<p::BootstrapContext>,
+pub(crate) struct Peer {
+    pub(crate) service: p::DeviceService,
+    pub(crate) signer: p::DeviceSigningKey,
+    pub(crate) context: Arc<p::BootstrapContext>,
     policy_store: PolicyStore,
     certificate: Vec<u8>,
     tls_key: Zeroizing<Vec<u8>>,
     peer_certificate: Vec<u8>,
-    peer_name: String,
+    pub(crate) peer_name: String,
 }
 impl Peer {
-    fn open(path: &Path) -> Result<Self> {
+    pub(crate) fn open(path: &Path) -> Result<Self> {
         let policy_store = sdk(path)?;
         let context = context(path, &policy_store)?;
         let role = role(path)?;
@@ -243,14 +243,14 @@ impl Peer {
             peer_name: String::from_utf8(read(path, "tls-peer-name", 128)?)?,
         })
     }
-    fn credentials(&self) -> Credentials<'_> {
+    pub(crate) fn credentials(&self) -> Credentials<'_> {
         Credentials {
             certificate: &self.certificate,
             private_key: &self.tls_key,
             peer_certificate: &self.peer_certificate,
         }
     }
-    fn actor(&mut self) -> Result<Actor<'_>> {
+    pub(crate) fn actor(&mut self) -> Result<Actor<'_>> {
         let (journal, archives) = self.service.stores()?;
         Ok(Actor {
             journal,
@@ -259,7 +259,7 @@ impl Peer {
             signer: &self.signer,
         })
     }
-    fn close(&mut self) {
+    pub(crate) fn close(&mut self) {
         self.service.close();
         self.signer.close();
         self.context.policy().close();
@@ -777,7 +777,7 @@ fn service_peer_process() -> Result<()> {
     Ok(())
 }
 
-fn send(
+pub(crate) fn send(
     peer: &mut Peer,
     endpoint: &ConnectionEndpoint,
     address: SocketAddr,
