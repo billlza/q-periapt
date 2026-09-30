@@ -132,6 +132,46 @@ be used for a sanitized receipt. This reference is still an unpublished native,
 same-host, same-implementation execution; installed bindings, cross-host peers
 and independent implementations require their own qualification.
 
+## Recovery after operational authority expires
+
+`InstallationRecovery::open(paths, original_key)` opens only existing Active
+configuration and its existing archive index. It verifies the original key
+commitment and normalized path binding without reconstructing expired device or
+policy objects. It holds the configuration/index leases and wrapping key while
+the caller enumerates bounded `session_ids`. Those IDs are discovery hints;
+journal existence, archive authentication and witness admission are still pending.
+Creating, missing or corrupt configuration and invalid indices are refused.
+
+`open_session(id, anchor)` consumes this discovery owner. It authenticates the
+indexed archive, matches the original installation journal/device owner and
+protection, and opens the existing `SessionClosureJournal`. Required protection
+also matches the retained signed-policy digest and original witness binding.
+An explicit `open_session_from_archive` accepts separately retained original
+archive bytes when the index row is lost; it does not implicitly restore or
+overwrite the index. Missing journals, changed archive/key/scope and unavailable,
+wrong or refusing witnesses return errors and release the attempted owners.
+The original required-witness signer remains necessary, including after policy
+closure. Expired witness enrollment does not become permission to operate locally.
+
+`InstalledSessionRecovery::stores` exposes only the existing cleanup journal and
+archive index, with both child leases retained before the installation lease is
+released. It grants no message, bootstrap, rekey or initialization operations.
+Freeze, complete host loss accounting, exact report acknowledgement, explicit
+catalogue restoration and closed-row retirement keep their existing semantics.
+Closing this owner does not acknowledge a report, refund capacity or recreate
+state. Local-only recovery still relies on trusted configuration and retains its
+original lack of whole-state rollback detection. This API is a native recovery
+entry point; installed language adapters and authority renewal remain separate.
+
+The public consumer now closes its persisted SDK policy, freezes cleanup in a
+fresh process, writes the complete metadata-only report, and exits before local
+acknowledgement. A second process reconciles that exact report and retires its
+index row. A third process authenticates retained archive bytes and independently
+confirms the original journal's terminal report. A competing process checks all
+three recovery leases. Native tests also retain an actual unconfirmed outbox in
+the loss report, exercise original catalogue restoration, and refuse wrong key,
+changed configuration, Creating/missing storage and witness request/reply loss.
+
 ## Encoding and trust boundary
 
 The configuration contains exactly one `continuity_installation_v1` table and one

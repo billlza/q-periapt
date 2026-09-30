@@ -642,13 +642,18 @@ fn service_peer_process() -> Result<()> {
     let root = Path::new(&root);
     let attempt: u8 = std::env::var("QPERIAPT_PUBLIC_SERVICE_ATTEMPT")?.parse()?;
     let mode = std::env::var("QPERIAPT_PUBLIC_SERVICE_MODE")?;
-    if mode == "contender" {
-        for name in [
-            "sdk.redb",
-            "installation.redb",
-            "journal.redb",
-            "archives.redb",
-        ] {
+    if mode == "contender" || mode == "recovery-contender" {
+        let files: &[&str] = if mode == "contender" {
+            &[
+                "sdk.redb",
+                "installation.redb",
+                "journal.redb",
+                "archives.redb",
+            ]
+        } else {
+            &["installation.redb", "journal.redb", "archives.redb"]
+        };
+        for name in files {
             assert!(
                 matches!(
                     open_private_database(&root.join(name)),
@@ -657,6 +662,55 @@ fn service_peer_process() -> Result<()> {
                 "lease {name}"
             );
         }
+        return Ok(());
+    }
+    if mode == "cleanup-freeze" || mode == "cleanup-finish" || mode == "cleanup-verify" {
+        let session = array(root, "session")?;
+        let mut recovery = p::InstallationRecovery::open(paths(root)?, key(root)?)?;
+        if mode == "cleanup-verify" {
+            assert!(recovery.session_ids()?.is_empty());
+            let archive =
+                p::SessionClosureArchive::from_bytes(&read(root, "closure-archive", 1024)?)?;
+            let mut owner = recovery.open_session_from_archive(&archive, None)?;
+            let report = p::SessionClosureId::from_trusted_state(array(root, "closure-id")?)?;
+            assert_eq!(
+                owner.stores()?.0.status()?,
+                p::SessionClosureStatus::Closed(report)
+            );
+            store(root, "cleanup-verified", report.as_bytes())?;
+            return Ok(());
+        }
+        assert_eq!(recovery.session_ids()?, vec![session]);
+        let mut owner = recovery.open_session(session, None)?;
+        if mode == "cleanup-freeze" {
+            let mut contender = child(root, 91, "recovery-contender")?;
+            assert!(wait(&mut contender)?.success());
+        }
+        let (journal, index) = owner.stores()?;
+        if mode == "cleanup-freeze" {
+            store(root, "closure-archive", index.get(session)?.as_bytes())?;
+        }
+        let report = journal.begin()?;
+        assert_eq!(report.session, session);
+        let accounting = format!("{report:?}\n").into_bytes();
+        if mode == "cleanup-freeze" {
+            store(root, "closure-report", &accounting)?;
+            store(root, "closure-id", report.report.as_bytes())?;
+            std::process::exit(77);
+        }
+        assert_eq!(read(root, "closure-report", 65536)?, accounting);
+        assert_eq!(array::<32>(root, "closure-id")?, *report.report.as_bytes());
+        journal.acknowledge(report.report)?;
+        assert_eq!(
+            journal.status()?,
+            p::SessionClosureStatus::Closed(report.report)
+        );
+        assert!(index.retire_closed(journal, report.report)?);
+        assert!(!index.retire_closed(journal, report.report)?);
+        assert!(index.session_ids()?.is_empty());
+        owner.close();
+        assert!(matches!(owner.stores(), Err(p::DurableError::Closed)));
+        store(root, "cleanup-complete", report.report.as_bytes())?;
         return Ok(());
     }
     let mut peer = Peer::open(root)?;
@@ -971,7 +1025,27 @@ fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Resu
             q_periapt_sdk::Error::PolicyDenied
         ))
     ));
-    let receipt = format!("{{\"session\":\"{}\",\"forward_message\":\"{}\",\"reverse_message\":\"{}\",\"network_rekeys\":{network_rekeys},\"independent_readbacks\":3,\"exclusive_leases_checked\":8,\"unknown_delivery_reconciled\":true,\"durable_sdk_revocation\":true}}\n",
+    let mut cleanup = child(&s.responder, 5, "cleanup-freeze")?;
+    assert_eq!(wait(&mut cleanup)?.code(), Some(77));
+    let retained_report = array::<32>(&s.responder, "closure-id")?;
+    let mut cleanup = child(&s.responder, 6, "cleanup-finish")?;
+    assert!(wait(&mut cleanup)?.success());
+    assert_eq!(
+        array::<32>(&s.responder, "cleanup-complete")?,
+        retained_report
+    );
+    let mut cleanup = child(&s.responder, 7, "cleanup-verify")?;
+    assert!(wait(&mut cleanup)?.success());
+    assert_eq!(
+        array::<32>(&s.responder, "cleanup-verified")?,
+        retained_report
+    );
+    assert!(
+        p::InstallationRecovery::open(paths(&s.responder)?, key(&s.responder)?)?
+            .session_ids()?
+            .is_empty()
+    );
+    let receipt = format!("{{\"session\":\"{}\",\"forward_message\":\"{}\",\"reverse_message\":\"{}\",\"network_rekeys\":{network_rekeys},\"independent_readbacks\":3,\"exclusive_leases_checked\":8,\"unknown_delivery_reconciled\":true,\"durable_sdk_revocation\":true,\"cleanup_after_revocation\":true,\"cleanup_exclusive_leases_checked\":3}}\n",
         hex(&established.session),hex(saved.as_bytes()),hex(id.as_bytes()));
     store(
         s.initiator.parent().ok_or("reference root")?,

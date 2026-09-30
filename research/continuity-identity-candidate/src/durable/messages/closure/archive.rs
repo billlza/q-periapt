@@ -155,6 +155,31 @@ impl SessionClosureArchive {
         }
         Ok(())
     }
+    pub(crate) fn check_installation(
+        &self,
+        key: &JournalKey,
+        journal: JournalIdentity,
+        owner: [u8; 32],
+        policy: [u8; 32],
+        witness: Option<[u8; 32]>,
+    ) -> Result<(), DurableError> {
+        let scope = self.authenticate(key, journal)?;
+        if scope.binding.owner != owner {
+            return Err(DurableError::Conflict);
+        }
+        match (scope.protection, witness) {
+            (Protection::Local, None) => Ok(()),
+            (
+                Protection::Required {
+                    policy: saved,
+                    witness: pinned,
+                    ..
+                },
+                Some(required),
+            ) if saved == policy && pinned == required => Ok(()),
+            _ => Err(DurableError::Conflict),
+        }
+    }
     fn authenticate(
         &self,
         key: &JournalKey,

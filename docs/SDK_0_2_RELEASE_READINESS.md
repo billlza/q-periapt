@@ -72,10 +72,58 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 232 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 234 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The native [installation recovery entry](../research/continuity-identity-candidate/INSTALLATION.md#recovery-after-operational-authority-expires)
+now reaches existing session cleanup after live policy/credential admission is
+unavailable. `InstallationRecovery` admits original Active configuration, exact
+paths/key and its existing index. Its bounded IDs remain discovery hints. Session
+selection authenticates the original archive and journal/device/protection, with
+the original policy/witness binding and signer still required for witness-backed
+storage. `InstalledSessionRecovery` retains all three database owners while
+exposing only closure and catalogue operations. No runtime/context is recreated,
+no missing Active storage is reprovisioned, and separately retained archive input
+cannot silently replace an index row.
+
+The public consumer performs three fresh processes after signed durable SDK
+revocation: freeze and persist the complete loss report, exit before acknowledgement;
+reopen, match and acknowledge the exact report, retire the catalogue row; then
+authenticate retained archive bytes and independently confirm the terminal journal
+state. A fourth, bounded contender checks all three recovery leases. Native cases
+include a real unconfirmed outbox, expired/closed authority, exact catalogue
+restoration, invalid/missing configuration and request/reply loss at the original
+witness. Initial noncanonical temporary-path fixtures failed with `PrivateFile`
+and were corrected without changing admission. Frozen source contains 1,019 files
+/ 234 Rust files, archive SHA-256
+`f8681b0cca762fcb99eb95aa091a09016e0290eab9dffe2c94d7deda7cc4c860`.
+This remains an unpublished native API; installed Continuity adapters, authority
+renewal, physical power-loss and cross-host qualification remain separate work.
+
+The frozen recovery source passes **280 native unit tests plus two public
+integration tests** in each of Debug and Release, zero failed or ignored; runner
+times are 797.230/792.877 seconds under overlapping load. The two-test integration
+count includes its child-process helper. Rust 1.90 executes both all-feature and
+connection-only paths, reporting one and zero network rekeys respectively. Four
+retained configurations independently verify eight application files and their
+complete host loss reports, with report IDs agreeing across freeze, completion
+and a fresh terminal-state verification process. Both compiler versions pass
+strict all-feature Clippy; all six feature variants, warning-strict docs/format
+and 95 clean source/isolation/release contracts pass. The
+`20260930-sdk-installed-recovery` cohort retains exact source, binaries, failed
+fixture and passing logs. Wall times are not a controlled performance result;
+synthetic private keys and journals are excluded from its evidence mirror.
+
+Predecessor **4c4436d1** push CI's Android 16 KiB job fails before the full consumer's
+instrumentation starts: installation reports success, package ownership matches
+twice without convergence, and ADB loses transport. Before/recovery guest boot IDs
+agree. The retained log includes 77 system lowmemorykiller actions, while the two
+memory snapshots are not peak measurements or a causal explanation of transport
+loss. This pre-workload failure is distinct from the older application `LOW_MEMORY`
+exit and the later cleanup failure. No SDK workload, OOM or transport repair is
+claimed from these diagnostics; the gate remains failed.
 
 The [public native service consumer](../research/continuity-identity-candidate/INSTALLATION.md#public-consumer-and-original-service-recovery)
 now verifies signed bootstrap material, borrows the original verified local device

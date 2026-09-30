@@ -28,7 +28,7 @@ mod session_archives;
 mod session_policy;
 pub use installation::{
     DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
-    InstallationStatus,
+    InstallationRecovery, InstallationStatus, InstalledSessionRecovery,
 };
 pub use session_archives::SessionArchiveStore;
 #[cfg(test)]

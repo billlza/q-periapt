@@ -17,6 +17,9 @@ use std::{
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_installation_v1");
 const TAG: &[u8; 8] = b"QPCINS01";
 
+mod recovery;
+pub use recovery::{InstallationRecovery, InstalledSessionRecovery};
+
 /// Exact independently configured paths. Keep the installation database and
 /// wrapping key outside journal backups. Missing configuration is not first use.
 #[derive(Clone)]

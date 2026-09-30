@@ -6,6 +6,38 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Original installation recovery checkpoint
+
+Frozen source archive
+`f8681b0cca762fcb99eb95aa091a09016e0290eab9dffe2c94d7deda7cc4c860`
+adds a cleanup-only installation entry. `InstallationRecovery` opens existing
+Active configuration and an existing index, checking the independently retained
+key commitment and exact path binding. Discovery IDs do not authenticate a
+session. Selecting one authenticates its original archive MAC and checks journal
+and device ownership. Required protection additionally matches the original
+policy digest and witness binding before the existing restricted journal opens.
+No current policy, device credential or operational context is reconstructed.
+
+`InstalledSessionRecovery` holds the cleanup journal, index and installation in
+that drop order. It exposes only the existing closure/catalogue engines. Creating,
+missing configuration, wrong key/path/owner, archive forgery and missing journals
+cannot create replacement state. A separately retained archive is an explicit
+input for lost-row recovery; it cannot overwrite a conflicting index record.
+Required witness and original signer admission remain mandatory, and request or
+reply loss returns no recovery owner. Trust in independent configuration and the
+local-only profile's rollback limitation are unchanged. Local-only archives do
+not carry a signed-policy digest; their cleanup scope is authenticated by the
+original key, journal, device owner and original session binding.
+
+The public integration uses three actual post-revocation processes: freeze and
+durably record the complete report, exit before acknowledgement; reopen and match
+that exact report before acknowledgement/index retirement; then independently
+authenticate the retained archive and confirm the terminal journal state. A
+competing process checks all three leases. Separate native cases retain an actual
+unconfirmed outbox in the report and exercise catalogue restoration and original
+witness failures. This internal boundary review does not qualify foreign packages,
+authority renewal, anti-rollback configuration or physical power-loss behavior.
+
 ## Public native service consumer checkpoint
 
 The native external-consumer change is reviewed against source archive

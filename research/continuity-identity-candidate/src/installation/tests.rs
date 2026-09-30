@@ -14,6 +14,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod recovery;
+
 fn paths(root: &Path) -> InstallationPaths {
     InstallationPaths::new(
         &root.join("installation.redb"),

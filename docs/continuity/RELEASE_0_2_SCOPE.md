@@ -176,6 +176,15 @@ fresh witness admission/release. This implements a native initialization boundar
 not published bindings, policy/credential renewal, global lineage uniqueness or
 rollback protection for the independent trusted configuration.
 
+Native installation recovery now admits only the original Active configuration,
+key/path binding and existing catalogue after operational policy or credentials
+are unavailable. Selecting a session authenticates its original archive and opens
+only the restricted closure journal under unchanged witness requirements. It
+retains installation/index/journal ownership across explicit host loss accounting,
+terminal acknowledgement and catalogue retirement. No operational context or
+permission is reconstructed. This closes the native installed-state cleanup entry;
+foreign adapters, witness/credential renewal and product packaging remain required.
+
 ## Required completion evidence
 
 | Capability | Implementation obligation | Evidence required before completion |
