@@ -5228,6 +5228,30 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("; true", audit_gate)
         self.assertNotIn("--ignore", source)
 
+    def test_continuity_lock_audit_reuses_the_unconditional_fixed_audit_tool(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        audit_job = extract_workflow_job(workflow, "audit")
+        identity_job = extract_workflow_job(workflow, "continuity-identity-candidate")
+        gate = extract_named_workflow_step(audit_job, "Verify separate Continuity dependency lock")
+        self.assertIn(
+            '\"$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin/cargo-audit\" audit', gate
+        )
+        command = "--file research/continuity-identity-candidate/Cargo.lock --deny warnings"
+        self.assertIn(command, gate)
+        self.assertEqual(workflow.count(command), 1)
+        self.assertLess(
+            audit_job.index("Install fixed dependency-audit tool"),
+            audit_job.index("Verify separate Continuity dependency lock"),
+        )
+        self.assertNotIn("install cargo-audit", identity_job)
+        for weakening in ("if:", "continue-on-error:", "--ignore", "||", "; true"):
+            self.assertNotIn(weakening, gate)
+        self.assertNotRegex(audit_job, r"(?m)^    if:")
+        self.assertNotIn("continue-on-error:", audit_job)
+        self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture', identity_job)
+        self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture', identity_job)
+        self.assertIn("    timeout-minutes: 25\n", identity_job)
+
     def test_ci_uses_warning_denied_audit_without_suppression(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         guide = " ".join(ARTIFACT_GUIDE.read_text(encoding="utf-8").split())
