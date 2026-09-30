@@ -3240,3 +3240,79 @@ only these guides change after execution. The source-review patch retains its
 original identity and must be refreshed before a future commit to include these
 documentation updates. Native/installed/device coverage, controlled performance
 and energy, and exact-source hosted CI remain open.
+
+
+## Installed OpenSSL witness interoperability (2026-10-01)
+
+The separate native `anchor-tls` carrier now has a C reference peer using
+OpenSSL 3.6.4 in both endpoint roles. It requires TLS 1.3, the standard
+X25519MLKEM768 group, dedicated `q-periapt-anchor/1` ALPN, fresh mutual
+certificate authentication, exact certificate/subject admission and both
+authenticated stream endings. The original signed witness encodings and
+native durable state engine are unchanged. OpenSSL is used only by the
+qualification peer; it is not added to the product C library's dependencies.
+The [C consumer guide](../bindings/c/ContinuityPackageConsumer/README.md)
+documents invocation, resource bounds and the isolated peer's failure behavior.
+
+The earlier native-TLS cohort at `1c1d7c80` completed installed C Debug/Release
+execution with native Rust peers on Rust 1.98.1 and 1.90. Its sealed local evidence retains
+17,917 hashed files. The new runtime snapshot `4286be0c` and source-gate snapshot
+`aef1e19e` have the same 183 qualification input hashes; the latter corrects
+only the artifact guide's Rust source census. Product/candidate engines and
+the C owner library sources remain identical to `e6ef8fc6`. The candidate
+archive remains `be7b33dd86eefafd093939fb5478b27f3b78d4a759585d2b1e3785e91c402936`,
+and the consumed SDK report remains
+`117d1de9be16ccf45846129262237349735635e9dceda69e03bd222f6a521309`.
+
+The complete Rust 1.98.1 installed Rust/C collector passes in 1,081.905 seconds;
+the Rust 1.90 installed C collector, including its native Rust peers, passes in
+1,033.470 seconds. Both Debug and Release execute all original C client,
+server, revoked-cleanup, 59 sync-interruption cases / 771 command records,
+274 signed-TCP witness exchanges and 142 native-TLS witness exchanges. Each
+of these four configurations additionally passes 142 OpenSSL-server witness
+exchanges, two real signed OpenSSL-client query/advance exchanges, and four
+pre-store refusals: wrong-subject credentials, trailing data, absent authenticated
+close and wrong ALPN. Actual receiver bytes, original loss accounting and
+crash/reopen cleanup are independently checked. These timings include build
+and qualification work; they are not SDK latency or performance comparisons.
+
+Each OpenSSL configuration exports 29 server, seven client and five rejection
+public files. The collector matches header/CLI/runtime versions, retains the
+actual `libssl`/`libcrypto` and peer identities, and rechecks all selected inputs
+after execution. Public exports are independently replayed and rehashed.
+Strict Clippy passes on both compilers. The committed source passes 142
+source/package/inventory/verifier tests and the source gate, requiring all 250
+tracked Rust files for CodeQL extraction. Five receipt-verifier regressions
+use explicitly synthetic metadata, not fabricated TLS/signature evidence.
+
+The original failed experiments are retained. OpenSSL's normal half-shutdown
+return of zero was initially misclassified as an I/O error. Two same-name
+self-signed trust anchors also made the selected successful client depend on
+trust-store order; each leaf passed alone, and reversing the combined store
+reversed which client failed. Distinct issuer names in the fixture remove
+that ambiguity while retaining certificate verification and exact leaf pins.
+The first collector rejected the CLI's explicit library-version suffix, and
+one development run collided with an existing command-record filename. These
+were harness failures, not successful qualifications. The first source check
+also retained a stale source-count failure and an incomplete global-toolchain
+launch; the complete rerun selected the owned compiler explicitly.
+
+The local `20261001-continuity-witness-openssl` evidence cohort retains 18,432
+hashed files / 263,242,147 bytes: exact sources, binaries/dependencies, archives,
+public runtime readbacks, command receipts and original failures. No private
+runtime keys or journals are exported. Predecessor `e6ef8fc6` finishes both
+43-job CI runs and six CodeQL jobs. Its downloaded Linux x86_64 artifact matches
+the hosted archive digest and all 5,084 decompressed files; both profiles also
+recheck 58 signed-TCP public-file hashes and a 274-exchange semantic transcript.
+Historical TLS reports record 142 exchanges per profile but omitted public TLS
+exports. The current workflow adds those exports and requires the independent
+OpenSSL peer on Ubuntu 26.04. Current-source hosted qualification remains separate.
+
+The independent implementation here is TLS. Witness signatures and transactions
+still execute in the native `AnchorStore` host over bounded IPC. A full independent
+witness engine, deployed service, cross-host/current-device execution, certificate
+and authority renewal, the remaining fault/concurrency boundaries, product and
+language integration, construction-specific recovery analysis, controlled
+performance and final release coordination remain open. The candidate remains
+`0.0.0 / publish=false`, outside product ABI 2. No merge, publication, external
+audit, full TLS fault coverage or formal security proof is claimed.
