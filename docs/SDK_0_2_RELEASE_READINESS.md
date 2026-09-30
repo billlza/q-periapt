@@ -77,6 +77,29 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The installed Continuity Rust candidate now consumes a Cargo-produced 0.0.0 archive
+and nine 0.2.0 SDK archives outside the checkout. The macOS arm64 qualification
+completes both Debug and Release public connection traces, independent application
+and cleanup readback, strict Clippy, and post-execution source/lock/binary identity
+checks. The archive SHA-256 is
+`7681ac4b8adc0040705ad1cfbfa444e98589bb06a2668901513f76355f0b76ad`.
+Its SDK cohort is the byte-matched twelve-crate artifact from `91554a16`; all nine
+consumed source trees are rechecked against the current SDK. The record retains
+the initial missing-version packaging failure, the mixed-path staging failure and
+a rejected Release run whose compiler helper could not find `libLLVM.dylib`.
+Explicit compiler-private library lookup fixes that launch environment; application
+test processes run without loader overrides. No warning is suppressed.
+
+The exact candidate engine, public workload and lock bytes are unchanged from
+`91554a16`; this is an installed Rust boundary, not another protocol implementation.
+The candidate remains `publish = false`, and the twelve-crate SDK publication
+topology and ABI 2 remain unchanged. The new `continuity-installed-rust` CI lane
+must execute the same run's SDK packages on Linux. Foreign Continuity adapters,
+independent/cross-host interoperability, protocol freeze, lifecycle/security and
+performance obligations remain open within 0.2.0. Local actionlint 1.7.12 retains
+the identical pre-existing unknown `ubuntu-26.04` label diagnostic; the added job
+uses `ubuntu-24.04`, and no linter rule or existing runner is changed to hide it.
+
 Android emulator state format v2 adds raw `/proc/vmstat` and `/proc/zoneinfo` to
 the existing before-install, failure and one-shot-recovery captures. The retained
 16-KiB failures have `MemAvailable` snapshots and watermark-kill messages but lack
@@ -89,6 +112,13 @@ command tests and 198 related runtime-state/device-proof/SDK-runtime tests with
 warnings treated as errors. These are local collector contracts. Actual runtime
 snapshots and package execution retain their own source/host scope; this addition
 does not establish an OOM or ADB repair.
+
+At `e9b38945`, push run `36701922227` completes the API 23 runtime job. Its actual
+full-SDK and version-only packages pass; both v2 baseline captures contain all 13
+successful probes, including vmstat and zoneinfo, at 16,784 and 16,607 bytes within
+the unchanged 64-KiB bound. This confirms that profile's baseline reads. API 35
+and error-path collection retain separate qualification; the earlier intermittent
+transport failures have not been declared repaired.
 
 The native [installation recovery entry](../research/continuity-identity-candidate/INSTALLATION.md#recovery-after-operational-authority-expires)
 now reaches existing session cleanup after live policy/credential admission is

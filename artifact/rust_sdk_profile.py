@@ -131,13 +131,13 @@ def classify(metadata: dict) -> dict:
     return packages
 
 
-def archive_files(data: bytes, name: str) -> dict[str, bytes]:
+def archive_files(data: bytes, name: str, *, version: str = VERSION) -> dict[str, bytes]:
     """Read Cargo's archive with bounded expansion and a closed regular-file tree."""
     require(0 < len(data) <= MAX_ARCHIVE, "crate archive size exceeds its bound")
     with gzip.GzipFile(fileobj=io.BytesIO(data)) as stream:
         expanded = stream.read(MAX_EXPANDED + 1)
     require(len(expanded) <= MAX_EXPANDED, "crate expansion exceeds its bound")
-    prefix = f"{name}-{VERSION}/"
+    prefix = f"{name}-{version}/"
     result, folded = {}, set()
     with tarfile.open(fileobj=io.BytesIO(expanded), mode="r:") as archive:
         for member in archive:

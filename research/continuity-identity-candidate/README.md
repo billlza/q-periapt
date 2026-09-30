@@ -1,5 +1,10 @@
 # Continuity identity, prekey selection and bootstrap candidate
 
+The [installed Rust package gate](PACKAGE_CONSUMER.md) packages this unchanged
+shared engine and exercises the public connection/recovery trace through exact
+crate archives outside the checkout. It retains the unpublished candidate boundary;
+foreign bindings and the product protocol freeze remain separate release work.
+
 This unpublished, isolated implementation exercises the accountable identity
 chain proposed for [Continuity in 0.2.0](../../docs/continuity/RELEASE_0_2_SCOPE.md).
 An independently pinned account root verifies a device credential and an exact

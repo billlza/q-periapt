@@ -35,6 +35,9 @@ class ContinuityIdentityIsolationTests(unittest.TestCase):
         self.assertNotIn("q-periapt-continuity-model", {
             dependency["name"] for dependency in package["dependencies"]
         })
+        for dependency in package["dependencies"]:
+            if dependency["name"].startswith("q-periapt"):
+                self.assertEqual(dependency["req"], "=0.2.0")
         lock = tomllib.loads((CANDIDATE / "Cargo.lock").read_text())
         self.assertIn(NAME, {package["name"] for package in lock["package"]})
 

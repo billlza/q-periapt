@@ -1741,6 +1741,56 @@ jobs:
           path: target/continuity-spqr-evidence
           if-no-files-found: error
 
+  # Install the same-run SDK archives and the separate unpublished candidate.
+  continuity-installed-rust:
+    needs: rust-publish-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: continuity_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          path: target/continuity-sdk-input
+      - name: Execute installed Continuity connection and recovery
+        env:
+          QPERIAPT_PYTHON: ${{ steps.continuity_python.outputs.python-path }}
+        run: |
+          report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(sha256sum "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/continuity_package.py \
+            --report "$report" --report-sha256 "$report_sha256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --output target/continuity-installed-rust
+      - name: Retain package and public execution evidence without private test state
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-installed-rust
+          path: |
+            target/continuity-installed-rust/*.crate
+            target/continuity-installed-rust/*.json
+            target/continuity-installed-rust/*.stdout
+            target/continuity-installed-rust/*.stderr
+            target/continuity-installed-rust/consumer-Cargo.lock
+          if-no-files-found: error
+
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}

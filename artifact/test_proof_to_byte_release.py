@@ -5542,7 +5542,7 @@ with _temporary_release_test_directories(parents):
         )
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
-        workflows = ((CI_WORKFLOW, 24), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
+        workflows = ((CI_WORKFLOW, 25), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
         self.assertEqual(WINDOWS_RELEASE_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN)
         for path, expected_count in workflows:
             with self.subTest(workflow=path.name):
@@ -5640,6 +5640,13 @@ with _temporary_release_test_directories(parents):
         for command in ("clippy", "test"):
             self.assertIn(f'cargo +"$CANDIDATE_TOOLCHAIN" {command} --manifest-path', identity_job)
         package_job = extract_workflow_job(ci, "rust-publish-contract")
+        continuity_package = extract_workflow_job(ci, "continuity-installed-rust")
+        self.assertEqual(continuity_package.count("          toolchain: 1.98.1\n"), 1)
+        self.assertIn("needs: rust-publish-contract", continuity_package)
+        self.assertIn("artifact/continuity_package.py", continuity_package)
+        self.assertIn('--toolchain-root "$(rustc +1.98.1 --print sysroot)"', continuity_package)
+        self.assertIn('report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json', continuity_package)
+        self.assertNotIn("continue-on-error", continuity_package)
         self.assertIn("artifact/rust_sdk_msrv.py", package_job)
         self.assertIn('--toolchain-root "$(rustc +1.90.0 --print sysroot)"', package_job)
         for job_name in ("msrv", "rust-publish-contract"):

@@ -185,6 +185,17 @@ terminal acknowledgement and catalogue retirement. No operational context or
 permission is reconstructed. This closes the native installed-state cleanup entry;
 foreign adapters, witness/credential renewal and product packaging remain required.
 
+The separate [installed Rust candidate gate](../../research/continuity-identity-candidate/PACKAGE_CONSUMER.md)
+now builds a real Cargo archive and consumes it with nine exact SDK archives outside
+the checkout. The existing public multi-process connection/recovery trace executes
+in both Debug and Release, including unknown-delivery reconciliation, network
+rekey, reverse application bytes and cleanup after durable revocation. Package
+origins, locked external dependencies, executable identities and independent file
+readback are checked. The candidate remains unpublished at 0.0.0; this closes a
+Rust archive-consumption boundary, not the product protocol freeze or the foreign
+language adapters. Same-run Linux CI and the remaining platform gates require
+their own completed results.
+
 ## Required completion evidence
 
 | Capability | Implementation obligation | Evidence required before completion |
