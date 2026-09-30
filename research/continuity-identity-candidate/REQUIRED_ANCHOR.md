@@ -13,8 +13,14 @@ witness binding and writer fence into every current image (introduced at version
 change in a saved write intent. A local journal cannot accept a required policy;
 a required journal cannot accept a replacement/downgraded policy.
 
-`provision_anchored` creates an inactive empty journal. Its authenticated genesis
+`provision_anchored` takes a fresh `JournalIdentity` retained durably and independently
+before creation, and creates an inactive empty journal. Its authenticated genesis
 must be enrolled explicitly with independently verified device and policy pins.
+After an unknown creation result, `recover_anchor_genesis` may recover only the
+original public enrollment metadata from an empty revision-1, fence-1 image, with
+no pending intent and the same ID/device/policy/witness. It cannot return an operating
+owner, advance a saved write, or replace an existing file. Explicit exact enrollment
+and normal witnessed reopening still follow; see [creation recovery](DURABILITY.md#creation-with-an-unknown-result).
 `activate_anchor` consumes a device signing owner and pinned client, querying the
 exact enrolled genesis. `open_anchored` validates journal identity, policy, signer
 and witness before reconciliation. The ordinary `open` rejects required images

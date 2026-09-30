@@ -1740,7 +1740,9 @@ jobs:
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    # The Linux MSRV debug suite alone took 1,251 s for 246 tests. Keep the
+    # complete Debug/Release, compiler, SDK and documentation checks within one bounded job.
+    timeout-minutes: 40
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
     strategy:

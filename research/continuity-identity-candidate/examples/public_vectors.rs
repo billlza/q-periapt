@@ -389,6 +389,21 @@ type VectorParty<'a> = (
     &'a q_periapt_continuity_identity_candidate::VerifiedDevice,
 );
 
+// Public creation configuration is persisted before provisioning, so an unknown
+// result can be reopened using the same independently retained identity.
+#[cfg(unix)]
+fn retain_journal_identity(
+    path: &Path,
+) -> Result<q_periapt_continuity_identity_candidate::JournalIdentity, Box<dyn Error>> {
+    use std::io::Write;
+    let identity = q_periapt_continuity_identity_candidate::JournalIdentity::generate()?;
+    let mut file = fs::File::create_new(path)?;
+    file.write_all(identity.as_bytes())?;
+    file.sync_all()?;
+    fs::File::open(path.parent().ok_or("identity directory")?)?.sync_all()?;
+    Ok(identity)
+}
+
 #[cfg(unix)]
 fn durable_bootstrap_vectors(
     directory: &Path,
@@ -410,11 +425,13 @@ fn durable_bootstrap_vectors(
         &path.join("initiator.redb"),
         JournalKey::provision(&path.join("initiator-key"))?,
         di,
+        retain_journal_identity(&path.join("initiator-id"))?,
     )?;
     let mut jr = DeviceJournal::provision(
         &path.join("responder.redb"),
         JournalKey::provision(&path.join("responder-key"))?,
         dr,
+        retain_journal_identity(&path.join("responder-id"))?,
     )?;
     let request = InitiationId::generate()?;
     let initial = ji.initiate(Arc::clone(ci), request, si, 150)?;
@@ -559,6 +576,7 @@ fn anchor_vectors(
         &path.join("journal"),
         JournalKey::provision(&path.join("journal-key"))?,
         device,
+        retain_journal_identity(&path.join("journal-id"))?,
     )?;
     let genesis = journal.anchor_genesis(device, policy)?;
     let initial = AnchorHead::from_trusted_state(1, 1, genesis.image_digest())?;

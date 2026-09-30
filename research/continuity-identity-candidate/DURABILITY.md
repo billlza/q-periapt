@@ -14,9 +14,10 @@ The owner has no raw-key export and erases its memory on drop. Keep its file out
 database backups. This provider assumes a trusted same-UID host and supplies
 neither a hardware keystore nor per-record cryptographic erasure.
 
-After successful provisioning, retain `JournalIdentity` independently of the
-database. Opening requires this expected identity and an independently verified
-local device. An incoming database cannot choose its expected identity. The owner
+Generate `JournalIdentity` and durably retain it independently **before** calling
+`DeviceJournal::provision` or `provision_anchored`; both now require that identity.
+Opening requires the same expected identity and an independently verified local
+device. An incoming database cannot choose its expected identity. The owner
 binding hashes account, device ID, generation and credential digest using the
 bootstrap `storage-owner` domain. Roster updates can retain this owner; a different
 credential/generation cannot silently reuse it. One authoritative journal per
@@ -34,23 +35,58 @@ commit-uncertainty behavior.
 The same journal supports both local roles and its local prekey inventory. Kind 1
 is responder, kind 2 initiator, kind 3 prekey, kind 4 message state and kind 5 account
 roster; initiator records cannot claim remote prekey consumption. This unreleased
-local v17 schema rejects v1–v16 tables/headers without implicit migration or reset.
+local v21 schema rejects v1–v20 tables/headers without implicit migration or reset.
 The network bootstrap bytes and SDK ABI major **2** are unchanged.
+
+## Creation with an unknown result
+
+Before creating the journal, the caller persists the fresh public journal ID in
+independent trusted configuration, including file and parent-directory durability,
+and provisions the wrapping-key owner. Key creation is exclusive; journal creation binds
+that exact ID into the encrypted revision-1 genesis and commits it before returning
+an owner. The ID is not taken from the incoming database, and is not a rollback
+anchor. Never reuse an ID to replace a previously active missing journal.
+
+If the process exits after genesis commit but before returning, local-only storage
+can reopen with the original path/key/device/ID and perform normal authenticated
+work. An uncommitted creation, missing file, wrong key/ID/device or malformed state
+remains an error. There is no `open_or_create`, implicit repair, reinitialization or
+replacement of an existing path. The host must retain an explicit provisioning
+intent until it has reconciled the result; absence is not evidence that an older
+active lineage may be replaced.
+
+Required-witness storage must not use local-only reopening. The restricted
+`DeviceJournal::recover_anchor_genesis` returns only public enrollment metadata for
+an authenticated, empty revision-1 image with the original policy, witness binding,
+fence 1 and independent ID. It rejects a pending write intent without applying it,
+and rejects an advanced journal. This is not fresh witness evidence or an operating
+owner. Explicitly enroll the recovered exact genesis with the original witness,
+then call `open_anchored`; exact enrollment retries remain idempotent. No unknown
+creation result authorizes a new witness or a changed policy.
+
+The process-cut regression observes the real genesis transaction on both sides of
+commit and terminates the child before owner return. Three bounded subprocess
+contenders at each of the three cuts (local before/after, required after) must see
+`Busy`. The pre-fix after-commit test failed because the original creator generated
+a different internal ID. The corrected path reopens with the pre-retained ID,
+finishes a real local bootstrap, and, under the original witness, generates and
+reopens the same durable prekey. These process-loss tests do not simulate power
+loss or qualify an installed language adapter.
 
 ## Sealed encoding
 
-Exactly one table, `continuity_device_candidate_v19`, holds one `image` row and an
+Exactly one table, `continuity_device_candidate_v21`, holds one `image` row and an
 optional authenticated `pending` write-intent row. The [write-intent contract](WRITE_INTENTS.md)
 defines exact-target recovery and the two transactions used for each state advance.
 The image is:
 
-`QPVLT019[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
+`QPVLT021[8] || store_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`
 
 The 104-byte header is associated data for XChaCha20-Poly1305. The wrapping key and
 fresh OS-random 192-bit nonce are not network inputs. Revision is in `1..u64::MAX`,
 with the upper bound excluded. The encrypted plaintext is:
 
-`QPVIMG19[8] || protection[73] || local_account[32] || next_fanout:u64 || count:u16 || records`
+`QPVIMG21[8] || protection[73] || local_account[32] || next_fanout:u64 || count:u16 || records`
 
 `protection = mode:u8 || policy_digest[32] || witness_binding[32] || fence:u64`.
 Local mode is exactly 73 zero bytes. Required mode is 1, with nonzero policy and
@@ -62,7 +98,12 @@ rejected; this candidate provides no implicit migration.
 Each record is `operation_id[32] || context[32] || kind:u8 || phase:u8 ||
 authority_count:u8 || accounts[authority_count*32] || key_count:u8 ||
 fingerprints[key_count*32] || reference_count:u8 || prekeys[reference_count*32] ||
-payload_length:u32 || payload`.
+cancellation_slot? || payload_length:u32 || payload`.
+Initiator/responder records alone reserve the 170-byte cancellation slot from
+creation: all-zero means active, otherwise `QPBCTR01 || prior_phase:u8 ||
+receipt_id[32] || known_flights_mask:u8 || known_flights_and_session[4*32]`.
+[Permanent bootstrap cancellation](BOOTSTRAP_CANCELLATION.md) defines the exact
+terminal payload and retained claims; other record kinds have no slot.
 The monotonic `next_fanout` ordinal starts at zero and never resets on batch
 retirement. Kind 6 records bind all members of an [atomic account send](FANOUT.md);
 phases 21/22 distinguish whole-batch reservation and commit. Its at most 16 live

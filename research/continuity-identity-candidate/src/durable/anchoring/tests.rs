@@ -93,6 +93,7 @@ fn case_with_budget(budget: u16) -> Case {
         key,
         peer.initiator_device(),
         peer.initiator.policy(),
+        crate::durable::tests::retain_new_identity(&path.join("store-id")),
         150,
     )
     .expect("required journal");
@@ -178,9 +179,13 @@ fn required_policy_has_no_volatile_or_local_journal_bypass() {
         Err(Error::PolicyDenied)
     ));
     let key = JournalKey::provision(&c.path.join("local-key")).expect("local key");
-    let mut local =
-        DeviceJournal::provision(&c.path.join("local.redb"), key, c.peer.initiator_device())
-            .expect("local journal");
+    let mut local = DeviceJournal::provision(
+        &c.path.join("local.redb"),
+        key,
+        c.peer.initiator_device(),
+        crate::durable::tests::retain_new_identity(&c.path.join("local-id")),
+    )
+    .expect("local journal");
     assert!(matches!(
         local.initiate(
             Arc::clone(&c.peer.initiator),
@@ -230,9 +235,15 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
     let mut c = case_with_budget(2);
     let (policy, device, _) = c.peer.responder.inventory_inputs();
     let key = JournalKey::provision(&c.path.join("responder-key")).expect("key");
-    let mut responder =
-        DeviceJournal::provision_anchored(&c.path.join("responder.redb"), key, device, policy, 150)
-            .expect("responder");
+    let mut responder = DeviceJournal::provision_anchored(
+        &c.path.join("responder.redb"),
+        key,
+        device,
+        policy,
+        crate::durable::tests::retain_new_identity(&c.path.join("responder-id")),
+        150,
+    )
+    .expect("responder");
     let genesis = responder.anchor_genesis(device, policy).expect("genesis");
     let responder_identity = responder.identity().expect("independent identity");
     c.server
@@ -975,9 +986,15 @@ fn inactive_required_journal_cannot_create_prekeys_and_active_inventory_is_ancho
     let c = case();
     let (policy, device, _) = c.peer.responder.inventory_inputs();
     let key = JournalKey::provision(&c.path.join("inventory-key")).expect("key");
-    let mut journal =
-        DeviceJournal::provision_anchored(&c.path.join("inventory.redb"), key, device, policy, 150)
-            .expect("inactive journal");
+    let mut journal = DeviceJournal::provision_anchored(
+        &c.path.join("inventory.redb"),
+        key,
+        device,
+        policy,
+        crate::durable::tests::retain_new_identity(&c.path.join("inventory-id")),
+        150,
+    )
+    .expect("inactive journal");
     let identity = journal.identity().expect("identity");
     let genesis = journal.anchor_genesis(device, policy).expect("genesis");
     c.server

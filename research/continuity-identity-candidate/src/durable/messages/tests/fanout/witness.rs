@@ -81,14 +81,10 @@ impl Anchored {
                 JournalKey::provision(&path.join("key")).expect("device key"),
                 device,
                 policy,
+                crate::durable::tests::retain_new_identity(&path.join("store-id")),
                 150,
             )
             .expect("anchored device");
-            fs::write(
-                path.join("store-id"),
-                journal.identity().expect("identity").as_bytes(),
-            )
-            .expect("independent identity");
             let genesis = journal.anchor_genesis(device, policy).expect("genesis");
             witness
                 .lock()

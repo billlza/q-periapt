@@ -333,3 +333,12 @@ terminal sessions and monotonic IDs. No operational context is reconstructed, an
 required witnesses still gate readback and advancement. Ordinary committed-history
 retirement, catalogue restoration and installed-language service integration remain
 separate lifecycle requirements.
+
+## Journal creation recovery
+
+The [journal creation contract](DURABILITY.md#creation-with-an-unknown-result)
+requires a public identity retained before provisioning. A process exit after
+commit can then reopen the exact original genesis. Required-witness creation can
+recover only enrollment metadata before explicit enrollment and fresh witness
+admission. Partial creation is refused without repair or replacement. This closes
+a native initialization gap; installed SDK owner integration remains outstanding.

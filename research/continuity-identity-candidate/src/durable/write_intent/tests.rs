@@ -51,6 +51,66 @@ fn disk_image(db: &Database) -> Vec<u8> {
 }
 
 #[test]
+fn genesis_metadata_recovery_never_applies_a_valid_pending_intent() {
+    use crate::{
+        AnchorIdentity, AnchorPin, AnchorRequirement, AnchorSigningKey, ApplicationSendBudget,
+    };
+    let signer = AnchorSigningKey::generate().expect("witness signer");
+    let pin = AnchorPin::new(
+        AnchorIdentity::generate().expect("witness ID"),
+        signer.public_key().expect("pin"),
+    );
+    let f = crate::bootstrap::tests::fixture_with_anchor_and_budget(
+        PrekeyQuality::OneTimeBoth,
+        AnchorRequirement::required(&pin),
+        ApplicationSendBudget::new(1024).expect("budget"),
+    );
+    let dir = directory();
+    let path = dir.path().canonicalize().expect("path");
+    let identity = crate::durable::tests::retain_new_identity(&path.join("store-id"));
+    let mut store = DeviceJournal::provision_anchored(
+        &path.join("state.redb"),
+        JournalKey::provision(&path.join("key")).expect("key"),
+        f.local_device(),
+        f.responder.policy(),
+        identity,
+        150,
+    )
+    .expect("genesis");
+    let active = store.active.as_ref().expect("active");
+    let mut image =
+        load(&active.db, &active.key, active.owner).expect("authenticated fixture image");
+    image.revision += 1;
+    let original = disk_image(&active.db);
+    let target = seal(&active.key, &image).expect("authenticated storage target");
+    let pending = PendingWrite::new(active, &image, &target).expect("valid intent");
+    reserve(active, &pending).expect("persist exact storage-boundary fixture");
+    store.close();
+    assert!(matches!(
+        DeviceJournal::recover_anchor_genesis(
+            &path.join("state.redb"),
+            JournalKey::open(&path.join("key")).expect("key"),
+            f.local_device(),
+            f.responder.policy(),
+            identity
+        ),
+        Err(DurableError::Suspended)
+    ));
+    let db = open_private_database(&path.join("state.redb")).expect("original database");
+    assert_eq!(disk_image(&db), original);
+    let read = db.begin_read().expect("read");
+    let table = read.open_table(TABLE).expect("table");
+    assert_eq!(
+        table
+            .get("pending")
+            .expect("lookup")
+            .expect("retained intent")
+            .value(),
+        pending.wire
+    );
+}
+
+#[test]
 fn authenticated_intent_cannot_change_journal_protection_metadata() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let dir = directory();

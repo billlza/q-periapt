@@ -252,6 +252,13 @@ impl JournalKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct JournalIdentity([u8; 32]);
 impl JournalIdentity {
+    /// Generate a new public creation identity. Retain it durably and independently
+    /// before provisioning; never reuse it to replace a lost journal.
+    pub fn generate() -> Result<Self, Error> {
+        let mut id = [0; 32];
+        getrandom::fill(&mut id).map_err(|_| Error::Entropy)?;
+        Self::from_trusted_state(id)
+    }
     /// Load trusted configuration, not the header of the database being opened.
     pub fn from_trusted_state(bytes: [u8; 32]) -> Result<Self, Error> {
         crate::codec::nonzero(&bytes)?;
@@ -440,23 +447,26 @@ pub struct DeviceJournal {
 }
 impl DeviceJournal {
     /// Explicitly provision a new empty journal for the independently verified local device.
+    /// The caller must durably retain this fresh identity before calling. After an
+    /// unknown result, reopen this exact path/key/device/identity; never create a
+    /// replacement for a missing or malformed journal that may have been active.
     pub fn provision(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
+        identity: JournalIdentity,
     ) -> Result<Self, DurableError> {
-        Self::provision_with_protection(path, key, device, Protection::Local)
+        Self::provision_with_protection(path, key, device, identity, Protection::Local)
     }
     fn provision_with_protection(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
+        identity: JournalIdentity,
         protection: Protection,
     ) -> Result<Self, DurableError> {
         let owner = bootstrap::storage_owner(device);
-        let mut id = [0u8; 32];
-        getrandom::fill(&mut id).map_err(|_| Error::Entropy)?;
-        JournalIdentity::from_trusted_state(id)?;
+        let id = identity.0;
         let image = Image {
             local_account: device.account_id(),
             next_fanout: 0,
@@ -477,9 +487,13 @@ impl DeviceJournal {
                     .insert("image", sealed.as_slice())
                     .map_err(storage)?;
             }
+            #[cfg(all(test, unix))]
+            tests::provisioning::genesis_boundary("before-commit", &id, image_hash(&sealed));
             transaction
                 .commit()
                 .map_err(DurableError::CommitUncertain)?;
+            #[cfg(all(test, unix))]
+            tests::provisioning::genesis_boundary("after-commit", &id, image_hash(&sealed));
             Ok(Self {
                 active: Some(Active {
                     db,
@@ -520,7 +534,8 @@ impl DeviceJournal {
     pub fn close(&mut self) {
         self.active = None;
     }
-    /// Public identity for independent provisioning after successful creation.
+    /// Read back the public identity retained before creation; this does not
+    /// replace independent identity configuration.
     pub fn identity(&self) -> Result<JournalIdentity, DurableError> {
         Ok(JournalIdentity(
             self.active.as_ref().ok_or(DurableError::Closed)?.id,

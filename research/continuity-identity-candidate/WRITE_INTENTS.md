@@ -5,9 +5,16 @@ attempting to install that target as current state. This covers reservations,
 result pins, bootstrap outboxes/confirmations, prekey generation/retirement and
 authenticated roster updates.
 It preserves the same ciphertext, nonce, revision and complete aggregate across
-an interrupted state write. The unpublished local journal schema is v19; earlier
+an interrupted state write. The unpublished local journal schema is v21; earlier
 schemas are rejected without migration or reset. Network bytes and ABI 2 are
 unchanged.
+
+Genesis creation uses the independently retained, caller-supplied identity and one
+immediate two-phase transaction. [Creation recovery](DURABILITY.md#creation-with-an-unknown-result)
+never generates a replacement image: local-only reopening authenticates the saved
+genesis, while required-witness recovery can only recover its public enrollment
+metadata. The metadata reader refuses any pending intent; ordinary anchored recovery
+still requires the original witness before applying that intent.
 
 ## Two durable transactions
 
@@ -61,9 +68,9 @@ advance.
 
 ## Encoding and bounds
 
-The single table `continuity_device_candidate_v19` accepts exactly the `image` row
+The single table `continuity_device_candidate_v21` accepts exactly the `image` row
 and, while a write is pending, one `pending` row. The current image uses the
-[v18 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
+[v21 encrypted aggregate](DURABILITY.md). Unknown tables, multimap tables and extra
 rows are rejected.
 
 The intent is:

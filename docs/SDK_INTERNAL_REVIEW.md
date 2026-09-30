@@ -315,3 +315,36 @@ journal. No automatic reset, removal, replacement or silent network retry is add
 The native complete path now includes context-free cleanup processes using the
 actual indexes. Other bindings/service adapters, catalogue lifecycle, missing archive
 restoration, witness renewal and initial-bootstrap cancellation remain explicit work.
+
+
+### Journal creation identity and enrollment recovery (2026-09-30)
+
+The observed pre-return process cut shows why an ID generated only inside creation
+cannot serve as independently retained recovery input. Both native provisioning
+entry points now require a public identity retained before the call. Existing open
+interfaces and v21 encrypted grammar are unchanged. Missing/partial creation is
+refused, with no implicit replacement of a potentially active lineage.
+
+`recover_anchor_genesis` holds the original database lease, authenticates the full
+image under the original key/owner and refuses any pending journal intent. It checks
+the independently expected ID, local account, exact policy and witness, fence 1,
+revision 1 and original roster genesis. The result contains public enrollment
+metadata, no DeviceJournal or signing/runtime capability. The original witness
+still controls enrollment and fresh admission. redb may perform its own storage
+recovery on open; this API performs no application-image transition or intent
+reconciliation. An old genesis snapshot is not proof of a current witness head.
+
+Process-cut tests cover local creation before/after commit and required creation
+after commit, with bounded competing processes. Exact recovery performs actual
+bootstrap/prekey work; an authenticated pending-intent fixture remains unchanged.
+The initial full-suite failures were a test-marker publication race. Atomic marker
+publication preserves the assertions and removes the partial-observation window;
+the frozen Debug and Release suites then each pass 252 tests.
+
+A separate source-inspection follow-up remains at `JournalKey::open`: it admits an
+exact existing 40-byte file but does not synchronize the file before releasing the
+owner, unlike signing-owner reopening. A complete file observed after interrupted
+initial writing needs explicit durability reconciliation before higher SDK owners
+rely on it. This observation is not a reproduced power-loss result. Installed owner
+initialization must also retain the creation intent and enforce one authoritative
+journal per device lineage; a public ID alone supplies no rollback protection.

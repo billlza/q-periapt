@@ -207,11 +207,14 @@ impl DeviceJournal {
     }
     /// Provision an inactive required-witness journal. Export its genesis for
     /// explicit trusted enrollment, then activate before performing any work.
+    /// Durably retain the fresh journal identity before this call, just as for
+    /// local provisioning; an unknown creation result never authorizes replacement.
     pub fn provision_anchored(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
+        identity: JournalIdentity,
         now: u64,
     ) -> Result<Self, DurableError> {
         policy.check_device(device, now)?;
@@ -234,12 +237,52 @@ impl DeviceJournal {
             path,
             key,
             device,
+            identity,
             Protection::Required {
                 policy: policy.checkpoint().digest(),
                 witness,
                 fence: 1,
             },
         )
+    }
+    /// Recover only the public enrollment metadata after an unknown creation result.
+    /// Requires the independently retained creation identity and exact original
+    /// device/policy. This reads an authenticated, empty revision-1 required-witness
+    /// image with no pending intent. It never applies a journal transition, returns an operational
+    /// journal, or proves enrollment/currentness; enroll this exact genesis explicitly,
+    /// then use `open_anchored` with the original witness for fresh admission.
+    pub fn recover_anchor_genesis(
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        expected_id: JournalIdentity,
+    ) -> Result<crate::AnchorGenesis, DurableError> {
+        let db = open_private_database(path)?;
+        let image = load(&db, &key, bootstrap::storage_owner(device))?;
+        let witness = policy
+            .anchor_requirement()
+            .binding()
+            .ok_or(DurableError::AnchorRequired)?;
+        if image.id != expected_id.0
+            || image.local_account != device.account_id()
+            || image.protection
+                != (Protection::Required {
+                    policy: policy.checkpoint().digest(),
+                    witness,
+                    fence: 1,
+                })
+            || image.revision != 1
+            || !rosters::is_genesis(&image, device)?
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(crate::AnchorGenesis::from_journal(
+            expected_id,
+            device,
+            policy,
+            image.digest,
+        )?)
     }
     /// Activate only the exact enrolled genesis using a fresh authenticated query.
     /// Enrollment and signer provisioning remain explicit independent actions.

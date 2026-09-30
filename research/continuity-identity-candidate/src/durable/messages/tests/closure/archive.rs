@@ -298,6 +298,7 @@ fn archived_session_closure_refuses_tampering_wrong_key_store_and_unadmitted_ses
         &other.join("state.redb"),
         JournalKey::open(&p.pr.join("key")).expect("same key"),
         p.f.local_device(),
+        crate::durable::tests::retain_new_identity(&other.join("store-id")),
     )
     .expect("separate existing journal");
     let other_id = journal.identity().expect("other identity");

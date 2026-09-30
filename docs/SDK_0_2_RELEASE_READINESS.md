@@ -72,7 +72,7 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 227 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 228 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
@@ -127,6 +127,59 @@ These observations do not qualify the newer archived-fanout patch's hosted execu
 Installed SDK adapters, committed-history/catalogue restoration UX, witness renewal,
 device/root lifecycle, independent endpoints, current devices and construction-
 specific recovery/security/performance remain separate requirements.
+
+The [journal creation follow-up](../research/continuity-identity-candidate/DURABILITY.md#creation-with-an-unknown-result)
+requires a caller-retained public identity before provisioning. A real process cut
+after durable genesis but before owner return failed against the old internally
+generated ID and passes after explicit identity binding. Required-witness creation
+also needs a restricted genesis-metadata reader: local-only reopening correctly
+refuses it, and ordinary anchored reopening requires enrollment that may not yet
+exist. `recover_anchor_genesis` returns only exact authenticated revision-1 enrollment
+metadata, refuses pending intents and advanced state, and leaves explicit enrollment
+and fresh original-witness admission mandatory. Storage v21 and network/SDK ABI 2
+are unchanged; the unpublished creation signature changes only the isolated candidate.
+
+The final frozen source passes **252 tests each in Debug and Release**, zero failed
+or ignored, in **715.854/711.675 runner seconds** (harness 711.39/628.78), under
+overlapping load; these are not performance comparisons. Three real creation-process
+cuts and nine bounded lock contenders cover local before/after commit and required-
+witness after commit. Recovery completes a real local bootstrap and an original-
+witness-backed prekey generation and reopen. An authenticated pending-intent fixture is refused
+without changing either stored row. The first complete runs each had 250 passes and
+two failures: the test's marker filename became visible before its contents. The
+marker is now written/synced privately and atomically published; assertions and
+cases are unchanged. Both entire suites were rebuilt/rerun on the frozen correction.
+
+Strict all-target/all-feature Clippy passes on Rust 1.90 and 1.98.1; independent
+control/connection/no-default checks, warning-strict docs and fmt pass. The clean
+1,012-file snapshot passes **95** source/isolation/release-contract tests with no
+skips; the final marker-only correction also passes the **45** source/isolation
+checks and focused process tests. The inventory is **228 Rust files**. Updated
+public-vector examples execute, and independent OpenSSL 3.6.4 verifies 20 public
+and 12 witness envelopes, 30 proofs, nine selections, 160 signature negative
+controls and six witness transitions. This is public-byte/signature interoperability,
+not independent endpoint/session interoperability. Frozen archive SHA-256:
+`cda5cb89dd0b32362ef66623e32d0d661c183602e466dbf0a9c6de377828c46b`.
+Full logs, initial failures, executables and public artifacts are retained in the
+recovery archive, with its evidence index mirrored as `20260930-sdk-journal-creation`.
+Only evidence/contract documentation changes after the frozen verification.
+
+Predecessor 8b40942a's PR CI 36660620002 ends with 39 successes, one Android 16K
+failure and two Linux cancellations; its CodeQL run 36660620007 succeeds. Checkout
+merge `3fd212c22f52aa8693654bfdaf2e151239fd9ad1` has the exact 8b40942a tree
+`d5d3c9149fff5df187047e13be3444ea88c11fbd`. Both Linux Debug suites pass 246 tests;
+Rust 1.98.1 also completes Release, but the 25-minute job cap interrupts later checks.
+MSRV Debug alone takes 1,251.15 seconds before Release compilation is cancelled.
+The job now has a bounded 40-minute budget with all checks retained; new-head hosted
+qualification remains required. Android's three instrumented SDK cases report pass,
+but a second observed ADB transport loss prevents confirming app removal. Its job
+remains failed; the underlying second-disconnect cause is unproven. The same-head
+push's 16K job succeeds, which does not erase this retained failure. No cleanup
+acceptance or transport retry budget is relaxed.
+
+Installed SDK owners/adapters, wrapping-key reopen durability, independent endpoints,
+current physical devices and the broader release obligations remain open. The user
+handles external human review separately.
 
 At **54eef232**, the native [bootstrap cancellation contract](../research/continuity-identity-candidate/BOOTSTRAP_CANCELLATION.md)
 adds permanent cancellation before application activation. It atomically removes

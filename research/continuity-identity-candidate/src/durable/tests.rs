@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+pub(super) mod provisioning;
 use crate::{
     bootstrap::tests::{fixture, fixture_from_public},
     crypto::{envelope, open_envelope, Purpose},
@@ -24,14 +25,14 @@ pub(crate) fn directory() -> tempfile::TempDir {
 }
 pub(crate) fn new_store(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
     let key = JournalKey::provision(&dir.join("key")).expect("provision key");
-    let store =
-        DeviceJournal::provision(&dir.join("state.redb"), key, device).expect("provision store");
-    fs::write(
-        dir.join("store-id"),
-        store.identity().expect("identity").as_bytes(),
-    )
-    .expect("independent identity configuration");
-    store
+    let identity = retain_new_identity(&dir.join("store-id"));
+    DeviceJournal::provision(&dir.join("state.redb"), key, device, identity)
+        .expect("provision store")
+}
+pub(crate) fn retain_new_identity(path: &Path) -> JournalIdentity {
+    let identity = JournalIdentity::generate().expect("new journal identity");
+    provisioning::retain_identity(path, identity);
+    identity
 }
 pub(super) fn identity(dir: &Path) -> JournalIdentity {
     JournalIdentity::from_trusted_state(
