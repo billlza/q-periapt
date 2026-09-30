@@ -2168,6 +2168,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-recovery-logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.stdout\n"
@@ -2205,7 +2207,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64\n", proof_upload)
         self.assertIn("if: always() &&", proof_upload)
         self.assertNotIn("if: failure()", proof_upload)
-        for retained in ("emulator-state-*.txt", "emulator-state-*.err"):
+        for retained in ("emulator-state-*.txt", "emulator-state-*.err", "emulator-app-exit-info.txt", "emulator-app-exit-info.err"):
             self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{retained}", proof_upload)
         self.assertIn("if-no-files-found: error\n", proof_upload)
 

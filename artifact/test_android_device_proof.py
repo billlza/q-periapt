@@ -1558,7 +1558,7 @@ android_command() {{
             ),
             "start-app": (
                 ["preinstall", "device-time", "capture-emulator-baseline", "install-apk", "postinstall", "start-app",
-                 "capture-logcat", "capture-emulator-failure-state", "capture-emulator-diagnostics"],
+                 "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"],
                 "Android runtime activity start failed",
                 "adb-start.log",
             ),
@@ -1584,7 +1584,7 @@ android_command() {{
         for gate, expected_calls in (
             ("preinstall", ["preinstall"]),
             ("postinstall", ["preinstall", "device-time", "capture-emulator-baseline", "install-apk", "postinstall",
-                             "capture-logcat", "capture-emulator-failure-state", "capture-emulator-diagnostics"]),
+                             "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"]),
         ):
             with self.subTest(failing_gate=gate):
                 result, called_operations, _files = self._run_fresh_install_runtime_steps(gate)
@@ -1616,7 +1616,7 @@ android_command() {{
                             expected.append("postinstall")
                         expected.append("capture-logcat")
                         if kind == "emulator":
-                            expected.extend(("capture-emulator-failure-state", "capture-emulator-diagnostics"))
+                            expected.extend(("capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"))
                         self.assertEqual(calls, expected)
                         self.assertEqual(files["adb-device-time.txt"], b"1786240000.123\n")
                         self.assertEqual(files["cleanup-state.txt"], b"armed=1 confirmed=0\n")
@@ -1635,7 +1635,7 @@ android_command() {{
         result, calls, files = self._run_fresh_install_runtime_steps("capture-emulator-baseline")
         self.assertEqual(result.returncode, 18, result.stderr)
         self.assertEqual(calls, ["preinstall", "device-time", "capture-emulator-baseline",
-                                 "capture-emulator-failure-state", "capture-emulator-diagnostics"])
+                                 "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"])
         self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
         self.assertIn(b"baseline capture failed (exit=18)", result.stderr)
         self.assertNotIn("adb-install.log", files)

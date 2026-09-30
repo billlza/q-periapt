@@ -1485,6 +1485,8 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.err
             target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-recovery-logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.stdout
@@ -1509,6 +1511,8 @@ jobs:
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
             target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err

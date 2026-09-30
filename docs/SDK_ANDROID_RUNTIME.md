@@ -142,6 +142,19 @@ Read these snapshots together with the runtime result and system log when
 distinguishing kernel reboot, framework restart and resource pressure. CI keeps
 the baseline on successful runs as well as the available failure diagnostics.
 
+Failure diagnostics also attempt `emulator-app-exit-info.txt` for the fixed
+`dev.qperiapt.androidsmoke` package, before cleanup after an instrumentation
+failure. The read-only `dumpsys activity exit-info` query uses Android's recorded
+process exit history ([AOSP dispatch](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android15-release/services/core/java/com/android/server/am/ActivityManagerService.java)).
+It can distinguish an application crash from a system termination when Android
+has retained that record. Match its timestamp and PID against the original
+run's system log; an empty history, an unsupported command or an unknown reason
+does not establish a cause. The query is limited to the same live owned emulator,
+15 seconds and 1 MiB, with pre/post ownership checks and a run-bound guest exit
+status. Its error is retained separately; it neither restarts the application
+nor changes the primary failure or cleanup rules. Physical-device runs cannot
+invoke this operation. CI retains both output and diagnostics.
+
 When the existing one-shot transport recovery observes the same owned emulator
 back in `device` state, it now immediately attempts `emulator-state-recovery.txt`
 and `emulator-recovery-logcat.txt` before another APK ownership read. Each capture

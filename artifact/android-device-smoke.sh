@@ -2058,6 +2058,13 @@ PY
 
 capture_emulator_failure_logs() {
 	if [ "$DEVICE_KIND" = "emulator" ]; then
+		# Capture the original process's exit record before app removal can clear it.
+		# Missing/unsupported diagnostics never change the primary runtime failure.
+		if android_command capture-emulator-app-exit-info 2>"$DIST/emulator-app-exit-info.err"; then
+			:
+		else
+			printf 'error: owned emulator app exit-info capture also failed\n' >&2
+		fi
 		if android_command capture-emulator-failure-state 2>"$DIST/emulator-state-failure.err"; then
 			:
 		else

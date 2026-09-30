@@ -4169,6 +4169,7 @@ esac
                 commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
                 commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE,
                 commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO,
                 commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE,
                 commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT,
             ):
@@ -4278,6 +4279,31 @@ esac
                 "getprop init.svc.zygote_secondary", "ps ",
             ])
 
+    def test_app_exit_info_probe_keeps_exact_package_and_native_failure(self) -> None:
+        guest_bin = self.root / "exit-info-native-bin"
+        guest_bin.mkdir()
+        calls = self.root / "exit-info-native-calls.txt"
+        probe = guest_bin / "dumpsys"
+        probe.write_text('''#!/bin/sh
+printf '%s\\n' "$@" >"$QPERIAPT_TEST_CALLS"
+printf 'native exit history fixture\\n'
+exit "$QPERIAPT_TEST_DUMP_STATUS"
+''')
+        probe.chmod(0o700)
+        argv = commands._emulator_app_exit_info_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        for status in (0, 7):
+            result = subprocess.run(
+                ["/bin/sh", "-c", program], capture_output=True, timeout=5,
+                env={"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                     "QPERIAPT_TEST_DUMP_STATUS": str(status)},
+            )
+            self.assertEqual(result.returncode, status, result.stderr)
+            remote_status, body = commands._parse_guest_completion(result.stdout, self.run_id, "app-exit-info")
+            self.assertEqual(remote_status, status)
+            self.assertEqual(body, b"native exit history fixture\n")
+            self.assertEqual(calls.read_text().splitlines(), ["activity", "exit-info", commands.PACKAGE])
+
     def test_emulator_state_capture_requires_completion_and_keeps_distinct_files(self) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
         context = commands.RecoveryContext(
@@ -4288,15 +4314,16 @@ esac
             pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
             started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
         )
-        for operation, leaf in (
-            (commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE, "emulator-state-before.txt"),
-            (commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE, "emulator-state-failure.txt"),
-            (commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE, "emulator-state-recovery.txt"),
+        for operation, leaf, kind, marker, limit in (
+            (commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE, "emulator-state-before.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE, "emulator-state-failure.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE, "emulator-state-recovery.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO, "emulator-app-exit-info.txt", "app-exit-info", "QPERIAPT_APP_EXIT_INFO_EXIT", 1048576),
         ):
             for remote_status, crlf in ((0, False), (0, True), (7, False), (None, False)):
                 raw = b"native diagnostic body\n"
                 if remote_status is not None:
-                    raw += f"\nQPERIAPT_EMULATOR_STATE_EXIT:{self.run_id}:{remote_status}\n".encode()
+                    raw += f"\n{marker}:{self.run_id}:{remote_status}\n".encode()
                 if crlf:
                     raw = raw.replace(b"\n", b"\r\n")
 
@@ -4315,13 +4342,13 @@ esac
                     mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture) as write,
                 ):
                     if remote_status is None:
-                        with self.assertRaisesRegex(commands.AndroidCommandError, "emulator-state output is malformed"):
+                        with self.assertRaisesRegex(commands.AndroidCommandError, kind + " output is malformed"):
                             self.invoke(operation)
                     else:
                         self.assertEqual(self.invoke(operation), BoundedResult(remote_status))
                     self.assertEqual(write.call_args.kwargs["output_name"], leaf)
                     self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], 15)
-                    self.assertEqual(write.call_args.kwargs["maximum_bytes"], 65536)
+                    self.assertEqual(write.call_args.kwargs["maximum_bytes"], limit)
                     self.assertEqual(write.call_args.kwargs["stderr"], subprocess.STDOUT)
                     self.assertEqual(listeners.call_count, 2)
 

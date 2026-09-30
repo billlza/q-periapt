@@ -201,6 +201,7 @@ class AndroidOperation(str, enum.Enum):
     CAPTURE_EMULATOR_DIAGNOSTICS = "capture-emulator-diagnostics"
     CAPTURE_EMULATOR_BASELINE = "capture-emulator-baseline"
     CAPTURE_EMULATOR_FAILURE_STATE = "capture-emulator-failure-state"
+    CAPTURE_EMULATOR_APP_EXIT_INFO = "capture-emulator-app-exit-info"
     CAPTURE_EMULATOR_RECOVERY_STATE = "capture-emulator-recovery-state"
     CAPTURE_EMULATOR_RECOVERY_LOGCAT = "capture-emulator-recovery-logcat"
 
@@ -632,6 +633,20 @@ def _emulator_state_argv(
     return _device(capability, "shell", "sh", "-c", shlex.quote(program))
 
 
+def _emulator_app_exit_info_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # Query only the fixed smoke package. This does not restart its dead process
+    # or clear exit history, and preserves the status across legacy adb shells.
+    program = (
+        shlex.join(("dumpsys", "activity", "exit-info", PACKAGE))
+        + "; qperiapt_exit_info_status=$?; "
+        + f"printf '\\nQPERIAPT_APP_EXIT_INFO_EXIT:{capability.run_id}:%d\\n' "
+        + '"$qperiapt_exit_info_status"; exit "$qperiapt_exit_info_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
 def _owned_emulator_ports(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[int, int]:
@@ -965,6 +980,11 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "emulator-diagnostics", 15, 15,
             OutputSpec(proof, "emulator-state-failure.txt", 65536),
             _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-app-exit-info.txt", 1048576),
+            _emulator_app_exit_info_argv, stderr_to_stdout=True,
         ),
         AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE: OperationSpec(
             "emulator-diagnostics", 5, 5,
@@ -3763,12 +3783,13 @@ def _observe_exact_device_state(
 
 
 def _parse_guest_completion(
-    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state"],
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "app-exit-info"],
 ) -> tuple[int, bytes]:
     marker = {
         "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
         "emulator-state": b"QPERIAPT_EMULATOR_STATE_EXIT:",
         "boot-state": b"QPERIAPT_BOOT_QUERY_EXIT:",
+        "app-exit-info": b"QPERIAPT_APP_EXIT_INFO_EXIT:",
     }[kind]
     parts = output.rsplit(b"\n", 2)
     _require(
@@ -4278,7 +4299,8 @@ def _capture_emulator_diagnostics(
                 layout.proof / spec.output.leaf,
                 maximum=spec.output.maximum_bytes, label="owned emulator state",
             ).data
-            status, _ = _parse_guest_completion(raw, capability.run_id, "emulator-state")
+            kind = "app-exit-info" if operation is AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO else "emulator-state"
+            status, _ = _parse_guest_completion(raw, capability.run_id, kind)
             return BoundedResult(status)
         return result
     except BaseException as exc:
