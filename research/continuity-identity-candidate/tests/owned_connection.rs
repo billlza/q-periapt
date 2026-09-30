@@ -1,0 +1,983 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! External consumer of the public installation, identity and TLS contracts.
+#![cfg(all(unix, feature = "connection-tls"))]
+
+use p::connection_transport::{
+    Actor, Cancellation, ConnectionEndpoint, Consumer, Consumption, Run, RunLimits, Served,
+    Submission,
+};
+use q_periapt_continuity_identity_candidate as p;
+use q_periapt_host_store::{
+    filesystem::{
+        open_private_database, provision_private_file, OwnedPrivateDirectory, PrivateDatabaseError,
+    },
+    PolicyStore,
+};
+use q_periapt_rustls::connection::{Credentials, Limits};
+use q_periapt_sig::Signer;
+use std::{
+    collections::BTreeMap,
+    fs,
+    io::{self, Read, Write},
+    net::{SocketAddr, TcpListener, TcpStream},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+    path::{Path, PathBuf},
+    process::{Child, Command, ExitStatus, Stdio},
+    sync::Arc,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+use zeroize::Zeroizing;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+fn now() -> io::Result<u64> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_secs())
+}
+fn store(path: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path.join(name))?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    fs::File::open(path)?.sync_all()
+}
+fn publish_ready(path: &Path, name: &str, address: SocketAddr) -> io::Result<()> {
+    let mut pending = tempfile::NamedTempFile::new_in(path)?;
+    pending.write_all(address.to_string().as_bytes())?;
+    pending.as_file().sync_all()?;
+    pending
+        .persist_noclobber(path.join(name))
+        .map_err(|error| error.error)?;
+    fs::File::open(path)?.sync_all()
+}
+fn read(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
+    let directory = OwnedPrivateDirectory::open(path)?;
+    let file = directory.open_config_file(name, maximum)?;
+    let mut bytes = Vec::new();
+    file.take(u64::try_from(maximum)? + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.is_empty() || bytes.len() > maximum {
+        return Err("invalid configured file size".into());
+    }
+    Ok(bytes)
+}
+fn array<const N: usize>(path: &Path, name: &str) -> Result<[u8; N]> {
+    read(path, name, N)?
+        .try_into()
+        .map_err(|_| "configured width differs".into())
+}
+fn paths(path: &Path) -> Result<p::InstallationPaths> {
+    Ok(p::InstallationPaths::new(
+        &path.join("installation.redb"),
+        &path.join("journal.redb"),
+        &path.join("archives.redb"),
+    )?)
+}
+fn key(path: &Path) -> Result<p::JournalKey> {
+    Ok(p::JournalKey::open(&path.join("wrap.key"))?)
+}
+fn role(path: &Path) -> Result<p::BootstrapRole> {
+    match array::<1>(path, "role")? {
+        [1] => Ok(p::BootstrapRole::Initiator),
+        [2] => Ok(p::BootstrapRole::Responder),
+        _ => Err("unknown configured bootstrap role".into()),
+    }
+}
+fn limits() -> RunLimits {
+    RunLimits {
+        exchanges: 8,
+        timeout: Duration::from_secs(20),
+        connect_timeout: Duration::from_secs(1),
+    }
+}
+fn tls_limits() -> Limits {
+    Limits {
+        max_connections: 1,
+        handshake_ms: 10_000,
+        request_ms: 10_000,
+        idle_ms: 10_000,
+    }
+}
+
+struct SdkIssuer {
+    key: Zeroizing<[u8; q_periapt_backends::ML_DSA_65_SK_LEN]>,
+    public: [u8; q_periapt_backends::ML_DSA_65_VK_LEN],
+}
+impl SdkIssuer {
+    fn new() -> Result<Self> {
+        let mut seed = Zeroizing::new([0; 32]);
+        getrandom::fill(seed.as_mut())?;
+        let (key, public) = q_periapt_backends::MlDsa65::generate(*seed);
+        Ok(Self {
+            key: Zeroizing::new(key),
+            public,
+        })
+    }
+    fn policy(&self, revision: u64, enabled: bool) -> Result<(Vec<u8>, Vec<u8>)> {
+        let kems = if enabled {
+            "[\"ML-KEM-768\",\"X25519\"]"
+        } else {
+            "[\"ML-KEM-1024\",\"X25519\"]"
+        };
+        let text = format!("schema_version=1\npolicy_version={revision}\nmin_nist_level=3\ndefault_profile=\"ContextBound\"\nallowed_kems={kems}\nallowed_sigs=[\"ML-DSA-65\"]\ndeprecated=[]\n").into_bytes();
+        let mut randomness = Zeroizing::new([0; 32]);
+        getrandom::fill(randomness.as_mut())?;
+        let mut signature = vec![0; q_periapt_backends::ML_DSA_65_SIG_LEN];
+        q_periapt_backends::MlDsa65
+            .sign(
+                self.key.as_ref(),
+                &q_periapt_policy::policy_signature_message(&text),
+                randomness.as_ref(),
+                &mut signature,
+            )
+            .map_err(|e| io::Error::other(format!("SDK policy signing failed: {e:?}")))?;
+        Ok((text, signature))
+    }
+}
+fn sdk(path: &Path) -> Result<PolicyStore> {
+    Ok(PolicyStore::open_configured(
+        &path.join("sdk.redb"),
+        &read(path, "sdk-policy", 4096)?,
+        &read(path, "sdk-signature", 8192)?,
+        &read(path, "sdk-root", 8192)?,
+        q_periapt_sdk::Limits::default(),
+    )?)
+}
+fn protocol_policy(path: &Path, store: &PolicyStore) -> Result<Arc<p::VerifiedSessionPolicy>> {
+    let checkpoint = p::PolicyCheckpoint::from_trusted_state(
+        u64::from_be_bytes(array(path, "policy-version")?),
+        array(path, "policy-digest")?,
+    )?;
+    let pin = p::PolicyPin::new(
+        array(path, "family")?,
+        p::PublicKey::decode(&read(path, "policy-root", 8192)?)?,
+        checkpoint,
+    )?;
+    Ok(Arc::new(pin.verify(
+        &read(path, "protocol-policy", 8192)?,
+        store.runtime()?,
+        now()?,
+    )?))
+}
+fn account(path: &Path, label: &str) -> Result<p::AccountPin> {
+    Ok(p::AccountPin::new(
+        array(path, &format!("{label}-account"))?,
+        p::PublicKey::decode(&read(path, &format!("{label}-root"), 8192)?)?,
+        p::RosterCheckpoint::from_trusted_state(
+            u64::from_be_bytes(array(path, &format!("{label}-roster-version"))?),
+            array(path, &format!("{label}-roster-digest"))?,
+        )?,
+        array(path, "family")?,
+    )?)
+}
+fn context(path: &Path, sdk: &PolicyStore) -> Result<Arc<p::BootstrapContext>> {
+    let i = account(path, "initiator")?;
+    let r = account(path, "responder")?;
+    let requirements = p::BootstrapRequirements {
+        initiator: p::ExpectedDevice::new(
+            &i,
+            array(path, "initiator-device")?,
+            u64::from_be_bytes(array(path, "initiator-generation")?),
+        )?,
+        responder: p::ExpectedDevice::new(
+            &r,
+            array(path, "responder-device")?,
+            u64::from_be_bytes(array(path, "responder-generation")?),
+        )?,
+        quality: p::PrekeyQuality::OneTimeBoth,
+        directory: p::DirectoryExpectation::from_trusted_state(array(path, "directory")?)?,
+    };
+    let bundle = p::BootstrapBundle::from_bytes(&read(
+        path,
+        "bootstrap.bundle",
+        p::MAX_BOOTSTRAP_BUNDLE_BYTES,
+    )?)?;
+    let policy = protocol_policy(path, sdk)?;
+    let context = Arc::new(bundle.verify(Arc::clone(&policy), requirements, now()?)?);
+    assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
+    assert_eq!(
+        context.device(p::BootstrapRole::Initiator).device_id(),
+        array::<16>(path, "initiator-device")?
+    );
+    assert_eq!(
+        context.device(p::BootstrapRole::Responder).device_id(),
+        array::<16>(path, "responder-device")?
+    );
+    Ok(context)
+}
+
+struct Peer {
+    service: p::DeviceService,
+    signer: p::DeviceSigningKey,
+    context: Arc<p::BootstrapContext>,
+    policy_store: PolicyStore,
+    certificate: Vec<u8>,
+    tls_key: Zeroizing<Vec<u8>>,
+    peer_certificate: Vec<u8>,
+    peer_name: String,
+}
+impl Peer {
+    fn open(path: &Path) -> Result<Self> {
+        let policy_store = sdk(path)?;
+        let context = context(path, &policy_store)?;
+        let role = role(path)?;
+        let device = context.device(role);
+        let key = key(path)?;
+        let id = p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?;
+        let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
+        let owner =
+            p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), now()?)?;
+        let service = owner.activate(key, device, context.policy(), now()?, None)?;
+        Ok(Self {
+            service,
+            signer,
+            context,
+            policy_store,
+            certificate: read(path, "tls-cert", 8192)?,
+            tls_key: Zeroizing::new(read(path, "tls-key", 8192)?),
+            peer_certificate: read(path, "tls-peer", 8192)?,
+            peer_name: String::from_utf8(read(path, "tls-peer-name", 128)?)?,
+        })
+    }
+    fn credentials(&self) -> Credentials<'_> {
+        Credentials {
+            certificate: &self.certificate,
+            private_key: &self.tls_key,
+            peer_certificate: &self.peer_certificate,
+        }
+    }
+    fn actor(&mut self) -> Result<Actor<'_>> {
+        let (journal, archives) = self.service.stores()?;
+        Ok(Actor {
+            journal,
+            archives,
+            context: &self.context,
+            signer: &self.signer,
+        })
+    }
+    fn close(&mut self) {
+        self.service.close();
+        self.signer.close();
+        self.context.policy().close();
+        self.policy_store.close();
+    }
+}
+
+struct Setup {
+    _directory: Option<tempfile::TempDir>,
+    initiator: PathBuf,
+    responder: PathBuf,
+    issuer: SdkIssuer,
+}
+fn setup() -> Result<Setup> {
+    let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
+        let path = PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err("reference evidence path must be absolute".into());
+        }
+        OwnedPrivateDirectory::open(path.parent().ok_or("evidence parent")?)?;
+        fs::DirBuilder::new().mode(0o700).create(&path)?;
+        (None, path.canonicalize()?)
+    } else {
+        let dir = tempfile::Builder::new()
+            .prefix("continuity-public-service-")
+            .permissions(fs::Permissions::from_mode(0o700))
+            .tempdir()?;
+        let path = dir.path().canonicalize()?;
+        (Some(dir), path)
+    };
+    let left = root.join("initiator");
+    let right = root.join("responder");
+    for path in [&left, &right] {
+        fs::create_dir(path)?;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+    }
+    let issuer = SdkIssuer::new()?;
+    let (policy, signature) = issuer.policy(1, true)?;
+    let mut stores = Vec::new();
+    let mut signing = Vec::new();
+    for (path, role) in [(&left, 1u8), (&right, 2u8)] {
+        store(path, "sdk-policy", &policy)?;
+        store(path, "sdk-signature", &signature)?;
+        store(path, "sdk-root", &issuer.public)?;
+        store(path, "role", &[role])?;
+        stores.push(PolicyStore::provision(
+            &path.join("sdk.redb"),
+            &policy,
+            &signature,
+            &issuer.public,
+            q_periapt_sdk::Limits::default(),
+        )?);
+        let key = p::JournalKey::provision(&path.join("wrap.key"))?;
+        let id = p::SigningKeyId::generate()?;
+        store(path, "signer-id", id.as_bytes())?;
+        signing.push(p::DeviceSigningKey::provision(
+            &path.join("signer.key"),
+            &key,
+            id,
+        )?);
+    }
+    let time = now()?;
+    let validity = p::Validity::new(
+        time.saturating_sub(1),
+        time.checked_add(3600).ok_or("clock overflow")?,
+    )?;
+    let mut authority = p::PolicySigningKey::generate()?;
+    let sdk = stores.first().ok_or("SDK owner")?.runtime()?;
+    let issued = authority.issue_session_policy(
+        &sdk,
+        p::SessionPolicyParameters::new(
+            1,
+            validity,
+            p::AllowedPrekeyModes::new(&[p::PrekeyQuality::OneTimeBoth])?,
+            p::AnchorRequirement::local_only(),
+            p::ApplicationSendBudget::new(1024)?,
+        )?,
+    )?;
+    let family = authority.policy_family()?;
+    for path in [&left, &right] {
+        for (name, bytes) in [
+            ("family", family.to_vec()),
+            ("policy-root", authority.public_key()?.encode()),
+            (
+                "policy-version",
+                issued.checkpoint().version().to_be_bytes().to_vec(),
+            ),
+            ("policy-digest", issued.checkpoint().digest().to_vec()),
+            ("protocol-policy", issued.as_bytes().to_vec()),
+            ("directory", vec![99; 32]),
+        ] {
+            store(path, name, &bytes)?;
+        }
+    }
+    authority.close();
+    let mut devices = Vec::new();
+    let mut credentials = Vec::new();
+    let mut rosters = Vec::new();
+    for (ordinal, label) in ["initiator", "responder"].into_iter().enumerate() {
+        let mut root = p::RootSigningKey::generate()?;
+        let device_id = [u8::try_from(ordinal + 1)?; 16];
+        let certificate = root.issue_device(
+            p::DeviceDescription::new(device_id, 1, family, validity)?,
+            signing.get(ordinal).ok_or("signer")?.public_key()?,
+        )?;
+        let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
+        let pin = p::AccountPin::new(
+            root.account_id()?,
+            root.public_key()?,
+            roster.checkpoint(),
+            family,
+        )?;
+        devices.push(pin.verify_device(&certificate, roster.as_bytes(), time)?);
+        for path in [&left, &right] {
+            for (name, bytes) in [
+                ("account", root.account_id()?.to_vec()),
+                ("root", root.public_key()?.encode()),
+                (
+                    "roster-version",
+                    roster.checkpoint().version().to_be_bytes().to_vec(),
+                ),
+                ("roster-digest", roster.checkpoint().digest().to_vec()),
+                ("device", device_id.to_vec()),
+                ("generation", 1u64.to_be_bytes().to_vec()),
+            ] {
+                store(path, &format!("{label}-{name}"), &bytes)?;
+            }
+        }
+        root.close();
+        credentials.push(certificate);
+        rosters.push(roster);
+    }
+    let mut services = Vec::new();
+    for (index, path) in [&left, &right].into_iter().enumerate() {
+        let wrapping = key(path)?;
+        let policy = protocol_policy(path, stores.get(index).ok_or("SDK owner")?)?;
+        let device = devices.get(index).ok_or("device")?;
+        let mut install =
+            p::DeviceInstallation::provision(paths(path)?, &wrapping, device, &policy, time)?;
+        assert!(matches!(
+            install.prepare(wrapping, device, &policy, time)?,
+            p::InstallationPreparation::Local
+        ));
+        services.push(install.activate(key(path)?, device, &policy, time, None)?);
+    }
+    let server_device = devices.get(1).ok_or("responder")?;
+    let server_policy = protocol_policy(&right, stores.get(1).ok_or("responder SDK")?)?;
+    let mut leaves = Vec::new();
+    for (index, kind) in [
+        p::LeafKind::SignedClassical,
+        p::LeafKind::OneTimeClassical,
+        p::LeafKind::LastResortPq,
+        p::LeafKind::OneTimePq,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let request = p::PrekeyId::from_trusted_state([u8::try_from(index + 1)?; 32])?;
+        leaves.push(
+            services
+                .get_mut(1)
+                .ok_or("server service")?
+                .stores()?
+                .0
+                .generate_prekey(&server_policy, server_device, request, kind, validity, time)?,
+        );
+    }
+    let manifest = signing.get(1).ok_or("responder signer")?.issue_manifest(
+        server_device,
+        p::ManifestContext::new(
+            1,
+            sdk.trusted_state().digest(),
+            p::bootstrap_suite_digest(),
+            [99; 32],
+            validity,
+        )?,
+        &leaves,
+    )?;
+    let verified = server_device.verify_manifest(manifest.as_bytes(), time)?;
+    let mut proofs = BTreeMap::new();
+    for index in 0..manifest.leaf_count() {
+        let proof = manifest.proof(index)?;
+        proofs.insert(
+            verified.verify_leaf(&proof, time)?.kind() as u8,
+            proof.encode()?,
+        );
+    }
+    let proof = |kind: p::LeafKind| -> Result<&[u8]> {
+        Ok(proofs.get(&(kind as u8)).ok_or("required proof")?)
+    };
+    let bundle = p::BootstrapBundle::from_materials(
+        p::PrekeyQuality::OneTimeBoth,
+        p::BootstrapMaterials {
+            initiator_credential: credentials.first().ok_or("initiator credential")?,
+            initiator_roster: rosters.first().ok_or("initiator roster")?.as_bytes(),
+            responder_credential: credentials.get(1).ok_or("responder credential")?,
+            responder_roster: rosters.get(1).ok_or("responder roster")?.as_bytes(),
+            responder_manifest: manifest.as_bytes(),
+            signed_classical: proof(p::LeafKind::SignedClassical)?,
+            last_resort_pq: proof(p::LeafKind::LastResortPq)?,
+            one_time_classical: Some(proof(p::LeafKind::OneTimeClassical)?),
+            one_time_pq: Some(proof(p::LeafKind::OneTimePq)?),
+        },
+    )?;
+    let left_tls = rcgen::generate_simple_self_signed(vec!["initiator.test".into()])?;
+    let right_tls = rcgen::generate_simple_self_signed(vec!["responder.test".into()])?;
+    for (path, tls, peer, name) in [
+        (&left, &left_tls, &right_tls, "responder.test"),
+        (&right, &right_tls, &left_tls, "initiator.test"),
+    ] {
+        store(path, "bootstrap.bundle", bundle.as_bytes())?;
+        store(path, "tls-cert", tls.cert.der())?;
+        store(
+            path,
+            "tls-key",
+            &Zeroizing::new(tls.signing_key.serialize_der()),
+        )?;
+        store(path, "tls-peer", peer.cert.der())?;
+        store(path, "tls-peer-name", name.as_bytes())?;
+    }
+    for service in &mut services {
+        service.close();
+    }
+    for key in &mut signing {
+        key.close();
+    }
+    for policy in &mut stores {
+        policy.close();
+    }
+    Ok(Setup {
+        _directory: dir,
+        initiator: left,
+        responder: right,
+        issuer,
+    })
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+fn effect(path: &Path, session: [u8; 32], id: p::MessageId, plaintext: &[u8]) -> Result<()> {
+    let mut expected = session.to_vec();
+    expected.extend_from_slice(id.as_bytes());
+    expected.extend_from_slice(plaintext);
+    assert_eq!(
+        read(path, &format!("application-{}", hex(id.as_bytes())), 65536)?,
+        expected
+    );
+    Ok(())
+}
+struct Application {
+    path: PathBuf,
+    mode: String,
+}
+impl Consumer for Application {
+    fn commit(&mut self, session: [u8; 32], delivery: &p::CommittedPlaintext) -> io::Result<()> {
+        let name = format!("application-{}", hex(delivery.message_id().as_bytes()));
+        let mut bytes = session.to_vec();
+        bytes.extend_from_slice(delivery.message_id().as_bytes());
+        bytes.extend_from_slice(delivery.as_bytes());
+        match fs::symlink_metadata(self.path.join(&name)) {
+            Ok(_) => {
+                let parent = OwnedPrivateDirectory::open(&self.path).map_err(io::Error::other)?;
+                let mut file = parent
+                    .open_state_file(std::ffi::OsStr::new(&name))
+                    .map_err(io::Error::other)?;
+                let mut existing = Vec::new();
+                Read::by_ref(&mut file)
+                    .take(65537)
+                    .read_to_end(&mut existing)?;
+                if existing != bytes {
+                    return Err(io::ErrorKind::InvalidData.into());
+                }
+                file.sync_all()?;
+                parent.sync_entries().map_err(io::Error::other)?;
+                return Ok(());
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+        provision_private_file(&self.path.join(&name), io::Error::other, |mut file| {
+            file.write_all(&bytes)?;
+            file.sync_all()
+        })?;
+        if self.mode == "crash-after-application" {
+            std::process::exit(77);
+        }
+        Ok(())
+    }
+}
+struct OwnedChild(Child);
+impl Drop for OwnedChild {
+    fn drop(&mut self) {
+        if matches!(self.0.try_wait(), Ok(Some(_))) {
+            return;
+        }
+        if let Err(e) = self.0.kill() {
+            eprintln!("owned peer termination failed: {e}");
+        }
+        if let Err(e) = self.0.wait() {
+            eprintln!("owned peer reap failed: {e}");
+        }
+    }
+}
+fn wait(child: &mut OwnedChild) -> Result<ExitStatus> {
+    let deadline = Instant::now() + Duration::from_secs(25);
+    loop {
+        if let Some(status) = child.0.try_wait()? {
+            return Ok(status);
+        }
+        if Instant::now() >= deadline {
+            return Err("peer process did not finish within deadline".into());
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+fn child(path: &Path, attempt: u8, mode: &str) -> Result<OwnedChild> {
+    let log = fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .mode(0o600)
+        .open(path.join(format!("peer-{attempt}.log")))?;
+    Ok(OwnedChild(
+        Command::new(std::env::current_exe()?)
+            .args(["--exact", "service_peer_process", "--nocapture"])
+            .env("QPERIAPT_PUBLIC_SERVICE_ROOT", path)
+            .env("QPERIAPT_PUBLIC_SERVICE_ATTEMPT", attempt.to_string())
+            .env("QPERIAPT_PUBLIC_SERVICE_MODE", mode)
+            .stdout(Stdio::from(log.try_clone()?))
+            .stderr(Stdio::from(log))
+            .spawn()?,
+    ))
+}
+fn spawn(path: &Path, attempt: u8, mode: &str) -> Result<(OwnedChild, SocketAddr)> {
+    let mut child = child(path, attempt, mode)?;
+    let marker = path.join(format!("ready-{attempt}"));
+    let deadline = Instant::now() + Duration::from_secs(25);
+    loop {
+        match fs::read_to_string(&marker) {
+            Ok(address) => return Ok((child, address.parse()?)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
+        }
+        if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
+            return Err(format!(
+                "peer readiness failed: {}",
+                fs::read_to_string(path.join(format!("peer-{attempt}.log")))?
+            )
+            .into());
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+fn accept(listener: &TcpListener) -> io::Result<TcpStream> {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        if Instant::now() >= deadline {
+            return Err(io::ErrorKind::TimedOut.into());
+        }
+        match listener.accept() {
+            Ok((stream, _)) => return Ok(stream),
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                ) =>
+            {
+                std::thread::sleep(Duration::from_millis(5))
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+#[test]
+fn service_peer_process() -> Result<()> {
+    let Some(root) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_ROOT") else {
+        return Ok(());
+    };
+    let root = Path::new(&root);
+    let attempt: u8 = std::env::var("QPERIAPT_PUBLIC_SERVICE_ATTEMPT")?.parse()?;
+    let mode = std::env::var("QPERIAPT_PUBLIC_SERVICE_MODE")?;
+    if mode == "contender" {
+        for name in [
+            "sdk.redb",
+            "installation.redb",
+            "journal.redb",
+            "archives.redb",
+        ] {
+            assert!(
+                matches!(
+                    open_private_database(&root.join(name)),
+                    Err(PrivateDatabaseError::Busy)
+                ),
+                "lease {name}"
+            );
+        }
+        return Ok(());
+    }
+    let mut peer = Peer::open(root)?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let endpoint = ConnectionEndpoint::server(&peer.context, peer.credentials(), tls_limits())?;
+    publish_ready(root, &format!("ready-{attempt}"), listener.local_addr()?)?;
+    #[cfg(feature = "control-tls")]
+    if mode == "rekey" {
+        let session = array(root, "session")?;
+        let control = p::control_transport::ControlEndpoint::server(
+            &peer.context,
+            session,
+            peer.credentials(),
+            tls_limits(),
+        )?;
+        let (journal, _) = peer.service.stores()?;
+        control.serve(
+            accept(&listener)?,
+            p::control_transport::Session {
+                journal,
+                context: &peer.context,
+                signer: &peer.signer,
+            },
+            limits(),
+            &Cancellation::default(),
+            now,
+        )?;
+        return Ok(());
+    }
+    if !matches!(
+        mode.as_str(),
+        "bootstrap" | "application" | "crash-after-application"
+    ) {
+        return Err("unknown peer operation".into());
+    }
+    let mut app = Application {
+        path: root.into(),
+        mode,
+    };
+    let result = endpoint.serve(
+        accept(&listener)?,
+        peer.actor()?,
+        &mut app,
+        limits(),
+        &Cancellation::default(),
+        now,
+    )?;
+    if let Served::Established(session) = result {
+        store(root, "session", &session)?;
+    }
+    peer.close();
+    Ok(())
+}
+
+fn send(
+    peer: &mut Peer,
+    endpoint: &ConnectionEndpoint,
+    address: SocketAddr,
+    session: [u8; 32],
+    id: p::MessageId,
+    bytes: &[u8],
+) -> Result<p::connection_transport::Delivered> {
+    let name = peer.peer_name.clone();
+    Ok(endpoint.send(
+        peer.actor()?,
+        Submission {
+            session,
+            message: id,
+            plaintext: bytes,
+            associated_data: b"owned-service",
+        },
+        Run {
+            address,
+            server_name: &name,
+            limits: limits(),
+            cancel: &Cancellation::default(),
+        },
+        now,
+    )?)
+}
+
+#[test]
+fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
+    let s = setup()?;
+    eprintln!("PUBLIC_SERVICE_STAGE enrollment_complete");
+    fs::write(s.initiator.join("role"), [2])?;
+    let wrong_role = match Peer::open(&s.initiator) {
+        Ok(_) => return Err("peer device metadata granted the local installation".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        wrong_role.downcast_ref::<p::DurableError>(),
+        Some(p::DurableError::Conflict)
+    ));
+    fs::write(s.initiator.join("role"), [1])?;
+    let mut client = Peer::open(&s.initiator)?;
+    let endpoint = ConnectionEndpoint::client(&client.context, client.credentials(), tls_limits())?;
+    let (mut server, address) = spawn(&s.responder, 0, "bootstrap")?;
+    for path in [&s.initiator, &s.responder] {
+        let mut contender = child(path, 90, "contender")?;
+        assert!(
+            wait(&mut contender)?.success(),
+            "{}",
+            String::from_utf8(read(path, "peer-90.log", 65536)?)?
+        );
+    }
+    let name = client.peer_name.clone();
+    let request = p::InitiationId::generate()?;
+    store(&s.initiator, "initiation", request.as_bytes())?;
+    let established = endpoint.establish(
+        client.actor()?,
+        request,
+        Run {
+            address,
+            server_name: &name,
+            limits: limits(),
+            cancel: &Cancellation::default(),
+        },
+        now,
+    )?;
+    assert!(wait(&mut server)?.success());
+    assert_eq!(array::<32>(&s.responder, "session")?, established.session);
+    store(&s.initiator, "session", &established.session)?;
+    eprintln!("PUBLIC_SERVICE_STAGE bootstrap_complete");
+    let context = Arc::clone(&client.context);
+    let id = client
+        .service
+        .stores()?
+        .0
+        .next_message_id(&context, established.session, now()?)?;
+    store(&s.initiator, "uncertain-message", id.as_bytes())?;
+    let (mut server, address) = spawn(&s.responder, 1, "crash-after-application")?;
+    assert!(send(
+        &mut client,
+        &endpoint,
+        address,
+        established.session,
+        id,
+        b"persisted before process exit"
+    )
+    .is_err());
+    assert_eq!(wait(&mut server)?.code(), Some(77));
+    effect(
+        &s.responder,
+        established.session,
+        id,
+        b"persisted before process exit",
+    )?;
+    assert_eq!(
+        client
+            .service
+            .stores()?
+            .0
+            .message_status(&context, established.session, id)?,
+        p::MessageStatus::Committed
+    );
+    client.close();
+    client = Peer::open(&s.initiator)?;
+    let endpoint = ConnectionEndpoint::client(&client.context, client.credentials(), tls_limits())?;
+    let saved = p::MessageId::from_trusted_state(array(&s.initiator, "uncertain-message")?)?;
+    assert_eq!(saved, id);
+    let (mut server, address) = spawn(&s.responder, 2, "application")?;
+    let delivered = send(
+        &mut client,
+        &endpoint,
+        address,
+        established.session,
+        saved,
+        b"persisted before process exit",
+    )?;
+    assert_eq!(delivered.consumption, Consumption::Confirmed);
+    assert!(wait(&mut server)?.success());
+    effect(
+        &s.responder,
+        established.session,
+        saved,
+        b"persisted before process exit",
+    )?;
+    assert_eq!(
+        client
+            .service
+            .stores()?
+            .0
+            .message_status(&client.context, established.session, saved)?,
+        p::MessageStatus::Acknowledged
+    );
+    eprintln!("PUBLIC_SERVICE_STAGE unknown_delivery_reconciled");
+    #[cfg(feature = "control-tls")]
+    {
+        let (mut server, address) = spawn(&s.responder, 3, "rekey")?;
+        let control = p::control_transport::ControlEndpoint::client(
+            &client.context,
+            established.session,
+            client.credentials(),
+            tls_limits(),
+        )?;
+        let (journal, _) = client.service.stores()?;
+        let result = control.run(
+            p::control_transport::Session {
+                journal,
+                context: &client.context,
+                signer: &client.signer,
+            },
+            p::control_transport::Run {
+                target: 1,
+                address,
+                server_name: &client.peer_name,
+                limits: limits(),
+                cancel: &Cancellation::default(),
+            },
+            now,
+        )?;
+        assert_eq!(result.epoch, 1);
+        assert!(wait(&mut server)?.success());
+    }
+    client.close();
+    let network_rekeys = u8::from(cfg!(feature = "control-tls"));
+    eprintln!("PUBLIC_SERVICE_STAGE restart_complete network_rekeys={network_rekeys}");
+    let (mut receiver, address) = spawn(&s.initiator, 4, "application")?;
+    let mut sender = Peer::open(&s.responder)?;
+    let reverse = ConnectionEndpoint::client(&sender.context, sender.credentials(), tls_limits())?;
+    let id =
+        sender
+            .service
+            .stores()?
+            .0
+            .next_message_id(&sender.context, established.session, now()?)?;
+    let delivered = send(
+        &mut sender,
+        &reverse,
+        address,
+        established.session,
+        id,
+        b"reverse after original installation restart",
+    )?;
+    assert_eq!(delivered.consumption, Consumption::Confirmed);
+    assert!(wait(&mut receiver)?.success());
+    effect(
+        &s.initiator,
+        established.session,
+        id,
+        b"reverse after original installation restart",
+    )?;
+    let cancelled = Cancellation::default();
+    cancelled.cancel();
+    let next =
+        sender
+            .service
+            .stores()?
+            .0
+            .next_message_id(&sender.context, established.session, now()?)?;
+    assert!(matches!(
+        reverse.send(
+            sender.actor()?,
+            Submission {
+                session: established.session,
+                message: next,
+                plaintext: b"cancelled",
+                associated_data: b"owned-service"
+            },
+            Run {
+                address,
+                server_name: "initiator.test",
+                limits: limits(),
+                cancel: &cancelled
+            },
+            now
+        ),
+        Err(p::connection_transport::Error::Cancelled)
+    ));
+    assert_eq!(
+        sender
+            .service
+            .stores()?
+            .0
+            .message_status(&sender.context, established.session, next)?,
+        p::MessageStatus::Absent
+    );
+    let prior = sender.policy_store.runtime()?.trusted_state();
+    eprintln!("PUBLIC_SERVICE_STAGE reverse_delivery_and_cancellation_complete");
+    let (revoked, signature) = s.issuer.policy(2, false)?;
+    sender
+        .policy_store
+        .replace_policy(prior, &revoked, &signature)?;
+    assert!(!sender.policy_store.runtime()?.is_enabled()?);
+    assert!(matches!(
+        sender
+            .service
+            .stores()?
+            .0
+            .next_message_id(&sender.context, established.session, now()?),
+        Err(p::DurableError::Protocol(p::Error::Runtime(
+            q_periapt_sdk::Error::Closed
+        )))
+    ));
+    sender.close();
+    assert!(matches!(
+        sender
+            .context
+            .policy()
+            .check_mode(p::PrekeyQuality::OneTimeBoth, now()?),
+        Err(p::Error::Closed)
+    ));
+    let reopened = match Peer::open(&s.responder) {
+        Ok(_) => return Err("old policy config reopened a revoked service".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        reopened.downcast_ref::<q_periapt_host_store::StoreError>(),
+        Some(q_periapt_host_store::StoreError::Policy(
+            q_periapt_sdk::Error::PolicyDenied
+        ))
+    ));
+    let receipt = format!("{{\"session\":\"{}\",\"forward_message\":\"{}\",\"reverse_message\":\"{}\",\"network_rekeys\":{network_rekeys},\"independent_readbacks\":3,\"exclusive_leases_checked\":8,\"unknown_delivery_reconciled\":true,\"durable_sdk_revocation\":true}}\n",
+        hex(&established.session),hex(saved.as_bytes()),hex(id.as_bytes()));
+    store(
+        s.initiator.parent().ok_or("reference root")?,
+        "public-result.json",
+        receipt.as_bytes(),
+    )?;
+    eprintln!("OWNED_SERVICE_PUBLIC_REFERENCE processes=true local_private_signers=true persistent_sdk_policy=true unknown_commit_reconciled=true independent_readbacks=3 bidirectional=true network_rekeys={network_rekeys} exclusive_leases_checked=8 pre_cancel_refused=true durable_revocation=true");
+    Ok(())
+}

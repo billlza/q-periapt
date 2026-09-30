@@ -6,6 +6,36 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Public native service consumer checkpoint
+
+The native external-consumer change is reviewed against source archive
+`b989b629f6b81e124bf1b81000c04d43bbea2c938a14e9de75566f82bcafe417`.
+`BootstrapContext::device(role)` and `policy()` borrow existing verified objects;
+they create no identity, policy owner or permission. Installation still checks
+the selected local device against its retained binding. The external consumer
+checks both device projections, policy pointer identity, wrong-role refusal and
+closed-owner propagation. The additive host-store `PrivateFileError` error traits
+preserve the original error type and do not alter filesystem admission.
+
+`tests/owned_connection.rs` provisions actual persistent SDK policy stores and
+original installations. Peer processes load their own encrypted signing owner;
+remote private signing keys are not part of their configuration. The application
+record includes session, message ID and plaintext. Fresh records reserve their
+private filename and sync bytes; duplicate reconciliation checks exact bytes and
+syncs the same file and pinned directory before success. Partial or conflicting
+records fail instead of repeating an external effect. This sink's only effect is
+the record itself; other host transactions need their own reconciliation contract.
+
+An actual receiver exits after application fsync and before consumption ACK.
+Sender restart retains and retries the original committed message ID. Separate
+bounded processes check all eight store leases; signed persistent SDK revocation
+closes cached admission and refuses stale-policy restart. A discovered reference
+startup race left an empty ready file observable before the address write.
+Readiness now publishes a fully written, synced temporary file without replacing
+an existing marker. The original failed log and empty-file evidence are retained.
+This is a native integration/internal review, not independent cryptographic
+analysis, installed foreign bindings or cross-host qualification.
+
 ## Native installation ownership checkpoint
 
 The separate native installation change is reviewed against frozen source archive

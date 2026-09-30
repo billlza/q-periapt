@@ -51,6 +51,14 @@ journals and files. Their trusted enrollment fixtures are local test inputs.
 They establish a native reference execution path, not installed cross-language,
 independent-implementation, cross-host or device qualification.
 
+The external consumer in [`tests/owned_connection.rs`](tests/owned_connection.rs)
+additionally executes this carrier through both original `DeviceInstallation`
+owners and persistent SDK policy stores, using only public APIs. Its local-key
+loading, uncertain application-commit reconciliation, eight competing owner leases,
+pre-cancellation and durable policy revocation are described in
+[the installation contract](INSTALLATION.md#public-consumer-and-original-service-recovery).
+It is automatically included in all-feature Debug/Release candidate CI.
+
 ## Durable application effects and confirmation
 
 `Consumer::commit` is an explicit external transaction boundary. Success means

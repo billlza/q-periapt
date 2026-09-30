@@ -133,7 +133,19 @@ impl BootstrapContext {
     pub(crate) fn devices(&self) -> [&VerifiedDevice; 2] {
         [self.initiator.as_ref(), self.responder.as_ref()]
     }
-    pub(crate) fn policy(&self) -> &VerifiedSessionPolicy {
+    /// Borrow the original verified device for an explicit bootstrap role. This
+    /// snapshot does not refresh its roster, validity or durable authorization;
+    /// the installation/journal must still admit the original local owner.
+    pub fn device(&self, role: BootstrapRole) -> &VerifiedDevice {
+        match role {
+            BootstrapRole::Initiator => &self.initiator,
+            BootstrapRole::Responder => &self.responder,
+        }
+    }
+    /// Borrow the same policy owner that verified this context. No policy is
+    /// reconstructed from bundle bytes; closing it remains observable by the
+    /// context and every operation. Reading metadata grants no fresh authority.
+    pub fn policy(&self) -> &VerifiedSessionPolicy {
         &self.policy
     }
 

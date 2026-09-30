@@ -72,6 +72,14 @@ impl StorageBackend for LockedFileBackend {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PrivateFileError;
 
+impl std::fmt::Display for PrivateFileError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("private file admission or filesystem operation failed")
+    }
+}
+
+impl std::error::Error for PrivateFileError {}
+
 /// Hard bound shared by the host's protected database backends.
 pub const MAX_PRIVATE_DATABASE_BYTES: u64 = 64 * 1024 * 1024;
 

@@ -72,10 +72,72 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 231 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 232 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The [public native service consumer](../research/continuity-identity-candidate/INSTALLATION.md#public-consumer-and-original-service-recovery)
+now verifies signed bootstrap material, borrows the original verified local device
+and policy, and opens both original `DeviceInstallation` owners through public
+APIs. A separate integration crate executes actual TLS bootstrap, bidirectional
+delivery, service restart and network rekey with persistent SDK policy stores and
+local private signers. An actual receiver process exits after application fsync
+and before consumption ACK; the sender retains `Committed`, reopens its original
+service and reconciles the same ID/input to `Acknowledged`. Eight lease checks,
+wrong-role refusal, cancellation without outbox publication and persistent signed
+SDK revocation are included. These are same-host native processes, not installed
+Continuity bindings or independent implementations.
+
+The external consumer first failed compilation solely because verified-device
+projection was absent and the original policy projection was private. The added
+borrowed projections preserve current admission and shared-owner closure. The
+shared `PrivateFileError` now implements the standard error traits without
+changing file admission. A later feature-specific run exposed a real reference
+startup race: an empty ready file was observable before its address write. The
+reference now atomically publishes a fully written, synced file without replacing
+an existing marker. The initial failure and empty-file evidence remain retained.
+An invalid empty-KEM revocation fixture and one formatting failure are also kept;
+the fixture now uses the existing valid policy that disables the current suite.
+No policy validation or error assertion was weakened.
+
+Rust 1.90 executes both all-feature and connection-only public consumers. After
+the readiness repair, each feature profile additionally passes eight consecutive
+full connection/recovery runs while the native suites run concurrently. Independent
+post-run verification checks all 36 final application files from these 18 runs
+against the exact public session/message IDs and expected plaintext. All-feature
+receipts report one network rekey; connection-only receipts report zero. The
+qualified source contains 1,017 files / 232 Rust files, archive SHA-256
+`b989b629f6b81e124bf1b81000c04d43bbea2c938a14e9de75566f82bcafe417`.
+The only later Rust edit collapses the ready-publication call to rustfmt's required
+line layout. All raw state containing synthetic private keys is retained privately.
+
+The production bytes pass all 277 native unit tests in each of Debug and Release
+(837.49/720.01 harness seconds under overlapping load). The already-running Debug
+command subsequently reproduces the old ready-file race in its pre-repair
+integration binary, so its overall exit remains 101. Release's pre-repair
+integration happens to pass; that does not invalidate the race. Fresh final-source
+Debug and Release public consumers each pass both integration tests in
+6.414/16.120 runner seconds. Two more independent application-file pairs are
+verified from these final runs, bringing the retained qualified total to 20 runs
+and 40 final files. This is execution evidence, not a performance baseline.
+
+Both compiler versions pass all-feature strict Clippy; all six independent feature
+variants and warning-strict docs pass. The feature script's final formatting step
+initially fails, then the exact rustfmt-only correction passes. All 95 clean
+source/isolation/release contracts and 18 affected host-store tests pass, with
+host-store strict Clippy. The `20260930-sdk-service-reference` evidence cohort
+retains failed and passing commands, source manifests, exact executables and
+sanitized application hashes; raw keys and journals are excluded from its mirror.
+
+At predecessor **ec47451b**, push CI passes all 42 jobs and CodeQL passes all six
+languages. PR CI completes 41/42 jobs: Android API 35 / 16 KiB fails during minimal
+consumer cleanup. Its instrumentation records `runtimeVersionOnly` success and
+normal instrumentation completion; subsequent ADB transport loss prevents cleanup
+confirmation. The added lowmemorykiller capture observes system memory-watermark
+kills before that app starts. Those observations do not establish why transport
+failed, measure peak memory, or resolve the older application `LOW_MEMORY` exit.
+The failed job and its raw diagnostic evidence remain part of release assessment.
 
 The native [installation owner](../research/continuity-identity-candidate/INSTALLATION.md)
 now durably retains an independent journal identity and its exact key/device/

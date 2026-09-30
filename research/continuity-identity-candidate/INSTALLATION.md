@@ -82,6 +82,56 @@ lifetimes and operation-time checks still apply. Filesystem calls are synchronou
 this initialization API makes no preemptive filesystem cancellation promise.
 Network deadlines/cancellation remain in the existing connection contract.
 
+## Public consumer and original-service recovery
+
+After `BootstrapBundle::verify`, `BootstrapContext::device(role)` borrows the
+already verified device, and `policy()` borrows the original policy owner. These
+projections let an external Rust consumer open its installation without repeating
+identity decoding or reconstructing permission. They do not refresh roster or
+policy state, select a local role, or authorize an operation. Installation and
+journal methods still perform their ordinary binding and current admission checks.
+Closing that policy is visible through the same context. The shared host-store
+`PrivateFileError` implements `Display` and `std::error::Error`, so normal error
+propagation retains its type; file admission and failure semantics are unchanged.
+
+`tests/owned_connection.rs` is a separate consumer crate using only public APIs.
+It explicitly provisions signed trust, persistent SDK policy stores and both
+installations, then opens each original installation with its own persisted
+signing key. Receiver processes load only their local private signer. The test
+performs actual TLS bootstrap, restart, bidirectional application delivery and,
+with `control-tls`, a network rekey. Its application sink durably writes a record
+containing session, message ID and plaintext. A receiver exits with status 77
+after that fsync and before consumption acknowledgement. The sender observes an
+error and retains `Committed`; reopening the original installation and resending
+the exact ID/input obtains `Acknowledged` with matching application readbacks.
+This is a controlled process-loss case, not a physical power-loss experiment.
+
+Two separate bounded contenders check all eight SDK-policy/installation/journal/
+archive leases. Wrong local-role metadata fails installation binding, pre-cancelled
+delivery retains `Absent`, and a signed durable SDK policy update disables the
+current suite, closes cached runtime admission and prevents stale-policy restart.
+The policy projection is checked for original-owner identity and closed-state
+propagation. These checks exercise real stores and sockets without private APIs.
+
+Run from the repository root with the configured Rust toolchain:
+
+```sh
+cargo test --manifest-path research/continuity-identity-candidate/Cargo.toml \
+  --locked --all-features --test owned_connection -- --nocapture
+```
+
+The feature-specific command `--no-default-features --features connection-tls`
+executes the same connection/recovery path with zero network rekeys. Its receipt
+reports that difference explicitly. The helper process test is included in the
+two-test integration count; it is not a second independent connection scenario.
+By default temporary state is removed. `QPERIAPT_PUBLIC_SERVICE_EVIDENCE` may name
+a fresh absolute directory under an existing private parent to retain raw state.
+That directory contains test private keys and must not be published. Only the
+separate `public-result.json`, validated application hashes and bounded logs may
+be used for a sanitized receipt. This reference is still an unpublished native,
+same-host, same-implementation execution; installed bindings, cross-host peers
+and independent implementations require their own qualification.
+
 ## Encoding and trust boundary
 
 The configuration contains exactly one `continuity_installation_v1` table and one
