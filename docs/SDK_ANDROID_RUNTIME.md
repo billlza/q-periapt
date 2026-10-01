@@ -230,6 +230,14 @@ and their bounds are unchanged. Capturing these inputs is diagnostic evidence;
 it does not itself establish the cause of a low-memory event or a repaired image.
 Both success and failure artifact lists retain this capture and its stderr.
 
+Completed native diagnostic commands also retain output when modern ADB returns
+the guest's nonzero status. The bounded writer previously removed that output,
+including merged stderr, which left the first memory-runtime failure with exit 1
+and an empty error file. Diagnostic callers now explicitly retain completed
+nonzero output while returning the same failure code. Ordinary artifact writes
+remain success-only; deadlines, byte limits, interruption and ownership checks
+are unchanged. No failed diagnostic permits SDK installation or proof publication.
+
 When the existing one-shot transport recovery observes the same owned emulator
 back in `device` state, it now immediately attempts `emulator-state-recovery.txt`
 and `emulator-recovery-logcat.txt` before another APK ownership read. Each capture

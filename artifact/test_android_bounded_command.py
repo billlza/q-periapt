@@ -4456,6 +4456,40 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
                     self.assertEqual(write.call_args.kwargs["stderr"], subprocess.STDOUT)
                     self.assertEqual(listeners.call_count, 2)
 
+    def test_modern_adb_diagnostic_failure_retains_output_and_fails(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout, capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path, backend=receipt.backend_path, current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        payload = (b"native diagnostic refusal\n"
+                   + f"\nQPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT:{self.run_id}:7\n".encode())
+        real_write = commands.write_stdout_at
+
+        def modern_adb_fixture(_argv, **kwargs):
+            # Use the real bounded writer and a real nonzero child; only the
+            # transport response is a fixture, not an emulator qualification.
+            return real_write(
+                [sys.executable, "-I", "-S", "-c",
+                 f"import sys; sys.stdout.buffer.write({payload!r}); raise SystemExit(7)"],
+                **kwargs,
+            )
+
+        with (
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+            mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+            mock.patch.object(commands, "write_stdout_at", side_effect=modern_adb_fixture),
+        ):
+            result = self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME)
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual((self.proof / "emulator-memory-runtime.txt").read_bytes(), payload)
+        self.assertEqual(listeners.call_count, 2)
+
     def test_parser_rejects_unknown_operation_and_extra_arguments(self) -> None:
         diagnostics = io.StringIO()
         with (

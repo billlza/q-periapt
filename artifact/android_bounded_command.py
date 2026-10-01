@@ -3421,6 +3421,9 @@ def _write_operation(
             maximum_bytes=output.maximum_bytes,
             stderr=subprocess.STDOUT if spec.stderr_to_stdout else None,
             environment=_client_environment(capability),
+            # Diagnostics remain failed on nonzero exit, but keep the command
+            # statuses and merged error text needed to explain that failure.
+            retain_nonzero=spec.mode == "emulator-diagnostics",
         )
     except BaseException as exc:
         primary = exc

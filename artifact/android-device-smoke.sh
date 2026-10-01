@@ -2597,8 +2597,8 @@ if [ "$DEVICE_KIND" = "emulator" ]; then
 			:
 		else
 			emulator_memory_runtime_status=$?
-			printf 'error: owned emulator memory-runtime capture failed (exit=%s); see %s\n' \
-				"$emulator_memory_runtime_status" "$DIST/emulator-memory-runtime.err" >&2
+			printf 'error: owned emulator memory-runtime capture failed (exit=%s); see %s and retained output %s\n' \
+				"$emulator_memory_runtime_status" "$DIST/emulator-memory-runtime.err" "$DIST/emulator-memory-runtime.txt" >&2
 			capture_emulator_failure_logs
 			exit "$emulator_memory_runtime_status"
 		fi

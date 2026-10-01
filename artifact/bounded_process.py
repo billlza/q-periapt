@@ -1228,9 +1228,10 @@ def _write_stdout_impl(
     stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
+    retain_nonzero: bool = False,
     coordinator: _SignalCoordinator,
 ) -> BoundedResult:
-    """Atomically replace output only after a bounded command exits successfully."""
+    """Commit complete output; diagnostic callers may retain nonzero exits."""
 
     target_name = _validated_output_name(output_name)
     directory_fd = _owned_private_directory_fd(output_directory_fd)
@@ -1263,7 +1264,7 @@ def _write_stdout_impl(
                 stream_arguments["stdin_fd"] = stdin_fd
             result = _stream_stdout(argv, **stream_arguments)
             coordinator.raise_if_requested()
-            if result.returncode != 0:
+            if result.returncode != 0 and not retain_nonzero:
                 return result
             os.fsync(temporary_fd)
             os.close(temporary_fd)
@@ -1338,9 +1339,17 @@ def write_stdout_at(
     stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
+    retain_nonzero: bool = False,
 ) -> BoundedResult:
-    """Atomically replace output only after a bounded command exits successfully."""
+    """Atomically store completed output, returning the unchanged child status.
 
+    By default only exit zero replaces the destination. Diagnostic callers may
+    explicitly retain nonzero exits. Timeout, output-limit, I/O and interruption
+    handling still use the same transaction and child-cleanup rules.
+    """
+
+    if type(retain_nonzero) is not bool:
+        raise BoundedProcessError("arguments", "retain_nonzero must be a boolean")
     with _SignalCoordinator() as coordinator:
         return _write_stdout_impl(
             argv,
@@ -1351,5 +1360,6 @@ def write_stdout_at(
             stdin_fd=stdin_fd,
             stderr=stderr,
             environment=environment,
+            retain_nonzero=retain_nonzero,
             coordinator=coordinator,
         )

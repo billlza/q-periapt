@@ -1205,6 +1205,48 @@ class BoundedProcessTests(unittest.TestCase):
                 self.assertEqual(output.read_bytes(), b"original")
                 self.assertEqual(list(self.root.glob(f".{name}.bin.bounded-*")), [])
 
+    def test_diagnostic_write_keeps_failure_without_changing_status_or_bounds(self) -> None:
+        output = self.root / "diagnostic.txt"
+        output.write_bytes(b"previous")
+        output.chmod(0o600)
+        result = bounded_process.write_stdout_at(
+            self.python("import sys; sys.stderr.write('retained failure'); raise SystemExit(7)"),
+            output_directory_fd=self.output_directory_fd,
+            output_name=output.name, timeout_seconds=5, maximum_bytes=64,
+            stderr=subprocess.STDOUT, retain_nonzero=True,
+        )
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual(output.read_bytes(), b"retained failure")
+        self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+        for source, timeout, maximum, kind in (
+            ("print('x' * 65)", 5, 64, "output_limit"),
+            ("import time; print('partial', flush=True); time.sleep(60)", 1, 64, "timeout"),
+        ):
+            with self.subTest(kind=kind), self.assertRaises(bounded_process.BoundedProcessError) as caught:
+                bounded_process.write_stdout_at(
+                    self.python(source), output_directory_fd=self.output_directory_fd,
+                    output_name=output.name, timeout_seconds=timeout, maximum_bytes=maximum,
+                    stderr=subprocess.STDOUT, retain_nonzero=True,
+                )
+            self.assertEqual(caught.exception.kind, kind)
+            self.assertEqual(output.read_bytes(), b"retained failure")
+            self.assertEqual(list(self.root.glob(".diagnostic.txt.bounded-*")), [])
+
+    def test_nonboolean_diagnostic_selection_fails_before_spawn(self) -> None:
+        for value in (None, 1, "true"):
+            with (
+                self.subTest(value=value),
+                mock.patch.object(bounded_process.subprocess, "Popen") as spawn,
+                self.assertRaises(bounded_process.BoundedProcessError) as caught,
+            ):
+                bounded_process.write_stdout_at(
+                    self.python("print('unexpected')"), output_directory_fd=self.output_directory_fd,
+                    output_name="diagnostic.txt", timeout_seconds=5, maximum_bytes=64,
+                    retain_nonzero=value,
+                )
+            self.assertEqual(caught.exception.kind, "arguments")
+            spawn.assert_not_called()
+
     def test_output_cleanup_failures_do_not_mask_primary_error(self) -> None:
         output = self.root / "cleanup-primary.bin"
         primary = bounded_process.BoundedProcessError(
