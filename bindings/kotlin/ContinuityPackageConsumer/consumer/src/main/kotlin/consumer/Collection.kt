@@ -55,17 +55,34 @@ private fun forgetOwners(queue: ReferenceQueue<PreparedInvocation>): List<WeakRe
     }
 }
 
-private fun pressure() {
+internal fun pressure() {
     val buffers = Array(8) { index -> ByteArray(1024 * 1024) { index.toByte() } }
     check(buffers.sumOf { it.first().toInt() + it.last().toInt() } == 56)
     System.gc()
     Reference.reachabilityFence(buffers)
 }
 
-private fun collectionCount(): Long = ManagementFactory.getGarbageCollectorMXBeans().sumOf {
+internal fun collectionCount(): Long = ManagementFactory.getGarbageCollectorMXBeans().sumOf {
     val count = it.collectionCount
     check(count >= 0) { "GC collection counts are unavailable" }
     count
+}
+
+/** Called only after an unrooted native invocation has returned. A prematurely
+ * disposed BUSY owner must not silently strand any of the shared 64 slots.
+ */
+internal fun requireNativeOwnerTableDrained() {
+    repeat(GC_ROUNDS) {
+        pressure()
+        try {
+            PendingOwners().use { pool -> pool.fill(); capacityMustBeFull() }
+            return
+        } catch (failure: ContinuityFailure) {
+            if (failure.code != 4 || failure.suppressed.isNotEmpty()) throw failure
+        }
+        Thread.sleep(10)
+    }
+    error("returned native invocation did not release its original owner slot within $GC_ROUNDS GC rounds")
 }
 
 /** Bounded test-only observation of the nondeterministic Cleaner backstop.

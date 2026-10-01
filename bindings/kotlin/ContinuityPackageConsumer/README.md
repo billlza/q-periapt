@@ -142,7 +142,7 @@ The injector remains isolated to owned test children. Missing or changed receipt
 incomplete cuts, altered loss fields and a substituted original report fail.
 
 Required follow-up includes current-source Debug/Release collection and CI,
-in-flight native-call/callback GC pressure, broader JVM interruption, additional JVM/OS targets,
+other native-call lifetime paths, broader JVM interruption, additional JVM/OS targets,
 and Android ART/JNI. This candidate does not yet satisfy full 0.2.0 admission.
 
 The collector separately runs bounded prepared-owner lifetime checks under Serial
@@ -167,6 +167,33 @@ These checks cover prepared owners, bounded observation of the nondeterministic
 Cleaner, and stale references. Explicit close remains the normal lifecycle
 contract; collection within a fixed time, all collectors, and in-flight safety
 are not established by this workload.
+
+A separate installed server workload releases both external owner references
+inside the real application callback, after retaining the original BUSY-close
+assertion. It observes collection of the public wrapper while the native call
+remains active. Serial GC and G1 each run the complete server workload against
+both retained native profiles: eight callbacks per run preserve their copied
+delivery bytes through GC; seven returning calls retain those bytes after the
+FFM arena closes and restore all 64 native slots. The crash-after-effect callback
+intentionally exits and has no return receipt. Callback exceptions retain their
+exact original JVM object; duplicate suppression and unknown-commit/rekey checks
+remain required.
+
+This fixture explicitly compiles three lifetime-sensitive frames with C2 and
+retains the JVM compilation logs; the verifier requires those compilations for
+each invocation. It does not rely on an interpreter retaining otherwise dead
+receiver variables. An isolated SDK copy with only the native-call reachability
+fence removed fails under both collectors: the Cleaner observes BUSY status 3
+during the callback and the original native slot is not recovered after return.
+Neither that mutant nor these JVM stress flags enter the SDK artifact or normal
+launcher. These bounded tests establish this selected server path on the observed
+JDK, not a general collection deadline or all native-call/JVM lifetime behavior.
+
+The hosted c3c217e1 installed-package job also has independent source/archive and
+execution readback: 231 committed inputs, two 249-file packages, and 526 selected
+public files across local and witnessed traces. That exact commit predates the
+sync-fault/GC additions. Its separate Android 16-KiB job failed before
+instrumentation, so the overall run is not a successful release qualification.
 
 The Gradle publication repository is local to `build/candidate-maven`. No public
 registry, signing credentials or remote publication task is configured.

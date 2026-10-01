@@ -40,6 +40,8 @@ internal fun waitMarker(name: String) {
 }
 private fun run(arguments: List<String>): String {
     var args = arguments
+    val inFlightGC = args.firstOrNull() == "--gc-in-flight"
+    if (inFlightGC) args = args.drop(1)
     val interruptOpening = args.firstOrNull() == "--interrupt-opening-controller"
     if (interruptOpening) args = args.drop(1)
     var witness: WitnessCarrier = WitnessCarrier.Local
@@ -50,6 +52,7 @@ private fun run(arguments: List<String>): String {
         args = args.drop(2)
     }
     require(args.isNotEmpty()) { "command required" }
+    require(!inFlightGC || args[0] == "serve") { "in-flight GC requires a server fixture" }
     require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
     if (args[0] == "gc-owner-capacity") {
         require(args.size == 1 && witness == WitnessCarrier.Local)
@@ -64,6 +67,10 @@ private fun run(arguments: List<String>): String {
         return "self-check-passed"
     }
     require(args.size >= 2)
+    if (inFlightGC) {
+        require(args.size in 3..4)
+        return serveUnrooted(args[1], args[2], args.getOrNull(3), witness)
+    }
     if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening)
     if (args[0].startsWith("recover-")) return recover(args, witness)
     if (args[0] == "reject-open") {

@@ -1,14 +1,77 @@
 """Closed Maven/runtime identity and complete execution evidence for the JVM adapter."""
 import hashlib
+import json
+import shlex
 from pathlib import Path
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
 import continuity_kotlin_consumer as kotlin
+import test_continuity_c_consumer as c_tests
 
 
 class KotlinConsumerTests(unittest.TestCase):
+    def test_inflight_receipts_bind_gc_and_returned_slots_to_original_delivery(self):
+        stdout = (f"test {kotlin.c.SERVER_TEST} ... ok\n"
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            report = c_tests.ContinuityCConsumerTests().server_evidence(root)
+            report["scope"] = kotlin.c.SERVER_SCOPE.replace("C server", "Kotlin server")
+            (root / "c-server-public-result.json").write_text(json.dumps(report))
+            messages = report["messages"]
+            receipts = {}
+            for mode, message in [("fail-before", messages[0]), ("uncertain", messages[1]),
+                                  ("crash-after", messages[2]), ("uncertain", messages[3]),
+                                  *(("message", messages[index]) for index in (0, 1, 2, 4))]:
+                payload = bytes.fromhex(report["session"] + message) + b"persisted before process exit"
+                receipts[f"kotlin-gc-callback-{mode}-{message}"] = b"QPC-JVM-INFLIGHT/1 callback collections=5\n" + payload
+                if mode != "crash-after":
+                    receipts[f"kotlin-gc-return-{mode}-{message}"] = b"QPC-JVM-INFLIGHT/1 returned slots=64 copied-delivery-valid\n" + payload
+            for leaf, data in receipts.items():
+                (root / "responder" / leaf).write_bytes(data)
+            observed = kotlin.verify_inflight_execution(stdout, root)
+            self.assertEqual(observed["inflight_gc"]["callbacks"], 8)
+            self.assertEqual(observed["inflight_gc"]["returned_native_slot_checks"], 7)
+            for leaf, data in receipts.items():
+                path = root / "responder" / leaf
+                for changed in (data[:-1], data + b"extra", data.replace(bytes.fromhex(report["session"]), b"x" * 32),
+                                data.replace(b"collections=5", b"collections=0").replace(b"slots=64", b"slots=63")):
+                    path.write_bytes(changed)
+                    with self.subTest(leaf=leaf), self.assertRaisesRegex(ValueError, "receipt differs"):
+                        kotlin.verify_inflight_execution(stdout, root)
+                path.write_bytes(data)
+            extra = root / "responder" / ("kotlin-gc-return-crash-after-" + messages[2])
+            extra.write_bytes(b"false return evidence")
+            with self.assertRaisesRegex(ValueError, "receipt set differs"):
+                kotlin.verify_inflight_execution(stdout, root)
+
+    def test_inflight_requires_compilation_for_each_real_server_invocation(self):
+        modes = ["message"] * 5 + ["uncertain"] * 2 + ["fail-before", "crash-after", "bootstrap", "pre-cancel", "deadline", "rekey"]
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); evidence = root / "evidence"
+            for index, mode in enumerate(modes):
+                log = ET.Element("hotspot_log")
+                arguments = ET.SubElement(log, "vm_arguments")
+                ET.SubElement(arguments, "args").text = shlex.join(kotlin.inflight_vm_flags("Serial", root))
+                ET.SubElement(arguments, "command").text = f"consumer.ContinuityClientKt --gc-in-flight serve {evidence / 'responder'} {mode}" + (" " + "11" * 32 if mode == "rekey" else "")
+                for method in kotlin.INFLIGHT_METHODS:
+                    ET.SubElement(log, "nmethod", compiler="c2", method=method + " fixture-signature")
+                (root / f"jit-{index}.xml").write_bytes(ET.tostring(log))
+            self.assertEqual(len(kotlin.verify_inflight_compilation(root, evidence, collector="Serial")), 13)
+            path = root / "jit-0.xml"; original = path.read_bytes()
+            for changed in (original.replace(b'compiler="c2"', b'compiler="c1"'),
+                            original.replace(b"--gc-in-flight", b"--other"),
+                            original.replace(b"UseSerialGC", b"UseG1GC"),
+                            original.replace(b" message", b" uncertain")):
+                path.write_bytes(changed)
+                with self.assertRaisesRegex(ValueError, "compiled|invocation differs|workload differs|configuration differs"):
+                    kotlin.verify_inflight_compilation(root, evidence, collector="Serial")
+            path.unlink()
+            with self.assertRaisesRegex(ValueError, "log count differs"):
+                kotlin.verify_inflight_compilation(root, evidence, collector="Serial")
+
     def test_gc_evidence_requires_observed_collection_and_complete_native_capacity_checks(self):
         valid = b"QPC-JVM-GC/1 rounds=16 forgotten=1024 queued=1024 live=1024 stale=1024 collections=32\n"
         self.assertEqual(kotlin.verify_gc_execution(valid)["observed_collections"], 32)

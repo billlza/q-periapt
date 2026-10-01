@@ -2010,6 +2010,7 @@ jobs:
             target/continuity-installed-swift/c-witness-openssl-public/**
             target/continuity-installed-swift/swift-public/**
             target/continuity-installed-swift/kotlin-public/**
+            target/continuity-installed-swift/kotlin-inflight-compilation/**
             target/continuity-installed-swift/consumer-Cargo.lock
             target/continuity-installed-swift/c-consumer-Cargo.lock
           if-no-files-found: error

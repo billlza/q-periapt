@@ -26,8 +26,8 @@ FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
 SCOPE = ("unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; "
          "same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; "
          "test-host controller interruption uses explicit native cancel/join; "
-         "calibrated journal sync process interruption and bounded prepared-owner GC; "
-         "in-flight GC and automatic JVM cancellation qualification remain separate")
+         "calibrated journal sync process interruption and bounded prepared/in-flight owner GC under selected C2 frames; "
+         "other JVM implementations and automatic JVM cancellation qualification remain separate")
 TEST_NAMES = frozenset({
     "identifiersAreTypedImmutablePublicValues", "unsignedCountersRetainTheirWholeRange",
     "structuresMatchThe64BitNativeContract", "pendingOwnersRejectWorkAndCancellationNeverActivates",
@@ -137,6 +137,80 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
     checked = c.verify_server_execution(stdout, directory, language="Kotlin")
     checked["public_readbacks"] = checked.pop("application_readbacks") | {
         "c-server-public-result.json": sdk.snapshot(directory / "c-server-public-result.json").sha256}
+    return checked
+
+
+def verify_inflight_execution(stdout: bytes, directory: Path) -> dict:
+    checked = verify_server_execution(stdout, directory)
+    messages = checked["messages"]
+    expected = [("fail-before", messages[0]), ("uncertain", messages[1]),
+                ("crash-after", messages[2]), ("uncertain", messages[3]),
+                *(("message", messages[index]) for index in (0, 1, 2, 4))]
+    leaves = set()
+    collections = []
+    for mode, message in expected:
+        original = bytes.fromhex(checked["session"] + message) + b"persisted before process exit"
+        leaf = f"responder/kotlin-gc-callback-{mode}-{message}"
+        receipt = sdk.snapshot(directory / leaf, maximum=256)
+        header, separator, payload = receipt.data.partition(b"\n")
+        match = re.fullmatch(rb"QPC-JVM-INFLIGHT/1 callback collections=([1-9][0-9]{0,3})", header)
+        sdk.require(separator and match is not None and 5 <= int(match[1]) <= 1024 and payload == original,
+                    "Kotlin in-flight GC callback receipt differs")
+        collections.append(int(match[1])); leaves.add(leaf)
+        checked["public_readbacks"][leaf] = receipt.sha256
+        if mode != "crash-after":
+            leaf = f"responder/kotlin-gc-return-{mode}-{message}"
+            receipt = sdk.snapshot(directory / leaf, maximum=256)
+            sdk.require(receipt.data == b"QPC-JVM-INFLIGHT/1 returned slots=64 copied-delivery-valid\n" + original,
+                        "Kotlin in-flight GC returned-owner receipt differs")
+            leaves.add(leaf); checked["public_readbacks"][leaf] = receipt.sha256
+    sdk.require({"responder/" + p.name for p in (directory / "responder").glob("kotlin-gc-*")} == leaves,
+                "Kotlin in-flight GC receipt set differs")
+    checked["inflight_gc"] = {"callbacks": 8, "returned_native_slot_checks": 7,
+                              "callback_collections": collections, "crash_after_has_return_receipt": False}
+    return checked
+
+
+INFLIGHT_METHODS = frozenset({"consumer.UnrootedInvocation serve", "dev.qperiapt.continuity.ContinuityOwner serve",
+                              "dev.qperiapt.continuity.NativeOwner call"})
+
+
+def inflight_vm_flags(collector: str, logs: Path) -> list[str]:
+    sdk.require(collector in {"Serial", "G1"}, "unknown Kotlin in-flight collector")
+    methods = sorted(name.replace(" ", "::") for name in INFLIGHT_METHODS)
+    return ["-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC", "-Xcomp", "-Xbatch", "-XX:-TieredCompilation",
+            "-XX:CompileCommand=quiet", *("-XX:CompileCommand=compileonly," + name for name in methods),
+            *("-XX:CompileCommand=dontinline," + name for name in methods),
+            "-XX:+UnlockDiagnosticVMOptions", "-XX:+LogCompilation", "-XX:LogFile=" + str(logs / "jit-%p.xml")]
+
+
+def verify_inflight_compilation(logs: Path, evidence: Path, *, collector: str) -> dict:
+    required_flags = set(inflight_vm_flags(collector, logs)[:-1])
+    expected = {"message": 5, "uncertain": 2, "fail-before": 1, "crash-after": 1,
+                "bootstrap": 1, "pre-cancel": 1, "deadline": 1, "rekey": 1}
+    observed = dict.fromkeys(expected, 0)
+    files = sorted(logs.glob("jit-*.xml"))
+    sdk.require(len(files) == 13, "Kotlin in-flight compilation log count differs")
+    checked = {}
+    for path in files:
+        data = sdk.snapshot(path, maximum=16 * 1024**2)
+        sdk.require(b"<!DOCTYPE" not in data.data and b"<!ENTITY" not in data.data, "JVM compilation log declares entities")
+        root = ET.fromstring(data.data)
+        flags = set(shlex.split(root.findtext("vm_arguments/args") or ""))
+        sdk.require(required_flags <= flags and {flag for flag in flags if re.fullmatch(r"-XX:\+Use.*GC", flag)}
+                    == {"-XX:+Use" + collector + "GC"}, "Kotlin in-flight JVM stress configuration differs")
+        command = shlex.split(root.findtext("vm_arguments/command") or "")
+        sdk.require(root.tag == "hotspot_log" and len(command) in {5, 6}
+                    and command[:4] == ["consumer.ContinuityClientKt", "--gc-in-flight", "serve", str(evidence / "responder")]
+                    and command[4] in expected and (len(command) == 6) == (command[4] == "rekey"),
+                    "Kotlin in-flight JVM invocation differs")
+        mode = command[4]; observed[mode] += 1
+        compiled = {" ".join(node.get("method", "").split()[:2]) for node in root.iter("nmethod")
+                    if node.get("compiler") == "c2"}
+        required = INFLIGHT_METHODS - ({"consumer.UnrootedInvocation serve"} if mode == "rekey" else set())
+        sdk.require(required <= compiled, "Kotlin in-flight frames were not compiled by C2")
+        checked[path.name] = {"sha256": data.sha256, "mode": mode, "compiled_frames": sorted(required)}
+    sdk.require(observed == expected, "Kotlin in-flight compilation workload differs")
     return checked
 
 
@@ -299,6 +373,27 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
                                             replay=lambda path: verify(stdout, path))
                 traces[label] = {"execution": checked, "public_files": exported}
+            inflight = {}
+            for collector in ("Serial", "G1"):
+                label = "inflight-" + collector.lower()
+                logs = output / "kotlin-inflight-compilation" / profile / collector
+                logs.mkdir(parents=True, mode=0o700)
+                gc_launcher = installed / ("client-" + label)
+                command = [str(java), *inflight_vm_flags(collector, logs), *argv[1:], "--gc-in-flight"]
+                with gc_launcher.open("x") as stream:
+                    stream.write("#!/bin/sh\nexec " + shlex.join(command) + ' "$@"\n')
+                gc_launcher.chmod(0o700); digest = sdk.snapshot(gc_launcher).sha256
+                evidence = outside / f"kotlin-{profile}-{label}-runtime"
+                runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(gc_launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
+                               QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+                stdout = run([str(trace), "--exact", c.SERVER_TEST, "--nocapture"], f"{label}-trace-{profile}", runtime=runtime)
+                checked = verify_inflight_execution(stdout, evidence)
+                exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
+                                            replay=lambda path: verify_inflight_execution(stdout, path))
+                compilation = verify_inflight_compilation(logs, evidence, collector=collector)
+                sdk.require(sdk.snapshot(gc_launcher).sha256 == digest, "Kotlin in-flight launcher changed")
+                inflight[collector] = {"execution": checked, "public_files": exported, "compilation": compilation,
+                                      "launcher": {"path": str(gc_launcher), "sha256": digest}, "command": command}
             witness_binary = Path(row["witness"]["binary"]["path"])
             sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
                         "native witness harness changed before Kotlin execution")
@@ -377,6 +472,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,
                 "prepared_owner_gc": gc_execution,
+                "inflight_owner_gc": inflight,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,
