@@ -93,11 +93,35 @@ public records are exported for independent replay; private installations are no
 The existing macOS installed-binding CI job now requests this collector alongside
 Swift. A successful development run of this producer still uses the retained
 f753e75d native libraries and explicitly recorded controller; it is not complete
-current-source CI qualification.
+current-source CI qualification. That separate checkpoint is now closed for
+commit `2523be07`: macOS arm64 run `36918986946`, job `110563064062`, completes
+both profiles. Independent readback binds 229 collector source inputs to that
+commit, verifies both 247-file packages, all 188 public trace records, sixteen
+owner test executions, Java module calls and fourteen refusal controls. It does
+not qualify subsequent source changes.
+
+The installed consumer now also executes the existing signed-TCP and mutual-TLS
+witness workloads, including lost witness advances, cancellation, reconciliation,
+scoped recovery, retirement and refusal of altered authority. Two-stage activation
+checks both owner kinds, pre-cancellation, bounded copied configuration after the
+preparation arena closes, BUSY behavior during network admission, failed activation,
+socket closure and reopening the same installation. Development runs against the
+retained f753e75d Debug/Release native libraries independently replay these traces.
+The collector requires them for each newly built native profile.
+
+A separate test-host invocation interrupts the controlling JVM thread during
+blocked activation. The host explicitly calls native cancel, joins its owned
+worker, retains native error 218 and the controlling thread's interrupt flag,
+and closes the owner before writing its receipt and terminal output. Both TCP
+and TLS cases are required and independently read back alongside the full
+constructor trace. This is not automatic cancellation of synchronous FFM calls
+by `Thread.interrupt`, nor a GC-pressure qualification. The SDK adds no worker
+thread. Failures in the barrier, cancellation or worker retain their causes;
+the host joins the worker even when the controlling thread is interrupted.
 
 Required follow-up includes current-source Debug/Release collection and CI,
-witness and two-stage activation workloads, positive-reservation
-sync-interruption matrix, JVM interrupt and GC pressure, additional JVM/OS targets,
+positive-reservation sync-interruption matrix, broader JVM interruption and GC
+pressure, additional JVM/OS targets,
 and Android ART/JNI. This candidate does not yet satisfy full 0.2.0 admission.
 
 The Gradle publication repository is local to `build/candidate-maven`. No public

@@ -10,6 +10,9 @@ import xml.etree.ElementTree as ET
 
 import continuity_c_consumer as c
 import continuity_c_recovery as recovery
+import continuity_c_opening as opening
+import continuity_c_witness as witness
+import continuity_c_witness_tls as witness_tls
 from continuity_c_witness import export_selected
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
@@ -20,8 +23,9 @@ import third_party_licenses as licenses
 
 FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
 SCOPE = ("unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; "
-         "same-host macOS or GNU/Linux; local original-installation profile; "
-         "witness, sync-interruption, GC and interrupt qualification remain separate")
+         "same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; "
+         "test-host controller interruption uses explicit native cancel/join; "
+         "sync-interruption, GC and automatic JVM cancellation qualification remain separate")
 TEST_NAMES = frozenset({
     "identifiersAreTypedImmutablePublicValues", "unsignedCountersRetainTheirWholeRange",
     "structuresMatchThe64BitNativeContract", "pendingOwnersRejectWorkAndCancellationNeverActivates",
@@ -29,6 +33,20 @@ TEST_NAMES = frozenset({
     "recoveryCancellationAndClosedStateKeepTheirNativeKinds",
     "textAndApplicationRefusalsCannotSilentlyCoerceInvalidInput",
 })
+
+
+def verify_opening_interruption(stdout: bytes, directory: Path) -> dict:
+    checked = opening.verify_execution(stdout, directory, language="Kotlin")
+    for carrier in ("tcp", "tls"):
+        leaf = "initiator/kotlin-opening-controller-interrupted-" + carrier
+        receipt = sdk.snapshot(directory / leaf, maximum=128)
+        sdk.require(receipt.data == b"QPC-JVM-INTERRUPT/1\n"
+                    b"control-interrupted native-218 joined flag-retained owner-closed\n",
+                    "Kotlin controller interruption receipt differs")
+        checked["public_readbacks"][leaf] = receipt.sha256
+    checked["scope"] += "; controlling JVM thread interrupted; explicit native cancel/join and retained interrupt flag"
+    checked["controller_interruption"] = True
+    return checked
 
 
 def maven_contract() -> jvm.MavenContract:
@@ -244,6 +262,10 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             launcher = installed / "client"
             with launcher.open("x") as stream: stream.write("#!/bin/sh\nexec " + shlex.join(argv) + ' "$@"\n')
             launcher.chmod(0o700); launcher_sha = sdk.snapshot(launcher).sha256
+            interrupt_launcher = installed / "client-opening-interrupt"
+            with interrupt_launcher.open("x") as stream:
+                stream.write("#!/bin/sh\nexec " + shlex.join([*argv, "--interrupt-opening-controller"]) + ' "$@"\n')
+            interrupt_launcher.chmod(0o700); interrupt_launcher_sha = sdk.snapshot(interrupt_launcher).sha256
             trace = Path(row["binaries"]["Rust_trace"]["path"])
             sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed")
             traces = {}
@@ -257,6 +279,26 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
                                             replay=lambda path: verify(stdout, path))
                 traces[label] = {"execution": checked, "public_files": exported}
+            witness_binary = Path(row["witness"]["binary"]["path"])
+            sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
+                        "native witness harness changed before Kotlin execution")
+            witnessed = {}
+            for label, module in (("opening", opening), ("opening-interrupt", opening),
+                                  ("signed-tcp", witness), ("mutual-tls", witness_tls)):
+                evidence = outside / f"kotlin-{profile}-witness-{label}"
+                selected_launcher = interrupt_launcher if label == "opening-interrupt" else launcher
+                verify_witness = (verify_opening_interruption if label == "opening-interrupt" else
+                                  lambda data, path: module.verify_execution(data, path, language="Kotlin"))
+                runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(selected_launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
+                               QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+                stdout = run([str(witness_binary), "--exact", module.TEST, "--nocapture"],
+                             f"witness-{label}-{profile}", runtime=runtime)
+                checked = verify_witness(stdout, evidence)
+                exported = export_selected(checked, evidence, output / "kotlin-public" / ("witness-" + label) / profile, checked["scope"],
+                    replay=lambda path: verify_witness(stdout, path))
+                witnessed[label] = {"execution": checked, "public_files": exported}
+            sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
+                        "native witness harness changed during Kotlin execution")
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -290,14 +332,18 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(installed / name, maximum=MAX_PACKAGE).sha256 == expected, "installed Kotlin package changed")
             sdk.require({p.name: sdk.snapshot(p).sha256 for p in (distribution / "lib").iterdir()} == jar_files
-                        and sdk.snapshot(launcher).sha256 == launcher_sha, "executed Kotlin JAR or launcher changed")
+                        and sdk.snapshot(launcher).sha256 == launcher_sha
+                        and sdk.snapshot(interrupt_launcher).sha256 == interrupt_launcher_sha,
+                        "executed Kotlin JAR or launcher changed")
             sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed during execution")
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
-                "owner_tests": owner_tests, "java_module_executed": True,
+                "owner_tests": owner_tests, "witnessed": witnessed,
+                "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
+                "java_module_executed": True,
                 "negative_controls": sorted(negatives) + ["raw-owner-construction"]}
         sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
                     "Kotlin sources or tool installation changed during qualification")

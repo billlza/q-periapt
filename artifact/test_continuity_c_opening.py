@@ -5,6 +5,8 @@ import tempfile
 import unittest
 
 import continuity_c_opening as opening
+import continuity_kotlin_consumer as kotlin
+from evidence_io import EvidenceIOError
 
 
 def queries(authority=b'a' * 32):
@@ -55,17 +57,44 @@ class ConstructorTranscriptTests(unittest.TestCase):
             path.write_text(json.dumps(report))
             stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
             opening.verify_execution(stdout, root)
-            with self.assertRaisesRegex(ValueError, "outcome or scope"):
-                opening.verify_execution(stdout, root, language="Swift")
-            report["language"] = "Swift"; path.write_text(json.dumps(report))
-            self.assertIn("installed Swift constructor", opening.verify_execution(stdout, root, language="Swift")["scope"])
-            with self.assertRaisesRegex(ValueError, "outcome or scope"):
-                opening.verify_execution(stdout, root)
-            with self.assertRaisesRegex(ValueError, "unsupported constructor language"):
-                opening.verify_execution(stdout, root, language="unknown")
-            (root / "initiator/witness-opening-tls-cancel.stdout").write_text("prepared-cancelled:302:13\n")
-            with self.assertRaisesRegex(ValueError, "command result"):
-                opening.verify_execution(stdout, root, language="Swift")
+            for language in ("Swift", "Kotlin"):
+                with self.subTest(language=language):
+                    report["language"] = "C"; path.write_text(json.dumps(report))
+                    with self.assertRaisesRegex(ValueError, "outcome or scope"):
+                        opening.verify_execution(stdout, root, language=language)
+                    report["language"] = language; path.write_text(json.dumps(report))
+                    self.assertIn("installed " + language + " constructor", opening.verify_execution(stdout, root, language=language)["scope"])
+                    with self.assertRaisesRegex(ValueError, "outcome or scope"):
+                        opening.verify_execution(stdout, root)
+                    other = "Kotlin" if language == "Swift" else "Swift"
+                    with self.assertRaisesRegex(ValueError, "outcome or scope"):
+                        opening.verify_execution(stdout, root, language=other)
+                    with self.assertRaisesRegex(ValueError, "unsupported constructor language"):
+                        opening.verify_execution(stdout, root, language="unknown")
+                    leaf = "initiator/witness-opening-tls-cancel.stdout"
+                    (root / leaf).write_text("prepared-cancelled:302:13\n")
+                    with self.assertRaisesRegex(ValueError, "command result"):
+                        opening.verify_execution(stdout, root, language=language)
+                    (root / leaf).write_bytes(files[leaf])
+                    if language == "Kotlin":
+                        with self.assertRaisesRegex(EvidenceIOError, "cannot safely open evidence file"):
+                            kotlin.verify_opening_interruption(stdout, root)
+                        receipt = (b"QPC-JVM-INTERRUPT/1\n"
+                                   b"control-interrupted native-218 joined flag-retained owner-closed\n")
+                        for carrier in ("tcp", "tls"):
+                            (root / ("initiator/kotlin-opening-controller-interrupted-" + carrier)).write_bytes(receipt)
+                        checked = kotlin.verify_opening_interruption(stdout, root)
+                        self.assertTrue(checked["controller_interruption"])
+                        for carrier in ("tcp", "tls"):
+                            path = root / ("initiator/kotlin-opening-controller-interrupted-" + carrier)
+                            self.assertIn(path.relative_to(root).as_posix(), checked["public_readbacks"])
+                            for invalid in (receipt[:-1], receipt.replace(b"218", b"302"),
+                                            receipt.replace(b"flag-retained", b"flag-cleared"),
+                                            receipt.replace(b"owner-closed", b"owner-busy")):
+                                path.write_bytes(invalid)
+                                with self.assertRaisesRegex(ValueError, "interruption receipt"):
+                                    kotlin.verify_opening_interruption(stdout, root)
+                            path.write_bytes(receipt)
 
     def test_original_query_loss_is_valid_without_a_committed_advance_claim(self):
         authority, data, prefix = queries()

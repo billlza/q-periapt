@@ -314,9 +314,10 @@ def qualify(args: argparse.Namespace) -> dict:
                                                       args.kotlin_java_home, args.kotlin_gradle_home)
             result["scope"] = ("unpublished installed Rust/C connections, recovery and explicit witness profiles; "
                                + ("Swift local and witnessed profiles; " if args.with_swift_consumer else "")
-                               + "Kotlin/JVM local-profile client/server/recovery and Java module admission; "
+                               + "Kotlin/JVM local and explicit witness client/server/recovery, constructor lifecycle and Java module admission; "
                                "same host and shared native engine; no independent engine or cross-host qualification; "
-                               "Kotlin witness, sync-interruption, GC and interrupt qualification remain separate")
+                               "Kotlin controller interruption uses explicit native cancel/join; "
+                               "sync-interruption, GC and automatic JVM cancellation qualification remain separate")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -346,7 +347,7 @@ def main() -> None:
     parser.add_argument("--with-swift-consumer", action="store_true",
                         help="also package and execute the Swift owner with the installed C engine on macOS")
     parser.add_argument("--with-kotlin-consumer", action="store_true",
-                        help="also package and execute Kotlin/JVM client/server/recovery with both installed C profiles")
+                        help="also package and execute Kotlin/JVM local/witnessed owners and constructor lifecycle with both installed C profiles")
     parser.add_argument("--kotlin-java-home", type=Path, help="explicit JDK 25 installation for the Kotlin consumer")
     parser.add_argument("--kotlin-gradle-home", type=Path, help="explicit Gradle 9.8.0 installation for the Kotlin consumer")
     parser.add_argument("--witness-openssl-prefix", type=Path,

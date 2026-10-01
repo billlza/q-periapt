@@ -87,8 +87,27 @@ native libraries and the separately recorded Kotlin-aware Debug controller. Both
 94 selected public trace files and seven negative controls. The initial development
 source-intake, fixed-repository and localized-javac failures are retained. Private construction was already
 correctly refused; the collector now checks the locale-independent diagnostic
-code and absence of an emitted class. This is producer development evidence;
-complete current-source collection and hosted qualification remain required.
+code and absence of an emitted class. That development evidence remains separate
+from hosted run `36918986946`: commit `2523be07` now completes the full macOS arm64
+collector in job `110563064062`. Artifact `11192493090` has SHA-256
+`4dcea9819b849d1b67852e7c07f69c274c2469e76cd196d5894c33c615ce63ee`.
+Independent local readback verifies all 229 collector source inputs against that
+commit, both 247-file Kotlin archives, all 188 client/server/recovery public files,
+eight owner tests and seven refusal controls per native profile, and Java module
+execution. The original hosted JVM processes are not rerun during this readback.
+This closes that commit's installed Kotlin package checkpoint, not subsequent
+source changes or full release readiness.
+
+The next Kotlin consumer increment requires signed-TCP and mutual-TLS witness
+traces and two-stage activation in the same collector. A separate controlling-thread
+interruption variant explicitly cancels and joins the native activation, preserves
+native error 218 and the JVM interrupt flag, closes the original owner, and emits
+two exact public receipts only after cleanup. Development execution and independent
+replay cover both retained f753e75d native Debug/Release libraries; the controller
+delta only admits the explicit Kotlin language. Ordinary activation and send-cancel
+regressions also run. This is a same-host/shared-engine development checkpoint;
+current-source collection of the new increment remains required. It does not
+establish automatic JVM interruption of synchronous native calls or GC safety.
 
 For the separate b62ff9bf TLS refusal test correction, native Ubuntu 24.04 Rust
 1.90 and 1.98 CI each complete 311 candidate tests in Debug and Release with zero
@@ -112,8 +131,8 @@ Command logs, receiver effects, all loss rows and closure archives are separatel
 read back. The test executable alone contains a raw-ABI owner-kind negative
 control; the public JAR exposes no raw handle. Shared-engine, same-host execution
 does not establish independent endpoints, and the prepared recovery history has
-zero reservations. Kotlin witness/activation and positive-reservation interruption
-matrices, GC/interrupt stress, final-source Debug/Release package collection and
+zero reservations. Kotlin positive-reservation interruption matrices,
+GC/interrupt stress, final-source Debug/Release package collection and
 CI, other JVM platforms, Android JNI and WASM Continuity remain open. This
 development checkpoint adds no product ABI exports or release-admission claim.
 

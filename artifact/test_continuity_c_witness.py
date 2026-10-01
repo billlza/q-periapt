@@ -129,17 +129,24 @@ class ContinuityCWitnessTests(unittest.TestCase):
             root = Path(directory)
             report = {name: "11" * (16 if name == "peer_device" else 32)
                       for name in ("session", "message", "unknown", "context", "peer_account", "peer_device", "report")}
-            report.update(schema_version=2, language="Swift", completed=True, witness_exchanges=274,
+            report.update(schema_version=2, completed=True, witness_exchanges=274,
                           lost_advances=2, release_claim_eligible=False)
-            (root / "c-witness-public-result.json").write_text(json.dumps(report))
-            with self.assertRaisesRegex(ValueError, "result or release claim"):
-                w.verify_execution(stdout, root)
-            with self.assertRaisesRegex(ValueError, "unsupported witness language"):
-                w.verify_execution(stdout, root, language="unknown")
-            report["language"] = "C"
-            (root / "c-witness-public-result.json").write_text(json.dumps(report))
-            with self.assertRaisesRegex(ValueError, "result or release claim"):
-                w.verify_execution(stdout, root, language="Swift")
+            for language in ("Swift", "Kotlin"):
+                with self.subTest(language=language):
+                    report["language"] = language
+                    (root / "c-witness-public-result.json").write_text(json.dumps(report))
+                    with self.assertRaisesRegex(ValueError, "result or release claim"):
+                        w.verify_execution(stdout, root)
+                    other = "Kotlin" if language == "Swift" else "Swift"
+                    with self.assertRaisesRegex(ValueError, "result or release claim"):
+                        w.verify_execution(stdout, root, language=other)
+                    with self.assertRaisesRegex(ValueError, "unsupported witness language"):
+                        w.verify_execution(stdout, root, language="unknown")
+                    report["language"] = "C"
+                    (root / "c-witness-public-result.json").write_text(json.dumps(report))
+                    with self.assertRaisesRegex(ValueError, "result or release claim"):
+                        w.verify_execution(stdout, root, language=language)
+
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ def query_transcript(data: bytes, authority: bytes, prefix: bytes) -> int:
 
 
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
-    sdk.require(language in {"C", "Swift"}, "unsupported constructor language")
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported constructor language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;",

@@ -28,6 +28,7 @@ fn installed_language() -> Result<&'static str> {
     match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
         Err(std::env::VarError::NotPresent) => Ok("C"),
         Ok(language) if language == "Swift" => Ok("Swift"),
+        Ok(language) if language == "Kotlin" => Ok("Kotlin"),
         _ => Err("unsupported installed witness consumer language".into()),
     }
 }

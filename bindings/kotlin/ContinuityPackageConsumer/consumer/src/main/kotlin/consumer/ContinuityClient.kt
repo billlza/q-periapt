@@ -9,8 +9,6 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.HexFormat
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executors
 import kotlin.system.exitProcess
 
 internal fun decode(value: String): ByteArray {
@@ -25,7 +23,7 @@ internal fun refused(expected: Set<Int>, action: () -> Unit) {
     }
     error("operation unexpectedly succeeded")
 }
-private fun waitMarker(name: String) {
+internal fun waitMarker(name: String) {
     val end = System.nanoTime() + 10_000_000_000L
     while (System.nanoTime() < end) {
         try {
@@ -42,6 +40,8 @@ private fun waitMarker(name: String) {
 }
 private fun run(arguments: List<String>): String {
     var args = arguments
+    val interruptOpening = args.firstOrNull() == "--interrupt-opening-controller"
+    if (interruptOpening) args = args.drop(1)
     var witness: WitnessCarrier = WitnessCarrier.Local
     if (args.firstOrNull() in setOf("--witness", "--witness-tls")) {
         require(args.size >= 4)
@@ -50,6 +50,7 @@ private fun run(arguments: List<String>): String {
         args = args.drop(2)
     }
     require(args.isNotEmpty()) { "command required" }
+    require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
     if (args[0] == "self-check") {
         require(args.size == 1)
         repeat(128) { refused(setOf(203)) { ContinuityOwner.open("relative", PrekeyQuality.ONE_TIME_BOTH).close() } }
@@ -59,6 +60,7 @@ private fun run(arguments: List<String>): String {
         return "self-check-passed"
     }
     require(args.size >= 2)
+    if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening)
     if (args[0].startsWith("recover-")) return recover(args, witness)
     if (args[0] == "reject-open") {
         require(args.size == 2)
@@ -86,49 +88,27 @@ private fun run(arguments: List<String>): String {
                 check(owner.rekey(args[2], SessionID(decode(args[3])), Counter64.of(1)) == Counter64.of(1))
                 "rekey-1-confirmed"
             }
-            "send", "uncertain-send", "cancel-send", "busy-cancel" -> {
+            "send", "uncertain-send", "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send" -> {
                 val mode = args[0]
-                require(args.size == if (mode == "busy-cancel") 6 else 5)
+                val witnessCancel = mode == "cancel-witness-send"
+                val witnessFailed = mode == "witness-failed-send"
+                require(args.size == if (mode == "busy-cancel" || witnessCancel) 6 else 5)
+                require(!(witnessCancel || witnessFailed) || witness != WitnessCarrier.Local)
                 val session = SessionID(decode(args[3])); val message = MessageID(decode(args[4]))
                 val send = { owner.send(args[2], session, message,
                     "persisted before process exit".toByteArray(), "owned-service".toByteArray()) }
                 when (mode) {
                     "cancel-send" -> { owner.cancel(); refused(setOf(302)) { send() } }
                     "uncertain-send" -> refused(setOf(303, 309, 310, 311)) { send() }
-                    "busy-cancel" -> {
-                        val executor = Executors.newSingleThreadExecutor()
-                        val worker = executor.submit<SendResult> { send() }
-                        try {
-                            val setupFailure = try {
-                                waitMarker(args[5]); refused(setOf(3)) { owner.close() }; null
-                            } catch (error: Throwable) { error }
-                            val cancelFailure = try { owner.cancel(); null } catch (error: Throwable) { error }
-                            // Cancellation failure cannot bypass joining the owned call.
-                            var interrupted: InterruptedException? = null
-                            var workerFailure: Throwable? = null
-                            while (true) {
-                                try { worker.get(); break }
-                                catch (error: InterruptedException) {
-                                    if (interrupted == null) interrupted = error else interrupted.addSuppressed(error)
-                                } catch (error: ExecutionException) { workerFailure = error.cause ?: error; break }
-                            }
-                            if (interrupted != null) {
-                                Thread.currentThread().interrupt()
-                                if (workerFailure != null) interrupted.addSuppressed(workerFailure)
-                                workerFailure = interrupted
-                            }
-                            val controlFailure = setupFailure ?: cancelFailure
-                            if (controlFailure != null) {
-                                if (cancelFailure != null && cancelFailure !== controlFailure) controlFailure.addSuppressed(cancelFailure)
-                                if (workerFailure != null && workerFailure !== controlFailure) controlFailure.addSuppressed(workerFailure)
-                                throw controlFailure
-                            }
-                            check(workerFailure is ContinuityFailure && workerFailure.code == 302) {
-                                "cancelled call did not preserve its native failure: $workerFailure"
-                            }
-                        } finally {
-                            executor.shutdown()
-                        }
+                    "busy-cancel", "cancel-witness-send" -> {
+                        val elapsed = cancelledInvocation(if (witnessCancel) 218 else 302, {
+                            waitMarker(args[5]); refused(setOf(3)) { owner.close() }
+                        }, owner::cancel) { send() }
+                        if (witnessCancel) return@use "witness-cancelled-outcome-unavailable:${cancellationMilliseconds(elapsed)}"
+                    }
+                    "witness-failed-send" -> {
+                        refused(setOf(218)) { send() }
+                        return@use "witness-outcome-unavailable"
                     }
                     else -> check(send().consumption == Consumption.CONFIRMED)
                 }

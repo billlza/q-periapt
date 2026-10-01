@@ -51,22 +51,26 @@ def fixture(root: Path) -> tuple[bytes, dict]:
 
 class TlsWitnessEvidenceTests(unittest.TestCase):
     def test_actual_language_is_required_and_cannot_be_relabelled(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            stdout, report = fixture(root)
-            with self.assertRaisesRegex(ValueError, "scope differs"):
-                tls.verify_execution(stdout, root, language="Swift")
-            report["language"] = "Swift"
-            (root / "c-witness-tls-public-result.json").write_text(json.dumps(report))
-            checked = tls.verify_execution(stdout, root, language="Swift")
-            self.assertIn("installed Swift operational", checked["scope"])
-            with self.assertRaisesRegex(ValueError, "scope differs"):
-                tls.verify_execution(stdout, root)
-            with self.assertRaisesRegex(ValueError, "unsupported TLS witness language"):
-                tls.verify_execution(stdout, root, language="unknown")
-            (root / "responder/c-loss-report").write_text("partial loss accounting")
-            with self.assertRaisesRegex(ValueError, "closure accounting"):
-                tls.verify_execution(stdout, root, language="Swift")
+        for language in ("Swift", "Kotlin"):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                stdout, report = fixture(root)
+                with self.assertRaisesRegex(ValueError, "scope differs"):
+                    tls.verify_execution(stdout, root, language=language)
+                report["language"] = language
+                (root / "c-witness-tls-public-result.json").write_text(json.dumps(report))
+                checked = tls.verify_execution(stdout, root, language=language)
+                self.assertIn("installed " + language + " operational", checked["scope"])
+                with self.assertRaisesRegex(ValueError, "scope differs"):
+                    tls.verify_execution(stdout, root)
+                other = "Kotlin" if language == "Swift" else "Swift"
+                with self.assertRaisesRegex(ValueError, "scope differs"):
+                    tls.verify_execution(stdout, root, language=other)
+                with self.assertRaisesRegex(ValueError, "unsupported TLS witness language"):
+                    tls.verify_execution(stdout, root, language="unknown")
+                (root / "responder/c-loss-report").write_text("partial loss accounting")
+                with self.assertRaisesRegex(ValueError, "closure accounting"):
+                    tls.verify_execution(stdout, root, language=language)
 
     def test_eligibility_and_execution_cannot_be_promoted_from_report_flags(self):
         with tempfile.TemporaryDirectory() as folder:
