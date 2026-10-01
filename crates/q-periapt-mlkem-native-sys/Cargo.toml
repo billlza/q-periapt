@@ -41,7 +41,7 @@ workspace = true
 # records `sys_build_dependency=cc@1.2.67` as a proof input. Lifting the hold
 # means re-issuing that contract (and re-running the binary constant-time
 # evidence against the new compiler-driver behaviour), not editing this line.
-cc = "=1.2.67"
+cc = "=1.4.4"
 
 [dev-dependencies]
 sha3 = { version = "=0.10.9", default-features = false }
