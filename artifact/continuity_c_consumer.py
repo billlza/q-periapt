@@ -114,7 +114,9 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     return dict(report, application_readbacks=readbacks, command_logs=logs)
 
 
-def verify_server_execution(stdout: bytes, directory: Path) -> dict:
+def verify_server_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift"}, "unknown installed server language")
+    expected_scope = SERVER_SCOPE.replace("C server", language + " server")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;",
@@ -132,7 +134,7 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
                 and 18_000 <= report["listener_tls_deadline_ms"] < 23_000,
                 "C listener and TLS did not share the invocation deadline")
     sdk.require(all(report[name] is True for name in flags) and report["release_claim_eligible"] is False
-                and report["scope"] == SERVER_SCOPE, "C server required outcome or scope differs")
+                and report["scope"] == expected_scope, "C server required outcome or scope differs")
     for name, value in (("schema_version", 1), ("network_rekeys", 1), ("application_records", 5)):
         sdk.require(type(report[name]) is int and report[name] == value, "C server execution count differs")
     messages = report["messages"]

@@ -122,6 +122,10 @@ func waitMarker(_ path: String) throws {
         }
         var owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth)
         switch command {
+        case "serve":
+            try require(args.count >= 3, "serve arguments")
+            try require(args.count == (args[2] == "rekey" ? 4 : 3), "serve arguments")
+            try serve(owner, path: args[1], mode: args[2], sessionText: args.count == 4 ? args[3] : nil)
         case "connect":
             try require(args.count == 4, "connect arguments")
             let result = try owner.establish(peer: args[2], request: decode(args[3]))

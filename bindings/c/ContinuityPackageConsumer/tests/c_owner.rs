@@ -102,20 +102,22 @@ fn args(command: &str, path: &Path, tail: &[String]) -> Vec<OsString> {
     arguments
 }
 
+fn installed_language() -> Result<&'static str> {
+    // The collector selects and hashes the actual foreign executable. Retain
+    // explicit language identity for both client and server protocol traces.
+    match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
+        Err(std::env::VarError::NotPresent) => Ok("C"),
+        Ok(language) if language == "Swift" => Ok("Swift"),
+        _ => Err("unsupported installed client language".into()),
+    }
+}
+
 #[test]
 fn c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery() -> Result<()> {
-    // Reuse this protocol trace for an independently compiled Swift caller. The
-    // collector selects and hashes its executable; the report must name that
-    // language rather than relabel a Swift process as a C program.
-    let scope = match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
-        Err(std::env::VarError::NotPresent) => {
-            "unpublished C client to installed Rust peer; same host; local journal profile"
-        }
-        Ok(language) if language == "Swift" => {
-            "unpublished Swift client to installed Rust peer; same host; local journal profile"
-        }
-        _ => return Err("unsupported installed client language".into()),
-    };
+    let scope = format!(
+        "unpublished {} client to installed Rust peer; same host; local journal profile",
+        installed_language()?
+    );
     let setup = fixture::setup()?;
     let path = &setup.initiator;
     assert_eq!(
@@ -398,6 +400,10 @@ fn server_event(
 #[test]
 fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Result<()> {
     use p::connection_transport::{Cancellation, ConnectionEndpoint, Consumption, Run};
+    let scope = format!(
+        "installed native Rust client to unpublished {} server; same host; local journal profile",
+        installed_language()?
+    );
     let setup = fixture::setup()?;
     let path = &setup.responder;
     // The original implementation refreshed a 20-second budget after accept:
@@ -623,13 +629,13 @@ fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Re
         .collect::<Vec<_>>()
         .join(",");
     let report = format!(concat!("{{\"schema_version\":1,\"completed\":true,",
-        "\"scope\":\"installed native Rust client to unpublished C server; same host; local journal profile\",",
+        "\"scope\":\"{}\",",
         "\"session\":\"{}\",\"messages\":[{}],\"network_rekeys\":1,",
         "\"callback_failure_preserved\":true,\"unknown_commit_reconciled\":true,",
         "\"crash_after_application_reconciled\":true,\"duplicate_skips_callback\":true,",
         "\"reentrant_close_busy\":true,\"cancelled_listener_released\":true,",
         "\"acknowledged_send_refused\":true,\"native_recovery_consumption\":true,",
-        "\"application_records\":5,\"listener_tls_deadline_ms\":{},\"release_claim_eligible\":false}}\n"), fixture::hex(&session), ids, listener_tls_deadline_ms);
+        "\"application_records\":5,\"listener_tls_deadline_ms\":{},\"release_claim_eligible\":false}}\n"), scope, fixture::hex(&session), ids, listener_tls_deadline_ms);
     fixture::store(
         path.parent().ok_or("runtime root")?,
         "c-server-public-result.json",

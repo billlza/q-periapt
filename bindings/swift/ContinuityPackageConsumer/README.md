@@ -33,8 +33,8 @@ or outputs fail explicitly. Caller-provided plaintext remains in caller-owned
 Swift memory; this wrapper promises no erasure of those copies.
 
 The current surface covers operational client establishment, exact-message status
-and sending, rekey, and lifecycle cancellation/close. Server callbacks, restricted
-cleanup-owner methods, witness runtime traces, other platforms and integration
+and sending, rekey, listener/receive callbacks, and lifecycle cancellation/close.
+Restricted cleanup-owner methods, witness runtime traces, other platforms and integration
 into the published Swift SDK remain unfinished. These are required for the full
 0.2.0 goal, not silently excluded from it.
 
@@ -43,7 +43,7 @@ on macOS. It first qualifies the actual installed native engine, then creates
 profile-specific ZIP packages containing this Swift source, the exact C header,
 library and licenses. Fresh installations outside the checkout build and run
 Swift Debug/Release with warnings treated as errors. The shared protocol harness
-executes a Swift client against separate native Rust peer processes, retaining
+executes both Swift client and Swift server against separate native Rust peer processes, retaining
 actual receiver bytes, committed-reply loss, original-ID reconciliation, rekey,
 pre-cancel refusal, concurrent Busy/close/cancel, reopen and durable SDK revocation.
 The report explicitly identifies Swift; historical C command/test labels simply
@@ -54,3 +54,23 @@ The collector verifies its installed bytes and executable hash before and after
 execution, preserves raw build/linker output, and exports selected public data for
 independent replay. Private fixture stores and keys are never included in a ZIP
 or public evidence closure. Correctness timings are not performance guarantees.
+
+The receive callback receives owned Swift copies only after authentication and
+native durable inbox commit. It returns normally only after the host transaction
+has persisted the application effect and session/message deduplication together.
+An arbitrary thrown Swift error returns nonzero across the C boundary and is
+retained alongside the native failure. `ApplicationCommitRefusal` can preserve an
+explicit nonzero application status; zero is rejected. Unknown outcomes remain
+unconsumed and require original-ID reconciliation. A duplicate of already consumed
+traffic does not invoke the callback. A successful callback followed by a transport
+failure is still an unknown peer-delivery outcome, not permission for a new send.
+The listener shares the owner's cancellation and deadline; callbacks are
+synchronous and cooperative. Reentrant close returns Busy and retains the owner.
+
+The Swift test application persists effect+deduplication bytes atomically under
+the exact message ID with file and directory sync, checks existing bytes on replay,
+and refuses conflicts, symlinks and nonregular effects. The server trace includes
+failure before effect, unknown result after effect, actual process exit after
+effect, exact retries, consumed duplicates, rekey and cancelled listener release.
+Its intervening recovery consumption still uses the native public API and is not
+represented as a Swift restricted-recovery interface.

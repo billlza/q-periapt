@@ -12,7 +12,7 @@ public struct ContinuityFailure: Error, Sendable, Equatable, CustomStringConvert
 }
 
 public enum ContinuityBoundaryError: Error, Sendable, Equatable {
-    case inputLength, invalidText, malformedDiagnostic, malformedOutput
+    case inputLength, invalidText, invalidCommitStatus, malformedDiagnostic, malformedOutput
 }
 
 func checked(_ code: Int32, _ error: inout qpc_error_v1) throws {
@@ -71,7 +71,7 @@ public struct SendResult: Sendable {
     public let exchanges: UInt16
 }
 
-private func textBytes(_ value: String, maximum: Int) throws -> [UInt8] {
+func textBytes(_ value: String, maximum: Int) throws -> [UInt8] {
     guard !value.isEmpty, value.utf8.count <= maximum else {
         throw ContinuityBoundaryError.inputLength
     }
@@ -127,7 +127,7 @@ public final class ContinuityOwner: Sendable {
         return owner
     }
 
-    private func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
+    func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
         try withExtendedLifetime(self) { try body(handle) }
     }
 

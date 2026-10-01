@@ -56,11 +56,15 @@ class SwiftConsumerTests(unittest.TestCase):
 
     def test_passing_summary_without_each_swift_test_is_refused(self):
         with self.assertRaisesRegex(ValueError, "all execute"):
-            swift.verify_tests(b"Executed 3 tests, with 0 failures", b"")
-        names = ("testARCRetiresPendingSlotsAndClosedAliases", "testDiagnosticRejectsInconsistentAndInvalidUTF8",
-                 "testIDsAndTextsRejectAmbiguousInput")
-        output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.OwnerTests {name}]' passed" for name in names)
-                  + "\nExecuted 3 tests, with 0 failures").encode()
+            swift.verify_tests(b"Executed 6 tests, with 0 failures", b"")
+        names = (("OwnerTests", "testARCRetiresPendingSlotsAndClosedAliases"),
+                 ("OwnerTests", "testDiagnosticRejectsInconsistentAndInvalidUTF8"),
+                 ("OwnerTests", "testIDsAndTextsRejectAmbiguousInput"),
+                 ("ServerTests", "testCallbackCopiesBorrowedRegions"),
+                 ("ServerTests", "testCallbackFailureAndForeignBoundsCannotBecomeConsumption"),
+                 ("ServerTests", "testServedRecordRejectsUnknownKindsAndInconsistentBootstrap"))
+        output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
+                  + "\nExecuted 6 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")

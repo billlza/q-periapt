@@ -16,7 +16,7 @@ import third_party_licenses as licenses
 FIXTURE = package.ROOT / "bindings/swift/ContinuityPackageConsumer"
 LIBRARY = "libq_periapt_continuity_c_consumer.dylib"
 MAX_PACKAGE = 64 * 1024**2
-SCOPE = "unpublished installed Swift client and shared C/Rust engine; same-host macOS; local original-installation profile"
+SCOPE = "unpublished installed Swift client/server and shared C/Rust engine; same-host macOS; local original-installation profile"
 
 
 def compiler_command(value: str) -> tuple[Path, dict]:
@@ -72,11 +72,14 @@ def unpack(data: bytes, expected: dict[str, str], destination: Path) -> None:
 
 def verify_tests(stdout: bytes, stderr: bytes) -> None:
     text = (stdout + stderr).decode()
-    tests = {"testARCRetiresPendingSlotsAndClosedAliases", "testDiagnosticRejectsInconsistentAndInvalidUTF8",
-             "testIDsAndTextsRejectAmbiguousInput"}
-    passed = re.findall(r"Test Case '-\[QPeriaptContinuityTests.OwnerTests (\w+)\]' passed", text)
+    tests = {"OwnerTests.testARCRetiresPendingSlotsAndClosedAliases", "OwnerTests.testDiagnosticRejectsInconsistentAndInvalidUTF8",
+             "OwnerTests.testIDsAndTextsRejectAmbiguousInput", "ServerTests.testCallbackCopiesBorrowedRegions",
+             "ServerTests.testCallbackFailureAndForeignBoundsCannotBecomeConsumption",
+             "ServerTests.testServedRecordRejectsUnknownKindsAndInconsistentBootstrap"}
+    passed = [owner + "." + name for owner, name in re.findall(
+        r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
-                and "Executed 3 tests, with 0 failures" in text,
+                and "Executed 6 tests, with 0 failures" in text,
                 "Swift owner tests did not all execute")
 
 
@@ -84,6 +87,13 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     checked = c.verify_execution(stdout, directory, language="Swift")
     checked["public_readbacks"] = checked.pop("application_readbacks") | {
         "c-public-result.json": sdk.snapshot(directory / "c-public-result.json").sha256}
+    return checked
+
+
+def verify_server_execution(stdout: bytes, directory: Path) -> dict:
+    checked = c.verify_server_execution(stdout, directory, language="Swift")
+    checked["public_readbacks"] = checked.pop("application_readbacks") | {
+        "c-server-public-result.json": sdk.snapshot(directory / "c-server-public-result.json").sha256}
     return checked
 
 
@@ -172,6 +182,12 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             from continuity_c_witness import export_selected
             public_files = export_selected(checked, evidence, exported, SCOPE,
                                            replay=lambda path: verify_execution(stdout, path))
+            server_evidence = outside / ("swift-" + profile + "-server-runtime")
+            runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(server_evidence)
+            server_stdout = run([str(trace), "--exact", c.SERVER_TEST, "--nocapture"], "server-trace-" + profile, runtime=runtime)
+            server_checked = verify_server_execution(server_stdout, server_evidence)
+            server_files = export_selected(server_checked, server_evidence, output / "swift-public/server" / profile, SCOPE,
+                                            replay=lambda path: verify_server_execution(server_stdout, path))
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -180,7 +196,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             result["profiles"][profile] = {"archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
-                "execution": checked, "public_files": public_files}
+                "execution": checked, "public_files": public_files,
+                "server_execution": server_checked, "server_public_files": server_files}
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:

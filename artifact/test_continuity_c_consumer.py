@@ -146,6 +146,23 @@ class ContinuityCConsumerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "command outcome"):
                 consumer.verify_server_execution(stdout, root)
 
+    def test_swift_server_requires_explicit_scope_and_preserves_unknown_outcomes(self):
+        stdout = STDOUT.replace(consumer.TEST.encode(), consumer.SERVER_TEST.encode())
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            report = self.server_evidence(root)
+            report["scope"] = consumer.SERVER_SCOPE.replace("C server", "Swift server")
+            (root / "c-server-public-result.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "scope"):
+                consumer.verify_server_execution(stdout, root)
+            observed = consumer.verify_server_execution(stdout, root, language="Swift")
+            self.assertTrue(observed["unknown_commit_reconciled"])
+            with self.assertRaisesRegex(ValueError, "language"):
+                consumer.verify_server_execution(stdout, root, language="unverified")
+            (root / "responder/c-server-uncertain.stdout").write_text("listening:43210\nconsumed\n")
+            with self.assertRaisesRegex(ValueError, "command outcome"):
+                consumer.verify_server_execution(stdout, root, language="Swift")
+
     def test_server_rejects_omitted_tests_claims_and_epoch_substitution(self):
         stdout = STDOUT.replace(consumer.TEST.encode(), consumer.SERVER_TEST.encode())
         with tempfile.TemporaryDirectory() as folder:
