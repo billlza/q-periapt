@@ -33,8 +33,8 @@ or outputs fail explicitly. Caller-provided plaintext remains in caller-owned
 Swift memory; this wrapper promises no erasure of those copies.
 
 The current surface covers operational client establishment, exact-message status
-and sending, rekey, listener/receive callbacks, and lifecycle cancellation/close.
-Restricted cleanup-owner methods, witness runtime traces, other platforms and integration
+and sending, rekey, listener/receive callbacks, restricted cleanup, and lifecycle
+cancellation/close. Witness runtime traces, other platforms and integration
 into the published Swift SDK remain unfinished. These are required for the full
 0.2.0 goal, not silently excluded from it.
 
@@ -73,4 +73,32 @@ and refuses conflicts, symlinks and nonregular effects. The server trace include
 failure before effect, unknown result after effect, actual process exit after
 effect, exact retries, consumed duplicates, rekey and cancelled listener release.
 Its intervening recovery consumption still uses the native public API and is not
-represented as a Swift restricted-recovery interface.
+represented as a Swift restricted-recovery interface. A separate installed Swift
+cleanup trace exercises the recovery surface described below.
+
+`ContinuityRecoveryOwner` shares the native owner registry, cancellation and ARC
+lifetime implementation but has no operational methods, raw handle or conversion
+to `ContinuityOwner`. Opening it never needs live SDK permission. Session IDs from
+discovery are hints; selecting one or its retained archive authenticates original
+durable state. Native selection failure closes discovery; close and reopen the
+same installation to reconcile. The explicit witness choice cannot fall back.
+
+`begin` permanently freezes the session and returns every scalar/count of its
+immutable loss snapshot. Read every reservation, epoch, unconfirmed ciphertext
+commitment, unconsumed delivery and skipped position using the typed getters.
+Any failed read leaves an incomplete report, not an empty list. Persist the full
+report and its original ID in one host transaction before `acknowledge`. Native
+status distinguishes open, pending and closed; unknown commit requires original-ID
+status reconciliation. Retain the authenticated archive before retiring the index
+row. Restoring that index restores metadata only, never operational keys.
+
+The cleanup trace revokes SDK operations, reads a two-epoch history (including
+unconfirmed outgoing ciphertext, old/new unconsumed deliveries, a skipped position
+and pending rekey/resolution), exits after freezing and after acknowledgement,
+reopens and checks the unchanged durable report, then retires/restores metadata.
+It also checks cancellation, missing IDs, malformed/tampered archives and wrong
+report acknowledgement. A raw-ABI negative control inside the test executable
+checks native owner-kind denial in both directions; all actual cleanup operations
+use the Swift wrapper. Positive reservation accounting is not exercised by that
+history and is explicitly reported as unqualified. These traces use the local
+profile; witnessed recovery execution remains open.

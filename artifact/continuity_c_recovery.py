@@ -17,7 +17,8 @@ def ciphertext_digest(wire: bytes) -> str:
                           + len(wire).to_bytes(8, "big") + wire).hexdigest()
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift"}, "unsupported recovery language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;",
@@ -30,7 +31,8 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     names = {"session", "context", "report", "peer_account", "peer_device", "old_incoming", "unconfirmed", "old_resolution"}
     sdk.require(set(report) == flags | names | {"schema_version", "scope", "incoming", "release_claim_eligible",
                                                 "reserved_positive_case_executed"}, "C recovery fields differ")
-    sdk.require(all(report[name] is True for name in flags) and report["scope"] == SCOPE
+    scope = SCOPE.replace("installed C recovery", "installed " + language + " recovery")
+    sdk.require(all(report[name] is True for name in flags) and report["scope"] == scope
                 and report["release_claim_eligible"] is False and report["reserved_positive_case_executed"] is False,
                 "C recovery outcome, scope or unexecuted reservation claim differs")
     sdk.require(type(report["schema_version"]) is int and report["schema_version"] == 1, "C recovery schema differs")

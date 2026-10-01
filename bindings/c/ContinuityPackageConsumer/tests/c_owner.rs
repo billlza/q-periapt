@@ -104,7 +104,7 @@ fn args(command: &str, path: &Path, tail: &[String]) -> Vec<OsString> {
 
 fn installed_language() -> Result<&'static str> {
     // The collector selects and hashes the actual foreign executable. Retain
-    // explicit language identity for both client and server protocol traces.
+    // explicit language identity for client, server and recovery traces.
     match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
         Err(std::env::VarError::NotPresent) => Ok("C"),
         Ok(language) if language == "Swift" => Ok("Swift"),
@@ -971,7 +971,7 @@ fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_ex
         .collect::<Vec<_>>()
         .join(",");
     let report = format!(concat!("{{\"schema_version\":1,\"completed\":true,",
-        "\"scope\":\"installed C recovery of original local-profile session after SDK revocation; same host\",",
+        "\"scope\":\"installed {} recovery of original local-profile session after SDK revocation; same host\",",
         "\"session\":\"{}\",\"context\":\"{}\",\"report\":\"{}\",",
         "\"peer_account\":\"{}\",\"peer_device\":\"{}\",",
         "\"old_incoming\":\"{}\",\"incoming\":[{}],\"unconfirmed\":\"{}\",\"old_resolution\":\"{}\",",
@@ -979,7 +979,7 @@ fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_ex
         "\"report_exit_reconciled\":true,\"ack_exit_reconciled\":true,",
         "\"original_report_unchanged\":true,\"catalogue_retired\":true,\"archive_metadata_only\":true,\"cancelled_cleanup_unfrozen\":true,",
         "\"reserved_positive_case_executed\":false,\"release_claim_eligible\":false}}\n"),
-        session_text, fixture::hex(&context), fixture::hex(report.as_bytes()),
+        installed_language()?, session_text, fixture::hex(&context), fixture::hex(report.as_bytes()),
         fixture::hex(&fixture::array::<32>(&setup.responder, "initiator-account")?),
         fixture::hex(&fixture::array::<16>(&setup.responder, "initiator-device")?),
         fixture::hex(old.as_bytes()), incoming, fixture::hex(unknown.as_bytes()), fixture::hex(&old_resolution));

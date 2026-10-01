@@ -8,6 +8,7 @@ import stat
 import zipfile
 
 import continuity_c_consumer as c
+import continuity_c_recovery as recovery
 import continuity_package as package
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
@@ -16,7 +17,7 @@ import third_party_licenses as licenses
 FIXTURE = package.ROOT / "bindings/swift/ContinuityPackageConsumer"
 LIBRARY = "libq_periapt_continuity_c_consumer.dylib"
 MAX_PACKAGE = 64 * 1024**2
-SCOPE = "unpublished installed Swift client/server and shared C/Rust engine; same-host macOS; local original-installation profile"
+SCOPE = "unpublished installed Swift client/server/recovery and shared C/Rust engine; same-host macOS; local original-installation profile"
 
 
 def compiler_command(value: str) -> tuple[Path, dict]:
@@ -75,11 +76,14 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
     tests = {"OwnerTests.testARCRetiresPendingSlotsAndClosedAliases", "OwnerTests.testDiagnosticRejectsInconsistentAndInvalidUTF8",
              "OwnerTests.testIDsAndTextsRejectAmbiguousInput", "ServerTests.testCallbackCopiesBorrowedRegions",
              "ServerTests.testCallbackFailureAndForeignBoundsCannotBecomeConsumption",
-             "ServerTests.testServedRecordRejectsUnknownKindsAndInconsistentBootstrap"}
+             "ServerTests.testServedRecordRejectsUnknownKindsAndInconsistentBootstrap",
+             "RecoveryTests.testRecoverySharesRegistryAndRetainsCancelledClosedAuthority",
+             "RecoveryTests.testClosureDecodingPreservesCountersAndRejectsUnknownStates",
+             "RecoveryTests.testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
-                and "Executed 6 tests, with 0 failures" in text,
+                and "Executed 9 tests, with 0 failures" in text,
                 "Swift owner tests did not all execute")
 
 
@@ -94,6 +98,12 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
     checked = c.verify_server_execution(stdout, directory, language="Swift")
     checked["public_readbacks"] = checked.pop("application_readbacks") | {
         "c-server-public-result.json": sdk.snapshot(directory / "c-server-public-result.json").sha256}
+    return checked
+
+
+def verify_recovery_execution(stdout: bytes, directory: Path) -> dict:
+    checked = recovery.verify_execution(stdout, directory, language="Swift")
+    checked["public_readbacks"]["c-recovery-public-result.json"] = sdk.snapshot(directory / "c-recovery-public-result.json").sha256
     return checked
 
 
@@ -188,6 +198,12 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             server_checked = verify_server_execution(server_stdout, server_evidence)
             server_files = export_selected(server_checked, server_evidence, output / "swift-public/server" / profile, SCOPE,
                                             replay=lambda path: verify_server_execution(server_stdout, path))
+            recovery_evidence = outside / ("swift-" + profile + "-recovery-runtime")
+            runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(recovery_evidence)
+            recovery_stdout = run([str(trace), "--exact", recovery.TEST, "--nocapture"], "recovery-trace-" + profile, runtime=runtime)
+            recovery_checked = verify_recovery_execution(recovery_stdout, recovery_evidence)
+            recovery_files = export_selected(recovery_checked, recovery_evidence, output / "swift-public/recovery" / profile, SCOPE,
+                                              replay=lambda path: verify_recovery_execution(recovery_stdout, path))
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -197,7 +213,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files,
-                "server_execution": server_checked, "server_public_files": server_files}
+                "server_execution": server_checked, "server_public_files": server_files,
+                "recovery_execution": recovery_checked, "recovery_public_files": recovery_files}
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:

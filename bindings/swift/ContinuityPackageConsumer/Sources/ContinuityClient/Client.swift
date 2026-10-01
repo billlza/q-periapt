@@ -109,6 +109,10 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command.hasPrefix("recover-") {
+            try recover(args)
+            return
+        }
         if command == "reject-open" {
             try require(args.count == 2, "reject arguments")
             do {

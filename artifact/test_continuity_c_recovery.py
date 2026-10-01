@@ -51,6 +51,25 @@ def evidence(root):
 
 
 class ContinuityCRecoveryTests(unittest.TestCase):
+    def test_language_scope_is_explicit_and_accounting_is_not_relabelled(self):
+        import continuity_swift_consumer as swift
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); report = evidence(root)
+            with self.assertRaisesRegex(ValueError, "outcome, scope"):
+                swift.verify_recovery_execution(STDOUT, root)
+            report["scope"] = recovery.SCOPE.replace("installed C recovery", "installed Swift recovery")
+            (root / "c-recovery-public-result.json").write_text(json.dumps(report))
+            result = swift.verify_recovery_execution(STDOUT, root)
+            self.assertIn("c-recovery-public-result.json", result["public_readbacks"])
+            with self.assertRaisesRegex(ValueError, "outcome, scope"):
+                recovery.verify_execution(STDOUT, root)
+            with self.assertRaisesRegex(ValueError, "unsupported recovery language"):
+                recovery.verify_execution(STDOUT, root, language="unknown")
+            loss = root / "responder/c-loss-report"
+            loss.write_bytes(loss.read_bytes().replace(b"skipped 1 0 1\n", b""))
+            with self.assertRaisesRegex(ValueError, "complete loss accounting"):
+                swift.verify_recovery_execution(STDOUT, root)
+
     def test_each_loss_row_ciphertext_and_archive_must_match(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); evidence(root)

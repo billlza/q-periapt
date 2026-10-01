@@ -82,19 +82,19 @@ func textBytes(_ value: String, maximum: Int) throws -> [UInt8] {
 /// One shared reference to the native original-installation owner. Only an
 /// immutable handle crosses threads; the native registry serializes operations.
 /// Every call pins this wrapper through return, including concurrent cancellation.
-public final class ContinuityOwner: Sendable {
+final class NativeOwner: Sendable {
     private let handle: UInt64
     private init(handle: UInt64) { self.handle = handle }
 
     /// Snapshot configuration without installation I/O. Call finishOpen before
     /// operations. A cancelled or failed activation never gains operational authority.
-    public static func prepare(path: String, quality: PrekeyQuality,
-                               witness: WitnessCarrier = .local) throws -> ContinuityOwner {
+    static func prepare(path: String, kind: UInt32, quality: UInt32,
+                        witness: WitnessCarrier) throws -> NativeOwner {
         let pathBytes = try textBytes(path, maximum: 4096)
         var handle: UInt64 = 0
         var error = qpc_error_v1()
         func prepare(_ carrier: UInt32, _ witness: UnsafePointer<qpc_witness_v1>?) throws {
-            var options = qpc_open_options_v1(kind: 1, quality: quality.rawValue,
+            var options = qpc_open_options_v1(kind: kind, quality: quality,
                                              carrier: carrier, witness: witness)
             let code = pathBytes.withUnsafeBufferPointer {
                 qpc_owner_v1_prepare_open($0.baseAddress, $0.count, &options, &handle, &error)
@@ -116,15 +116,7 @@ public final class ContinuityOwner: Sendable {
             }
         }
         guard handle != 0 else { throw ContinuityBoundaryError.malformedOutput }
-        return ContinuityOwner(handle: handle)
-    }
-
-    /// Opens only the original installation. It never initializes or repairs one.
-    public static func open(path: String, quality: PrekeyQuality,
-                            witness: WitnessCarrier = .local) throws -> ContinuityOwner {
-        let owner = try prepare(path: path, quality: quality, witness: witness)
-        try owner.finishOpen()
-        return owner
+        return NativeOwner(handle: handle)
     }
 
     func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
@@ -160,6 +152,38 @@ public final class ContinuityOwner: Sendable {
             NSLog("Q-Periapt Continuity owner disposal failed with status %d", code)
         }
     }
+}
+
+/// Operational authority for one original installation, retaining its shared
+/// native owner through each call. It cannot be converted to cleanup authority.
+public final class ContinuityOwner: Sendable {
+    private let native: NativeOwner
+    private init(native: NativeOwner) { self.native = native }
+
+    /// Copies configuration only; finishOpen activates synchronously and can be
+    /// cancelled from another thread. Failed activation grants no authority.
+    public static func prepare(path: String, quality: PrekeyQuality,
+                               witness: WitnessCarrier = .local) throws -> ContinuityOwner {
+        try ContinuityOwner(native: NativeOwner.prepare(path: path, kind: 1,
+            quality: quality.rawValue, witness: witness))
+    }
+
+    /// Opens only the original installation; never initializes or repairs one.
+    public static func open(path: String, quality: PrekeyQuality,
+                            witness: WitnessCarrier = .local) throws -> ContinuityOwner {
+        let owner = try prepare(path: path, quality: quality, witness: witness)
+        try owner.finishOpen()
+        return owner
+    }
+
+    func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
+        try withExtendedLifetime(self) { try native.call(body) }
+    }
+    public func finishOpen() throws { try native.finishOpen() }
+    /// One-way; join active work and close before reopening the same installation.
+    public func cancel() throws { try native.cancel() }
+    /// Busy preserves ownership. Successful close is observed by every alias.
+    public func close() throws { try native.close() }
 
     public func establish(peer: String, request: InitiationID) throws -> Establishment {
         let peer = try textBytes(peer, maximum: 128)
