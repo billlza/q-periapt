@@ -119,9 +119,30 @@ by `Thread.interrupt`, nor a GC-pressure qualification. The SDK adds no worker
 thread. Failures in the barrier, cancellation or worker retain their causes;
 the host joins the worker even when the controlling thread is interrupted.
 
+The collector also requires the shared journal sync-interruption matrix. It
+calibrates real send, freeze and acknowledgement syncs, interrupts before and
+after each boundary, and compares Kotlin and native observations after reopening.
+Development execution against retained f753e75d Debug/Release libraries completes
+59 cases and 771 commands per profile, including eight Reserved send outcomes.
+Independent replay checks 96 raw sync receipts and 342 public records per profile,
+including complete reserved lengths/IDs, unknown-commit phases, the original loss
+report and closed archive, operational revocation and retirement/restoration.
+The two native profiles take 309.132 and 308.407 seconds on the observed macOS host.
+This qualifies the selected process-interruption cases; it is not power-loss
+or full current-source package qualification.
+
+The fault driver launches the explicitly identified JVM directly, with fixed
+native-access flags and a closed four-JAR classpath. All executable, JAR, native
+library and probe bytes are checked before and after the matrix; the collector
+also binds the full JDK distribution. The ordinary installed launcher remains
+the setup helper's entry point. A retained preflight found no injected-probe
+receipt through the shell launcher but 13 real syncs through the direct JVM.
+Apple documents [dyld environment removal for protected-process launches](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/RuntimeProtections/RuntimeProtections.html).
+The injector remains isolated to owned test children. Missing or changed receipts,
+incomplete cuts, altered loss fields and a substituted original report fail.
+
 Required follow-up includes current-source Debug/Release collection and CI,
-positive-reservation sync-interruption matrix, broader JVM interruption and GC
-pressure, additional JVM/OS targets,
+broader JVM interruption and GC pressure, additional JVM/OS targets,
 and Android ART/JNI. This candidate does not yet satisfy full 0.2.0 admission.
 
 The Gradle publication repository is local to `build/candidate-maven`. No public

@@ -1,4 +1,4 @@
-"""Interrupt owned C/Swift test processes at installed-library journal sync boundaries.
+"""Interrupt owned C/Swift/Kotlin processes at installed-library journal sync boundaries.
 
 The SDK library is unchanged. A separately hashed probe is injected into selected
 consumer children only; this qualifies process interruption, never a power-loss model.
@@ -27,6 +27,16 @@ FIXTURE_TESTS = {"fixture::service_peer_process",
 DOMAIN = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/resolution-ciphertext/v1"
 SCOPE = ("same-host installed C local-profile journal sync process interruptions; "
          "SDK revoked before complete reserved-loss accounting; not power-loss qualification")
+JVM_ROLES = frozenset({"jvm_executable", "jvm_consumer", "jvm_sdk", "jvm_stdlib", "jvm_annotations"})
+
+
+def jvm_command(runtime: dict[str, Path], library: Path) -> list[str]:
+    sdk.require(isinstance(runtime, dict) and set(runtime) == JVM_ROLES
+                and all(isinstance(path, Path) and path.is_absolute() for path in runtime.values()),
+                "Kotlin fault execution requires exact JVM and classpath inputs")
+    classpath = os.pathsep.join(str(runtime[role]) for role in sorted(JVM_ROLES - {"jvm_executable"}))
+    return [str(runtime["jvm_executable"]), "--enable-native-access=ALL-UNNAMED", "--illegal-native-access=deny",
+            "-Dqperiapt.continuity.lib=" + str(library), "-cp", classpath, "consumer.ContinuityClientKt"]
 
 
 def events(data: bytes, cut: int, side: str) -> int:
@@ -129,13 +139,15 @@ def coverage(cases: list[dict]) -> dict:
 
 def verified_tools(result: dict, *, language: str) -> dict[str, Path]:
     """Admit only the exact tools retained by a completed, selected-language run."""
-    sdk.require(language in ("C", "Swift") and type(result.get("schema_version")) is int
+    sdk.require(language in ("C", "Swift", "Kotlin") and type(result.get("schema_version")) is int
                 and result["schema_version"] == 2
                 and result.get("language") == language and result.get("completed") is True,
                 "sync-fault tool provenance differs")
     roles = {"client", "native_helper", "sync_probe", "probe_smoke"}
-    if language == "Swift":
+    if language in ("Swift", "Kotlin"):
         roles.add("installed_library")
+    if language == "Kotlin":
+        roles.update(JVM_ROLES)
     binaries = result.get("binaries")
     sdk.require(isinstance(binaries, dict) and set(binaries) == roles, "sync-fault binary roles differ")
     paths, identities = {}, {}
@@ -150,12 +162,15 @@ def verified_tools(result: dict, *, language: str) -> dict[str, Path]:
                     "sync-fault tool changed")
         paths[role], identities[str(path)] = path, snapshot.sha256
     sdk.require(identities == result.get("binary_sha256"), "sync-fault identity maps differ")
+    if language == "Kotlin":
+        sdk.require(result.get("client_command") == jvm_command({key: paths[key] for key in JVM_ROLES}, paths["installed_library"]),
+                    "Kotlin sync-fault JVM command differs")
     return paths
 
 
 def verify_public(result: dict, directory: Path, *, language: str) -> dict:
     """Replay complete public loss records without private journals or tool paths."""
-    sdk.require(language in ("C", "Swift") and type(result.get("schema_version")) is int
+    sdk.require(language in ("C", "Swift", "Kotlin") and type(result.get("schema_version")) is int
                 and result["schema_version"] == 2 and result.get("language") == language
                 and result.get("completed") is True and result.get("release_claim_eligible") is False
                 and result.get("scope") == SCOPE.replace("installed C ", "installed " + language + " "),
@@ -202,20 +217,32 @@ def verify_public(result: dict, directory: Path, *, language: str) -> dict:
 class Matrix:
     def __init__(self, outside: Path, output: Path, profile: str, runtime: dict,
                  client: Path, helper: Path, probe: Path, smoke: Path, *,
-                 language: str = "C", expected_library: Path | None = None):
-        sdk.require(language in ("C", "Swift"), "unsupported sync-fault client language")
-        sdk.require((language == "Swift") == (expected_library is not None),
-                    "Swift fault execution requires its explicit installed library")
+                 language: str = "C", expected_library: Path | None = None,
+                 jvm_runtime: dict[str, Path] | None = None):
+        sdk.require(language in ("C", "Swift", "Kotlin"), "unsupported sync-fault client language")
+        sdk.require((language in ("Swift", "Kotlin")) == (expected_library is not None),
+                    "binding fault execution requires its explicit installed library")
+        sdk.require((language == "Kotlin") == (jvm_runtime is not None),
+                    "JVM fault inputs must accompany the Kotlin client only")
         if expected_library is not None:
             sdk.require(expected_library.is_absolute(), "installed fault library path is not absolute")
+        client_command = [str(client)] if jvm_runtime is None else jvm_command(jvm_runtime, expected_library)
         self.language, self.prefix = language, language.lower() + "-fault"
         self.scope = SCOPE.replace("installed C ", "installed " + language + " ")
         self.outside = outside / (self.prefix + "-" + profile)
         self.outside.mkdir(mode=0o700)
         self.output, self.profile = output, profile
         self.client, self.helper, self.probe, self.smoke = client, helper, probe, smoke
+        # A protected shell can discard DYLD_* before the JVM sees the probe.
+        # Inject directly into the exact JVM; retain the ordinary launcher for
+        # the native setup helper's uninjected connect/next commands.
+        self.client_command = client_command
         self.runtime = {k: v for k, v in runtime.items()
                         if not k.startswith(("DYLD_", "LD_", "QPERIAPT_", "QPC_TEST_"))}
+        if language == "Kotlin":
+            self.runtime = {k: v for k, v in self.runtime.items()
+                            if not k.startswith(("JAVA_", "GRADLE_", "KOTLIN_"))
+                            and k not in {"JDK_JAVA_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH"}}
         self.runtime["QPERIAPT_C_OWNER_CLIENT"] = str(client)
         self.runtime["QPERIAPT_INSTALLED_CLIENT_LANGUAGE"] = language
         if expected_library is not None:
@@ -225,6 +252,8 @@ class Matrix:
         paths = {"client": client, "native_helper": helper, "sync_probe": probe, "probe_smoke": smoke}
         if expected_library is not None:
             paths["installed_library"] = expected_library
+        if jvm_runtime is not None:
+            paths.update(jvm_runtime)
         self.binaries = {}
         for role, path in paths.items():
             snapshot = sdk.snapshot(path, maximum=256 * 1024**2)
@@ -276,7 +305,7 @@ class Matrix:
             "installed fault helper did not execute the selected complete test")
 
     def c(self, mode: str, label: str, root: Path, tail=(), *, expected=0, extra=None) -> bytes:
-        return self.command([self.client, mode, root / "responder", *tail], label,
+        return self.command([*self.client_command, mode, root / "responder", *tail], label,
                             expected=expected, extra=extra)
 
     def inject(self, target: Path, receipt: Path, cut: int, side: str) -> dict:
@@ -417,6 +446,8 @@ class Matrix:
                   "completed": False, "scope": self.scope, "release_claim_eligible": False,
                   "binary_sha256": self.identities, "binaries": self.binaries,
                   "profile": self.profile, "outside": str(self.outside)}
+        if self.language == "Kotlin":
+            result["client_command"] = self.client_command
         started = time.monotonic()
         try:
             listing = self.command([self.helper, "--list"], "helper-inventory").decode()

@@ -224,6 +224,21 @@ apply. There is no additional retry, RAM change, routing change, or relaxed
 package/cleanup acceptance. These fields support diagnosis; they do not themselves
 prove a memory or ADB defect was repaired.
 
+At `c3c217e1`, [native Linux job 110586234113](https://github.com/billlza/q-periapt/actions/runs/36926187676/job/110586234113)
+builds and installs the selected full-consumer APK but stops before instrumentation.
+Postinstall observations 1 and 3 identify the exact APK; intervening package and
+transport unavailability prevent three consecutive exact observations. Attempt 17
+exhausts the existing absolute deadline while validating the owned ADB server.
+App cleanup remains unresolved; the owned ADB stop is finalized, and the failed
+run receipt is retired. No runtime proof or paired export is admitted.
+Diagnostics artifact `11194721015` matches SHA-256
+`a8207b27ab11f638c2a4fb6d1297283b6d74da819259ff680b87246421222971`.
+Independent readback matches 54 lowmemorykiller text/killinfo pairs on PID, UID,
+adjustment score and RSS, alongside two ADB transport read failures. This does
+not establish a page-unit defect or a causal relationship to transport loss.
+The failure, original logs and exact source are sealed separately; no timeout,
+RAM, permission, retry or cleanup rule was relaxed.
+
 At `41da8962`, [PR run 36706338677](https://github.com/billlza/q-periapt/actions/runs/36706338677/job/109864412248)
 fails during APK installation with Package Manager `Broken pipe (32)`, before SDK
 instrumentation. Its log records lowmemorykiller activity, a networkstack SIGSEGV

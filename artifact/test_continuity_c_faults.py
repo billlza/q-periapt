@@ -14,6 +14,44 @@ import continuity_c_faults as f
 
 
 class ContinuityCFaultTests(unittest.TestCase):
+    def test_kotlin_faults_execute_the_exact_jvm_without_an_injected_shell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            paths = {}
+            for name in ("client", "helper", "probe", "smoke", "library", *sorted(f.JVM_ROLES)):
+                path = root / name; path.write_bytes(name.encode()); paths[name] = path
+            jvm = {name: paths[name] for name in f.JVM_ROLES}
+            inputs = [paths[name] for name in ("client", "helper", "probe", "smoke")]
+            for changed in (None, {}, {**jvm, "extra": paths["client"]}, {**jvm, "jvm_sdk": Path("relative")}):
+                with self.subTest(jvm=changed), self.assertRaises(ValueError):
+                    f.Matrix(root, root, "invalid", {}, *inputs, language="Kotlin",
+                             expected_library=paths["library"], jvm_runtime=changed)
+            matrix = f.Matrix(root, root, "unit", {"JAVA_TOOL_OPTIONS": "unqualified",
+                "JDK_JAVA_OPTIONS": "unqualified", "_JAVA_OPTIONS": "unqualified", "CLASSPATH": "unqualified",
+                "DYLD_INSERT_LIBRARIES": "unqualified", "QPC_TEST_SYNC_CUT": "1"}, *inputs,
+                language="Kotlin", expected_library=paths["library"], jvm_runtime=jvm)
+            command = f.jvm_command(jvm, paths["library"])
+            self.assertEqual(matrix.client_command, command)
+            self.assertEqual(command[0], str(paths["jvm_executable"]))
+            self.assertNotIn(str(paths["client"]), command)
+            self.assertEqual(matrix.runtime["QPERIAPT_C_OWNER_CLIENT"], str(paths["client"]))
+            for key in ("JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
+                        "DYLD_INSERT_LIBRARIES", "QPC_TEST_SYNC_CUT"):
+                self.assertNotIn(key, matrix.runtime)
+            self.assertEqual(set(command[command.index("-cp") + 1].split(f.os.pathsep)),
+                             {str(path) for role, path in jvm.items() if role != "jvm_executable"})
+            result = {"schema_version": 2, "language": "Kotlin", "completed": True,
+                      "binaries": matrix.binaries, "binary_sha256": matrix.identities, "client_command": command}
+            self.assertEqual(set(f.verified_tools(result, language="Kotlin")),
+                             {"client", "native_helper", "sync_probe", "probe_smoke", "installed_library"} | f.JVM_ROLES)
+            for changed in (dict(result, language="Swift"), dict(result, client_command=[str(paths["client"])]),
+                            dict(result, client_command=command[:-1])):
+                with self.subTest(changed=changed), self.assertRaises(ValueError):
+                    f.verified_tools(changed, language="Kotlin")
+            paths["jvm_sdk"].write_bytes(b"substituted SDK JAR")
+            with self.assertRaisesRegex(ValueError, "tool changed"):
+                f.verified_tools(result, language="Kotlin")
+
     def test_swift_faults_require_explicit_library_and_bind_actual_tool_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
@@ -89,11 +127,20 @@ class ContinuityCFaultTests(unittest.TestCase):
                 "release_claim_eligible": False, "scope": f.SCOPE.replace("installed C ", "installed Swift "),
                 "cases": cases, "coverage": f.coverage(cases)}
             self.assertTrue(f.verify_public(result, root, language="Swift")["reserved_positive_case_executed"])
+            kotlin = dict(result, language="Kotlin", scope=f.SCOPE.replace("installed C ", "installed Kotlin "))
+            self.assertTrue(f.verify_public(kotlin, root, language="Kotlin")["reserved_positive_case_executed"])
+            with self.assertRaisesRegex(ValueError, "scope differs"):
+                f.verify_public(kotlin, root, language="Swift")
+            with self.assertRaisesRegex(ValueError, "scope differs"):
+                f.verify_public(result, root, language="Kotlin")
             with self.assertRaisesRegex(ValueError, "scope differs"):
                 f.verify_public(result, root, language="C")
             changed = copy.deepcopy(result); changed["cases"].pop()
             with self.assertRaises(ValueError):
                 f.verify_public(changed, root, language="Swift")
+            changed.update(language="Kotlin", scope=kotlin["scope"])
+            with self.assertRaises(ValueError):
+                f.verify_public(changed, root, language="Kotlin")
             path = root / "send-1-after/responder/c-loss-report"
             previous = path.read_bytes(); path.write_bytes(previous.replace(b" 29 13", b" 0 0"))
             changed = copy.deepcopy(result)
@@ -101,6 +148,9 @@ class ContinuityCFaultTests(unittest.TestCase):
             changed["cases"][2]["loss_report_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
             with self.assertRaisesRegex(ValueError, "complete original loss accounting"):
                 f.verify_public(changed, root, language="Swift")
+            changed.update(language="Kotlin", scope=kotlin["scope"])
+            with self.assertRaisesRegex(ValueError, "complete original loss accounting"):
+                f.verify_public(changed, root, language="Kotlin")
             path.write_bytes(previous)
             path = root / "ack-1-after/responder/fault-closure-phase"
             path.write_bytes(("closed " + "77" * 32 + "\n").encode())
@@ -108,6 +158,9 @@ class ContinuityCFaultTests(unittest.TestCase):
             changed["cases"][-1]["public_readbacks"]["responder/fault-closure-phase"] = hashlib.sha256(path.read_bytes()).hexdigest()
             with self.assertRaisesRegex(ValueError, "original report"):
                 f.verify_public(changed, root, language="Swift")
+            changed.update(language="Kotlin", scope=kotlin["scope"])
+            with self.assertRaisesRegex(ValueError, "original report"):
+                f.verify_public(changed, root, language="Kotlin")
 
     def test_command_timeout_reaps_its_process_group_and_cannot_report_completion(self):
         with tempfile.TemporaryDirectory() as directory:

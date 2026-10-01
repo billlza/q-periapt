@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 import continuity_c_consumer as c
 import continuity_c_recovery as recovery
+import continuity_c_faults as faults
 import continuity_c_opening as opening
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
@@ -25,7 +26,7 @@ FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
 SCOPE = ("unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; "
          "same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; "
          "test-host controller interruption uses explicit native cancel/join; "
-         "sync-interruption, GC and automatic JVM cancellation qualification remain separate")
+         "calibrated journal sync process interruption; GC and automatic JVM cancellation qualification remain separate")
 TEST_NAMES = frozenset({
     "identifiersAreTypedImmutablePublicValues", "unsignedCountersRetainTheirWholeRange",
     "structuresMatchThe64BitNativeContract", "pendingOwnersRejectWorkAndCancellationNeverActivates",
@@ -299,6 +300,20 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 witnessed[label] = {"execution": checked, "public_files": exported}
             sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
                         "native witness harness changed during Kotlin execution")
+            fault_tools = faults.verified_tools(row["sync_faults"], language="C")
+            jvm_runtime = {"jvm_executable": java,
+                "jvm_consumer": distribution / "lib/continuity-installed-consumer.jar",
+                "jvm_sdk": distribution / "lib" / (contract.prefix + ".jar"),
+                "jvm_stdlib": distribution / "lib" / ("kotlin-stdlib-" + jvm.KOTLIN + ".jar"),
+                "jvm_annotations": distribution / "lib/annotations-13.0.jar"}
+            sync_faults = faults.Matrix(outside, output, profile, env, launcher,
+                fault_tools["native_helper"], fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                language="Kotlin", expected_library=library_path, jvm_runtime=jvm_runtime).execute()
+            fault_evidence = Path(sync_faults["outside"])
+            fault_checked = faults.verify_public(sync_faults, fault_evidence, language="Kotlin")
+            fault_files = export_selected(fault_checked, fault_evidence,
+                output / "kotlin-public/sync-faults" / profile, sync_faults["scope"],
+                replay=lambda path: faults.verify_public(sync_faults, path, language="Kotlin"))
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -342,6 +357,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,
+                "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,
                 "negative_controls": sorted(negatives) + ["raw-owner-construction"]}

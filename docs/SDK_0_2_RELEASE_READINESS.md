@@ -77,6 +77,32 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The Kotlin installed-owner collector now requires the existing positive-reservation
+journal sync-interruption matrix. Development execution against the unchanged
+f753e75d native Debug/Release libraries and helpers completes 59 cases / 771 commands
+per profile in 309.132 / 308.407 seconds. Each profile calibrates 13 send, six freeze
+and nine acknowledgement syncs, covers both sides of every boundary, and observes
+all three send dispositions plus open/pending and pending/closed cleanup outcomes.
+Eight send cases retain a real Reserved outcome. Independent replay checks all
+96 raw sync receipts, 771 command records and 342 public records per profile,
+including original IDs, complete reserved lengths, ciphertext commitments, loss
+reports, revoked operation authority and closed-archive retirement/restoration.
+The fixed JVM command bypasses the shell for fault injection and binds the launcher,
+JVM, four JARs, installed native library, native helper and probe identities.
+An injection preflight retains the shell route's missing probe receipt and the
+direct JVM route's 13 actual syncs. This is process-interruption development evidence;
+the full current-source package collector, power-loss/EIO behavior and broader
+JVM GC/interruption qualification remain separate.
+
+The `c3c217e1` [Android 16-KiB job](https://github.com/billlza/q-periapt/actions/runs/36926187676/job/110586234113)
+fails after APK installation and before instrumentation: package ownership does
+not converge before the existing deadline, transport is lost, and app cleanup
+remains unresolved. Independent diagnostics readback matches 54 lowmemorykiller
+text/killinfo pairs; their relationship to transport loss and any memory-unit
+defect is unproven. The failure is retained separately, as detailed in
+[Android qualification](SDK_ANDROID_RUNTIME.md). No current Android runtime pass
+or all-matrix CI success is claimed.
+
 The Kotlin collector now extends `artifact/continuity_package.py` with explicit
 JDK/Gradle installations, isolated Gradle state, closed Maven/JAR/source/license
 checks, extracted Debug/Release native packages, exact runtime dependency records,
@@ -131,8 +157,8 @@ Command logs, receiver effects, all loss rows and closure archives are separatel
 read back. The test executable alone contains a raw-ABI owner-kind negative
 control; the public JAR exposes no raw handle. Shared-engine, same-host execution
 does not establish independent endpoints, and the prepared recovery history has
-zero reservations. Kotlin positive-reservation interruption matrices,
-GC/interrupt stress, final-source Debug/Release package collection and
+zero reservations. Kotlin positive-reservation interruption is qualified separately
+by the development matrix above. GC/interrupt stress, final-source Debug/Release package collection and
 CI, other JVM platforms, Android JNI and WASM Continuity remain open. This
 development checkpoint adds no product ABI exports or release-admission claim.
 
