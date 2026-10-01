@@ -23,6 +23,8 @@ from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
 
 from android_agp_consumer_contract import (
+    BUILD_FILE_NAMES,
+    export_file_names,
     AGP_VERSION,
     GRADLE_VERSION,
     ALL_PROFILES,
@@ -62,20 +64,6 @@ BUILD_FIELDS = frozenset(
         "signing_input",
     }
 )
-BUILD_FILE_NAMES = {
-    "agp_apk": "agp-unsigned.apk",
-    "apk": "consumer-unsigned.apk",
-    "dexdump": "dexdump.txt",
-    "manifest_dump": "manifest-dump.txt",
-    "mapping": "mapping.txt",
-    "r8_configuration": "r8-configuration.txt",
-    "gradle_log": "gradle-build.log",
-    "gradle_version": "gradle-version.txt",
-    "build_jvm": "build-jvm.json",
-    "compilation_inputs": "compilation-inputs.txt",
-    "default_proguard": "default-proguard.txt",
-    "manifest_proguard": "manifest-proguard.txt",
-}
 CONSUMER_FIELDS = frozenset(
     {"profile", "build_receipt", "instrumentation_output", "instrumentation"}
 )
@@ -1321,6 +1309,19 @@ def profile_evidence_files(
     return result
 
 
+def verify_export_file_set(directory: pathlib.Path, expected_names: frozenset[str]) -> None:
+    """Check the complete public tree before either transport or replay."""
+    require(directory.is_dir() and not directory.is_symlink(), "exported AGP directory is invalid")
+    actual = set()
+    for entry in directory.rglob("*"):
+        require(not entry.is_symlink(), "exported AGP evidence contains a symlink")
+        if entry.is_file():
+            actual.add(entry.relative_to(directory).as_posix())
+        else:
+            require(entry.is_dir(), "exported AGP evidence contains a special node")
+    require(actual == expected_names, "exported AGP closure is missing files or contains extras")
+
+
 def verify_exported_profile(
     root: pathlib.Path,
     directory: pathlib.Path,
@@ -1351,22 +1352,8 @@ def verify_exported_profile(
     build_paths = {
         key: directory / "build" / name for key, name in BUILD_FILE_NAMES.items()
     }
-    expected_names = (
-        {"proof.json", "build/receipt.json", "instrumentation.txt"}
-        | {"runtime/" + names[key] for key in paths}
-        | {"build/" + name for name in BUILD_FILE_NAMES.values()}
-    )
-    actual = set()
-    for entry in directory.rglob("*"):
-        require(not entry.is_symlink(), "exported AGP evidence contains a symlink")
-        if entry.is_file():
-            actual.add(entry.relative_to(directory).as_posix())
-        else:
-            require(entry.is_dir(), "exported AGP evidence contains a special node")
-    require(
-        actual == expected_names,
-        "exported AGP closure is missing files or contains extras",
-    )
+    expected_names = export_file_names(proof["device"]["kind"], expected_profile)
+    verify_export_file_set(directory, expected_names)
     return _validate(
         root,
         proof_path,

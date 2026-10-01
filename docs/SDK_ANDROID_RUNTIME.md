@@ -143,6 +143,22 @@ diagnostics if a later step fails. Partial evidence does not satisfy the paired
 runtime gate. There is no SDK-to-legacy fallback or package
 rebuild in the runtime lane. The arm64 and physical-device gates remain separate.
 
+Each emulator target also stages a separate, fixed 56-file transport containing
+both complete public closures. Staging verifies the transported copies before
+upload. The `bindings-android-runtime-replay` matrix then uses fresh Linux jobs
+to strictly extract that same-run artifact, restore the closures, and replay
+both APKs with the recorded Build Tools binaries. The expected AAR and manifest
+hashes come directly from the AAR producer job outputs. The source commit and
+runtime target are selected by the workflow, independently of the proof.
+
+`android_sdk_runtime_replay.py verify` refuses any original runtime-run or AAR
+directory in the checkout. It invokes neither Gradle nor an Android runtime;
+it verifies source, package, receipts, results and actual SDK inspection of the
+exported APKs. Extra or missing files, additional producer attempts, mismatched
+tools, and failed APK inspection fail the gate. Its report remains incomplete
+on failure. This independent replay complements the recorded ART execution;
+it does not execute a new device workload or establish long-run stability.
+
 The diagnostic clock is captured and validated before installation. An install
 reply failure, post-install ownership failure or launch failure stays a failure;
 the runner collects the bounded, run-filtered smoke log without retrying the

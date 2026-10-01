@@ -22,7 +22,11 @@ from typing import Any
 
 import android_runtime_state as runtime_state
 from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, runtime_profile, capture_runtime_profile
-from android_agp_consumer_contract import PROFILE_TESTS, profile_spec
+from android_agp_consumer_contract import (
+    BASE_BUNDLE_FILE_PATHS, BASE_PROOF_PATH_KEYS, BUNDLE_FILE_PATHS,
+    EMULATOR_BUNDLE_FILE_PATHS, EMULATOR_CONTROL_PATH_KEYS, PROOF_PATH_KEYS,
+    PROFILE_TESTS, profile_spec,
+)
 from android_elf import (
     AndroidVerificationError,
     audit_aar,
@@ -126,51 +130,6 @@ PRIVATE_ADB_STATUS_REGISTERED_LEAF = "adb-server-status-registered.txt"
 PRIVATE_ADB_LISTENER_REGISTERED_LEAF = "adb-listener-registered.txt"
 NATIVE_NOTIFIER_MODE = NATIVE_ADB_NOTIFIER_MODE
 
-BASE_PROOF_PATH_KEYS = (
-    "aar",
-    "aar_manifest",
-    "smoke_apk",
-    "apksigner_verify",
-    "zipalign_verify",
-    "result_txt",
-    "result_json",
-    "logcat",
-)
-EMULATOR_CONTROL_PATH_KEYS = (
-    "adb_isolation_emulator_pre_exec",
-    "adb_isolation_emulator_post_registration",
-    "adb_isolation_runtime_pre_cleanup",
-    "adb_isolation_runtime_post_cleanup",
-    "emulator_routing",
-)
-PROOF_PATH_KEYS = BASE_PROOF_PATH_KEYS + EMULATOR_CONTROL_PATH_KEYS
-BASE_BUNDLE_FILE_PATHS = {
-    "proof": "qperiapt-android-device-proof.json",
-    "aar": "artifacts/q-periapt-android-0.1.5.aar",
-    "aar_manifest": "artifacts/q-periapt-android-0.1.5.MANIFEST.json",
-    "smoke_apk": "artifacts/qperiapt-android-smoke.apk",
-    "apksigner_verify": "evidence/apksigner-verify.txt",
-    "zipalign_verify": "evidence/zipalign-verify.txt",
-    "result_txt": "evidence/qperiapt-android-device-result.txt",
-    "result_json": "evidence/qperiapt-android-device-result.json",
-    "logcat": "evidence/logcat.txt",
-}
-EMULATOR_BUNDLE_FILE_PATHS = {
-    "adb_isolation_emulator_pre_exec": (
-        "evidence/adb-isolation-emulator-pre-exec.json"
-    ),
-    "adb_isolation_emulator_post_registration": (
-        "evidence/adb-isolation-emulator-post-registration.json"
-    ),
-    "adb_isolation_runtime_pre_cleanup": (
-        "evidence/adb-isolation-runtime-pre-cleanup.json"
-    ),
-    "adb_isolation_runtime_post_cleanup": (
-        "evidence/adb-isolation-runtime-post-cleanup.json"
-    ),
-    "emulator_routing": "evidence/emulator-routing.json",
-}
-BUNDLE_FILE_PATHS = {**BASE_BUNDLE_FILE_PATHS, **EMULATOR_BUNDLE_FILE_PATHS}
 BUNDLE_MANIFEST_PATH = "MANIFEST.json"
 
 # Immutable platform-r2 history.  Every schema-v1/schema-3 shape below is an

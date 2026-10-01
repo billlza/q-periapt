@@ -1949,6 +1949,35 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", with_package)
         self.assertIn("rust_package_contract=1", with_package)
 
+    def test_ci_android_replay_consumes_only_same_run_exports_with_producer_pins(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        producer = extract_workflow_job(workflow, "bindings-android-aar")
+        runtime = extract_workflow_job(workflow, "bindings-android-runtime-16k")
+        replay = extract_workflow_job(workflow, "bindings-android-runtime-replay")
+        for digest in ("aar_sha256", "manifest_sha256"):
+            self.assertIn(f"{digest}: ${{{{ steps.sdk_aar_identity.outputs.{digest} }}}}", producer)
+            for consumer in (runtime, replay):
+                self.assertIn(f"${{{{ needs.bindings-android-aar.outputs.{digest} }}}}", consumer)
+        self.assertIn("needs: [bindings-android-aar, bindings-android-runtime-16k]", replay)
+        self.assertIn("profile: [api23-4k, api35-16k]", replay)
+        downloads = extract_action_steps(replay, "actions/download-artifact")
+        self.assertEqual(len(downloads), 1)
+        self.assertIn("name: abi2-android-sdk-020-export-${{ matrix.profile }}-x86_64", downloads[0])
+        self.assertIn("skip-decompress: true", downloads[0])
+        self.assertIn("digest-mismatch: error", downloads[0])
+        self.assertNotIn("run-id:", replay)
+        self.assertNotIn("github-token:", replay)
+        self.assertNotIn("android-device-smoke.sh", replay)
+        self.assertNotIn("gradlew", replay)
+        self.assertNotIn("continue-on-error", replay)
+        self.assertIn('artifact/workflow_artifact.py "android-sdk-020-runtime-$ANDROID_REPLAY_PROFILE"', replay)
+        self.assertIn("artifact/android_sdk_runtime_replay.py verify", replay)
+        self.assertIn('--expected-source-commit "$GITHUB_SHA"', replay)
+        self.assertIn('--expected-aar-sha256 "$EXPECTED_AAR_SHA256"', replay)
+        self.assertIn('--expected-aar-manifest-sha256 "$EXPECTED_MANIFEST_SHA256"', replay)
+        self.assertLess(runtime.index("artifact/android_sdk_runtime_replay.py stage"),
+                        runtime.index("name: Upload the verified pair for independent Linux replay"))
+
     def test_ci_created_avd_image_preparation_is_narrow_and_preserves_bytes(self) -> None:
         job = extract_workflow_job(CI_WORKFLOW.read_text(), "bindings-android-runtime-16k")
         start = 'sh artifact/python-run.sh - "$ANDROID_AVD_HOME/$avd_name.avd/userdata.img" <<\'PY\'\n'

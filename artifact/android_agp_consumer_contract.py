@@ -46,6 +46,82 @@ PROJECTION_FIELDS = frozenset(
 SHA256 = re.compile(r"[0-9a-f]{64}")
 COMMIT = re.compile(r"[0-9a-f]{40}")
 RUN_ID = re.compile(r"[0-9a-f]{32}")
+
+# Public evidence layout shared by producers, replay and transport. Keep this
+# module independent of device ownership and platform-specific filesystem I/O.
+BUILD_FILE_NAMES = {
+    "agp_apk": "agp-unsigned.apk",
+    "apk": "consumer-unsigned.apk",
+    "dexdump": "dexdump.txt",
+    "manifest_dump": "manifest-dump.txt",
+    "mapping": "mapping.txt",
+    "r8_configuration": "r8-configuration.txt",
+    "gradle_log": "gradle-build.log",
+    "gradle_version": "gradle-version.txt",
+    "build_jvm": "build-jvm.json",
+    "compilation_inputs": "compilation-inputs.txt",
+    "default_proguard": "default-proguard.txt",
+    "manifest_proguard": "manifest-proguard.txt",
+}
+BASE_PROOF_PATH_KEYS = (
+    "aar", "aar_manifest", "smoke_apk", "apksigner_verify",
+    "zipalign_verify", "result_txt", "result_json", "logcat",
+)
+EMULATOR_CONTROL_PATH_KEYS = (
+    "adb_isolation_emulator_pre_exec",
+    "adb_isolation_emulator_post_registration",
+    "adb_isolation_runtime_pre_cleanup",
+    "adb_isolation_runtime_post_cleanup",
+    "emulator_routing",
+)
+PROOF_PATH_KEYS = BASE_PROOF_PATH_KEYS + EMULATOR_CONTROL_PATH_KEYS
+BASE_BUNDLE_FILE_PATHS = {
+    "proof": "qperiapt-android-device-proof.json",
+    "aar": "artifacts/q-periapt-android-0.1.5.aar",
+    "aar_manifest": "artifacts/q-periapt-android-0.1.5.MANIFEST.json",
+    "smoke_apk": "artifacts/qperiapt-android-smoke.apk",
+    "apksigner_verify": "evidence/apksigner-verify.txt",
+    "zipalign_verify": "evidence/zipalign-verify.txt",
+    "result_txt": "evidence/qperiapt-android-device-result.txt",
+    "result_json": "evidence/qperiapt-android-device-result.json",
+    "logcat": "evidence/logcat.txt",
+}
+EMULATOR_BUNDLE_FILE_PATHS = {
+    "adb_isolation_emulator_pre_exec": "evidence/adb-isolation-emulator-pre-exec.json",
+    "adb_isolation_emulator_post_registration": "evidence/adb-isolation-emulator-post-registration.json",
+    "adb_isolation_runtime_pre_cleanup": "evidence/adb-isolation-runtime-pre-cleanup.json",
+    "adb_isolation_runtime_post_cleanup": "evidence/adb-isolation-runtime-post-cleanup.json",
+    "emulator_routing": "evidence/emulator-routing.json",
+}
+BUNDLE_FILE_PATHS = {**BASE_BUNDLE_FILE_PATHS, **EMULATOR_BUNDLE_FILE_PATHS}
+
+
+def export_file_names(kind: str, profile: str) -> frozenset[str]:
+    """Exact existing public closure; not a selection from arbitrary input files."""
+    require(kind in {"physical", "emulator"}, "AGP export device kind differs")
+    spec = profile_spec(profile)
+    names = dict(BASE_BUNDLE_FILE_PATHS)
+    names.pop("proof")
+    if kind == "emulator":
+        names.update(EMULATOR_BUNDLE_FILE_PATHS)
+    names["aar"] = f"artifacts/q-periapt-android-{spec.version}.aar"
+    names["aar_manifest"] = f"artifacts/q-periapt-android-{spec.version}.MANIFEST.json"
+    return frozenset({"proof.json", "build/receipt.json", "instrumentation.txt"}
+                     | {"runtime/" + name for name in names.values()}
+                     | {"build/" + name for name in BUILD_FILE_NAMES.values()})
+
+
+def flat_sdk_export_files() -> dict[str, tuple[str, str]]:
+    """Code-owned single-leaf transport names for both emulator SDK closures."""
+    result = {}
+    for profile in sorted(SDK_PROFILES):
+        for relative in sorted(export_file_names("emulator", profile)):
+            leaf = profile + "--" + relative.replace("/", "--")
+            require(leaf not in result, "SDK export transport paths collide")
+            result[leaf] = (profile, relative)
+    return result
+
+
 PROFILE_TESTS = {
     "agp_full_release": (
         "runtimeMetadataMatches",
