@@ -194,6 +194,8 @@ def qualify(args: argparse.Namespace) -> dict:
         environment = {key: value for key, value in os.environ.items()
                        if not key.startswith(("CARGO_", "RUST", "DYLD_", "LD_", "QPERIAPT_"))}
         environment.update(CARGO_HOME=str(home), CARGO_NET_OFFLINE="true", CARGO_TERM_COLOR="never",
+                           # Reapply CI's fixed transfer policy after rejecting inherited Cargo overrides.
+                           CARGO_HTTP_MULTIPLEXING="false",
                            CARGO_TARGET_DIR=str(outside / "build"), CARGO_INCREMENTAL="0",
                            RUSTC=str(toolchain / "bin/rustc"), RUSTDOC=str(toolchain / "bin/rustdoc"),
                            RUSTFLAGS="-D warnings", RUSTDOCFLAGS="-D warnings",
