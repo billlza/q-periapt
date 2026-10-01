@@ -72,9 +72,31 @@ not a production application transaction layer, power loss or adversarial
 parent-directory replacement. A failure to persist, verify or remove an owned
 temporary record remains a failure. Terminal success is printed after owner close.
 
-Development execution remains separate from a committed-source package collector
-and CI qualification. Required follow-up includes the final-source Debug/Release
-package pipeline, witness and two-stage activation workloads, positive-reservation
+The `artifact/continuity_package.py --with-c-consumer --with-kotlin-consumer`
+collector builds this SDK outside the checkout, stages its fixed Maven version,
+archives and extracts each native Debug/Release package, and builds the independent
+consumer from the extracted repository. It requires explicit
+`--kotlin-java-home /absolute/jdk/home` and
+`--kotlin-gradle-home /absolute/gradle/installation`. The selected JDK 25 and Gradle
+9.8.0 distributions are hashed before/after execution, including JVM modules and
+Gradle implementation JARs. Gradle uses a fresh private user home, strict upstream
+and candidate checksums, no automatic JDK downloads, and an explicitly selected
+in-process Kotlin compiler. Shared Maven validation keeps this coordinate and
+`qpc-owner/1` manifest distinct from product ABI 2.
+
+The collector checks each complete JUnit record, exact resolved/installed JARs,
+both archives and licenses, all three public traces, and Java named-module calls.
+Missing native permission, absent/relative/directory library paths, missing symbols
+and private-owner construction must fail. The private-constructor control uses
+javac diagnostic codes so localized messages cannot change its meaning. Selected
+public records are exported for independent replay; private installations are not.
+The existing macOS installed-binding CI job now requests this collector alongside
+Swift. A successful development run of this producer still uses the retained
+f753e75d native libraries and explicitly recorded controller; it is not complete
+current-source CI qualification.
+
+Required follow-up includes current-source Debug/Release collection and CI,
+witness and two-stage activation workloads, positive-reservation
 sync-interruption matrix, JVM interrupt and GC pressure, additional JVM/OS targets,
 and Android ART/JNI. This candidate does not yet satisfy full 0.2.0 admission.
 

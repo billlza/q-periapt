@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+from dataclasses import dataclass
 import hashlib
 import io
 import json
@@ -40,6 +41,38 @@ SHA = re.compile(r"[0-9a-f]{64}")
 POLICIES = {"enabled": "signed-policy-vectors.json", "disabled": "sdk-policy-revocation-vectors.json",
             "reenabled": "sdk-policy-update-vectors.json"}
 NOTICE_PATHS = {f"META-INF/licenses/{name}": ROOT / "LICENSES" / name for name in ("Apache-2.0.txt", "MIT.txt")}
+
+
+@dataclass(frozen=True)
+class MavenContract:
+    """Explicit artifact identity; shared verification never infers an SDK ABI."""
+    group: str
+    name: str
+    version: str
+    module: str
+    title: str
+    manifest_extensions: tuple[tuple[str, str], ...]
+    class_prefix: str
+    required_classes: tuple[str, ...]
+    binding: Path
+
+    @property
+    def coordinate(self) -> str:
+        return f"{self.group}:{self.name}:{self.version}"
+
+    @property
+    def prefix(self) -> str:
+        return f"{self.name}-{self.version}"
+
+    @property
+    def path(self) -> Path:
+        return Path(*self.group.split(".")) / self.name / self.version
+
+
+def product_maven_contract() -> MavenContract:
+    return MavenContract(GROUP, NAME, VERSION, MODULE, "Q-Periapt Kotlin/JVM SDK",
+        (("QPeriapt-ABI", "2"), ("QPeriapt-SDK-Extension", "1")), "dev/qperiapt/",
+        ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid"), BINDING)
 
 
 def require(condition: bool, message: str) -> None:
@@ -139,10 +172,12 @@ def jar_manifest(data: bytes) -> dict[str, str]:
     return result
 
 
-def verify_maven(repository: Path) -> dict:
-    directory = repository / MAVEN_PATH
-    names = {f"{PREFIX}{suffix}" for suffix in (".jar", "-sources.jar", ".pom", ".module")}
-    expected = {str(MAVEN_PATH / name) for name in names}
+def verify_maven(repository: Path, *, contract: MavenContract | None = None) -> dict:
+    contract = product_maven_contract() if contract is None else contract
+    directory = repository / contract.path
+    prefix = contract.prefix
+    names = {f"{prefix}{suffix}" for suffix in (".jar", "-sources.jar", ".pom", ".module")}
+    expected = {str(contract.path / name) for name in names}
     expected |= {f"{name}.{algorithm}" for name in tuple(expected) for algorithm in ("md5", "sha1", "sha256", "sha512")}
     require(set(entries(repository)) == expected, "Maven candidate inventory differs")
     for name in names:
@@ -151,9 +186,9 @@ def verify_maven(repository: Path) -> dict:
             require(snapshot(directory / f"{name}.{algorithm}").data.decode("ascii").strip()
                     == hashlib.new(algorithm, data).hexdigest(), "Maven checksum differs")
     namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
-    pom = ET.fromstring(snapshot(directory / f"{PREFIX}.pom").data)
+    pom = ET.fromstring(snapshot(directory / f"{prefix}.pom").data)
     require([pom.findtext(f"m:{key}", namespaces=namespace) for key in ("groupId", "artifactId", "version")]
-            == [GROUP, NAME, VERSION], "Maven coordinate differs")
+            == [contract.group, contract.name, contract.version], "Maven coordinate differs")
     dependencies = pom.findall("m:dependencies/m:dependency", namespace)
     require(len(dependencies) == 1 and
         {child.tag.split("}")[-1]: child.text for child in dependencies[0]}
@@ -161,31 +196,31 @@ def verify_maven(repository: Path) -> dict:
         "Maven dependencies differ")
     require(not any(pom.find(f"m:{key}", namespace) is not None for key in
                     ("repositories", "pluginRepositories", "parent", "build", "profiles")), "Maven resolution override is forbidden")
-    binary = jar_files(directory / f"{PREFIX}.jar")
+    binary = jar_files(directory / f"{prefix}.jar")
     manifest = jar_manifest(binary["META-INF/MANIFEST.MF"])
-    require(manifest == {"Manifest-Version": "1.0", "Automatic-Module-Name": MODULE,
-        "Implementation-Title": "Q-Periapt Kotlin/JVM SDK", "Implementation-Version": VERSION,
-        "QPeriapt-ABI": "2", "QPeriapt-SDK-Extension": "1"}, "JAR manifest identity differs")
+    require(manifest == {"Manifest-Version": "1.0", "Automatic-Module-Name": contract.module,
+        "Implementation-Title": contract.title, "Implementation-Version": contract.version,
+        **dict(contract.manifest_extensions)}, "JAR manifest identity differs")
     class_names = {name for name in binary if name.endswith(".class")}
-    require({f"dev/qperiapt/{name}.class" for name in ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret",
-            "QPeriaptExpert", "QPeriaptHybrid")} <= class_names, "JAR product classes are missing")
-    require(set(binary) == class_names | set(NOTICE_PATHS) | {"META-INF/MANIFEST.MF", "META-INF/dev.qperiapt_q-periapt-hybrid.kotlin_module"},
+    require({f"{contract.class_prefix}{name}.class" for name in contract.required_classes} <= class_names,
+            "JAR product classes are missing")
+    require(set(binary) == class_names | set(NOTICE_PATHS) | {"META-INF/MANIFEST.MF", f"META-INF/{contract.group}_{contract.name}.kotlin_module"},
             "JAR contains an unexpected resource or embedded native library")
     for name in class_names:
-        require(name.startswith("dev/qperiapt/") and binary[name][:8] == b"\xca\xfe\xba\xbe\x00\x00\x00\x45",
+        require(name.startswith(contract.class_prefix) and binary[name][:8] == b"\xca\xfe\xba\xbe\x00\x00\x00\x45",
                 "JAR bytecode must be non-preview JDK 25 in the SDK namespace")
-    source = jar_files(directory / f"{PREFIX}-sources.jar")
-    source_root = BINDING / "src/main/kotlin"
+    source = jar_files(directory / f"{prefix}-sources.jar")
+    source_root = contract.binding / "src/main/kotlin"
     source_paths = {p.relative_to(source_root).as_posix(): p for p in source_root.rglob("*.kt")}
     require(set(source) == set(source_paths) | set(NOTICE_PATHS) | {"META-INF/MANIFEST.MF"}, "sources JAR inventory differs")
     for name, path in source_paths.items():
         require(source[name] == snapshot(path).data, "sources JAR does not match the source checkout")
     for name, path in NOTICE_PATHS.items():
         require(binary[name] == source[name] == snapshot(path).data, "JAR project license differs")
-    module = parse_strict_json_bytes(snapshot(directory / f"{PREFIX}.module").data,
+    module = parse_strict_json_bytes(snapshot(directory / f"{prefix}.module").data,
                                      label="JVM Gradle module metadata")
-    require(module["formatVersion"] == "1.1" and module["component"] == {"group": GROUP, "module": NAME,
-            "version": VERSION, "attributes": {"org.gradle.status": "release"}}, "Gradle module identity differs")
+    require(module["formatVersion"] == "1.1" and module["component"] == {"group": contract.group, "module": contract.name,
+            "version": contract.version, "attributes": {"org.gradle.status": "release"}}, "Gradle module identity differs")
     require(module["createdBy"] == {"gradle": {"version": "9.8.0"}}, "Gradle module producer differs")
     require([row["name"] for row in module["variants"]] == ["apiElements", "runtimeElements", "sourcesElements"],
             "Gradle module variants differ")
@@ -201,13 +236,13 @@ def verify_maven(repository: Path) -> dict:
             require("dependencies" not in row, "sources JAR must not add dependencies")
         require(len(row["files"]) == 1, "Gradle variant must resolve one JAR")
         file = row["files"][0]
-        name = f"{PREFIX}{'-sources' if row['name'] == 'sourcesElements' else ''}.jar"
+        name = f"{prefix}{'-sources' if row['name'] == 'sourcesElements' else ''}.jar"
         data = snapshot(directory / name)
         require(file["name"] == file["url"] == name and file["size"] == data.size
                 and all(file[algorithm] == hashlib.new(algorithm, data.data).hexdigest()
                         for algorithm in ("md5", "sha1", "sha256", "sha512")), "Gradle module artifact digest differs")
-    return {"coordinate": COORDINATE, "classes": len(class_names), "jvm_version": 25,
-            "jar_sha256": snapshot(directory / f"{PREFIX}.jar").sha256}
+    return {"coordinate": contract.coordinate, "classes": len(class_names), "jvm_version": 25,
+            "jar_sha256": snapshot(directory / f"{prefix}.jar").sha256}
 
 
 def verify_native(root: Path, manifest_sha: str, host: str) -> dict:
@@ -260,19 +295,20 @@ def verify_package(root: Path, manifest_sha: str) -> dict:
     return manifest
 
 
-def pin_consumer_dependencies(consumer: Path, repository: Path) -> None:
+def pin_consumer_dependencies(consumer: Path, repository: Path, *, contract: MavenContract | None = None) -> None:
     # Preserve every existing strict upstream checksum; append this candidate's
     # exact local artifact hashes. No trust-all, ignored or changing dependency.
-    tree = ET.fromstring(snapshot(BINDING / "gradle/verification-metadata.xml").data)
+    contract = product_maven_contract() if contract is None else contract
+    tree = ET.fromstring(snapshot(contract.binding / "gradle/verification-metadata.xml").data)
     namespace = tree.tag.split("}")[0] + "}"
     components = tree.find(f"{namespace}components")
     require(components is not None, "Gradle dependency pins are missing")
-    require(not any(row.get("group") == GROUP for row in components), "candidate coordinate is already pinned")
-    component = ET.SubElement(components, f"{namespace}component", {"group": GROUP, "name": NAME, "version": VERSION})
+    require(not any(row.get("group") == contract.group for row in components), "candidate coordinate is already pinned")
+    component = ET.SubElement(components, f"{namespace}component", {"group": contract.group, "name": contract.name, "version": contract.version})
     for suffix in (".jar", ".pom", ".module"):
-        name = f"{PREFIX}{suffix}"
+        name = f"{contract.prefix}{suffix}"
         artifact = ET.SubElement(component, f"{namespace}artifact", {"name": name})
-        ET.SubElement(artifact, f"{namespace}sha256", {"value": snapshot(repository / MAVEN_PATH / name).sha256,
+        ET.SubElement(artifact, f"{namespace}sha256", {"value": snapshot(repository / contract.path / name).sha256,
                                                      "origin": "pinned local SDK candidate"})
     ET.register_namespace("", namespace[1:-1])
     path = consumer / "gradle/verification-metadata.xml"

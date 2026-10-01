@@ -77,6 +77,26 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The Kotlin collector now extends `artifact/continuity_package.py` with explicit
+JDK/Gradle installations, isolated Gradle state, closed Maven/JAR/source/license
+checks, extracted Debug/Release native packages, exact runtime dependency records,
+three required client/server/recovery traces and Java module/error-path controls.
+A development execution completes in 155.973 seconds against the retained f753e75d
+native libraries and the separately recorded Kotlin-aware Debug controller. Both
+247-file ZIPs independently replay; each profile executes eight owner tests,
+94 selected public trace files and seven negative controls. The initial development
+source-intake, fixed-repository and localized-javac failures are retained. Private construction was already
+correctly refused; the collector now checks the locale-independent diagnostic
+code and absence of an emitted class. This is producer development evidence;
+complete current-source collection and hosted qualification remain required.
+
+For the separate b62ff9bf TLS refusal test correction, native Ubuntu 24.04 Rust
+1.90 and 1.98 CI each complete 311 candidate tests in Debug and Release with zero
+failures/ignored tests. The exact truncated/pipelined refusal case passes in all
+four executions. Push run 36908770489 concludes success. The original f753e75d
+failure remains retained; this is not a deterministic paired same-host experiment
+or qualification of later Kotlin packaging changes.
+
 The unpublished [Kotlin/JVM Continuity candidate](../bindings/kotlin/ContinuityPackageConsumer/README.md)
 now provides separate operational/recovery owners over the existing `qpc-owner/1`
 engine. Its local Maven JAR is consumed by an independent project outside the

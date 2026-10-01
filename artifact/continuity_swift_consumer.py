@@ -1,11 +1,8 @@
 """Package and execute the Swift owner against the already qualified C engine."""
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import hashlib
-import io
 import os
 import re
-import stat
-import zipfile
 
 import continuity_c_consumer as c
 import continuity_c_recovery as recovery
@@ -14,13 +11,13 @@ import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_faults as faults
 import continuity_package as package
+from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
 from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
 import third_party_licenses as licenses
 
 FIXTURE = package.ROOT / "bindings/swift/ContinuityPackageConsumer"
 LIBRARY = "libq_periapt_continuity_c_consumer.dylib"
-MAX_PACKAGE = 64 * 1024**2
 # Hosted Xcode 16.4's compiler exceeds the native consumer's 256-MiB budget.
 # Tool identity has its own cap; streaming preserves bounded memory and the
 # same complete-file hash and mutation-sensitive descriptor checks.
@@ -38,46 +35,6 @@ def compiler_command(value: str) -> tuple[Path, dict]:
     # and package-manager dispatch; hashing the target must not change argv[0].
     return command, {"command_path": str(command), "path": str(resolved),
                      "sha256": binary.sha256, "bytes": binary.size}
-
-
-def archive(files: dict[str, bytes]) -> bytes:
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as zipped:
-        for name, data in sorted(files.items()):
-            entry = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
-            entry.create_system = 3
-            entry.external_attr = (stat.S_IFREG | 0o644) << 16
-            zipped.writestr(entry, data)
-    result = output.getvalue()
-    sdk.require(len(result) <= MAX_PACKAGE, "Swift package exceeds bound")
-    return result
-
-
-def unpack(data: bytes, expected: dict[str, str], destination: Path) -> None:
-    sdk.require(len(data) <= MAX_PACKAGE and not destination.exists(), "Swift package input or destination differs")
-    with zipfile.ZipFile(io.BytesIO(data)) as zipped:
-        entries = zipped.infolist()
-        names = [entry.filename for entry in entries]
-        sdk.require(len(entries) <= 1024 and len(names) == len(set(names)) and set(names) == set(expected),
-                    "Swift package file set differs")
-        sdk.require(sum(entry.file_size for entry in entries) <= MAX_PACKAGE, "Swift expanded package exceeds bound")
-        selected = {}
-        for entry in entries:
-            path = PurePosixPath(entry.filename)
-            sdk.require(not path.is_absolute() and path.parts and ".." not in path.parts
-                        and "\\" not in entry.filename and str(path) == entry.filename
-                        and stat.S_ISREG(entry.external_attr >> 16) and not entry.flag_bits & 1,
-                        "Swift package entry is not a canonical regular file")
-            content = zipped.read(entry)
-            sdk.require(hashlib.sha256(content).hexdigest() == expected[entry.filename], "Swift package file hash differs")
-            selected[path] = content
-    destination.mkdir(mode=0o700)
-    for name, content in selected.items():
-        path = destination.joinpath(*name.parts)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("xb") as stream:
-            stream.write(content)
-        path.chmod(0o644)
 
 
 def verify_tests(stdout: bytes, stderr: bytes) -> None:

@@ -1,0 +1,310 @@
+"""Package and execute the Kotlin/JVM owner against qualified native C packages."""
+from __future__ import annotations
+
+import hashlib
+import os
+from pathlib import Path
+import re
+import shlex
+import xml.etree.ElementTree as ET
+
+import continuity_c_consumer as c
+import continuity_c_recovery as recovery
+from continuity_c_witness import export_selected
+import continuity_package as package
+from continuity_package_archive import MAX_PACKAGE, archive, unpack
+from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
+import jvm_sdk_package as jvm
+import rust_sdk_profile as sdk
+import third_party_licenses as licenses
+
+FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
+SCOPE = ("unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; "
+         "same-host macOS or GNU/Linux; local original-installation profile; "
+         "witness, sync-interruption, GC and interrupt qualification remain separate")
+TEST_NAMES = frozenset({
+    "identifiersAreTypedImmutablePublicValues", "unsignedCountersRetainTheirWholeRange",
+    "structuresMatchThe64BitNativeContract", "pendingOwnersRejectWorkAndCancellationNeverActivates",
+    "failedOpenReleasesTheOriginalOwnerSlot", "bothKindsShareCapacityAndDrainRemainsAvailable",
+    "recoveryCancellationAndClosedStateKeepTheirNativeKinds",
+    "textAndApplicationRefusalsCannotSilentlyCoerceInvalidInput",
+})
+
+
+def maven_contract() -> jvm.MavenContract:
+    return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
+        "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
+        (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
+        ("ContinuityOwner", "ContinuityRecoveryOwner", "SessionID", "MessageID", "Counter64"), FIXTURE)
+
+
+def source_files() -> dict[str, bytes]:
+    selected = [FIXTURE / name for name in ("build.gradle.kts", "settings.gradle.kts", "README.md",
+                "gradle/verification-metadata.xml", "consumer/build.gradle.kts", "consumer/settings.gradle.kts")]
+    for directory in ("src", "consumer/src", "consumer/negative"):
+        for path in (FIXTURE / directory).rglob("*"):
+            sdk.require(not path.is_symlink(), "Kotlin package source contains a symlink")
+            if not path.is_dir(): selected.append(path)
+    result = {}
+    for path in selected:
+        sdk.require(not path.is_symlink(), "Kotlin package source contains a symlink")
+        result[path.relative_to(FIXTURE).as_posix()] = sdk.snapshot(path).data
+    sdk.require(result and all(result.values()), "Kotlin package source is missing or empty")
+    return result
+
+
+def tool_identity(root: Path) -> dict:
+    """Hash the tool distribution, including JVM modules and Gradle implementation JARs."""
+    sdk.require(root.is_absolute(), "select an absolute JVM tool installation")
+    root = root.resolve(strict=True)
+    paths = sorted(root.rglob("*"))
+    sdk.require(len(paths) <= 8192, "JVM tool distribution exceeds its file bound")
+    result = {}
+    total = 0
+    for path in paths:
+        if path.is_dir():
+            sdk.require(not path.is_symlink(), "JVM tool contains a symlinked directory")
+            continue
+        target = path.resolve(strict=True)
+        sdk.require(target.is_relative_to(root), "JVM tool link escapes its selected installation")
+        value = consume_regular_snapshot(target, maximum=512 * 1024**2, label="JVM tool input")
+        total += value.size
+        sdk.require(total <= 2 * 1024**3, "JVM tool distribution exceeds its byte bound")
+        result[path.relative_to(root).as_posix()] = {
+            "sha256": value.sha256, "bytes": value.size,
+            "target": target.relative_to(root).as_posix(),
+            "link": os.readlink(path) if path.is_symlink() else None,
+        }
+    sdk.require(result, "JVM tool distribution is empty")
+    return {"root": str(root), "files": result}
+
+
+def verify_tests(data: bytes) -> dict:
+    sdk.require(len(data) <= 1024**2 and b"<!DOCTYPE" not in data and b"<!ENTITY" not in data,
+                "JVM test report is oversized or contains external declarations")
+    suite = ET.fromstring(data)
+    cases = suite.findall("testcase")
+    expected = {name + "()" for name in TEST_NAMES}
+    sdk.require(suite.tag == "testsuite" and suite.get("name") == "dev.qperiapt.continuity.OwnerTests"
+                and suite.get("tests") == str(len(expected))
+                and all(suite.get(key) == "0" for key in ("failures", "errors", "skipped"))
+                and len(cases) == len(expected) and {case.get("name") for case in cases} == expected
+                and all(case.get("classname") == suite.get("name") and len(case) == 0 for case in cases),
+                "JVM owner tests did not all execute successfully")
+    sdk.require(all((suite.findtext(tag) or "").strip() == "" for tag in ("system-out", "system-err")),
+                "JVM owner tests emitted unexpected diagnostics")
+    return {"tests": len(expected), "report_sha256": hashlib.sha256(data).hexdigest()}
+
+
+def verify_execution(stdout: bytes, directory: Path) -> dict:
+    checked = c.verify_execution(stdout, directory, language="Kotlin")
+    checked["public_readbacks"] = checked.pop("application_readbacks") | {
+        "c-public-result.json": sdk.snapshot(directory / "c-public-result.json").sha256}
+    return checked
+
+
+def verify_server_execution(stdout: bytes, directory: Path) -> dict:
+    checked = c.verify_server_execution(stdout, directory, language="Kotlin")
+    checked["public_readbacks"] = checked.pop("application_readbacks") | {
+        "c-server-public-result.json": sdk.snapshot(directory / "c-server-public-result.json").sha256}
+    return checked
+
+
+def verify_recovery_execution(stdout: bytes, directory: Path) -> dict:
+    checked = recovery.verify_execution(stdout, directory, language="Kotlin")
+    checked["public_readbacks"]["c-recovery-public-result.json"] = sdk.snapshot(directory / "c-recovery-public-result.json").sha256
+    return checked
+
+
+def runtime_closure(data: bytes, distribution: Path, jar_sha256: str, outside: Path) -> dict:
+    sdk.require(len(data) <= 65536 and data.endswith(b"\n"), "JVM runtime closure exceeds its bound or is truncated")
+    expected = {maven_contract().coordinate, "org.jetbrains.kotlin:kotlin-stdlib:2.4.20", "org.jetbrains:annotations:13.0"}
+    result = {}
+    for line in data.decode("utf-8").splitlines():
+        fields = line.split("\t")
+        sdk.require(len(fields) == 3, "JVM runtime resolution record differs")
+        coordinate, name, digest = fields
+        path = Path(name)
+        sdk.require(coordinate in expected and coordinate not in result and path.is_absolute()
+                    and path.resolve(strict=True) == path
+                    and not path.is_relative_to(package.ROOT) and path.is_relative_to(outside)
+                    and re.fullmatch(r"[0-9a-f]{64}", digest), "JVM runtime coordinate or location differs")
+        sdk.require(sdk.snapshot(path).sha256 == digest, "resolved JVM dependency bytes changed")
+        installed = distribution / "lib" / path.name
+        sdk.require(sdk.snapshot(installed).sha256 == digest, "installed JVM dependency differs from resolution")
+        result[coordinate] = {"resolved": str(path), "installed": str(installed), "sha256": digest}
+    sdk.require(set(result) == expected and result[maven_contract().coordinate]["sha256"] == jar_sha256,
+                "JVM runtime dependency closure or SDK JAR differs")
+    names = {Path(value["installed"]).name for value in result.values()} | {"continuity-installed-consumer.jar"}
+    sdk.require({p.name for p in (distribution / "lib").iterdir()} == names,
+                "installed JVM distribution contains an unqualified dependency")
+    return result
+
+
+def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
+                   java_home: Path, gradle_home: Path) -> dict:
+    sdk.require(native["completed"] and os.uname().sysname in {"Darwin", "Linux"},
+                "Kotlin qualification requires completed native C packages on a supported host")
+    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "profiles": {}}
+    try:
+        tools = {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)}
+        java_home = Path(tools["java"]["root"]); gradle_home = Path(tools["gradle"]["root"])
+        java = java_home / "bin/java"; javac = java_home / "bin/javac"; gradle = gradle_home / "bin/gradle"
+        sdk.require(all(p.is_file() and os.access(p, os.X_OK) for p in (java, javac, gradle)),
+                    "selected Java/Gradle commands are not executable")
+        result["tools"] = tools
+        env = {k: v for k, v in environment.items()
+               if k not in {"JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH"}
+               and not k.startswith(("JAVA_", "GRADLE_", "KOTLIN_", "DYLD_", "LD_", "QPERIAPT_", "QPC_"))}
+        gradle_cache = outside / "kotlin-gradle-home"; gradle_cache.mkdir(mode=0o700)
+        env.update(JAVA_HOME=str(java_home), GRADLE_USER_HOME=str(gradle_cache),
+                   PATH=str(java_home / "bin") + os.pathsep + env.get("PATH", os.defpath))
+        def run(argv, label, cwd=outside, *, runtime=None, rejection=None):
+            return jvm.run(argv, output / ("kotlin-" + label), cwd, env if runtime is None else runtime, rejection=rejection)
+        versions = {"java": run([str(java), "--version"], "java-version").decode(),
+                    "javac": run([str(javac), "--version"], "javac-version").decode(),
+                    "gradle": run([str(gradle), "--version"], "gradle-version").decode()}
+        sdk.require(re.match(r"(?:openjdk|java) 25(?:[ .])", versions["java"])
+                    and versions["javac"].startswith("javac 25") and "\nGradle 9.8.0\n" in versions["gradle"],
+                    "Kotlin candidate requires JDK 25 and Gradle 9.8.0")
+        result["versions"] = versions
+        source = source_files(); contract = maven_contract()
+        builder_root = outside / "kotlin-source"
+        builder = builder_root / "bindings/kotlin/ContinuityPackageConsumer"
+        for name, data in source.items():
+            path = builder / name; path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("xb") as stream: stream.write(data)
+        for name, path in jvm.NOTICE_PATHS.items():
+            sdk.copy(path, builder_root / "LICENSES" / Path(name).name)
+        flags = [str(gradle), "--no-daemon", "--warning-mode", "fail", "--dependency-verification", "strict",
+                 "--max-workers", "2", "-Dorg.gradle.java.installations.auto-download=false",
+                 "-Pkotlin.compiler.execution.strategy=in-process",
+                 "-Dorg.gradle.java.home=" + str(java_home)]
+        library_name = "libq_periapt_continuity_c_consumer." + ("dylib" if os.uname().sysname == "Darwin" else "so")
+        debug_lib = Path(native["execution"]["debug"]["binaries"]["C_library"]["path"])
+        sdk.require(sdk.snapshot(debug_lib, maximum=c.MAX_BINARY).sha256 == native["execution"]["debug"]["binaries"]["C_library"]["sha256"],
+                    "native library changed before JVM owner tests")
+        run([*flags, "--project-dir", str(builder), "test", "publishContinuityPublicationToCandidateRepository",
+             "-Pqperiapt.continuity.lib=" + str(debug_lib)], "build-sdk")
+        tests = builder / "build/test-results/test"
+        sdk.require({p.name for p in tests.glob("TEST-*.xml")} == {"TEST-dev.qperiapt.continuity.OwnerTests.xml"},
+                    "JVM owner test report set differs")
+        tested = sdk.snapshot(tests / "TEST-dev.qperiapt.continuity.OwnerTests.xml").data
+        result["owner_tests"] = verify_tests(tested)
+        with (output / "kotlin-owner-tests.xml").open("xb") as stream: stream.write(tested)
+        staged = builder / "build/candidate-maven"
+        maven = outside / "kotlin-maven"
+        for path in (staged / contract.path).iterdir(): sdk.copy(path, maven / contract.path / path.name)
+        result["maven"] = jvm.verify_maven(maven, contract=contract)
+        target = {("Darwin", "arm64"): "aarch64-apple-darwin", ("Darwin", "x86_64"): "x86_64-apple-darwin",
+                  ("Linux", "aarch64"): "aarch64-unknown-linux-gnu", ("Linux", "x86_64"): "x86_64-unknown-linux-gnu"}.get((os.uname().sysname, os.uname().machine))
+        sdk.require(target is not None, "unsupported native Kotlin host")
+        metadata = parse_strict_json_bytes(run([str(Path(environment["RUSTC"]).parent / "cargo"), "metadata", "--locked", "--offline",
+            "--format-version", "1", "--filter-platform", target], "native-license-metadata", outside / "c-consumer", runtime=environment),
+            label="Kotlin native license graph")
+        notices = outside / "kotlin-native-notices"; notices.mkdir(mode=0o700)
+        licenses.collect(outside / "c-consumer", notices, target, root_package=c.NAME, resolved_metadata=metadata)
+        files = {"maven/" + p.relative_to(maven).as_posix(): sdk.snapshot(p).data for p in maven.rglob("*") if p.is_file()}
+        files.update({p.relative_to(notices).as_posix(): sdk.snapshot(p).data for p in notices.rglob("*") if p.is_file()})
+        files["README.md"] = source["README.md"]
+        files["native/include/qpc_owner.h"] = sdk.snapshot(c.FIXTURE / "qpc_owner.h").data
+        files["LICENSES/Rust-1.98.1-library.html"] = sdk.snapshot(package.ROOT / "LICENSES/Rust-1.98.1-library.html").data
+        for name in ("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md"):
+            files["LICENSES/mlkem-native/" + name] = sdk.snapshot(package.ROOT / "crates/q-periapt-mlkem-native-sys/vendor" / name).data
+        files.update({name: data for name, data in source.items() if name.startswith("consumer/")})
+        for profile in ("debug", "release"):
+            row = native["execution"][profile]
+            library = sdk.snapshot(Path(row["binaries"]["C_library"]["path"]), maximum=c.MAX_BINARY)
+            sdk.require(library.sha256 == row["binaries"]["C_library"]["sha256"], "native library changed before Kotlin installation")
+            payload = files | {"native/lib/" + library_name: library.data}
+            hashes = {name: hashlib.sha256(data).hexdigest() for name, data in payload.items()}
+            data = archive(payload); filename = f"q-periapt-continuity-kotlin-0.0.0-{target}-{profile}.zip"
+            with (output / filename).open("xb") as stream: stream.write(data)
+            installed = outside / ("kotlin-installed-" + profile)
+            unpack(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).data, hashes, installed)
+            licenses.verify(installed, expected_target=target, root_package=c.NAME)
+            sdk.require(jvm.verify_maven(installed / "maven", contract=contract) == result["maven"], "installed Maven identity differs")
+            consumer = installed / "consumer"
+            jvm.pin_consumer_dependencies(consumer, installed / "maven", contract=contract)
+            run([*flags, "--project-dir", str(consumer), "installDist", "recordRuntime",
+                 "-Pqperiapt.repository=" + str(installed / "maven")], "install-" + profile)
+            distribution = consumer / "build/install/continuity-installed-consumer"
+            resolved = runtime_closure(sdk.snapshot(consumer / "build/runtime.tsv").data, distribution,
+                                       result["maven"]["jar_sha256"], outside)
+            jar_files = {p.name: sdk.snapshot(p).sha256 for p in (distribution / "lib").iterdir()}
+            library_path = installed / "native/lib" / library_name
+            run([*flags, "--project-dir", str(builder), "--rerun-tasks", "test",
+                 "-Pqperiapt.continuity.lib=" + str(library_path)], "owner-tests-" + profile)
+            test_bytes = sdk.snapshot(tests / "TEST-dev.qperiapt.continuity.OwnerTests.xml").data
+            owner_tests = verify_tests(test_bytes)
+            with (output / f"kotlin-owner-tests-{profile}.xml").open("xb") as stream: stream.write(test_bytes)
+            classpath = os.pathsep.join(str(distribution / "lib" / name) for name in sorted(jar_files))
+            argv = [str(java), "--enable-native-access=ALL-UNNAMED", "--illegal-native-access=deny",
+                    "-Dqperiapt.continuity.lib=" + str(library_path), "-cp", classpath, "consumer.ContinuityClientKt"]
+            launcher = installed / "client"
+            with launcher.open("x") as stream: stream.write("#!/bin/sh\nexec " + shlex.join(argv) + ' "$@"\n')
+            launcher.chmod(0o700); launcher_sha = sdk.snapshot(launcher).sha256
+            trace = Path(row["binaries"]["Rust_trace"]["path"])
+            sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed")
+            traces = {}
+            for label, test, verify in (("client", c.TEST, verify_execution), ("server", c.SERVER_TEST, verify_server_execution),
+                                        ("recovery", recovery.TEST, verify_recovery_execution)):
+                evidence = outside / f"kotlin-{profile}-{label}-runtime"
+                runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
+                               QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+                stdout = run([str(trace), "--exact", test, "--nocapture"], f"{label}-trace-{profile}", runtime=runtime)
+                checked = verify(stdout, evidence)
+                exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
+                                            replay=lambda path: verify(stdout, path))
+                traces[label] = {"execution": checked, "public_files": exported}
+            sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
+            module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
+            java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
+                         "--add-modules", "dev.qperiapt.continuity,kotlin.stdlib", "-cp", str(consumer / "build/classes/java/main"),
+                         "-Dqperiapt.expectedJar=" + str(sdk_jar)]
+            granted = java_args + ["--enable-native-access=dev.qperiapt.continuity"]
+            stdout = run([*granted, "-Dqperiapt.continuity.lib=" + str(library_path), "consumer.LoaderProbe"], "java-module-" + profile)
+            sdk.require(stdout == b"INSTALLED_CONTINUITY_JAVA_MODULE_PASS\n", "installed Java module did not execute its native owner")
+            negatives = {"missing-property": (granted, "qperiapt.continuity.lib must select"),
+                         "relative-path": ([*granted, "-Dqperiapt.continuity.lib=relative"], "absolute regular file"),
+                         "missing-library": ([*granted, "-Dqperiapt.continuity.lib=" + str(installed / "missing")], "absolute regular file"),
+                         "directory-library": ([*granted, "-Dqperiapt.continuity.lib=" + str(installed)], "absolute regular file"),
+                         "denied-native-access": ([*java_args, "-Dqperiapt.continuity.lib=" + str(library_path)], "IllegalCallerException")}
+            incompatible = installed / "incompatible.c"
+            with incompatible.open("x") as stream:
+                stream.write("int deliberately_incompatible(void);\nint deliberately_incompatible(void) { return 0; }\n")
+            bad_library = installed / library_name
+            run(["cc", "-Wall", "-Wextra", "-Werror", "-pedantic", "-dynamiclib" if os.uname().sysname == "Darwin" else "-shared",
+                 "-fPIC", str(incompatible), "-o", str(bad_library)], "incompatible-library-" + profile)
+            negatives["missing-symbol"] = ([*granted, "-Dqperiapt.continuity.lib=" + str(bad_library)], "NoSuchElementException")
+            for label, (arguments, rejection) in negatives.items():
+                rejected = run([*arguments, "consumer.LoaderProbe"], f"negative-{label}-{profile}", rejection=rejection)
+                sdk.require(b"INSTALLED_CONTINUITY_JAVA_MODULE_PASS" not in rejected, "refused module reported success")
+            raw = installed / "RawOwnerProbe.java"
+            sdk.copy(consumer / "negative/RawOwnerProbe.java.txt", raw)
+            run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                 "-d", str(installed / "negative-classes"), str(raw)], "negative-raw-owner-" + profile,
+                rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityOwner(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityOwner")
+            sdk.require(not (installed / "negative-classes/RawOwnerProbe.class").exists(),
+                        "raw-owner negative control produced an executable class")
+            for name, expected in hashes.items():
+                sdk.require(sdk.snapshot(installed / name, maximum=MAX_PACKAGE).sha256 == expected, "installed Kotlin package changed")
+            sdk.require({p.name: sdk.snapshot(p).sha256 for p in (distribution / "lib").iterdir()} == jar_files
+                        and sdk.snapshot(launcher).sha256 == launcher_sha, "executed Kotlin JAR or launcher changed")
+            sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed during execution")
+            sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
+                        "Kotlin candidate archive changed during execution")
+            result["profiles"][profile] = {"archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
+                "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
+                "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
+                "owner_tests": owner_tests, "java_module_executed": True,
+                "negative_controls": sorted(negatives) + ["raw-owner-construction"]}
+        sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
+                    "Kotlin sources or tool installation changed during qualification")
+        result["completed"] = True
+    except Exception as error:
+        result["failure"] = str(error)
+        raise
+    finally:
+        sdk.write_json(output / "KOTLIN_CONSUMER.json", result)
+    return result

@@ -32,9 +32,12 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
-        "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
+        "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/continuity_kotlin_consumer.py", "artifact/continuity_package_archive.py", "artifact/jvm_sdk_package.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     files.extend((ROOT / "bindings/swift/ContinuityPackageConsumer").rglob("*"))
+    from continuity_kotlin_consumer import source_files
+    files.extend(ROOT / "bindings/kotlin/ContinuityPackageConsumer" / name for name in source_files())
+    files.extend(ROOT / "LICENSES" / name for name in ("Apache-2.0.txt", "MIT.txt"))
     for path in files:
         sdk.require(not path.is_symlink(), "candidate source contains a symlink")
         if path.is_file():
@@ -163,6 +166,11 @@ def compiler_identity(toolchain: Path) -> dict:
 def qualify(args: argparse.Namespace) -> dict:
     sdk.require(not args.with_swift_consumer or (args.with_c_consumer and os.uname().sysname == "Darwin"),
                 "Swift qualification requires the installed C consumer on macOS")
+    sdk.require(not args.with_kotlin_consumer or
+                (args.with_c_consumer and args.kotlin_java_home is not None and args.kotlin_gradle_home is not None),
+                "Kotlin qualification requires installed C packages and explicit JDK/Gradle installations")
+    sdk.require(args.with_kotlin_consumer or (args.kotlin_java_home is None and args.kotlin_gradle_home is None),
+                "Kotlin tool options require --with-kotlin-consumer")
     sdk.require(args.witness_openssl_prefix is None or args.with_c_consumer,
                 "OpenSSL witness qualification requires the installed C consumer")
     sdk.validate_no_registry_credentials(os.environ)
@@ -186,7 +194,8 @@ def qualify(args: argparse.Namespace) -> dict:
               "rust_report_sha256": pinned.sha256, "host_os": os.uname().sysname,
               "host_arch": os.uname().machine, "tool_binaries": tools,
               "requested_consumers": (["Rust", "C"] if args.with_c_consumer else ["Rust"])
-                                     + (["Swift"] if args.with_swift_consumer else []),
+                                     + (["Swift"] if args.with_swift_consumer else [])
+                                     + (["Kotlin"] if args.with_kotlin_consumer else []),
               "release_claim_eligible": False, "publication_performed": False,
               "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification"}
     try:
@@ -299,6 +308,15 @@ def qualify(args: argparse.Namespace) -> dict:
             result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment)
             result["scope"] = ("unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, "
                                "and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification")
+        if args.with_kotlin_consumer:
+            from continuity_kotlin_consumer import qualify_kotlin
+            result["kotlin_consumer"] = qualify_kotlin(outside, output, result["c_consumer"], environment,
+                                                      args.kotlin_java_home, args.kotlin_gradle_home)
+            result["scope"] = ("unpublished installed Rust/C connections, recovery and explicit witness profiles; "
+                               + ("Swift local and witnessed profiles; " if args.with_swift_consumer else "")
+                               + "Kotlin/JVM local-profile client/server/recovery and Java module admission; "
+                               "same host and shared native engine; no independent engine or cross-host qualification; "
+                               "Kotlin witness, sync-interruption, GC and interrupt qualification remain separate")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -327,11 +345,15 @@ def main() -> None:
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
     parser.add_argument("--with-swift-consumer", action="store_true",
                         help="also package and execute the Swift owner with the installed C engine on macOS")
+    parser.add_argument("--with-kotlin-consumer", action="store_true",
+                        help="also package and execute Kotlin/JVM client/server/recovery with both installed C profiles")
+    parser.add_argument("--kotlin-java-home", type=Path, help="explicit JDK 25 installation for the Kotlin consumer")
+    parser.add_argument("--kotlin-gradle-home", type=Path, help="explicit Gradle 9.8.0 installation for the Kotlin consumer")
     parser.add_argument("--witness-openssl-prefix", type=Path,
                         help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
-                                                  "c_consumer", "swift_consumer", "release_claim_eligible") if key in result}, indent=2))
+                                                  "c_consumer", "swift_consumer", "kotlin_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 
 if __name__ == "__main__":
