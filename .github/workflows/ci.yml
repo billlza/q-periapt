@@ -1934,6 +1934,7 @@ jobs:
             target/continuity-installed-rust/*.stdout
             target/continuity-installed-rust/*.stderr
             target/continuity-installed-rust/*.events
+            target/continuity-installed-rust/c-opening-public/**
             target/continuity-installed-rust/c-witness-public/**
             target/continuity-installed-rust/c-witness-tls-public/**
             target/continuity-installed-rust/c-witness-openssl-public/**
