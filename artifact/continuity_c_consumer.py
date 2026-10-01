@@ -180,6 +180,16 @@ def verify_server_execution(stdout: bytes, directory: Path, *, language: str = "
     return dict(report, application_readbacks=readbacks, command_logs=logs)
 
 
+def export_sync_faults(report: dict, output: Path, profile: str) -> dict[str, str]:
+    """Retain only independently checked public matrix records, never private stores."""
+    from continuity_c_faults import verify_public
+    sdk.require(profile in {"debug", "release"}, "unknown C sync-fault profile")
+    evidence = Path(report["outside"])
+    checked = verify_public(report, evidence, language="C")
+    return witness.export_selected(checked, evidence, output / "c-sync-fault-public" / profile, report["scope"],
+                                   replay=lambda path: verify_public(report, path, language="C"))
+
+
 def verify_admission(stdout: bytes) -> None:
     tests = {
         "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
@@ -345,6 +355,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         run([*c_flags, str(consumer / "sync_probe_smoke.c"), "-o", str(smoke)], "fault-smoke-" + profile)
         result["execution"][profile]["sync_faults"] = Matrix(
             outside, output, profile, runtime, executable, fault_helper, probe, smoke).execute()
+        result["execution"][profile]["sync_fault_public_files"] = export_sync_faults(
+            result["execution"][profile]["sync_faults"], output, profile)
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")

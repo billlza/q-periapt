@@ -77,6 +77,61 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Clean source `7997282c` completes the full local macOS arm64 Rust/C/Kotlin
+installed-package producer in 2,082.055 seconds, exit 0. Independent readback binds
+233 source inputs, the candidate Cargo archive, two 251-file Kotlin archives,
+Maven/native/license bytes, actual surviving tools/binaries/JARs and public
+execution records. Both native C profiles and both Kotlin profiles complete
+59 calibrated interruption cases and 771 commands each. Every Kotlin profile
+also verifies eight owner tests, seven refusal controls, ordinary and witnessed
+connections, explicit controlling-thread interruption, prepared-owner GC and real
+callback GC under Serial/G1 with selected C2 frames. Its 699 selected public files
+per profile include 342 interruption records and 94 in-flight lifetime records.
+Both profiles preserve the existing callback, unknown-commit, duplicate and rekey
+assertions. The complete local package cohort has 12,804 files / 392,245,363 bytes,
+inventory `3716cc9911101bedb84c997d5b2797209ca31f892ecb824fc17b336bf934269e`.
+This closes that exact source's local installed-package checkpoint; it does not
+admit the unpublished candidate as a 0.2.0 product.
+
+The same `7997282c` source completes an actual USB iPhone 16 Pro workload on
+iOS 27.0 (24A437), including existing-profile signing, installation, execution,
+device-result readback and proof verification. All four sdk-020 groups pass;
+the owned test app is uninstalled, with three recorded absence observations and
+a subsequent independent live absence check. Automatic provisioning updates and
+device registration remain disabled. The 60-file / 57,474,051-byte cohort has
+inventory `dc8fb4418b6d7a2304aac86c30e4ad0732d1d0b81717757631739b6402146900`.
+This is one current-OS device with test-only in-memory policy state, not a complete
+iPhone/iPad or minimum-OS matrix or durable Apple Continuity. The current iPad
+route is localNetwork and fails the wired-lane preflight without running an app.
+
+Hosted source `0511ce84` also completes [push CI](https://github.com/billlza/q-periapt/actions/runs/36928969828)
+and its macOS installed Swift/Kotlin job. Artifact 11199326147 matches SHA-256
+`c59b8e42cd4ea3ef3a7b3fca6de2aa9605b8011ba0454f34cddabbe49435268e`.
+Independent replay checks 231 committed inputs, both 249-file Kotlin archives,
+1,210 selected public records, and all 59 cases / 771 commands / 96 raw sync
+receipts per profile, including eight Reserved sends. Its sealed cohort has
+6,916 files / 91,142,828 bytes, inventory
+`e4c2b63a909324d30f2017289f07ae4596a78c0e92751e4f0a006ac1c825a846`.
+The earlier c3 Android failure remains preserved; this successful later run does
+not establish its root cause or a stability repair.
+
+The C collector now exports its separately verified public sync-fault records,
+and both native CI lanes upload them. Applying the actual export path to the
+completed 7997282c matrices verifies 342 records/profile and independently replays
+all 771 commands and 96 raw sync receipts/profile. A private canary stays outside
+the export; removing a required public record from a separate public-only copy
+fails before a destination is created. The top-level Kotlin scope wording now
+also reflects its implemented in-flight checks; the original 7997282c report's
+understated scope string remains unmodified in its cohort.
+
+The [product-admission review](continuity/PRODUCT_ADMISSION.md) identifies a
+structural integration gap: current foreign owners retain one pairwise context,
+whereas native account fanout needs all verified recipients under one device
+journal transaction. Opening one current owner per peer or looping pairwise sends
+does not implement that contract. Device-scoped multi-context ownership, explicit
+enrollment/provisioning, authority renewal and platform persistence must be
+implemented and qualified before product admission.
+
 Prepared Kotlin owner lifetime now has a separate installed-JAR workload under
 Serial GC and G1, each with a 128-MiB heap cap, in both native Debug/Release
 profiles. Each JVM completes sixteen rounds: 1,024 forgotten owner graphs are

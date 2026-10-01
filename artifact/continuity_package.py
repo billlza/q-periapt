@@ -317,8 +317,8 @@ def qualify(args: argparse.Namespace) -> dict:
                                + "Kotlin/JVM local and explicit witness client/server/recovery, constructor lifecycle and Java module admission; "
                                "same host and shared native engine; no independent engine or cross-host qualification; "
                                "Kotlin controller interruption uses explicit native cancel/join; "
-                               "calibrated journal sync process interruptions and bounded prepared-owner GC; "
-                               "in-flight GC and automatic JVM cancellation qualification remain separate")
+                               "calibrated journal sync process interruptions and bounded prepared/in-flight owner GC under selected C2 frames; "
+                               "other JVM implementations and automatic JVM cancellation qualification remain separate")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])

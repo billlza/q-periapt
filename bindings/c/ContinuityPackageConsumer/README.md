@@ -314,6 +314,16 @@ The probe recognizes only typed supported Darwin fcntl calls, forwarding their
 actual argument types; an unfamiliar operation stops qualification explicitly.
 On Linux it wraps the real fsync/fdatasync calls. Real sync failure also stops
 this process-cut profile rather than being classified as a successful injected cut.
+The collector independently reads and exports the matrix's selected public
+records to `c-sync-fault-public/<profile>` before reporting completion. Both
+native CI upload lanes retain this directory alongside command and sync logs.
+This makes original loss/archive and reservation readback possible without the
+private temporary installation. The export includes only the verifier's named
+records; missing required data fails before export and unrelated files are not
+copied. The completed 7997282c native matrices independently export 342 files per
+profile through this path, with a private-canary exclusion and missing-file
+negative control on separate public-only copies.
+
 This is process interruption with the OS/filesystem still running. It does not
 qualify power loss, injected EIO, required-witness recovery, concurrent updates
 or every archive-index commit through C.

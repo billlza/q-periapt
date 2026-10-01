@@ -1938,6 +1938,7 @@ jobs:
             target/continuity-installed-rust/c-witness-public/**
             target/continuity-installed-rust/c-witness-tls-public/**
             target/continuity-installed-rust/c-witness-openssl-public/**
+            target/continuity-installed-rust/c-sync-fault-public/**
             target/continuity-installed-rust/consumer-Cargo.lock
             target/continuity-installed-rust/c-consumer-Cargo.lock
           if-no-files-found: error
@@ -2008,6 +2009,7 @@ jobs:
             target/continuity-installed-swift/c-witness-public/**
             target/continuity-installed-swift/c-witness-tls-public/**
             target/continuity-installed-swift/c-witness-openssl-public/**
+            target/continuity-installed-swift/c-sync-fault-public/**
             target/continuity-installed-swift/swift-public/**
             target/continuity-installed-swift/kotlin-public/**
             target/continuity-installed-swift/kotlin-inflight-compilation/**

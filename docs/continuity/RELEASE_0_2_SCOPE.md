@@ -214,6 +214,12 @@ profile in the [readiness ledger](../SDK_0_2_RELEASE_READINESS.md).
 
 ## Required completion evidence
 
+The source-grounded [product admission review](PRODUCT_ADMISSION.md) maps the
+current installed pairwise adapters to the native initialization and account-fanout
+engines. It identifies the missing device-scoped, multi-context integration and
+explicit enrollment/persistence contracts; successful pairwise package tests do
+not close those requirements.
+
 The current candidate's consolidated [wire grammar](WIRE_V1.md) and
 [numeric budgets](BUDGETS_V1.json) now have a shared implementation surface and
 a compiled-descriptor comparison. They distinguish import/network/local formats,
