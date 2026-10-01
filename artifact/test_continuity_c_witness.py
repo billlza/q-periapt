@@ -109,7 +109,8 @@ class ContinuityCWitnessTests(unittest.TestCase):
                   "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for output in (b"", stdout + stdout, stdout.replace(b"6 filtered out", b"2 filtered out")):
+            for output in (b"", stdout + stdout, stdout.replace(b"7 filtered out", b"2 filtered out")):
+                self.assertNotEqual(output, stdout)
                 with self.subTest(output=output), self.assertRaises(ValueError):
                     w.verify_execution(output, root)
             for report in ({"completed": True}, {"completed": 1}, {"release_claim_eligible": True}):
@@ -120,6 +121,25 @@ class ContinuityCWitnessTests(unittest.TestCase):
                 with self.subTest(export=report), self.assertRaises(ValueError):
                     w.export_public(stdout, root, destination)
                 self.assertFalse(destination.exists(), "invalid execution produced public success evidence")
+
+    def test_witness_language_cannot_be_inferred_from_a_passing_test_name(self):
+        stdout = (f"test {w.TEST} ... ok\n"
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = {name: "11" * (16 if name == "peer_device" else 32)
+                      for name in ("session", "message", "unknown", "context", "peer_account", "peer_device", "report")}
+            report.update(schema_version=2, language="Swift", completed=True, witness_exchanges=274,
+                          lost_advances=2, release_claim_eligible=False)
+            (root / "c-witness-public-result.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "result or release claim"):
+                w.verify_execution(stdout, root)
+            with self.assertRaisesRegex(ValueError, "unsupported witness language"):
+                w.verify_execution(stdout, root, language="unknown")
+            report["language"] = "C"
+            (root / "c-witness-public-result.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "result or release claim"):
+                w.verify_execution(stdout, root, language="Swift")
 
 
 if __name__ == "__main__":

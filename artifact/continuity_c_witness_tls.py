@@ -10,7 +10,8 @@ TEST = "tls::c_tls_witness_connects_and_revoked_cleanup_keeps_original_authority
 SCOPE = "installed C operational/recovery owners over native mutual TLS witness; same host"
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift"}, "unsupported TLS witness language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
@@ -23,10 +24,10 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
         return value.data
 
     report = parse_strict_json_bytes(read("c-witness-tls-public-result.json"), label="C TLS witness result")
-    sdk.require(set(report) == {"schema_version", "completed", "carrier", "session", "message", "witness_exchanges",
+    sdk.require(set(report) == {"schema_version", "language", "completed", "carrier", "session", "message", "witness_exchanges",
                                "rejected_connections", "sdk_revoked_cleanup", "release_claim_eligible"},
                 "C TLS witness result fields differ")
-    sdk.require(type(report["schema_version"]) is int and report["schema_version"] == 1
+    sdk.require(type(report["schema_version"]) is int and report["schema_version"] == 2 and report["language"] == language
                 and report["completed"] is True and report["sdk_revoked_cleanup"] is True
                 and report["carrier"] == "q-periapt-anchor/1" and report["release_claim_eligible"] is False,
                 "C TLS witness result scope differs")
@@ -49,7 +50,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     servers = {"responder/tls-bootstrap-server": f"served:1:0:0:0\n{session}\n{'0' * 64}\n",
                "initiator/tls-message-server": f"served:2:0:1:1\n{session}\n{message}\n"}
     logs = verify_owner_readbacks(read, directory, session, message, expected, servers)
-    return dict(report, scope=SCOPE, public_readbacks=public, command_logs=logs,
+    return dict(report, scope=SCOPE.replace("installed C operational", "installed " + language + " operational"), public_readbacks=public, command_logs=logs,
                 independent_implementation_qualified=False, full_tls_fault_matrix_qualified=False)
 
 

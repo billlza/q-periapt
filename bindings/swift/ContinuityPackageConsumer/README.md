@@ -34,7 +34,8 @@ Swift memory; this wrapper promises no erasure of those copies.
 
 The current surface covers operational client establishment, exact-message status
 and sending, rekey, listener/receive callbacks, restricted cleanup, and lifecycle
-cancellation/close. Witness runtime traces, other platforms and integration
+cancellation/close. The collector also executes explicitly witnessed constructor,
+client/server and cleanup traces. Other platforms and integration
 into the published Swift SDK remain unfinished. These are required for the full
 0.2.0 goal, not silently excluded from it.
 
@@ -100,5 +101,30 @@ It also checks cancellation, missing IDs, malformed/tampered archives and wrong
 report acknowledgement. A raw-ABI negative control inside the test executable
 checks native owner-kind denial in both directions; all actual cleanup operations
 use the Swift wrapper. Positive reservation accounting is not exercised by that
-history and is explicitly reported as unqualified. These traces use the local
-profile; witnessed recovery execution remains open.
+history and is explicitly reported as unqualified.
+
+The installed witness traces select `.signedTCP` or `.mutualTLS` explicitly for
+both operational and cleanup owners. They retain the same native signing pins,
+subject bindings and exact operation IDs, including after SDK revocation. There
+is no local-profile fallback. Missing/wrong pins, credentials, TLS names or witness
+subjects must fail. TCP authenticates public metadata but does not encrypt it;
+the explicit TLS carrier retains the native mutual TLS 1.3 and hybrid group
+contract. The witness engine is still shared with the C qualification, not an
+independent deployed witness implementation.
+
+The constructor trace exercises all three carrier choices, both owner kinds,
+pre-cancelled activation, configuration copied at preparation, Busy-preserving
+close during activation, a cancelled partial signed reply and a stalled TLS
+handshake. The Swift executable joins its own workers even when a test barrier
+fails. Native witness failure remains status 218 when its outcome is unavailable;
+it is never relabeled as successful activation or known absence. The signed TCP
+trace also cancels after witness commitment, then reopens and reconciles the
+original ID, and repeats this discipline for an unknown cleanup freeze. The TLS
+trace repeats real messaging and revoked cleanup using the original authority.
+Observed cancellation timing is a fixture gate, not an OS-preemption guarantee.
+
+Constructor and native-witness public reports use schema version 2 with an
+explicit C/Swift language field. Their verifiers require the selected language,
+complete raw command/data readbacks and original signed-transcript accounting.
+Earlier reports retain their original source/verifier version; a historical C
+success cannot be relabeled as Swift evidence.

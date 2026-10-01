@@ -1,11 +1,13 @@
 """Reject altered original-query identity and cancellation readback evidence."""
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
 import continuity_c_opening as opening
 
 
-def queries():
-    authority = b'a' * 32
+def queries(authority=b'a' * 32):
     operation = b'\1' + bytes(96)
     records = []
     for index, delivered in enumerate((1, 1, 0, 1)):
@@ -22,6 +24,49 @@ def queries():
 
 
 class ConstructorTranscriptTests(unittest.TestCase):
+    def test_constructor_language_and_complete_readbacks_are_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "initiator").mkdir()
+            identity, key = b'i' * 32, b'k' * 1985
+            authority = opening.commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-AUTHORITY/v1", identity + key)
+            _, data, prefix = queries(authority)
+            files = {"opening-witness-transcript": data, "initiator/witness-id": identity,
+                     "initiator/witness-public": key, "initiator/witness-cancelled-prefix": prefix,
+                     "initiator/opening-tcp-held": b"1", "initiator/opening-tls-held": b"1",
+                     "initiator/opening-tls-closed": b"1", "initiator/opening-tls-client-hello": b"\x16\x03\x03\x00\x01x"}
+            report = {"schema_version": 2, "language": "C", "completed": True,
+                      "failed_handles_closed": True, "same_installation_reopened": True,
+                      "tcp_socket_closed": True, "tls_socket_closed": True,
+                      "tcp_cancel_ms": 12, "tls_cancel_ms": 13, "tcp_exchanges": 4,
+                      "pre_cancel_cases": 6, "snapshot_open_cases": 6, "release_claim_eligible": False}
+            commands = {}
+            for carrier in ("local", "tcp", "tls"):
+                for kind, number in (("operational", 1), ("recovery", 2)):
+                    commands[f"opening-{carrier}-pre-{kind}"] = f"prepared-pre-cancel:{number}\n"
+                    if carrier != "local": commands[f"opening-{carrier}-ready-{kind}"] = f"prepared-open:{number}\n"
+            for carrier in ("tcp", "tls"):
+                commands[f"opening-{carrier}-reopen"] = "prepared-open:1\n"
+                commands[f"opening-{carrier}-cancel"] = f"prepared-cancelled:218:{report[carrier + '_cancel_ms']}\n"
+            for label, value in commands.items():
+                files[f"initiator/witness-{label}.stdout"] = value.encode()
+                files[f"initiator/witness-{label}.stderr"] = b""
+            for name, value in files.items(): (root / name).write_bytes(value)
+            path = root / "c-opening-public-result.json"
+            path.write_text(json.dumps(report))
+            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+            opening.verify_execution(stdout, root)
+            with self.assertRaisesRegex(ValueError, "outcome or scope"):
+                opening.verify_execution(stdout, root, language="Swift")
+            report["language"] = "Swift"; path.write_text(json.dumps(report))
+            self.assertIn("installed Swift constructor", opening.verify_execution(stdout, root, language="Swift")["scope"])
+            with self.assertRaisesRegex(ValueError, "outcome or scope"):
+                opening.verify_execution(stdout, root)
+            with self.assertRaisesRegex(ValueError, "unsupported constructor language"):
+                opening.verify_execution(stdout, root, language="unknown")
+            (root / "initiator/witness-opening-tls-cancel.stdout").write_text("prepared-cancelled:302:13\n")
+            with self.assertRaisesRegex(ValueError, "command result"):
+                opening.verify_execution(stdout, root, language="Swift")
+
     def test_original_query_loss_is_valid_without_a_committed_advance_claim(self):
         authority, data, prefix = queries()
         self.assertEqual(opening.query_transcript(data, authority, prefix), 4)

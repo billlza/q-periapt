@@ -108,7 +108,8 @@ def cancellation_latency(data: bytes) -> int:
     return int(match[1])
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift"}, "unsupported witness language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
@@ -116,9 +117,9 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     report_snapshot = sdk.snapshot(directory / "c-witness-public-result.json")
     report = parse_strict_json_bytes(report_snapshot.data, label="C witness result")
     names = {"session", "message", "unknown", "context", "peer_account", "peer_device", "report"}
-    sdk.require(isinstance(report, dict) and set(report) == names | {"schema_version", "completed", "witness_exchanges", "lost_advances", "release_claim_eligible"},
+    sdk.require(isinstance(report, dict) and set(report) == names | {"schema_version", "language", "completed", "witness_exchanges", "lost_advances", "release_claim_eligible"},
                 "C witness report fields differ")
-    sdk.require(type(report["schema_version"]) is int and report["schema_version"] == 1
+    sdk.require(type(report["schema_version"]) is int and report["schema_version"] == 2 and report["language"] == language
                 and report["completed"] is True and report["release_claim_eligible"] is False
                 and type(report["lost_advances"]) is int and report["lost_advances"] == 2,
                 "C witness result or release claim differs")
@@ -187,7 +188,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
                 sdk.require(match is not None and int(match[1]) <= 65535 and tail == server[label], "C witness server outcome differs")
     sdk.require({p.relative_to(directory).as_posix() for p in directory.glob("*/witness-*.std*")} == logs.keys(),
                 "unexpected or missing C witness command logs")
-    return dict(report, scope=SCOPE, transcript=trace, public_readbacks=public, command_logs=logs,
+    return dict(report, scope=SCOPE.replace("installed C required", "installed " + language + " required"), transcript=trace, public_readbacks=public, command_logs=logs,
                 ciphertext_digest=digest, witness_tls_qualified=False, held_socket_cancellation_ms=cancellation_ms)
 
 

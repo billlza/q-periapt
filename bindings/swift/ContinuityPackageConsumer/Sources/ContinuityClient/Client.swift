@@ -34,6 +34,11 @@ func close(_ owner: ContinuityOwner) throws {
     try owner.close()
     try failure([2]) { try owner.cancel() }
 }
+func observedCancellationMilliseconds(_ elapsed: Duration) throws -> Int64 {
+    let value = elapsed.components
+    try require(value.seconds == 0 && value.attoseconds >= 0, "cancellation exceeded one-second observation bound")
+    return value.attoseconds / 1_000_000_000_000_000
+}
 func failure<T>(_ expected: Set<Int32>, _ action: () throws -> T) throws {
     do { _ = try action() }
     catch let error as ContinuityFailure {
@@ -99,8 +104,16 @@ func waitMarker(_ path: String) throws {
             exit(1)
         }
     }
-    static func run(_ args: [String]) async throws {
+    static func run(_ arguments: [String]) async throws {
         try verifyLoadedLibrary()
+        var args = arguments
+        var witness: WitnessCarrier = .local
+        if args.first == "--witness" || args.first == "--witness-tls" {
+            try require(args.count >= 4, "witness arguments")
+            witness = args[0] == "--witness" ? .signedTCP(address: args[1], timeoutMilliseconds: 3000) :
+                .mutualTLS(address: args[1], timeoutMilliseconds: 3000)
+            args.removeFirst(2)
+        }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
         if command == "self-check" {
             try require(args.count == 1, "self-check arguments")
@@ -109,14 +122,18 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command.hasPrefix("opening-") {
+            try await opening(args, witness: witness)
+            return
+        }
         if command.hasPrefix("recover-") {
-            try recover(args)
+            try recover(args, witness: witness)
             return
         }
         if command == "reject-open" {
             try require(args.count == 2, "reject arguments")
             do {
-                let owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth)
+                let owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
                 try close(owner)
             } catch let error as ContinuityFailure {
                 try output("rejected:\(error.code)")
@@ -124,7 +141,7 @@ func waitMarker(_ path: String) throws {
             }
             throw ProbeFailure.contract("invalid binding admitted")
         }
-        var owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth)
+        var owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
         switch command {
         case "serve":
             try require(args.count >= 3, "serve arguments")
@@ -144,24 +161,32 @@ func waitMarker(_ path: String) throws {
             try require(args.count == 4, "rekey arguments")
             try require(owner.rekey(peer: args[2], session: decode(args[3]), target: 1) == 1, "target epoch")
             try output("rekey-1-confirmed")
-        case "send", "uncertain-send", "cancel-send", "busy-cancel":
+        case "send", "uncertain-send", "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send":
             let busy = command == "busy-cancel"
+            let witnessCancel = command == "cancel-witness-send"
+            let witnessFailed = command == "witness-failed-send"
             let cancelled = command == "cancel-send"
             let uncertain = command == "uncertain-send"
-            try require(args.count == (busy ? 6 : 5), "send arguments")
+            try require(args.count == (busy || witnessCancel ? 6 : 5), "send arguments")
+            if witnessCancel || witnessFailed {
+                if case .local = witness { throw ProbeFailure.contract("missing explicit witness") }
+            }
             let session: SessionID = try decode(args[3])
             let message: MessageID = try decode(args[4])
+            let peer = args[2]
             let current = owner
             let send: @Sendable () throws -> SendResult = {
-                try current.send(peer: args[2], session: session, message: message,
+                try current.send(peer: peer, session: session, message: message,
                     plaintext: Array("persisted before process exit".utf8), associatedData: Array("owned-service".utf8))
             }
             if cancelled { try owner.cancel() }
-            if busy {
+            if busy || witnessCancel {
                 let worker = Task.detached(operation: send)
+                let beforeCancellation: ContinuousClock.Instant
                 do {
                     try waitMarker(args[5])
                     try failure([3]) { try owner.close() }
+                    beforeCancellation = ContinuousClock.now
                     try owner.cancel()
                 } catch {
                     // Join the owned invocation even when the test barrier fails.
@@ -173,9 +198,20 @@ func waitMarker(_ path: String) throws {
                 let result = await worker.result
                 switch result {
                 case let .failure(error):
-                    guard let error = error as? ContinuityFailure, error.code == 302 else { throw error }
+                    guard let error = error as? ContinuityFailure, error.code == (witnessCancel ? 218 : 302) else { throw error }
                 case .success: throw ProbeFailure.contract("cancelled call reported success")
                 }
+                if witnessCancel {
+                    let milliseconds = try observedCancellationMilliseconds(beforeCancellation.duration(to: ContinuousClock.now))
+                    try close(owner)
+                    try output("witness-cancelled-outcome-unavailable:\(milliseconds)")
+                    return
+                }
+            } else if witnessFailed {
+                try failure([218], send)
+                try close(owner)
+                try output("witness-outcome-unavailable")
+                return
             } else if cancelled || uncertain {
                 try failure(cancelled ? [302] : [303, 309, 310, 311], send)
             } else {
@@ -186,7 +222,7 @@ func waitMarker(_ path: String) throws {
             try require(owner.status(session: session, message: message) == expected, "durable message status")
             if busy {
                 try close(owner)
-                owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth)
+                owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
                 try require(owner.status(session: session, message: message) == .committed, "reopen lost committed work")
             }
             try output(cancelled ? "cancelled-absent" :

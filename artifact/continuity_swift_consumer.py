@@ -9,6 +9,9 @@ import zipfile
 
 import continuity_c_consumer as c
 import continuity_c_recovery as recovery
+import continuity_c_opening as opening
+import continuity_c_witness as witness
+import continuity_c_witness_tls as witness_tls
 import continuity_package as package
 import rust_sdk_profile as sdk
 from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
@@ -21,7 +24,7 @@ MAX_PACKAGE = 64 * 1024**2
 # Tool identity has its own cap; streaming preserves bounded memory and the
 # same complete-file hash and mutation-sensitive descriptor checks.
 MAX_COMPILER_BYTES = 1024**3
-SCOPE = "unpublished installed Swift client/server/recovery and shared C/Rust engine; same-host macOS; local original-installation profile"
+SCOPE = "unpublished installed Swift client/server/recovery and shared C/Rust engine; same-host macOS; local and explicitly witnessed original-installation profiles"
 
 
 def compiler_command(value: str) -> tuple[Path, dict]:
@@ -209,6 +212,22 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             recovery_checked = verify_recovery_execution(recovery_stdout, recovery_evidence)
             recovery_files = export_selected(recovery_checked, recovery_evidence, output / "swift-public/recovery" / profile, SCOPE,
                                               replay=lambda path: verify_recovery_execution(recovery_stdout, path))
+            witness_binary = Path(row["witness"]["binary"]["path"])
+            sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
+                        "native witness harness changed before Swift execution")
+            witnessed = {}
+            for label, module in (("opening", opening), ("signed-tcp", witness), ("mutual-tls", witness_tls)):
+                witness_evidence = outside / ("swift-" + profile + "-witness-" + label)
+                runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(witness_evidence)
+                witness_stdout = run([str(witness_binary), "--exact", module.TEST, "--nocapture"],
+                                     "witness-" + label + "-" + profile, runtime=runtime)
+                witness_checked = module.verify_execution(witness_stdout, witness_evidence, language="Swift")
+                witness_files = export_selected(witness_checked, witness_evidence,
+                    output / "swift-public" / ("witness-" + label) / profile, SCOPE,
+                    replay=lambda path: module.verify_execution(witness_stdout, path, language="Swift"))
+                witnessed[label] = {"execution": witness_checked, "public_files": witness_files}
+            sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
+                        "native witness harness changed during Swift execution")
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -219,7 +238,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files,
                 "server_execution": server_checked, "server_public_files": server_files,
-                "recovery_execution": recovery_checked, "recovery_public_files": recovery_files}
+                "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
+                "witnessed": witnessed}
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:

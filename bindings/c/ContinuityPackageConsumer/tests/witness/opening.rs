@@ -217,11 +217,11 @@ fn c_prepared_constructors_cancel_network_admission_and_release_original_owners(
         "prepared-open:1\n"
     );
     assert!(tls.finish()?.is_empty());
-    let report = format!(concat!("{{\"completed\":true,\"tcp_cancel_ms\":{},\"tls_cancel_ms\":{},",
+    let report = format!(concat!("{{\"schema_version\":2,\"language\":\"{}\",\"completed\":true,\"tcp_cancel_ms\":{},\"tls_cancel_ms\":{},",
         "\"tcp_exchanges\":{},\"pre_cancel_cases\":6,\"snapshot_open_cases\":6,",
         "\"failed_handles_closed\":true,\"same_installation_reopened\":true,",
         "\"tcp_socket_closed\":true,\"tls_socket_closed\":true,\"release_claim_eligible\":false}}\n"),
-        tcp_ms, tls_ms, exchanges);
+        installed_language()?, tcp_ms, tls_ms, exchanges);
     fixture::store(root, "c-opening-public-result.json", report.as_bytes())?;
     Ok(())
 }

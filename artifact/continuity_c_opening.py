@@ -19,7 +19,8 @@ def query_transcript(data: bytes, authority: bytes, prefix: bytes) -> int:
     return checked["exchanges"]
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift"}, "unsupported constructor language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;",
@@ -32,7 +33,9 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     report = parse_strict_json_bytes(read("c-opening-public-result.json"), label="C constructor result")
     flags = {"completed", "failed_handles_closed", "same_installation_reopened", "tcp_socket_closed", "tls_socket_closed"}
     numbers = {"tcp_cancel_ms", "tls_cancel_ms", "tcp_exchanges", "pre_cancel_cases", "snapshot_open_cases"}
-    sdk.require(isinstance(report, dict) and set(report) == flags | numbers | {"release_claim_eligible"}
+    sdk.require(isinstance(report, dict) and set(report) == flags | numbers | {"release_claim_eligible", "schema_version", "language"}
+                and type(report["schema_version"]) is int and report["schema_version"] == 2
+                and report["language"] == language
                 and all(report[name] is True for name in flags) and report["release_claim_eligible"] is False,
                 "C constructor outcome or scope differs")
     sdk.require(all(type(report[name]) is int for name in numbers)
@@ -66,7 +69,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     sdk.require(len(hello) >= 5 and hello[:2] == b"\x16\x03"
                 and 0 < int.from_bytes(hello[3:5], "big") <= len(hello) - 5,
                 "cancelled TLS constructor has no complete ClientHello record")
-    return dict(report, scope=SCOPE, public_readbacks=public, command_logs=logs)
+    return dict(report, scope=SCOPE.replace("installed C constructor", "installed " + language + " constructor"), public_readbacks=public, command_logs=logs)
 
 
 def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:

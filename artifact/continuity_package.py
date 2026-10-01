@@ -298,7 +298,7 @@ def qualify(args: argparse.Namespace) -> dict:
             from continuity_swift_consumer import qualify_swift
             result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment)
             result["scope"] = ("unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, "
-                               "and bidirectional Swift/Rust local-profile endpoints with Swift cleanup; same host; no independent witness engine or cross-host qualification")
+                               "and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])

@@ -17,7 +17,7 @@ private func closeRecovery(_ owner: ContinuityRecoveryOwner) throws {
 /// A deliberate raw-ABI negative control in the test executable only. Ordinary
 /// Swift operations below use the public typed owners. Swift exposes no handle
 /// conversion with which an application could invoke the wrong owner's methods.
-private func checkNativeKindSeparation(_ path: String) throws {
+private func checkNativeKindSeparation(_ path: String, witness: WitnessCarrier) throws {
     let bytes = Array(path.utf8)
     func check(_ result: Int32, _ error: qpc_error_v1, expected: Int32) throws {
         try require(result == expected && error.code == result && error.length <= 512 && error.truncated <= 1 &&
@@ -25,9 +25,24 @@ private func checkNativeKindSeparation(_ path: String) throws {
     }
     for kind in [UInt32(1), 2] {
         var handle: UInt64 = 0, error = qpc_error_v1()
-        var options = qpc_open_options_v1(kind: kind, quality: kind == 1 ? 1 : 0, carrier: 0, witness: nil)
-        var result = bytes.withUnsafeBufferPointer {
-            qpc_owner_v1_prepare_open($0.baseAddress, $0.count, &options, &handle, &error)
+        func prepare(_ carrier: UInt32, _ selected: UnsafePointer<qpc_witness_v1>?) -> Int32 {
+            var options = qpc_open_options_v1(kind: kind, quality: kind == 1 ? 1 : 0, carrier: carrier, witness: selected)
+            return bytes.withUnsafeBufferPointer {
+                qpc_owner_v1_prepare_open($0.baseAddress, $0.count, &options, &handle, &error)
+            }
+        }
+        var result: Int32
+        switch witness {
+        case .local: result = prepare(0, nil)
+        case let .signedTCP(address, timeout), let .mutualTLS(address, timeout):
+            let endpoint = Array(address.utf8)
+            result = endpoint.withUnsafeBufferPointer { endpoint in
+                var selected = qpc_witness_v1(address: endpoint.baseAddress, address_length: endpoint.count, timeout_ms: timeout)
+                return withUnsafePointer(to: &selected) {
+                    if case .signedTCP = witness { return prepare(1, $0) }
+                    return prepare(2, $0)
+                }
+            }
         }
         try check(result, error, expected: 0)
         try require(handle != 0, "negative control missing owner")
@@ -109,19 +124,35 @@ private func snapshot(_ owner: ContinuityRecoveryOwner, files: FixtureRecords, c
     return h.report
 }
 
-func recover(_ args: [String]) throws {
+private func refusal(_ action: () throws -> Void) throws -> Int32 {
+    do { try action() }
+    catch let error as ContinuityFailure { return error.code }
+    throw ProbeFailure.contract("required witness admission was bypassed")
+}
+
+func recover(_ args: [String], witness: WitnessCarrier) throws {
     try require((2...3).contains(args.count), "recovery arguments")
     let mode = args[0], path = args[1]
     if mode == "recover-kind" {
         try require(args.count == 2, "kind arguments")
-        try checkNativeKindSeparation(path)
+        try checkNativeKindSeparation(path, witness: witness)
         try output("operational-owner-not-recovery")
         return
     }
-    let owner = try ContinuityRecoveryOwner.open(path: path)
+    let owner = try ContinuityRecoveryOwner.open(path: path, witness: witness)
     let count = try owner.sessionCount()
     let files = FixtureRecords(path: path)
     switch mode {
+    case "recover-reject-select":
+        try require(args.count == 3 && count == 1, "selection refusal setup")
+        let code = try refusal { try owner.select(session: decode(args[2])) }
+        try failure([202]) { try owner.sessionCount() }
+        try output("selection-refused:\(code)")
+    case "recover-reject-archive":
+        try require(args.count == 2 && count == 0, "archive refusal setup")
+        let code = try refusal { try owner.select(archive: files.read("c-closure-archive")) }
+        try failure([202]) { try owner.sessionCount() }
+        try output("archive-refused:\(code)")
     case "recover-list":
         try require(args.count == 2, "list arguments")
         try output("catalogue:\(count)")
@@ -163,9 +194,14 @@ func recover(_ args: [String]) throws {
                 try require(owner.status() == .open, "already frozen")
                 try owner.cancel()
                 try failure([302]) { try owner.begin() }
-                try require(owner.status() == .open, "cancelled cleanup froze session")
+                if case .local = witness { try require(owner.status() == .open, "cancelled cleanup froze session") }
+                else { try failure([218]) { try owner.status() } }
                 try failure([302]) { try owner.restoreIndex() }
                 try output("cancelled-cleanup-not-frozen")
+            case "recover-witness-failed-freeze":
+                if case .local = witness { throw ProbeFailure.contract("missing explicit witness") }
+                try failure([218]) { try owner.begin() }
+                try output("witness-freeze-outcome-unavailable")
             case "recover-freeze":
                 _ = try snapshot(owner, files: files, create: true)
                 exit(77)

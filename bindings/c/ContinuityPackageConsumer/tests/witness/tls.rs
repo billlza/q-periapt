@@ -309,9 +309,9 @@ fn c_tls_witness_connects_and_revoked_cleanup_keeps_original_authority() -> Resu
     assert!(witness.admitted.load(Ordering::Acquire) > 0);
     let root = right.parent().ok_or("TLS fixture root")?;
     fixture::store(root,"c-witness-tls-public-result.json",format!(concat!(
-        "{{\"schema_version\":1,\"completed\":true,\"carrier\":\"q-periapt-anchor/1\",",
+        "{{\"schema_version\":2,\"language\":\"{}\",\"completed\":true,\"carrier\":\"q-periapt-anchor/1\",",
         "\"session\":\"{}\",\"message\":\"{}\",\"witness_exchanges\":{},",
         "\"rejected_connections\":2,\"sdk_revoked_cleanup\":true,\"release_claim_eligible\":false}}\n"),
-        session,message,witness.admitted.load(Ordering::Acquire)).as_bytes())?;
+        installed_language()?,session,message,witness.admitted.load(Ordering::Acquire)).as_bytes())?;
     Ok(())
 }

@@ -24,6 +24,13 @@ use std::{
     time::{Duration, Instant},
 };
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+fn installed_language() -> Result<&'static str> {
+    match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
+        Err(std::env::VarError::NotPresent) => Ok("C"),
+        Ok(language) if language == "Swift" => Ok("Swift"),
+        _ => Err("unsupported installed witness consumer language".into()),
+    }
+}
 struct Capture {
     request: Vec<u8>,
     reply: Vec<u8>,
@@ -681,10 +688,10 @@ fn c_witness_owners_reconcile_actual_lost_advances_and_revoked_cleanup() -> Resu
     }
     let root = right.parent().ok_or("witness runtime root")?;
     fixture::store(root, "witness-transcript", &transcript)?;
-    let report=format!(concat!("{{\"schema_version\":1,\"completed\":true,\"session\":\"{}\",\"message\":\"{}\",\"unknown\":\"{}\",",
+    let report=format!(concat!("{{\"schema_version\":2,\"language\":\"{}\",\"completed\":true,\"session\":\"{}\",\"message\":\"{}\",\"unknown\":\"{}\",",
         "\"context\":\"{}\",\"peer_account\":\"{}\",\"peer_device\":\"{}\",\"report\":\"{}\",",
         "\"witness_exchanges\":{},\"lost_advances\":2,\"release_claim_eligible\":false}}\n"),
-        session,message,message2,context,
+        installed_language()?,session,message,message2,context,
         fixture::hex(&fixture::array::<32>(right,"initiator-account")?),
         fixture::hex(&fixture::array::<16>(right,"initiator-device")?),
         fixture::hex(closed.as_bytes()),records.len());
