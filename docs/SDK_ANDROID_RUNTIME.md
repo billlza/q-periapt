@@ -21,10 +21,18 @@ The full workload uses in-memory policy state. It does not qualify an Android
 durable state store. Both profiles consume the exact selected four-ABI AAR,
 compile Java 11 bytecode with JDK 21 / AGP 9.4.1 / Gradle 9.7.1, run as
 non-debuggable release APKs, and return results through the manifest-declared
-Instrumentation component. The runtime target for these profiles is an owned
-API 35 emulator with 16-KiB pages, explicitly selected as `arm64-v8a` or `x86_64`.
-Those two architectures are separate evidence scopes. Neither covers API 23,
-a current physical device, nor an unexecuted ABI slice.
+Instrumentation component. Runtime targets are selected independently of the
+submitted proof:
+
+| Runtime profile | Target | Accepted ABI |
+| --- | --- | --- |
+| `api35-16k` (default) | Owned API 35 emulator, 16-KiB pages | `arm64-v8a`, `x86_64` |
+| `api23-4k` | Owned API 23 emulator, 4-KiB pages | `x86_64` |
+| `physical-api36-4k` | Explicit USB physical device, API 36, 4-KiB pages | `arm64-v8a` |
+
+Each target and architecture is a separate evidence scope. A profile's availability
+does not establish that it has executed. Physical-device results cannot replace
+the canonical 16-KiB or minimum-API emulator gates, or qualify an unexecuted ABI.
 
 SDK build receipts use `qperiapt.android_sdk_agp_consumer_build`; runtime
 receipts use `qperiapt.android_sdk_agp_consumer_proof`. The old 0.1.5 profiles,
@@ -41,7 +49,7 @@ AGP dependencies must already be cached; the formal collector builds offline.
 The installed Maven qualification helper can populate that cache while
 checking the independent package consumer; its build report is not ART evidence.
 
-The collector retains the existing private-ADB lane, account lock, owned AVD,
+The collector retains the existing private-ADB lane, account lock, owned AVD for emulator runs,
 source/AAR pins, APK signer ownership and cleanup checks. An occupied global
 ADB port is an admission failure; the collector does not acquire ownership of
 an unrelated server by killing it.
@@ -71,6 +79,17 @@ On the canonical macOS lane, select `macos-account` and `arm64-v8a` instead.
 Use the SDK's registered AVD profile for that architecture. Missing or unsupported architecture selectors are rejected before acquiring
 the runtime lane.
 
+For a physical run, select `physical-api36-4k`, set `QPERIAPT_ANDROID_BOOT_AVD=0`,
+`QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical`, `QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a`,
+`QPERIAPT_ANDROID_EXPECT_SDK=36` and `QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=4096`.
+Set `QPERIAPT_ANDROID_SERIAL` to the independently selected USB device and retain
+the same clean release mode, AAR/manifest hashes and both SDK consumer profiles.
+The collector rejects emulator boot selection and mismatched device properties
+before installation; it neither launches nor recovers an AVD for this target.
+The public proof records hashed device identifiers and `emulator_control: null`.
+This target is intentionally limited to that device shape; additional devices
+need explicit profiles and their own runtime evidence.
+
 Boot admission waits for `sys.boot_completed=1` and completion of any legacy
 full-disk-encryption framework transition. Android can finish a temporary
 encryption framework before replacing `/data` and starting its full framework;
@@ -89,7 +108,7 @@ process identities, so qualification can check the admitted runtime.
 After runtime cleanup, the SDK collector verifies and exports the complete
 profile closure to the run's `proof/agp-evidence/` directory. This contains the
 original proof, selected AAR and manifest, signed APK, Instrumentation response,
-results, emulator control evidence, AGP source/JVM/R8 receipts, and binary dumps.
+results, emulator control evidence when applicable, AGP source/JVM/R8 receipts, and binary dumps.
 The exporter re-verifies that copy, including actual SDK-tool replay of the APK.
 The source checkout must still match the receipt; the original run and AAR
 paths need not remain available for exported replay.
@@ -112,6 +131,9 @@ sh artifact/python-run.sh artifact/android_agp_consumer.py verify-export \
 These expected values come from the independently selected build, not from
 untrusted fields in the proof being checked. `runtime_target` in the validated
 projection binds device kind, architecture, API level and page size.
+For a physical export, pass `--expected-device-abi arm64-v8a` and
+`--expected-runtime-profile physical-api36-4k`. Omitting the physical selector
+retains the default emulator expectation and rejects the physical proof.
 
 CI uses the distinct `android-sdk-020-aar` raw-artifact intake contract,
 checks the downloaded artifact digest and source identity, qualifies the Maven

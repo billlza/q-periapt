@@ -1,4 +1,4 @@
-"""Closed emulator targets shared by launch, recovery and SDK verification."""
+"""Explicit capture targets; only emulator profiles authorize owned AVDs."""
 
 from __future__ import annotations
 
@@ -17,11 +17,14 @@ class RuntimeProfile:
     avds: Mapping[tuple[str, str], str]
     page_size_operation: str = "page-size"
     clock_operation: str = "device-time"
+    kind: str = "emulator"
+    physical_abis: frozenset[str] = frozenset()
 
     def target(self, abi: str) -> dict[str, object]:
-        if not any(selected_abi == abi for _, selected_abi in self.avds):
+        supported = self.physical_abis if self.kind == "physical" else frozenset(selected for _, selected in self.avds)
+        if abi not in supported:
             raise ValueError("Android runtime profile does not support the selected ABI")
-        return {"kind": "emulator", "abi": abi, "sdk": self.sdk, "page_size": self.page_size}
+        return {"kind": self.kind, "abi": abi, "sdk": self.sdk, "page_size": self.page_size}
 
 
 RUNTIME_PROFILES: Mapping[str, RuntimeProfile] = MappingProxyType({
@@ -33,6 +36,23 @@ RUNTIME_PROFILES: Mapping[str, RuntimeProfile] = MappingProxyType({
         ("linux-system", "x86_64"): "QPeriapt_SDK_4K_API_23_CI_V1",
     }), page_size_operation="page-size-auxv", clock_operation="device-time-calendar"),
 })
+
+
+# Independent caller selection, never inferred from a submitted device proof.
+# This adds one actual physical qualification target without expanding legacy
+# profiles or admitting physical names to the owned-AVD launcher/recovery map.
+PHYSICAL_RUNTIME_PROFILE = "physical-api36-4k"
+CAPTURE_RUNTIME_PROFILES: Mapping[str, RuntimeProfile] = MappingProxyType({
+    **RUNTIME_PROFILES,
+    PHYSICAL_RUNTIME_PROFILE: RuntimeProfile(36, 4096, MappingProxyType({}),
+        kind="physical", physical_abis=frozenset({"arm64-v8a"})),
+})
+
+
+def capture_runtime_profile(value: object) -> RuntimeProfile:
+    if not isinstance(value, str) or value not in CAPTURE_RUNTIME_PROFILES:
+        raise ValueError("unknown Android capture runtime profile")
+    return CAPTURE_RUNTIME_PROFILES[value]
 
 
 def runtime_profile(value: object) -> RuntimeProfile:

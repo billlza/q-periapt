@@ -250,7 +250,10 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
             release_candidate_mode=True,
         )
         proof["device"].update(contract.runtime_target(profile, device_abi, expected_runtime_profile))
-        proof["emulator_control"]["backend"]["identity"] = "qemu-system-" + ("aarch64" if device_abi == "arm64-v8a" else "x86_64") + "-headless"
+        if proof["device"]["kind"] == "physical":
+            proof["emulator_control"] = None
+        else:
+            proof["emulator_control"]["backend"]["identity"] = "qemu-system-" + ("aarch64" if device_abi == "arm64-v8a" else "x86_64") + "-headless"
         proof["abi"]["contract_path"] = package.contract
         tests = list(contract.PROFILE_TESTS[profile])
         marker = (
@@ -306,32 +309,33 @@ def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = Fals
         write(paths["apksigner_verify"], SIGNER)
         write(paths["zipalign_verify"], ALIGNMENT)
         write(paths["logcat"], b"I/QPeriaptSmoke: " + marker)
-        private = proof["emulator_control"]["private_adb"]
-        status = (
-            f'executable_absolute_path: {json.dumps(str(proof_root.parent / "work" / ("adb-" + run_id)))}\n'
-            f'keystore_path: {json.dumps(str(runtime.current_account_home() / ".android/adbkey"))}\nmdns_enabled: false\n'
-        ).encode()
-        listener = f"p123\nu{os.geteuid()}\nf7\nn/tmp/qperiapt-adb.abcdefgh/adb.sock\n".encode()
-        write(proof_root / "adb-server-status-registered.txt", status)
-        write(proof_root / "adb-listener-registered.txt", listener)
-        private["server_status_sha256"] = hashlib.sha256(status).hexdigest()
-        private["listener_snapshot_sha256"] = hashlib.sha256(listener).hexdigest()
-        routing, checkpoints = write_emulator_isolation_receipts(
-            proof_root, run_id=run_id, private_adb=private
-        )
-        paths["emulator_routing"] = routing
-        external = runtime._parse_emulator_routing_receipt(
-            routing, run_id=run_id, expected_private_adb=private, bundled=False
-        )
-        proof["emulator_control"]["external_adb"] = external
-        for item, checkpoint in zip(
-            proof["emulator_control"]["native_notifier"]["admission_checkpoints"],
-            runtime.ADB_ISOLATION_CHECKPOINTS,
-        ):
-            paths[runtime.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[checkpoint]] = (
-                checkpoints[checkpoint]
+        if proof["emulator_control"] is not None:
+            private = proof["emulator_control"]["private_adb"]
+            status = (
+                f'executable_absolute_path: {json.dumps(str(proof_root.parent / "work" / ("adb-" + run_id)))}\n'
+                f'keystore_path: {json.dumps(str(runtime.current_account_home() / ".android/adbkey"))}\nmdns_enabled: false\n'
+            ).encode()
+            listener = f"p123\nu{os.geteuid()}\nf7\nn/tmp/qperiapt-adb.abcdefgh/adb.sock\n".encode()
+            write(proof_root / "adb-server-status-registered.txt", status)
+            write(proof_root / "adb-listener-registered.txt", listener)
+            private["server_status_sha256"] = hashlib.sha256(status).hexdigest()
+            private["listener_snapshot_sha256"] = hashlib.sha256(listener).hexdigest()
+            routing, checkpoints = write_emulator_isolation_receipts(
+                proof_root, run_id=run_id, private_adb=private
             )
-            item["receipt_sha256"] = digest(checkpoints[checkpoint])
+            paths["emulator_routing"] = routing
+            external = runtime._parse_emulator_routing_receipt(
+                routing, run_id=run_id, expected_private_adb=private, bundled=False
+            )
+            proof["emulator_control"]["external_adb"] = external
+            for item, checkpoint in zip(
+                proof["emulator_control"]["native_notifier"]["admission_checkpoints"],
+                runtime.ADB_ISOLATION_CHECKPOINTS,
+            ):
+                paths[runtime.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[checkpoint]] = (
+                    checkpoints[checkpoint]
+                )
+                item["receipt_sha256"] = digest(checkpoints[checkpoint])
         proof["abi"]["contract_sha256"] = digest(root / proof["abi"]["contract_path"])
         for tool in ("apksigner", "zipalign"):
             proof["android"][tool + "_sha256"] = digest(

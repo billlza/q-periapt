@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, runtime_profile
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, capture_runtime_profile
 
 
 class AndroidAgpConsumerError(RuntimeError):
@@ -125,7 +125,7 @@ def runtime_target(
         require(expected_device_abi is None or expected_device_abi == "arm64-v8a", "legacy AGP target must remain arm64-v8a")
         abi = "arm64-v8a"
     try:
-        return runtime_profile(expected_runtime_profile).target(abi)
+        return capture_runtime_profile(expected_runtime_profile).target(abi)
     except ValueError as error:
         raise AndroidAgpConsumerError(str(error)) from error
 

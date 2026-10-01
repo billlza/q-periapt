@@ -21,7 +21,7 @@ import zipfile
 from typing import Any
 
 import android_runtime_state as runtime_state
-from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, runtime_profile
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, runtime_profile, capture_runtime_profile
 from android_agp_consumer_contract import PROFILE_TESTS, profile_spec
 from android_elf import (
     AndroidVerificationError,
@@ -2677,7 +2677,7 @@ def verify_device_metadata(
     expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> None:
     try:
-        selected_runtime = runtime_profile(expected_runtime_profile)
+        selected_runtime = capture_runtime_profile(expected_runtime_profile)
     except ValueError as error:
         raise SystemExit(f"error: {error}") from error
     device = proof.get("device")
@@ -2709,6 +2709,20 @@ def verify_device_metadata(
             f"expected Android device kind {expected_device_kind}, got {kind}",
         )
 
+    if selected_runtime.kind == "physical":
+        require(expected_device_kind == "physical" and kind == "physical",
+                "physical SDK target requires an explicit physical device")
+        require(type(expected_page_size) is int and type(expected_device_sdk) is int
+                and expected_page_size == selected_runtime.page_size
+                and expected_device_sdk == selected_runtime.sdk,
+                "physical SDK target requires its exact expected SDK and page size")
+        try:
+            selected_runtime.target(expected_device_abi)
+        except ValueError as error:
+            raise SystemExit(f"error: {error}") from error
+    elif expected_runtime_profile != DEFAULT_RUNTIME_PROFILE:
+        require(kind == "emulator", "owned emulator profile cannot qualify a physical capture")
+
     device_abi = device.get("abi")
     require(
         device_abi in REQUIRED_NATIVE_ABIS, f"invalid Android device ABI: {device_abi}"
@@ -2735,10 +2749,9 @@ def verify_device_metadata(
     )
     release_mode = proof.get("release_candidate_mode")
     require(type(release_mode) is bool, "proof lacks release_candidate_mode")
-    # The canonical release profile pins the emulator's exact device shape.
-    # A physical release capture keeps the same collection discipline but
-    # carries the hardware's own page size and SDK, so those pins apply only
-    # to the emulator kind.
+    # Emulator profiles pin their exact shape here. The explicit physical SDK
+    # profile was pinned above; legacy physical captures retain their caller's
+    # independently supplied hardware expectations.
     if require_release_mode and kind == "emulator":
         require(
             expected_device_sdk == selected_runtime.sdk,

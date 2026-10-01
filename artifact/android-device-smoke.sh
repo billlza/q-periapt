@@ -49,10 +49,8 @@ case "$ANDROID_CONSUMER_PROFILE" in
 	legacy_full) ;;
 	agp_full_release | agp_minimal_release | agp_sdk_full_release | agp_sdk_minimal_release)
 		if [ "${QPERIAPT_ANDROID_RELEASE_MODE:-0}" != "1" ] || \
-			[ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" != "1" ] || \
-			[ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" != "emulator" ] || \
 			[ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "0" ]; then
-			printf 'error: AGP consumers require clean release mode and the owned emulator profile\n' >&2
+			printf 'error: AGP consumers require clean release mode\n' >&2
 			exit 2
 		fi
 		;;
@@ -62,18 +60,26 @@ case "$ANDROID_CONSUMER_PROFILE" in
 		;;
 esac
 
-ANDROID_PROFILE_SELECTION=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" "$ANDROID_RUNTIME_PROFILE" <<'PY'
+ANDROID_PROFILE_SELECTION=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" "$ANDROID_RUNTIME_PROFILE" \
+    "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" "${QPERIAPT_ANDROID_BOOT_AVD:-0}" \
+    "${QPERIAPT_ANDROID_EXPECT_SDK:-}" "${QPERIAPT_ANDROID_EXPECT_PAGE_SIZE:-}" <<'PY'
 import sys
 from android_agp_consumer_contract import AndroidAgpConsumerError, profile_spec, runtime_target
-from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, runtime_profile
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, capture_runtime_profile
 try:
-    selected = runtime_profile(sys.argv[3])
+    selected = capture_runtime_profile(sys.argv[3])
     if sys.argv[1] == "legacy_full":
         if sys.argv[3] != DEFAULT_RUNTIME_PROFILE:
             raise ValueError("legacy Android capture must retain its runtime profile")
         aar_profile = "legacy"
     else:
-        runtime_target(sys.argv[1], sys.argv[2] or None, sys.argv[3])
+        target = runtime_target(sys.argv[1], sys.argv[2] or None, sys.argv[3])
+        if sys.argv[4] != target["kind"]:
+            raise ValueError("AGP capture kind differs from the explicitly selected runtime target")
+        if sys.argv[5] != ("1" if target["kind"] == "emulator" else "0"):
+            raise ValueError("AGP runtime target and owned-emulator selection differ")
+        if sys.argv[6:8] != [str(target["sdk"]), str(target["page_size"])]:
+            raise ValueError("AGP capture requires exact expected SDK and page size")
         aar_profile = profile_spec(sys.argv[1]).aar_profile
     print(f"{aar_profile}:{selected.sdk}:{selected.page_size}:"
           f"{selected.page_size_operation}:{selected.clock_operation}")
@@ -258,9 +264,8 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
 		exit 2
 	fi
-	# The selected release profile pins the emulator's exact device shape;
-	# a physical release capture keeps the collection discipline while the
-	# hardware supplies its own page size and SDK.
+	# Emulator profiles pin their shape here. SDK physical selection was pinned
+	# before lane acquisition; legacy physical capture retains caller expectations.
 	case "$EXPECTED_DEVICE_KIND" in
 		emulator)
 			if [ "$EXPECTED_PAGE_SIZE" != "$ANDROID_RUNTIME_PAGE_SIZE" ]; then

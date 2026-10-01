@@ -17,7 +17,7 @@ from typing import Any
 import android_device_proof as runtime
 import android_elf
 import android_runtime_state as runtime_state
-from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, CAPTURE_RUNTIME_PROFILES
 from bounded_process import BoundedProcessError, capture_output
 from evidence_io import load_json_object_snapshot, read_regular_snapshot
 
@@ -1439,7 +1439,7 @@ def main() -> int:
         command.add_argument("--root", type=pathlib.Path, required=True)
         command.add_argument("--sdk", type=pathlib.Path)
         command.add_argument("--expected-device-abi", choices=("arm64-v8a", "x86_64"))
-        command.add_argument("--expected-runtime-profile", choices=tuple(RUNTIME_PROFILES),
+        command.add_argument("--expected-runtime-profile", choices=tuple(CAPTURE_RUNTIME_PROFILES),
                              default=DEFAULT_RUNTIME_PROFILE)
         for name in (
             "profile",
