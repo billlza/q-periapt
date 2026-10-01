@@ -530,15 +530,41 @@ fn tls_truncated_or_pipelined_request_has_no_witness_effect() {
         channel
             .send_frame(request.as_bytes())
             .expect("complete request");
-        if trailing {
+        let malformed_end = trailing.then(|| {
             channel
                 .send_frame(request.as_bytes())
-                .expect("second request");
-            channel.close().expect("end");
-        }
+                .and_then(|()| channel.close())
+        });
         drop(channel);
-        assert!(worker.join().expect("server").is_err());
+        let refusal = worker
+            .join()
+            .expect("server")
+            .expect_err("malformed request");
+        if trailing {
+            assert_eq!(refusal.kind(), io::ErrorKind::InvalidData);
+            assert_eq!(refusal.to_string(), "trailing witness TLS plaintext");
+        } else {
+            assert!(matches!(
+                refusal.kind(),
+                io::ErrorKind::UnexpectedEof | io::ErrorKind::ConnectionReset
+            ));
+        }
         assert_eq!(case.query(case.genesis.subject()), initial(&case.genesis));
+        // The peer rejects the first extra plaintext byte before any witness
+        // operation. It may therefore close while the malformed client flushes
+        // its second frame or close_notify. Only a terminal peer-disconnect is
+        // allowed, and only after proving that exact refusal and unchanged head.
+        if let Some(Err(error)) = malformed_end {
+            assert!(
+                matches!(
+                    error.kind(),
+                    io::ErrorKind::BrokenPipe
+                        | io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                ),
+                "malformed-client write failed for another reason: {error}"
+            );
+        }
     }
 }
 
