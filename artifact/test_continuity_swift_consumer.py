@@ -11,6 +11,21 @@ import continuity_swift_consumer as swift
 
 
 class SwiftConsumerTests(unittest.TestCase):
+    def test_swift_dispatch_name_is_preserved_while_target_bytes_are_hashed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            frontend = root / "swift-frontend"
+            frontend.write_bytes(b"tool identity fixture")
+            frontend.chmod(0o755)
+            alias = root / "swift"
+            alias.symlink_to(frontend.name)
+            command, identity = swift.compiler_command(str(alias))
+            self.assertEqual(command, alias)
+            self.assertEqual(identity["path"], str(frontend))
+            self.assertEqual(identity["sha256"], hashlib.sha256(frontend.read_bytes()).hexdigest())
+            with self.assertRaisesRegex(ValueError, "command differs"):
+                swift.compiler_command(str(frontend))
+
     def test_archive_bytes_must_match_before_any_installation(self):
         data = swift.archive({"Package.swift": b"manifest", "Sources/Client.swift": b"source"})
         expected = {"Package.swift": hashlib.sha256(b"manifest").hexdigest(),

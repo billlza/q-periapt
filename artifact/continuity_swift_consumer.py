@@ -19,6 +19,17 @@ MAX_PACKAGE = 64 * 1024**2
 SCOPE = "unpublished installed Swift client and shared C/Rust engine; same-host macOS; local original-installation profile"
 
 
+def compiler_command(value: str) -> tuple[Path, dict]:
+    command = Path(value.strip())
+    sdk.require(command.is_absolute() and command.name == "swift" and os.access(command, os.X_OK),
+                "Swift package-manager command differs")
+    resolved = command.resolve(strict=True)
+    binary = sdk.snapshot(resolved, maximum=c.MAX_BINARY)
+    # Xcode's swift is a link to swift-frontend. Its invoked name selects driver
+    # and package-manager dispatch; hashing the target must not change argv[0].
+    return command, {"command_path": str(command), "path": str(resolved), "sha256": binary.sha256}
+
+
 def archive(files: dict[str, bytes]) -> bytes:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as zipped:
@@ -96,10 +107,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
     try:
         def run(argv, label, cwd=outside, *, runtime=None):
             return sdk.command(argv, output / ("swift-" + label), cwd, environment=env if runtime is None else runtime)
-        swift = Path(run(["/usr/bin/xcrun", "--find", "swift"], "tool-path").decode().strip()).resolve(strict=True)
-        compiler = sdk.snapshot(swift, maximum=c.MAX_BINARY)
-        result["compiler"] = {"path": str(swift), "sha256": compiler.sha256,
-                              "version": run([str(swift), "--version"], "tool-version").decode()}
+        swift, identity = compiler_command(run(["/usr/bin/xcrun", "--find", "swift"], "tool-path").decode())
+        result["compiler"] = dict(identity, version=run([str(swift), "--version"], "tool-version").decode())
         source = {}
         for path in FIXTURE.rglob("*"):
             sdk.require(not path.is_symlink(), "Swift source contains a symlink")
@@ -172,7 +181,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files}
-        sdk.require(sdk.snapshot(swift, maximum=c.MAX_BINARY).sha256 == compiler.sha256, "Swift compiler changed")
+        sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:
         result["failure"] = str(error)
