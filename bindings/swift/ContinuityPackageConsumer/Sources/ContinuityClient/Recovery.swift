@@ -142,20 +142,21 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
     let owner = try ContinuityRecoveryOwner.open(path: path, witness: witness)
     let count = try owner.sessionCount()
     let files = FixtureRecords(path: path)
+    let response: String
     switch mode {
     case "recover-reject-select":
         try require(args.count == 3 && count == 1, "selection refusal setup")
         let code = try refusal { try owner.select(session: decode(args[2])) }
         try failure([202]) { try owner.sessionCount() }
-        try output("selection-refused:\(code)")
+        response = "selection-refused:\(code)"
     case "recover-reject-archive":
         try require(args.count == 2 && count == 0, "archive refusal setup")
         let code = try refusal { try owner.select(archive: files.read("c-closure-archive")) }
         try failure([202]) { try owner.sessionCount() }
-        try output("archive-refused:\(code)")
+        response = "archive-refused:\(code)"
     case "recover-list":
         try require(args.count == 2, "list arguments")
-        try output("catalogue:\(count)")
+        response = "catalogue:\(count)"
     case "recover-tamper":
         try require(args.count == 2 && count == 1, "tamper setup")
         var archive = try files.read("native-closure-archive")
@@ -165,7 +166,7 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
         archive[archive.count - 1] ^= 1
         try failure([208]) { try owner.select(archive: archive) }
         try failure([202]) { try owner.sessionCount() }
-        try output("tampered-archive-refused")
+        response = "tampered-archive-refused"
     case "recover-archive":
         try require(args.count == 2 && count == 0, "archive setup")
         try owner.select(archive: files.read("c-closure-archive"))
@@ -174,7 +175,7 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
         try owner.restoreIndex(); try owner.restoreIndex()
         try require(owner.retire(report: report), "restored row not retired")
         try require(!owner.retire(report: report), "absent row not independently validated")
-        try output("archive-closed-metadata-only")
+        response = "archive-closed-metadata-only"
     default:
         try require(args.count == 3 && count == 1, "selection setup")
         let session: SessionID = try decode(args[2])
@@ -184,7 +185,7 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
             var bytes = session.bytes; bytes[31] ^= 1
             try failure([201]) { try owner.select(session: SessionID(bytes: bytes)) }
             try failure([202]) { try owner.sessionCount() }
-            try output("missing-session-refused")
+            response = "missing-session-refused"
         } else {
             try owner.select(session: session)
             try failure([108]) { try owner.select(session: session) }
@@ -197,11 +198,11 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
                 if case .local = witness { try require(owner.status() == .open, "cancelled cleanup froze session") }
                 else { try failure([218]) { try owner.status() } }
                 try failure([302]) { try owner.restoreIndex() }
-                try output("cancelled-cleanup-not-frozen")
+                response = "cancelled-cleanup-not-frozen"
             case "recover-witness-failed-freeze":
                 if case .local = witness { throw ProbeFailure.contract("missing explicit witness") }
                 try failure([218]) { try owner.begin() }
-                try output("witness-freeze-outcome-unavailable")
+                response = "witness-freeze-outcome-unavailable"
             case "recover-freeze":
                 _ = try snapshot(owner, files: files, create: true)
                 exit(77)
@@ -220,10 +221,11 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
                 try owner.acknowledge(report: report)
                 try require(owner.retire(report: report), "original row not retired")
                 try require(!owner.retire(report: report), "already absent row changed")
-                try output("original-report-closed-retired")
+                response = "original-report-closed-retired"
             default: throw ProbeFailure.contract("unknown recovery mode")
             }
         }
     }
     try closeRecovery(owner)
+    try output(response)
 }

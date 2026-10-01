@@ -12,6 +12,7 @@ import continuity_c_recovery as recovery
 import continuity_c_opening as opening
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
+import continuity_c_faults as faults
 import continuity_package as package
 import rust_sdk_profile as sdk
 from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
@@ -228,6 +229,15 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 witnessed[label] = {"execution": witness_checked, "public_files": witness_files}
             sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
                         "native witness harness changed during Swift execution")
+            fault_tools = faults.verified_tools(row["sync_faults"], language="C")
+            sync_faults = faults.Matrix(outside, output, profile, runtime, binary,
+                fault_tools["native_helper"], fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                language="Swift", expected_library=native_dir / LIBRARY).execute()
+            fault_evidence = Path(sync_faults["outside"])
+            fault_checked = faults.verify_public(sync_faults, fault_evidence, language="Swift")
+            fault_files = export_selected(fault_checked, fault_evidence,
+                output / "swift-public/sync-faults" / profile, sync_faults["scope"],
+                replay=lambda path: faults.verify_public(sync_faults, path, language="Swift"))
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -239,7 +249,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "execution": checked, "public_files": public_files,
                 "server_execution": server_checked, "server_public_files": server_files,
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
-                "witnessed": witnessed}
+                "witnessed": witnessed, "sync_faults": sync_faults, "sync_fault_public_files": fault_files}
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:

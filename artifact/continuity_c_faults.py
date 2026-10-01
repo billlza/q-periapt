@@ -1,7 +1,7 @@
-"""Interrupt only owned test processes at real installed-C journal sync boundaries.
+"""Interrupt owned C/Swift test processes at installed-library journal sync boundaries.
 
 The SDK library is unchanged. A separately hashed probe is injected into selected
-C children only; this qualifies process interruption, never a power-loss model.
+consumer children only; this qualifies process interruption, never a power-loss model.
 """
 from __future__ import annotations
 
@@ -127,23 +127,112 @@ def coverage(cases: list[dict]) -> dict:
     return counts
 
 
+def verified_tools(result: dict, *, language: str) -> dict[str, Path]:
+    """Admit only the exact tools retained by a completed, selected-language run."""
+    sdk.require(language in ("C", "Swift") and type(result.get("schema_version")) is int
+                and result["schema_version"] == 2
+                and result.get("language") == language and result.get("completed") is True,
+                "sync-fault tool provenance differs")
+    roles = {"client", "native_helper", "sync_probe", "probe_smoke"}
+    if language == "Swift":
+        roles.add("installed_library")
+    binaries = result.get("binaries")
+    sdk.require(isinstance(binaries, dict) and set(binaries) == roles, "sync-fault binary roles differ")
+    paths, identities = {}, {}
+    for role, identity in binaries.items():
+        sdk.require(isinstance(identity, dict) and set(identity) == {"path", "sha256", "bytes"}
+                    and isinstance(identity["path"], str) and Path(identity["path"]).is_absolute()
+                    and type(identity["bytes"]) is int and 0 < identity["bytes"] <= 256 * 1024**2,
+                    "sync-fault binary identity is malformed")
+        path = Path(identity["path"])
+        snapshot = sdk.snapshot(path, maximum=256 * 1024**2)
+        sdk.require(snapshot.sha256 == identity["sha256"] and snapshot.size == identity["bytes"],
+                    "sync-fault tool changed")
+        paths[role], identities[str(path)] = path, snapshot.sha256
+    sdk.require(identities == result.get("binary_sha256"), "sync-fault identity maps differ")
+    return paths
+
+
+def verify_public(result: dict, directory: Path, *, language: str) -> dict:
+    """Replay complete public loss records without private journals or tool paths."""
+    sdk.require(language in ("C", "Swift") and type(result.get("schema_version")) is int
+                and result["schema_version"] == 2 and result.get("language") == language
+                and result.get("completed") is True and result.get("release_claim_eligible") is False
+                and result.get("scope") == SCOPE.replace("installed C ", "installed " + language + " "),
+                "sync-fault public scope differs")
+    checked = coverage(result.get("cases"))
+    sdk.require(checked == result.get("coverage"), "sync-fault public coverage differs")
+    public = {}
+    for case in result["cases"]:
+        label = f"{case['phase']}-{case['cut']}-{case['side']}"
+        names = {"fault-plan.json", "fault-native-status", "c-loss-report",
+                 "c-closure-archive", "native-closure-archive"}
+        if case["status"] == 2:
+            names.add("fault-wire")
+        if case["phase"] != "send":
+            names.add("fault-closure-phase")
+        sdk.require(set(case["public_readbacks"]) == {"responder/" + name for name in names},
+                    "sync-fault public inputs differ")
+        snapshots = {}
+        for name in names:
+            relative = label + "/responder/" + name
+            snapshot = sdk.snapshot(directory / relative, maximum=MAX_LOG)
+            sdk.require(snapshot.sha256 == case["public_readbacks"]["responder/" + name],
+                        "sync-fault public input changed")
+            snapshots[name], public[relative] = snapshot.data, snapshot.sha256
+        original = plan(snapshots["fault-plan.json"])
+        sdk.require(original == {name: case[name] for name in original}, "sync-fault original identity differs")
+        sdk.require(snapshots["fault-native-status"] == (b"absent\n", b"reserved\n", b"committed\n")[case["status"]],
+                    "sync-fault native disposition differs")
+        report = loss_report(snapshots["c-loss-report"], original, case["status"], snapshots.get("fault-wire"))
+        sdk.require(report == case["report"] and hashlib.sha256(snapshots["c-loss-report"]).hexdigest()
+                    == case["loss_report_sha256"], "sync-fault report identity differs")
+        archive = snapshots["c-closure-archive"]
+        sdk.require(len(archive) == 362 and archive.startswith(b"QPCSCA01")
+                    and archive == snapshots["native-closure-archive"], "sync-fault original archive differs")
+        if case["phase"] != "send":
+            state = case["observed_phase"]
+            expected = state + " " + ("" if state == "open" else report) + "\n"
+            sdk.require(snapshots["fault-closure-phase"] == expected.encode(),
+                        "sync-fault unknown cleanup outcome changed its original report")
+    return {"language": language, "coverage": checked, "public_readbacks": public, "command_logs": {},
+            "reserved_positive_case_executed": True, "release_claim_eligible": False}
+
+
 class Matrix:
     def __init__(self, outside: Path, output: Path, profile: str, runtime: dict,
-                 client: Path, helper: Path, probe: Path, smoke: Path):
-        self.outside = outside / ("c-fault-" + profile)
+                 client: Path, helper: Path, probe: Path, smoke: Path, *,
+                 language: str = "C", expected_library: Path | None = None):
+        sdk.require(language in ("C", "Swift"), "unsupported sync-fault client language")
+        sdk.require((language == "Swift") == (expected_library is not None),
+                    "Swift fault execution requires its explicit installed library")
+        if expected_library is not None:
+            sdk.require(expected_library.is_absolute(), "installed fault library path is not absolute")
+        self.language, self.prefix = language, language.lower() + "-fault"
+        self.scope = SCOPE.replace("installed C ", "installed " + language + " ")
+        self.outside = outside / (self.prefix + "-" + profile)
         self.outside.mkdir(mode=0o700)
         self.output, self.profile = output, profile
         self.client, self.helper, self.probe, self.smoke = client, helper, probe, smoke
         self.runtime = {k: v for k, v in runtime.items()
                         if not k.startswith(("DYLD_", "LD_", "QPERIAPT_", "QPC_TEST_"))}
         self.runtime["QPERIAPT_C_OWNER_CLIENT"] = str(client)
+        self.runtime["QPERIAPT_INSTALLED_CLIENT_LANGUAGE"] = language
+        if expected_library is not None:
+            self.runtime["QPERIAPT_EXPECTED_CONTINUITY_LIBRARY"] = str(expected_library)
         self.command_records: dict = {}
         self.results: list = []
-        self.identities = {str(p): sdk.snapshot(p, maximum=256 * 1024**2).sha256
-                           for p in (client, helper, probe, smoke)}
+        paths = {"client": client, "native_helper": helper, "sync_probe": probe, "probe_smoke": smoke}
+        if expected_library is not None:
+            paths["installed_library"] = expected_library
+        self.binaries = {}
+        for role, path in paths.items():
+            snapshot = sdk.snapshot(path, maximum=256 * 1024**2)
+            self.binaries[role] = {"path": str(path), "sha256": snapshot.sha256, "bytes": snapshot.size}
+        self.identities = {identity["path"]: identity["sha256"] for identity in self.binaries.values()}
 
     def command(self, argv: list, label: str, *, expected: int = 0, extra=None) -> bytes:
-        prefix = self.output / f"c-fault-{self.profile}-{label}"
+        prefix = self.output / f"{self.prefix}-{self.profile}-{label}"
         argv = [str(a) for a in argv]
         environment = dict(self.runtime, **(extra or {}))
         started = time.monotonic()
@@ -196,7 +285,7 @@ class Matrix:
                 "QPC_TEST_SYNC_CUT": str(cut), "QPC_TEST_SYNC_SIDE": side}
 
     def receipt(self, label: str) -> Path:
-        return self.output / f"c-fault-{self.profile}-{label}.events"
+        return self.output / f"{self.prefix}-{self.profile}-{label}.events"
 
     def prepare(self, label: str) -> tuple[Path, dict]:
         root = self.outside / label
@@ -324,8 +413,10 @@ class Matrix:
                         "sync cut did not interrupt the intended operation")
 
     def execute(self) -> dict:
-        result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False,
-                  "binary_sha256": self.identities, "profile": self.profile, "outside": str(self.outside)}
+        result = {"schema_version": 2, "language": self.language,
+                  "completed": False, "scope": self.scope, "release_claim_eligible": False,
+                  "binary_sha256": self.identities, "binaries": self.binaries,
+                  "profile": self.profile, "outside": str(self.outside)}
         started = time.monotonic()
         try:
             listing = self.command([self.helper, "--list"], "helper-inventory").decode()
@@ -354,5 +445,5 @@ class Matrix:
         finally:
             result.update(cases=self.results, commands=self.command_records,
                           elapsed_seconds=round(time.monotonic() - started, 3))
-            sdk.write_json(self.output / f"C_SYNC_FAULTS_{self.profile.upper()}.json", result)
+            sdk.write_json(self.output / f"{self.language.upper()}_SYNC_FAULTS_{self.profile.upper()}.json", result)
         return result

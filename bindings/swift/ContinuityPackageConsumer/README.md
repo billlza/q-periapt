@@ -100,8 +100,28 @@ reopens and checks the unchanged durable report, then retires/restores metadata.
 It also checks cancellation, missing IDs, malformed/tampered archives and wrong
 report acknowledgement. A raw-ABI negative control inside the test executable
 checks native owner-kind denial in both directions; all actual cleanup operations
-use the Swift wrapper. Positive reservation accounting is not exercised by that
-history and is explicitly reported as unqualified.
+use the Swift wrapper. That history contains zero uncommitted reservations; its
+report retains that explicit limitation.
+
+The separate installed Swift sync-interruption matrix uses the same native
+fixture and separately hashed probe as C. It calibrates real journal syncs in the
+actual Swift process, interrupts every before/after boundary, and requires Absent,
+Reserved and Committed outcomes after reopening. A real post-sync reservation
+must retain its original message ID and 29-byte plaintext/13-byte associated-data
+lengths after SDK revocation. Positive reservations also precede every calibrated
+cleanup-begin and acknowledgement cut. Open/Pending and Pending/Closed outcomes
+must reconcile the same complete host report, with exact acknowledgement and
+metadata-only restoration. Send, status and recovery completion markers follow
+a successful owner close; an interrupted close cannot publish those markers.
+
+The collector records Swift as the executing language, binds each native helper,
+probe, client and installed-library hash, and keeps the loaded-library check in
+every Swift process. It exports selected public loss/closure records and replays
+them without private journals. Raw command logs and real sync receipts remain
+separate retained evidence. The probe is injected only into the selected test
+processes and is never linked into the SDK. This covers process interruption in
+the local profile, not power loss, injected EIO, witnessed cleanup faults or
+concurrent updates. Historical sync reports use their original pinned verifier.
 
 The installed witness traces select `.signedTCP` or `.mutualTLS` explicitly for
 both operational and cleanup owners. They retain the same native signing pins,

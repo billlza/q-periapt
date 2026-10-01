@@ -142,25 +142,28 @@ func waitMarker(_ path: String) throws {
             throw ProbeFailure.contract("invalid binding admitted")
         }
         var owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
+        let response: String
         switch command {
         case "serve":
             try require(args.count >= 3, "serve arguments")
             try require(args.count == (args[2] == "rekey" ? 4 : 3), "serve arguments")
             try serve(owner, path: args[1], mode: args[2], sessionText: args.count == 4 ? args[3] : nil)
+            try close(owner)
+            return
         case "connect":
             try require(args.count == 4, "connect arguments")
             let result = try owner.establish(peer: args[2], request: decode(args[3]))
-            try output(hex(result.session))
+            response = hex(result.session)
         case "next":
             try require(args.count == 3, "next arguments")
-            try output(hex(owner.nextMessage(session: decode(args[2]))))
+            response = try hex(owner.nextMessage(session: decode(args[2])))
         case "status":
             try require(args.count == 4, "status arguments")
-            try output(String(owner.status(session: decode(args[2]), message: decode(args[3])).rawValue))
+            response = try String(owner.status(session: decode(args[2]), message: decode(args[3])).rawValue)
         case "rekey":
             try require(args.count == 4, "rekey arguments")
             try require(owner.rekey(peer: args[2], session: decode(args[3]), target: 1) == 1, "target epoch")
-            try output("rekey-1-confirmed")
+            response = "rekey-1-confirmed"
         case "send", "uncertain-send", "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send":
             let busy = command == "busy-cancel"
             let witnessCancel = command == "cancel-witness-send"
@@ -225,10 +228,11 @@ func waitMarker(_ path: String) throws {
                 owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
                 try require(owner.status(session: session, message: message) == .committed, "reopen lost committed work")
             }
-            try output(cancelled ? "cancelled-absent" :
-                (busy ? "cancelled-committed-reopened" : (uncertain ? "delivery-unknown-committed" : "consumed")))
+            response = cancelled ? "cancelled-absent" :
+                (busy ? "cancelled-committed-reopened" : (uncertain ? "delivery-unknown-committed" : "consumed"))
         default: throw ProbeFailure.contract("unknown command")
         }
         try close(owner)
+        try output(response)
     }
 }
