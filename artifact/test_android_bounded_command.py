@@ -18,6 +18,7 @@ import sys
 import tempfile
 import termios
 import threading
+import types
 import unittest
 from dataclasses import replace
 from unittest import mock
@@ -63,6 +64,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.account_state_parent = self.root / ".local" / "state"
         self.account_state_parent.mkdir(parents=True, mode=0o700)
         self.constants = (
+            # Command-deadline fixtures must not replace the process-wide time
+            # module used by receipt locks or concurrent lifecycle writers.
+            mock.patch.object(commands, "time", types.SimpleNamespace(
+                monotonic=commands.time.monotonic, sleep=commands.time.sleep,
+            )),
             mock.patch.object(state, "REPOSITORY_ROOT", self.root),
             mock.patch.object(state, "TARGET_ROOT", self.target),
             mock.patch.object(state, "RUNS_ROOT", self.runs),

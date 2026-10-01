@@ -168,6 +168,24 @@ Diagnostic failure cannot replace the primary error. App cleanup still needs
 its fresh exact APK observations and signer check, including when an install
 may have committed before its reply failed.
 
+Runtime receipt reads and lifecycle writes coordinate on the stable account-state
+directory inode: reads hold a shared lock across opening, validating and consuming
+the full snapshot; creation, replacement and retirement hold an exclusive lock.
+Each lock acquisition has a one-second deadline. Contention waits only for the
+lock and never replays a lifecycle mutation. Writers still compare the original
+inode and prior digest under the lock; readers open the current name after any
+wait. Strict ownership, permissions, JSON and mutation-sensitive snapshot checks
+remain mandatory, including for writes that do not honor the lock. Failed staging
+creation cannot delete a pre-existing staging file.
+
+This addresses a separate launch-time failure observed on the `18b46afd` PR
+matrix. At that phase, the controller polls the owned receipt while the emulator
+child advances it by atomic replacement. Unlinking the old inode changes its metadata, which
+the strict snapshot correctly rejects when reads are not coordinated. A native
+file/lock regression reproduces that exact failure and covers both read/write
+orderings. This fix does not resolve the separately retained Android framework,
+transport-loss or cleanup failures; actual hosted/device runs remain necessary.
+
 Owned-emulator failure/recovery log capture also selects the events buffer's
 fixed `killinfo` tag. LMKD emits its memory counters with each kill there; the
 main/system log's reason and nearby memory snapshots alone do not provide the

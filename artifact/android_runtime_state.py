@@ -16,6 +16,7 @@ import pwd
 import re
 import stat
 import sys
+import time
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal, NoReturn
@@ -91,6 +92,7 @@ OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 6
 LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 5
 PRIVATE_ADB_LISTEN_BACKLOG = 128
 MAX_OWNED_RUNTIME_RECEIPT_BYTES = 16 * 1024
+RUNTIME_RECEIPT_LOCK_SECONDS = 1.0
 AVD_HOME_LEAF = "avd-home"
 MAX_AVD_INI_BYTES = 64 * 1024
 MAX_AVD_TREE_ENTRIES = 8_192
@@ -3375,6 +3377,7 @@ def _write_owned_runtime_receipt(payload: Mapping[str, object]) -> str:
     published = False
     primary: BaseException | None = None
     try:
+        _lock_account_state_for_receipt_mutation(state_fd)
         encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
         _require(
             len(encoded) <= MAX_OWNED_RUNTIME_RECEIPT_BYTES,
@@ -3459,6 +3462,7 @@ def _replace_owned_runtime_receipt(
     state_fd = _open_account_state()
     temporary_leaf = f".{OWNED_RUNTIME_RECEIPT_LEAF}.replace-{os.getpid()}"
     descriptor = -1
+    temporary_created = False
     receipt_fd = -1
     primary: BaseException | None = None
     try:
@@ -3495,6 +3499,7 @@ def _replace_owned_runtime_receipt(
             0o600,
             dir_fd=state_fd,
         )
+        temporary_created = True
         os.fchmod(descriptor, 0o600)
         _write_all(descriptor, encoded, label="owned runtime receipt replacement")
         os.fsync(descriptor)
@@ -3506,6 +3511,7 @@ def _replace_owned_runtime_receipt(
             src_dir_fd=state_fd,
             dst_dir_fd=state_fd,
         )
+        temporary_created = False
         os.fsync(state_fd)
         return next_receipt
     except BaseException as exc:
@@ -3516,14 +3522,16 @@ def _replace_owned_runtime_receipt(
                 label="the owned runtime receipt replacement",
                 primary=primary,
             )
-        try:
-            os.unlink(temporary_leaf, dir_fd=state_fd)
-        except FileNotFoundError:
-            pass
-        except BaseException as cleanup_error:
-            primary.add_note(
-                f"removing the receipt replacement staging file also failed: {cleanup_error}"
-            )
+        if temporary_created:
+            try:
+                os.unlink(temporary_leaf, dir_fd=state_fd)
+                os.fsync(state_fd)
+            except FileNotFoundError:
+                pass
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f"removing the receipt replacement staging file also failed: {cleanup_error}"
+                )
         raise
     finally:
         if receipt_fd >= 0:
@@ -3569,14 +3577,36 @@ def _open_owned_runtime_receipt_for_mutation(state_fd: int) -> int:
 def _lock_account_state_for_receipt_mutation(state_fd: int) -> None:
     """Serialize receipt mutation on the stable account-state directory inode."""
 
-    try:
-        fcntl.flock(state_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        _fail("owned runtime receipt has a concurrent lifecycle mutation")
-    except OSError as exc:
-        raise AndroidRuntimeStateError(
-            f"cannot lock Android account state for lifecycle mutation: {exc}"
-        ) from exc
+    _lock_account_state_for_receipt_access(state_fd, exclusive=True)
+
+
+def _lock_account_state_for_receipt_access(state_fd: int, *, exclusive: bool) -> None:
+    """Bound lock acquisition; never retry a read, write, or lifecycle action.
+
+    Atomic replacement unlinks the old inode and changes its ctime. Readers
+    must hold the same stable-directory lock as writers across the complete
+    strict snapshot. Writers then revalidate their exact prior under that lock,
+    so serialization never turns stale CAS input into permission to mutate.
+    """
+
+    deadline = time.monotonic() + RUNTIME_RECEIPT_LOCK_SECONDS
+    mode = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+    action = "lifecycle mutation" if exclusive else "snapshot read"
+    while True:
+        try:
+            fcntl.flock(state_fd, mode | fcntl.LOCK_NB)
+            if time.monotonic() > deadline:
+                _fail(f"owned runtime receipt lock deadline exhausted during {action}")
+            return
+        except BlockingIOError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _fail(f"owned runtime receipt lock deadline exhausted during {action}")
+            time.sleep(min(0.005, remaining))
+        except OSError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot lock Android account state for {action}: {exc}"
+            ) from exc
 
 
 def _require_locked_receipt_is_current(
@@ -4210,6 +4240,9 @@ def load_owned_runtime_receipt(
     receipt_fd = -1
     primary: BaseException | None = None
     try:
+        # Acquire before opening either descriptor: a publication that finishes
+        # while we wait must be read from the current name, not a cached inode.
+        _lock_account_state_for_receipt_access(state_fd, exclusive=False)
         try:
             receipt_fd = os.open(
                 OWNED_RUNTIME_RECEIPT_LEAF,

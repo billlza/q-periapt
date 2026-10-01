@@ -10,6 +10,7 @@ import select
 import stat
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from collections.abc import Iterator
@@ -1216,6 +1217,194 @@ class AndroidRuntimeStateTests(unittest.TestCase):
         current = self.receipt()
         self.assertIs(current.phase, state.RuntimePhase.ADB_SEALING)
         self.assertEqual(current.adb_listener_descriptor, 7)
+
+    def test_receipt_snapshot_serializes_with_real_emulator_registration(self) -> None:
+        prior = self.advance_to_sealed()
+        registration = self.emulator_registration()
+        metadata = state.owned_runtime_receipt_path().stat()
+        original_read, original_replace = os.read, os.replace
+        original_flock = state.fcntl.flock
+        reading, transition = threading.Event(), threading.Event()
+        results: dict[str, object] = {}
+
+        def read_with_barrier(descriptor: int, count: int) -> bytes:
+            observed = os.fstat(descriptor)
+            if (threading.current_thread().name == "receipt-reader" and not reading.is_set()
+                    and (observed.st_dev, observed.st_ino) == (metadata.st_dev, metadata.st_ino)):
+                # The real snapshot has already captured its before metadata.
+                reading.set()
+                if not transition.wait(3):
+                    raise RuntimeError("receipt transition barrier timed out")
+            return original_read(descriptor, count)
+
+        def replace_with_barrier(*args, **kwargs):
+            result = original_replace(*args, **kwargs)
+            if threading.current_thread().name == "receipt-writer":
+                transition.set()
+            return result
+
+        def flock_with_barrier(descriptor: int, operation: int) -> None:
+            try:
+                original_flock(descriptor, operation)
+            except BlockingIOError:
+                # The fixed reader holds a real shared lock. Release it when
+                # the real writer observes contention, without faking I/O.
+                if threading.current_thread().name == "receipt-writer":
+                    transition.set()
+                raise
+
+        def read_receipt() -> None:
+            try:
+                results["reader"] = state.load_owned_runtime_receipt()
+            except BaseException as error:
+                results["reader"] = error
+
+        def advance_receipt() -> None:
+            try:
+                results["writer"] = state.register_emulator_child(receipt=prior, registration=registration)
+            except BaseException as error:
+                results["writer"] = error
+                transition.set()
+
+        reader = threading.Thread(target=read_receipt, name="receipt-reader")
+        writer = threading.Thread(target=advance_receipt, name="receipt-writer")
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(os, "read", side_effect=read_with_barrier),
+            mock.patch.object(os, "replace", side_effect=replace_with_barrier),
+            mock.patch.object(state.fcntl, "flock", side_effect=flock_with_barrier),
+        ):
+            try:
+                reader.start()
+                self.assertTrue(reading.wait(3), "reader never reached the real snapshot")
+                writer.start()
+                reader.join(5); writer.join(5)
+                self.assertFalse(reader.is_alive()); self.assertFalse(writer.is_alive())
+            finally:
+                transition.set()
+                reader.join(5)
+                if writer.ident is not None:
+                    writer.join(5)
+        self.assertIsInstance(results["reader"], state.OwnedRuntimeReceipt, str(results["reader"]))
+        self.assertEqual(results["reader"], prior)
+        active = results["writer"]
+        self.assertIsInstance(active, state.OwnedRuntimeReceipt)
+        self.assertIs(active.phase, state.RuntimePhase.EMULATOR_CHILD_REGISTERED)
+        self.assertEqual(self.receipt(), active)
+
+    def test_receipt_reader_opens_current_inode_after_waiting_for_writer(self) -> None:
+        prior = self.advance_to_sealed()
+        registration = self.emulator_registration()
+        original_flock = state.fcntl.flock
+        writer_locked, reader_waiting = threading.Event(), threading.Event()
+        results: dict[str, object] = {}
+
+        def flock_with_barrier(descriptor: int, operation: int) -> None:
+            try:
+                original_flock(descriptor, operation)
+            except BlockingIOError:
+                if threading.current_thread().name == "receipt-reader":
+                    reader_waiting.set()
+                raise
+            if threading.current_thread().name == "receipt-writer" and operation & state.fcntl.LOCK_EX:
+                writer_locked.set()
+                if not reader_waiting.wait(3):
+                    raise RuntimeError("reader did not contend on writer's real lock")
+
+        def reader_action() -> None:
+            try:
+                results["reader"] = state.load_owned_runtime_receipt()
+            except BaseException as error:
+                results["reader"] = error
+
+        def writer_action() -> None:
+            try:
+                results["writer"] = state.register_emulator_child(receipt=prior, registration=registration)
+            except BaseException as error:
+                results["writer"] = error
+
+        reader = threading.Thread(target=reader_action, name="receipt-reader")
+        writer = threading.Thread(target=writer_action, name="receipt-writer")
+        with mock.patch.object(state, "validate_lane_lock_descriptor"), mock.patch.object(state.fcntl, "flock", side_effect=flock_with_barrier):
+            try:
+                writer.start()
+                self.assertTrue(writer_locked.wait(3))
+                reader.start()
+                reader.join(5); writer.join(5)
+                self.assertFalse(reader.is_alive()); self.assertFalse(writer.is_alive())
+            finally:
+                reader_waiting.set()
+                writer.join(5)
+                if reader.ident is not None:
+                    reader.join(5)
+        self.assertIsInstance(results["writer"], state.OwnedRuntimeReceipt, str(results["writer"]))
+        self.assertEqual(results["reader"], results["writer"])
+        self.assertIs(results["reader"].phase, state.RuntimePhase.EMULATOR_CHILD_REGISTERED)
+
+    def test_receipt_lock_deadline_fails_before_read_and_releases_descriptor(self) -> None:
+        descriptor = state._open_account_state()
+        try:
+            state.fcntl.flock(descriptor, state.fcntl.LOCK_EX | state.fcntl.LOCK_NB)
+            with (
+                mock.patch.object(state.time, "monotonic", side_effect=(0.0, state.RUNTIME_RECEIPT_LOCK_SECONDS)),
+                mock.patch.object(state, "load_json_object_snapshot_at") as read,
+                self.assertRaisesRegex(state.AndroidRuntimeStateError, "lock deadline exhausted during snapshot read"),
+            ):
+                state.load_owned_runtime_receipt()
+            read.assert_not_called()
+        finally:
+            os.close(descriptor)
+        with (
+            mock.patch.object(state.time, "monotonic", side_effect=(0.0, state.RUNTIME_RECEIPT_LOCK_SECONDS + 0.1)),
+            mock.patch.object(state, "load_json_object_snapshot_at") as read,
+            self.assertRaisesRegex(state.AndroidRuntimeStateError, "lock deadline exhausted during snapshot read"),
+        ):
+            state.load_owned_runtime_receipt()
+        read.assert_not_called()
+        # Both timeout and malformed JSON paths must release their own lock.
+        path = state.owned_runtime_receipt_path()
+        original = path.read_bytes()
+        path.write_bytes(b"{")
+        with self.assertRaises(state.AndroidRuntimeStateError):
+            state.load_owned_runtime_receipt()
+        probe = state._open_account_state()
+        try:
+            state.fcntl.flock(probe, state.fcntl.LOCK_EX | state.fcntl.LOCK_NB)
+        finally:
+            os.close(probe)
+        path.write_bytes(original)
+        self.assertIs(self.receipt().phase, state.RuntimePhase.PREPARED)
+
+    def test_uncooperative_receipt_mutation_is_still_rejected(self) -> None:
+        path = state.owned_runtime_receipt_path()
+        metadata = path.stat()
+        original_read = os.read
+        changed = False
+
+        def read_after_external_metadata_change(descriptor: int, count: int) -> bytes:
+            nonlocal changed
+            observed = os.fstat(descriptor)
+            if not changed and (observed.st_dev, observed.st_ino) == (metadata.st_dev, metadata.st_ino):
+                changed = True
+                os.utime(path, ns=(metadata.st_atime_ns, metadata.st_mtime_ns + 1_000_000_000))
+            return original_read(descriptor, count)
+
+        with mock.patch.object(os, "read", side_effect=read_after_external_metadata_change), self.assertRaisesRegex(
+            state.AndroidRuntimeStateError, "owned runtime receipt changed while it was read"
+        ):
+            state.load_owned_runtime_receipt()
+        self.assertTrue(changed)
+
+    def test_failed_receipt_replacement_preserves_unowned_staging_file(self) -> None:
+        prior = self.receipt()
+        staging = state.account_state_directory() / f".{state.OWNED_RUNTIME_RECEIPT_LEAF}.replace-{os.getpid()}"
+        staging.write_bytes(b"pre-existing stage, not created by this invocation")
+        staging.chmod(0o600)
+        with mock.patch.object(state, "validate_lane_lock_descriptor"), self.assertRaises(FileExistsError):
+            state.register_adb_child(prior, self.adb_registration())
+        self.assertTrue(staging.is_file(), "failed creation deleted an unowned staging file")
+        self.assertEqual(staging.read_bytes(), b"pre-existing stage, not created by this invocation")
+        self.assertEqual(self.receipt(), prior)
 
     def test_inherited_listener_intent_requires_ready_before_sealing(self) -> None:
         registration = dataclasses.replace(
