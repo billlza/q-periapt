@@ -6,6 +6,7 @@ from unittest import mock
 import os
 from pathlib import Path
 import subprocess
+import sys
 import unittest
 
 import android_agp_consumer as consumer
@@ -83,6 +84,10 @@ class PhysicalSDKAdmissionTests(unittest.TestCase):
             QPERIAPT_ANDROID_EXPECT_ABI='arm64-v8a', QPERIAPT_ANDROID_EXPECT_SDK='36',
             QPERIAPT_ANDROID_EXPECT_PAGE_SIZE='4096', QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE='0')
         clean = {k:v for k,v in os.environ.items() if not k.startswith('QPERIAPT_')}
+        # Keep the executing test runtime explicit: hosted Python may live
+        # outside the bootstrap's system fallback paths. Only device selectors
+        # are reset; this must not replace the selected CPython with an older one.
+        clean['QPERIAPT_PYTHON'] = sys.executable
         for profile in contract.SDK_PROFILES:
             result = subprocess.run(['sh','-c',block], env={**clean,**selected,'QPERIAPT_ANDROID_CONSUMER_PROFILE':profile},
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, check=False)
