@@ -1427,6 +1427,26 @@ jobs:
             --device-abi x86_64 \
             --runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE"
           unset ANDROID_AVD_HOME avd_home avd_name
+      - name: Inspect the selected 16-KiB SDK image without guest privilege changes
+        if: matrix.profile == 'api35-16k'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          tools_dir="$GITHUB_WORKSPACE/target/android-image-tools"
+          test ! -e "$tools_dir" && test ! -L "$tools_dir"
+          mkdir -m 700 "$tools_dir"
+          curl --fail --location --max-time 60 --max-filesize 2097152 \
+            https://github.com/ip7z/7zip/releases/download/26.03/7z2603-linux-x64.tar.xz \
+            --output "$tools_dir/7zip.tar.xz"
+          printf '%s  %s\n' \
+            dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695 \
+            "$tools_dir/7zip.tar.xz" | sha256sum --check --strict -
+          tar -xJf "$tools_dir/7zip.tar.xz" -C "$tools_dir" 7zz License.txt
+          avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
+          sh artifact/python-run.sh artifact/android_system_image_runtime.py \
+            --sdk "$ANDROID_HOME" --abi x86_64 --tool "$tools_dir/7zz" \
+            --avd-config "$avd_home/$ANDROID_RUNTIME_AVD.avd/config.ini" \
+            --output "$GITHUB_WORKSPACE/target/android-system-image-runtime"
       - name: Execute both SDK consumers against the hash-bound AAR on the selected ART runtime
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
@@ -1506,11 +1526,21 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.err
           if-no-files-found: error
       - name: Retain Android SDK package and runtime evidence
-        if: always() && (hashFiles('target/sdk-android-package/*.stdout') != '' || hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/proof.json') != '')
+        if: always() && (hashFiles('target/sdk-android-package/*.stdout') != '' || hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/proof.json') != '' || hashFiles('target/android-system-image-runtime/REPORT.json') != '')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64
           path: |
+            target/android-system-image-runtime/REPORT.json
+            target/android-system-image-runtime/source.properties
+            target/android-system-image-runtime/build.prop
+            target/android-system-image-runtime/lmkd.elf
+            target/android-system-image-runtime/gpt.txt
+            target/android-system-image-runtime/lp.txt
+            target/android-system-image-runtime/ext.txt
+            target/android-system-image-runtime/*.stderr
+            target/android-system-image-runtime/7zz
+            target/android-system-image-runtime/7zip-LICENSE.txt
             target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
             target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt

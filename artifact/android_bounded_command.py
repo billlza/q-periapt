@@ -654,16 +654,17 @@ def _emulator_state_argv(
 def _emulator_memory_runtime_argv(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[str, ...]:
-    # Capture the image's actual implementation for offline unit analysis.
-    # The fixed binary is read as data, never executed or replaced by this probe.
+    # Production images deny shell reads of /proc/cmdline and /system/bin/lmkd.
+    # Preserve accessible guest identity here. The host image diagnostic reads
+    # lmkd as data separately; neither record attests the running process bytes.
     return _native_diagnostic_argv(
         capability, (
             ("kernel-release", ("uname", "-r")),
-            ("kernel-command-line", ("cat", "/proc/cmdline")),
             ("runtime-page-size", ("getconf", "PAGE_SIZE")),
-            ("lmkd-elf-base64", ("base64", "/system/bin/lmkd")),
+            ("build-fingerprint", ("getprop", "ro.build.fingerprint")),
+            ("system-build-fingerprint", ("getprop", "ro.system.build.fingerprint")),
         ),
-        header="QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=1",
+        header="QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=2",
         completion="QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT",
     )
 

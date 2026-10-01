@@ -4307,16 +4307,20 @@ esac
         guest_bin = self.root / "memory-runtime-native-bin"
         guest_bin.mkdir()
         calls = self.root / "memory-runtime-native-calls.txt"
-        for name in ("uname", "cat", "getconf", "base64"):
+        for name in ("uname", "getconf", "getprop"):
             probe = guest_bin / name
             probe.write_text('''#!/bin/sh
 name=${0##*/}
 printf '%s %s\\n' "$name" "$*" >>"$QPERIAPT_TEST_CALLS"
 case "$name" in
   uname) printf 'kernel fixture\\n'; exit "$QPERIAPT_TEST_KERNEL_STATUS" ;;
-  cat) printf 'page_shift=14\\n' ;;
   getconf) printf '16384\\n' ;;
-  base64) printf 'f0VMRg==\\n'; exit "$QPERIAPT_TEST_BINARY_STATUS" ;;
+  getprop)
+    case "$1" in
+      ro.build.fingerprint) printf 'build fingerprint fixture\\n' ;;
+      ro.system.build.fingerprint) printf 'system fingerprint fixture\\n'; exit "$QPERIAPT_TEST_BINARY_STATUS" ;;
+      *) exit 64 ;;
+    esac ;;
 esac
 ''')
             probe.chmod(0o700)
@@ -4334,11 +4338,12 @@ esac
             self.assertEqual(result.returncode, expected, result.stderr)
             status, body = commands._parse_guest_completion(result.stdout, self.run_id, "memory-runtime")
             self.assertEqual(status, expected)
-            self.assertTrue(body.startswith(b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=1\n"))
+            self.assertTrue(body.startswith(b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=2\n"))
             self.assertEqual(body.count(b"QPERIAPT_STATE_STATUS:"), 4)
-            self.assertIn(f"QPERIAPT_STATE_STATUS:lmkd-elf-base64:{binary_status}".encode(), body)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:system-build-fingerprint:{binary_status}".encode(), body)
             self.assertEqual(calls.read_text().splitlines(), [
-                "uname -r", "cat /proc/cmdline", "getconf PAGE_SIZE", "base64 /system/bin/lmkd",
+                "uname -r", "getconf PAGE_SIZE", "getprop ro.build.fingerprint",
+                "getprop ro.system.build.fingerprint",
             ])
 
     def test_app_exit_info_probe_keeps_exact_package_and_native_failure(self) -> None:

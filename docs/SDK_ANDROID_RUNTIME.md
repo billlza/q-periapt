@@ -216,12 +216,13 @@ RSS/swap and the pressure reason when available. This corrects a missing diagnos
 tag without changing guest RAM, workload, retry budgets or acceptance. A passing
 rerun alone does not resolve the retained low-memory failure.
 
-Before installation on the owned `api35-16k` target, a separate fixed native
-capture records the kernel release, kernel command line, runtime page size and
-base64 bytes of `/system/bin/lmkd`. The binary is read for offline inspection;
-the probe does not execute or replace it. This supplies the image implementation
-needed to test page-unit hypotheses against the retained raw zone/meminfo
-counters, instead of assuming a public source branch matches the running image.
+Before installation on the owned `api35-16k` target, version 2 of the separate
+fixed native capture records the kernel release, runtime page size, build
+fingerprint and system build fingerprint. The actual version-1 target run at
+`2acbbda8` retained `Permission denied` for `/proc/cmdline` and `/system/bin/lmkd`,
+while kernel release and page size succeeded. Those protected reads are now
+replaced by accessible identity queries; no root or guest permission change is
+used. The historical failed capture remains a failure.
 The capture has a 15-second / 4-MiB bound, retains every guest command status and
 requires a run-bound completion record, with the same live emulator ownership
 checks before and after reading. Failure stops before SDK installation. Physical
@@ -229,6 +230,22 @@ and API 23 collection remain outside this probe. The existing state-v2 snapshots
 and their bounds are unchanged. Capturing these inputs is diagnostic evidence;
 it does not itself establish the cause of a low-memory event or a repaired image.
 Both success and failure artifact lists retain this capture and its stderr.
+
+The CI 16-KiB lane separately runs `artifact/android_system_image_runtime.py`
+before boot. A digest-pinned, task-local 7-Zip 26.03 reads the SDK image as data,
+without mounting it or executing guest files. It selects the AVD's exact SDK
+package, rejects image overrides, hashes the system image, kernel and ramdisk,
+and checks GPT/super/system extent relationships before extracting only
+`system/bin/lmkd` and `system/build.prop`. A scanned filesystem at another offset,
+fragmented system extent, linked component, oversized output or changed input
+fails explicitly. Tool commands have a 30-second deadline with separate 4-MiB
+stdout and 64-KiB stderr bounds; system images have an 8-GiB bound and kernel/
+ramdisk files a 256-MiB bound. The nested-container offset/tail warnings are retained
+with the verified extent metadata, not hidden. CI retains the report, raw
+listings, component bytes, pinned tool and its license even after an inspection
+failure. The helper's local source-image mode omits AVD selection and does not
+start a VM. Installed-image identity and matching fingerprints are diagnostic
+inputs, not attestation of the running lmkd process or proof of a memory-unit bug.
 
 Completed native diagnostic commands also retain output when modern ADB returns
 the guest's nonzero status. The bounded writer previously removed that output,
