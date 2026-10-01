@@ -2,6 +2,8 @@
 //! Actual installed C owners against an independently owned native witness socket.
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
+#[path = "witness/opening.rs"]
+mod opening;
 #[path = "witness/openssl.rs"]
 mod openssl;
 #[path = "witness/tls.rs"]
@@ -97,9 +99,12 @@ impl Witness {
                 // authenticated the request and durably applied its transition.
                 let advanced = reply.get(204) == Some(&2);
                 let mut delivered = true;
-                if advanced
+                if (advanced
                     && pending
                         .compare_exchange(3, 0, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok())
+                    || pending
+                        .compare_exchange(4, 0, Ordering::AcqRel, Ordering::Acquire)
                         .is_ok()
                 {
                     let marker = held
@@ -190,6 +195,15 @@ impl Witness {
             return Err("unconsumed hold marker".into());
         }
         self.arm(3)?;
+        *pending = Some(marker);
+        Ok(())
+    }
+    fn hold_next_reply(&self, marker: PathBuf) -> Result<()> {
+        let mut pending = self.hold_marker.lock().map_err(|_| "hold lock poisoned")?;
+        if pending.is_some() {
+            return Err("unconsumed hold marker".into());
+        }
+        self.arm(4)?;
         *pending = Some(marker);
         Ok(())
     }

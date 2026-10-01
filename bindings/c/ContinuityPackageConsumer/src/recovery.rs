@@ -18,24 +18,29 @@ pub(crate) struct Recovery {
     anchor: Option<p::AnchorClient>,
 }
 impl Recovery {
-    fn open(
+    pub(crate) fn open(
         path: &Path,
         witness: Option<witness::Configuration>,
         cancel: Cancellation,
         invocation: invocation::Scope,
+        deadline: Instant,
     ) -> Result<Self> {
+        opening::check(&cancel, deadline)?;
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
             &path.join("journal.redb"),
             &path.join("archives.redb"),
         )?;
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
-        Ok(Self {
+        opening::check(&cancel, deadline)?;
+        let result = Self {
             anchor: witness
-                .map(|value| value.client(path, cancel, invocation))
+                .map(|value| value.client(path, cancel.clone(), invocation))
                 .transpose()?,
             state: State::Discovery(Box::new(p::InstallationRecovery::open(paths, key)?)),
-        })
+        };
+        opening::check(&cancel, deadline)?;
+        Ok(result)
     }
     fn ids(&mut self) -> Result<Vec<[u8; 32]>> {
         match &mut self.state {
@@ -99,7 +104,7 @@ fn with_recovery<T>(
 ) -> Result<T> {
     with_owned(handle, deadline, |owner, cancel| match owner {
         Owned::Recovery(owner) => action(owner, cancel),
-        Owned::Operational(_) => Err(failure(6)),
+        _ => Err(failure(6)),
     })
 }
 fn cancelled(cancel: &Cancellation) -> Result<()> {
@@ -362,6 +367,7 @@ unsafe fn open_recovery(
             witness,
             reservation.cancel.clone(),
             reservation.invocation.clone(),
+            deadline,
         )?;
         let id = reservation.publish(Owned::Recovery(Box::new(owner)), deadline)?;
         unsafe { put(handle, id) };
@@ -701,6 +707,7 @@ mod invocation_tests {
 
     #[test]
     fn expired_constructor_publication_returns_its_slot_without_a_handle() {
+        let _serial = TEST_REGISTRY.lock().expect("test registry");
         let reservation = Reservation::new().expect("reserved slot");
         let id = reservation.id;
         assert!(
@@ -712,6 +719,7 @@ mod invocation_tests {
 
     #[test]
     fn late_native_errors_survive_and_success_requires_original_state_reconciliation() {
+        let _serial = TEST_REGISTRY.lock().expect("test registry");
         let reservation = Reservation::new().expect("reserved slot");
         let id = reservation
             .publish(closed(), Instant::now() + invocation::TIMEOUT)

@@ -61,6 +61,19 @@ address space. An operation obtains exclusive access without blocking another
 caller. A conflicting operation or close returns `QPC_BUSY`. Close and cancellation
 are exempt from call capacity, so a full budget cannot prevent draining it.
 
+For cancellation during construction, `qpc_owner_v1_prepare_open` copies the bounded
+path and explicit owner/carrier selection without installation I/O, then returns a
+pending handle in that same registry. `qpc_owner_v1_finish_open` runs activation on
+the caller's thread; another thread can cancel through the known handle. There is
+no detached constructor task. Pending handles grant no business-operation authority.
+Once initialization is admitted, its request is consumed exactly once. Failure,
+including late cancellation or expiration, drops partial owners and leaves only
+cancel/close available. Close it and prepare the original installation again to
+reconcile durable outcomes. Busy/call-capacity admission failures leave the request
+pending. Successful initialization converts the same handle to the selected owner;
+calling finish again returns OwnerKind without replacing it. The synchronous
+constructors remain available for callers that do not need an early handle.
+
 Cancellation is one-way for that owner. Cancel, join the active invocation, close,
 then reopen the same original installation to reconcile retained work. A successful
 close releases its owned state/leases and invalidates the handle. It neither rolls
@@ -135,7 +148,7 @@ control endpoint; it does not mix application and control protocol identifiers.
 
 ## Cleanup after operational revocation
 
-The seventeen `qpc_recovery_v1_*` functions share the handle registry, cancellation,
+The eighteen `qpc_recovery_v1_*` functions share the handle registry, cancellation,
 close and call budgets. Operational and recovery handles are distinct owner kinds;
 using one for the other's operations returns `QPC_OWNER_KIND`. Recovery does not
 create sending, receiving, rekeying or provisioning authority. Required-witness

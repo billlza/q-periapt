@@ -7,6 +7,7 @@ import re
 
 import continuity_package as package
 import continuity_c_recovery as recovery
+import continuity_c_opening as opening
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_witness_openssl as witness_openssl
@@ -24,7 +25,7 @@ SERVER_SCOPE = "installed native Rust client to unpublished C server; same host;
 SCOPE = "unpublished C client to installed Rust peer; same host; local journal profile"
 QUALIFICATION_SCOPE = "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles with explicit signed TCP or mutual TLS witness carrier"
 EXPORTS = {"qpc_owner_v1_" + name for name in
-           ("open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
+           ("open", "prepare_open", "finish_open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
             "listen", "serve", "serve_rekey")}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "session_at", "select", "select_archive",
             "archive", "begin", "status", "reserved", "epoch", "unconfirmed", "delivery", "skipped",
@@ -178,6 +179,7 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
 def verify_admission(stdout: bytes) -> None:
     tests = {
         "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
+        "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
         "invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered",
         "invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope",
         "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
@@ -186,7 +188,7 @@ def verify_admission(stdout: bytes) -> None:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -287,7 +289,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         executable = installed / "qpc-c-client"
         run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-pthread",
              *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
-             str(consumer / "client.c"), str(consumer / "recovery_client.c"), "-I", str(consumer), "-L", str(installed), "-l" + LIBRARY,
+             str(consumer / "client.c"), str(consumer / "recovery_client.c"), str(consumer / "opening_client.c"), "-I", str(consumer), "-L", str(installed), "-l" + LIBRARY,
              "-Wl,-rpath," + ("@loader_path" if darwin else "$ORIGIN"), "-o", str(executable)], "compile-" + profile)
         symbols = run(["/usr/bin/nm", *( ["-gU"] if darwin else ["-D", "--defined-only"] ),
                        str(installed / filename)], "exports-" + profile).decode()
@@ -343,6 +345,13 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")
         witness_identity = sdk.snapshot(witness_helper, maximum=MAX_BINARY)
+        opening_evidence = outside / ("c-" + profile + "-opening-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(opening_evidence)
+        tested = run([str(witness_helper), "--exact", opening.TEST, "--nocapture"],
+                     "opening-trace-" + profile, runtime=runtime)
+        result["execution"][profile]["opening"] = opening.verify_execution(tested, opening_evidence)
+        result["execution"][profile]["opening"]["exported_public_files"] = opening.export_public(
+            tested, opening_evidence, output / "c-opening-public" / profile)
         witness_evidence = outside / ("c-" + profile + "-witness-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(witness_evidence)
         tested = run([str(witness_helper), "--exact", witness.TEST, "--nocapture"], "witness-trace-" + profile, runtime=runtime)

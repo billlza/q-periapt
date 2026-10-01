@@ -48,14 +48,14 @@ pub(super) fn provision(paths: [&Path; 2]) -> Result<Provisioned> {
     })
 }
 
-struct TlsWitness {
-    address: SocketAddr,
+pub(super) struct TlsWitness {
+    pub(super) address: SocketAddr,
     stop: Arc<AtomicBool>,
     admitted: Arc<AtomicUsize>,
     worker: Option<thread::JoinHandle<Result<Vec<String>>>>,
 }
 impl TlsWitness {
-    fn start(store: Arc<Mutex<p::AnchorStore>>, paths: [&Path; 2]) -> Result<Self> {
+    pub(super) fn start(store: Arc<Mutex<p::AnchorStore>>, paths: [&Path; 2]) -> Result<Self> {
         let server = provision(paths)?.native;
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
@@ -103,7 +103,7 @@ impl TlsWitness {
             worker: Some(worker),
         })
     }
-    fn finish(&mut self) -> Result<Vec<String>> {
+    pub(super) fn finish(&mut self) -> Result<Vec<String>> {
         self.stop.store(true, Ordering::Release);
         self.worker
             .take()

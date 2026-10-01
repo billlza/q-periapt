@@ -289,6 +289,7 @@ static void serve(uint64_t handle, const char *path, const char *mode, const cha
     }
 }
 int recovery_command(int argc, char **argv,const qpc_witness_v1 *witness,int witness_tls);
+int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int witness_tls);
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -299,6 +300,7 @@ int main(int argc, char **argv) {
         witness=&options; argc-=2; argv+=2;
     }
     self_check();
+    if (strncmp(argv[1], "opening-", 8) == 0) return opening_command(argc, argv, witness, witness_tls);
     if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv,witness,witness_tls);
     if (strcmp(argv[1], "self-check") == 0) {
         if (argc != 2) fail("self-check arguments");

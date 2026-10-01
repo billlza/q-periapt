@@ -3,6 +3,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod invocation;
+mod opening;
 mod owner;
 mod recovery;
 mod server;
@@ -203,6 +204,7 @@ impl From<p::connection_transport::Error> for Failure {
 }
 
 enum Owned {
+    Opening(Box<opening::Request>),
     Operational(Box<owner::Owner>),
     Recovery(Box<recovery::Recovery>),
 }
@@ -220,6 +222,8 @@ static TABLE: Mutex<Table> = Mutex::new(Table {
     next: 1,
     slots: BTreeMap::new(),
 });
+#[cfg(test)]
+static TEST_REGISTRY: Mutex<()> = Mutex::new(());
 const MAX_OWNERS: usize = 64;
 const MAX_CALLS: usize = 64;
 static CALLS: AtomicUsize = AtomicUsize::new(0);
@@ -268,7 +272,7 @@ impl Reservation {
         if slot.is_some() {
             return Err(failure(5));
         }
-        invocation::check(deadline)?;
+        opening::check(&self.cancel, deadline)?;
         *slot = Some(Arc::new(Entry {
             cancel: self.cancel.clone(),
             invocation: self.invocation.clone(),
@@ -307,13 +311,25 @@ fn with<T>(
 ) -> Result<T> {
     with_owned(id, deadline, |owner, cancel| match owner {
         Owned::Operational(owner) => action(owner, cancel),
-        Owned::Recovery(_) => Err(failure(6)),
+        _ => Err(failure(6)),
     })
 }
 fn with_owned<T>(
     id: u64,
     deadline: Instant,
     action: impl FnOnce(&mut Owned, &Cancellation) -> Result<T>,
+) -> Result<T> {
+    with_entry(id, deadline, |slot, entry| {
+        let owner = slot.as_mut().ok_or(failure(2))?;
+        let value = action(owner, &entry.cancel)?;
+        invocation::check(deadline)?;
+        Ok(value)
+    })
+}
+fn with_entry<T>(
+    id: u64,
+    deadline: Instant,
+    action: impl FnOnce(&mut Option<Owned>, &Entry) -> Result<T>,
 ) -> Result<T> {
     let entry = entry(id)?;
     let mut locked = match entry.owner.try_lock() {
@@ -325,13 +341,8 @@ fn with_owned<T>(
             return Err(failure(5));
         }
     };
-    let owner = locked.as_mut().ok_or(failure(2))?;
     let _active = entry.invocation.enter(deadline)?;
-    match catch_unwind(AssertUnwindSafe(|| {
-        let value = action(owner, &entry.cancel)?;
-        invocation::check(deadline)?;
-        Ok(value)
-    })) {
+    match catch_unwind(AssertUnwindSafe(|| action(&mut locked, &entry))) {
         Ok(result) => result,
         Err(_) => {
             entry.cancel.cancel();
@@ -522,13 +533,7 @@ unsafe fn open_owner(
         let witness = witness
             .map(|(value, carrier)| unsafe { witness::Configuration::read(value, carrier) })
             .transpose()?;
-        let quality = match quality {
-            1 => p::PrekeyQuality::OneTimeBoth,
-            2 => p::PrekeyQuality::ReusableBoth,
-            3 => p::PrekeyQuality::SignedClassicalOneTimePq,
-            4 => p::PrekeyQuality::OneTimeClassicalLastResortPq,
-            _ => return Err(Failure::argument()),
-        };
+        let quality = opening::quality(u32::from(quality))?;
         let slot = Reservation::new()?;
         let _active = slot.invocation.enter(deadline)?;
         let owner = owner::Owner::open(
@@ -537,6 +542,7 @@ unsafe fn open_owner(
             witness,
             slot.cancel.clone(),
             slot.invocation.clone(),
+            deadline,
         )?;
         let id = slot.publish(Owned::Operational(Box::new(owner)), deadline)?;
         unsafe { put(handle, id) };
@@ -827,15 +833,36 @@ mod tests {
     use super::*;
     #[test]
     fn full_call_budget_preserves_drain_and_returns_capacity_after_failure() {
-        let permits = (0..MAX_CALLS)
-            .map(|_| CallPermit::reserve().expect("available call slot"))
-            .collect::<Vec<_>>();
+        let _serial = TEST_REGISTRY.lock().expect("test registry");
         let mut diagnostic = ErrorRecord {
             code: -1,
             length: 0,
             truncated: 0,
             message: [0; 512],
         };
+        let options = opening::Options {
+            kind: 2,
+            quality: 0,
+            carrier: 0,
+            witness: std::ptr::null(),
+        };
+        let mut pending = 0;
+        // SAFETY: distinct live stack inputs and outputs; preparation performs no I/O.
+        unsafe {
+            assert_eq!(
+                opening::qpc_owner_v1_prepare_open(
+                    b"relative".as_ptr(),
+                    8,
+                    &options,
+                    &mut pending,
+                    &mut diagnostic
+                ),
+                0
+            );
+        }
+        let permits = (0..MAX_CALLS)
+            .map(|_| CallPermit::reserve().expect("available call slot"))
+            .collect::<Vec<_>>();
         let mut handle = 99;
         // SAFETY: all arrays/scalars live for the call and no regions overlap.
         unsafe {
@@ -844,6 +871,12 @@ mod tests {
                 4
             );
             assert_eq!(diagnostic.code, 4);
+            assert_eq!(
+                opening::qpc_owner_v1_finish_open(pending, &mut diagnostic),
+                4
+            );
+            assert_eq!(qpc_owner_v1_cancel(pending, &mut diagnostic), 0);
+            assert_eq!(qpc_owner_v1_close(pending, &mut diagnostic), 0);
             assert_eq!(qpc_owner_v1_cancel(0, &mut diagnostic), 2);
             assert_eq!(qpc_owner_v1_close(0, &mut diagnostic), 2);
         }

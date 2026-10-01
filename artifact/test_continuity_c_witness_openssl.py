@@ -10,7 +10,7 @@ from test_continuity_c_witness_tls import fixture as native_fixture
 
 def output(kind):
     return (f"test {interop.TESTS[kind]} ... ok\n"
-            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
 
 
 def receipt(**extra):
@@ -76,7 +76,8 @@ class OpenSslWitnessEvidenceTests(unittest.TestCase):
                 root = Path(folder)
                 stdout, report = fixture(root, kind)
                 interop.verify_execution(kind, stdout, root)
-                for altered in (b"", stdout + stdout, stdout.replace(b"6 filtered out", b"5 filtered out")):
+                for altered in (b"", stdout + stdout, stdout.replace(b"7 filtered out", b"5 filtered out")):
+                    self.assertNotEqual(altered, stdout)
                     with self.subTest(kind=kind), self.assertRaises(ValueError):
                         interop.verify_execution(kind, altered, root)
                 for field, value in (("completed", 1), ("release_claim_eligible", True),

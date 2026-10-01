@@ -108,7 +108,9 @@ impl Owner {
         witness: Option<crate::witness::Configuration>,
         cancel: Cancellation,
         invocation: crate::invocation::Scope,
+        deadline: Instant,
     ) -> Result<Self> {
+        crate::opening::check(&cancel, deadline)?;
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
             &path.join("journal.redb"),
@@ -122,6 +124,7 @@ impl Owner {
             &read(&directory, "sdk-root", 8192)?,
             q_periapt_sdk::Limits::default(),
         )?;
+        crate::opening::check(&cancel, deadline)?;
         let family = array(&directory, "family")?;
         let pin = p::PolicyPin::new(
             family,
@@ -136,6 +139,7 @@ impl Owner {
             policy_store.runtime()?,
             now().map_err(Failure::configuration)?,
         )?);
+        crate::opening::check(&cancel, deadline)?;
         let initiator = account(&directory, "initiator", family)?;
         let responder = account(&directory, "responder", family)?;
         let context = Arc::new(
@@ -166,6 +170,7 @@ impl Owner {
                 now().map_err(Failure::configuration)?,
             )?,
         );
+        crate::opening::check(&cancel, deadline)?;
         let role = match array(&directory, "role")? {
             [1] => p::BootstrapRole::Initiator,
             [2] => p::BootstrapRole::Responder,
@@ -177,6 +182,7 @@ impl Owner {
             &key,
             p::SigningKeyId::from_trusted_state(array(&directory, "signer-id")?)?,
         )?;
+        crate::opening::check(&cancel, deadline)?;
         let device = context.device(role);
         let installation = p::DeviceInstallation::open(
             paths,
@@ -188,8 +194,9 @@ impl Owner {
         // A witnessed constructor must match the policy exactly; absence never
         // retries activation under a different persistence profile.
         let anchor = witness
-            .map(|configured| configured.client(path, cancel, invocation))
+            .map(|configured| configured.client(path, cancel.clone(), invocation))
             .transpose()?;
+        crate::opening::check(&cancel, deadline)?;
         let service = installation.activate(
             key,
             device,
@@ -197,6 +204,7 @@ impl Owner {
             now().map_err(Failure::configuration)?,
             anchor,
         )?;
+        crate::opening::check(&cancel, deadline)?;
         let owner = Self {
             listener: None,
             service,
@@ -211,6 +219,7 @@ impl Owner {
         };
         // Validate certificate/key/pin configuration before returning a handle.
         owner.endpoint()?;
+        crate::opening::check(&cancel, deadline)?;
         Ok(owner)
     }
     fn credentials(&self) -> Credentials<'_> {

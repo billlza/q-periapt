@@ -29,11 +29,13 @@ def head(data: bytes) -> tuple[int, int, bytes]:
     return fence, revision, data[16:]
 
 
-def transcript(data: bytes, authority: bytes) -> dict:
+def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2, expected_lost_queries: int = 0) -> dict:
+    sdk.require(all(type(value) is int and 0 <= value <= 4096
+                    for value in (expected_lost_advances, expected_lost_queries)), "invalid expected witness loss census")
     sdk.require(len(authority) == 32 and data and len(data) % RECORD_BYTES == 0
                 and len(data) <= RECORD_BYTES * 4096, "witness transcript framing differs")
     states, challenges, lost, recovered = {}, set(), {}, set()
-    advanced = 0
+    advanced, lost_queries = 0, 0
     for index in range(len(data) // RECORD_BYTES):
         row = data[index * RECORD_BYTES:(index + 1) * RECORD_BYTES]
         delivered, request, reply = row[0], row[1:3675], row[3675:]
@@ -77,13 +79,18 @@ def transcript(data: bytes, authority: bytes) -> dict:
                 states[subject] = (target, command)
             sdk.require(observed == target and last_id == command, "witness acknowledged another target")
         if not delivered:
-            sdk.require(outcome == 2 and command not in lost, "lost witness response was not one committed advance")
-            lost[command] = (index, challenge)
+            if kind == 1:
+                sdk.require(expected_lost_queries > 0, "unexpected lost witness query")
+                lost_queries += 1
+            else:
+                sdk.require(outcome == 2 and command not in lost, "lost witness response was not one committed advance")
+                lost[command] = (index, challenge)
         elif outcome == 3 and command in lost:
             original_index, original_challenge = lost[command]
             sdk.require(index > original_index and challenge != original_challenge, "witness retry did not use a fresh attempt")
             recovered.add(command)
-    sdk.require(len(states) == 2 and len(lost) == 2 and recovered == lost.keys(), "witness original lost advances were not reconciled")
+    sdk.require(len(states) == 2 and len(lost) == expected_lost_advances
+                and lost_queries == expected_lost_queries and recovered == lost.keys(), "witness original lost advances were not reconciled")
     return {"exchanges": len(data) // RECORD_BYTES, "subjects": len(states), "logical_advances": advanced,
             "lost_commands": sorted(value.hex() for value in lost), "fresh_challenges": len(challenges)}
 
@@ -104,7 +111,7 @@ def cancellation_latency(data: bytes) -> int:
 def verify_execution(stdout: bytes, directory: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
                 "installed C witness test did not execute completely")
     report_snapshot = sdk.snapshot(directory / "c-witness-public-result.json")
     report = parse_strict_json_bytes(report_snapshot.data, label="C witness result")

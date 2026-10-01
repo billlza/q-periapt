@@ -42,7 +42,7 @@ def verify_execution(kind: str, stdout: bytes, directory: Path) -> dict:
     sdk.require(kind in TESTS, "unknown OpenSSL witness workload")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TESTS[kind]]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
                 "OpenSSL witness workload did not execute completely")
     public = {}
 

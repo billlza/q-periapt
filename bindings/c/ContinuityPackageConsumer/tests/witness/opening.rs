@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Real C initialization cancellation, without a detached constructor worker.
+use super::*;
+
+fn cancelled(output: &str) -> Result<u64> {
+    let ms = output
+        .strip_prefix("prepared-cancelled:218:")
+        .and_then(|text| text.strip_suffix('\n'))
+        .ok_or("constructor cancellation receipt")?
+        .parse::<u64>()?;
+    if ms >= 1000 {
+        return Err("constructor cancellation exceeded observation bound".into());
+    }
+    Ok(ms)
+}
+fn prepare(
+    path: &Path,
+    label: &str,
+    mode: &str,
+    kind: &str,
+    address: Option<SocketAddr>,
+    carrier: &str,
+) -> Result<String> {
+    finish(
+        start_carrier(path, label, mode, &[kind.to_owned()], address, carrier)?,
+        0,
+    )
+}
+
+#[test]
+fn c_prepared_constructors_cancel_network_admission_and_release_original_owners() -> Result<()> {
+    let mut witness = Witness::start()?;
+    let setup = fixture::setup_with_witness(Some(&witness.configured))?;
+    let left = &setup.initiator;
+    let right = &setup.responder;
+    let root = left.parent().ok_or("opening evidence root")?;
+    let address = witness.configured.address;
+    let before = witness.captured.lock().map_err(|_| "capture lock")?.len();
+    for (kind, number) in [("operational", 1), ("recovery", 2)] {
+        for (label, endpoint) in [("local", None), ("tcp", Some(address))] {
+            assert_eq!(
+                prepare(
+                    left,
+                    &format!("opening-{label}-pre-{kind}"),
+                    "opening-pre-cancel",
+                    kind,
+                    endpoint,
+                    "--witness"
+                )?,
+                format!("prepared-pre-cancel:{number}\n")
+            );
+        }
+    }
+    assert_eq!(
+        witness.captured.lock().map_err(|_| "capture lock")?.len(),
+        before
+    );
+    for (kind, number) in [("operational", 1), ("recovery", 2)] {
+        assert_eq!(
+            prepare(
+                left,
+                &format!("opening-tcp-ready-{kind}"),
+                "opening-prepare",
+                kind,
+                Some(address),
+                "--witness"
+            )?,
+            format!("prepared-open:{number}\n")
+        );
+    }
+    let marker = left.join("opening-tcp-held");
+    witness.hold_next_reply(marker.clone())?;
+    let tcp_ms = cancelled(&finish(
+        start(
+            left,
+            "opening-tcp-cancel",
+            "opening-cancel",
+            &[
+                "operational".into(),
+                marker.to_str().ok_or("marker path")?.into(),
+            ],
+            Some(address),
+        )?,
+        0,
+    )?)?;
+    // Reopening the same installation demonstrates that the failed constructor's
+    // native file/policy owners were dropped; no different lineage is provisioned.
+    assert_eq!(
+        prepare(
+            left,
+            "opening-tcp-reopen",
+            "opening-prepare",
+            "operational",
+            Some(address),
+            "--witness"
+        )?,
+        "prepared-open:1\n"
+    );
+    witness.join()?;
+    let records = witness.captured.lock().map_err(|_| "capture lock")?;
+    let lost = records
+        .iter()
+        .filter(|record| !record.delivered)
+        .collect::<Vec<_>>();
+    assert_eq!(lost.len(), 1);
+    assert_eq!(
+        lost.first().ok_or("missing held query")?.reply.get(204),
+        Some(&1)
+    ); // Observed query, no advance.
+    let mut transcript = Vec::new();
+    for record in records.iter() {
+        transcript.push(u8::from(record.delivered));
+        transcript.extend_from_slice(&record.request);
+        transcript.extend_from_slice(&record.reply);
+    }
+    let exchanges = records.len();
+    fixture::store(root, "opening-witness-transcript", &transcript)?;
+    drop(records);
+
+    let mut tls = tls::TlsWitness::start(Arc::clone(&witness.configured.store), [left, right])?;
+    for (kind, number) in [("operational", 1), ("recovery", 2)] {
+        assert_eq!(
+            prepare(
+                left,
+                &format!("opening-tls-pre-{kind}"),
+                "opening-pre-cancel",
+                kind,
+                Some(tls.address),
+                "--witness-tls"
+            )?,
+            format!("prepared-pre-cancel:{number}\n")
+        );
+        assert_eq!(
+            prepare(
+                left,
+                &format!("opening-tls-ready-{kind}"),
+                "opening-prepare",
+                kind,
+                Some(tls.address),
+                "--witness-tls"
+            )?,
+            format!("prepared-open:{number}\n")
+        );
+    }
+    // A TCP peer consumes the actual TLS ClientHello and then withholds a reply.
+    // This exercises cancellation before TLS authentication, not a TLS mock success.
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let stalled = listener.local_addr()?;
+    let held_path = left.clone();
+    let worker = thread::spawn(move || -> Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut stream = loop {
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(error)
+                    if error.kind() == io::ErrorKind::WouldBlock && Instant::now() < deadline =>
+                {
+                    thread::sleep(Duration::from_millis(2));
+                }
+                Err(error) => return Err(error.into()),
+            }
+        };
+        stream.set_nonblocking(false)?;
+        stream.set_read_timeout(Some(Duration::from_secs(3)))?;
+        let mut header = [0; 5];
+        stream.read_exact(&mut header)?;
+        if header[0] != 22 || header[1] != 3 || u16::from_be_bytes([header[3], header[4]]) == 0 {
+            return Err("expected actual TLS handshake record".into());
+        }
+        fixture::store(&held_path, "opening-tls-held", b"1")?;
+        let mut received = header.to_vec();
+        let mut buffer = [0; 1024];
+        loop {
+            let count = stream.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            received.extend_from_slice(buffer.get(..count).ok_or("TLS receive length")?);
+            if received.len() > 16384 {
+                return Err("unexpected TLS hello size".into());
+            }
+        }
+        fixture::store(&held_path, "opening-tls-client-hello", &received)?;
+        fixture::store(&held_path, "opening-tls-closed", b"1")?;
+        Ok(())
+    });
+    let marker = left.join("opening-tls-held");
+    let pending = start_carrier(
+        left,
+        "opening-tls-cancel",
+        "opening-cancel",
+        &[
+            "operational".into(),
+            marker.to_str().ok_or("TLS marker path")?.into(),
+        ],
+        Some(stalled),
+        "--witness-tls",
+    );
+    // Join this owned bounded server on success and failure; never leave a thread
+    // accessing a fixture that has gone out of scope.
+    let result = pending.and_then(|process| finish(process, 0));
+    let closed = worker.join().map_err(|_| "TLS hold worker panicked")?;
+    if let Err(error) = closed {
+        return Err(format!("TLS hold worker failed: {error}; C result: {result:?}").into());
+    }
+    let tls_ms = cancelled(&result?)?;
+    assert_eq!(
+        prepare(
+            left,
+            "opening-tls-reopen",
+            "opening-prepare",
+            "operational",
+            Some(tls.address),
+            "--witness-tls"
+        )?,
+        "prepared-open:1\n"
+    );
+    assert!(tls.finish()?.is_empty());
+    let report = format!(concat!("{{\"completed\":true,\"tcp_cancel_ms\":{},\"tls_cancel_ms\":{},",
+        "\"tcp_exchanges\":{},\"pre_cancel_cases\":6,\"snapshot_open_cases\":6,",
+        "\"failed_handles_closed\":true,\"same_installation_reopened\":true,",
+        "\"tcp_socket_closed\":true,\"tls_socket_closed\":true,\"release_claim_eligible\":false}}\n"),
+        tcp_ms, tls_ms, exchanges);
+    fixture::store(root, "c-opening-public-result.json", report.as_bytes())?;
+    Ok(())
+}

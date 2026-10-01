@@ -100,8 +100,8 @@ typedef struct {
  * 1..10000 per native authenticated exchange. Options/bytes are borrowed only
  * for construction. The signed TCP carrier authenticates but does not encrypt
  * public metadata. Connected reads/writes check cancellation between socket calls
- * with at most 25-ms timeouts, subject to OS scheduling. A pending connect can
- * still run until the attempt's original deadline; polling never refreshes it.
+ * with at most 25-ms timeouts, subject to OS scheduling. Pending connects also
+ * check cancellation while retaining the attempt's original deadline.
  * Witness errors retain their native unknown-outcome status, not retry permission.
  */
 int32_t qpc_owner_v1_open_witness(const uint8_t *path, size_t length, uint8_t quality,
@@ -120,6 +120,38 @@ int32_t qpc_owner_v1_open_witness_tls(const uint8_t *path, size_t length, uint8_
                                     const qpc_witness_v1 *witness, uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_open(const uint8_t *path, size_t length, uint8_t quality,
                         uint64_t *handle, qpc_error_v1 *error);
+/* Two-stage opening for caller-controlled cancellation during activation.
+ * prepare_open validates/copies bounded inputs only; it performs no installation
+ * I/O and returns a pending handle occupying the SAME 64-owner registry. Retained
+ * path/options are owned copies; all caller input regions may be released after
+ * preparation. Path validity, trust, policy and durable state are checked only
+ * by finish_open. This step does not provision or grant operational authority.
+ * kind: 1=operational, 2=recovery. quality: 1..4 for operational, 0 for recovery.
+ * carrier: 0=original local profile (witness MUST be NULL), 1=signed TCP,
+ * 2=mutual TLS (witness MUST reference valid qpc_witness_v1). No fallback.
+ * finish_open runs synchronously on its calling thread with a fresh single
+ * 20-second invocation deadline. Another thread may cancel using the known
+ * handle; competing finish/operations/close return BUSY while it is active.
+ * Pending handles reject business operations with OWNER_KIND. An admitted
+ * initialization consumes the request once: any initialization failure leaves
+ * the handle closed to all work, while cancel/close remain available. Close it
+ * before preparing the SAME original installation to reconcile uncertain work.
+ * Admission failures (BUSY/call CAPACITY) do not consume a pending request.
+ * Success converts the same handle into the selected owner; a second finish
+ * returns OWNER_KIND. Idle pending handles can be cancelled/closed immediately.
+ * No background task is created. Native failures retain their typed status;
+ * cancellation cannot preempt arbitrary filesystem/cryptographic kernel work.
+ */
+typedef struct {
+    uint32_t kind;
+    uint32_t quality;
+    uint32_t carrier;
+    const qpc_witness_v1 *witness;
+} qpc_open_options_v1;
+int32_t qpc_owner_v1_prepare_open(const uint8_t *path, size_t length,
+                                const qpc_open_options_v1 *options,
+                                uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_owner_v1_finish_open(uint64_t handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_cancel(uint64_t handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_close(uint64_t handle, qpc_error_v1 *error);
 /* peer is an explicit IP:port socket address (IPv6 uses brackets); TLS server
@@ -144,8 +176,8 @@ int32_t qpc_owner_v1_rekey(uint64_t handle, const uint8_t *peer, size_t peer_len
                          uint64_t *completed_epoch, qpc_error_v1 *error);
 /* One listener belongs to the owner and closes with it. address is an explicit
  * IP:port; zero port requests an ephemeral port. Repeated listen returns STATE.
- * Serving waits at most 20 seconds for accept, then uses the shared carrier's
- * 20-second/8-exchange bound. Cancel wakes accept polling within 25 ms, subject
+ * Accept and serving retain one 20-second invocation deadline and the carrier's
+ * 8-exchange bound. Cancel wakes accept polling within 25 ms, subject
  * to OS scheduling. Synchronous application/filesystem calls are cooperative;
  * the library cannot preempt a foreign callback or undo its effects.
  */

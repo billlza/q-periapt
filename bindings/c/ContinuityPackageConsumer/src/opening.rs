@@ -1,0 +1,261 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Caller-visible admission before synchronous original-installation activation.
+use super::*;
+
+/// Borrowed construction selection. Every pointer is copied during preparation.
+#[repr(C)]
+pub struct Options {
+    pub kind: u32,
+    pub quality: u32,
+    pub carrier: u32,
+    pub witness: *const witness::Options,
+}
+enum Kind {
+    Operational(p::PrekeyQuality),
+    Recovery,
+}
+pub(crate) struct Request {
+    path: String,
+    kind: Kind,
+    witness: Option<witness::Configuration>,
+}
+pub(crate) fn quality(value: u32) -> Result<p::PrekeyQuality> {
+    match value {
+        1 => Ok(p::PrekeyQuality::OneTimeBoth),
+        2 => Ok(p::PrekeyQuality::ReusableBoth),
+        3 => Ok(p::PrekeyQuality::SignedClassicalOneTimePq),
+        4 => Ok(p::PrekeyQuality::OneTimeClassicalLastResortPq),
+        _ => Err(Failure::argument()),
+    }
+}
+pub(crate) fn check(cancel: &Cancellation, deadline: Instant) -> Result<()> {
+    if cancel.is_cancelled() {
+        return Err(p::connection_transport::Error::Cancelled.into());
+    }
+    invocation::check(deadline)
+}
+impl Request {
+    unsafe fn read(path: *const u8, length: usize, options: *const Options) -> Result<Self> {
+        if options.is_null() || !options.is_aligned() {
+            return Err(Failure::argument());
+        }
+        // SAFETY: header contract requires immutable live options and pointed-to inputs.
+        let options = unsafe { &*options };
+        let kind = match (options.kind, options.quality) {
+            (1, value) => Kind::Operational(quality(value)?),
+            (2, 0) => Kind::Recovery,
+            _ => return Err(Failure::argument()),
+        };
+        let witness = match options.carrier {
+            0 if options.witness.is_null() => None,
+            1 | 2 => {
+                let carrier = if options.carrier == 1 {
+                    witness::Carrier::SignedTcp
+                } else {
+                    witness::Carrier::Tls
+                };
+                // SAFETY: forwarded options/endpoint validity and lifetime contract.
+                Some(unsafe { witness::Configuration::read(options.witness, carrier) }?)
+            }
+            _ => return Err(Failure::argument()),
+        };
+        // SAFETY: caller supplies the length-byte immutable readable path.
+        let path = unsafe { text(path, length, 4096) }?;
+        Ok(Self {
+            path,
+            kind,
+            witness,
+        })
+    }
+    fn open(self, entry: &Entry, deadline: Instant) -> Result<Owned> {
+        check(&entry.cancel, deadline)?;
+        let path = Path::new(&self.path);
+        let cancel = entry.cancel.clone();
+        let invocation = entry.invocation.clone();
+        let owner = match self.kind {
+            Kind::Operational(quality) => Owned::Operational(Box::new(owner::Owner::open(
+                path,
+                quality,
+                self.witness,
+                cancel,
+                invocation,
+                deadline,
+            )?)),
+            Kind::Recovery => Owned::Recovery(Box::new(recovery::Recovery::open(
+                path,
+                self.witness,
+                cancel,
+                invocation,
+                deadline,
+            )?)),
+        };
+        check(&entry.cancel, deadline)?;
+        Ok(owner)
+    }
+}
+
+/// Copy bounded options and publish a cancelable pending handle without installation I/O.
+/// # Safety
+/// All options, pointed-to inputs, output and diagnostic regions meet the C header contract.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_owner_v1_prepare_open(
+    path: *const u8,
+    length: usize,
+    options: *const Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(handle)?;
+        // SAFETY: validated output shape and forwarded input lifetime requirements.
+        unsafe { put(handle, 0) };
+        let request = unsafe { Request::read(path, length, options) }?;
+        let slot = Reservation::new()?;
+        let id = slot.publish(Owned::Opening(Box::new(request)), deadline)?;
+        // SAFETY: same exclusive writable output region.
+        unsafe { put(handle, id) };
+        Ok(())
+    };
+    // SAFETY: caller owns this invocation's valid diagnostic output.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Activate once on the calling thread; failures after admission leave only cancel/close.
+/// # Safety
+/// Error points to a distinct aligned writable diagnostic record for this invocation.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_owner_v1_finish_open(handle: u64, error: *mut ErrorRecord) -> i32 {
+    let action = |deadline| {
+        with_entry(handle, deadline, |slot, entry| {
+            let request = match slot.take() {
+                Some(Owned::Opening(request)) => request,
+                other => {
+                    let code = if other.is_none() { 2 } else { 6 };
+                    *slot = other;
+                    return Err(failure(code));
+                }
+            };
+            // The pending state has been consumed. Native failure/panic/cancellation
+            // drops every partial owner; a retry must prepare a fresh original open.
+            let owner = request.open(entry, deadline)?;
+            // This is activation's publication boundary. No fallible work follows
+            // installation of the owner; the already-known handle remains closeable.
+            check(&entry.cancel, deadline)?;
+            *slot = Some(owner);
+            Ok(())
+        })
+    };
+    // SAFETY: forwarded invocation-local diagnostic contract.
+    unsafe { boundary(error, false, action) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prepared_open_is_cancelable_single_use_and_capacity_bounded() {
+        let _serial = TEST_REGISTRY.lock().expect("test registry");
+        let mut error = ErrorRecord {
+            code: 0,
+            length: 0,
+            truncated: 0,
+            message: [0; 512],
+        };
+        let mut options = Options {
+            kind: 1,
+            quality: 1,
+            carrier: 0,
+            witness: std::ptr::null(),
+        };
+        let path = b"relative-no-installation";
+        let mut handle = 0;
+        // SAFETY: all borrowed inputs and each output are distinct live stack regions.
+        unsafe {
+            assert_eq!(
+                qpc_owner_v1_prepare_open(
+                    path.as_ptr(),
+                    path.len(),
+                    &options,
+                    &mut handle,
+                    &mut error
+                ),
+                0
+            );
+            assert_ne!(handle, 0);
+            let prior = handle;
+            assert_eq!(
+                with(handle, Instant::now() + invocation::TIMEOUT, |_, _| Ok(()))
+                    .expect_err("pending handle has no operational owner")
+                    .code,
+                6
+            );
+            assert_eq!(qpc_owner_v1_cancel(handle, &mut error), 0);
+            // Cancellation precedes invalid path I/O, and consumes construction exactly once.
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 302);
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 2);
+            assert_eq!(qpc_owner_v1_close(handle, &mut error), 0);
+            assert_eq!(qpc_owner_v1_cancel(handle, &mut error), 2);
+            assert_eq!(
+                qpc_owner_v1_prepare_open(
+                    path.as_ptr(),
+                    path.len(),
+                    &options,
+                    &mut handle,
+                    &mut error
+                ),
+                0
+            );
+            assert!(handle > prior);
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 203);
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 2);
+            assert_eq!(qpc_owner_v1_close(handle, &mut error), 0);
+            options.kind = 2;
+            options.quality = 0;
+            let mut pending = Vec::new();
+            for _ in 0..MAX_OWNERS {
+                assert_eq!(
+                    qpc_owner_v1_prepare_open(
+                        path.as_ptr(),
+                        path.len(),
+                        &options,
+                        &mut handle,
+                        &mut error
+                    ),
+                    0
+                );
+                pending.push(handle);
+            }
+            assert_eq!(
+                qpc_owner_v1_prepare_open(
+                    path.as_ptr(),
+                    path.len(),
+                    &options,
+                    &mut handle,
+                    &mut error
+                ),
+                4
+            );
+            assert_eq!(handle, 0);
+            for id in pending {
+                assert_eq!(qpc_owner_v1_cancel(id, &mut error), 0);
+                assert_eq!(qpc_owner_v1_close(id, &mut error), 0);
+            }
+            assert_eq!(
+                qpc_owner_v1_prepare_open(
+                    path.as_ptr(),
+                    path.len(),
+                    &options,
+                    &mut handle,
+                    &mut error
+                ),
+                0
+            );
+            assert_eq!(qpc_owner_v1_cancel(handle, &mut error), 0);
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 302);
+            assert_eq!(qpc_owner_v1_close(handle, &mut error), 0);
+        }
+        assert!(TABLE.lock().expect("table").slots.is_empty());
+        assert_eq!(CALLS.load(Ordering::Acquire), 0);
+    }
+}

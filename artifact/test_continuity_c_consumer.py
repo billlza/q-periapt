@@ -12,13 +12,14 @@ class AdmissionTests(unittest.TestCase):
     def test_all_deadline_and_drain_tests_must_actually_execute(self):
         names = [
             "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
+            "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
             "invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered",
             "invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope",
             "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
             "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
         ]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,
