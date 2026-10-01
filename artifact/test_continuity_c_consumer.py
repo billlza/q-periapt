@@ -64,6 +64,18 @@ def evidence(root):
 
 
 class ContinuityCConsumerTests(unittest.TestCase):
+    def test_foreign_client_scope_requires_the_explicit_language(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            report = evidence(root)
+            report["scope"] = consumer.SCOPE.replace("C client", "Swift client")
+            (root / "c-public-result.json").write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "scope"):
+                consumer.verify_execution(STDOUT, root)
+            self.assertEqual(consumer.verify_execution(STDOUT, root, language="Swift")["scope"], report["scope"])
+            with self.assertRaisesRegex(ValueError, "language"):
+                consumer.verify_execution(STDOUT, root, language="unverified")
+
     def test_binary_copy_uses_its_explicit_bound_without_relaxing_source_inputs(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

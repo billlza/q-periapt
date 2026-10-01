@@ -32,8 +32,9 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
-        "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
+        "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
+    files.extend((ROOT / "bindings/swift/ContinuityPackageConsumer").rglob("*"))
     for path in files:
         sdk.require(not path.is_symlink(), "candidate source contains a symlink")
         if path.is_file():
@@ -160,6 +161,8 @@ def compiler_identity(toolchain: Path) -> dict:
 
 
 def qualify(args: argparse.Namespace) -> dict:
+    sdk.require(not args.with_swift_consumer or (args.with_c_consumer and os.uname().sysname == "Darwin"),
+                "Swift qualification requires the installed C consumer on macOS")
     sdk.require(args.witness_openssl_prefix is None or args.with_c_consumer,
                 "OpenSSL witness qualification requires the installed C consumer")
     sdk.validate_no_registry_credentials(os.environ)
@@ -182,7 +185,8 @@ def qualify(args: argparse.Namespace) -> dict:
               "candidate_version": VERSION, "source_commit": commit, "source_inputs": before,
               "rust_report_sha256": pinned.sha256, "host_os": os.uname().sysname,
               "host_arch": os.uname().machine, "tool_binaries": tools,
-              "requested_consumers": ["Rust", "C"] if args.with_c_consumer else ["Rust"],
+              "requested_consumers": (["Rust", "C"] if args.with_c_consumer else ["Rust"])
+                                     + (["Swift"] if args.with_swift_consumer else []),
               "release_claim_eligible": False, "publication_performed": False,
               "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification"}
     try:
@@ -290,6 +294,11 @@ def qualify(args: argparse.Namespace) -> dict:
             result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
                                "and C client/server/recovery with local, signed-TCP and mutual-TLS witness profiles; "
                                "no independent witness engine, other foreign bindings or cross-host qualification")
+        if args.with_swift_consumer:
+            from continuity_swift_consumer import qualify_swift
+            result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment)
+            result["scope"] = ("unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, "
+                               "and Swift-to-Rust local-profile client; same host; no independent witness engine or cross-host qualification")
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -316,11 +325,13 @@ def main() -> None:
     parser.add_argument("--report-sha256", required=True)
     parser.add_argument("--with-c-consumer", action="store_true",
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
+    parser.add_argument("--with-swift-consumer", action="store_true",
+                        help="also package and execute the Swift owner with the installed C engine on macOS")
     parser.add_argument("--witness-openssl-prefix", type=Path,
                         help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
-                                                  "c_consumer", "release_claim_eligible") if key in result}, indent=2))
+                                                  "c_consumer", "swift_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 
 if __name__ == "__main__":

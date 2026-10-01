@@ -104,6 +104,18 @@ fn args(command: &str, path: &Path, tail: &[String]) -> Vec<OsString> {
 
 #[test]
 fn c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery() -> Result<()> {
+    // Reuse this protocol trace for an independently compiled Swift caller. The
+    // collector selects and hashes its executable; the report must name that
+    // language rather than relabel a Swift process as a C program.
+    let scope = match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
+        Err(std::env::VarError::NotPresent) => {
+            "unpublished C client to installed Rust peer; same host; local journal profile"
+        }
+        Ok(language) if language == "Swift" => {
+            "unpublished Swift client to installed Rust peer; same host; local journal profile"
+        }
+        _ => return Err("unsupported installed client language".into()),
+    };
     let setup = fixture::setup()?;
     let path = &setup.initiator;
     assert_eq!(
@@ -303,14 +315,18 @@ fn c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery() -> 
         run(path, "revoked-open", &args("reject-open", path, &[]))?,
         "rejected:603\n"
     );
-    let report = format!(concat!("{{\"schema_version\":1,\"completed\":true,",
-        "\"scope\":\"unpublished C client to installed Rust peer; same host; local journal profile\",",
-        "\"session\":\"{}\",\"first_message\":\"{}\",\"post_rekey_message\":\"{}\",",
-        "\"network_rekeys\":1,\"unknown_delivery_reconciled\":true,",
-        "\"pre_cancel_absent\":true,\"concurrent_close_busy\":true,",
-        "\"cancelled_commit_reopened\":true,\"durable_sdk_revocation\":true,",
-        "\"independent_readbacks\":3,\"release_claim_eligible\":false}}\n"),
-        session_hex, message_hex, next_hex);
+    let report = format!(
+        concat!(
+            "{{\"schema_version\":1,\"completed\":true,",
+            "\"scope\":\"{}\",",
+            "\"session\":\"{}\",\"first_message\":\"{}\",\"post_rekey_message\":\"{}\",",
+            "\"network_rekeys\":1,\"unknown_delivery_reconciled\":true,",
+            "\"pre_cancel_absent\":true,\"concurrent_close_busy\":true,",
+            "\"cancelled_commit_reopened\":true,\"durable_sdk_revocation\":true,",
+            "\"independent_readbacks\":3,\"release_claim_eligible\":false}}\n"
+        ),
+        scope, session_hex, message_hex, next_hex
+    );
     fixture::store(
         path.parent().ok_or("runtime parent")?,
         "c-public-result.json",

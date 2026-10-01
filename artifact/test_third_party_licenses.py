@@ -108,6 +108,26 @@ class ThirdPartyLicenseTests(unittest.TestCase):
         )
         self.assertEqual(first, verified)
 
+    def test_installed_continuity_resolution_keeps_the_exact_lock_and_licenses(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-continuity-c-consumer"
+        (self.root / "Cargo.lock").write_text(
+            f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+            f'source = "{self.source}"\nchecksum = "{self.checksum}"\n', encoding="utf-8")
+        with mock.patch.object(third_party_licenses, "_cargo_metadata", side_effect=AssertionError("global Cargo used")):
+            collected = third_party_licenses.collect(self.root, self.package_root, "aarch64-apple-darwin",
+                root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
+        self.assertEqual(collected["packages"][0]["checksum"], self.checksum)
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root,
+            expected_target="aarch64-apple-darwin", root_package="q-periapt-continuity-c-consumer"))
+        other = self.package_root.parent / "missing-lock"
+        other.mkdir()
+        lock = self.root / "Cargo.lock"
+        lock.write_text(lock.read_text(encoding="utf-8").replace('name = "dep"', 'name = "other"'), encoding="utf-8")
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "absent from Cargo.lock"):
+            third_party_licenses.collect(self.root, other, "aarch64-apple-darwin",
+                root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
+
     def test_dev_only_dependency_is_not_treated_as_shipped(self) -> None:
         with self.assertRaisesRegex(
             third_party_licenses.ThirdPartyLicenseError,

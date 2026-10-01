@@ -1942,6 +1942,61 @@ jobs:
             target/continuity-installed-rust/c-consumer-Cargo.lock
           if-no-files-found: error
 
+  continuity-installed-swift:
+    needs: rust-publish-contract
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: continuity_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          path: target/continuity-sdk-input
+      - name: Execute installed Swift owner against native Rust peers
+        env:
+          QPERIAPT_PYTHON: ${{ steps.continuity_python.outputs.python-path }}
+        run: |
+          report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/continuity_package.py \
+            --report "$report" --report-sha256 "$report_sha256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --with-c-consumer --with-swift-consumer \
+            --witness-openssl-prefix "$(brew --prefix openssl@3)" \
+            --output target/continuity-installed-swift
+      - name: Retain native packages and selected public execution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-installed-swift
+          path: |
+            target/continuity-installed-swift/*.crate
+            target/continuity-installed-swift/*.zip
+            target/continuity-installed-swift/*.json
+            target/continuity-installed-swift/*.stdout
+            target/continuity-installed-swift/*.stderr
+            target/continuity-installed-swift/*.events
+            target/continuity-installed-swift/c-opening-public/**
+            target/continuity-installed-swift/c-witness-public/**
+            target/continuity-installed-swift/c-witness-tls-public/**
+            target/continuity-installed-swift/c-witness-openssl-public/**
+            target/continuity-installed-swift/swift-public/**
+            target/continuity-installed-swift/consumer-Cargo.lock
+            target/continuity-installed-swift/c-consumer-Cargo.lock
+          if-no-files-found: error
+
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}

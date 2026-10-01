@@ -61,7 +61,9 @@ def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool,
     return binary
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift"}, "unknown installed client language")
+    expected_scope = SCOPE.replace("C client", language + " client")
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(passed == [TEST] and re.search(
@@ -76,7 +78,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
                                            "independent_readbacks", "release_claim_eligible"},
                 "C execution fields differ")
     sdk.require(all(report[field] is True for field in flags) and report["release_claim_eligible"] is False
-                and report["scope"] == SCOPE, "C execution omitted a required outcome or changed its scope")
+                and report["scope"] == expected_scope, "C execution omitted a required outcome or changed its scope")
     for field, value in (("schema_version", 1), ("network_rekeys", 1), ("independent_readbacks", 3)):
         sdk.require(type(report[field]) is int and report[field] == value, f"C execution count differs: {field}")
     sdk.require(all(type(report[field]) is str and re.fullmatch(r"[0-9a-f]{64}", report[field])

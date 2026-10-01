@@ -28,7 +28,7 @@ from evidence_io import (
 SCHEMA_VERSION = 1
 KIND = "qperiapt.third_party_rust_licenses"
 ROOT_PACKAGE = "q-periapt-ffi"
-ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm")
+ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer")
 INVENTORY_RELATIVE = pathlib.PurePosixPath("THIRD_PARTY/rust/INVENTORY.json")
 MAX_METADATA_BYTES = 64 * 1024 * 1024
 MAX_LICENSE_BYTES = 4 * 1024 * 1024
@@ -313,13 +313,18 @@ def _license_candidates(
     return tuple(sorted(files, key=lambda item: item.name.encode("utf-8")))
 
 
-def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root_package: str = ROOT_PACKAGE) -> dict[str, Any]:
+def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root_package: str = ROOT_PACKAGE,
+            resolved_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     output_root = _regular_directory(package_root, "binary package root")
     rust_root = output_root / "THIRD_PARTY" / "rust"
     require(not rust_root.exists() and not rust_root.is_symlink(), f"third-party Rust license output already exists: {rust_root}")
 
-    metadata = _cargo_metadata(repository, target)
+    require(TARGET_RE.fullmatch(target) is not None, f"invalid Rust target triple: {target!r}")
+    # Installed consumers already captured bounded, offline metadata with their
+    # exact compiler/cache environment. Reuse that resolution without selecting
+    # a different global Cargo; lock checksums and license verification remain.
+    metadata = _cargo_metadata(repository, target) if resolved_metadata is None else resolved_metadata
     dependency_ids, packages = _production_dependency_ids(metadata, root_package)
     checksums = _lock_checksums(repository)
     external = [packages[package_id] for package_id in dependency_ids if packages[package_id].get("source") is not None]
