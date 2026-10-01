@@ -142,8 +142,31 @@ The injector remains isolated to owned test children. Missing or changed receipt
 incomplete cuts, altered loss fields and a substituted original report fail.
 
 Required follow-up includes current-source Debug/Release collection and CI,
-broader JVM interruption and GC pressure, additional JVM/OS targets,
+in-flight native-call/callback GC pressure, broader JVM interruption, additional JVM/OS targets,
 and Android ART/JNI. This candidate does not yet satisfy full 0.2.0 admission.
+
+The collector separately runs bounded prepared-owner lifetime checks under Serial
+GC and G1, with an explicit 32-MiB initial / 128-MiB maximum heap, for each native
+profile. Sixteen rounds per JVM observe collection of 1,024 forgotten owner graphs
+and restoration of every native slot. A collected sentinel establishes actual GC
+while another full pool remains strongly reachable and usable. After explicit
+close and slot reuse, all 1,024 stale owners must reject cancel, activation and
+close; replacement owners must still reach their original installation-admission
+failure rather than becoming cancelled or closed. Operational configuration status
+500 and recovery private-file status 203 are checked separately against direct C
+controls; both cancelled preparations retain status 302.
+
+Development execution uses the unchanged installed SDK JAR and retained f753e75d
+Debug/Release libraries. All four collector/profile combinations pass, as do the
+existing opening/interruption regressions. An isolated SDK source copy with its
+Cleaner release action deliberately disabled fails the same GC fixture in round
+one, with all original slots unavailable. That mutant is a negative oracle only
+and is excluded from product packages. The first GC fixture's incorrect shared
+500 assertion is retained; only its role-specific expectation was corrected.
+These checks cover prepared owners, bounded observation of the nondeterministic
+Cleaner, and stale references. Explicit close remains the normal lifecycle
+contract; collection within a fixed time, all collectors, and in-flight safety
+are not established by this workload.
 
 The Gradle publication repository is local to `build/candidate-maven`. No public
 registry, signing credentials or remote publication task is configured.

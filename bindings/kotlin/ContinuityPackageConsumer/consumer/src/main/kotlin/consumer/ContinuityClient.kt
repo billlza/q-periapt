@@ -51,6 +51,10 @@ private fun run(arguments: List<String>): String {
     }
     require(args.isNotEmpty()) { "command required" }
     require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
+    if (args[0] == "gc-owner-capacity") {
+        require(args.size == 1 && witness == WitnessCarrier.Local)
+        return gcOwnerCapacity()
+    }
     if (args[0] == "self-check") {
         require(args.size == 1)
         repeat(128) { refused(setOf(203)) { ContinuityOwner.open("relative", PrekeyQuality.ONE_TIME_BOTH).close() } }

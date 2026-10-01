@@ -6,7 +6,7 @@ import java.lang.ref.Reference
 import java.nio.file.Path
 
 /** Dispatch in the test executable keeps the public authorities distinct. */
-private sealed interface PreparedInvocation : AutoCloseable {
+internal sealed interface PreparedInvocation : AutoCloseable {
     fun finish()
     fun cancel()
     fun rejectWork(code: Int)

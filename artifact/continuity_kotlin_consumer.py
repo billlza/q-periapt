@@ -26,7 +26,8 @@ FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
 SCOPE = ("unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; "
          "same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; "
          "test-host controller interruption uses explicit native cancel/join; "
-         "calibrated journal sync process interruption; GC and automatic JVM cancellation qualification remain separate")
+         "calibrated journal sync process interruption and bounded prepared-owner GC; "
+         "in-flight GC and automatic JVM cancellation qualification remain separate")
 TEST_NAMES = frozenset({
     "identifiersAreTypedImmutablePublicValues", "unsignedCountersRetainTheirWholeRange",
     "structuresMatchThe64BitNativeContract", "pendingOwnersRejectWorkAndCancellationNeverActivates",
@@ -48,6 +49,16 @@ def verify_opening_interruption(stdout: bytes, directory: Path) -> dict:
     checked["scope"] += "; controlling JVM thread interrupted; explicit native cancel/join and retained interrupt flag"
     checked["controller_interruption"] = True
     return checked
+
+
+def verify_gc_execution(stdout: bytes) -> dict:
+    match = re.fullmatch(rb"QPC-JVM-GC/1 rounds=16 forgotten=1024 queued=1024 live=1024 stale=1024 collections=([1-9][0-9]{0,4})\n", stdout)
+    sdk.require(match is not None and 32 <= int(match[1]) <= 16384,
+                "Kotlin prepared-owner GC workload did not execute completely")
+    return {"rounds": 16, "forgotten_owner_graphs": 1024, "queued_weak_references": 1024, "strongly_live_owners": 1024,
+            "stale_owners_checked_after_slot_reuse": 1024, "observed_collections": int(match[1]),
+            "stdout_sha256": hashlib.sha256(stdout).hexdigest(), "release_claim_eligible": False,
+            "scope": "bounded prepared-owner Cleaner/capacity and stale-slot checks; no in-flight call or all-JVM GC qualification"}
 
 
 def maven_contract() -> jvm.MavenContract:
@@ -263,6 +274,14 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             launcher = installed / "client"
             with launcher.open("x") as stream: stream.write("#!/bin/sh\nexec " + shlex.join(argv) + ' "$@"\n')
             launcher.chmod(0o700); launcher_sha = sdk.snapshot(launcher).sha256
+            gc_execution = {}
+            for collector in ("Serial", "G1"):
+                label = f"gc-{collector.lower()}-{profile}"
+                stdout = run([str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC",
+                              *argv[1:], "gc-owner-capacity"], label)
+                sdk.require(sdk.snapshot(output / ("kotlin-" + label + ".stderr")).data == b"",
+                            "Kotlin GC workload emitted unexpected diagnostics")
+                gc_execution[collector] = verify_gc_execution(stdout)
             interrupt_launcher = installed / "client-opening-interrupt"
             with interrupt_launcher.open("x") as stream:
                 stream.write("#!/bin/sh\nexec " + shlex.join([*argv, "--interrupt-opening-controller"]) + ' "$@"\n')
@@ -357,6 +376,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,
+                "prepared_owner_gc": gc_execution,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,

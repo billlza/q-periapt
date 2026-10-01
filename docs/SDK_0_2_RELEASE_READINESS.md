@@ -77,6 +77,21 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Prepared Kotlin owner lifetime now has a separate installed-JAR workload under
+Serial GC and G1, each with a 128-MiB heap cap, in both native Debug/Release
+profiles. Each JVM completes sixteen rounds: 1,024 forgotten owner graphs are
+observed in a reference queue and their native capacity is reclaimed; full
+strongly reachable pools survive an observed collection; stale cancel/finish/close
+calls fail after slot reuse without changing replacement-owner admission.
+Direct C controls establish operational missing-configuration status 500,
+recovery private-file status 203 and cancellation status 302 in both profiles.
+The first test's shared-500 assertion fails and remains retained. Its corrected
+role-specific oracle passes all four combinations, while an isolated SDK copy
+with the Cleaner release action disabled fails in round one. Normal SDK JAR bytes
+are unchanged. Existing constructor and controlling-thread interruption regressions
+also pass. This is development evidence against retained f753e75d native inputs;
+current-source package collection and in-flight/callback GC stress remain open.
+
 The Kotlin installed-owner collector now requires the existing positive-reservation
 journal sync-interruption matrix. Development execution against the unchanged
 f753e75d native Debug/Release libraries and helpers completes 59 cases / 771 commands
@@ -92,7 +107,7 @@ JVM, four JARs, installed native library, native helper and probe identities.
 An injection preflight retains the shell route's missing probe receipt and the
 direct JVM route's 13 actual syncs. This is process-interruption development evidence;
 the full current-source package collector, power-loss/EIO behavior and broader
-JVM GC/interruption qualification remain separate.
+JVM in-flight GC/interruption qualification remain separate.
 
 The `c3c217e1` [Android 16-KiB job](https://github.com/billlza/q-periapt/actions/runs/36926187676/job/110586234113)
 fails after APK installation and before instrumentation: package ownership does

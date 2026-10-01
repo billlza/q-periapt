@@ -239,6 +239,20 @@ not establish a page-unit defect or a causal relationship to transport loss.
 The failure, original logs and exact source are sealed separately; no timeout,
 RAM, permission, retry or cleanup rule was relaxed.
 
+The same run's authenticated runtime artifact `11194795920` independently
+confirms that its selected image is API 35 revision 5 and its `lmkd` bytes match
+the earlier `b0790603` image (SHA-256
+`1eb42d145ee0e88662bd033c17f75d7e09d5246dae7fb5e3899415a309971be4`).
+The [official image index](https://dl.google.com/android/repository/sys-img/google_apis/sys-img2-3.xml)
+checked on 2026-10-01 still lists revision 5 for that exact package coordinate.
+Both retained snapshots have `MemTotal = 2,532,420 KiB` and a managed-zone sum
+of `633,105`, consistent with 4-KiB kernel counter units, while the runtime
+page-size query reports 16,384 bytes. This does not observe the running LMKD's
+`page_k`: all 1,026 logged meminfo values from the 54 kill records are compatible
+with either 4- or 16-KiB emission quantization. A newer revision of the same
+selected image was not found, and the cause remains unproven. Image inspection
+and this ambiguity check do not count as a new device run or a stability fix.
+
 At `41da8962`, [PR run 36706338677](https://github.com/billlza/q-periapt/actions/runs/36706338677/job/109864412248)
 fails during APK installation with Package Manager `Broken pipe (32)`, before SDK
 instrumentation. Its log records lowmemorykiller activity, a networkstack SIGSEGV

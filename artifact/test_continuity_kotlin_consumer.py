@@ -9,6 +9,19 @@ import continuity_kotlin_consumer as kotlin
 
 
 class KotlinConsumerTests(unittest.TestCase):
+    def test_gc_evidence_requires_observed_collection_and_complete_native_capacity_checks(self):
+        valid = b"QPC-JVM-GC/1 rounds=16 forgotten=1024 queued=1024 live=1024 stale=1024 collections=32\n"
+        self.assertEqual(kotlin.verify_gc_execution(valid)["observed_collections"], 32)
+        for changed in (valid[:-1], valid + b"extra\n", valid.replace(b"queued=1024", b"queued=0"),
+                        valid.replace(b"rounds=16", b"rounds=1"),
+                        valid.replace(b"live=1024", b"live=1023"), valid.replace(b"stale=1024", b"stale=0"),
+                        valid.replace(b"collections=32", b"collections=0"),
+                        valid.replace(b"collections=32", b"collections=31"),
+                        valid.replace(b"collections=32", b"collections=032"),
+                        valid.replace(b"collections=32", b"collections=16385")):
+            with self.subTest(stdout=changed), self.assertRaisesRegex(ValueError, "did not execute completely"):
+                kotlin.verify_gc_execution(changed)
+
     def test_every_owner_test_must_execute_without_skips_or_diagnostics(self):
         suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="8",
                            failures="0", errors="0", skipped="0")
