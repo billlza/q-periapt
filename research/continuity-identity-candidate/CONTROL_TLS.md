@@ -58,8 +58,9 @@ spending.
 `Cancellation` is a shared, one-way signal. It stops further dispatch and drops
 the TLS/socket owner; it does not undo journal work or acknowledge remote delivery.
 I/O wakeups use at most 25-ms polling intervals, with the unchanged absolute
-deadline checked again each time. Connect cancellation is observed no later than
-the configured connect bound after that system call returns. Synchronous crypto,
+deadline checked again each time. Pending TCP connections use one owned
+nonblocking socket and readiness waits of at most 25 ms. A ready connection wakes
+immediately; cancellation never requires recreating a connect attempt. Synchronous crypto,
 filesystem operations and host callbacks are not forcibly preempted; a cancellation
 observed afterward prevents their output from being dispatched. These are
 cooperative boundaries, not an OS scheduling or syscall-completion guarantee.

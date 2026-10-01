@@ -41,9 +41,11 @@ impl<'a> Invocation<'a> {
             check(self.context, self.run.cancel, self.deadline, clock)?;
             let result = (|| {
                 if self.channel.is_none() {
-                    let stream = TcpStream::connect_timeout(
-                        &self.run.address,
-                        remaining(self.deadline)?.min(self.run.limits.connect_timeout),
+                    let stream = native_transport::connect(
+                        self.run.address,
+                        self.run.cancel,
+                        self.deadline,
+                        self.run.limits.connect_timeout,
                     )?;
                     check(self.context, self.run.cancel, self.deadline, clock)?;
                     self.channel = Some(Channel::new(

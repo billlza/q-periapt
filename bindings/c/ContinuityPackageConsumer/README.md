@@ -92,7 +92,10 @@ does not preempt an arbitrary kernel call, foreign callback or undo a commit.
 Witness dispatch shares the native one-way cancellation signal with TLS dispatch.
 Connected reads/writes use at most 25-ms socket timeouts, subject to OS scheduling,
 and check cancellation between calls, including partial frames. A pending connect
-still uses the exchange's original deadline. Polling never refreshes that deadline.
+retains one nonblocking socket and waits for readiness in at most 25-ms intervals
+under the exchange's original deadline. Readiness wakes immediately; cancellation
+does not spawn a replacement connection or leave a background worker behind.
+Polling never refreshes that deadline.
 This per-exchange bound is not a global constructor or invocation bound;
 the native journal can require several witness admissions. A completed witness
 mutation followed by cancellation remains an unknown outcome requiring exact
@@ -185,7 +188,8 @@ It does not independently verify signatures: the actual native witness and C
 client engine perform those checks. The earlier OpenSSL vector oracle remains
 a separate finite validation. This trace does not qualify witness TLS, independent
 implementation, external service deployment, witness-store rollback resistance,
-or cancellation of an in-progress connect or arbitrary filesystem call.
+or cancellation of an arbitrary filesystem call. Pending-connect cancellation is
+covered separately by the shared driver's actual-socket regression cases.
 
 Run the existing installed package collector with `--with-c-consumer`:
 

@@ -2,7 +2,7 @@
 //! Bounded native bootstrap and durable application delivery over standard TLS.
 //! A successful application result requires the original session's authenticated
 //! consumption prefix, never just a TLS response or a committed inbox.
-use crate::native_transport::{self, check, remaining, retryable, Channel};
+use crate::native_transport::{self, check, retryable, Channel};
 pub use crate::native_transport::{Cancellation, Error, RunLimits};
 use crate::{
     BootstrapContext, CommittedPlaintext, DeviceJournal, DeviceSigningKey, InitiationId, MessageId,

@@ -98,8 +98,8 @@ impl AnchorTransport for AnchorTlsTransport {
         if request.len() != REQUEST_BYTES {
             return Err(invalid("invalid witness request width"));
         }
-        let stream =
-            TcpStream::connect_timeout(&self.address, attempt_budget(deadline, &self.cancel)?)?;
+        attempt_budget(deadline, &self.cancel)?;
+        let stream = crate::connect::tcp(self.address, deadline, &self.cancel)?;
         checked_remaining(deadline, &self.cancel)?;
         let connection = self
             .config

@@ -25,6 +25,7 @@ p256 = { version = "=0.14.0", default-features = false, features = ["ecdsa", "st
 sha3 = { version = "=0.12.0", default-features = false }
 getrandom = "0.4"
 zeroize = "1"
+mio = { version = "=1.2.3", default-features = false, features = ["net", "os-poll"] }
 hkdf = "=0.13.0"
 hmac = { version = "=0.13.0", features = ["zeroize"] }
 sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
@@ -40,6 +41,7 @@ connection-tls = ["dep:q-periapt-rustls"]
 anchor-tls = ["dep:q-periapt-rustls", "dep:rustls"]
 
 [dev-dependencies]
+socket2 = "=0.6.5"
 q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
 q-periapt-sig = { version = "=0.2.0", path = "../../crates/q-periapt-sig" }
 tempfile = "=3.27.0"

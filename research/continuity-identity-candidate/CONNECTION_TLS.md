@@ -134,7 +134,10 @@ seconds) or the bounded TCP connect (at most five seconds). Only the existing
 classified transient network errors are retried; local authority, archive, journal,
 application, parsing and trusted-clock failures are explicit errors.
 
-I/O polls at most every 25 ms, with the original deadline checked again. Synchronous
+Pending connects and connected I/O use waits of at most 25 ms, with the original
+deadline checked again. Connect readiness wakes immediately rather than waiting
+for a fixed polling tick; a single socket remains owned for the whole attempt.
+Scheduling can delay observation. Synchronous
 cryptography, filesystem calls and host callbacks are cooperative boundaries, not
 forcibly preempted syscalls. Cancellation cannot undo an already committed journal
 or external transaction. Socket owners close on all returns; endpoint close also

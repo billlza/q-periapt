@@ -12,6 +12,7 @@ mod bootstrap;
 mod bootstrap_bundle;
 mod cancellation;
 mod codec;
+mod connect;
 #[cfg(feature = "connection-tls")]
 pub mod connection_transport;
 pub mod contract;

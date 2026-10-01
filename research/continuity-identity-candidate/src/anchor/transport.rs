@@ -28,7 +28,7 @@ impl AnchorTcpTransport {
     }
     /// Share the owner's one-way cancellation signal. Connected reads/writes use
     /// at most 25-ms socket timeouts and retain the original absolute deadline.
-    /// An in-progress connect still waits up to that original deadline. Aborted
+    /// Pending connects also poll cancellation at the same interval. Aborted
     /// exchanges reveal no commit outcome: reopen and reconcile the exact command.
     pub fn with_cancellation(address: SocketAddr, cancel: Cancellation) -> Self {
         Self { address, cancel }
@@ -107,8 +107,7 @@ impl AnchorTransport for AnchorTcpTransport {
         if request.len() != 3674 {
             return Err(io::ErrorKind::InvalidInput.into());
         }
-        let mut stream =
-            TcpStream::connect_timeout(&self.address, checked_remaining(deadline, &self.cancel)?)?;
+        let mut stream = crate::connect::tcp(self.address, deadline, &self.cancel)?;
         checked_remaining(deadline, &self.cancel)?;
         stream.set_nonblocking(false)?;
         stream.set_nodelay(true)?;

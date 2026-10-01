@@ -21,8 +21,8 @@ pub struct RunLimits {
     pub exchanges: u16,
     /// Entire run/accepted-connection duration, nonzero and at most 120 seconds.
     pub timeout: Duration,
-    /// Each TCP connect bound, nonzero and at most five seconds. Cancellation
-    /// during connect is observed by the end of this bound; later I/O polls at 25 ms.
+    /// Each TCP connect bound, nonzero and at most five seconds. Pending connects
+    /// and later I/O poll cancellation at intervals of at most 25 ms.
     pub connect_timeout: Duration,
 }
 impl RunLimits {
@@ -138,6 +138,25 @@ pub(crate) fn remaining(deadline: Instant) -> Result<Duration, Error> {
         .checked_duration_since(Instant::now())
         .filter(|d| !d.is_zero())
         .ok_or(Error::Deadline)
+}
+pub(crate) fn connect(
+    address: SocketAddr,
+    cancel: &Cancellation,
+    deadline: Instant,
+    timeout: Duration,
+) -> Result<TcpStream, Error> {
+    let phase = Instant::now()
+        .checked_add(timeout)
+        .ok_or(Error::InvalidOptions)?
+        .min(deadline);
+    let result = crate::connect::tcp(address, phase, cancel);
+    // Preserve the public cancellation/whole-run-deadline distinctions. Only a
+    // per-connect timeout remains a retryable I/O error under the original run.
+    if cancel.is_cancelled() {
+        return Err(Error::Cancelled);
+    }
+    remaining(deadline)?;
+    result.map_err(Error::Io)
 }
 pub(crate) fn check(
     context: &BootstrapContext,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Bounded native control delivery over the SDK's standard mutually authenticated
 //! TLS connection. TLS carrier acknowledgements never advance protocol state.
-use crate::native_transport::{check, remaining, retryable};
+use crate::native_transport::{self, check, retryable};
 pub use crate::native_transport::{Cancellation, Error, RunLimits};
 use crate::{BootstrapContext, DeviceJournal, DeviceSigningKey, RekeyControlStep};
 use q_periapt_rustls::connection::{Credentials, Endpoint, Limits};
@@ -179,8 +179,12 @@ impl ControlEndpoint {
             check(context, cancel, deadline, &mut clock)?;
             let result = (|| {
                 if channel.is_none() {
-                    let remaining = remaining(deadline)?.min(limits.connect_timeout);
-                    let stream = TcpStream::connect_timeout(&address, remaining)?;
+                    let stream = native_transport::connect(
+                        address,
+                        cancel,
+                        deadline,
+                        limits.connect_timeout,
+                    )?;
                     check(context, cancel, deadline, &mut clock)?;
                     channel = Some(Channel::new(stream, self.endpoint.connect(server_name)?)?);
                 }

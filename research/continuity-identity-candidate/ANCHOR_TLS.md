@@ -60,7 +60,9 @@ One caller-selected absolute deadline covers connection, handshake, framing and
 reply receipt, with at most 60 seconds remaining at admission. Partial progress
 and socket polling do not refresh it. Connected I/O uses at most 25-ms timeouts
 and checks the shared one-way cancellation signal between calls. A pending TCP
-connect still waits up to the original deadline. Each direction admits at most
+connect uses the shared nonblocking readiness driver, retaining one socket and
+the original deadline. Readiness wakes immediately; waits without events are
+limited to 25 ms between cancellation checks, subject to OS scheduling. Each direction admits at most
 256 KiB of TLS wire data; rustls outgoing/application buffering is additionally
 limited to 16 KiB. These are carrier limits, not a bound on all upstream parser,
 certificate/configuration or process memory. The host owns listener admission and
