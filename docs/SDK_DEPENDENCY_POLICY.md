@@ -77,7 +77,7 @@ qualification must bind this updated source before release.
 
 ## C dependency and compiler selection
 
-The 2026-09-30 upstream check found the selected native implementation
+The 2026-10-01 upstream check found the selected native implementation
 [mlkem-native 2.0.0](https://github.com/pq-code-package/mlkem-native/releases/tag/v2.0.0),
 TLS provider [aws-lc-rs 1.18.1](https://github.com/aws/aws-lc-rs/releases/tag/v1.18.1)
 and C build driver [cc 1.5.1](https://github.com/rust-lang/cc-rs/releases/tag/cc-v1.5.1)
