@@ -11,12 +11,16 @@ import continuity_c_consumer as c
 import continuity_c_recovery as recovery
 import continuity_package as package
 import rust_sdk_profile as sdk
-from evidence_io import parse_strict_json_bytes
+from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
 import third_party_licenses as licenses
 
 FIXTURE = package.ROOT / "bindings/swift/ContinuityPackageConsumer"
 LIBRARY = "libq_periapt_continuity_c_consumer.dylib"
 MAX_PACKAGE = 64 * 1024**2
+# Hosted Xcode 16.4's compiler exceeds the native consumer's 256-MiB budget.
+# Tool identity has its own cap; streaming preserves bounded memory and the
+# same complete-file hash and mutation-sensitive descriptor checks.
+MAX_COMPILER_BYTES = 1024**3
 SCOPE = "unpublished installed Swift client/server/recovery and shared C/Rust engine; same-host macOS; local original-installation profile"
 
 
@@ -25,10 +29,11 @@ def compiler_command(value: str) -> tuple[Path, dict]:
     sdk.require(command.is_absolute() and command.name == "swift" and os.access(command, os.X_OK),
                 "Swift package-manager command differs")
     resolved = command.resolve(strict=True)
-    binary = sdk.snapshot(resolved, maximum=c.MAX_BINARY)
+    binary = consume_regular_snapshot(resolved, maximum=MAX_COMPILER_BYTES, label="Swift compiler identity")
     # Xcode's swift is a link to swift-frontend. Its invoked name selects driver
     # and package-manager dispatch; hashing the target must not change argv[0].
-    return command, {"command_path": str(command), "path": str(resolved), "sha256": binary.sha256}
+    return command, {"command_path": str(command), "path": str(resolved),
+                     "sha256": binary.sha256, "bytes": binary.size}
 
 
 def archive(files: dict[str, bytes]) -> bytes:

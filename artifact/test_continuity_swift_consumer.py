@@ -1,16 +1,66 @@
 """Archive, scope and execution evidence must fail closed for the Swift adapter."""
 import hashlib
 import io
+import os
 from pathlib import Path
 import stat
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 
 import continuity_swift_consumer as swift
 
 
 class SwiftConsumerTests(unittest.TestCase):
+    def test_compiler_larger_than_consumer_budget_is_fully_hashed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            frontend = root / "swift-frontend"
+            # Sparse real file crosses the old 256-MiB native-consumer bound.
+            # It is hashed, never executed; the test does not allocate its size.
+            with frontend.open("wb") as output:
+                output.write(b"compiler identity fixture")
+                output.seek(swift.c.MAX_BINARY)
+                output.write(b"last compiler byte")
+            frontend.chmod(0o755)
+            alias = root / "swift"
+            alias.symlink_to(frontend.name)
+            command, identity = swift.compiler_command(str(alias))
+            self.assertEqual(command, alias)
+            self.assertEqual(identity["bytes"], frontend.stat().st_size)
+            with frontend.open("rb") as stream:
+                self.assertEqual(identity["sha256"], hashlib.file_digest(stream, "sha256").hexdigest())
+
+    def test_compiler_cap_and_mutation_are_refused_without_buffering(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            frontend = root / "swift-frontend"
+            with frontend.open("wb") as output:
+                output.truncate(swift.MAX_COMPILER_BYTES + 1)
+            frontend.chmod(0o755)
+            alias = root / "swift"
+            alias.symlink_to(frontend.name)
+            with mock.patch.object(os, "read") as read, self.assertRaisesRegex(ValueError, "Swift compiler identity exceeds"):
+                swift.compiler_command(str(alias))
+            read.assert_not_called()
+            frontend.write_bytes(b"stable compiler identity")
+            original_read = os.read
+            metadata = frontend.stat()
+            changed = False
+
+            def mutate_after_read(descriptor, count):
+                nonlocal changed
+                data = original_read(descriptor, count)
+                if data and not changed:
+                    changed = True
+                    os.utime(frontend, ns=(metadata.st_atime_ns, metadata.st_mtime_ns + 1_000_000_000))
+                return data
+
+            with mock.patch.object(os, "read", side_effect=mutate_after_read), self.assertRaisesRegex(ValueError, "changed while it was read"):
+                swift.compiler_command(str(alias))
+            self.assertTrue(changed)
+
     def test_swift_dispatch_name_is_preserved_while_target_bytes_are_hashed(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
