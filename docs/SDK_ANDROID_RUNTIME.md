@@ -168,6 +168,16 @@ Diagnostic failure cannot replace the primary error. App cleanup still needs
 its fresh exact APK observations and signer check, including when an install
 may have committed before its reply failed.
 
+Owned-emulator failure/recovery log capture also selects the events buffer's
+fixed `killinfo` tag. LMKD emits its memory counters with each kill there; the
+main/system log's reason and nearby memory snapshots alone do not provide the
+event-time values needed to investigate watermark-unit discrepancies. The
+existing run-start filter, owner rechecks, time limits and 16-MiB bound still
+apply. No matching event is not evidence of sufficient memory or a resolved
+failure, and the event schema must be tied to the selected system image before
+interpreting its numeric positions. Physical-device collection is unchanged.
+See [logcat buffer selection](https://developer.android.com/tools/logcat#view-alternative-log-buffers).
+
 Owned emulator runs also record `emulator-state-before.txt` before installation
 and attempt `emulator-state-failure.txt` when a later operation fails. These
 15-second, 64 KiB captures use native commands for boot identity, uptime, memory,

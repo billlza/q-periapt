@@ -4233,13 +4233,13 @@ esac
                     self.assertEqual(self.invoke(operation), BoundedResult(0))
                     argv = write.call_args.args[0]
                     self.assertEqual(argv[argv.index("logcat"):], (
-                        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
+                        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-b", "events",
                         "-v", "threadtime",
                         "-T", "1786240000.123", "-s", "AndroidRuntime:E", "art:W",
                         "dalvikvm:E", "debuggerd:E", "Watchdog:*",
                         "ActivityManager:I", "SystemServer:E", "PackageManager:E",
                         "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
-                        "Zygote:E", "lmkd:*", "lowmemorykiller:*",
+                        "Zygote:E", "lmkd:*", "lowmemorykiller:*", "killinfo:I",
                         "libc:F", "DEBUG:*",
                         "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",
                     ))

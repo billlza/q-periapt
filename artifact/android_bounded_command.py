@@ -4318,13 +4318,17 @@ def _capture_emulator_diagnostics(
     }
     argv = spec.build_argv(capability) if state_capture else _device(
         capability,
-        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash",
+        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-b", "events",
         "-v", "threadtime",
         "-T", _device_logcat_start_time(layout), "-s",
         "AndroidRuntime:E", "art:W", "dalvikvm:E", "debuggerd:E",
         "Watchdog:*", "ActivityManager:I", "SystemServer:E",
         "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
-        "Zygote:E", "lmkd:*", "lowmemorykiller:*", "libc:F", "DEBUG:*",
+        "Zygote:E", "lmkd:*", "lowmemorykiller:*", "killinfo:I", "libc:F", "DEBUG:*",
+        # LMKD's events-buffer killinfo record includes the kill-time meminfo
+        # counters; adjacent point snapshots alone cannot explain a watermark
+        # decision. Add this fixed tag to the existing allowlist, keeping the
+        # same live-owner, run-start time, byte and deadline limits.
         # An offline transport need not restart the guest or its adbd process.
         # Keep daemon/service evidence within the same owned-emulator/time bound.
         "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",
