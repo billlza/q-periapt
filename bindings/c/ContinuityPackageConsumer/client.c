@@ -239,7 +239,7 @@ static int32_t commit_application(void *opaque, const uint8_t session[32],
 static void serve(uint64_t handle, const char *path, const char *mode, const char *session_text) {
     if (strcmp(mode, "bootstrap") && strcmp(mode, "message") && strcmp(mode, "fail-before") &&
         strcmp(mode, "uncertain") && strcmp(mode, "crash-after") && strcmp(mode, "rekey") &&
-        strcmp(mode, "pre-cancel")) fail("unknown server mode");
+        strcmp(mode, "pre-cancel") && strcmp(mode, "deadline")) fail("unknown server mode");
     struct Application app = {.handle=handle, .path=path, .mode=mode};
     qpc_error_v1 error;
     uint16_t port = 0;
@@ -275,6 +275,10 @@ static void serve(uint64_t handle, const char *path, const char *mode, const cha
         if (!strstr(diagnostic, !strcmp(mode, "fail-before") ? "callback returned 17;" : "callback returned 29;"))
             fail("callback status was replaced");
         printf("application-failed:%u:%u\n", app.calls, app.created);
+    } else if (!strcmp(mode, "deadline")) {
+        if (code != QPC_DEADLINE || app.calls || result.kind != 0)
+            fail("listener and TLS did not preserve the invocation deadline");
+        puts("server-deadline");
     } else if (!strcmp(mode, "pre-cancel")) {
         if (code != QPC_CANCELLED || app.calls || result.kind != 0) fail("cancelled listener consumed input");
         puts("server-cancelled");

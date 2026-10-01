@@ -31,6 +31,28 @@ def fixture():
 
 
 class ContinuityCWitnessTests(unittest.TestCase):
+    def test_export_replays_selected_bytes_before_publishing_completion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "report").write_bytes(b"public test fixture")
+            (root / "secret.key").write_bytes(b"unselected test fixture")
+            result = {"public_readbacks": {"report": w.sdk.snapshot(root / "report").sha256},
+                      "command_logs": {}}
+            failed = root / "failed-export"
+            with self.assertRaisesRegex(ValueError, "cannot replay"):
+                w.export_selected(result, root, failed, "export boundary unit fixture",
+                                  replay=lambda _: dict(result, inconsistent=True))
+            self.assertFalse((failed / "PUBLIC_FILES.json").exists())
+            self.assertFalse((failed / "secret.key").exists())
+            complete = root / "complete-export"
+            def replay(path):
+                self.assertEqual((path / "report").read_bytes(), b"public test fixture")
+                return result
+            exported = w.export_selected(result, root, complete, "export boundary unit fixture", replay=replay)
+            self.assertEqual(exported, result["public_readbacks"])
+            self.assertTrue(json.loads((complete / "PUBLIC_FILES.json").read_text())["completed"])
+            self.assertFalse((complete / "secret.key").exists())
+
     def test_partial_reply_must_match_the_original_committed_advance(self):
         authority, rows = fixture()
         data = b"".join(rows)

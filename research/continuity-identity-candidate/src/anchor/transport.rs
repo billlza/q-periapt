@@ -10,6 +10,13 @@ use std::{
 /// Untrusted byte carrier. Implementations must honor the absolute deadline;
 /// journal authority comes only from verification of the complete signed reply.
 pub trait AnchorTransport: Send {
+    /// Optionally narrow an attempt to an enclosing caller's absolute deadline.
+    /// The client never accepts an extension of its own attempt budget. Failure
+    /// is checked before signing or dispatch; it does not imply rollback of any
+    /// earlier command in the enclosing invocation.
+    fn constrain_deadline(&self, deadline: Instant) -> io::Result<Instant> {
+        Ok(deadline)
+    }
     /// Exchange one bounded signed request. Transport failure says nothing about
     /// whether the witness committed; never report a fabricated reply or absence.
     fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>>;
@@ -214,6 +221,12 @@ impl AnchorClient {
         let deadline = Instant::now()
             .checked_add(self.timeout)
             .ok_or_else(|| AnchorClientError::Transport(io::ErrorKind::InvalidInput.into()))?;
+        let deadline = self
+            .transport
+            .constrain_deadline(deadline)
+            .map_err(AnchorClientError::Transport)?
+            .min(deadline);
+        remaining(deadline).map_err(AnchorClientError::Transport)?;
         let request = AnchorRequest::new(&self.pin, subject, operation, &self.signer)?;
         remaining(deadline).map_err(AnchorClientError::Transport)?;
         let wire = self

@@ -106,7 +106,8 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
                 "installed C witness test did not execute completely")
-    report = parse_strict_json_bytes(sdk.snapshot(directory / "c-witness-public-result.json").data, label="C witness result")
+    report_snapshot = sdk.snapshot(directory / "c-witness-public-result.json")
+    report = parse_strict_json_bytes(report_snapshot.data, label="C witness result")
     names = {"session", "message", "unknown", "context", "peer_account", "peer_device", "report"}
     sdk.require(isinstance(report, dict) and set(report) == names | {"schema_version", "completed", "witness_exchanges", "lost_advances", "release_claim_eligible"},
                 "C witness report fields differ")
@@ -120,7 +121,7 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
                     and report[name] != "0" * length, "C witness public identity differs")
     sdk.require(report["message"][:32] == "0" * 32 and report["unknown"][:32] == "0000000000000001" + "0" * 16,
                 "C witness message epoch/slot differs")
-    public = {}
+    public = {"c-witness-public-result.json": report_snapshot.sha256}
     def read(name, maximum=sdk.MAX_ARCHIVE):
         result = sdk.snapshot(directory / name, maximum=maximum)
         public[name] = result.sha256
@@ -186,11 +187,12 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
 def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:
     """Recheck the complete trace and retain only verifier-selected public files."""
     result = verify_execution(stdout, directory)
-    return export_selected(result, directory, destination, SCOPE)
+    return export_selected(result, directory, destination, SCOPE,
+                           replay=lambda path: verify_execution(stdout, path))
 
 
-def export_selected(result: dict, directory: Path, destination: Path, scope: str) -> dict:
-    """Copy only independently rechecked public byte snapshots, never a whole runtime."""
+def export_selected(result: dict, directory: Path, destination: Path, scope: str, *, replay) -> dict:
+    """Copy selected public snapshots and replay them before publishing a manifest."""
     selected = result["public_readbacks"] | result["command_logs"]
     sources = {}
     for name, expected in selected.items():
@@ -209,6 +211,7 @@ def export_selected(result: dict, directory: Path, destination: Path, scope: str
             stream.write(original.data)
         sdk.require(sdk.snapshot(target).sha256 == original.sha256, "witness public export readback differs")
         exported[relative.as_posix()] = original.sha256
+    sdk.require(replay(destination) == result, "witness public export cannot replay its original execution")
     sdk.write_json(destination / "PUBLIC_FILES.json", {"schema_version": 1, "completed": True, "files": exported,
                                                        "scope": scope, "release_claim_eligible": False})
     return exported

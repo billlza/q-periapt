@@ -119,7 +119,8 @@ def verify_execution(kind: str, stdout: bytes, directory: Path) -> dict:
 
 
 def export_public(kind: str, stdout: bytes, directory: Path, destination: Path) -> dict:
-    return export_selected(verify_execution(kind, stdout, directory), directory, destination, SCOPE)
+    return export_selected(verify_execution(kind, stdout, directory), directory, destination, SCOPE,
+                           replay=lambda path: verify_execution(kind, stdout, path))
 
 
 def build_peer(prefix: Path, cc: Path, platform_flags: list[str], consumer: Path,

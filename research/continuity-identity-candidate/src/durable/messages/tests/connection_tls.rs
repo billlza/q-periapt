@@ -31,6 +31,7 @@ fn limits() -> RunLimits {
         exchanges: 8,
         timeout: Duration::from_secs(20),
         connect_timeout: Duration::from_secs(1),
+        outer_deadline: None,
     }
 }
 fn atomic(path: &Path, name: &str, bytes: &[u8]) {

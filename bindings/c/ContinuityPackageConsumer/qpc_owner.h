@@ -13,6 +13,13 @@
  * An active call returns BUSY to competing operations/close. cancel is concurrent,
  * one-way and applies to later invocations too. Cancel, join, close and reopen the
  * SAME original installation to resume an uncertain operation.
+ * Ordinary calls share one absolute 20-second deadline, captured at admission,
+ * across construction, witness exchanges, listener wait, application TLS and
+ * control TLS. Phase-specific bounds may shorten it. Filesystem operations,
+ * cryptographic work and host callbacks are synchronous and cooperative: the
+ * deadline is checked at boundaries, not an OS preemption guarantee. A native
+ * error is retained even if time also expired; late success requires original-ID
+ * reconciliation. Failed constructors publish no handle and release their slot.
  *
  * All inputs must be readable and unchanged for the call's exact stated length.
  * Outputs and the error record cannot be shared by concurrent calls. All outputs must be

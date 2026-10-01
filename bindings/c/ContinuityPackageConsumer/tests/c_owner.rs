@@ -384,6 +384,25 @@ fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Re
     use p::connection_transport::{Cancellation, ConnectionEndpoint, Consumption, Run};
     let setup = fixture::setup()?;
     let path = &setup.responder;
+    // The original implementation refreshed a 20-second budget after accept:
+    // 15 seconds listening plus the TLS engine's 10 seconds took about 25 seconds.
+    let (deadline_server, address) = start_server(path, "server-deadline", "deadline", None)?;
+    let started = std::time::Instant::now();
+    std::thread::sleep(Duration::from_secs(15));
+    let mut stalled = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
+    assert_eq!(finish_server(deadline_server, 0)?, "server-deadline\n");
+    let listener_tls_deadline_ms = u64::try_from(started.elapsed().as_millis())?;
+    assert!(
+        (18_000..23_000).contains(&listener_tls_deadline_ms),
+        "listener plus TLS deadline: {listener_tls_deadline_ms} ms"
+    );
+    stalled.set_read_timeout(Some(Duration::from_secs(2)))?;
+    assert_eq!(
+        stalled.read(&mut [0])?,
+        0,
+        "expired server retained its socket"
+    );
+    drop(stalled);
     let mut peer = fixture::Peer::open(&setup.initiator)?;
     let endpoint =
         ConnectionEndpoint::client(&peer.context, peer.credentials(), fixture::tls_limits())?;
@@ -594,7 +613,7 @@ fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Re
         "\"crash_after_application_reconciled\":true,\"duplicate_skips_callback\":true,",
         "\"reentrant_close_busy\":true,\"cancelled_listener_released\":true,",
         "\"acknowledged_send_refused\":true,\"native_recovery_consumption\":true,",
-        "\"application_records\":5,\"release_claim_eligible\":false}}\n"), fixture::hex(&session), ids);
+        "\"application_records\":5,\"listener_tls_deadline_ms\":{},\"release_claim_eligible\":false}}\n"), fixture::hex(&session), ids, listener_tls_deadline_ms);
     fixture::store(
         path.parent().ok_or("runtime root")?,
         "c-server-public-result.json",

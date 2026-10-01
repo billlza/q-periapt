@@ -22,6 +22,7 @@ impl Recovery {
         path: &Path,
         witness: Option<witness::Configuration>,
         cancel: Cancellation,
+        invocation: invocation::Scope,
     ) -> Result<Self> {
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
@@ -31,7 +32,7 @@ impl Recovery {
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
         Ok(Self {
             anchor: witness
-                .map(|value| value.client(path, cancel))
+                .map(|value| value.client(path, cancel, invocation))
                 .transpose()?,
             state: State::Discovery(Box::new(p::InstallationRecovery::open(paths, key)?)),
         })
@@ -93,9 +94,10 @@ impl Recovery {
 }
 fn with_recovery<T>(
     handle: u64,
+    deadline: Instant,
     action: impl FnOnce(&mut Recovery, &Cancellation) -> Result<T>,
 ) -> Result<T> {
-    with_owned(handle, |owner, cancel| match owner {
+    with_owned(handle, deadline, |owner, cancel| match owner {
         Owned::Recovery(owner) => action(owner, cancel),
         Owned::Operational(_) => Err(failure(6)),
     })
@@ -113,9 +115,9 @@ unsafe fn result<T>(
     error: *mut ErrorRecord,
     action: impl FnOnce(&mut Recovery, &Cancellation) -> Result<T>,
 ) -> i32 {
-    let run = || {
+    let run = |deadline| {
         output(target)?;
-        let value = with_recovery(handle, action)?;
+        let value = with_recovery(handle, deadline, action)?;
         // SAFETY: exported callers forward the header's writable/aligned region.
         unsafe { put(target, value) };
         Ok(())
@@ -128,8 +130,8 @@ unsafe fn mutation(
     error: *mut ErrorRecord,
     action: impl FnOnce(&mut Recovery) -> Result<()>,
 ) -> i32 {
-    let run = || {
-        with_recovery(handle, |owner, cancel| {
+    let run = |deadline| {
+        with_recovery(handle, deadline, |owner, cancel| {
             cancelled(cancel)?;
             action(owner)?;
             // Late cancellation never refunds or conceals a native failure. A native
@@ -345,7 +347,7 @@ unsafe fn open_recovery(
     handle: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let run = || {
+    let run = |deadline| {
         output(handle)?;
         // SAFETY: exact header regions; no caller pointer is retained.
         unsafe { put(handle, 0) };
@@ -354,8 +356,14 @@ unsafe fn open_recovery(
             .map(|(value, carrier)| unsafe { witness::Configuration::read(value, carrier) })
             .transpose()?;
         let reservation = Reservation::new()?;
-        let owner = Recovery::open(Path::new(&path), witness, reservation.cancel.clone())?;
-        let id = reservation.publish(Owned::Recovery(Box::new(owner)))?;
+        let _active = reservation.invocation.enter(deadline)?;
+        let owner = Recovery::open(
+            Path::new(&path),
+            witness,
+            reservation.cancel.clone(),
+            reservation.invocation.clone(),
+        )?;
+        let id = reservation.publish(Owned::Recovery(Box::new(owner)), deadline)?;
         unsafe { put(handle, id) };
         Ok(())
     };
@@ -401,9 +409,9 @@ pub unsafe extern "C" fn qpc_recovery_v1_select(
     session: *const u8,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let run = || {
+    let run = |deadline| {
         let session = unsafe { fixed(session) }?;
-        with_recovery(handle, |owner, cancel| {
+        with_recovery(handle, deadline, |owner, cancel| {
             cancelled(cancel)?;
             owner.select(|discovery, anchor| {
                 let mut selected = discovery.open_session(session, anchor)?;
@@ -425,10 +433,10 @@ pub unsafe extern "C" fn qpc_recovery_v1_select_archive(
     size: usize,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let run = || {
+    let run = |deadline| {
         let bytes = unsafe { bytes(archive, size, ARCHIVE_BYTES) }?;
         let archive = p::SessionClosureArchive::from_bytes(&bytes)?;
-        with_recovery(handle, |owner, cancel| {
+        with_recovery(handle, deadline, |owner, cancel| {
             cancelled(cancel)?;
             owner.select(|discovery, anchor| {
                 let selected = discovery.open_session_from_archive(&archive, anchor)?;
@@ -676,5 +684,64 @@ pub unsafe extern "C" fn qpc_recovery_v1_restore_index(
             let (journal, archives) = owner.owner()?.stores()?;
             Ok(archives.restore(journal)?)
         })
+    }
+}
+
+#[cfg(test)]
+mod invocation_tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn closed() -> Owned {
+        Owned::Recovery(Box::new(Recovery {
+            state: State::Closed,
+            anchor: None,
+        }))
+    }
+
+    #[test]
+    fn expired_constructor_publication_returns_its_slot_without_a_handle() {
+        let reservation = Reservation::new().expect("reserved slot");
+        let id = reservation.id;
+        assert!(
+            matches!(reservation.publish(closed(), Instant::now()), Err(error) if error.code == 303)
+        );
+        assert!(matches!(entry(id), Err(error) if error.code == 2));
+        assert!(!TABLE.lock().expect("registry").slots.contains_key(&id));
+    }
+
+    #[test]
+    fn late_native_errors_survive_and_success_requires_original_state_reconciliation() {
+        let reservation = Reservation::new().expect("reserved slot");
+        let id = reservation
+            .publish(closed(), Instant::now() + invocation::TIMEOUT)
+            .expect("owner");
+        for native_error in [true, false] {
+            let deadline = Instant::now() + Duration::from_millis(50);
+            let result = with_owned(id, deadline, |_, _| {
+                std::thread::sleep(
+                    deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(5),
+                );
+                if native_error {
+                    Err(p::Error::PolicyDenied.into())
+                } else {
+                    Ok(())
+                }
+            });
+            assert!(
+                matches!(result, Err(error) if error.code == if native_error { 106 } else { 303 })
+            );
+        }
+        with_owned(id, Instant::now() + invocation::TIMEOUT, |_, _| Ok(()))
+            .expect("fresh call, same owner");
+        let mut diagnostic = ErrorRecord {
+            code: 0,
+            length: 0,
+            truncated: 0,
+            message: [0; 512],
+        };
+        // SAFETY: unique live diagnostic and a real registered owner handle.
+        assert_eq!(unsafe { qpc_owner_v1_close(id, &mut diagnostic) }, 0);
+        assert!(matches!(entry(id), Err(error) if error.code == 2));
     }
 }

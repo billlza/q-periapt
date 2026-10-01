@@ -6,6 +6,27 @@ import tempfile
 import unittest
 
 import continuity_c_consumer as consumer
+
+
+class AdmissionTests(unittest.TestCase):
+    def test_all_deadline_and_drain_tests_must_actually_execute(self):
+        names = [
+            "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
+            "invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered",
+            "invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope",
+            "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
+            "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
+        ]
+        rows = [f"test {name} ... ok\n".encode() for name in names]
+        summary = b"test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        complete = b"".join(rows) + summary
+        consumer.verify_admission(complete)
+        for invalid in (summary, b"".join(rows[:-1]) + summary,
+                        b"".join(rows[:-1] + [rows[0]]) + summary,
+                        complete.replace(b"0 ignored", b"1 ignored"),
+                        complete.replace(b"0 filtered out", b"1 filtered out")):
+            with self.subTest(output=invalid), self.assertRaises(ValueError):
+                consumer.verify_admission(invalid)
 import continuity_package as package
 from test_continuity_package import metadata
 
@@ -68,7 +89,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
         messages.append("0000000000000001" + "00" * 8 + "55" * 16)
         report = {"schema_version": 1, "scope": consumer.SERVER_SCOPE, "session": "11" * 32,
                   "messages": messages, "network_rekeys": 1, "application_records": 5,
-                  "release_claim_eligible": False}
+                  "release_claim_eligible": False, "listener_tls_deadline_ms": 20_010}
         for name in ("completed", "callback_failure_preserved", "unknown_commit_reconciled",
                      "crash_after_application_reconciled", "duplicate_skips_callback",
                      "reentrant_close_busy", "cancelled_listener_released",
@@ -81,7 +102,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
                 bytes.fromhex(report["session"] + message) + b"persisted before process exit")
         def event(message, duplicate, calls, created):
             return f"served:{1 if message == '0' * 64 else 2}:{duplicate}:{calls}:{created}\n{report['session']}\n{message}\n"
-        outputs = {"bootstrap": event("0" * 64, 0, 0, 0), "cancel": "server-cancelled\n",
+        outputs = {"deadline": "server-deadline\n", "bootstrap": event("0" * 64, 0, 0, 0), "cancel": "server-cancelled\n",
                    "fail-before": "application-failed:1:0\n", "retry-0": event(messages[0], 0, 1, 1),
                    "duplicate-prepare": "application-failed:1:1\n",
                    "duplicate": event(messages[3], 1, 0, 0), "uncertain": "application-failed:1:1\n",
@@ -100,7 +121,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder)
             report = self.server_evidence(root)
             observed = consumer.verify_server_execution(stdout, root)
-            self.assertEqual(len(observed["command_logs"]), 24)
+            self.assertEqual(len(observed["command_logs"]), 26)
             self.assertEqual(len(observed["application_readbacks"]), 5)
             path = root / "responder" / ("application-" + report["messages"][1])
             data = path.read_bytes()
@@ -121,6 +142,8 @@ class ContinuityCConsumerTests(unittest.TestCase):
                 with self.subTest(output=output), self.assertRaises(ValueError):
                     consumer.verify_server_execution(output, root)
             for name, value in (("application_records", True), ("completed", 1),
+                                ("listener_tls_deadline_ms", True), ("listener_tls_deadline_ms", 17_999),
+                                ("listener_tls_deadline_ms", 23_000),
                                 ("unknown_commit_reconciled", False), ("duplicate_skips_callback", False),
                                 ("reentrant_close_busy", False), ("cancelled_listener_released", False),
                                 ("release_claim_eligible", True), ("messages", report["messages"][:4]),

@@ -82,13 +82,17 @@ and `ReservationAbandoned` remain distinct. A successful TLS exchange with a
 consumption prefix that does not yet include the ID returns `PrefixPending`, not
 successful application consumption. Status queries grant no sending authority.
 
-Client invocations retain the existing finite eight-attempt, 20-second total and
-one-second connect bounds. Each owner can bind one explicit listener; repeated
-listen is an error and close releases it. Server calls wait up to 20 seconds for
-accept, then run the shared carrier's separate 20-second/eight-exchange budget.
+Ordinary calls capture one absolute 20-second deadline before copying foreign
+inputs. Constructors and operational/recovery owners pass that same deadline
+through witness admissions, listener accept, application TLS and rekey TLS.
+Native `RunLimits.outer_deadline` and the owner-local witness scope can only
+shorten phase budgets. Native clients retain the eight-exchange and one-second
+connect bounds. Each owner can bind one explicit listener; repeated listen is an
+error and close releases it. Accept and serving share the invocation deadline.
 Accept cancellation polls every 25 milliseconds subject to OS scheduling.
-Filesystem and application callbacks remain synchronous/cooperative; cancellation
-does not preempt an arbitrary kernel call, foreign callback or undo a commit.
+Filesystem, cryptographic work and application callbacks remain synchronous and
+cooperative. Checks at their boundaries cannot preempt an arbitrary kernel call
+or foreign callback, guarantee OS scheduling, or undo a commit.
 Witness dispatch shares the native one-way cancellation signal with TLS dispatch.
 Connected reads/writes use at most 25-ms socket timeouts, subject to OS scheduling,
 and check cancellation between calls, including partial frames. A pending connect
@@ -96,10 +100,16 @@ retains one nonblocking socket and waits for readiness in at most 25-ms interval
 under the exchange's original deadline. Readiness wakes immediately; cancellation
 does not spawn a replacement connection or leave a background worker behind.
 Polling never refreshes that deadline.
-This per-exchange bound is not a global constructor or invocation bound;
-the native journal can require several witness admissions. A completed witness
-mutation followed by cancellation remains an unknown outcome requiring exact
-reconciliation. Native witness failures retain their typed diagnostics.
+Every witness exchange also retains the enclosing call's deadline; several
+journal admissions cannot refresh it. An expired constructor publishes no handle
+and drops its reservation and owners. A published owner clears only its per-call
+deadline on return; a later call receives a new budget but one-way cancellation
+remains set. A completed mutation followed by cancellation or expiration remains
+an unknown outcome requiring exact original-ID reconciliation. Native failures
+retain their typed diagnostics even when the call's deadline has also elapsed.
+The installed C server regression waits 15 seconds before TCP admission and then
+stalls TLS. It must return the invocation deadline outcome and close the socket
+within the test's 23-second observation bound; this is not a latency SLA.
 AD is visible to the TLS endpoint and must not be treated as message-encrypted
 private content. This boundary inherits the candidate's trusted-host and logical-
 erasure limits; C in-process memory validity still depends on the caller contract.

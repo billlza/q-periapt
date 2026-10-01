@@ -46,6 +46,87 @@ impl AnchorTransport for Carrier {
         Ok(reply)
     }
 }
+
+struct ScopedCarrier {
+    inner: Carrier,
+    deadline: Instant,
+    late_reply: bool,
+}
+impl AnchorTransport for ScopedCarrier {
+    fn constrain_deadline(&self, _: Instant) -> io::Result<Instant> {
+        Ok(self.deadline)
+    }
+    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
+        let reply = self.inner.exchange(request, deadline)?;
+        if self.late_reply {
+            std::thread::sleep(
+                deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(5),
+            );
+        }
+        Ok(reply)
+    }
+}
+
+#[test]
+fn enclosing_witness_deadline_does_not_refresh_between_signed_queries() {
+    let c = case();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let count = c.server.lock().expect("server").requests.len();
+    let mut client = AnchorClient::new(
+        c.pin.clone(),
+        DeviceSigningKey::deterministic([92; 32], [93; 32]).expect("device signer"),
+        Box::new(ScopedCarrier {
+            inner: Carrier(Arc::clone(&c.server)),
+            deadline,
+            late_reply: false,
+        }),
+        Duration::from_secs(10),
+    )
+    .expect("scoped client");
+    client
+        .exchange(c.subject, AnchorOperation::query())
+        .expect("first authenticated query");
+    assert_eq!(c.server.lock().expect("server").requests.len(), count + 1);
+    std::thread::sleep(
+        deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(5),
+    );
+    assert!(
+        matches!(client.exchange(c.subject, AnchorOperation::query()),
+        Err(crate::AnchorClientError::Transport(error)) if error.kind() == io::ErrorKind::TimedOut)
+    );
+    assert_eq!(
+        c.server.lock().expect("server").requests.len(),
+        count + 1,
+        "expired query was dispatched"
+    );
+}
+
+#[test]
+fn witness_transport_cannot_extend_attempt_or_admit_a_late_authentic_reply() {
+    let c = case();
+    let count = c.server.lock().expect("server").requests.len();
+    let mut client = AnchorClient::new(
+        c.pin.clone(),
+        DeviceSigningKey::deterministic([92; 32], [93; 32]).expect("device signer"),
+        Box::new(ScopedCarrier {
+            inner: Carrier(Arc::clone(&c.server)),
+            deadline: Instant::now() + Duration::from_secs(30),
+            late_reply: true,
+        }),
+        Duration::from_millis(500),
+    )
+    .expect("attempt client");
+    let started = Instant::now();
+    assert!(
+        matches!(client.exchange(c.subject, AnchorOperation::query()),
+        Err(crate::AnchorClientError::Transport(error)) if error.kind() == io::ErrorKind::TimedOut)
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "transport extended the caller's attempt"
+    );
+    assert_eq!(c.server.lock().expect("server").requests.len(), count + 1);
+}
 struct Case {
     peer: Fixture,
     server: Arc<Mutex<Server>>,

@@ -2,6 +2,7 @@
 //! Unpublished C consumer of the installed Continuity Rust owner, not product ABI 2.
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod invocation;
 mod owner;
 mod recovery;
 mod server;
@@ -17,6 +18,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         Arc, Mutex, TryLockError,
     },
+    time::Instant,
 };
 
 type Result<T> = std::result::Result<T, Failure>;
@@ -206,6 +208,7 @@ enum Owned {
 }
 struct Entry {
     cancel: Cancellation,
+    invocation: invocation::Scope,
     owner: Mutex<Option<Owned>>,
 }
 struct Table {
@@ -241,6 +244,7 @@ struct Reservation {
     id: u64,
     published: bool,
     cancel: Cancellation,
+    invocation: invocation::Scope,
 }
 impl Reservation {
     fn new() -> Result<Self> {
@@ -255,16 +259,19 @@ impl Reservation {
             id,
             published: false,
             cancel: Cancellation::default(),
+            invocation: invocation::Scope::default(),
         })
     }
-    fn publish(mut self, owner: Owned) -> Result<u64> {
+    fn publish(mut self, owner: Owned, deadline: Instant) -> Result<u64> {
         let mut table = TABLE.lock().map_err(|_| failure(5))?;
         let slot = table.slots.get_mut(&self.id).ok_or(failure(5))?;
         if slot.is_some() {
             return Err(failure(5));
         }
+        invocation::check(deadline)?;
         *slot = Some(Arc::new(Entry {
             cancel: self.cancel.clone(),
+            invocation: self.invocation.clone(),
             owner: Mutex::new(Some(owner)),
         }));
         self.published = true;
@@ -295,15 +302,17 @@ fn entry(id: u64) -> Result<Arc<Entry>> {
 }
 fn with<T>(
     id: u64,
+    deadline: Instant,
     action: impl FnOnce(&mut owner::Owner, &Cancellation) -> Result<T>,
 ) -> Result<T> {
-    with_owned(id, |owner, cancel| match owner {
+    with_owned(id, deadline, |owner, cancel| match owner {
         Owned::Operational(owner) => action(owner, cancel),
         Owned::Recovery(_) => Err(failure(6)),
     })
 }
 fn with_owned<T>(
     id: u64,
+    deadline: Instant,
     action: impl FnOnce(&mut Owned, &Cancellation) -> Result<T>,
 ) -> Result<T> {
     let entry = entry(id)?;
@@ -317,7 +326,12 @@ fn with_owned<T>(
         }
     };
     let owner = locked.as_mut().ok_or(failure(2))?;
-    match catch_unwind(AssertUnwindSafe(|| action(owner, &entry.cancel))) {
+    let _active = entry.invocation.enter(deadline)?;
+    match catch_unwind(AssertUnwindSafe(|| {
+        let value = action(owner, &entry.cancel)?;
+        invocation::check(deadline)?;
+        Ok(value)
+    })) {
         Ok(result) => result,
         Err(_) => {
             entry.cancel.cancel();
@@ -329,7 +343,7 @@ fn with_owned<T>(
 unsafe fn boundary(
     record: *mut ErrorRecord,
     drain: bool,
-    action: impl FnOnce() -> Result<()>,
+    action: impl FnOnce(Instant) -> Result<()>,
 ) -> i32 {
     if output(record).is_err() {
         return 1;
@@ -338,10 +352,18 @@ unsafe fn boundary(
     // cancellation remain callable when every ordinary call slot is occupied.
     let mut permit = None;
     let invoke = || {
+        let admitted = Instant::now();
         if !drain {
             permit = Some(CallPermit::reserve()?);
         }
-        action()
+        let deadline = if drain {
+            admitted
+        } else {
+            admitted
+                .checked_add(invocation::TIMEOUT)
+                .ok_or_else(|| failure(5))?
+        };
+        action(deadline)
     };
     let result = match catch_unwind(AssertUnwindSafe(invoke)) {
         Ok(Ok(())) => None,
@@ -492,7 +514,7 @@ unsafe fn open_owner(
     error: *mut ErrorRecord,
 ) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |deadline| {
         output(handle)?;
         // SAFETY: validated output pointer and header input preconditions.
         unsafe { put(handle, 0) };
@@ -508,8 +530,15 @@ unsafe fn open_owner(
             _ => return Err(Failure::argument()),
         };
         let slot = Reservation::new()?;
-        let owner = owner::Owner::open(Path::new(&path), quality, witness, slot.cancel.clone())?;
-        let id = slot.publish(Owned::Operational(Box::new(owner)))?;
+        let _active = slot.invocation.enter(deadline)?;
+        let owner = owner::Owner::open(
+            Path::new(&path),
+            quality,
+            witness,
+            slot.cancel.clone(),
+            slot.invocation.clone(),
+        )?;
+        let id = slot.publish(Owned::Operational(Box::new(owner)), deadline)?;
         unsafe { put(handle, id) };
         Ok(())
     };
@@ -522,7 +551,7 @@ unsafe fn open_owner(
 #[no_mangle]
 pub unsafe extern "C" fn qpc_owner_v1_cancel(handle: u64, error: *mut ErrorRecord) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |_| {
         entry(handle)?.cancel.cancel();
         Ok(())
     };
@@ -534,7 +563,7 @@ pub unsafe extern "C" fn qpc_owner_v1_cancel(handle: u64, error: *mut ErrorRecor
 #[no_mangle]
 pub unsafe extern "C" fn qpc_owner_v1_close(handle: u64, error: *mut ErrorRecord) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |_| {
         let entry = entry(handle)?;
         let (mut owner, poisoned) = match entry.owner.try_lock() {
             Ok(lock) => (lock, false),
@@ -575,7 +604,7 @@ pub unsafe extern "C" fn qpc_owner_v1_establish(
     error: *mut ErrorRecord,
 ) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |deadline| {
         output(session)?;
         output(exchanges)?;
         unsafe {
@@ -584,13 +613,13 @@ pub unsafe extern "C" fn qpc_owner_v1_establish(
         }
         let address = address(&unsafe { text(peer, peer_length, 128) }?)?;
         let request = p::InitiationId::from_trusted_state(unsafe { fixed(request) }?)?;
-        let result = with(handle, |owner, cancel| {
+        let result = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.endpoint()?;
             let name = owner.peer_name.clone();
             Ok(endpoint.establish(
                 owner.actor()?,
                 request,
-                owner::run(address, &name, cancel),
+                owner::run(address, &name, cancel, deadline),
                 owner::now,
             )?)
         })?;
@@ -614,13 +643,13 @@ pub unsafe extern "C" fn qpc_owner_v1_next_message(
     error: *mut ErrorRecord,
 ) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |deadline| {
         output(message)?;
         unsafe {
             put(message, [0; 32]);
         }
         let session = unsafe { fixed(session) }?;
-        let id = with(handle, |owner, _| {
+        let id = with(handle, deadline, |owner, _| {
             let (journal, _) = owner.service.stores()?;
             Ok(journal.next_message_id(
                 &owner.context,
@@ -655,7 +684,7 @@ pub unsafe extern "C" fn qpc_owner_v1_send(
     error: *mut ErrorRecord,
 ) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |deadline| {
         output(consumption)?;
         output(exchanges)?;
         unsafe {
@@ -673,7 +702,7 @@ pub unsafe extern "C" fn qpc_owner_v1_send(
             )
         }?);
         let ad = unsafe { bytes(ad, ad_length, p::contract::MAX_ASSOCIATED_DATA_BYTES) }?;
-        let result = with(handle, |owner, cancel| {
+        let result = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.endpoint()?;
             let name = owner.peer_name.clone();
             Ok(endpoint.send(
@@ -684,7 +713,7 @@ pub unsafe extern "C" fn qpc_owner_v1_send(
                     plaintext: &plaintext,
                     associated_data: &ad,
                 },
-                owner::run(address, &name, cancel),
+                owner::run(address, &name, cancel, deadline),
                 owner::now,
             )?)
         })?;
@@ -713,14 +742,14 @@ pub unsafe extern "C" fn qpc_owner_v1_message_status(
     error: *mut ErrorRecord,
 ) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |deadline| {
         output(status)?;
         unsafe {
             put(status, 255);
         }
         let session = unsafe { fixed(session) }?;
         let message = p::MessageId::from_trusted_state(unsafe { fixed(message) }?)?;
-        let result = with(handle, |owner, _| {
+        let result = with(handle, deadline, |owner, _| {
             Ok(owner
                 .service
                 .stores()?
@@ -758,16 +787,16 @@ pub unsafe extern "C" fn qpc_owner_v1_rekey(
     error: *mut ErrorRecord,
 ) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
-    let action = || {
+    let action = |deadline| {
         output(completed_epoch)?;
         unsafe {
             put(completed_epoch, 0);
         }
         let address = address(&unsafe { text(peer, peer_length, 128) }?)?;
         let session = unsafe { fixed(session) }?;
-        let result = with(handle, |owner, cancel| {
+        let result = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.control(session)?;
-            let run = owner::run(address, &owner.peer_name, cancel);
+            let run = owner::run(address, &owner.peer_name, cancel, deadline);
             let (journal, _) = owner.service.stores()?;
             Ok(endpoint.run(
                 p::control_transport::Session {

@@ -24,6 +24,9 @@ pub struct RunLimits {
     /// Each TCP connect bound, nonzero and at most five seconds. Pending connects
     /// and later I/O poll cancellation at intervals of at most 25 ms.
     pub connect_timeout: Duration,
+    /// Optional caller-wide absolute deadline. A run can shorten this bound but
+    /// never extend it, including after listener admission or a witness exchange.
+    pub outer_deadline: Option<Instant>,
 }
 impl RunLimits {
     pub(crate) fn deadline(self) -> Result<Instant, Error> {
@@ -36,9 +39,14 @@ impl RunLimits {
         {
             return Err(Error::InvalidOptions);
         }
-        Instant::now()
+        let deadline = Instant::now()
             .checked_add(self.timeout)
-            .ok_or(Error::InvalidOptions)
+            .ok_or(Error::InvalidOptions)?;
+        let deadline = self
+            .outer_deadline
+            .map_or(deadline, |outer| outer.min(deadline));
+        remaining(deadline)?;
+        Ok(deadline)
     }
 }
 
@@ -199,4 +207,40 @@ pub(crate) fn address(address: SocketAddr) -> Result<(), Error> {
         return Err(Error::InvalidOptions);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn limits(outer_deadline: Option<Instant>) -> RunLimits {
+        RunLimits {
+            exchanges: 1,
+            timeout: Duration::from_secs(10),
+            connect_timeout: Duration::from_secs(1),
+            outer_deadline,
+        }
+    }
+
+    #[test]
+    fn enclosing_deadline_is_preserved_across_multiple_run_admissions() {
+        let outer = Instant::now() + Duration::from_secs(2);
+        assert_eq!(limits(Some(outer)).deadline().expect("first run"), outer);
+        assert_eq!(limits(Some(outer)).deadline().expect("later run"), outer);
+        assert!(matches!(
+            limits(Some(Instant::now())).deadline(),
+            Err(Error::Deadline)
+        ));
+    }
+
+    #[test]
+    fn enclosing_deadline_cannot_extend_phase_or_relax_invalid_limits() {
+        let outer = Instant::now() + Duration::from_secs(100);
+        let deadline = limits(Some(outer)).deadline().expect("bounded phase");
+        assert!(deadline <= Instant::now() + Duration::from_secs(10));
+        assert!(deadline < outer);
+        let mut invalid = limits(Some(Instant::now()));
+        invalid.exchanges = 0;
+        assert!(matches!(invalid.deadline(), Err(Error::InvalidOptions)));
+    }
 }

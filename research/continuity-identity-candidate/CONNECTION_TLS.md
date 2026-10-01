@@ -1,5 +1,11 @@
 # Native bootstrap and application connection
 
+`RunLimits.outer_deadline` optionally carries an absolute deadline from an
+enclosing host invocation. Run admission uses the earlier of that instant and
+its own finite timeout, and rejects an already expired caller budget. A caller
+using several endpoints or waiting for listener admission must pass the same
+instant to every phase. `None` retains the native per-run timeout contract.
+
 The optional `connection-tls` feature connects independently provisioned native
 journals through the SDK's standard hybrid mutual TLS and exporter-bound policy
 confirmation. It is an unpublished candidate API. It now carries bootstrap and

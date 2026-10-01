@@ -87,4 +87,5 @@ def verify_owner_readbacks(read, directory: Path, session: str, message: str, ex
 
 
 def export_public(stdout: bytes, directory: Path, destination: Path) -> dict:
-    return export_selected(verify_execution(stdout, directory), directory, destination, SCOPE)
+    return export_selected(verify_execution(stdout, directory), directory, destination, SCOPE,
+                           replay=lambda path: verify_execution(stdout, path))

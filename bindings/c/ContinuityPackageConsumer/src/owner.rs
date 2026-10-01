@@ -107,6 +107,7 @@ impl Owner {
         quality: p::PrekeyQuality,
         witness: Option<crate::witness::Configuration>,
         cancel: Cancellation,
+        invocation: crate::invocation::Scope,
     ) -> Result<Self> {
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
@@ -187,7 +188,7 @@ impl Owner {
         // A witnessed constructor must match the policy exactly; absence never
         // retries activation under a different persistence profile.
         let anchor = witness
-            .map(|configured| configured.client(path, cancel))
+            .map(|configured| configured.client(path, cancel, invocation))
             .transpose()?;
         let service = installation.activate(
             key,
@@ -279,11 +280,8 @@ impl Owner {
         self.listener = Some(listener);
         Ok(port)
     }
-    pub(crate) fn accept(&self, cancel: &Cancellation) -> Result<TcpStream> {
+    pub(crate) fn accept(&self, cancel: &Cancellation, deadline: Instant) -> Result<TcpStream> {
         let listener = self.listener.as_ref().ok_or(p::Error::State)?;
-        let deadline = Instant::now()
-            .checked_add(Duration::from_secs(20))
-            .ok_or(p::Error::State)?;
         loop {
             if cancel.is_cancelled() {
                 return Err(p::connection_transport::Error::Cancelled.into());
@@ -326,11 +324,12 @@ impl Owner {
     }
 }
 
-pub(crate) fn serve_limits() -> RunLimits {
+pub(crate) fn serve_limits(deadline: Instant) -> RunLimits {
     RunLimits {
         exchanges: 8,
         timeout: Duration::from_secs(20),
         connect_timeout: Duration::from_secs(1),
+        outer_deadline: Some(deadline),
     }
 }
 impl Drop for Owner {
@@ -339,7 +338,12 @@ impl Drop for Owner {
     }
 }
 
-pub(crate) fn run<'a>(address: SocketAddr, name: &'a str, cancel: &'a Cancellation) -> Run<'a> {
+pub(crate) fn run<'a>(
+    address: SocketAddr,
+    name: &'a str,
+    cancel: &'a Cancellation,
+    deadline: Instant,
+) -> Run<'a> {
     Run {
         address,
         server_name: name,
@@ -348,6 +352,7 @@ pub(crate) fn run<'a>(address: SocketAddr, name: &'a str, cancel: &'a Cancellati
             exchanges: 8,
             timeout: Duration::from_secs(20),
             connect_timeout: Duration::from_secs(1),
+            outer_deadline: Some(deadline),
         },
     }
 }

@@ -57,14 +57,14 @@ pub unsafe extern "C" fn qpc_owner_v1_listen(
     port: *mut u16,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let action = || {
+    let action = |deadline| {
         output(port)?;
         // SAFETY: forwarded exact header input/output obligations.
         unsafe { put(port, 0) };
         let address: SocketAddr = unsafe { text(address, length, 128) }?
             .parse()
             .map_err(|_| Failure::argument())?;
-        let selected = with(handle, |owner, cancel| {
+        let selected = with(handle, deadline, |owner, cancel| {
             if cancel.is_cancelled() {
                 return Err(p::connection_transport::Error::Cancelled.into());
             }
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn qpc_owner_v1_serve(
     result: *mut ServedRecord,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let action = || {
+    let action = |deadline| {
         output(result)?;
         // SAFETY: forwarded writable output obligation.
         unsafe {
@@ -106,14 +106,14 @@ pub unsafe extern "C" fn qpc_owner_v1_serve(
             )
         };
         let commit = commit.ok_or_else(Failure::argument)?;
-        let event = with(handle, |owner, cancel| {
+        let event = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.server()?;
-            let stream = owner.accept(cancel)?;
+            let stream = owner.accept(cancel, deadline)?;
             Ok(endpoint.serve(
                 stream,
                 owner.actor()?,
                 &mut Application { commit, context },
-                owner::serve_limits(),
+                owner::serve_limits(deadline),
                 cancel,
                 owner::now,
             )?)
@@ -153,14 +153,14 @@ pub unsafe extern "C" fn qpc_owner_v1_serve_rekey(
     epoch: *mut u64,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let action = || {
+    let action = |deadline| {
         output(epoch)?;
         // SAFETY: forwarded exact header input/output obligations.
         unsafe { put(epoch, 0) };
         let session = unsafe { fixed(session) }?;
-        let completed = with(handle, |owner, cancel| {
+        let completed = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.control_server(session)?;
-            let stream = owner.accept(cancel)?;
+            let stream = owner.accept(cancel, deadline)?;
             let (journal, _) = owner.service.stores()?;
             Ok(endpoint.serve(
                 stream,
@@ -169,7 +169,7 @@ pub unsafe extern "C" fn qpc_owner_v1_serve_rekey(
                     context: &owner.context,
                     signer: &owner.signer,
                 },
-                owner::serve_limits(),
+                owner::serve_limits(deadline),
                 cancel,
                 owner::now,
             )?)

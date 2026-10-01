@@ -7,7 +7,26 @@ use rustls::{
     pki_types::{CertificateDer, PrivateKeyDer, ServerName},
     RootCertStore,
 };
-use std::time::Duration;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
+
+struct ScopedTransport {
+    inner: Box<dyn p::AnchorTransport>,
+    invocation: invocation::Scope,
+}
+impl p::AnchorTransport for ScopedTransport {
+    fn constrain_deadline(&self, deadline: Instant) -> io::Result<Instant> {
+        let deadline = self.invocation.constrain(deadline)?;
+        Ok(self.inner.constrain_deadline(deadline)?.min(deadline))
+    }
+
+    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
+        let deadline = self.constrain_deadline(deadline)?;
+        self.inner.exchange(request, deadline)
+    }
+}
 
 /// Borrowed endpoint options; no caller pointer is retained by the owner.
 #[repr(C)]
@@ -48,7 +67,12 @@ impl Configuration {
             carrier,
         })
     }
-    pub(crate) fn client(self, path: &Path, cancel: Cancellation) -> Result<p::AnchorClient> {
+    pub(crate) fn client(
+        self,
+        path: &Path,
+        cancel: Cancellation,
+        invocation: invocation::Scope,
+    ) -> Result<p::AnchorClient> {
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
         let pin = p::AnchorPin::new(
             p::AnchorIdentity::from_trusted_state(owner::array(&directory, "witness-id")?)?,
@@ -67,6 +91,10 @@ impl Configuration {
             )),
             Carrier::Tls => Box::new(self.tls(&directory, cancel)?),
         };
+        let transport = Box::new(ScopedTransport {
+            inner: transport,
+            invocation,
+        });
         p::AnchorClient::new(pin, signer, transport, self.timeout)
             .map_err(|error| p::DurableError::from(error).into())
     }

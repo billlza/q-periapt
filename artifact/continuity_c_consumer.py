@@ -123,8 +123,11 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
              "reentrant_close_busy", "cancelled_listener_released",
              "acknowledged_send_refused", "native_recovery_consumption"}
     sdk.require(set(report) == flags | {"schema_version", "scope", "session", "messages", "network_rekeys",
-                                       "application_records", "release_claim_eligible"},
+                                       "application_records", "listener_tls_deadline_ms", "release_claim_eligible"},
                 "C server execution fields differ")
+    sdk.require(type(report["listener_tls_deadline_ms"]) is int
+                and 18_000 <= report["listener_tls_deadline_ms"] < 23_000,
+                "C listener and TLS did not share the invocation deadline")
     sdk.require(all(report[name] is True for name in flags) and report["release_claim_eligible"] is False
                 and report["scope"] == SERVER_SCOPE, "C server required outcome or scope differs")
     for name, value in (("schema_version", 1), ("network_rekeys", 1), ("application_records", 5)):
@@ -149,7 +152,7 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
                 and not list((directory / "initiator").glob("application-*")), "C server application effects differ")
     def event(message: str, duplicate: int, calls: int, created: int) -> str:
         return f"served:{1 if message == '0' * 64 else 2}:{duplicate}:{calls}:{created}\n{report['session']}\n{message}\n"
-    expected = {"server-bootstrap": event("0" * 64, 0, 0, 0), "server-cancel": "server-cancelled\n",
+    expected = {"server-deadline": "server-deadline\n", "server-bootstrap": event("0" * 64, 0, 0, 0), "server-cancel": "server-cancelled\n",
                 "server-fail-before": "application-failed:1:0\n", "server-retry-0": event(messages[0], 0, 1, 1),
                 "server-duplicate-prepare": "application-failed:1:1\n",
                 "server-duplicate": event(messages[3], 1, 0, 0), "server-uncertain": "application-failed:1:1\n",
@@ -170,6 +173,21 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
         sdk.require(record.data == b"", "C server diagnostic differs")
         logs[leaf] = record.sha256
     return dict(report, application_readbacks=readbacks, command_logs=logs)
+
+
+def verify_admission(stdout: bytes) -> None:
+    tests = {
+        "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
+        "invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered",
+        "invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope",
+        "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
+        "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
+    }
+    text = stdout.decode()
+    passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
+    sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
+        r"^test result: ok\. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        "C admission, deadline and drain contract did not execute completely")
 
 
 def verify_linkage(dependencies: str, loader: str, filename: str, *, darwin: bool) -> None:
@@ -292,9 +310,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         unit_test = built_artifact(unit_build, consumer, build, library=False, unit=True)
         unit_identity = sdk.snapshot(unit_test, maximum=MAX_BINARY)
         checked = run([str(unit_test)], "admission-" + profile, runtime=runtime)
-        sdk.require(re.search(rb"test tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure \.\.\. ok",
-                              checked) and re.search(rb"test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", checked),
-                    "C admission budget and drain contract did not execute")
+        verify_admission(checked)
         trace = built_artifact(built, consumer, build, library=False)
         trace_identity = sdk.snapshot(trace, maximum=MAX_BINARY)
         evidence = outside / ("c-" + profile + "-runtime")

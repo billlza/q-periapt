@@ -1,5 +1,13 @@
 # Authenticated monotonic witness candidate
 
+`AnchorTransport::constrain_deadline` lets a host narrow each exchange to an
+explicit enclosing invocation deadline. `AnchorClient` clamps the returned value
+to its own attempt budget, checks it before signing/dispatch and retains it
+through reply verification. An untrusted carrier cannot extend the attempt by
+returning a later value. The C owner shares one scope across every witness call
+in a constructor or ordinary invocation; ending the call removes only that
+scope, not its one-way cancellation or original durable operation identity.
+
 `AnchorStore` is a real persistent compare-and-advance provider with authenticated
 device requests and ML-DSA-65 **and** P-256 witness replies. It provides the witness
 side of the rollback-anchor contract. The [required-anchor journal](REQUIRED_ANCHOR.md)

@@ -92,6 +92,7 @@ pub(crate) fn limits() -> RunLimits {
         exchanges: 8,
         timeout: Duration::from_secs(20),
         connect_timeout: Duration::from_secs(1),
+        outer_deadline: None,
     }
 }
 pub(crate) fn tls_limits() -> Limits {
