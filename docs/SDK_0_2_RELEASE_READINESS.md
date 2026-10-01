@@ -77,6 +77,26 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The unpublished [Kotlin/JVM Continuity candidate](../bindings/kotlin/ContinuityPackageConsumer/README.md)
+now provides separate operational/recovery owners over the existing `qpc-owner/1`
+engine. Its local Maven JAR is consumed by an independent project outside the
+checkout on macOS arm64 / Temurin 25.0.4.1 / Kotlin 2.4.20 / Gradle 9.8.0, with
+strict dependency checks and warnings-as-errors. Eight native owner tests and an
+independent Java consumer pass; direct Java raw-owner construction is refused.
+The actual installed Kotlin client, server and recovery executables complete the
+existing Rust-driven workloads against the f753e75d native package. These cover
+TLS bootstrap, exact-ID lost-ACK reconciliation, rekey, concurrent close/cancel,
+callback failures and commit uncertainty, application-process exit, duplicate
+callback suppression, revocation and complete prepared two-epoch recovery.
+Command logs, receiver effects, all loss rows and closure archives are separately
+read back. The test executable alone contains a raw-ABI owner-kind negative
+control; the public JAR exposes no raw handle. Shared-engine, same-host execution
+does not establish independent endpoints, and the prepared recovery history has
+zero reservations. Kotlin witness/activation and positive-reservation interruption
+matrices, GC/interrupt stress, final-source Debug/Release package collection and
+CI, other JVM platforms, Android JNI and WASM Continuity remain open. This
+development checkpoint adds no product ABI exports or release-admission claim.
+
 The C witness carrier now observes the owner's shared one-way cancellation
 between connected socket reads/writes, with at most 25-ms socket timeouts and
 one unchanged absolute exchange deadline. The signal is available without TLS

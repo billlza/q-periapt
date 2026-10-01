@@ -62,7 +62,7 @@ def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool,
 
 
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
-    sdk.require(language in {"C", "Swift"}, "unknown installed client language")
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown installed client language")
     expected_scope = SCOPE.replace("C client", language + " client")
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
@@ -115,7 +115,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
 
 
 def verify_server_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
-    sdk.require(language in {"C", "Swift"}, "unknown installed server language")
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown installed server language")
     expected_scope = SERVER_SCOPE.replace("C server", language + " server")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]

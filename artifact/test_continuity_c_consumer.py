@@ -65,16 +65,21 @@ def evidence(root):
 
 class ContinuityCConsumerTests(unittest.TestCase):
     def test_foreign_client_scope_requires_the_explicit_language(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            report = evidence(root)
-            report["scope"] = consumer.SCOPE.replace("C client", "Swift client")
-            (root / "c-public-result.json").write_text(json.dumps(report))
-            with self.assertRaisesRegex(ValueError, "scope"):
-                consumer.verify_execution(STDOUT, root)
-            self.assertEqual(consumer.verify_execution(STDOUT, root, language="Swift")["scope"], report["scope"])
-            with self.assertRaisesRegex(ValueError, "language"):
-                consumer.verify_execution(STDOUT, root, language="unverified")
+        for language in ("Swift", "Kotlin"):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                report = evidence(root)
+                report["scope"] = consumer.SCOPE.replace("C client", language + " client")
+                (root / "c-public-result.json").write_text(json.dumps(report))
+                with self.assertRaisesRegex(ValueError, "scope"):
+                    consumer.verify_execution(STDOUT, root)
+                observed = consumer.verify_execution(STDOUT, root, language=language)
+                self.assertEqual(observed["scope"], report["scope"])
+                with self.assertRaisesRegex(ValueError, "language"):
+                    consumer.verify_execution(STDOUT, root, language="unverified")
+                other = "Kotlin" if language == "Swift" else "Swift"
+                with self.assertRaisesRegex(ValueError, "scope"):
+                    consumer.verify_execution(STDOUT, root, language=other)
 
     def test_binary_copy_uses_its_explicit_bound_without_relaxing_source_inputs(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -146,22 +151,26 @@ class ContinuityCConsumerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "command outcome"):
                 consumer.verify_server_execution(stdout, root)
 
-    def test_swift_server_requires_explicit_scope_and_preserves_unknown_outcomes(self):
+    def test_foreign_server_requires_explicit_scope_and_preserves_unknown_outcomes(self):
         stdout = STDOUT.replace(consumer.TEST.encode(), consumer.SERVER_TEST.encode())
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            report = self.server_evidence(root)
-            report["scope"] = consumer.SERVER_SCOPE.replace("C server", "Swift server")
-            (root / "c-server-public-result.json").write_text(json.dumps(report))
-            with self.assertRaisesRegex(ValueError, "scope"):
-                consumer.verify_server_execution(stdout, root)
-            observed = consumer.verify_server_execution(stdout, root, language="Swift")
-            self.assertTrue(observed["unknown_commit_reconciled"])
-            with self.assertRaisesRegex(ValueError, "language"):
-                consumer.verify_server_execution(stdout, root, language="unverified")
-            (root / "responder/c-server-uncertain.stdout").write_text("listening:43210\nconsumed\n")
-            with self.assertRaisesRegex(ValueError, "command outcome"):
-                consumer.verify_server_execution(stdout, root, language="Swift")
+        for language in ("Swift", "Kotlin"):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                report = self.server_evidence(root)
+                report["scope"] = consumer.SERVER_SCOPE.replace("C server", language + " server")
+                (root / "c-server-public-result.json").write_text(json.dumps(report))
+                with self.assertRaisesRegex(ValueError, "scope"):
+                    consumer.verify_server_execution(stdout, root)
+                observed = consumer.verify_server_execution(stdout, root, language=language)
+                self.assertTrue(observed["unknown_commit_reconciled"])
+                with self.assertRaisesRegex(ValueError, "language"):
+                    consumer.verify_server_execution(stdout, root, language="unverified")
+                other = "Kotlin" if language == "Swift" else "Swift"
+                with self.assertRaisesRegex(ValueError, "scope"):
+                    consumer.verify_server_execution(stdout, root, language=other)
+                (root / "responder/c-server-uncertain.stdout").write_text("listening:43210\nconsumed\n")
+                with self.assertRaisesRegex(ValueError, "command outcome"):
+                    consumer.verify_server_execution(stdout, root, language=language)
 
     def test_server_rejects_omitted_tests_claims_and_epoch_substitution(self):
         stdout = STDOUT.replace(consumer.TEST.encode(), consumer.SERVER_TEST.encode())
