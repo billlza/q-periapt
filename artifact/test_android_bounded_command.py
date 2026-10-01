@@ -4181,6 +4181,7 @@ esac
                 commands.AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO,
                 commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE,
                 commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT,
+                commands.AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME,
             ):
                 with (
                     self.subTest(kind=kind, operation=operation),
@@ -4302,6 +4303,44 @@ esac
                 "getprop init.svc.zygote_secondary", "ps ",
             ])
 
+    def test_memory_runtime_probe_reads_fixed_inputs_and_keeps_first_failure(self) -> None:
+        guest_bin = self.root / "memory-runtime-native-bin"
+        guest_bin.mkdir()
+        calls = self.root / "memory-runtime-native-calls.txt"
+        for name in ("uname", "cat", "getconf", "base64"):
+            probe = guest_bin / name
+            probe.write_text('''#!/bin/sh
+name=${0##*/}
+printf '%s %s\\n' "$name" "$*" >>"$QPERIAPT_TEST_CALLS"
+case "$name" in
+  uname) printf 'kernel fixture\\n'; exit "$QPERIAPT_TEST_KERNEL_STATUS" ;;
+  cat) printf 'page_shift=14\\n' ;;
+  getconf) printf '16384\\n' ;;
+  base64) printf 'f0VMRg==\\n'; exit "$QPERIAPT_TEST_BINARY_STATUS" ;;
+esac
+''')
+            probe.chmod(0o700)
+        argv = commands._emulator_memory_runtime_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        for kernel_status, binary_status in ((0, 0), (7, 0), (0, 11), (7, 11)):
+            calls.write_text("")
+            result = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                 "QPERIAPT_TEST_KERNEL_STATUS": str(kernel_status),
+                 "QPERIAPT_TEST_BINARY_STATUS": str(binary_status)},
+            )
+            expected = kernel_status or binary_status
+            self.assertEqual(result.returncode, expected, result.stderr)
+            status, body = commands._parse_guest_completion(result.stdout, self.run_id, "memory-runtime")
+            self.assertEqual(status, expected)
+            self.assertTrue(body.startswith(b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=1\n"))
+            self.assertEqual(body.count(b"QPERIAPT_STATE_STATUS:"), 4)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:lmkd-elf-base64:{binary_status}".encode(), body)
+            self.assertEqual(calls.read_text().splitlines(), [
+                "uname -r", "cat /proc/cmdline", "getconf PAGE_SIZE", "base64 /system/bin/lmkd",
+            ])
+
     def test_app_exit_info_probe_keeps_exact_package_and_native_failure(self) -> None:
         guest_bin = self.root / "exit-info-native-bin"
         guest_bin.mkdir()
@@ -4383,6 +4422,7 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
             (commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE, "emulator-state-failure.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
             (commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE, "emulator-state-recovery.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
             (commands.AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO, "emulator-app-exit-info.txt", "app-exit-info", "QPERIAPT_APP_EXIT_INFO_EXIT", 1048576),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME, "emulator-memory-runtime.txt", "memory-runtime", "QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT", 4194304),
         ):
             for remote_status, crlf in ((0, False), (0, True), (7, False), (None, False)):
                 raw = b"native diagnostic body\n"

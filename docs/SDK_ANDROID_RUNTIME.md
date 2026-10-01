@@ -216,6 +216,20 @@ RSS/swap and the pressure reason when available. This corrects a missing diagnos
 tag without changing guest RAM, workload, retry budgets or acceptance. A passing
 rerun alone does not resolve the retained low-memory failure.
 
+Before installation on the owned `api35-16k` target, a separate fixed native
+capture records the kernel release, kernel command line, runtime page size and
+base64 bytes of `/system/bin/lmkd`. The binary is read for offline inspection;
+the probe does not execute or replace it. This supplies the image implementation
+needed to test page-unit hypotheses against the retained raw zone/meminfo
+counters, instead of assuming a public source branch matches the running image.
+The capture has a 15-second / 4-MiB bound, retains every guest command status and
+requires a run-bound completion record, with the same live emulator ownership
+checks before and after reading. Failure stops before SDK installation. Physical
+and API 23 collection remain outside this probe. The existing state-v2 snapshots
+and their bounds are unchanged. Capturing these inputs is diagnostic evidence;
+it does not itself establish the cause of a low-memory event or a repaired image.
+Both success and failure artifact lists retain this capture and its stderr.
+
 When the existing one-shot transport recovery observes the same owned emulator
 back in `device` state, it now immediately attempts `emulator-state-recovery.txt`
 and `emulator-recovery-logcat.txt` before another APK ownership read. Each capture

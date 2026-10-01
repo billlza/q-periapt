@@ -2176,6 +2176,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "            target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err\n"
@@ -2201,6 +2203,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertNotIn(forbidden, diagnostic_upload)
 
         proof_upload = extract_named_workflow_step(job, "Retain Android SDK package and runtime evidence")
+        for leaf in ("emulator-memory-runtime.txt", "emulator-memory-runtime.err"):
+            self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{leaf}\n", proof_upload)
         self.assertIn(
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
         )

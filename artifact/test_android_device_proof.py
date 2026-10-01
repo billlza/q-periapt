@@ -1441,6 +1441,7 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         failing_operation: str | None,
         *,
         device_kind: str = "emulator",
+        runtime_profile: str = "api35-16k",
         log_status: int = 0,
         device_epoch: str = "1786240000.123",
     ) -> tuple[subprocess.CompletedProcess[bytes], list[str], dict[str, bytes]]:
@@ -1469,6 +1470,7 @@ DIST={shlex.quote(str(distribution))}
 CALLS={shlex.quote(str(calls))}
 FAIL_OPERATION={shlex.quote(failing_operation or "")}
 DEVICE_KIND={shlex.quote(device_kind)}
+ANDROID_RUNTIME_PROFILE={shlex.quote(runtime_profile)}
 DEVICE_EPOCH={shlex.quote(device_epoch)}
 LOG_STATUS={log_status}
 ANDROID_CONSUMER_PROFILE=legacy_full
@@ -1502,6 +1504,7 @@ android_command() {{
         case "$operation" in
             device-time) return 17 ;;
             capture-emulator-baseline) return 18 ;;
+            capture-emulator-memory-runtime) return 20 ;;
             start-app) return 19 ;;
             install-apk)
                 printf 'cmd: Failure calling service package: Broken pipe (32)\\n' >&2
@@ -1557,7 +1560,7 @@ android_command() {{
                 "adb-device-time.err",
             ),
             "start-app": (
-                ["preinstall", "device-time", "capture-emulator-baseline", "install-apk", "postinstall", "start-app",
+                ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall", "start-app",
                  "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"],
                 "Android runtime activity start failed",
                 "adb-start.log",
@@ -1583,7 +1586,7 @@ android_command() {{
 
         for gate, expected_calls in (
             ("preinstall", ["preinstall"]),
-            ("postinstall", ["preinstall", "device-time", "capture-emulator-baseline", "install-apk", "postinstall",
+            ("postinstall", ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall",
                              "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"]),
         ):
             with self.subTest(failing_gate=gate):
@@ -1596,7 +1599,7 @@ android_command() {{
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(
             called_operations,
-            ["preinstall", "device-time", "capture-emulator-baseline", "install-apk", "postinstall", "start-app"],
+            ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall", "start-app"],
         )
 
     def test_installation_failures_capture_logs_without_retry_or_success(self) -> None:
@@ -1610,7 +1613,7 @@ android_command() {{
                         self.assertEqual(result.returncode, status, result.stderr)
                         expected = ["preinstall", "device-time"]
                         if kind == "emulator":
-                            expected.append("capture-emulator-baseline")
+                            expected.extend(("capture-emulator-memory-runtime", "capture-emulator-baseline"))
                         expected.append("install-apk")
                         if operation == "postinstall":
                             expected.append("postinstall")
@@ -1634,11 +1637,27 @@ android_command() {{
     def test_failed_emulator_baseline_does_not_arm_cleanup_or_install(self) -> None:
         result, calls, files = self._run_fresh_install_runtime_steps("capture-emulator-baseline")
         self.assertEqual(result.returncode, 18, result.stderr)
-        self.assertEqual(calls, ["preinstall", "device-time", "capture-emulator-baseline",
+        self.assertEqual(calls, ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline",
                                  "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"])
         self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
         self.assertIn(b"baseline capture failed (exit=18)", result.stderr)
         self.assertNotIn("adb-install.log", files)
+
+    def test_memory_runtime_capture_is_before_install_and_only_on_owned_16k(self) -> None:
+        result, calls, files = self._run_fresh_install_runtime_steps("capture-emulator-memory-runtime")
+        self.assertEqual(result.returncode, 20, result.stderr)
+        self.assertEqual(calls, ["preinstall", "device-time", "capture-emulator-memory-runtime",
+                                 "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"])
+        self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+        self.assertIn(b"memory-runtime capture failed (exit=20)", result.stderr)
+        self.assertNotIn("adb-install.log", files)
+        for kind, profile in (("physical", "api35-16k"), ("emulator", "api23-4k")):
+            result, calls, _ = self._run_fresh_install_runtime_steps(
+                None, device_kind=kind, runtime_profile=profile,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("capture-emulator-memory-runtime", calls)
+            self.assertIn("install-apk", calls)
 
     def test_failed_or_invalid_clock_does_not_arm_cleanup_or_install(self) -> None:
         cases = (("device-time", "1786240000.123"), (None, ""), (None, "1786240000"),

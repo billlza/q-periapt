@@ -2592,6 +2592,17 @@ except (AndroidCommandError, AndroidRuntimeStateError) as error:
     raise SystemExit(f"error: Android device returned an invalid logcat start time: {error}") from error
 PY
 if [ "$DEVICE_KIND" = "emulator" ]; then
+	if [ "$ANDROID_RUNTIME_PROFILE" = "api35-16k" ]; then
+		if android_command capture-emulator-memory-runtime 2>"$DIST/emulator-memory-runtime.err"; then
+			:
+		else
+			emulator_memory_runtime_status=$?
+			printf 'error: owned emulator memory-runtime capture failed (exit=%s); see %s\n' \
+				"$emulator_memory_runtime_status" "$DIST/emulator-memory-runtime.err" >&2
+			capture_emulator_failure_logs
+			exit "$emulator_memory_runtime_status"
+		fi
+	fi
 	if android_command capture-emulator-baseline 2>"$DIST/emulator-state-before.err"; then
 		:
 	else

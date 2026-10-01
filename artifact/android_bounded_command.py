@@ -204,6 +204,7 @@ class AndroidOperation(str, enum.Enum):
     CAPTURE_EMULATOR_APP_EXIT_INFO = "capture-emulator-app-exit-info"
     CAPTURE_EMULATOR_RECOVERY_STATE = "capture-emulator-recovery-state"
     CAPTURE_EMULATOR_RECOVERY_LOGCAT = "capture-emulator-recovery-logcat"
+    CAPTURE_EMULATOR_MEMORY_RUNTIME = "capture-emulator-memory-runtime"
 
 
 class OutputRoot(str, enum.Enum):
@@ -594,12 +595,38 @@ def _boot_completed_argv(
     return _device(capability, "shell", "sh", "-c", shlex.quote(program))
 
 
-def _emulator_state_argv(
+def _native_diagnostic_argv(
     capability: runtime_state.AndroidAdbCapability,
+    probes: tuple[tuple[str, tuple[str, ...]], ...],
+    *, header: str, completion: str,
 ) -> tuple[str, ...]:
     # These native commands do not launch ART or modify the guest. Each result
     # keeps its exit status; a later successful probe cannot hide an earlier
     # failure, including on legacy adb transports that lose the guest status.
+    encoded_header = shlex.quote(header + "\\n")
+    program = (
+        "qperiapt_state_status=0; "
+        "qperiapt_state_probe() { "
+        "qperiapt_probe_name=$1; shift; "
+        "printf '\\nQPERIAPT_STATE_PROBE:%s\\n' \"$qperiapt_probe_name\"; "
+        '\"$@\"; qperiapt_probe_status=$?; '
+        "printf '\\nQPERIAPT_STATE_STATUS:%s:%d\\n' "
+        '\"$qperiapt_probe_name\" \"$qperiapt_probe_status\"; '
+        'if [ "$qperiapt_state_status" -eq 0 ]; then '
+        'qperiapt_state_status=$qperiapt_probe_status; fi; }; '
+        f"printf {encoded_header}; "
+    )
+    program += "; ".join(shlex.join(("qperiapt_state_probe", label, *argv)) for label, argv in probes)
+    program += (
+        f"; printf '\\n{completion}:{capability.run_id}:%d\\n' "
+        '"$qperiapt_state_status"; exit "$qperiapt_state_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
+def _emulator_state_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
     probes = (
         ("boot-id", ("cat", "/proc/sys/kernel/random/boot_id")),
         ("uptime", ("cat", "/proc/uptime")),
@@ -618,24 +645,27 @@ def _emulator_state_argv(
         ("zygote-secondary", ("getprop", "init.svc.zygote_secondary")),
         ("processes", ("ps",)),
     )
-    program = (
-        "qperiapt_state_status=0; "
-        "qperiapt_state_probe() { "
-        "qperiapt_probe_name=$1; shift; "
-        "printf '\\nQPERIAPT_STATE_PROBE:%s\\n' \"$qperiapt_probe_name\"; "
-        '"$@"; qperiapt_probe_status=$?; '
-        "printf '\\nQPERIAPT_STATE_STATUS:%s:%d\\n' "
-        '"$qperiapt_probe_name" "$qperiapt_probe_status"; '
-        'if [ "$qperiapt_state_status" -eq 0 ]; then '
-        'qperiapt_state_status=$qperiapt_probe_status; fi; }; '
-        "printf 'QPERIAPT_EMULATOR_STATE_VERSION=2\\n'; "
+    return _native_diagnostic_argv(
+        capability, probes, header="QPERIAPT_EMULATOR_STATE_VERSION=2",
+        completion="QPERIAPT_EMULATOR_STATE_EXIT",
     )
-    program += "; ".join(shlex.join(("qperiapt_state_probe", label, *argv)) for label, argv in probes)
-    program += (
-        f"; printf '\\nQPERIAPT_EMULATOR_STATE_EXIT:{capability.run_id}:%d\\n' "
-        '"$qperiapt_state_status"; exit "$qperiapt_state_status"'
+
+
+def _emulator_memory_runtime_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # Capture the image's actual implementation for offline unit analysis.
+    # The fixed binary is read as data, never executed or replaced by this probe.
+    return _native_diagnostic_argv(
+        capability, (
+            ("kernel-release", ("uname", "-r")),
+            ("kernel-command-line", ("cat", "/proc/cmdline")),
+            ("runtime-page-size", ("getconf", "PAGE_SIZE")),
+            ("lmkd-elf-base64", ("base64", "/system/bin/lmkd")),
+        ),
+        header="QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=1",
+        completion="QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT",
     )
-    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
 
 
 def _emulator_app_exit_info_argv(
@@ -1000,6 +1030,11 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             "emulator-diagnostics", 5, 5,
             OutputSpec(proof, "emulator-recovery-logcat.txt", 16777216),
             lambda cap: (),
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-memory-runtime.txt", 4194304),
+            _emulator_memory_runtime_argv, stderr_to_stdout=True,
         ),
     }
     return MappingProxyType(specs)
@@ -3788,13 +3823,14 @@ def _observe_exact_device_state(
 
 
 def _parse_guest_completion(
-    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "app-exit-info"],
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "app-exit-info", "memory-runtime"],
 ) -> tuple[int, bytes]:
     marker = {
         "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
         "emulator-state": b"QPERIAPT_EMULATOR_STATE_EXIT:",
         "boot-state": b"QPERIAPT_BOOT_QUERY_EXIT:",
         "app-exit-info": b"QPERIAPT_APP_EXIT_INFO_EXIT:",
+        "memory-runtime": b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT:",
     }[kind]
     parts = output.rsplit(b"\n", 2)
     _require(
@@ -4304,7 +4340,12 @@ def _capture_emulator_diagnostics(
                 layout.proof / spec.output.leaf,
                 maximum=spec.output.maximum_bytes, label="owned emulator state",
             ).data
-            kind = "app-exit-info" if operation is AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO else "emulator-state"
+            if operation is AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO:
+                kind = "app-exit-info"
+            elif operation is AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME:
+                kind = "memory-runtime"
+            else:
+                kind = "emulator-state"
             status, _ = _parse_guest_completion(raw, capability.run_id, kind)
             return BoundedResult(status)
         return result
