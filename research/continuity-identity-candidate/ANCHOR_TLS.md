@@ -68,6 +68,15 @@ limited to 16 KiB. These are carrier limits, not a bound on all upstream parser,
 certificate/configuration or process memory. The host owns listener admission and
 concurrency limits.
 
+On Darwin, setting these valid positive timeouts after both socket directions
+close can return `EINVAL` from `setsockopt`. The timeout-setting boundary reports
+that case as terminal `ConnectionAborted`, retaining the original OS error as its
+cause. It does not enter the transient-I/O retry loop or infer whether the witness
+committed. A real closed-socket regression covers both read and write timeout
+setup, including zero transferred bytes and preservation of the original error.
+The committed-reply-loss test still requires the exact persisted head and
+`AlreadyAppliedExact` reconciliation.
+
 Network reads occur without holding the store mutex. Waiting for that mutex polls
 cancellation/deadline; a poisoned owner fails rather than exposing its inner state.
 Canonical request admission, trusted clock access and native handling run under

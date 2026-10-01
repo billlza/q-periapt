@@ -11,6 +11,7 @@ struct Network<'a> {
     cancel: &'a Cancellation,
     used: &'a mut usize,
 }
+
 impl Network<'_> {
     fn count(&self, available: usize) -> io::Result<usize> {
         let left = MAX_WIRE_BYTES
@@ -28,9 +29,25 @@ impl Network<'_> {
         Ok(checked_remaining(self.deadline, self.cancel)?.min(Duration::from_millis(25)))
     }
 }
+
+fn timeout_failure(error: io::Error) -> io::Error {
+    // Darwin's sosetoptlock rejects every socket option with EINVAL once both
+    // directions are closed. These calls use a positive window of at most 25 ms,
+    // so this is a terminal transport failure, not an invalid caller timeout.
+    // Retain the original OS error as the cause; never retry the closed stream.
+    // https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/uipc_socket.c#L4749
+    #[cfg(target_vendor = "apple")]
+    if error.raw_os_error() == Some(22) {
+        return io::Error::new(io::ErrorKind::ConnectionAborted, error);
+    }
+    error
+}
+
 impl Read for Network<'_> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        self.stream.set_read_timeout(Some(self.window()?))?;
+        self.stream
+            .set_read_timeout(Some(self.window()?))
+            .map_err(timeout_failure)?;
         let length = self.count(buffer.len())?;
         let read = self.stream.read(
             buffer
@@ -43,7 +60,9 @@ impl Read for Network<'_> {
 }
 impl Write for Network<'_> {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
-        self.stream.set_write_timeout(Some(self.window()?))?;
+        self.stream
+            .set_write_timeout(Some(self.window()?))
+            .map_err(timeout_failure)?;
         let length = self.count(buffer.len())?;
         let written = self
             .stream
@@ -246,6 +265,50 @@ impl Channel {
                 }
                 Err(error) => return Err(error),
             }
+        }
+    }
+}
+
+#[cfg(all(test, target_vendor = "apple"))]
+mod tests {
+    use super::*;
+    use std::net::{Shutdown, TcpListener};
+
+    #[test]
+    fn closed_socket_timeouts_remain_terminal_transport_failures() {
+        for reading in [true, false] {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
+            let mut socket =
+                TcpStream::connect(listener.local_addr().expect("address")).expect("connect");
+            let (_peer, _) = listener.accept().expect("accept");
+            socket
+                .shutdown(Shutdown::Both)
+                .expect("close both directions");
+            let cancel = Cancellation::default();
+            let mut used = 0;
+            let mut network = Network {
+                stream: &mut socket,
+                deadline: Instant::now() + Duration::from_secs(5),
+                cancel: &cancel,
+                used: &mut used,
+            };
+            let error = if reading {
+                network.read(&mut [0; 1])
+            } else {
+                network.write(&[1])
+            }
+            .expect_err("closed socket cannot transfer bytes");
+            assert_eq!(error.kind(), io::ErrorKind::ConnectionAborted);
+            assert!(
+                !transient(&error),
+                "closed socket cannot enter the retry loop"
+            );
+            let cause = error
+                .get_ref()
+                .and_then(|cause| cause.downcast_ref::<io::Error>())
+                .expect("preserved socket-option error");
+            assert_eq!(cause.raw_os_error(), Some(22));
+            assert_eq!(used, 0, "failed I/O cannot count bytes as transferred");
         }
     }
 }
