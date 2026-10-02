@@ -73,7 +73,7 @@ pub(crate) fn private_bytes(
     bytes.truncate(length);
     Ok(bytes)
 }
-fn account(
+pub(crate) fn account(
     directory: &OwnedPrivateDirectory,
     label: &str,
     family: [u8; 32],
@@ -89,6 +89,38 @@ fn account(
     )?)
 }
 
+pub(crate) fn configured_policy(
+    path: &Path,
+    directory: &OwnedPrivateDirectory,
+    cancel: &Cancellation,
+    deadline: Instant,
+) -> Result<(PolicyStore, Arc<p::VerifiedSessionPolicy>, [u8; 32])> {
+    let store = PolicyStore::open_configured(
+        &path.join("sdk.redb"),
+        &read(directory, "sdk-policy", 4096)?,
+        &read(directory, "sdk-signature", 8192)?,
+        &read(directory, "sdk-root", 8192)?,
+        q_periapt_sdk::Limits::default(),
+    )?;
+    crate::opening::check(cancel, deadline)?;
+    let family = array(directory, "family")?;
+    let pin = p::PolicyPin::new(
+        family,
+        p::PublicKey::decode(&read(directory, "policy-root", 8192)?)?,
+        p::PolicyCheckpoint::from_trusted_state(
+            u64::from_be_bytes(array(directory, "policy-version")?),
+            array(directory, "policy-digest")?,
+        )?,
+    )?;
+    let policy = Arc::new(pin.verify(
+        &read(directory, "protocol-policy", 8192)?,
+        store.runtime()?,
+        now().map_err(Failure::configuration)?,
+    )?);
+    crate::opening::check(cancel, deadline)?;
+    Ok((store, policy, family))
+}
+
 pub(crate) enum Admission {
     Bootstrap(p::PrekeyQuality),
     Existing {
@@ -97,7 +129,7 @@ pub(crate) enum Admission {
     },
 }
 impl Admission {
-    fn quality(&self) -> p::PrekeyQuality {
+    pub(crate) fn quality(&self) -> p::PrekeyQuality {
         match self {
             Self::Bootstrap(quality) | Self::Existing { quality, .. } => *quality,
         }
@@ -116,6 +148,19 @@ pub(crate) struct Owner {
     peer_certificate: Vec<u8>,
     pub(crate) peer_name: String,
 }
+
+/// Borrow one service and one peer for the original native operations. Neither
+/// this view nor a peer child owns or closes another service's private owners.
+pub(crate) struct Operation<'a> {
+    pub(crate) listener: &'a mut Option<TcpListener>,
+    pub(crate) service: &'a mut p::DeviceService,
+    pub(crate) signer: &'a p::DeviceSigningKey,
+    pub(crate) context: &'a Arc<p::BootstrapContext>,
+    pub(crate) certificate: &'a [u8],
+    pub(crate) tls_key: &'a [u8],
+    pub(crate) peer_certificate: &'a [u8],
+    pub(crate) peer_name: &'a str,
+}
 impl Owner {
     pub(crate) fn open(
         path: &Path,
@@ -132,29 +177,8 @@ impl Owner {
             &path.join("archives.redb"),
         )?;
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-        let policy_store = PolicyStore::open_configured(
-            &path.join("sdk.redb"),
-            &read(&directory, "sdk-policy", 4096)?,
-            &read(&directory, "sdk-signature", 8192)?,
-            &read(&directory, "sdk-root", 8192)?,
-            q_periapt_sdk::Limits::default(),
-        )?;
-        crate::opening::check(&cancel, deadline)?;
-        let family = array(&directory, "family")?;
-        let pin = p::PolicyPin::new(
-            family,
-            p::PublicKey::decode(&read(&directory, "policy-root", 8192)?)?,
-            p::PolicyCheckpoint::from_trusted_state(
-                u64::from_be_bytes(array(&directory, "policy-version")?),
-                array(&directory, "policy-digest")?,
-            )?,
-        )?;
-        let policy = Arc::new(pin.verify(
-            &read(&directory, "protocol-policy", 8192)?,
-            policy_store.runtime()?,
-            now().map_err(Failure::configuration)?,
-        )?);
-        crate::opening::check(&cancel, deadline)?;
+        let (policy_store, policy, family) =
+            configured_policy(path, &directory, &cancel, deadline)?;
         let initiator = account(&directory, "initiator", family)?;
         let responder = account(&directory, "responder", family)?;
         let bundle = p::BootstrapBundle::from_bytes(&read(
@@ -252,7 +276,7 @@ impl Owner {
             }
         };
         crate::opening::check(&cancel, deadline)?;
-        let owner = Self {
+        let mut owner = Self {
             listener: None,
             service,
             signer,
@@ -265,15 +289,36 @@ impl Owner {
                 .map_err(Failure::configuration)?,
         };
         // Validate certificate/key/pin configuration before returning a handle.
-        owner.endpoint()?;
+        owner.operation().endpoint()?;
         crate::opening::check(&cancel, deadline)?;
         Ok(owner)
     }
+    pub(crate) fn operation(&mut self) -> Operation<'_> {
+        Operation {
+            listener: &mut self.listener,
+            service: &mut self.service,
+            signer: &self.signer,
+            context: &self.context,
+            certificate: &self.certificate,
+            tls_key: &self.tls_key,
+            peer_certificate: &self.peer_certificate,
+            peer_name: &self.peer_name,
+        }
+    }
+    pub(crate) fn close(&mut self) {
+        self.listener.take();
+        self.service.close();
+        self.signer.close();
+        self.context.policy().close();
+        self.policy_store.close();
+    }
+}
+impl Operation<'_> {
     fn credentials(&self) -> Credentials<'_> {
         Credentials {
-            certificate: &self.certificate,
-            private_key: &self.tls_key,
-            peer_certificate: &self.peer_certificate,
+            certificate: self.certificate,
+            private_key: self.tls_key,
+            peer_certificate: self.peer_certificate,
         }
     }
     fn tls_limits() -> Limits {
@@ -286,7 +331,7 @@ impl Owner {
     }
     pub(crate) fn endpoint(&self) -> Result<ConnectionEndpoint> {
         Ok(ConnectionEndpoint::client(
-            &self.context,
+            self.context,
             self.credentials(),
             Self::tls_limits(),
         )?)
@@ -296,7 +341,7 @@ impl Owner {
         session: [u8; 32],
     ) -> Result<p::control_transport::ControlEndpoint> {
         Ok(p::control_transport::ControlEndpoint::client(
-            &self.context,
+            self.context,
             session,
             self.credentials(),
             Self::tls_limits(),
@@ -304,7 +349,7 @@ impl Owner {
     }
     pub(crate) fn server(&self) -> Result<ConnectionEndpoint> {
         Ok(ConnectionEndpoint::server(
-            &self.context,
+            self.context,
             self.credentials(),
             Self::tls_limits(),
         )?)
@@ -314,7 +359,7 @@ impl Owner {
         session: [u8; 32],
     ) -> Result<p::control_transport::ControlEndpoint> {
         Ok(p::control_transport::ControlEndpoint::server(
-            &self.context,
+            self.context,
             session,
             self.credentials(),
             Self::tls_limits(),
@@ -333,7 +378,7 @@ impl Owner {
             .local_addr()
             .map_err(p::connection_transport::Error::Io)?
             .port();
-        self.listener = Some(listener);
+        *self.listener = Some(listener);
         Ok(port)
     }
     pub(crate) fn accept(&self, cancel: &Cancellation, deadline: Instant) -> Result<TcpStream> {
@@ -367,16 +412,9 @@ impl Owner {
         Ok(Actor {
             journal,
             archives,
-            context: &self.context,
-            signer: &self.signer,
+            context: self.context,
+            signer: self.signer,
         })
-    }
-    pub(crate) fn close(&mut self) {
-        self.listener.take();
-        self.service.close();
-        self.signer.close();
-        self.context.policy().close();
-        self.policy_store.close();
     }
 }
 

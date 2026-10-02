@@ -323,6 +323,121 @@ fn run(
 ) -> Result<String> {
     finish(start(path, label, mode, tail, witness)?, expected)
 }
+
+#[test]
+fn c_device_parents_require_original_witness_and_preserve_child_lifetimes() -> Result<()> {
+    assert_eq!(
+        installed_language()?,
+        "C",
+        "device parent API requires C consumer"
+    );
+    let mut original = Witness::start()?;
+    let setup = fixture::setup_with_witness(Some(&original.configured))?;
+    let address = original.configured.address;
+    let left = &setup.initiator;
+    let right = &setup.responder;
+    assert_eq!(
+        run(
+            left,
+            "parent-missing-witness",
+            "device-reject-open",
+            &[],
+            None,
+            0
+        )?,
+        "device-rejected:216\n"
+    );
+    let pin = fixture::array::<32>(left, "witness-id")?;
+    fs::write(
+        left.join("witness-id"),
+        p::AnchorIdentity::generate()?.as_bytes(),
+    )?;
+    assert_eq!(
+        run(
+            left,
+            "parent-wrong-witness",
+            "device-reject-open",
+            &[],
+            Some(address),
+            0
+        )?,
+        "device-rejected:211\n"
+    );
+    fs::write(left.join("witness-id"), pin)?;
+    original.arm(2)?;
+    assert_eq!(
+        run(
+            left,
+            "parent-bad-signature",
+            "device-reject-open",
+            &[],
+            Some(address),
+            0
+        )?,
+        "device-rejected:218\n"
+    );
+    for (path, role) in [(left, "1"), (right, "2")] {
+        let result = run(
+            path,
+            "parent-signed-tcp",
+            "device-check",
+            &[path.to_str().ok_or("peer path UTF-8")?.into(), role.into()],
+            Some(address),
+            0,
+        )?;
+        let retries = result
+            .strip_prefix("device-parent-lifecycle-passed:busy=")
+            .and_then(|value| value.strip_suffix('\n'))
+            .ok_or("parent TCP lifecycle receipt")?
+            .parse::<u32>()?;
+        assert!(retries <= 64);
+    }
+    original.join()?;
+    let mut encrypted =
+        tls::TlsWitness::start(Arc::clone(&original.configured.store), [left, right])?;
+    fs::rename(
+        left.join("witness-tls-key"),
+        left.join("saved-witness-tls-key"),
+    )?;
+    assert_eq!(
+        tls::run_tls(
+            left,
+            "parent-missing-tls-key",
+            "device-reject-open",
+            &[],
+            encrypted.address,
+            0
+        )?,
+        "device-rejected:500\n"
+    );
+    fs::rename(
+        left.join("saved-witness-tls-key"),
+        left.join("witness-tls-key"),
+    )?;
+    for (path, role) in [(left, "1"), (right, "2")] {
+        let result = tls::run_tls(
+            path,
+            "parent-mutual-tls",
+            "device-check",
+            &[path.to_str().ok_or("peer path UTF-8")?.into(), role.into()],
+            encrypted.address,
+            0,
+        )?;
+        let retries = result
+            .strip_prefix("device-parent-lifecycle-passed:busy=")
+            .and_then(|value| value.strip_suffix('\n'))
+            .ok_or("parent TLS lifecycle receipt")?
+            .parse::<u32>()?;
+        assert!(retries <= 64);
+    }
+    assert!(
+        encrypted.finish()?.is_empty(),
+        "unexpected TLS witness failures"
+    );
+    fixture::store(left.parent().ok_or("evidence root")?, "c-device-parent-witness-public-result.json",
+        b"{\"schema_version\":1,\"completed\":true,\"local_roles\":2,\"witness_profiles\":2,\"missing_witness_refused\":true,\"wrong_pin_refused\":true,\"bad_signature_refused\":true,\"missing_tls_key_refused\":true,\"release_claim_eligible\":false}\n")?;
+    Ok(())
+}
 fn server(
     path: &Path,
     label: &str,

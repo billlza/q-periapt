@@ -55,7 +55,7 @@ class ConstructorTranscriptTests(unittest.TestCase):
             for name, value in files.items(): (root / name).write_bytes(value)
             path = root / "c-opening-public-result.json"
             path.write_text(json.dumps(report))
-            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
             opening.verify_execution(stdout, root)
             for language in ("Swift", "Kotlin"):
                 with self.subTest(language=language):
@@ -121,7 +121,7 @@ class ConstructorTranscriptTests(unittest.TestCase):
 class RestoredConstructorTests(unittest.TestCase):
     def test_exact_session_role_and_failed_admission_readbacks_are_required(self):
         stdout = (f"test {opening.RESTORE_TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             for role in ("initiator", "responder"):(root / role).mkdir()

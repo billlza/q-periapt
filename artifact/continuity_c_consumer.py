@@ -8,6 +8,7 @@ import re
 import continuity_package as package
 import continuity_c_recovery as recovery
 import continuity_c_opening as opening
+import continuity_c_device as device
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_witness_openssl as witness_openssl
@@ -33,6 +34,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
             "acknowledge", "retire", "restore_index")}
 EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
 EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
+EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen"}
 
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
@@ -68,7 +70,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(passed == [TEST] and re.search(
-        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
         "installed C trace was not executed completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-public-result.json").data,
                                     label="C connection execution")
@@ -120,7 +122,7 @@ def verify_restore_execution(stdout: bytes, directory: Path, *, language: str = 
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown restoration language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [RESTORE_TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;",
                               text, re.MULTILINE), "installed restoration trace did not execute completely")
     report_file = sdk.snapshot(directory / "c-restore-public-result.json")
     report = parse_strict_json_bytes(report_file.data, label="foreign session restoration")
@@ -173,7 +175,7 @@ def verify_server_execution(stdout: bytes, directory: Path, *, language: str = "
     expected_scope = SERVER_SCOPE.replace("C server", language + " server")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;",
                               text, re.MULTILINE), "installed C server trace did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-server-public-result.json").data,
                                     label="C server execution")
@@ -390,6 +392,14 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        device_evidence = outside / ("c-" + profile + "-device-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
+        tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)
+        checked = device.verify_execution(tested, device_evidence)
+        checked["exported_public_files"] = witness.export_selected(checked, device_evidence,
+            output / "c-device-public" / profile, device.SCOPE,
+            replay=lambda path: device.verify_execution(tested, path))
+        result["execution"][profile]["device_parent"] = checked
         server_evidence = outside / ("c-" + profile + "-server-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(server_evidence)
         tested = run([str(trace), "--exact", SERVER_TEST, "--nocapture"], "server-trace-" + profile, runtime=runtime)
@@ -427,6 +437,15 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")
         witness_identity = sdk.snapshot(witness_helper, maximum=MAX_BINARY)
         opening_evidence = outside / ("c-" + profile + "-opening-runtime")
+        device_witness_evidence = outside / ("c-" + profile + "-device-witness-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_witness_evidence)
+        tested = run([str(witness_helper), "--exact", device.WITNESS_TEST, "--nocapture"],
+                     "device-witness-trace-" + profile, runtime=runtime)
+        checked = device.verify_witness_execution(tested, device_witness_evidence)
+        checked["exported_public_files"] = witness.export_selected(checked, device_witness_evidence,
+            output / "c-device-witness-public" / profile, device.WITNESS_SCOPE,
+            replay=lambda path: device.verify_witness_execution(tested, path))
+        result["execution"][profile]["device_parent_witness"] = checked
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(opening_evidence)
         tested = run([str(witness_helper), "--exact", opening.TEST, "--nocapture"],
                      "opening-trace-" + profile, runtime=runtime)

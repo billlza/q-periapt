@@ -106,10 +106,10 @@ class ContinuityCWitnessTests(unittest.TestCase):
 
     def test_report_cannot_promote_missing_execution_or_wrong_scope_to_success(self):
         stdout = (f"test {w.TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for output in (b"", stdout + stdout, stdout.replace(b"9 filtered out", b"2 filtered out")):
+            for output in (b"", stdout + stdout, stdout.replace(b"10 filtered out", b"2 filtered out")):
                 self.assertNotEqual(output, stdout)
                 with self.subTest(output=output), self.assertRaises(ValueError):
                     w.verify_execution(output, root)
@@ -124,7 +124,7 @@ class ContinuityCWitnessTests(unittest.TestCase):
 
     def test_witness_language_cannot_be_inferred_from_a_passing_test_name(self):
         stdout = (f"test {w.TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = {name: "11" * (16 if name == "peer_device" else 32)

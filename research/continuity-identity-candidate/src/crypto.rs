@@ -414,3 +414,15 @@ owner!(RootSigningKey, 1);
 owner!(DeviceSigningKey, 2);
 owner!(PolicySigningKey, 3);
 owner!(AnchorSigningKey, 4);
+
+impl DeviceSigningKey {
+    /// Require this live controlled signer to match an independently verified
+    /// device credential. This checks key identity only; current policy, roster,
+    /// time and durable admission remain the caller's separate obligations.
+    pub fn check_device(&self, device: &crate::VerifiedDevice) -> Result<(), Error> {
+        if self.public_key()? != device.key {
+            return Err(Error::Scope);
+        }
+        Ok(())
+    }
+}

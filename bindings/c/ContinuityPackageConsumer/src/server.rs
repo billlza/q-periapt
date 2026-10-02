@@ -166,8 +166,8 @@ pub unsafe extern "C" fn qpc_owner_v1_serve_rekey(
                 stream,
                 p::control_transport::Session {
                     journal,
-                    context: &owner.context,
-                    signer: &owner.signer,
+                    context: owner.context,
+                    signer: owner.signer,
                 },
                 owner::serve_limits(deadline),
                 cancel,

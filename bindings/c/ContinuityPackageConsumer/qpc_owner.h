@@ -126,7 +126,8 @@ int32_t qpc_owner_v1_open(const uint8_t *path, size_t length, uint8_t quality,
  * path/options are owned copies; all caller input regions may be released after
  * preparation. Path validity, trust, policy and durable state are checked only
  * by finish_open. This step does not provision or grant operational authority.
- * kind: 1=operational, 2=recovery. quality: 1..4 for operational, 0 for recovery.
+ * kind: 1=pairwise operational, 2=recovery, 3=device parent.
+ * quality: 1..4 for pairwise operational; 0 for recovery/device parent.
  * carrier: 0=original local profile (witness MUST be NULL), 1=signed TCP,
  * 2=mutual TLS (witness MUST reference valid qpc_witness_v1). No fallback.
  * finish_open runs synchronously on its calling thread with a fresh single
@@ -151,6 +152,42 @@ typedef struct {
 int32_t qpc_owner_v1_prepare_open(const uint8_t *path, size_t length,
                                 const qpc_open_options_v1 *options,
                                 uint64_t *handle, qpc_error_v1 *error);
+/* A device parent opens only an already Active original installation using its
+ * independently configured local-* identity, SDK/protocol policy and witness.
+ * It does not read a bootstrap bundle, select a peer, provision, or activate a
+ * Creating record. Transport credentials are retained once and validated with
+ * each peer's exact pin before the child is published. Parent handles expose
+ * cancel/close and child preparation, not pairwise protocol operations.
+ *
+ * Peer preparation copies path/quality/role and retains the device control owner;
+ * it performs no I/O and does not acquire another storage lease. quality is 1..4;
+ * role is 1=local initiator, 2=local responder. Peer files contain independently
+ * retained initiator/responder pins, directory expectation, bootstrap.bundle,
+ * tls-peer and tls-peer-name. Incoming bundle bytes cannot select those pins.
+ * finish_open verifies all inputs against the original parent and publishes the
+ * child at the same handle. prepare_reopen additionally copies a nonzero 32-byte
+ * original session ID; fresh admission never falls back to restoration.
+ *
+ * Admitted peers use the ordinary operational functions below. Parent and every
+ * prepared/live peer consume the same 64-owner quota. Peer operations serialize
+ * on their device service; conflicting operations return BUSY. An idle sibling
+ * can close while another peer is active, without taking that service lock.
+ * Parent close returns BUSY while a child call is active. Cancel the parent and
+ * join that call before close: cancellation signals the active child's call and
+ * fences every future child call. Cancelling one child does not cancel its parent
+ * or siblings. Successful parent close releases storage even with idle children;
+ * their future operations return CLOSED. Close those children to reclaim slots.
+ * Closing a peer never retires a session, acknowledges work, or closes its parent.
+ * Parent closure after preparation can make finish_open fail without authority.
+ * All inputs and writable output/error regions must be distinct and nonoverlapping.
+ */
+int32_t qpc_peer_v1_prepare(uint64_t parent, const uint8_t *path, size_t length,
+                           uint32_t quality, uint32_t role,
+                           uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_peer_v1_prepare_reopen(uint64_t parent, const uint8_t *path, size_t length,
+                                  uint32_t quality, uint32_t role,
+                                  const uint8_t session[32], uint64_t *handle,
+                                  qpc_error_v1 *error);
 /* Explicit restoration of a nonzero existing session. options.kind must be 1;
  * quality and witness carrier retain the same independent-selection contract.
  * Preparation copies all inputs without installation I/O. session is exactly

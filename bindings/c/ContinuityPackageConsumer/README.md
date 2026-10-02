@@ -13,6 +13,47 @@ shared engine. It exposes no raw private-key/root getter and implements no secon
 ratchet, KDF or state machine. Independently retained account, device, policy and
 directory pins remain separate from untrusted public bundle bytes.
 
+The additive device-parent path uses `qpc_owner_v1_prepare_open` with kind 3 and
+quality 0, followed by `finish_open`. It requires an already Active installation;
+it cannot provision or finish a Creating intent. The protected local configuration
+supplies `local-account`, `local-root`, `local-roster-version`,
+`local-roster-digest`, `local-device`, `local-generation`, `local-certificate` and
+`local-roster`, alongside the original family/policy/SDK store, wrapping/signing
+owners and local TLS credentials. Local credential/roster validity and the exact
+controlled signer are checked independently of any peer bundle. This constructor
+requires a current local identity snapshot; it is not credential renewal.
+
+`qpc_peer_v1_prepare` and `qpc_peer_v1_prepare_reopen` retain that device control
+owner and copy a separate trusted peer-configuration path, explicit quality and
+local role. Restoration additionally copies the original session ID. The peer
+directory supplies independently retained initiator/responder pins, directory
+expectation, public bootstrap bundle and exact remote TLS pin/name. It supplies no
+replacement local private key, policy runtime or witness. `finish_open` verifies
+the context against the original service and validates TLS configuration before
+publishing a child. Ordinary operations reuse the native engine through a
+borrowed service/peer view. Existing pairwise constructors remain available.
+
+Parents, prepared children and live children share the 64-owner limit. Operations
+under one device serialize and conflicting calls return BUSY. Closing an idle
+sibling does not require the parent's network lock. Parent cancellation fences
+future child calls and signals the currently borrowed child's token; a child's
+own token is independent. After an active call drains, parent close releases its
+actual stores even while idle children remain. Those children return CLOSED and
+must be closed to reclaim their own slots/listeners. Native journal failures can
+still require original-service restart; separate cancellation signals do not
+bypass uncertain-commit or closed-journal admission.
+
+The C consumer's `--device-parent LOCAL_PATH ROLE` selector exercises these entry
+points with a separate peer path. Its device workload covers both roles, wrong
+local identity and a different authentic signer, shared capacity, caller-input
+copies, idle-sibling disposal during an active call, parent cancellation, storage
+lease release, real TLS bootstrap and exact delivery recovery after receiver exit.
+A second workload covers required signed TCP and mutual TLS witnesses. These
+checks use multiple child handles for one peer context at each endpoint; distinct
+peer-device fanout, provisioning and language-level parent/child owners remain
+separate integration work. The complete-account native transaction is not yet
+exposed by this C surface.
+
 ## Scope and original configuration
 
 The C caller opens an already provisioned installation on macOS/Linux. It does
@@ -153,8 +194,8 @@ The internal invocation scope snapshots its cancellation token together with tha
 deadline. A retained witness endpoint creates each already-required fresh native
 TCP/TLS exchange using this snapshot; it does not retain another call's token or
 reread trust/configuration files. Existing public owners still use their original
-permanent cancellation token on every call. This separation prepares shared-device
-ownership; it does not add public peer handles or weaken cancellation/commit rules.
+permanent cancellation token on every call. Device parents use that same scope
+with the selected child token, while parent cancellation also fences new calls.
 Native unit checks exercise two different tokens through one retained endpoint,
 real stalled TCP and TLS sockets, pre-cancelled refusal without a connection and
 refusal outside an active scope. These byte-carrier tests supply no authenticated

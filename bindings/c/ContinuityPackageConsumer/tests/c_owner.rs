@@ -7,9 +7,9 @@ use q_periapt_continuity_identity_candidate as p;
 use std::{
     ffi::OsString,
     fs,
-    io::{Read, Write},
+    io::{self, Read, Write},
     net::TcpListener,
-    os::unix::fs::OpenOptionsExt,
+    os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::Duration,
@@ -349,7 +349,14 @@ fn start_server(
     if let Some(session) = session {
         tail.push(fixture::hex(&session));
     }
-    let mut process = start(path, label, &args("serve", path, &tail))?;
+    start_listening(path, label, &args("serve", path, &tail))
+}
+fn start_listening(
+    path: &Path,
+    label: &str,
+    arguments: &[OsString],
+) -> Result<(CProcess, std::net::SocketAddr)> {
+    let mut process = start(path, label, arguments)?;
     let deadline = std::time::Instant::now() + Duration::from_secs(20);
     loop {
         let output = log(&process.stdout)?;
@@ -368,6 +375,288 @@ fn start_server(
         }
         std::thread::sleep(Duration::from_millis(5));
     }
+}
+
+#[test]
+fn c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery() -> Result<()> {
+    assert_eq!(
+        installed_language()?,
+        "C",
+        "device child API requires its C consumer"
+    );
+    let setup = fixture::setup()?;
+    let mut peers = Vec::new();
+    let mut reopen_changed = 0;
+    for (root, role) in [(&setup.initiator, "1"), (&setup.responder, "2")] {
+        let peer = root.join("peer");
+        fs::create_dir(&peer)?;
+        fs::set_permissions(&peer, fs::Permissions::from_mode(0o700))?;
+        let mut names = vec![
+            "bootstrap.bundle".to_owned(),
+            "directory".into(),
+            "tls-peer".into(),
+            "tls-peer-name".into(),
+        ];
+        for label in ["initiator", "responder"] {
+            for leaf in [
+                "account",
+                "root",
+                "roster-version",
+                "roster-digest",
+                "device",
+                "generation",
+            ] {
+                names.push(format!("{label}-{leaf}"));
+            }
+        }
+        for name in names {
+            fs::rename(root.join(&name), peer.join(name))?;
+        }
+        assert!(!root.join("bootstrap.bundle").exists());
+        let device_id = fixture::array::<16>(root, "local-device")?;
+        let mut wrong = device_id;
+        *wrong.first_mut().ok_or("device ID width")? ^= 1;
+        fs::write(root.join("local-device"), wrong)?;
+        assert_eq!(
+            run(
+                root,
+                "device-wrong-local-id",
+                &args("device-reject-open", root, &[])
+            )?,
+            "device-rejected:103\n"
+        );
+        fs::write(root.join("local-device"), device_id)?;
+        // A different authentic controlled signer under the original wrapping
+        // key and persisted signer ID still cannot impersonate this credential.
+        fs::rename(root.join("signer.key"), root.join("original-signer.key"))?;
+        p::DeviceSigningKey::provision(
+            &root.join("signer.key"),
+            &p::JournalKey::open(&root.join("wrap.key"))?,
+            p::SigningKeyId::from_trusted_state(fixture::array(root, "signer-id")?)?,
+        )?
+        .close();
+        assert_eq!(
+            run(
+                root,
+                "device-wrong-signer",
+                &args("device-reject-open", root, &[])
+            )?,
+            "device-rejected:103\n"
+        );
+        fs::remove_file(root.join("signer.key"))?;
+        fs::rename(root.join("original-signer.key"), root.join("signer.key"))?;
+        let before = ["installation.redb", "journal.redb", "archives.redb"]
+            .map(|name| fs::read(root.join(name)))
+            .into_iter()
+            .collect::<io::Result<Vec<_>>>()?;
+        assert_eq!(
+            run(
+                root,
+                "device-reopen-control",
+                &["device-open-close".into(), root.as_os_str().into(),]
+            )?,
+            "device-open-close-passed\n"
+        );
+        for (name, original) in ["installation.redb", "journal.redb", "archives.redb"]
+            .iter()
+            .zip(before)
+        {
+            reopen_changed += usize::from(fs::read(root.join(name))? != original);
+        }
+        let lifecycle = run(
+            root,
+            "device-lifecycle",
+            &[
+                "device-check".into(),
+                root.as_os_str().into(),
+                peer.as_os_str().into(),
+                role.into(),
+            ],
+        )?;
+        let busy = lifecycle
+            .strip_prefix("device-parent-lifecycle-passed:busy=")
+            .and_then(|line| line.strip_suffix('\n'))
+            .ok_or("parent lifecycle receipt")?
+            .parse::<u32>()?;
+        assert!(busy <= 64, "fixture admission retry budget");
+        peers.push(peer);
+    }
+    let left = peers.first().ok_or("initiator peer")?;
+    let right = peers.get(1).ok_or("responder peer")?;
+    let selected = |root: &Path,
+                    role: &str,
+                    peer: &Path,
+                    command: &str,
+                    session: Option<[u8; 32]>,
+                    tail: &[String]| {
+        let mut result: Vec<OsString> = vec![
+            "--device-parent".into(),
+            root.as_os_str().into(),
+            role.into(),
+        ];
+        if let Some(session) = session {
+            result.extend(["--session".into(), fixture::hex(&session).into()]);
+        }
+        result.extend(args(command, peer, tail));
+        result
+    };
+    let (server, address) = start_listening(
+        &setup.responder,
+        "device-bootstrap-server",
+        &selected(
+            &setup.responder,
+            "2",
+            right,
+            "serve",
+            None,
+            &["bootstrap".into()],
+        ),
+    )?;
+    let request = p::InitiationId::generate()?;
+    let session = id(&run(
+        &setup.initiator,
+        "device-bootstrap-client",
+        &selected(
+            &setup.initiator,
+            "1",
+            left,
+            "connect",
+            None,
+            &[address.to_string(), fixture::hex(request.as_bytes())],
+        ),
+    )?)?;
+    assert_eq!(
+        finish_server(server, 0)?,
+        server_event(session, [0; 32], false, 0, 0)
+    );
+    let message = id(&run(
+        &setup.initiator,
+        "device-next",
+        &selected(
+            &setup.initiator,
+            "1",
+            left,
+            "next",
+            Some(session),
+            &[fixture::hex(&session)],
+        ),
+    )?)?;
+    let (server, address) = start_listening(
+        &setup.responder,
+        "device-crash-server",
+        &selected(
+            &setup.responder,
+            "2",
+            right,
+            "serve",
+            Some(session),
+            &["crash-after".into()],
+        ),
+    )?;
+    assert_eq!(
+        run(
+            &setup.initiator,
+            "device-unknown",
+            &selected(
+                &setup.initiator,
+                "1",
+                left,
+                "uncertain-send",
+                Some(session),
+                &[
+                    address.to_string(),
+                    fixture::hex(&session),
+                    fixture::hex(&message)
+                ],
+            )
+        )?,
+        "delivery-unknown-committed\n"
+    );
+    assert_eq!(finish_server(server, 77)?, "");
+    fixture::effect(
+        right,
+        session,
+        p::MessageId::from_trusted_state(message)?,
+        PAYLOAD,
+    )?;
+    let (server, address) = start_listening(
+        &setup.responder,
+        "device-replay-server",
+        &selected(
+            &setup.responder,
+            "2",
+            right,
+            "serve",
+            Some(session),
+            &["message".into()],
+        ),
+    )?;
+    assert_eq!(
+        run(
+            &setup.initiator,
+            "device-replay",
+            &selected(
+                &setup.initiator,
+                "1",
+                left,
+                "send",
+                Some(session),
+                &[
+                    address.to_string(),
+                    fixture::hex(&session),
+                    fixture::hex(&message)
+                ],
+            )
+        )?,
+        "consumed\n"
+    );
+    assert_eq!(
+        finish_server(server, 0)?,
+        server_event(session, message, false, 1, 0)
+    );
+    fixture::effect(
+        right,
+        session,
+        p::MessageId::from_trusted_state(message)?,
+        PAYLOAD,
+    )?;
+    assert_eq!(
+        run(
+            &setup.initiator,
+            "device-final-status",
+            &selected(
+                &setup.initiator,
+                "1",
+                left,
+                "status",
+                Some(session),
+                &[fixture::hex(&session), fixture::hex(&message)],
+            )
+        )?,
+        "3\n"
+    );
+    let mut store = fixture::sdk(&setup.initiator)?;
+    let prior = store.runtime()?.trusted_state();
+    let (policy, signature) = setup.issuer.policy(2, false)?;
+    store.replace_policy(prior, &policy, &signature)?;
+    assert!(!store.runtime()?.is_enabled()?);
+    store.close();
+    assert_eq!(
+        run(
+            &setup.initiator,
+            "device-revoked",
+            &args("device-reject-open", &setup.initiator, &[])
+        )?,
+        "device-rejected:603\n"
+    );
+    let report = format!("{{\"schema_version\":1,\"completed\":true,\"session\":\"{}\",\"message\":\"{}\",\"local_roles\":2,\"owner_capacity\":64,\"independent_readbacks\":2,\"independent_identity_refusals\":4,\"sdk_revocation_refused\":true,\"physical_reopen_changed_files\":{},\"release_claim_eligible\":false}}\n", fixture::hex(&session), fixture::hex(&message), reopen_changed);
+    fixture::store(
+        setup.initiator.parent().ok_or("evidence root")?,
+        "c-device-parent-public-result.json",
+        report.as_bytes(),
+    )?;
+    eprintln!("C_DEVICE_PARENT_RESULT {}", report.trim());
+    Ok(())
 }
 fn finish_server(mut process: CProcess, exit: i32) -> Result<String> {
     let status = fixture::wait(&mut process.child)?;

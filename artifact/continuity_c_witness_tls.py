@@ -14,7 +14,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported TLS witness language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE),
                 "installed C TLS witness workload did not execute completely")
     public = {}
 

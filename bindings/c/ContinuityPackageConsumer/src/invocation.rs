@@ -25,6 +25,15 @@ struct Invocation {
 pub(crate) struct Scope(Arc<Mutex<Option<Invocation>>>);
 
 impl Scope {
+    /// Signal only the current borrowed call. Parent cancellation separately
+    /// fences future admission; this does not poison an unrelated idle peer.
+    pub(crate) fn cancel_active(&self) -> Result<()> {
+        let active = self.0.lock().map_err(|_| failure(5))?;
+        if let Some(active) = active.as_ref() {
+            active.cancel.cancel();
+        }
+        Ok(())
+    }
     pub(crate) fn enter(&self, deadline: Instant, cancel: &Cancellation) -> Result<Active> {
         let mut current = self.0.lock().map_err(|_| failure(5))?;
         if current.is_some() {
@@ -143,16 +152,19 @@ mod tests {
         let deadline = Instant::now() + TIMEOUT;
         let active = scope.enter(deadline, &first).expect("first call");
         let (_, retained) = scope.transport_context(deadline).expect("first snapshot");
-        first.cancel();
+        scope.cancel_active().expect("cancel current call");
         assert!(retained.is_cancelled());
         assert!(!second.is_cancelled());
         drop(active);
+        scope
+            .cancel_active()
+            .expect("idle cancellation has no child");
         assert!(scope.transport_context(deadline).is_err());
         let _active = scope.enter(deadline, &second).expect("second call");
         let (_, current) = scope.transport_context(deadline).expect("second snapshot");
         assert!(!current.is_cancelled());
         assert!(retained.is_cancelled());
-        current.cancel();
+        scope.cancel_active().expect("cancel second call");
         assert!(second.is_cancelled());
     }
 }

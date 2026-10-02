@@ -14,7 +14,7 @@ import test_continuity_c_consumer as c_tests
 class KotlinConsumerTests(unittest.TestCase):
     def test_inflight_receipts_bind_gc_and_returned_slots_to_original_delivery(self):
         stdout = (f"test {kotlin.c.SERVER_TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             report = c_tests.ContinuityCConsumerTests().server_evidence(root)

@@ -205,10 +205,7 @@ impl AnchorClient {
         &self.pin
     }
     pub(crate) fn check_device(&self, device: &VerifiedDevice) -> Result<(), Error> {
-        if self.signer.public_key()? != device.key {
-            return Err(Error::Scope);
-        }
-        Ok(())
+        self.signer.check_device(device)
     }
     pub(crate) fn signer_public_key(&self) -> Result<PublicKey, Error> {
         self.signer.public_key()

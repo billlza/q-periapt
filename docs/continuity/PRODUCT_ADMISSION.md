@@ -10,7 +10,7 @@ unchanged. The complete [release scope](RELEASE_0_2_SCOPE.md) still governs.
 
 ## What the installed consumers currently establish
 
-The C adapter's [`Owner`](../../bindings/c/ContinuityPackageConsumer/src/owner.rs)
+The C adapter's legacy [`Owner`](../../bindings/c/ContinuityPackageConsumer/src/owner.rs)
 contains one `DeviceService`, one device signer, one verified `BootstrapContext`,
 one SDK policy store and one pair of exact application TLS credentials. Its
 constructor reads the fixed private fixture layout, verifies the independently
@@ -20,16 +20,30 @@ does not generate local enrollment material or provision an installation.
 bounded path, prekey mode and witness selection before activation; it does not
 change this trust or storage boundary.
 
+The additive C [`device owner`](../../bindings/c/ContinuityPackageConsumer/src/device.rs)
+now opens an Active installation from independently retained local identity,
+policy and private-owner configuration. It checks the controlled signer against
+the verified local credential without deriving local trust from a peer bundle.
+Fresh/restored peer children reuse that same service and witness owner. Parents
+and children share the existing bounded registry; idle child disposal does not
+take the service's network lock. Parent cancellation signals the active child and
+fences later calls; successful parent close releases storage even with retained
+idle children. Native errors keep their original reconciliation requirements.
+Current C workloads exercise both roles, multiple handles for one context at each
+endpoint, lifetime/capacity/identity refusal, real delivery recovery and required
+witness profiles. Distinct-peer account fanout and foreign-language wrappers still
+need their own integration and package evidence.
+
 The [`C header`](../../bindings/c/ContinuityPackageConsumer/qpc_owner.h) exposes
-pairwise operations and restricted original-session recovery. The Swift and
-Kotlin candidates wrap that same interface. Actual package execution, witness
+pairwise operations, device/peer preparation and restricted original-session
+recovery. Swift and Kotlin currently wrap the earlier pairwise interface. Actual package execution, witness
 admission, callback lifetime and crash/retry evidence for these operations are
 necessary, but cannot demonstrate APIs that the adapter does not expose.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
 | Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate` | Controlled enrollment/provisioning owners, independent retained identities, typed setup results and original-operation recovery |
-| Device-scoped protocol service | `DeviceService::stores` retains one journal and archive index under one installation lease | A service capable of retaining multiple independently verified peer contexts without opening the installation once per peer |
+| Device-scoped protocol service | Native shared service and C device-parent/peer registry retain one journal and archive index under one installation lease | Distinct-peer account transactions and language-level parent/child owners with installed-package lifetime qualification |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes | Complete-roster input admission and typed aggregate results through installed C/Swift/Kotlin/Android/WASM packages |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
@@ -63,8 +77,8 @@ closes protocol authority. Both same-account and peer-account tests restore two
 contexts, refuse an omitted recipient without partial mutation, execute the
 existing complete-roster transaction and replay its exact ciphertext after
 original-installation restart. This is the native existing-session prerequisite;
-the separate native fresh-admission entry is described next. Foreign parent/child
-handles remain unimplemented.
+the separate native fresh-admission entry is described next. C parent/child
+handles now reuse both entries; language-level owners remain unimplemented.
 
 `DeviceService::admit_peer` now admits a freshly and independently verified peer
 context against the same active installation. It rechecks current advertisements,
@@ -75,11 +89,12 @@ roster with its operation reservation. `BootstrapPeer` owns public context and
 role, without a session or durable grant. Both roles, later revocation, full roster
 capacity, unchanged stores and policy/runtime closure during authenticated witness
 queries are tested on current and minimum Rust. This supplies the native fresh
-boundary, but not foreign registration, enrollment or parent/child lifetimes.
+boundary. C registration now delegates to it; enrollment and language-level
+parent/child lifetimes remain separate obligations.
 
 ## Required owner and input separation
 
-The next adapter implementation needs a device-scoped service owner, bounded
+The adapter integration requires a device-scoped service owner, bounded
 verified peer-context owners and separate setup/recovery authorities. These are
 contract roles, not frozen class names or permission to expose raw native handles.
 
@@ -147,11 +162,11 @@ adapter now retains the independently configured witness endpoint and credential
 but snapshots the active call's token and absolute deadline together for each
 fresh native exchange. Sequential cancelled calls under one retained endpoint are
 tested with distinct tokens and real stalled TCP/TLS sockets. Existing public
-owners still reuse their original one-way token. A future device parent must fence
+owners still reuse their original one-way token. A device parent must fence
 new child calls after parent cancellation and signal its active child invocation;
 single-peer cancellation must not poison another peer's future calls. This
-transport preparation does not itself implement that parent/child registry or
-claim parallel journal operations.
+transport separation is now used by the C parent/child registry. It does not
+claim parallel journal operations or supply language-level lifetime owners.
 
 An aggregate result must preserve every member's original session/message IDs and
 the distinction between committed ciphertext, peer acknowledgement, pending

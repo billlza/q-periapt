@@ -2,6 +2,7 @@
 //! Unpublished C consumer of the installed Continuity Rust owner, not product ABI 2.
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod device;
 mod invocation;
 mod opening;
 mod owner;
@@ -207,6 +208,8 @@ enum Owned {
     Opening(Box<opening::Request>),
     Operational(Box<owner::Owner>),
     Recovery(Box<recovery::Recovery>),
+    Device(Arc<device::Shared>),
+    Peer(Box<device::Peer>),
 }
 struct Entry {
     cancel: Cancellation,
@@ -307,10 +310,11 @@ fn entry(id: u64) -> Result<Arc<Entry>> {
 fn with<T>(
     id: u64,
     deadline: Instant,
-    action: impl FnOnce(&mut owner::Owner, &Cancellation) -> Result<T>,
+    action: impl FnOnce(&mut owner::Operation<'_>, &Cancellation) -> Result<T>,
 ) -> Result<T> {
     with_owned(id, deadline, |owner, cancel| match owner {
-        Owned::Operational(owner) => action(owner, cancel),
+        Owned::Operational(owner) => action(&mut owner.operation(), cancel),
+        Owned::Peer(peer) => peer.with_operation(deadline, cancel, action),
         _ => Err(failure(6)),
     })
 }
@@ -558,7 +562,9 @@ unsafe fn open_owner(
 pub unsafe extern "C" fn qpc_owner_v1_cancel(handle: u64, error: *mut ErrorRecord) -> i32 {
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
     let action = |_| {
-        entry(handle)?.cancel.cancel();
+        let entry = entry(handle)?;
+        entry.cancel.cancel();
+        entry.invocation.cancel_active()?;
         Ok(())
     };
     unsafe { boundary(error, true, action) }
@@ -571,11 +577,14 @@ pub unsafe extern "C" fn qpc_owner_v1_close(handle: u64, error: *mut ErrorRecord
     // SAFETY: the exported function forwards its caller-owned diagnostic contract.
     let action = |_| {
         let entry = entry(handle)?;
-        let (mut owner, poisoned) = match entry.owner.try_lock() {
+        let (mut owner, mut poisoned) = match entry.owner.try_lock() {
             Ok(lock) => (lock, false),
             Err(TryLockError::WouldBlock) => return Err(failure(3)),
             Err(TryLockError::Poisoned(error)) => (error.into_inner(), true),
         };
+        if let Some(Owned::Device(device)) = owner.as_ref() {
+            poisoned |= device.close()?;
+        }
         entry.cancel.cancel();
         owner.take();
         if TABLE
@@ -621,7 +630,7 @@ pub unsafe extern "C" fn qpc_owner_v1_establish(
         let request = p::InitiationId::from_trusted_state(unsafe { fixed(request) }?)?;
         let result = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.endpoint()?;
-            let name = owner.peer_name.clone();
+            let name = owner.peer_name.to_owned();
             Ok(endpoint.establish(
                 owner.actor()?,
                 request,
@@ -658,7 +667,7 @@ pub unsafe extern "C" fn qpc_owner_v1_next_message(
         let id = with(handle, deadline, |owner, _| {
             let (journal, _) = owner.service.stores()?;
             Ok(journal.next_message_id(
-                &owner.context,
+                owner.context,
                 session,
                 owner::now().map_err(Failure::configuration)?,
             )?)
@@ -710,7 +719,7 @@ pub unsafe extern "C" fn qpc_owner_v1_send(
         let ad = unsafe { bytes(ad, ad_length, p::contract::MAX_ASSOCIATED_DATA_BYTES) }?;
         let result = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.endpoint()?;
-            let name = owner.peer_name.clone();
+            let name = owner.peer_name.to_owned();
             Ok(endpoint.send(
                 owner.actor()?,
                 Submission {
@@ -760,7 +769,7 @@ pub unsafe extern "C" fn qpc_owner_v1_message_status(
                 .service
                 .stores()?
                 .0
-                .message_status(&owner.context, session, message)?)
+                .message_status(owner.context, session, message)?)
         })?;
         let value = match result {
             p::MessageStatus::Absent => 0,
@@ -802,13 +811,13 @@ pub unsafe extern "C" fn qpc_owner_v1_rekey(
         let session = unsafe { fixed(session) }?;
         let result = with(handle, deadline, |owner, cancel| {
             let endpoint = owner.control(session)?;
-            let run = owner::run(address, &owner.peer_name, cancel, deadline);
+            let run = owner::run(address, owner.peer_name, cancel, deadline);
             let (journal, _) = owner.service.stores()?;
             Ok(endpoint.run(
                 p::control_transport::Session {
                     journal,
-                    context: &owner.context,
-                    signer: &owner.signer,
+                    context: owner.context,
+                    signer: owner.signer,
                 },
                 p::control_transport::Run {
                     target,

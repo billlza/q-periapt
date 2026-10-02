@@ -302,6 +302,9 @@ static void serve(uint64_t handle, const char *path, const char *mode, const cha
 }
 int recovery_command(int argc, char **argv,const qpc_witness_v1 *witness,int witness_tls);
 int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int witness_tls, const uint8_t *existing);
+int device_command(int argc, char **argv, const qpc_witness_v1 *witness, int witness_tls);
+uint64_t device_open(const char *path, const qpc_witness_v1 *witness, int witness_tls);
+uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, const uint8_t *existing);
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -311,6 +314,14 @@ int main(int argc, char **argv) {
         options=(qpc_witness_v1){.address=(const uint8_t *)argv[2],.address_length=strlen(argv[2]),.timeout_ms=3000};
         witness=&options; argc-=2; argv+=2;
     }
+    const char *device_path=NULL; uint32_t device_role=0;
+    if (!strcmp(argv[1], "--device-parent")) {
+        if (argc < 7) fail("device parent arguments");
+        device_path=argv[2];
+        device_role=!strcmp(argv[3],"1") ? 1U : !strcmp(argv[3],"2") ? 2U : 0U;
+        if (!device_role) fail("device role");
+        argc-=3; argv+=3;
+    }
     uint8_t selected[32]; const uint8_t *existing=NULL;
     if (!strcmp(argv[1],"--session")) {
         if (argc < 5) fail("existing session arguments");
@@ -319,6 +330,12 @@ int main(int argc, char **argv) {
             fail("existing session requires an operational command");
     }
     self_check();
+    if (strncmp(argv[1], "device-", 7) == 0) {
+        if (device_path || existing) fail("device lifecycle mode does not accept another owner selection");
+        return device_command(argc,argv,witness,witness_tls);
+    }
+    if (device_path && (!strncmp(argv[1],"opening-",8) || !strncmp(argv[1],"recover-",8) ||
+        !strcmp(argv[1],"self-check") || !strcmp(argv[1],"reject-open"))) fail("unsupported device parent command");
     if (strncmp(argv[1], "opening-", 8) == 0) return opening_command(argc, argv, witness, witness_tls, existing);
     if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv,witness,witness_tls);
     if (strcmp(argv[1], "self-check") == 0) {
@@ -336,7 +353,9 @@ int main(int argc, char **argv) {
         if (printf("rejected:%d\n", code) < 0 || fflush(stdout)) fail("output failed");
         return 0;
     }
-    uint64_t handle = open_owner(argv[2],witness,witness_tls,existing);
+    uint64_t parent = device_path ? device_open(device_path,witness,witness_tls) : 0;
+    uint64_t handle = parent ? device_peer_open(parent,argv[2],device_role,existing) :
+        open_owner(argv[2],witness,witness_tls,existing);
     qpc_error_v1 error;
     if (strcmp(argv[1], "serve") == 0) {
         if (argc < 4 || argc != (!strcmp(argv[3], "rekey") ? 5 : 4)) fail("serve arguments");
@@ -433,7 +452,8 @@ int main(int argc, char **argv) {
         if (status(handle, s.session, s.message) != expected) fail("exact message status differs");
         if (busy) {
             close_owner(handle);
-            uint64_t reopened = open_owner(argv[2],witness,witness_tls,existing);
+            uint64_t reopened = parent ? device_peer_open(parent,argv[2],device_role,s.session) :
+                open_owner(argv[2],witness,witness_tls,existing);
             if (reopened == handle || status(reopened, s.session, s.message) != QPC_MESSAGE_COMMITTED)
                 fail("reopen changed identity or durable result");
             handle = reopened;
@@ -442,6 +462,7 @@ int main(int argc, char **argv) {
              (busy ? "cancelled-committed-reopened" : (uncertain ? "delivery-unknown-committed" : "consumed")));
     }
     close_owner(handle);
+    if (parent) close_owner(parent);
     if (ferror(stdout) || fflush(stdout)) fail("output flush failed");
     return 0;
 }

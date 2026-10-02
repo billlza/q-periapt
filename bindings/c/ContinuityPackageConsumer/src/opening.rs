@@ -13,6 +13,12 @@ pub struct Options {
 enum Kind {
     Operational(owner::Admission),
     Recovery,
+    Device,
+    Peer {
+        parent: Arc<device::Shared>,
+        admission: owner::Admission,
+        role: p::BootstrapRole,
+    },
 }
 pub(crate) struct Request {
     path: String,
@@ -44,6 +50,7 @@ impl Request {
         let kind = match (options.kind, options.quality) {
             (1, value) => Kind::Operational(owner::Admission::Bootstrap(quality(value)?)),
             (2, 0) => Kind::Recovery,
+            (3, 0) => Kind::Device,
             _ => return Err(Failure::argument()),
         };
         let witness = match options.carrier {
@@ -93,6 +100,20 @@ impl Request {
         let cancel = entry.cancel.clone();
         let invocation = entry.invocation.clone();
         let owner = match self.kind {
+            Kind::Device => Owned::Device(device::Shared::open(
+                path,
+                self.witness,
+                cancel,
+                invocation,
+                deadline,
+            )?),
+            Kind::Peer {
+                parent,
+                admission,
+                role,
+            } => Owned::Peer(Box::new(device::Peer::open(
+                parent, path, admission, role, &cancel, deadline,
+            )?)),
             Kind::Operational(admission) => Owned::Operational(Box::new(owner::Owner::open(
                 path,
                 admission,
@@ -111,6 +132,105 @@ impl Request {
         };
         check(&entry.cancel, deadline)?;
         Ok(owner)
+    }
+}
+
+unsafe fn prepare_peer(
+    parent: u64,
+    path: *const u8,
+    length: usize,
+    selection: [u32; 2],
+    session: Option<*const u8>,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(handle)?;
+        // SAFETY: forwarded C contract requires separate live input/output regions.
+        unsafe { put(handle, 0) };
+        let [mode, role] = selection;
+        let quality = quality(mode)?;
+        let role = match role {
+            1 => p::BootstrapRole::Initiator,
+            2 => p::BootstrapRole::Responder,
+            _ => return Err(Failure::argument()),
+        };
+        let admission = match session {
+            None => owner::Admission::Bootstrap(quality),
+            Some(session) => {
+                // SAFETY: the explicit restoration contract requires 32 readable bytes.
+                let session = unsafe { fixed(session) }?;
+                if session.iter().all(|byte| *byte == 0) {
+                    return Err(Failure::argument());
+                }
+                owner::Admission::Existing { quality, session }
+            }
+        };
+        let parent = device::parent(parent, deadline)?;
+        // SAFETY: header requires a readable immutable length-byte configuration path.
+        let path = unsafe { text(path, length, 4096) }?;
+        let request = Request {
+            path,
+            kind: Kind::Peer {
+                parent,
+                admission,
+                role,
+            },
+            witness: None,
+        };
+        let slot = Reservation::new()?;
+        let id = slot.publish(Owned::Opening(Box::new(request)), deadline)?;
+        // SAFETY: same exclusive validated output region.
+        unsafe { put(handle, id) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic contract.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Prepare an independently verified fresh peer under one live device parent.
+/// No path I/O occurs before finish_open; parent and child share the owner quota.
+/// # Safety
+/// All input/output regions satisfy the exact sizes and nonoverlap rules in the C header.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_peer_v1_prepare(
+    parent: u64,
+    path: *const u8,
+    length: usize,
+    quality: u32,
+    role: u32,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: the exported entry forwards the same borrowed-region contract.
+    unsafe { prepare_peer(parent, path, length, [quality, role], None, handle, error) }
+}
+
+/// Prepare restoration of one original peer session under the retained device parent.
+/// # Safety
+/// Same header contract; session is a separate immutable readable 32-byte region.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_peer_v1_prepare_reopen(
+    parent: u64,
+    path: *const u8,
+    length: usize,
+    quality: u32,
+    role: u32,
+    session: *const u8,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: the caller owns all borrowed input and output regions for this call.
+    unsafe {
+        prepare_peer(
+            parent,
+            path,
+            length,
+            [quality, role],
+            Some(session),
+            handle,
+            error,
+        )
     }
 }
 

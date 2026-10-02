@@ -490,6 +490,31 @@ pub(crate) fn setup_with_time(
     }
     let mut services = Vec::new();
     for (index, path) in [&left, &right].into_iter().enumerate() {
+        let label = if index == 0 { "initiator" } else { "responder" };
+        for name in [
+            "account",
+            "root",
+            "roster-version",
+            "roster-digest",
+            "device",
+            "generation",
+        ] {
+            store(
+                path,
+                &format!("local-{name}"),
+                &read(path, &format!("{label}-{name}"), 8192)?,
+            )?;
+        }
+        store(
+            path,
+            "local-certificate",
+            credentials.get(index).ok_or("local credential")?,
+        )?;
+        store(
+            path,
+            "local-roster",
+            rosters.get(index).ok_or("local roster")?.as_bytes(),
+        )?;
         let wrapping = key(path)?;
         let policy = protocol_policy(path, stores.get(index).ok_or("SDK owner")?)?;
         let device = devices.get(index).ok_or("device")?;
