@@ -72,10 +72,43 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory is now 244 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory at 5d782f94 contains 255 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+Source `5d782f94` fixes a complete-account authority bypass: after aggregate
+commit and revocation of another mandatory recipient, the old unary
+`send_message` and `resume_message` paths both still returned 137 ciphertext
+bytes for an unrevoked member. The retained failing test and source snapshot
+establish that counterexample. Live aggregate slots now require complete-account
+replay; current context/owner, roster/checkpoint, every live member's signed
+budget and witness checks precede release. Terminal sessions retain `Retired`;
+independently closed members retain exact outcomes while other admitted members
+continue. A session awaiting closure accounting yields `ResolutionPending`.
+
+The native `send_account_member` TLS API delegates every attempt to the same
+original aggregate transaction and checks all target archives before reservation.
+It preserves original IDs, bounded retries/cancellation and distinct consumption,
+unknown-delivery and retired-history outcomes. It does not imply atomic remote
+execution or provide the still-missing foreign multi-peer owner interfaces.
+
+The final implementation passes all **322** all-feature Debug library tests on
+Rust **1.98.1**, zero failures/ignored tests (1,784.01 seconds of test execution;
+1,959.627 seconds including compilation). Rust **1.90.0** Release passes all
+**43** fanout tests, zero failures/ignored tests (553.46 test seconds;
+621.163 seconds including compilation). The public owned-service integration
+scenario and its child helper also pass: real process/socket TLS, one rekey,
+unknown external-commit reconciliation, three independent application readbacks,
+eight competing leases, pre-cancellation and durable revocation. Strict all-target
+Clippy, targeted formatting and 20 hardened package/contract/context checks pass.
+Independent readback checks the final input map, compiler identities, actual
+test-binary bytes and raw logs. Earlier failed fence/lint/test-driver attempts
+remain retained with their scopes. The 133-file / 57,323,609-byte cohort has
+inventory `5d4de98bff8673b488684013416ec8f0ab7181a8412e8613f6a645dc9b1a161b`.
+This qualifies local native macOS arm64 behavior. A separate installed
+Rust/C/Swift/Kotlin producer was launched from clean `5d782f94`; this checkpoint
+does not claim its completion, foreign multi-peer integration or release admission.
 
 Clean source `7997282c` completes the full local macOS arm64 Rust/C/Kotlin
 installed-package producer in 2,082.055 seconds, exit 0. Independent readback binds
