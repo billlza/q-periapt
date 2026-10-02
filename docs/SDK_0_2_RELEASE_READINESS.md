@@ -77,6 +77,38 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `e708c03f` adds a C device parent and prepared peer children under the
+original active installation, signer, policy, witness and storage leases. Both
+roles support explicit fresh admission and session restoration; peer configuration
+cannot replace local authority. Closing a child preserves its parent, cancelling
+one child preserves siblings, and parent cancellation wakes an active child.
+Parent close releases original stores and invalidates retained children. Current
+Rust Debug and minimum Rust 1.90 Release each pass both new real C workloads,
+with independent replay of **36 and 17** public records respectively. They cover
+input copies, registry capacity, local identity/signer refusals, concurrent close,
+signed TCP/mutual TLS witnesses, durable policy revocation and original-message
+retry after application commit. The current default-scheduler unit run, eight
+legacy C traces, strict Clippy and **86** artifact tests also pass. All 126
+compiled inputs match the commit; the unpublished C owner export set is 36.
+The sealed development cohort has **470 files / 76,242,236 bytes**, inventory
+`5fca6b9eb9d52da575f82739908d1620ac0c29d0d4ed86e47604db6d68b4c139`.
+These tests use multiple handles for one context at each endpoint; distinct-device
+fanout, foreign complete-account transactions, Swift/Kotlin parent ownership,
+explicit provisioning and credential lifecycle remain open. This cohort uses
+development overlays on checked archives; fresh installed packages and CI for
+this change remain separate. Retained fixture failures include a pre-I/O BUSY
+observation race and a physical-byte oracle that incorrectly spanned redb
+close/open. A peer-free control reproduces the latter; the corrected oracle
+checks unchanged bytes while the same parent remains open and separately checks
+lease reopening. The original private database dump stays outside public evidence.
+
+Checkpoint `feccce96`, preceding the device-parent implementation, completes
+[push CI](https://github.com/billlza/q-periapt/actions/runs/36975578774),
+[PR CI](https://github.com/billlza/q-periapt/actions/runs/36975586337) and
+[CodeQL](https://github.com/billlza/q-periapt/actions/runs/36975586289) successfully.
+These runs do not establish stabilization of the retained intermittent Android
+failures below, or qualify the later device-parent source.
+
 Source `cde348b8` binds the C witness carrier to each active invocation's
 cancellation token and absolute deadline. Independently configured endpoints and
 credentials remain retained; no configuration is reread or cancellation reset.
@@ -103,8 +135,21 @@ before/after source maps and executed binary hash agree. The sealed cohort has
 **468 files / 35,249,091 bytes**, inventory
 `433552cb102062f32f58a54e9a68d7e3c9ec1d76ab8a2ad57b009c30c9fbf246`.
 This covers shared-service restoration and fresh peer admission. It predates the
-C invocation change above. Its CodeQL workflow succeeds; full hosted CI and the
-fresh installed Rust/C/Swift/Kotlin producer remain separately tracked.
+C invocation change above. Its CodeQL workflow succeeds; full hosted CI remains
+separately tracked.
+
+The full `18d6fcc9` installed Rust/C/Swift/Kotlin producer also completes with
+exit 0 in **2848.864 seconds**. Independent replay binds 238 unchanged source
+inputs, archives, executables and JVM closures. Each C/Swift/Kotlin profile passes
+59 sync-fault cases and 771 commands, real-clock expiry restoration and required
+witness restoration. Swift runs nine owner tests per profile; Kotlin runs eight,
+seven refusal controls, Serial/G1 prepared and in-flight collection, compilation
+checks and 96 raw sync receipts per profile, including eight Reserved sends.
+The sealed cohort has **20,444 files / 462,626,750 bytes**, inventory
+`e98a6ba66c083ab15c8848b37e138cf73b3cf12e1648ad3e464b46749f0bacd8`.
+This is same-host macOS execution with one native Continuity protocol engine.
+It covers the native admission/restoration additions, predates both later C
+changes above, and supplies no controlled performance comparison.
 
 Source `469ccf31` adds `DeviceService::admit_peer` and `BootstrapPeer` for a freshly
 verified context under the original active service. It checks the exact local
