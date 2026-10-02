@@ -302,3 +302,23 @@ and the same strict verification flags. The independent consumer requires
 `-Pqperiapt.repository=/absolute/local/maven`; before `installDist`, pin the exact
 candidate JAR, POM and module checksums in its own verification metadata, retaining
 the upstream dependency checksums. A missing or changed artifact must fail.
+
+
+The separate complete-account TLS workload bootstraps two original peer sessions
+and freezes, acknowledges and retires the reserved account after SDK revocation.
+It uses the existing native mutual TLS witness with three exact certificate/subject
+bindings. Wrong witness pins, TLS names and certificate subjects refuse selection;
+missing or unreachable original authority remains a failure after retirement.
+Every measured foreign TLS phase must leave the plaintext witness's request count
+unchanged. The complete loss report retains two reservations, two older unknown
+sends, five unconsumed deliveries and two skipped positions across fresh processes.
+
+The reserved state is deliberately prepared by losing one committed response over
+signed TCP; native fixture preparation and report readback also use that original
+witness. This workload therefore qualifies encrypted account bootstrap and cleanup,
+not loss of TLS commit responses or a complete witnessed account-delivery/fault
+matrix. The collector retains this carrier distinction and all eleven phase ranges
+in its separate account-TLS public export. The original signed-TCP four-loss trace
+remains mandatory. No raw owner handle, new native export or alternate TLS engine
+is added. Current/native-minimum development runs remain separate from a complete
+archive-produced cohort and final distribution admission.

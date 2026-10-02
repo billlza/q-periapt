@@ -77,6 +77,50 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The complete-account encrypted path now runs through C, Swift and Kotlin using
+the existing native mutual TLS witness. Three exact certificate/subject bindings
+cover the original installations. Current Debug/Release and minimum-Rust-library
+Release each pass: **154 C / 160 Swift / 159 Kotlin** admitted exchanges, exporting
+**67 / 67 / 68** public files respectively. Eleven phase records prove zero plain
+witness requests during foreign TLS operations. Wrong signing pins, TLS names and
+certificate subjects fail; missing/unreachable original authority still fails
+after retirement. Every loss field remains identical to the native report oracle.
+
+The lost-reservation fixture is explicitly signed TCP; native preparation and
+readback are also separate from the TLS phases. This closes encrypted original
+account bootstrap and revoked cleanup in these development configurations. Lost
+TLS commit responses, completed witnessed account delivery, own-account lifecycle,
+power loss and other release obligations remain open. No product protocol, native
+owner, ABI or foreign implementation changes. The original TLS fixture is shared
+across test targets instead of duplicated, and the collector/hosted exports require
+the separate account-TLS evidence. Strict current Clippy and minimum Rust 1.90
+all-target checking pass; the Rust source inventory becomes **269**.
+
+The new helper also replays all three signed-TCP account traces (67/67/68 files),
+legacy signed recovery (59), constructor cancellation (37), native TLS recovery
+(34) and independent OpenSSL server/client/refusals (29/7/5). Its first staging
+attempt omitted archive path patches in the copied Cargo manifest; the retained
+failure does not become a runtime result. Initial shared-fixture unused imports
+and credential-copy warnings were fixed directly before warning-free compilation.
+
+The full `8242246a` installed Rust/C/Swift/Kotlin producer completes in **4259.627
+seconds**. Independent source/archive/binary/runtime and admission/export replay
+passes, including 15 Swift owner tests and complete-account cleanup in both Swift
+profiles, plus Kotlin Serial/G1 and all original fault paths. Its sealed cohort
+contains **22,324 files / 539,343,966 bytes**, inventory
+`fc755a9cec4d57d4bcb94b7de1c9a8b57602ac8d000f3a7be4a3e01d60a90fbe`.
+That commit predates Kotlin aggregate cleanup and the later account-witness work.
+
+The later full `fac193fa` producer remains failed: its G1 server deadline measured
+75,656 ms. Retained system events show low-power sleep at 1% battery during that
+measurement and a later hibernate wake on AC. A focused replay with unchanged
+installed binaries, JARs, JVM flags and the original 18–23-second assertion passes
+at **20,243 ms**, with 13 verified C2 invocations, eight callbacks and seven returned
+slot checks. Only the compilation-log destination changes. The original failure
+and 47 public replay files are retained in a 95-file / 91,077,999-byte cohort,
+inventory `313225b8050b113e5f24f8917cc89238d4cfed878d8cd9d7265f9a31498bf0a3`.
+This does not reclassify the failed full producer or qualify physical power loss.
+
 C, Swift and Kotlin now execute complete-account cleanup under the original required
 witness after operational SDK revocation. The real signed-TCP witness withholds a
 committed response at each of reservation, freeze, acknowledgement and retirement.

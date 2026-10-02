@@ -16,10 +16,7 @@ use std::{
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::{atomic::Ordering, Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
@@ -32,6 +29,8 @@ fn installed_language() -> Result<&'static str> {
         _ => Err("unsupported installed witness consumer language".into()),
     }
 }
+#[path = "common/witness_tls.rs"]
+mod common_tls;
 #[path = "common/witness.rs"]
 mod common_witness;
 use common_witness::Witness;

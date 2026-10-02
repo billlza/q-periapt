@@ -464,6 +464,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                                                library=False, test_name="account_witness")
         result["execution"][profile]["account_witness"] = qualify_account_witness(
             outside, output, profile, runtime, executable, account_witness_helper, installed / filename)
+        result["execution"][profile]["account_tls"] = qualify_account_witness(
+            outside, output, profile, runtime, executable, account_witness_helper, installed / filename, mutual_tls=True)
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")

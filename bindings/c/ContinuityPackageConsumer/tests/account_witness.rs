@@ -4,8 +4,12 @@
 mod common;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
+#[path = "account_witness/tls.rs"]
+mod tls;
 #[path = "common/witness.rs"]
 mod witness;
+#[path = "common/witness_tls.rs"]
+mod witness_tls;
 use q_periapt_continuity_identity_candidate as p;
 use std::{
     ffi::OsString,
@@ -27,15 +31,29 @@ fn language() -> Result<&'static str> {
         _ => Err("unqualified account witness language".into()),
     }
 }
+#[derive(Clone, Copy)]
+enum Carrier {
+    Signed(SocketAddr),
+    Tls(SocketAddr),
+}
+impl Carrier {
+    fn arguments(self) -> [OsString; 2] {
+        let (flag, address) = match self {
+            Self::Signed(address) => ("--witness", address),
+            Self::Tls(address) => ("--witness-tls", address),
+        };
+        [flag.into(), address.to_string().into()]
+    }
+}
 fn arguments(
     mode: &str,
     path: &Path,
     tail: &[OsString],
-    endpoint: Option<SocketAddr>,
+    endpoint: Option<Carrier>,
 ) -> Vec<OsString> {
     let mut args = Vec::new();
     if let Some(endpoint) = endpoint {
-        args.extend(["--witness".into(), endpoint.to_string().into()]);
+        args.extend(endpoint.arguments());
     }
     args.extend([mode.into(), path.as_os_str().to_owned()]);
     args.extend_from_slice(tail);
@@ -46,11 +64,11 @@ fn run(
     label: &str,
     mode: &str,
     tail: &[OsString],
-    endpoint: Option<SocketAddr>,
+    endpoint: Option<Carrier>,
 ) -> Result<String> {
     common::client(path, label, &arguments(mode, path, tail, endpoint))
 }
-fn server(path: &Path, endpoint: SocketAddr) -> Result<(common::Process, SocketAddr)> {
+fn server(path: &Path, endpoint: Carrier) -> Result<(common::Process, SocketAddr)> {
     let mut process = common::start_client(
         path,
         "account-server",
@@ -104,15 +122,10 @@ fn lost_advance(
     Ok(output)
 }
 
-#[test]
-fn account_cleanup_requires_original_witness_and_reconciles_lost_advances() -> Result<()> {
-    let mut witness = witness::Witness::start()?;
-    let endpoint = witness.configured.address;
-    let (setup, second) = fixture::setup_devices(Some(&witness.configured), None, None, true)?;
-    let second = second.ok_or("second original member")?;
+fn connect(setup: &fixture::Setup, second: &Path, endpoint: Carrier) -> Result<Vec<[u8; 32]>> {
     let root = &setup.initiator;
     let (server0, address0) = server(&setup.responder, endpoint)?;
-    let (server1, address1) = server(&second, endpoint)?;
+    let (server1, address1) = server(second, endpoint)?;
     let peers = [root.join("peer-0"), root.join("peer-1")];
     let connect = run(
         root,
@@ -136,7 +149,7 @@ fn account_cleanup_requires_original_witness_and_reconciles_lost_advances() -> R
     for (index, ((process, session), receiver)) in [server0, server1]
         .into_iter()
         .zip(&sessions)
-        .zip([setup.responder.as_path(), second.as_path()])
+        .zip([setup.responder.as_path(), second])
         .enumerate()
     {
         let output = process.finish()?;
@@ -156,6 +169,18 @@ fn account_cleanup_requires_original_witness_and_reconciles_lost_advances() -> R
             &fs::read(receiver.join("cleanup-account-server.stderr"))?,
         )?;
     }
+    Ok(sessions)
+}
+
+#[test]
+fn account_cleanup_requires_original_witness_and_reconciles_lost_advances() -> Result<()> {
+    let mut witness = witness::Witness::start()?;
+    let endpoint = Carrier::Signed(witness.configured.address);
+    let (setup, second) = fixture::setup_devices(Some(&witness.configured), None, None, true)?;
+    let second = second.ok_or("second original member")?;
+    let root = &setup.initiator;
+    let sessions = connect(&setup, &second, endpoint)?;
+    let peers = [root.join("peer-0"), root.join("peer-1")];
     common::prepare(&setup, &second, Some(&witness.configured), sessions.clone())?;
     let batch = fixture::hex(&fixture::array::<32>(root, "cleanup-batch")?);
     let account = fixture::hex(&fixture::array::<32>(root, "cleanup-account")?);

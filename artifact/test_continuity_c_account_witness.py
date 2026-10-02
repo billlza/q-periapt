@@ -40,16 +40,16 @@ class AccountWitnessTests(unittest.TestCase):
 
     def test_summary_and_wrong_target_do_not_replace_execution(self):
         correct = (f"test {account.TEST} ... ok\n"
-                   "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+                   "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as folder:
-            for data in (b"", correct + correct, correct.replace(b"3 filtered", b"4 filtered"),
+            for data in (b"", correct + correct, correct.replace(b"4 filtered", b"5 filtered"),
                          correct.replace(b"0 ignored", b"1 ignored")):
                 with self.subTest(data=data), self.assertRaisesRegex(ValueError, "completely"):
                     account.verify_execution(data, Path(folder))
 
     def test_foreign_language_and_release_scope_cannot_be_relabelled(self):
         stdout = (f"test {account.TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         base = dict(schema_version=1, completed=True, language="C", batch="11" * 32, report="22" * 32,
                     witness_exchanges=12, lost_advances=4, release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:

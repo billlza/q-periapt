@@ -8,6 +8,7 @@ import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
 TEST = "account_cleanup_requires_original_witness_and_reconciles_lost_advances"
+TLS_TEST = "tls::account_cleanup_keeps_original_authority_over_mutual_tls"
 SCOPE = ("installed C required-witness complete-account cleanup after SDK revocation; "
          "three original installations over native signed TCP; four lost committed witness responses; "
          "same host and shared engine; no TLS, own-account, power-loss or independent-engine qualification")
@@ -22,9 +23,9 @@ def scope(language: str) -> str:
 def helper_inventory(data: bytes) -> None:
     from continuity_package import TESTS
     names = re.findall(r"^([a-z_:]+): test$", data.decode(), re.MULTILINE)
-    expected = {TEST} | {"fixture::" + name for name in TESTS}
+    expected = {TEST, TLS_TEST} | {"fixture::" + name for name in TESTS}
     sdk.require(len(names) == len(expected) and set(names) == expected
-                and re.search(r"^4 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
+                and re.search(r"^5 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
                 "account witness helper inventory differs")
 
 
@@ -55,7 +56,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     selected_scope = scope(language)
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;",
                               text, re.MULTILINE), "account witness trace did not execute completely")
     public = {}
     def read(name, maximum=1048576):
@@ -114,10 +115,16 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
 
 
 def qualify(outside: Path, output: Path, profile: str, environment: dict, client: Path,
-            helper: Path, library: Path, *, language: str = "C", jvm_runtime: dict[str, Path] | None = None) -> dict:
+            helper: Path, library: Path, *, language: str = "C", jvm_runtime: dict[str, Path] | None = None,
+            mutual_tls: bool = False) -> dict:
     from continuity_c_faults import jvm_command
     sdk.require((language == "Kotlin") == (jvm_runtime is not None), "account witness JVM closure differs")
-    selected_scope = scope(language)
+    sdk.require(type(mutual_tls) is bool, "account witness carrier selection differs")
+    if mutual_tls:
+        import continuity_c_account_tls as tls
+        selected_scope, selected_test, verify = tls.scope(language), TLS_TEST, tls.verify_execution
+    else:
+        selected_scope, selected_test, verify = scope(language), TEST, verify_execution
     if jvm_runtime is not None:
         jvm_command(jvm_runtime, library)
     paths = dict(client=client, native_helper=helper, installed_library=library, **(jvm_runtime or {}))
@@ -126,7 +133,7 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
         item = sdk.snapshot(path, maximum=256 * 1024**2)
         identities[role] = dict(path=str(path), sha256=item.sha256, bytes=item.size)
     result = dict(completed=False, scope=selected_scope, language=language, binaries=identities, release_claim_eligible=False)
-    prefix = language.lower() + "-account-witness-"
+    prefix = language.lower() + ("-account-tls-" if mutual_tls else "-account-witness-")
     evidence = outside / (prefix + profile + "-runtime")
     runtime = {k: v for k, v in environment.items()
                if not k.startswith(("DYLD_", "LD_", "QPERIAPT_", "QPC_", "JAVA_", "JDK_", "GRADLE_", "KOTLIN_"))
@@ -135,11 +142,11 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
                    QPERIAPT_EXPECTED_CONTINUITY_LIBRARY=str(library), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
     try:
         helper_inventory(sdk.command([str(helper), "--list"], output / (prefix + "inventory-" + profile), outside, environment=runtime))
-        stdout = sdk.command([str(helper), "--exact", TEST, "--nocapture"], output / (prefix + "trace-" + profile), outside, environment=runtime)
+        stdout = sdk.command([str(helper), "--exact", selected_test, "--nocapture"], output / (prefix + "trace-" + profile), outside, environment=runtime)
         selected = evidence.with_name(evidence.name + "-account") / "initiator"
-        checked = verify_execution(stdout, selected, language=language)
+        checked = verify(stdout, selected, language=language)
         public = witness.export_selected(checked, selected, output / (prefix + "public") / profile, selected_scope,
-            replay=lambda path: verify_execution(stdout, path, language=language))
+            replay=lambda path: verify(stdout, path, language=language))
         sdk.require(all(sdk.snapshot(Path(item["path"]), maximum=256 * 1024**2).sha256 == item["sha256"]
                         for item in identities.values()), "account witness executed binaries changed")
         result.update(completed=True, execution=checked, public_files=public)
