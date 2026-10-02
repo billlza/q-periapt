@@ -77,6 +77,45 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `249c40a5` adds Kotlin device parents, fresh/restored peer children, typed
+account status/results and complete-set member delivery. An atomic parent
+reference and call reachability fences retain live/in-flight native ownership;
+successful close or known CLOSED clears the stored link, while BUSY and unknown
+failures retain it. The public device may be collected before its peers activate.
+Deterministic store release still requires retaining and explicitly closing the
+device; Cleaner scheduling after the last hidden link is nondeterministic.
+Both installed `b809638c` native profiles pass 11 strict Kotlin owner tests.
+Debug/Release with Serial/G1 pass four actual account workloads, independently
+replaying **73 public records each**, including public-parent collection before
+activation, one-winner concurrent close, held closed aliases, all 64 native slots
+reclaimed and original-store reopening. Each profile passes eight prior real
+workloads, with **31/32/31/24/37/39/59/34** public records. Both collectors/profiles
+also pass the 16-round prepared-owner GC workloads and the in-flight server
+workloads; each latter run has **13 verified C2 compilation logs and 47 public
+files**. Account frames use normal JVM compilation and have no forced-C2 claim.
+All **16** compiled Kotlin/Java/test inputs match the commit. Independent replay
+verifies the Maven coordinate and actual runtime JAR closure; three actual Java
+compilation controls refuse raw operational, device and native-owner construction.
+All **91** artifact tests pass. The sealed development cohort has **2,670 files /
+309,759,933 bytes**, inventory
+`ecc468a893c8fc6dcf31853ff1e261eac133cdeb5b23da5bcff75f05a28e6b88`.
+
+Two isolated one-line faults each still pass all 11 unit tests but fail real
+account bootstrap under both collectors: removing parent retention yields CLOSED
+on peer activation; retaining the parent link after explicit close strands native
+capacity while closed peer aliases remain alive. They are deliberate controls,
+not historical released defects. The development prototype's Kotlin-mangled
+method name is recorded with `javap`; final source preserves the `NativeOwner.call`
+name checked by the existing C2 verifier, and all relevant flows were rerun.
+The first independent reader incorrectly applied the closed-coordinate inventory
+verifier to raw Gradle staging, which also contains repository metadata. Its
+failure and partial exports remain retained. The corrected reader copies the same
+version coordinate as the producer and applies the unchanged strict verifier.
+This cohort uses new Kotlin/Maven overlays on installed native bytes; full current
+archives, required-witness/own-account delivery, aggregate lifecycle and broader
+platform/provisioning qualification remain open. The `c9d713d2` full package run
+and hosted workflows are still in progress and predate this Kotlin change.
+
 Source `dba721b8` corrects Swift peer lifetime after explicit close. The earlier
 `a8ae179a` implementation passes its 12 unit tests but a stronger real account
 bootstrap retains closed peer aliases while reopening the original installation;
