@@ -100,8 +100,18 @@ clock/process-loss experiment, not elapsed deployment or physical power-loss pro
 The **2,029-file / 92,587,042-byte** native cohort has inventory
 `e6eeff194256173885717a79731f3216eb4e76bfa34105b541b6e2a7b7e3cb54`.
 Full 333-test regression was not rerun for this change; these are targeted scopes.
-Actual installed-package qualification of this commit is a separate run, and
-C/Swift/Kotlin restoration-owner integration remains required.
+The actual clean `b60c76ee` Rust archive producer subsequently completes in
+**320.556 seconds**, exit 0. Debug and Release each execute all three public API
+harness tests and strict installed-consumer Clippy passes. Independent readback
+binds **238 source inputs**, a **140-file candidate archive**, actual surviving
+binaries, exact ciphertext and application records. Its separate sealed
+**456-file / 37,674,969-byte** cohort has inventory
+`52293aaf14588e8d22713934b2059793c751e71a36d9ab14650387fa3d4849fe`.
+A current-source Rust **1.90 Release** run of the public restoration TLS scenario
+also passes; its raw output, exact source map and binary are retained in that
+cohort. It is not an installed minimum-SDK package run. C/Swift/Kotlin restoration
+owner integration remains required, distinct from the completed older package
+cohort below.
 
 The preceding `47a476f6` hosted CodeQL run refused its stale exact source count
 (254 required, 255 tracked). `b60c76ee` updates the requirement and guide to the
