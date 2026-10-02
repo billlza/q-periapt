@@ -77,6 +77,51 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `65c0b5c0` integrates explicit existing-session restoration into C
+`qpc_owner_v1_prepare_reopen` and the Swift/Kotlin `prepareReopen`/`reopen` owners.
+Local development runs use the actual current foreign clock after advertisement
+expiry, reject fresh/wrong-session admission, cancel before work, retain an unknown
+external application commit and reconcile its original message ID through real TLS
+receiver processes and two application-file readbacks. Six C admission tests,
+nine Swift owner tests and eight Kotlin owner tests pass. The mixed Serial/G1
+prepared-owner workloads each run 16 rounds with 21 restoration preparations per
+64-slot round; each records 1024 forgotten/live/stale/queued owner observations.
+The matching native library has exactly 34 exported candidate symbols. Product
+ABI 2 and legacy primitive contracts are unchanged.
+
+Source `a897ba54` adds separate required-witness responder-restoration workloads.
+C, Swift and Kotlin each perform real foreign-to-foreign TLS bootstrap, select
+the same persisted session, refuse missing/wrong witness pins and corrupt
+signatures, cancel a held signed-TCP query reply and stalled mutual-TLS handshake,
+then reopen the original session. Independent replay validates 39 selected public
+records per new workload; the original constructor workload also passes and is
+independently replayed in each language. Strict native Clippy, strict C/Swift/JVM
+builds and all **82** related artifact tests pass. Expiry and witnessed constructor
+cancellation are separate finite workloads, with the same native protocol engine.
+
+The full `65c0b5c0` archive producer stopped after 378.932 seconds at the C Debug
+sync-helper inventory gate: the public fixture had eight tests while the validator
+still required seven. Its failed run and partial output are preserved. The fix
+derives the exact names from the canonical public fixture contract, still refusing
+missing/duplicate/extra names, with negative regression coverage. The fresh clean
+`a897ba54` source gate passes; its full archive producer is running and is not yet
+qualified by this checkpoint. The sealed development cohort has **1224 files /
+50,023,141 bytes**, inventory
+`27c6ecaa60995a4889bdfebb17acc9e0f8a81b3dcf311a818362b8fb1fa64e13`.
+It retains source snapshots, SDK inputs, actual foreign binaries/JARs, selected
+public records and failed drivers. Private runtime databases, journals and keys
+are excluded. This evidence does not admit the unpublished `qpc-owner/1` candidate
+as the 0.2.0 product.
+
+A 2026-10-02 live registry check finds the locked native dependency versions equal
+to the current stable releases: `aws-lc-rs 1.18.1`, `aws-lc-sys 0.45.0`, `cc 1.5.1`,
+`cmake 0.1.58` and `rustls 0.23.45` (`0.24.0-dev.1` is a prerelease). The actual
+independent TLS endpoint reports OpenSSL **3.5.9**, matching the latest patch of
+the [official 3.5 LTS branch](https://openssl-library.org/source/), supported until
+2030-04-08. Registry replies, lock hash and endpoint binary/version output are
+retained in that cohort. Version recency does not establish relative performance,
+unbounded stability or completion of the final dependency/security review.
+
 Source `b60c76ee` adds explicit restoration of an existing native session after
 prekey-advertisement and original roster-snapshot expiry. The retained old-path
 counterexample admits a message session at time 170, then fails reconstruction
