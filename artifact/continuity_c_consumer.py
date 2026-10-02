@@ -45,7 +45,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -456,6 +456,14 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         result["execution"][profile]["account_cleanup"] = qualify_account_cleanup(
             outside, output, profile, runtime, executable, account_cleanup_helper,
             probe, smoke, installed / filename)
+        from continuity_c_account_witness import qualify as qualify_account_witness
+        account_witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "account_witness",
+                                     "--no-run", "--message-format=json", "-j", "2", *extra],
+                                    "account-witness-build-" + profile)
+        account_witness_helper = built_artifact(account_witness_build, consumer, build,
+                                               library=False, test_name="account_witness")
+        result["execution"][profile]["account_witness"] = qualify_account_witness(
+            outside, output, profile, runtime, executable, account_witness_helper, installed / filename)
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")

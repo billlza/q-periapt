@@ -124,7 +124,7 @@ private func snapshot(_ owner: ContinuityRecoveryOwner, files: FixtureRecords, c
     return h.report
 }
 
-private func refusal(_ action: () throws -> Void) throws -> Int32 {
+func refusal(_ action: () throws -> Void) throws -> Int32 {
     do { try action() }
     catch let error as ContinuityFailure { return error.code }
     throw ProbeFailure.contract("required witness admission was bypassed")

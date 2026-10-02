@@ -72,8 +72,7 @@ recipient set. Committed aggregate state does not imply remote consumption;
 retained member outcomes distinguish confirmation, pending resolution, unknown
 delivery, retired history and abandoned reservations. Keep the original operation
 and inputs after failure; the wrapper does not retry, generate replacement IDs
-or fall back to unary sends. Whole-account abandonment/report traversal,
-provisioning/renewal, required-witness and own-account foreign delivery retain
+or fall back to unary sends. Provisioning/renewal, required-witness and own-account foreign delivery retain
 separate qualification requirements.
 
 The complete-account consumer additionally observes collection of the public
@@ -131,6 +130,18 @@ libraries, each with 28 commands and 139 public records. These are same-host,
 local-profile process cuts, not power loss, witnessed/own-account aggregate cleanup
 or Android JNI qualification. The actual distribution collector also requires this
 trace before accepting a Kotlin profile.
+
+The separate required-witness trace uses actual Kotlin bootstrap/cleanup processes
+and drops committed witness responses during reservation, freeze, acknowledgement
+and retirement. Every unknown result is reconciled using the original operation
+and report. A reopen that resolves pending retirement can return a selected owner
+whose status is `Retired`; repeated retirement is a metadata-only no-op, and the
+next reopen refuses with Retired. No operational permission is reconstructed.
+Missing/wrong pins, corrupt signatures and witness unavailability after retirement
+remain failures. Its 68 public files include the parent collection/close receipt;
+independent replay binds all four lost commands to fresh challenges and the complete
+loss report. This is explicit signed TCP with unencrypted metadata, not encrypted
+witness account, own-account, power-loss or independent-engine qualification.
 
 The initial eight development tests execute native preparation, cancellation,
 failed activation, shared owner capacity, close and stale-handle behavior; compare

@@ -1946,6 +1946,8 @@ jobs:
             target/continuity-installed-rust/c-account-public/**
             target/continuity-installed-rust/c-account-cleanup/**
             target/continuity-installed-rust/kotlin-account-cleanup/**
+            target/continuity-installed-rust/c-account-witness-public/**
+            target/continuity-installed-rust/kotlin-account-witness-public/**
             target/continuity-installed-rust/consumer-Cargo.lock
             target/continuity-installed-rust/c-consumer-Cargo.lock
           if-no-files-found: error
@@ -2025,6 +2027,9 @@ jobs:
             target/continuity-installed-swift/c-account-cleanup/**
             target/continuity-installed-swift/swift-account-cleanup/**
             target/continuity-installed-swift/kotlin-account-cleanup/**
+            target/continuity-installed-swift/c-account-witness-public/**
+            target/continuity-installed-swift/swift-account-witness-public/**
+            target/continuity-installed-swift/kotlin-account-witness-public/**
             target/continuity-installed-swift/swift-public/**
             target/continuity-installed-swift/kotlin-public/**
             target/continuity-installed-swift/kotlin-inflight-compilation/**

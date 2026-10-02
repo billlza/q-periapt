@@ -59,7 +59,7 @@ message retry after receiver process exit, unary bypass refusal, target reorderi
 and cancellation of an unselected target during TLS. The common Rust harness
 records the client language and uses independently owned receiver processes;
 the native protocol engine remains shared. Required-witness account delivery,
-own-account fanout, aggregate abandonment/recovery, credential lifecycle and
+own-account fanout, credential lifecycle and
 platform-specific execution remain
 separate qualifications.
 
@@ -180,8 +180,21 @@ It also checks absent/committed dispositions, invalid indices, wrong-report and
 cancellation refusals, same-ID reopen and terminal tombstones. Reports explicitly
 identify Swift and retain the original shared harness file format. This is a
 same-host local-profile process-interruption test, not power-loss, required-witness
-or own-account aggregate-cleanup qualification. Product SDK integration, Kotlin,
-Android and durable WASM aggregate cleanup remain separate work.
+or own-account aggregate-cleanup qualification. A separate required-witness path
+uses the same C/Swift/Kotlin report contract, as described below. Product SDK
+integration, Android and durable WASM aggregate cleanup remain separate work.
+
+The required-witness account trace withholds real committed witness responses at
+reservation, freeze, acknowledgement and retirement. Swift preserves each unknown
+outcome, reopens the original operation, and reconciles the original report before
+continuing. The first reopen after an unknown retirement may return a selected
+owner with `.retired` status after resolving its pending write; the following reopen
+refuses with Retired. That successful selected owner grants no operational authority.
+Missing/wrong pins, a corrupted response signature and an unavailable witness after
+retirement are refused. Native and independent public readbacks preserve the whole
+report and all four original witness command IDs with fresh challenges. The explicit
+signed-TCP profile has 67 public files per configuration; metadata confidentiality,
+own-account cleanup and physical power loss require separate qualification.
 
 `begin` permanently freezes the session and returns every scalar/count of its
 immutable loss snapshot. Read every reservation, epoch, unconfirmed ciphertext

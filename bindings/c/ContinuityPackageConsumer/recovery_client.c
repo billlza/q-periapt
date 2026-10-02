@@ -287,6 +287,14 @@ static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *w
     const char *mode=argv[1],*path=argv[2];
     uint8_t batch[32],report[32]; decode(argv[3],batch); qpc_error_v1 e;
     uint64_t handle=open_recovery(path,witness,witness_tls);
+    if (!strcmp(mode,"recover-account-reject")) {
+        int32_t result=qpc_recovery_v1_select_account(handle,batch,&e);
+        if (result!=QPC_ANCHOR_REQUIRED && result!=QPC_SCOPE_CONFLICT && result!=QPC_ANCHOR) { bad("account witness refusal differs"); }
+        code(result,&e,result);
+        uint32_t count=0;
+        code(qpc_recovery_v1_session_count(handle,&count,&e),&e,QPC_DURABLE_CLOSED);
+        close_recovery(handle); printf("account-selection-refused:%d\n",result); return 0;
+    }
     if (!strcmp(mode,"recover-account-retired") || !strcmp(mode,"recover-account-absent")) {
         int expected=!strcmp(mode,"recover-account-retired")?QPC_RETIRED:QPC_DURABLE_ABSENT;
         code(qpc_recovery_v1_select_account(handle,batch,&e),&e,expected);
@@ -310,10 +318,18 @@ static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *w
         current=account_cleanup_status(handle);
         if (current.phase!=QPC_ACCOUNT_COMMITTED) { bad("committed account was relabeled"); }
         puts("account-committed-not-abandoned");
-    } else if (!strcmp(mode,"recover-account-freeze")) {
+    } else if (!strcmp(mode,"recover-account-witness-freeze")) {
         if (current.phase!=QPC_ACCOUNT_RESERVED) { bad("account reservation missing"); }
+        qpc_account_cleanup_header_v1 header;
+        code(qpc_recovery_v1_account_begin(handle,&header,&e),&e,QPC_ANCHOR);
+        /* The recovery ABI defines this output only on success. */
+        puts("account-freeze-outcome-unavailable");
+    } else if (!strcmp(mode,"recover-account-freeze") || !strcmp(mode,"recover-account-freeze-reconcile")) {
+        int reconcile=!strcmp(mode,"recover-account-freeze-reconcile");
+        if (current.phase!=(reconcile?QPC_ACCOUNT_ABANDONING:QPC_ACCOUNT_RESERVED)) { bad("account freeze state differs"); }
         code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_SUSPENDED);
         account_snapshot(handle,path,batch,1,report);
+        if (reconcile && memcmp(current.report,report,32)) { bad("unknown freeze report changed"); }
         uint8_t wrong[32]; memcpy(wrong,report,32); wrong[0]=report[0]==1?2:1;
         code(qpc_recovery_v1_account_acknowledge(handle,wrong,&e),&e,QPC_SCOPE_CONFLICT);
         current=account_cleanup_status(handle);
@@ -324,6 +340,19 @@ static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *w
         qpc_account_cleanup_member_v1 member;
         code(qpc_recovery_v1_account_member(handle,0,&member,&e),&e,0);
         fputs("account-frozen:",stdout); hex(stdout,report,32); fputc('\n',stdout);
+    } else if (!strcmp(mode,"recover-account-witness-ack")) {
+        if (current.phase!=QPC_ACCOUNT_ABANDONING) { bad("account frozen state missing"); }
+        account_snapshot(handle,path,batch,0,report);
+        code(qpc_recovery_v1_account_acknowledge(handle,report,&e),&e,QPC_ANCHOR);
+        puts("account-acknowledgement-outcome-unavailable");
+    } else if (!strcmp(mode,"recover-account-ack-reconcile")) {
+        saved_account_report(path,batch,report);
+        if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("unknown acknowledgement changed report"); }
+        code(qpc_recovery_v1_account_acknowledge(handle,report,&e),&e,0);
+        code(qpc_recovery_v1_account_acknowledge(handle,report,&e),&e,0);
+        current=account_cleanup_status(handle);
+        if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("account acknowledgement identity"); }
+        fputs("account-acknowledged:",stdout); hex(stdout,report,32); fputc('\n',stdout);
     } else if (!strcmp(mode,"recover-account-ack")) {
         if (current.phase!=QPC_ACCOUNT_ABANDONING) { bad("account frozen state missing"); }
         account_snapshot(handle,path,batch,0,report);
@@ -332,6 +361,22 @@ static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *w
         current=account_cleanup_status(handle);
         if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("account acknowledgement identity"); }
         fputs("account-acknowledged:",stdout); hex(stdout,report,32); fputc('\n',stdout);
+    } else if (!strcmp(mode,"recover-account-retire-reconcile")) {
+        saved_account_report(path,batch,report);
+        uint8_t zero[32]={0};
+        if (current.phase!=QPC_ACCOUNT_RETIRED || memcmp(current.report,zero,32)) { bad("unknown retirement not reconciled"); }
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,0);
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,0);
+        current=account_cleanup_status(handle);
+        if (current.phase!=QPC_ACCOUNT_RETIRED || memcmp(current.report,zero,32)) { bad("retired account changed"); }
+        qpc_account_cleanup_header_v1 header;
+        code(qpc_recovery_v1_account_begin(handle,&header,&e),&e,QPC_RETIRED);
+        puts("account-retired");
+    } else if (!strcmp(mode,"recover-account-witness-retire")) {
+        saved_account_report(path,batch,report);
+        if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("account terminal report differs"); }
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_ANCHOR);
+        puts("account-retirement-outcome-unavailable");
     } else if (!strcmp(mode,"recover-account-retire")) {
         saved_account_report(path,batch,report);
         if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("account terminal report differs"); }

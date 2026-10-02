@@ -74,6 +74,14 @@ func recoverAccount(_ args: [String], witness: WitnessCarrier) throws {
     let mode = args[0], path = args[1]
     let operation: AccountOperationID = try decode(args[2])
     let owner = try ContinuityRecoveryOwner.open(path: path, witness: witness)
+    if mode == "recover-account-reject" {
+        let code = try refusal { try owner.select(account: operation) }
+        try require([216, 211, 218].contains(code), "account witness refusal differs")
+        try failure([202]) { try owner.sessionCount() }
+        try closeRecovery(owner)
+        try output("account-selection-refused:\(code)")
+        return
+    }
     if mode == "recover-account-retired" || mode == "recover-account-absent" {
         let expected: Int32 = mode == "recover-account-retired" ? 112 : 201
         try failure([expected]) { try owner.select(account: operation) }
@@ -97,10 +105,22 @@ func recoverAccount(_ args: [String], witness: WitnessCarrier) throws {
         try failure([215]) { try owner.retireAccount() }
         try require(owner.accountCleanupStatus() == .committed, "committed account was relabeled")
         response = "account-committed-not-abandoned"
-    case "recover-account-freeze":
+    case "recover-account-witness-freeze":
         try require(current == .reserved, "account reservation missing")
+        try failure([218]) { try owner.beginAccountCleanup() }
+        response = "account-freeze-outcome-unavailable"
+    case "recover-account-freeze", "recover-account-freeze-reconcile":
+        let previous: AccountAbandonmentID?
+        if mode == "recover-account-freeze-reconcile" {
+            guard case let .abandoning(id) = current else { throw ProbeFailure.contract("unknown freeze not reconciled") }
+            previous = id
+        } else {
+            try require(current == .reserved, "account reservation missing")
+            previous = nil
+        }
         try failure([215]) { try owner.retireAccount() }
         let report = try accountSnapshot(owner, operation: operation, files: files, create: true)
+        if let previous { try require(previous == report, "unknown freeze report changed") }
         var wrong = report.bytes; wrong[0] = report.bytes[0] == 1 ? 2 : 1
         try failure([211]) { try owner.acknowledgeAccount(report: AccountAbandonmentID(bytes: wrong)) }
         try require(owner.accountCleanupStatus() == .abandoning(report), "wrong account report changed state")
@@ -109,12 +129,35 @@ func recoverAccount(_ args: [String], witness: WitnessCarrier) throws {
         try failure([302]) { try owner.retireAccount() }
         _ = try owner.accountMember(at: 0)
         response = "account-frozen:" + hex(report)
+    case "recover-account-witness-ack":
+        guard case .abandoning = current else { throw ProbeFailure.contract("account frozen state missing") }
+        let report = try accountSnapshot(owner, operation: operation, files: files, create: false)
+        try failure([218]) { try owner.acknowledgeAccount(report: report) }
+        response = "account-acknowledgement-outcome-unavailable"
+    case "recover-account-ack-reconcile":
+        let report = try savedAccountReport(files, operation: operation)
+        try require(current == .abandoned(report), "unknown acknowledgement changed report")
+        try owner.acknowledgeAccount(report: report); try owner.acknowledgeAccount(report: report)
+        try require(owner.accountCleanupStatus() == .abandoned(report), "account acknowledgement identity")
+        response = "account-acknowledged:" + hex(report)
     case "recover-account-ack":
         guard case .abandoning = current else { throw ProbeFailure.contract("account frozen state missing") }
         let report = try accountSnapshot(owner, operation: operation, files: files, create: false)
         try owner.acknowledgeAccount(report: report); try owner.acknowledgeAccount(report: report)
         try require(owner.accountCleanupStatus() == .abandoned(report), "account acknowledgement identity")
         response = "account-acknowledged:" + hex(report)
+    case "recover-account-retire-reconcile":
+        _ = try savedAccountReport(files, operation: operation)
+        try require(current == .retired, "unknown retirement not reconciled")
+        try owner.retireAccount(); try owner.retireAccount()
+        try require(owner.accountCleanupStatus() == .retired, "retired account changed")
+        try failure([112]) { try owner.beginAccountCleanup() }
+        response = "account-retired"
+    case "recover-account-witness-retire":
+        let report = try savedAccountReport(files, operation: operation)
+        try require(current == .abandoned(report), "account terminal report differs")
+        try failure([218]) { try owner.retireAccount() }
+        response = "account-retirement-outcome-unavailable"
     case "recover-account-retire":
         let report = try savedAccountReport(files, operation: operation)
         try require(current == .abandoned(report), "account terminal report differs")

@@ -70,6 +70,12 @@ internal fun recoverAccount(args: List<String>, witness: WitnessCarrier): String
     val operation = AccountOperationID(decode(args[2]))
     val owner = ContinuityRecoveryOwner.open(path, witness)
     val response = owner.use {
+        if (mode == "recover-account-reject") {
+            val code = refusal { owner.selectAccount(operation) }
+            check(code in setOf(216, 211, 218)) { "account witness refusal differs" }
+            refused(setOf(202)) { owner.sessionCount() }
+            return@use "account-selection-refused:$code"
+        }
         if (mode == "recover-account-retired" || mode == "recover-account-absent") {
             val expected = if (mode == "recover-account-retired") 112 else 201
             refused(setOf(expected)) { owner.selectAccount(operation) }
@@ -91,10 +97,22 @@ internal fun recoverAccount(args: List<String>, witness: WitnessCarrier): String
                 check(owner.accountCleanupStatus() == AccountStatus.Committed) { "committed account was relabelled" }
                 "account-committed-not-abandoned"
             }
-            "recover-account-freeze" -> {
+            "recover-account-witness-freeze" -> {
                 check(current == AccountStatus.Reserved) { "account reservation missing" }
+                refused(setOf(218)) { owner.beginAccountCleanup() }
+                "account-freeze-outcome-unavailable"
+            }
+            "recover-account-freeze", "recover-account-freeze-reconcile" -> {
+                val previous = if (mode == "recover-account-freeze-reconcile") {
+                    check(current is AccountStatus.Abandoning) { "unknown freeze not reconciled" }
+                    current.report
+                } else {
+                    check(current == AccountStatus.Reserved) { "account reservation missing" }
+                    null
+                }
                 refused(setOf(215)) { owner.retireAccount() }
                 val report = accountSnapshot(owner, operation, files, true)
+                if (previous != null) check(previous == report) { "unknown freeze report changed" }
                 val wrong = report.encoded(); wrong[0] = if (wrong[0] == 1.toByte()) 2 else 1
                 refused(setOf(211)) { owner.acknowledgeAccount(AccountAbandonmentID(wrong)) }
                 check(owner.accountCleanupStatus() == AccountStatus.Abandoning(report)) { "wrong account report changed state" }
@@ -104,12 +122,39 @@ internal fun recoverAccount(args: List<String>, witness: WitnessCarrier): String
                 owner.accountMemberAt(0)
                 "account-frozen:${hex(report)}"
             }
+            "recover-account-witness-ack" -> {
+                check(current is AccountStatus.Abandoning) { "account frozen state missing" }
+                val report = accountSnapshot(owner, operation, files, false)
+                refused(setOf(218)) { owner.acknowledgeAccount(report) }
+                "account-acknowledgement-outcome-unavailable"
+            }
+            "recover-account-ack-reconcile" -> {
+                val report = savedAccountReport(files, operation)
+                check(current == AccountStatus.Abandoned(report)) { "unknown acknowledgement changed report" }
+                owner.acknowledgeAccount(report); owner.acknowledgeAccount(report)
+                check(owner.accountCleanupStatus() == AccountStatus.Abandoned(report)) { "account acknowledgement identity" }
+                "account-acknowledged:${hex(report)}"
+            }
             "recover-account-ack" -> {
                 check(current is AccountStatus.Abandoning) { "account frozen state missing" }
                 val report = accountSnapshot(owner, operation, files, false)
                 owner.acknowledgeAccount(report); owner.acknowledgeAccount(report)
                 check(owner.accountCleanupStatus() == AccountStatus.Abandoned(report)) { "account acknowledgement identity" }
                 "account-acknowledged:${hex(report)}"
+            }
+            "recover-account-retire-reconcile" -> {
+                savedAccountReport(files, operation)
+                check(current == AccountStatus.Retired) { "unknown retirement not reconciled" }
+                owner.retireAccount(); owner.retireAccount()
+                check(owner.accountCleanupStatus() == AccountStatus.Retired) { "retired account changed" }
+                refused(setOf(112)) { owner.beginAccountCleanup() }
+                "account-retired"
+            }
+            "recover-account-witness-retire" -> {
+                val report = savedAccountReport(files, operation)
+                check(current == AccountStatus.Abandoned(report)) { "account terminal report differs" }
+                refused(setOf(218)) { owner.retireAccount() }
+                "account-retirement-outcome-unavailable"
             }
             "recover-account-retire" -> {
                 val report = savedAccountReport(files, operation)

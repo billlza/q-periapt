@@ -7,7 +7,7 @@ import unittest
 import continuity_c_witness as w
 
 
-def fixture():
+def fixture(subjects=2):
     authority = b"a" * 32
     rows = []
     def entry(subject, operation, challenge, outcome, head, last, delivered):
@@ -18,7 +18,7 @@ def fixture():
         rows.append(bytes([delivered]) + len(request).to_bytes(4, "big") + request + bytes(3373)
                     + len(reply).to_bytes(4, "big") + reply + bytes(3373))
         return command
-    for ordinal in (1, 2):
+    for ordinal in range(1, subjects + 1):
         subject = bytes([ordinal]) * 96
         original = (1).to_bytes(8, "big") * 2 + bytes([ordinal + 2]) * 32
         target = (1).to_bytes(8, "big") + (2).to_bytes(8, "big") + bytes([ordinal + 4]) * 32
@@ -31,6 +31,18 @@ def fixture():
 
 
 class ContinuityCWitnessTests(unittest.TestCase):
+    def test_account_subject_census_requires_explicit_three_device_scope(self):
+        authority, rows = fixture(3)
+        data = b"".join(rows)
+        with self.assertRaises(ValueError):
+            w.transcript(data, authority, expected_lost_advances=3)
+        result = w.transcript(data, authority, expected_lost_advances=3, expected_subjects=3)
+        self.assertEqual(result["subjects"], 3)
+        self.assertEqual(len(result["lost_commands"]), 3)
+        for count in (0, 1, 4, True, None):
+            with self.subTest(count=count), self.assertRaisesRegex(ValueError, "subject census"):
+                w.transcript(data, authority, expected_subjects=count)
+
     def test_export_replays_selected_bytes_before_publishing_completion(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

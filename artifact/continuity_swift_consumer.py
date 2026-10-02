@@ -11,6 +11,7 @@ import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_faults as faults
 import continuity_c_account_cleanup as account_cleanup
+import continuity_c_account_witness as account_witness
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
@@ -232,6 +233,11 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             cleaned = account_cleanup.qualify(outside, output, profile, runtime, binary,
                 Path(cleanup_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
                 native_dir / LIBRARY, language="Swift")
+            witness_helper = row["account_witness"]["binaries"]["native_helper"]
+            sdk.require(sdk.snapshot(Path(witness_helper["path"]), maximum=c.MAX_BINARY).sha256 == witness_helper["sha256"],
+                        "native account witness helper changed before Swift execution")
+            witnessed_account = account_witness.qualify(outside, output, profile, runtime, binary,
+                Path(witness_helper["path"]), native_dir / LIBRARY, language="Swift")
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -243,6 +249,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "execution": checked, "public_files": public_files,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned,
+                "account_witness": witnessed_account,
                 "server_execution": server_checked, "server_public_files": server_files,
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
                 "witnessed": witnessed, "restoration": {"execution": restored, "public_files": restored_files},

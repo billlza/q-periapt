@@ -58,7 +58,7 @@ private fun snapshot(owner: ContinuityRecoveryOwner, files: FixtureRecords, crea
     check(owner.status() == ClosureStatus.Pending(h.report)) { "pending report identity differs" }
     return h.report
 }
-private fun refusal(action: () -> Unit): Int {
+internal fun refusal(action: () -> Unit): Int {
     try { action() } catch (failure: ContinuityFailure) { return failure.code }
     error("required witness admission was bypassed")
 }

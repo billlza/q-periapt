@@ -319,8 +319,11 @@ erasure does not promise secure deletion of historical pages or application copi
 reserved abandonment. Account owners reject independent-session methods. Cached
 report getters remain available after cancel; mutations are refused and witnessed
 status still needs fresh native admission. Unknown outcomes require original-ID
-close/reopen. Reopening retired metadata reports `QPC_RETIRED`; validated absence
-reports `QPC_DURABLE_ABSENT`. Neither provisions or reactivates state. The candidate
+close/reopen. A reopen that reconciles a pending retirement can successfully return
+a selected owner whose fresh `account_status` is `QPC_ACCOUNT_RETIRED`; repeated
+retirement is then a metadata-only no-op. A subsequent reopen reports
+`QPC_RETIRED`. Validated absence reports `QPC_DURABLE_ABSENT`. None of these outcomes
+provisions or reactivates state. The candidate
 has exactly 50 exports, including 11 new functions; product ABI 2 is unchanged.
 
 The standard collector builds a separate native fixture helper and uses the existing
@@ -338,10 +341,32 @@ Development Debug/Release on Rust 1.98.1 and Release on Rust 1.90 each pass this
 28-command path with 139 public records and exact installed-library linkage. The
 observed calibration is Committed without interruption, Absent at the first two
 pre-sync cuts and Reserved at cut three. This is finite process-interruption
-coverage, not all sync sites or physical power loss. Required-witness/own-account
-foreign cleanup, broader unknown freeze/ack/retirement outcomes, Swift/Kotlin
-adapters and final product admission remain separate. Earlier 39-export installed
-cohorts do not qualify this extension.
+coverage, not all sync sites or physical power loss. The separate required-witness
+trace below covers lost committed responses through all three foreign adapters.
+Own-account cleanup, encrypted witness account paths, broader fault coverage and
+final product admission remain separate. Earlier 39-export installed cohorts do
+not qualify this extension; the complete `63b0e824` archive-produced cohort includes
+the 50-export C cleanup path.
+
+The `account_witness` helper shares the original native witness socket and complete
+loss oracle with existing tests. Three original installations bootstrap two account
+members through the selected C, Swift or Kotlin client/server. The real witness
+commits an advance but withholds its response during reservation, freeze,
+acknowledgement and retirement. Foreign callers retain the typed unknown outcome,
+reopen under the same operation/report IDs, and reconcile each original command
+with a fresh challenge. Missing/wrong witness configuration, a corrupted signature,
+and witness absence even after retirement remain refusals. Host report fsync
+precedes acknowledgement; all member tombstones survive retirement. Failure output
+structs are never read: the recovery ABI defines them only on success.
+
+The independent public replay validates all four phase ranges, exact original
+command identities and challenges, three witness subjects, every loss field and
+bootstrap receiver. It retains 67 C/Swift or 68 Kotlin files, including Kotlin's
+parent-lifetime receipt. Native endpoints verify signatures; the public transcript
+reader is a metadata/commitment oracle, not a second signature engine. Current
+Debug/Release and minimum-Rust Release engine configurations pass this development
+path. It uses explicit signed TCP, whose metadata is unencrypted; TLS, own-account,
+physical power loss and independent-engine qualifications remain separate.
 
 ## Qualification path
 

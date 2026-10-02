@@ -147,6 +147,7 @@ func account(_ args: [String], witness: WitnessCarrier) async throws {
         targets[1] = AccountTarget(peer: peer, session: sessions[1]); expected = 211
     case "changed-input": expected = 211
     case "unknown": expected = 311
+    case "witness-unknown": expected = 218
     case "reverse-retained": targets.reverse(); selected = 1 - selected
     case "deliver", "retained", "cancel-active": break
     default: throw ProbeFailure.contract("account mode")

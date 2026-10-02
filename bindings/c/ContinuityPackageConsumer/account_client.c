@@ -104,6 +104,7 @@ static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,i
             s.targets[1].peer=other_peer;expected=QPC_SCOPE_CONFLICT;
         }else if(!strcmp(mode,"changed-input")){s.body=(const uint8_t *)"different";s.body_length=9;expected=QPC_SCOPE_CONFLICT;}
         else if(!strcmp(mode,"unknown")){expected=QPC_RETRY_EXHAUSTED;}
+        else if(!strcmp(mode,"witness-unknown")){expected=QPC_ANCHOR;}
         else if(!strcmp(mode,"cancel-active")){
             if(argc!=13)fail("account socket barrier missing");
             uint64_t idle=device_peer_open(parent,argv[3],1,s.targets[0].session);

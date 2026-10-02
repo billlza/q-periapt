@@ -29,7 +29,10 @@ def head(data: bytes) -> tuple[int, int, bytes]:
     return fence, revision, data[16:]
 
 
-def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2, expected_lost_queries: int = 0) -> dict:
+def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2,
+               expected_lost_queries: int = 0, expected_subjects: int = 2) -> dict:
+    sdk.require(type(expected_subjects) is int and expected_subjects in (2, 3),
+                "unqualified witness subject census")
     sdk.require(all(type(value) is int and 0 <= value <= 4096
                     for value in (expected_lost_advances, expected_lost_queries)), "invalid expected witness loss census")
     sdk.require(len(authority) == 32 and data and len(data) % RECORD_BYTES == 0
@@ -89,7 +92,7 @@ def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2
             original_index, original_challenge = lost[command]
             sdk.require(index > original_index and challenge != original_challenge, "witness retry did not use a fresh attempt")
             recovered.add(command)
-    sdk.require(len(states) == 2 and len(lost) == expected_lost_advances
+    sdk.require(len(states) == expected_subjects and len(lost) == expected_lost_advances
                 and lost_queries == expected_lost_queries and recovered == lost.keys(), "witness original lost advances were not reconciled")
     return {"exchanges": len(data) // RECORD_BYTES, "subjects": len(states), "logical_advances": advanced,
             "lost_commands": sorted(value.hex() for value in lost), "fresh_challenges": len(challenges)}

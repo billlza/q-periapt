@@ -153,6 +153,7 @@ internal fun account(args: List<String>, witness: WitnessCarrier): String {
             }
             "changed-input" -> expected = 211
             "unknown" -> expected = 311
+            "witness-unknown" -> expected = 218
             "reverse-retained" -> { targets.reverse(); selected = 1 - selected }
             "deliver", "retained", "cancel-active" -> Unit
             else -> error("unknown account mode")

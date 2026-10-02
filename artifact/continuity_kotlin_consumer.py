@@ -16,6 +16,7 @@ import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_account as account
 import continuity_c_account_cleanup as account_cleanup
+import continuity_c_account_witness as account_witness
 from continuity_c_witness import export_selected
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
@@ -147,17 +148,21 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
     return checked
 
 
+def account_parent_lifetime(data: bytes) -> dict:
+    match = re.fullmatch(rb"QPC-JVM-ACCOUNT/1 collections=([1-9][0-9]{0,3})\n"
+        rb"public-parent-queued peers-activated close-winner=1 closed-aliases-held slots=64 store-reopened\n", data)
+    sdk.require(match is not None and 2 <= int(match[1]) <= 1024,
+                "Kotlin account parent collection and close workload did not complete")
+    return {"observed_collections": int(match[1]), "concurrent_close_winners": 1,
+        "native_slots_reclaimed_while_closed_aliases_live": 64, "public_parent_collected_before_activation": True}
+
+
 def verify_account_execution(stdout: bytes, directory: Path) -> dict:
     checked = account.verify_execution(stdout, directory, language="Kotlin")
     leaf = "initiator/kotlin-account-parent-lifetime"
     receipt = sdk.snapshot(directory / leaf, maximum=256)
-    match = re.fullmatch(rb"QPC-JVM-ACCOUNT/1 collections=([1-9][0-9]{0,3})\n"
-        rb"public-parent-queued peers-activated close-winner=1 closed-aliases-held slots=64 store-reopened\n", receipt.data)
-    sdk.require(match is not None and 2 <= int(match[1]) <= 1024,
-                "Kotlin account parent collection and close workload did not complete")
     checked["public_readbacks"][leaf] = receipt.sha256
-    checked["parent_lifetime"] = {"observed_collections": int(match[1]), "concurrent_close_winners": 1,
-        "native_slots_reclaimed_while_closed_aliases_live": 64, "public_parent_collected_before_activation": True}
+    checked["parent_lifetime"] = account_parent_lifetime(receipt.data)
     return checked
 
 
@@ -490,6 +495,11 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             cleaned = account_cleanup.qualify(outside, output, profile, runtime, launcher,
                 Path(cleanup_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
                 library_path, language="Kotlin", jvm_runtime=jvm_runtime)
+            witness_helper = row["account_witness"]["binaries"]["native_helper"]
+            sdk.require(sdk.snapshot(Path(witness_helper["path"]), maximum=c.MAX_BINARY).sha256 == witness_helper["sha256"],
+                        "native account witness helper changed before Kotlin execution")
+            witnessed_account = account_witness.qualify(outside, output, profile, runtime, launcher,
+                Path(witness_helper["path"]), library_path, language="Kotlin", jvm_runtime=jvm_runtime)
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -544,6 +554,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned,
+                "account_witness": witnessed_account,
                 "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,

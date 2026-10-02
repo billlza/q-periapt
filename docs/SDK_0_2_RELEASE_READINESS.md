@@ -77,6 +77,37 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+C, Swift and Kotlin now execute complete-account cleanup under the original required
+witness after operational SDK revocation. The real signed-TCP witness withholds a
+committed response at each of reservation, freeze, acknowledgement and retirement.
+Current native Debug/Release and minimum-Rust Release configurations all pass,
+retaining **67 C / 67 Swift / 68 Kotlin** public files each. Independent replay checks
+all four phase ranges, original command IDs, fresh challenges, three subjects and
+every loss field. Kotlin also retains its parent collection/close/64-slot receipt.
+Strict Clippy and the Rust 1.90 all-target check pass without warnings. Existing local
+account cleanup (28 commands/139 records), signed-witness recovery (59 records) and
+constructor cancellation (37 records) still pass after sharing the fixture/oracle.
+The Rust inventory becomes **267**. This closes a development signed-TCP cleanup
+boundary, not encrypted witness account delivery/cleanup, own-account lifecycle,
+power loss, independent-engine validation or final distribution admission.
+
+Two initial C fixture assumptions were corrected from the existing contract and
+actual state transitions. Recovery output is undefined on failure and must not be
+read; an early test incorrectly compared uninitialised output with zero. After
+unknown retirement, the first reopen can reconcile pending state and return a
+selected owner with Retired status; only the next reopen returns the Retired error.
+The reference consumers now explicitly verify both results under the original ID.
+Native behavior and the 50-export ABI are unchanged. Failed execution and readback
+attempts are retained; neither an unknown result nor a partial report becomes success.
+
+The full `63b0e824` installed Rust/C/Swift/Kotlin producer completes in **3873.546
+seconds**. Independent archive/source/binary/runtime replay and admission/export
+checks pass, including nine C tests, exactly 50 exports and both 139-record C account
+cleanup profiles. Its sealed cohort contains **21,847 files / 538,300,190 bytes**,
+inventory `a8b81958b216fd3cad37ce3f302c9a98a8f9848656662ca8f589c83b994c38bd`.
+That source predates Swift/Kotlin aggregate cleanup and the new witnessed account
+trace. It cannot replace their current-source distribution qualification.
+
 Kotlin now carries the same whole-account cleanup contract through the existing
 recovery owner, explicitly aligned FFM layouts and unsigned `Counter64` values.
 The separately published local Maven JAR and installed consumer pass 12 boundary

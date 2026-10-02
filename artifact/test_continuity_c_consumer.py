@@ -273,7 +273,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             build = root / "build/debug"
             (build / "deps").mkdir(parents=True)
             encoded = lambda value: json.dumps(value).encode() + b"\n"
-            for name in ("c_owner", "sync_fault", "witness", "account_cleanup"):
+            for name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness"):
                 binary = build / ("deps/" + name + "-test")
                 binary.write_bytes(b"test")
                 outside = build / binary.name
