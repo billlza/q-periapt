@@ -415,6 +415,10 @@ fn device_service_restores_multiple_peers_for_one_complete_account_transaction()
         {
             let dir = directory();
             let mut receiver = new_store(&canonical(&dir), device);
+            let admitted = service
+                .admit_peer(Arc::clone(context), crate::BootstrapRole::Initiator, 150)
+                .expect("independently verified fresh peer under the original service");
+            let context = admitted.context();
             let (journal, archives) = service.stores().expect("one shared journal");
             let initiation = InitiationId::generate().expect("initiation");
             let initial = journal

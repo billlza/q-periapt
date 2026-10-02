@@ -208,6 +208,27 @@ pub(super) fn authorize_context(
     }
     Ok(())
 }
+
+// Preview one independently verified peer without installing its initial roster
+// or advancing an existing one. The actual bootstrap must repeat admission and
+// commit a new account head together with its first operation reservation.
+fn authorize_bootstrap_peer(
+    image: &Image,
+    device: &VerifiedDevice,
+    now: u64,
+) -> Result<(), DurableError> {
+    match get(image, &device.account_id()) {
+        Ok(current) => current.roster.authorize_device(device, now)?,
+        Err(DurableError::Absent) => {
+            if image.record_count(RecordKind::Roster) >= MAX_ROSTERS {
+                return Err(DurableError::Capacity);
+            }
+            device.roster().authorize_device(device, now)?;
+        }
+        Err(error) => return Err(error),
+    }
+    Ok(())
+}
 /// Only a new bootstrap may introduce an account's initial independently
 /// verified snapshot. The caller commits it with the first operation reservation.
 /// Existing heads never advance implicitly from a cached context.
@@ -242,6 +263,30 @@ pub(super) fn admit_context(
 }
 
 impl DeviceJournal {
+    pub(crate) fn check_bootstrap_peer(
+        &mut self,
+        context: &BootstrapContext,
+        role: crate::BootstrapRole,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        context.check(now)?;
+        self.check_policy(context.policy())?;
+        let image = self.image()?;
+        let local = context.device(role);
+        if image.owner != bootstrap::storage_owner(local) {
+            return Err(DurableError::Conflict);
+        }
+        authorize_device(&image, local, now)?;
+        let remote = match role {
+            crate::BootstrapRole::Initiator => crate::BootstrapRole::Responder,
+            crate::BootstrapRole::Responder => crate::BootstrapRole::Initiator,
+        };
+        authorize_bootstrap_peer(&image, context.device(remote), now)?;
+        self.check_release(&image)?;
+        context.check(now)?;
+        Ok(())
+    }
+
     /// Commit an independently authenticated account head. Older and forked heads
     /// fail; the same canonical head does not rewrite its retained signature bytes.
     /// Unknown outcomes close the journal and require exact write-intent recovery.

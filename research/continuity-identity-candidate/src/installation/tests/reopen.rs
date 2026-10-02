@@ -180,6 +180,166 @@ fn update(device: &VerifiedDevice, seed: u8, keep: bool) -> VerifiedRoster {
     .expect("verified")
 }
 
+fn fresh_service(
+    context: &Arc<crate::BootstrapContext>,
+    role: BootstrapRole,
+) -> (tempfile::TempDir, PathBuf, DeviceService) {
+    let dir = directory();
+    let root = dir.path().canonicalize().expect("path");
+    let original_key = JournalKey::provision(&root.join("key")).expect("original key");
+    let mut installation = DeviceInstallation::provision(
+        paths(&root),
+        &original_key,
+        context.device(role),
+        context.policy(),
+        150,
+    )
+    .expect("explicit initialization");
+    installation
+        .prepare(key(&root), context.device(role), context.policy(), 150)
+        .expect("prepare");
+    let service = installation
+        .activate(
+            original_key,
+            context.device(role),
+            context.policy(),
+            150,
+            None,
+        )
+        .expect("original service");
+    (dir, root, service)
+}
+
+#[test]
+fn fresh_peer_admission_preserves_storage_and_never_installs_a_roster() {
+    for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
+        let f = fixture(PrekeyQuality::OneTimeBoth);
+        let context = match role {
+            BootstrapRole::Initiator => &f.initiator,
+            BootstrapRole::Responder => &f.responder,
+        };
+        let (_dir, root, mut service) = fresh_service(context, role);
+        let paths = paths(&root);
+        let saved = [&paths.configuration, &paths.journal, &paths.archives]
+            .map(|path| fs::read(path).expect("original bytes"));
+        let remote_role = match role {
+            BootstrapRole::Initiator => BootstrapRole::Responder,
+            BootstrapRole::Responder => BootstrapRole::Initiator,
+        };
+        let remote = context.device(remote_role).account_id();
+        assert!(matches!(
+            service
+                .stores()
+                .expect("stores")
+                .0
+                .roster_checkpoint(remote),
+            Err(DurableError::Absent)
+        ));
+        let admitted = service
+            .admit_peer(Arc::clone(context), role, 150)
+            .expect("fresh public context");
+        assert_eq!(admitted.role(), role);
+        assert_eq!(admitted.context().digest(), context.digest());
+        assert!(matches!(
+            service.admit_peer(Arc::clone(context), remote_role, 150),
+            Err(DurableError::Conflict)
+        ));
+        let other = fixture(PrekeyQuality::ReusableBoth);
+        assert!(matches!(
+            service.admit_peer(Arc::clone(&other.initiator), role, 150),
+            Err(DurableError::Conflict)
+        ));
+        assert!(matches!(
+            service
+                .stores()
+                .expect("no implicit account install")
+                .0
+                .roster_checkpoint(remote),
+            Err(DurableError::Absent)
+        ));
+        assert_eq!(
+            [&paths.configuration, &paths.journal, &paths.archives]
+                .map(|path| fs::read(path).expect("same bytes")),
+            saved
+        );
+        service.close();
+        assert!(matches!(
+            service.admit_peer(Arc::clone(context), role, 150),
+            Err(DurableError::Closed)
+        ));
+    }
+}
+
+#[test]
+fn fresh_peer_descriptors_do_not_bypass_a_later_durable_revocation() {
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let (_dir, root, mut service) = fresh_service(&f.initiator, BootstrapRole::Initiator);
+    let admitted = service
+        .admit_peer(Arc::clone(&f.initiator), BootstrapRole::Initiator, 150)
+        .expect("initial independently verified snapshot");
+    let revoked = update(f.initiator.device(BootstrapRole::Responder), 94, false);
+    service
+        .stores()
+        .expect("stores")
+        .0
+        .install_roster(&revoked, 150)
+        .expect("explicit current authority");
+    let before = fs::read(paths(&root).journal).expect("retained revocation");
+    assert!(matches!(
+        service.admit_peer(Arc::clone(&f.initiator), BootstrapRole::Initiator, 150),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert!(matches!(
+        service.stores().expect("stores").0.initiate(
+            Arc::clone(admitted.context()),
+            InitiationId::generate().expect("new operation"),
+            &f.signer_i,
+            150
+        ),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert_eq!(
+        fs::read(paths(&root).journal).expect("no rollback or partial reservation"),
+        before
+    );
+    assert_eq!(
+        service
+            .stores()
+            .expect("current roster")
+            .0
+            .roster_checkpoint(revoked.account_id())
+            .expect("checkpoint"),
+        revoked.checkpoint()
+    );
+}
+
+#[test]
+fn fresh_peer_admission_preserves_expiry_and_policy_runtime_boundaries() {
+    let mut c = Local::new(false);
+    assert!(matches!(
+        c.service
+            .admit_peer(Arc::clone(&c.f.initiator), c.role, 170),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    let request = c.request(c.session, c.role, 170);
+    c.service
+        .reopen_peer(request, 170)
+        .expect("explicit established-session admission remains separate");
+    for closed_runtime in [false, true] {
+        let f = fixture(PrekeyQuality::OneTimeBoth);
+        let (_dir, _root, mut service) = fresh_service(&f.initiator, BootstrapRole::Initiator);
+        let policy = f.policy_owner(BootstrapRole::Initiator);
+        if closed_runtime {
+            policy.runtime.close();
+        } else {
+            policy.close();
+        }
+        assert!(service
+            .admit_peer(Arc::clone(&f.initiator), BootstrapRole::Initiator, 150)
+            .is_err());
+    }
+}
+
 #[test]
 fn active_service_restores_peer_without_reopening_or_releasing_its_installation() {
     for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {

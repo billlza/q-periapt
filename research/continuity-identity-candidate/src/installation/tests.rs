@@ -593,6 +593,7 @@ struct Witness {
     store: crate::AnchorStore,
     calls: usize,
     fail: Option<(usize, bool)>,
+    invalidate: Option<(usize, bool, Arc<VerifiedSessionPolicy>)>,
 }
 struct Carrier(Arc<std::sync::Mutex<Witness>>);
 impl crate::AnchorTransport for Carrier {
@@ -603,6 +604,15 @@ impl crate::AnchorTransport for Carrier {
             return Err(io::ErrorKind::ConnectionReset.into());
         }
         let reply = server.store.handle(bytes, 150).map_err(io::Error::other)?;
+        if let Some((call, runtime, policy)) = &server.invalidate {
+            if server.calls == *call {
+                if *runtime {
+                    policy.runtime.close();
+                } else {
+                    policy.close();
+                }
+            }
+        }
         if server.fail == Some((server.calls, true)) {
             return Err(io::ErrorKind::ConnectionReset.into());
         }
@@ -649,6 +659,7 @@ impl Anchored {
                 store,
                 calls: 0,
                 fail: None,
+                invalidate: None,
             })),
         }
     }
@@ -771,6 +782,105 @@ fn installation_required_witness_admission_and_release_refuse_every_lost_request
             }
         }
         eprintln!("INSTALLATION_WITNESS already_active={already_active} calls={calls} request_reply_losses={}", calls*2);
+    }
+}
+
+#[test]
+fn fresh_peer_admission_requires_each_original_witness_query_and_release() {
+    let c = Anchored::new();
+    let mut service = c.activate(c.prepare()).expect("original service");
+    c.server.lock().expect("server").calls = 0;
+    service
+        .admit_peer(
+            Arc::clone(&c.peer.initiator),
+            crate::BootstrapRole::Initiator,
+            150,
+        )
+        .expect("fresh original witness");
+    assert_eq!(c.server.lock().expect("server").calls, 2);
+    service.close();
+    for call in 1..=2 {
+        for after in [false, true] {
+            let c = Anchored::new();
+            let mut service = c.activate(c.prepare()).expect("original service");
+            {
+                let mut server = c.server.lock().expect("server");
+                server.calls = 0;
+                server.fail = Some((call, after));
+            }
+            assert!(matches!(
+                service.admit_peer(
+                    Arc::clone(&c.peer.initiator),
+                    crate::BootstrapRole::Initiator,
+                    150
+                ),
+                Err(DurableError::Anchor(_))
+            ));
+            service.close();
+            {
+                let mut server = c.server.lock().expect("server");
+                assert_eq!(server.calls, call);
+                server.fail = None;
+            }
+            let mut restored = c
+                .activate(open(&c.root, &c.peer))
+                .expect("same installation and witness");
+            restored
+                .admit_peer(
+                    Arc::clone(&c.peer.initiator),
+                    crate::BootstrapRole::Initiator,
+                    150,
+                )
+                .expect("exact input can be readmitted");
+            assert!(matches!(
+                restored.stores().expect("stores").0.roster_checkpoint(
+                    c.peer
+                        .responder
+                        .device(crate::BootstrapRole::Responder)
+                        .account_id()
+                ),
+                Err(DurableError::Absent)
+            ));
+        }
+    }
+}
+
+#[test]
+fn fresh_peer_admission_rechecks_policy_after_each_authenticated_witness_query() {
+    for call in 1..=2 {
+        for runtime in [false, true] {
+            let c = Anchored::new();
+            let mut service = c.activate(c.prepare()).expect("original service");
+            {
+                let mut server = c.server.lock().expect("server");
+                server.calls = 0;
+                server.invalidate = Some((
+                    call,
+                    runtime,
+                    c.peer.policy_owner(crate::BootstrapRole::Initiator),
+                ));
+            }
+            let result = service.admit_peer(
+                Arc::clone(&c.peer.initiator),
+                crate::BootstrapRole::Initiator,
+                150,
+            );
+            if runtime {
+                assert!(matches!(
+                    result,
+                    Err(DurableError::Protocol(Error::Runtime(_)))
+                ));
+            } else {
+                assert!(matches!(result, Err(DurableError::Protocol(Error::Closed))));
+            }
+            assert_eq!(
+                c.server
+                    .lock()
+                    .expect("both authenticated replies completed")
+                    .calls,
+                2
+            );
+        }
     }
 }
 

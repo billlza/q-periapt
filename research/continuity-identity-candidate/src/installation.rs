@@ -20,7 +20,7 @@ const TAG: &[u8; 8] = b"QPCINS01";
 mod recovery;
 mod reopen;
 pub use recovery::{InstallationRecovery, InstalledSessionRecovery};
-pub use reopen::{ReopenedPeer, ReopenedSession};
+pub use reopen::{BootstrapPeer, ReopenedPeer, ReopenedSession};
 
 /// Exact independently configured paths. Keep the installation database and
 /// wrapping key outside journal backups. Missing configuration is not first use.

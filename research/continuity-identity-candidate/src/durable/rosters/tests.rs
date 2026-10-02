@@ -55,6 +55,56 @@ pub(crate) fn update_with_validity(
 }
 
 #[test]
+fn bootstrap_peer_preview_preserves_capacity_and_known_authority_without_writing() {
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let directory = directory();
+    let path = directory.path().canonicalize().expect("path");
+    let mut journal = new_store(&path, f.initiator_device());
+    for index in 1..MAX_ROSTERS {
+        let seed = u8::try_from(index).expect("bounded fixture seed");
+        let next = seed.checked_add(1).expect("bounded second seed");
+        let root = RootSigningKey::deterministic([seed; 32], [next; 32]).expect("root");
+        let issued = root
+            .issue_roster(1, interval(), &[])
+            .expect("explicit empty roster");
+        let pin = AccountPin::new(
+            root.account_id().expect("account"),
+            root.public_key().expect("public"),
+            issued.checkpoint(),
+            f.initiator.policy().family(),
+        )
+        .expect("independent pin");
+        journal
+            .install_roster(
+                &pin.verify_roster(issued.as_bytes(), 150)
+                    .expect("verified roster"),
+                150,
+            )
+            .expect("fill exact account capacity");
+    }
+    let before = journal.image().expect("original head");
+    assert_eq!(before.record_count(RecordKind::Roster), MAX_ROSTERS);
+    authorize_bootstrap_peer(&before, f.initiator_device(), 150)
+        .expect("known authority at capacity");
+    assert!(matches!(
+        journal.check_bootstrap_peer(&f.initiator, crate::BootstrapRole::Initiator, 150),
+        Err(DurableError::Capacity)
+    ));
+    let after = journal.image().expect("same head");
+    assert_eq!(after.revision, before.revision);
+    assert_eq!(after.digest, before.digest);
+    assert!(matches!(
+        get(
+            &after,
+            &f.responder
+                .device(crate::BootstrapRole::Responder)
+                .account_id()
+        ),
+        Err(DurableError::Absent)
+    ));
+}
+
+#[test]
 fn every_roster_sync_cut_recovers_the_exact_head_before_new_work() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let device = f.initiator_device();

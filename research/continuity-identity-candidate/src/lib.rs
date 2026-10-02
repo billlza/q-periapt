@@ -33,7 +33,7 @@ mod session_policy;
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use installation::{
-    DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
+    BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
     InstallationRecovery, InstallationStatus, InstalledSessionRecovery, ReopenedPeer,
     ReopenedSession,
 };
