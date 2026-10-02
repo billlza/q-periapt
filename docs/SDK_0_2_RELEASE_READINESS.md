@@ -111,6 +111,18 @@ The CI retention cohort has **22 files / 7,821,603 bytes**, inventory
 A fresh hosted upload/readback remains required. One successful Android run does
 not establish stability, and hosted job success cannot replace missing readbacks.
 
+Source `b41f91fe` adds mode, expected/actual status and zero-output diagnostics to
+the C account qualification client without changing its assertions or deadlines.
+Strict GCC syntax and Clang Debug/Release compilation pass. Four repetitions per
+installed `c9d713d2` native profile pass, each independently replaying 72 public
+records. These eight local runs do **not** reproduce or resolve the hosted account
+failure. Its original failed artifact and direct job log remain retained; the
+GitHub CLI cached-log ZIP failure is also preserved without changing global caches.
+The PR Android artifacts show full/minimal instrumentation passing (three/one
+groups), then device loss and unresolved cleanup; their underlying cause remains
+unknown. The diagnostic cohort has **653 files / 17,897,978 bytes**, inventory
+`b59d28d143d0e09ca4ac5bc32c67f416791fb5b7de9abc60a291b32d9f0f596e`.
+
 Source `249c40a5` adds Kotlin device parents, fresh/restored peer children, typed
 account status/results and complete-set member delivery. An atomic parent
 reference and call reachability fences retain live/in-flight native ownership;
