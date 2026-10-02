@@ -77,6 +77,69 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `dba721b8` corrects Swift peer lifetime after explicit close. The earlier
+`a8ae179a` implementation passes its 12 unit tests but a stronger real account
+bootstrap retains closed peer aliases while reopening the original installation;
+it fails with native 703 because the hidden parent still owns the policy store.
+The fix snapshots the parent under a private lock for each call and releases the
+stored reference on successful close or known CLOSED, preserving BUSY and unknown
+failures. Native work and reference disposal occur outside the lock. Debug and
+optimized Release each pass 12 strict unit tests and the full account workload,
+with 72 independently replayed public records/profile. Two concurrent closes
+have exactly one winner, stale aliases refuse calls, and the original store
+reopens while closed aliases remain alive. This is finite concurrency evidence
+with a source-level locking argument, not a general race-freedom proof.
+The sealed cohort has **225 files / 63,520,219 bytes**, inventory
+`f60d86bcc2761a369d1c88d4eeebc947254b047aab44103f4f92bfff1686fc04`.
+
+Source `a8ae179a` adds Swift device parents, fresh/restored peer preparation,
+typed account status and complete-set member delivery. The actual Swift CLI
+uses the original three installations and two recipient devices, with dropped
+public-parent references, receiver termination after application commit,
+original-ID replay, refused unary replay, reordered targets and cancellation of
+an unselected member. Both profiles pass 12 strict unit tests, the account trace
+and eight earlier real workloads/profile. Independent replay checks 72 account
+records and 31/32/31/24/37/39/59/34 legacy records/profile. All 19 selected Swift
+and shared-harness inputs, plus 128 compiled native inputs, match the source;
+strict native Clippy and 90 artifact tests pass. Removing only the hidden parent
+reference still passes all 12 unit tests but fails real peer activation with
+CLOSED, demonstrating the integration boundary. The original loader failure
+from an absolute Cargo library install name is retained; successful overlays
+use hash-checked installed `b809638c` native libraries. The sealed development
+cohort has **1,425 files / 114,311,587 bytes**, inventory
+`4c27a4431a3323bbbb5f0c47837821b17cf6127174f869cb56b4630dcf3fb34e`.
+It predates the explicit-close correction above. Both Swift cohorts are source
+overlays on installed native bytes; new full installed packages remain required.
+Required-witness and own-account delivery, aggregate abandonment/report traversal,
+Kotlin parent owners, provisioning and credential lifecycle remain separate gates.
+
+The complete `b809638c` installed Rust/C/Swift/Kotlin producer finishes with exit
+0 in **2862.595 seconds**. Independent replay verifies **243** unchanged inputs,
+archives, runtime closures and native/JVM artifacts. Both C profiles replay the
+account, parent and required-witness parent paths with **72/36/17** public records,
+nine admission tests and exactly 39 owner exports. Each C/Swift/Kotlin profile
+passes 59 sync cases and 771 commands. Swift runs nine owner tests/profile;
+Kotlin runs eight, seven refusal controls, Serial/G1 collection checks and 96 raw
+sync receipts/profile. The sealed cohort has **20,727 files / 468,199,252 bytes**,
+inventory `0e652ebcebf17d7f44f31a5da532d213a1e7b386150cdd9a7612e5bf0fd08eb4`.
+This qualifies installed C account delivery and marker publication, but predates
+Swift device/account owners and the later account-record schema/language tag.
+
+Both `b809638c` hosted Linux installed-package jobs fail before runtime: GCC
+rejects three misleadingly indented C account-client statements under `-Werror`.
+Source `896868fd` adds explicit control blocks. Local GNU GCC 15 reproduces the
+three failures before the change and accepts the corrected source with the same
+strict flags; a new Linux runtime run is still required. The push Android 16 KiB
+job passes full/minimal instrumentation but fails cleanup when owned-ADB server
+validation expires and subsequent queries lose the device. Final package cleanup
+is unresolved; the underlying disappearance is not established. PR Android lanes
+pass, but both workflows fail overall; CodeQL succeeds. The retained CI/GCC cohort
+has **57 files / 2,866,976 bytes**, inventory
+`5db2e096fdd143418759e12956a665142b26f3855ead4e6f0654ed6654a7fe3a`.
+These observations do not establish Android stability or current-source device
+qualification. Same-host package traces and elapsed qualification times do not
+establish cross-host, independent-engine or controlled-performance claims.
+
 Source `c46695b6` exposes complete-account C operations through the original
 device parent. Calls retain every selected peer/context, reject another parent,
 and invoke native `FanoutInput`/`send_account_member` with the complete original
@@ -121,8 +184,10 @@ The cohort has **20,572 files / 465,280,277 bytes**, inventory
 `dc71a591f00e564a9f944f8550822b797a14e341f9c09c77dbb1289f6455b120`.
 This closes installed qualification for C invocation/device-parent additions;
 Swift and Kotlin still wrap their earlier pairwise interface. It predates the
-account addition and marker fix above. CodeQL succeeds; push/PR CI are still in
-progress at the recorded snapshot. Same-host execution and qualification durations
+account addition and marker fix above. CodeQL and push CI succeed; PR CI fails
+in `bindings-android-runtime-16k`, with its exact terminal job log retained in
+the CI/GCC cohort above. Its cause is not inferred from another Android run.
+Same-host execution and qualification durations
 do not establish independent-engine, cross-host or controlled-performance claims.
 
 Source `e708c03f` adds a C device parent and prepared peer children under the
