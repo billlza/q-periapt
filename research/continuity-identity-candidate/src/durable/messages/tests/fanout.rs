@@ -375,6 +375,192 @@ fn wires(results: &[FanoutMember]) -> Vec<Vec<u8>> {
 }
 
 #[test]
+fn device_service_restores_multiple_peers_for_one_complete_account_transaction() {
+    for same_account in [false, true] {
+        let f = fixture(4, same_account, None);
+        let sender_dir = directory();
+        let root = canonical(&sender_dir);
+        let paths = crate::InstallationPaths::new(
+            &root.join("installation.redb"),
+            &root.join("journal.redb"),
+            &root.join("archives.redb"),
+        )
+        .expect("paths");
+        let key_path = root.join("key");
+        let key = JournalKey::provision(&key_path).expect("explicit original key");
+        let policy = f.contexts.first().expect("context").policy();
+        let mut installation =
+            crate::DeviceInstallation::provision(paths.clone(), &key, &f.local, policy, 150)
+                .expect("original installation");
+        installation
+            .prepare(
+                JournalKey::open(&key_path).expect("key"),
+                &f.local,
+                policy,
+                150,
+            )
+            .expect("prepare");
+        let mut service = installation
+            .activate(key, &f.local, policy, 150, None)
+            .expect("activate");
+        let mut receivers = Vec::new();
+        let mut receiver_dirs = Vec::new();
+        let mut sessions = Vec::new();
+        for (((context, device), signer), key) in f
+            .contexts
+            .iter()
+            .zip(&f.peers)
+            .zip(&f.peer_signers)
+            .zip(&f.keys)
+        {
+            let dir = directory();
+            let mut receiver = new_store(&canonical(&dir), device);
+            let (journal, archives) = service.stores().expect("one shared journal");
+            let initiation = InitiationId::generate().expect("initiation");
+            let initial = journal
+                .initiate(Arc::clone(context), initiation, &f.local_signer, 150)
+                .expect("initiate");
+            let reply = receiver
+                .respond(
+                    Arc::clone(context),
+                    &initial,
+                    signer,
+                    PqKeySource::from_key(key),
+                    TraditionalKeySource::from_key(key),
+                    150,
+                )
+                .expect("respond");
+            let completed = journal
+                .accept_reply(Arc::clone(context), initiation, &reply, 150)
+                .expect("reply");
+            let session = completed.session_id();
+            receiver
+                .finish(
+                    Arc::clone(context),
+                    &initial,
+                    completed.final_message(),
+                    150,
+                )
+                .expect("finish");
+            journal
+                .activate_initiator_messages(Arc::clone(context), initiation, 150)
+                .expect("sender");
+            receiver
+                .activate_responder_messages(Arc::clone(context), &initial, 150)
+                .expect("receiver");
+            let archive = journal
+                .archive_session_closure(context, session)
+                .expect("archive");
+            archives
+                .retain(journal, context, session, &archive)
+                .expect("retain exact archive");
+            sessions.push(session);
+            receivers.push(receiver);
+            receiver_dirs.push(dir);
+        }
+        let request = |index: usize| crate::SessionReopenRequest {
+            context: Arc::clone(f.contexts.get(index).expect("verified fixture context")),
+            role: crate::BootstrapRole::Initiator,
+            session: *sessions.get(index).expect("existing session"),
+        };
+        let peers = (0..sessions.len())
+            .map(|index| {
+                service
+                    .reopen_peer(request(index), 150)
+                    .expect("restore peer under same service")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(peers.len(), 2);
+        let selected = peers
+            .iter()
+            .map(|peer| FanoutTarget {
+                context: peer.context(),
+                session: peer.session_id(),
+            })
+            .collect::<Vec<_>>();
+        let (journal, _) = service.stores().expect("same original engines");
+        let id = journal.next_fanout_id().expect("aggregate ID");
+        let account = f.peers.first().expect("peer account").account_id();
+        let input = |targets| FanoutInput {
+            id,
+            account,
+            targets,
+            plaintext: b"one complete local commit",
+            associated_data: b"service peers",
+        };
+        let before = journal.image().expect("before reservation").revision;
+        assert!(matches!(
+            journal.send_account_message(input(selected.get(..1).expect("one peer")), 150),
+            Err(DurableError::Protocol(Error::PolicyDenied))
+        ));
+        assert_eq!(journal.image().expect("no partial commit").revision, before);
+        assert_eq!(
+            journal.fanout_status(id).expect("same ID"),
+            FanoutStatus::Absent
+        );
+        let result = journal
+            .send_account_message(input(&selected), 150)
+            .expect("whole roster transaction");
+        let saved = wires(&result);
+        assert_eq!(result.len(), 2);
+        for (index, member) in result.iter().enumerate() {
+            let peer = peers.get(index).expect("same selected peer");
+            let delivery = receivers
+                .get_mut(index)
+                .expect("independent receiver")
+                .receive_message(
+                    peer.context(),
+                    peer.session_id(),
+                    committed_wire(member),
+                    b"service peers",
+                    150,
+                )
+                .expect("authenticated original ciphertext");
+            assert_eq!(delivery.as_bytes(), b"one complete local commit");
+        }
+        service.close();
+        assert!(matches!(
+            service.reopen_peer(request(0), 150),
+            Err(DurableError::Closed)
+        ));
+        let (mut reopened, _) = crate::DeviceInstallation::reopen_session(
+            paths,
+            JournalKey::open(&key_path).expect("original key"),
+            request(0),
+            150,
+            None,
+        )
+        .expect("reopen original installation")
+        .into_parts();
+        let restored = (0..sessions.len())
+            .map(|index| {
+                reopened
+                    .reopen_peer(request(index), 150)
+                    .expect("restore all original peer records")
+            })
+            .collect::<Vec<_>>();
+        let selected = restored
+            .iter()
+            .map(|peer| FanoutTarget {
+                context: peer.context(),
+                session: peer.session_id(),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            wires(
+                &reopened
+                    .stores()
+                    .expect("same durable transaction")
+                    .0
+                    .send_account_message(input(&selected), 150)
+                    .expect("exact aggregate retry")
+            ),
+            saved
+        );
+    }
+}
+
+#[test]
 fn account_fanout_is_complete_exact_and_durable_for_peer_and_own_accounts() {
     for same_account in [false, true] {
         let mut n = Network::new(4, same_account);

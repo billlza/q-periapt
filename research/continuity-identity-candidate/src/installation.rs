@@ -20,7 +20,7 @@ const TAG: &[u8; 8] = b"QPCINS01";
 mod recovery;
 mod reopen;
 pub use recovery::{InstallationRecovery, InstalledSessionRecovery};
-pub use reopen::ReopenedSession;
+pub use reopen::{ReopenedPeer, ReopenedSession};
 
 /// Exact independently configured paths. Keep the installation database and
 /// wrapping key outside journal backups. Missing configuration is not first use.
@@ -119,7 +119,7 @@ fn admit(
 fn scope(
     paths: &InstallationPaths,
     id: JournalIdentity,
-    key: &JournalKey,
+    key_binding: [u8; 32],
     device: &VerifiedDevice,
     policy: &VerifiedSessionPolicy,
 ) -> Result<Vec<u8>, DurableError> {
@@ -128,7 +128,7 @@ fn scope(
         *id.as_bytes(),
         bootstrap::storage_owner(device),
         policy.checkpoint().digest(),
-        key.installation_binding(),
+        key_binding,
         paths.binding()?,
     ] {
         bytes.extend_from_slice(&value);
@@ -193,6 +193,7 @@ pub struct DeviceInstallation {
     active: Option<Database>,
     paths: InstallationPaths,
     identity: JournalIdentity,
+    key_binding: [u8; 32],
     scope: Vec<u8>,
 }
 impl DeviceInstallation {
@@ -210,7 +211,8 @@ impl DeviceInstallation {
             return Err(DurableError::Conflict);
         }
         let identity = JournalIdentity::generate()?;
-        let scope = scope(&paths, identity, key, device, policy)?;
+        let key_binding = key.installation_binding();
+        let scope = scope(&paths, identity, key_binding, device, policy)?;
         let db = provision_private_database(&paths.configuration, |db| {
             let mut row = scope.clone();
             row.push(InstallationStatus::Creating.byte());
@@ -228,6 +230,7 @@ impl DeviceInstallation {
             active: Some(db),
             paths,
             identity,
+            key_binding,
             scope,
         };
         if owner.status()? != InstallationStatus::Creating {
@@ -257,7 +260,8 @@ impl DeviceInstallation {
     ) -> Result<Self, DurableError> {
         let db = open_private_database(&paths.configuration)?;
         let (identity, saved, _) = read(&db)?;
-        let expected = scope(&paths, identity, key, device, policy)?;
+        let key_binding = key.installation_binding();
+        let expected = scope(&paths, identity, key_binding, device, policy)?;
         if saved != expected {
             return Err(DurableError::Conflict);
         }
@@ -265,6 +269,7 @@ impl DeviceInstallation {
             active: Some(db),
             paths,
             identity,
+            key_binding,
             scope: expected,
         })
     }
@@ -295,7 +300,14 @@ impl DeviceInstallation {
         now: u64,
     ) -> Result<(), DurableError> {
         admit(device, policy, now)?;
-        if scope(&self.paths, self.identity, key, device, policy)? != self.scope {
+        if scope(
+            &self.paths,
+            self.identity,
+            key.installation_binding(),
+            device,
+            policy,
+        )? != self.scope
+        {
             return Err(DurableError::Conflict);
         }
         Ok(())

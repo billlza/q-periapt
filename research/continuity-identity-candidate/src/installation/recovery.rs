@@ -64,6 +64,7 @@ impl InstallationRecovery {
             return Err(DurableError::Suspended);
         }
         let authority = Authority::retained(&saved, &paths, identity, &key)?;
+        let key_binding = key.installation_binding();
         let archives = SessionArchiveStore::open(&paths.archives, identity)?;
         Ok(Self {
             active: Some(RecoveryOwners {
@@ -73,6 +74,7 @@ impl InstallationRecovery {
                     active: Some(db),
                     paths,
                     identity,
+                    key_binding,
                     scope: saved,
                 },
                 authority,

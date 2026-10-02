@@ -34,7 +34,8 @@ pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use installation::{
     DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
-    InstallationRecovery, InstallationStatus, InstalledSessionRecovery, ReopenedSession,
+    InstallationRecovery, InstallationStatus, InstalledSessionRecovery, ReopenedPeer,
+    ReopenedSession,
 };
 pub use session_archives::SessionArchiveStore;
 #[cfg(test)]

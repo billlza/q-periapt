@@ -181,6 +181,103 @@ fn update(device: &VerifiedDevice, seed: u8, keep: bool) -> VerifiedRoster {
 }
 
 #[test]
+fn active_service_restores_peer_without_reopening_or_releasing_its_installation() {
+    for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
+        let mut c = Local::with_role(false, role);
+        assert!(matches!(
+            c.reopen(),
+            Err(DurableError::Database(PrivateDatabaseError::Busy))
+        ));
+        let request = c.request(c.session, role, 170);
+        let peer = c
+            .service
+            .reopen_peer(request, 170)
+            .expect("same active service");
+        assert_eq!(peer.session_id(), c.session);
+        assert_eq!(peer.role(), role);
+        assert_eq!(peer.context().digest(), c.f.initiator.digest());
+        let original = c
+            .service
+            .stores()
+            .expect("original stores")
+            .0
+            .resume_message(peer.context(), peer.session_id(), c.original_id, 170)
+            .expect("original unconfirmed ciphertext");
+        for (session, wrong_role) in [
+            (
+                c.session,
+                match role {
+                    BootstrapRole::Initiator => BootstrapRole::Responder,
+                    BootstrapRole::Responder => BootstrapRole::Initiator,
+                },
+            ),
+            ([79; 32], role),
+        ] {
+            let wrong = c.request(session, wrong_role, 170);
+            assert!(c.service.reopen_peer(wrong, 170).is_err());
+        }
+        assert_eq!(
+            c.service
+                .stores()
+                .expect("bad peer did not close unrelated owner")
+                .0
+                .resume_message(peer.context(), peer.session_id(), c.original_id, 170)
+                .expect("retained exact outbox"),
+            original
+        );
+        assert!(matches!(
+            c.reopen(),
+            Err(DurableError::Database(PrivateDatabaseError::Busy))
+        ));
+        c.service.close();
+        let request = c.request(c.session, role, 170);
+        assert!(matches!(
+            c.service.reopen_peer(request, 170),
+            Err(DurableError::Closed)
+        ));
+        c.reopen()
+            .expect("peer descriptor holds no independent storage lease");
+    }
+}
+
+#[test]
+fn active_service_peer_restore_checks_current_authority_and_closure() {
+    for closed_runtime in [false, true] {
+        let mut c = Local::new(false);
+        let request = c.request(c.session, c.role, 170);
+        let policy = c.f.policy_owner(c.role);
+        if closed_runtime {
+            policy.runtime.close();
+        } else {
+            policy.close();
+        }
+        assert!(c.service.reopen_peer(request, 170).is_err());
+    }
+    let mut c = Local::new(false);
+    let request = c.request(c.session, c.role, 170);
+    assert!(matches!(
+        c.service.reopen_peer(request, 200),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    c.update(BootstrapRole::Responder, false);
+    let request = c.request(c.session, c.role, 170);
+    assert!(c.service.reopen_peer(request, 170).is_err());
+
+    let mut c = Local::new(false);
+    c.service
+        .stores()
+        .expect("stores")
+        .0
+        .begin_session_closure(&c.f.initiator, c.session)
+        .expect("freeze original session");
+    let request = c.request(c.session, c.role, 170);
+    assert!(matches!(
+        c.service.reopen_peer(request, 170),
+        Err(DurableError::Suspended)
+    ));
+}
+
+#[test]
 fn established_session_reopens_after_public_advertisement_expiry() {
     let mut c = Local::new(false);
     let original_context = c.f.initiator.digest();
