@@ -36,7 +36,7 @@ from test_continuity_package import metadata
 
 
 STDOUT = (f"test {consumer.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
 
 
 def evidence(root):
@@ -216,7 +216,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder)
             report = evidence(root)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
-                           STDOUT.replace(b"7 filtered out", b"5 filtered out"), STDOUT + STDOUT):
+                           STDOUT.replace(b"8 filtered out", b"5 filtered out"), STDOUT + STDOUT):
                 with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "completely"):
                     consumer.verify_execution(stdout, root)
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),
@@ -289,7 +289,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
 class RestorationTests(unittest.TestCase):
     def test_expired_advertisement_restore_requires_actual_outputs_and_current_foreign_clock(self):
         stdout = (f"test {consumer.RESTORE_TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for role in ("initiator", "responder"):
@@ -325,7 +325,7 @@ class RestorationTests(unittest.TestCase):
                 with self.subTest(file=leaf.name), self.assertRaises(ValueError):
                     consumer.verify_restore_execution(stdout, root)
                 leaf.write_bytes(original)
-            for invalid in (b"", stdout + stdout, stdout.replace(b"7 filtered out", b"5 filtered out")):
+            for invalid in (b"", stdout + stdout, stdout.replace(b"8 filtered out", b"5 filtered out")):
                 with self.subTest(stdout=invalid), self.assertRaises(ValueError):
                     consumer.verify_restore_execution(invalid, root)
             for language in ("Swift", "Kotlin"):

@@ -1475,3 +1475,288 @@ fn installed_owner_restores_expired_advertisement_and_reconciles_original_messag
     eprintln!("FOREIGN_SESSION_RESTORE_RESULT {}", report.trim());
     Ok(())
 }
+
+#[test]
+fn c_account_owner_requires_all_devices_and_reconciles_original_members() -> Result<()> {
+    let (setup, extra) = fixture::setup_devices(None, None, None, true)?;
+    let right2 = extra.ok_or("second recipient missing")?;
+    let left = &setup.initiator;
+    let line_id = |text: &str| id(&format!("{text}\n"));
+    let paths = [left.join("peer-0"), left.join("peer-1")];
+    let recipients = [&setup.responder, &right2];
+    let account = fixture::array::<32>(&setup.responder, "local-account")?;
+    assert_eq!(account, fixture::array(&right2, "local-account")?);
+    assert_ne!(
+        fixture::array::<16>(&setup.responder, "local-device")?,
+        fixture::array::<16>(&right2, "local-device")?
+    );
+    let (mut server0, address0) = fixture::spawn(&setup.responder, 80, "bootstrap")?;
+    let (mut server1, address1) = fixture::spawn(&right2, 81, "bootstrap")?;
+    let connected = run(
+        left,
+        "account-connect",
+        &args(
+            "account-connect",
+            left,
+            &[
+                paths
+                    .first()
+                    .ok_or("first peer")?
+                    .to_string_lossy()
+                    .into_owned(),
+                paths
+                    .get(1)
+                    .ok_or("second peer")?
+                    .to_string_lossy()
+                    .into_owned(),
+                address0.to_string(),
+                address1.to_string(),
+                fixture::hex(p::InitiationId::generate()?.as_bytes()),
+                fixture::hex(p::InitiationId::generate()?.as_bytes()),
+            ],
+        ),
+    )?;
+    assert!(fixture::wait(&mut server0)?.success());
+    assert!(fixture::wait(&mut server1)?.success());
+    let sessions = connected
+        .split_inclusive('\n')
+        .map(id)
+        .collect::<Result<Vec<_>>>()?;
+    assert_eq!(sessions.len(), 2);
+    for (session, path) in sessions.iter().zip(recipients) {
+        assert_eq!(*session, fixture::array::<32>(path, "session")?);
+    }
+    assert_ne!(sessions.first(), sessions.get(1));
+    let next = |label: &str| -> Result<[u8; 32]> {
+        id(&run(left, label, &args("account-next", left, &[]))?)
+    };
+    let state = |label: &str, request: &[u8; 32], expected: u8| -> Result<()> {
+        assert_eq!(
+            run(
+                left,
+                label,
+                &args("account-status", left, &[fixture::hex(request)])
+            )?,
+            format!("account-status:{expected}\n{}\n", fixture::hex(&[0; 32]))
+        );
+        Ok(())
+    };
+    let send_args = |request: &[u8; 32],
+                     selected: usize,
+                     address: String,
+                     mode: &str,
+                     extra: Option<&Path>|
+     -> Result<Vec<OsString>> {
+        let mut arguments = args(
+            "account-send",
+            left,
+            &[
+                paths
+                    .first()
+                    .ok_or("first peer")?
+                    .to_string_lossy()
+                    .into_owned(),
+                fixture::hex(sessions.first().ok_or("first session")?),
+                paths
+                    .get(1)
+                    .ok_or("second peer")?
+                    .to_string_lossy()
+                    .into_owned(),
+                fixture::hex(sessions.get(1).ok_or("second session")?),
+                fixture::hex(&account),
+                fixture::hex(request),
+                selected.to_string(),
+                address,
+                mode.into(),
+            ],
+        );
+        if let Some(path) = extra {
+            arguments.push(path.as_os_str().to_owned());
+        }
+        Ok(arguments)
+    };
+    let request = next("account-next")?;
+    for (index, (mode, code)) in [
+        ("omit", 106),
+        ("duplicate-peer", 1),
+        ("duplicate-session", 1),
+        ("cancel-peer", 302),
+        ("closed-peer", 2),
+        ("wrong-parent", 211),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let other = (mode == "wrong-parent").then_some(right2.as_path());
+        assert_eq!(
+            run(
+                left,
+                &format!("account-refusal-{index}"),
+                &send_args(&request, 0, "127.0.0.1:1".into(), mode, other)?
+            )?,
+            format!("account-refused:{code}\n")
+        );
+        state(&format!("account-absent-{index}"), &request, 0)?;
+    }
+    assert_eq!(request, next("account-still-next")?);
+    let (mut crashing, address) = fixture::spawn(&setup.responder, 82, "crash-after-application")?;
+    assert_eq!(
+        run(
+            left,
+            "account-unknown",
+            &send_args(&request, 0, address.to_string(), "unknown", None)?
+        )?,
+        "account-refused:311\n"
+    );
+    assert_eq!(fixture::wait(&mut crashing)?.code(), Some(77));
+    state("account-committed-unknown", &request, 2)?;
+    let mut records = fs::read_dir(&setup.responder)?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    records.retain(|name| name.to_string_lossy().starts_with("application-"));
+    assert_eq!(records.len(), 1);
+    let leaf = records
+        .first()
+        .ok_or("original application record")?
+        .to_str()
+        .ok_or("record name")?;
+    let original = line_id(
+        leaf.strip_prefix("application-")
+            .ok_or("application prefix")?,
+    )?;
+    fixture::effect(
+        &setup.responder,
+        *sessions.first().ok_or("session")?,
+        p::MessageId::from_trusted_state(original)?,
+        PAYLOAD,
+    )?;
+    let mut unary = send_args(&request, 0, "127.0.0.1:1".into(), "unary", None)?;
+    unary.push(fixture::hex(&original).into());
+    assert_eq!(
+        run(left, "account-unary-refused", &unary)?,
+        "account-refused:215\n"
+    );
+    assert_eq!(
+        run(
+            left,
+            "account-changed-input",
+            &send_args(&request, 0, "127.0.0.1:1".into(), "changed-input", None)?
+        )?,
+        "account-refused:211\n"
+    );
+    let mut delivered = Vec::new();
+    for (index, path) in recipients.into_iter().enumerate() {
+        let (mut server, address) = fixture::spawn(path, u8::try_from(83 + index)?, "application")?;
+        let output = run(
+            left,
+            &format!("account-deliver-{index}"),
+            &send_args(&request, index, address.to_string(), "deliver", None)?,
+        )?;
+        assert!(fixture::wait(&mut server)?.success());
+        let lines = output.lines().collect::<Vec<_>>();
+        assert_eq!(lines.first(), Some(&"account-delivered:1:1"));
+        let session = line_id(lines.get(1).ok_or("session output")?)?;
+        let message = line_id(lines.get(2).ok_or("message output")?)?;
+        assert_eq!(Some(&session), sessions.get(index));
+        assert_eq!(
+            *lines.get(3).ok_or("device output")?,
+            fixture::hex(&fixture::array::<16>(path, "local-device")?)
+        );
+        if index == 0 {
+            assert_eq!(message, original);
+        }
+        fixture::effect(
+            path,
+            session,
+            p::MessageId::from_trusted_state(message)?,
+            PAYLOAD,
+        )?;
+        delivered.push(message);
+        let retained = run(
+            left,
+            &format!("account-retained-{index}"),
+            &send_args(&request, index, "127.0.0.1:1".into(), "retained", None)?,
+        )?;
+        assert_eq!(
+            retained,
+            output.replacen("account-delivered:1:1", "account-delivered:1:0", 1)
+        );
+        assert_eq!(
+            run(
+                left,
+                &format!("account-reversed-{index}"),
+                &send_args(
+                    &request,
+                    index,
+                    "127.0.0.1:1".into(),
+                    "reverse-retained",
+                    None
+                )?
+            )?,
+            retained
+        );
+    }
+    state("account-committed-delivered", &request, 2)?;
+    let cancelled = next("account-next-cancel")?;
+    assert_ne!(cancelled, request);
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let marker = left.join("account-socket-ready");
+    let pending = start(
+        left,
+        "account-cancel-active",
+        &send_args(
+            &cancelled,
+            0,
+            listener.local_addr()?.to_string(),
+            "cancel-active",
+            Some(&marker),
+        )?,
+    )?;
+    let mut stream = fixture::accept(&listener)?;
+    stream.set_nonblocking(false)?;
+    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+    let mut first = [0];
+    stream.read_exact(&mut first)?;
+    assert_eq!(first, [22]);
+    let mut ready = tempfile::NamedTempFile::new_in(left)?;
+    ready.write_all(b"1")?;
+    ready.as_file().sync_all()?;
+    ready
+        .persist_noclobber(&marker)
+        .map_err(|error| error.error)?;
+    fs::File::open(left)?.sync_all()?;
+    let observed = finish(pending)?;
+    assert!(observed.starts_with("account-refused:302\naccount-cancel-active:"));
+    let observation = observed.lines().nth(1).ok_or("cancel observation")?;
+    let fields = observation.split(':').collect::<Vec<_>>();
+    let elapsed = fields.get(1).ok_or("cancel time")?.parse::<u64>()?;
+    assert!(elapsed < 1000);
+    assert_eq!(fields.get(2), Some(&"3"));
+    drop(stream);
+    drop(listener);
+    state("account-cancel-committed", &cancelled, 2)?;
+    for (index, path) in recipients.into_iter().enumerate() {
+        let (mut server, address) = fixture::spawn(path, u8::try_from(85 + index)?, "application")?;
+        let output = run(
+            left,
+            &format!("account-after-cancel-{index}"),
+            &send_args(&cancelled, index, address.to_string(), "deliver", None)?,
+        )?;
+        assert!(fixture::wait(&mut server)?.success());
+        let lines = output.lines().collect::<Vec<_>>();
+        assert_eq!(lines.first(), Some(&"account-delivered:1:1"));
+        let message = line_id(lines.get(2).ok_or("message")?)?;
+        assert_ne!(Some(&message), delivered.get(index));
+        fixture::effect(
+            path,
+            *sessions.get(index).ok_or("session")?,
+            p::MessageId::from_trusted_state(message)?,
+            PAYLOAD,
+        )?;
+        delivered.push(message);
+    }
+    let report = format!("{{\"schema_version\":1,\"completed\":true,\"devices\":3,\"recipients\":2,\"accounts\":2,\"admission_refusals\":6,\"shape_controls\":4,\"unary_refused\":true,\"reversed_targets_reconciled\":true,\"application_readbacks\":5,\"unknown_commit_reconciled\":true,\"cancelled_original_reconciled\":true,\"busy_owners\":3,\"cancellation_ms\":{elapsed},\"release_claim_eligible\":false}}\n");
+    fixture::store(left, "c-account-result.json", report.as_bytes())?;
+    Ok(())
+}

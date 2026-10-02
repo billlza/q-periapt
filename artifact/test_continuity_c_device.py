@@ -50,7 +50,7 @@ class DeviceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             fixture(root)
-            result = device.verify_execution(output(device.TEST, 7), root)
+            result = device.verify_execution(output(device.TEST, 8), root)
             self.assertEqual(len(result["public_readbacks"]), 2)
             self.assertEqual(len(result["command_logs"]), 34)
 
@@ -70,13 +70,13 @@ class DeviceTests(unittest.TestCase):
                 fixture(root)
                 put(root, name, data)
                 with self.assertRaises(ValueError):
-                    device.verify_execution(output(device.TEST, 7), root)
+                    device.verify_execution(output(device.TEST, 8), root)
 
     def test_invalid_census_and_incomplete_execution_are_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             report = fixture(root)
-            good = output(device.TEST, 7)
+            good = output(device.TEST, 8)
             for bad in (b"", good + good, output(device.TEST, 6), good.replace(b"0 ignored", b"1 ignored")):
                 with self.subTest(stdout=bad), self.assertRaises(ValueError):
                     device.verify_execution(bad, root)

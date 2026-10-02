@@ -49,10 +49,37 @@ local identity and a different authentic signer, shared capacity, caller-input
 copies, idle-sibling disposal during an active call, parent cancellation, storage
 lease release, real TLS bootstrap and exact delivery recovery after receiver exit.
 A second workload covers required signed TCP and mutual TLS witnesses. These
-checks use multiple child handles for one peer context at each endpoint; distinct
-peer-device fanout, provisioning and language-level parent/child owners remain
-separate integration work. The complete-account native transaction is not yet
-exposed by this C surface.
+checks use multiple child handles for one peer context at each endpoint.
+
+The additive `qpc_device_v1_next_account`, `qpc_device_v1_account_status` and
+`qpc_device_v1_send_account_member` expose the original native account transaction.
+Retain the next journal ID before sending. Every call supplies the same account,
+complete target set, plaintext and associated data, and selects one member for
+delivery. Each target is a distinct live peer child plus its established session;
+all children must belong to the exact same parent. The adapter locks their entries
+nonblockingly in handle order and retains their contexts and parent until native
+return. Native `FanoutInput` and `send_account_member` enforce the current signed
+roster and complete input before reservation and each network attempt. There is no
+loop of ordinary unary sends, and the API makes no atomic remote-delivery promise.
+
+Any target's cancellation signals the aggregate invocation through a temporary
+call token. It leaves the parent and other children's permanent tokens unchanged.
+All selected peers and the parent are BUSY to close; an idle child outside the set
+can close. Cancellation may follow durable local or remote commit. Retry the
+original account operation after reconciling/reopening the original owners; never
+replace its ID or omit a failed recipient. Aggregate status describes local
+reservation/commit/accounting. Per-member outcomes distinguish confirmed or
+prefix-pending consumption, resolution pending, delivery unknown, history retired
+and reservation abandoned. Zero exchanges means a retained outcome, not necessarily
+successful consumption.
+
+The account workload uses three independent installations and two distinct devices
+in one recipient account. It exercises incomplete/duplicate/cancelled/closed/wrong-
+parent refusal, receiver exit after application commit, original message retry,
+unary replay refusal, reordered retained targets and cancellation of an unselected
+member during TLS. Required-witness account transactions, own-account C fanout,
+provisioning and language-level parent/child owners retain their separate gates;
+the native own-account and witness tests cannot substitute for foreign execution.
 
 ## Scope and original configuration
 

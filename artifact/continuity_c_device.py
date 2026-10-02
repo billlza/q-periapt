@@ -42,7 +42,7 @@ def _readers(directory: Path):
 
 
 def verify_execution(stdout: bytes, directory: Path) -> dict:
-    _passed(stdout, TEST, 7)
+    _passed(stdout, TEST, 8)
     public, logs, read, command = _readers(directory)
     report = parse_strict_json_bytes(read("c-device-parent-public-result.json"), label="C device parent result")
     fields = {"schema_version", "completed", "session", "message", "local_roles", "owner_capacity",

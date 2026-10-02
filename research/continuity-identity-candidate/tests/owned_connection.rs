@@ -48,14 +48,56 @@ pub(crate) fn store(path: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
     file.sync_all()?;
     fs::File::open(path)?.sync_all()
 }
-fn publish_ready(path: &Path, name: &str, address: SocketAddr) -> io::Result<()> {
+fn publish_observation(
+    path: &Path,
+    name: &str,
+    write: impl FnOnce(&mut fs::File) -> io::Result<()>,
+) -> io::Result<()> {
     let mut pending = tempfile::NamedTempFile::new_in(path)?;
-    pending.write_all(address.to_string().as_bytes())?;
+    write(pending.as_file_mut())?;
     pending.as_file().sync_all()?;
     pending
         .persist_noclobber(path.join(name))
         .map_err(|error| error.error)?;
     fs::File::open(path)?.sync_all()
+}
+pub(crate) fn publish_marker(path: &Path, name: &str) -> io::Result<()> {
+    publish_observation(path, name, |file| file.write_all(b"1"))
+}
+fn publish_ready(path: &Path, name: &str, address: SocketAddr) -> io::Result<()> {
+    publish_observation(path, name, |file| {
+        file.write_all(address.to_string().as_bytes())
+    })
+}
+fn marker_publication_control(path: &Path) -> io::Result<()> {
+    let name = "marker-publication-control";
+    publish_observation(path, name, |file| {
+        // Pause at the actual writer boundary: a concurrent path reader must
+        // observe absence both before and after writing the unpublished file.
+        assert_eq!(
+            fs::read(path.join(name))
+                .expect_err("partial marker became visible")
+                .kind(),
+            io::ErrorKind::NotFound
+        );
+        file.write_all(b"1")?;
+        assert_eq!(
+            fs::read(path.join(name))
+                .expect_err("unsynced marker became visible")
+                .kind(),
+            io::ErrorKind::NotFound
+        );
+        Ok(())
+    })?;
+    assert_eq!(fs::read(path.join(name))?, b"1");
+    assert_eq!(
+        publish_marker(path, name)
+            .expect_err("marker was replaced")
+            .kind(),
+        io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(fs::read(path.join(name))?, b"1");
+    Ok(())
 }
 pub(crate) fn read(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
     let directory = OwnedPrivateDirectory::open(path)?;
@@ -344,11 +386,21 @@ pub(crate) fn setup_with_time(
     advertisement_seconds: Option<u64>,
     at: Option<u64>,
 ) -> Result<Setup> {
+    Ok(setup_devices(witness, advertisement_seconds, at, false)?.0)
+}
+
+/// Build the ordinary pair or two independently credentialed account recipients.
+pub(crate) fn setup_devices(
+    witness: Option<&WitnessFixture>,
+    advertisement_seconds: Option<u64>,
+    at: Option<u64>,
+    multi: bool,
+) -> Result<(Setup, Option<PathBuf>)> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
-        if advertisement_seconds.is_some() {
+        if advertisement_seconds.is_some() || multi {
             let mut name = path.file_name().ok_or("evidence filename")?.to_os_string();
-            name.push("-session-reopen");
+            name.push(if multi { "-account" } else { "-session-reopen" });
             path.set_file_name(name);
         }
         if !path.is_absolute() {
@@ -367,7 +419,10 @@ pub(crate) fn setup_with_time(
     };
     let left = root.join("initiator");
     let right = root.join("responder");
-    for path in [&left, &right] {
+    let extra = multi.then(|| root.join("responder-2"));
+    let mut all_paths = vec![&left, &right];
+    all_paths.extend(extra.iter());
+    for path in &all_paths {
         fs::create_dir(path)?;
         fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
     }
@@ -375,7 +430,8 @@ pub(crate) fn setup_with_time(
     let (policy, signature) = issuer.policy(1, true)?;
     let mut stores = Vec::new();
     let mut signing = Vec::new();
-    for (path, role) in [(&left, 1u8), (&right, 2u8)] {
+    for (index, path) in all_paths.iter().enumerate() {
+        let role = if index == 0 { 1u8 } else { 2u8 };
         store(path, "sdk-policy", &policy)?;
         store(path, "sdk-signature", &signature)?;
         store(path, "sdk-root", &issuer.public)?;
@@ -430,7 +486,7 @@ pub(crate) fn setup_with_time(
         )?,
     )?;
     let family = authority.policy_family()?;
-    for path in [&left, &right] {
+    for path in &all_paths {
         if let Some(witness) = witness {
             let pin = witness.pin()?;
             store(path, "witness-id", pin.identity().as_bytes())?;
@@ -454,22 +510,30 @@ pub(crate) fn setup_with_time(
     let mut devices = Vec::new();
     let mut credentials = Vec::new();
     let mut rosters = Vec::new();
-    for (ordinal, label) in ["initiator", "responder"].into_iter().enumerate() {
+    for group in [0..1, 1..all_paths.len()] {
         let mut root = p::RootSigningKey::generate()?;
-        let device_id = [u8::try_from(ordinal + 1)?; 16];
-        let certificate = root.issue_device(
-            p::DeviceDescription::new(device_id, 1, family, validity)?,
-            signing.get(ordinal).ok_or("signer")?.public_key()?,
-        )?;
-        let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
+        let mut certificates = Vec::new();
+        for ordinal in group.clone() {
+            certificates.push(root.issue_device(
+                p::DeviceDescription::new([u8::try_from(ordinal + 1)?; 16], 1, family, validity)?,
+                signing.get(ordinal).ok_or("signer")?.public_key()?,
+            )?);
+        }
+        let entries = certificates
+            .iter()
+            .map(|certificate| root.roster_entry(certificate))
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let roster = root.issue_roster(1, validity, &entries)?;
         let pin = p::AccountPin::new(
             root.account_id()?,
             root.public_key()?,
             roster.checkpoint(),
             family,
         )?;
-        devices.push(pin.verify_device(&certificate, roster.as_bytes(), time)?);
-        for path in [&left, &right] {
+        for (ordinal, certificate) in group.zip(certificates) {
+            let path = all_paths.get(ordinal).ok_or("local path")?;
+            let device_id = [u8::try_from(ordinal + 1)?; 16];
+            devices.push(pin.verify_device(&certificate, roster.as_bytes(), time)?);
             for (name, bytes) in [
                 ("account", root.account_id()?.to_vec()),
                 ("root", root.public_key()?.encode()),
@@ -480,41 +544,48 @@ pub(crate) fn setup_with_time(
                 ("roster-digest", roster.checkpoint().digest().to_vec()),
                 ("device", device_id.to_vec()),
                 ("generation", 1u64.to_be_bytes().to_vec()),
+                ("certificate", certificate.clone()),
+                ("roster", roster.as_bytes().to_vec()),
             ] {
-                store(path, &format!("{label}-{name}"), &bytes)?;
+                store(path, &format!("local-{name}"), &bytes)?;
             }
+            credentials.push(certificate);
+            rosters.push(roster.as_bytes().to_vec());
         }
         root.close();
-        credentials.push(certificate);
-        rosters.push(roster);
+    }
+    let mut peers = Vec::new();
+    for index in 1..all_paths.len() {
+        let peer = if multi {
+            let path = left.join(format!("peer-{}", index - 1));
+            fs::DirBuilder::new().mode(0o700).create(&path)?;
+            path
+        } else {
+            left.clone()
+        };
+        let responder = all_paths.get(index).ok_or("responder path")?;
+        for (label, source) in [("initiator", &left), ("responder", *responder)] {
+            for name in [
+                "account",
+                "root",
+                "roster-version",
+                "roster-digest",
+                "device",
+                "generation",
+            ] {
+                let bytes = read(source, &format!("local-{name}"), 8192)?;
+                for destination in [&peer, *responder] {
+                    store(destination, &format!("{label}-{name}"), &bytes)?;
+                }
+            }
+        }
+        if multi {
+            store(&peer, "directory", &[99; 32])?;
+        }
+        peers.push(peer);
     }
     let mut services = Vec::new();
-    for (index, path) in [&left, &right].into_iter().enumerate() {
-        let label = if index == 0 { "initiator" } else { "responder" };
-        for name in [
-            "account",
-            "root",
-            "roster-version",
-            "roster-digest",
-            "device",
-            "generation",
-        ] {
-            store(
-                path,
-                &format!("local-{name}"),
-                &read(path, &format!("{label}-{name}"), 8192)?,
-            )?;
-        }
-        store(
-            path,
-            "local-certificate",
-            credentials.get(index).ok_or("local credential")?,
-        )?;
-        store(
-            path,
-            "local-roster",
-            rosters.get(index).ok_or("local roster")?.as_bytes(),
-        )?;
+    for (index, path) in all_paths.iter().enumerate() {
         let wrapping = key(path)?;
         let policy = protocol_policy(path, stores.get(index).ok_or("SDK owner")?)?;
         let device = devices.get(index).ok_or("device")?;
@@ -538,7 +609,7 @@ pub(crate) fn setup_with_time(
         services.push(install.activate(key(path)?, device, &policy, time, anchor)?);
     }
     if advertisement_seconds.is_some() {
-        for path in [&left, &right] {
+        for path in &all_paths {
             store(
                 path,
                 "reopen-test-time",
@@ -546,87 +617,103 @@ pub(crate) fn setup_with_time(
             )?;
         }
     }
-    let server_device = devices.get(1).ok_or("responder")?;
-    let server_policy = protocol_policy(&right, stores.get(1).ok_or("responder SDK")?)?;
-    let mut leaves = Vec::new();
-    for (index, kind) in [
-        p::LeafKind::SignedClassical,
-        p::LeafKind::OneTimeClassical,
-        p::LeafKind::LastResortPq,
-        p::LeafKind::OneTimePq,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let request = p::PrekeyId::from_trusted_state([u8::try_from(index + 1)?; 32])?;
-        leaves.push(
-            services
-                .get_mut(1)
-                .ok_or("server service")?
-                .stores()?
-                .0
-                .generate_prekey(
-                    &server_policy,
-                    server_device,
-                    request,
-                    kind,
-                    advertisement,
-                    time,
-                )?,
-        );
-    }
-    let manifest = signing.get(1).ok_or("responder signer")?.issue_manifest(
-        server_device,
-        p::ManifestContext::new(
-            1,
-            sdk.trusted_state().digest(),
-            p::bootstrap_suite_digest(),
-            [99; 32],
-            advertisement,
-        )?,
-        &leaves,
-    )?;
-    let verified = server_device.verify_manifest(manifest.as_bytes(), time)?;
-    let mut proofs = BTreeMap::new();
-    for index in 0..manifest.leaf_count() {
-        let proof = manifest.proof(index)?;
-        proofs.insert(
-            verified.verify_leaf(&proof, time)?.kind() as u8,
-            proof.encode()?,
-        );
-    }
-    let proof = |kind: p::LeafKind| -> Result<&[u8]> {
-        Ok(proofs.get(&(kind as u8)).ok_or("required proof")?)
-    };
-    let bundle = p::BootstrapBundle::from_materials(
-        p::PrekeyQuality::OneTimeBoth,
-        p::BootstrapMaterials {
-            initiator_credential: credentials.first().ok_or("initiator credential")?,
-            initiator_roster: rosters.first().ok_or("initiator roster")?.as_bytes(),
-            responder_credential: credentials.get(1).ok_or("responder credential")?,
-            responder_roster: rosters.get(1).ok_or("responder roster")?.as_bytes(),
-            responder_manifest: manifest.as_bytes(),
-            signed_classical: proof(p::LeafKind::SignedClassical)?,
-            last_resort_pq: proof(p::LeafKind::LastResortPq)?,
-            one_time_classical: Some(proof(p::LeafKind::OneTimeClassical)?),
-            one_time_pq: Some(proof(p::LeafKind::OneTimePq)?),
-        },
-    )?;
-    let left_tls = rcgen::generate_simple_self_signed(vec!["initiator.test".into()])?;
-    let right_tls = rcgen::generate_simple_self_signed(vec!["responder.test".into()])?;
-    for (path, tls, peer, name) in [
-        (&left, &left_tls, &right_tls, "responder.test"),
-        (&right, &right_tls, &left_tls, "initiator.test"),
-    ] {
-        store(path, "bootstrap.bundle", bundle.as_bytes())?;
+    let mut identities = Vec::new();
+    for (index, path) in all_paths.iter().enumerate() {
+        let name = if index == 0 {
+            "initiator.test"
+        } else {
+            "responder.test"
+        };
+        let tls = rcgen::generate_simple_self_signed(vec![name.into()])?;
         store(path, "tls-cert", tls.cert.der())?;
         store(
             path,
             "tls-key",
             &Zeroizing::new(tls.signing_key.serialize_der()),
         )?;
-        store(path, "tls-peer", peer.cert.der())?;
-        store(path, "tls-peer-name", name.as_bytes())?;
+        identities.push(tls);
+    }
+    for (index, responder) in all_paths.iter().enumerate().skip(1) {
+        let peer = peers.get(index - 1).ok_or("sender peer")?;
+        let server_device = devices.get(index).ok_or("responder")?;
+        let server_policy = protocol_policy(responder, stores.get(index).ok_or("responder SDK")?)?;
+        let mut leaves = Vec::new();
+        for (leaf_index, kind) in [
+            p::LeafKind::SignedClassical,
+            p::LeafKind::OneTimeClassical,
+            p::LeafKind::LastResortPq,
+            p::LeafKind::OneTimePq,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let request = p::PrekeyId::from_trusted_state([u8::try_from(leaf_index + 1)?; 32])?;
+            leaves.push(
+                services
+                    .get_mut(index)
+                    .ok_or("server service")?
+                    .stores()?
+                    .0
+                    .generate_prekey(
+                        &server_policy,
+                        server_device,
+                        request,
+                        kind,
+                        advertisement,
+                        time,
+                    )?,
+            );
+        }
+        let manifest = signing
+            .get(index)
+            .ok_or("responder signer")?
+            .issue_manifest(
+                server_device,
+                p::ManifestContext::new(
+                    1,
+                    sdk.trusted_state().digest(),
+                    p::bootstrap_suite_digest(),
+                    [99; 32],
+                    advertisement,
+                )?,
+                &leaves,
+            )?;
+        let verified = server_device.verify_manifest(manifest.as_bytes(), time)?;
+        let mut proofs = BTreeMap::new();
+        for index in 0..manifest.leaf_count() {
+            let proof = manifest.proof(index)?;
+            proofs.insert(
+                verified.verify_leaf(&proof, time)?.kind() as u8,
+                proof.encode()?,
+            );
+        }
+        let proof = |kind: p::LeafKind| -> Result<&[u8]> {
+            Ok(proofs.get(&(kind as u8)).ok_or("required proof")?)
+        };
+        let bundle = p::BootstrapBundle::from_materials(
+            p::PrekeyQuality::OneTimeBoth,
+            p::BootstrapMaterials {
+                initiator_credential: credentials.first().ok_or("initiator credential")?,
+                initiator_roster: rosters.first().ok_or("initiator roster")?.as_slice(),
+                responder_credential: credentials.get(index).ok_or("responder credential")?,
+                responder_roster: rosters.get(index).ok_or("responder roster")?.as_slice(),
+                responder_manifest: manifest.as_bytes(),
+                signed_classical: proof(p::LeafKind::SignedClassical)?,
+                last_resort_pq: proof(p::LeafKind::LastResortPq)?,
+                one_time_classical: Some(proof(p::LeafKind::OneTimeClassical)?),
+                one_time_pq: Some(proof(p::LeafKind::OneTimePq)?),
+            },
+        )?;
+        let left_tls = identities.first().ok_or("sender TLS")?;
+        let right_tls = identities.get(index).ok_or("receiver TLS")?;
+        for (path, remote, name) in [
+            (peer, right_tls, "responder.test"),
+            (*responder, left_tls, "initiator.test"),
+        ] {
+            store(path, "bootstrap.bundle", bundle.as_bytes())?;
+            store(path, "tls-peer", remote.cert.der())?;
+            store(path, "tls-peer-name", name.as_bytes())?;
+        }
     }
     for service in &mut services {
         service.close();
@@ -637,12 +724,15 @@ pub(crate) fn setup_with_time(
     for policy in &mut stores {
         policy.close();
     }
-    Ok(Setup {
-        _directory: dir,
-        initiator: left,
-        responder: right,
-        issuer,
-    })
+    Ok((
+        Setup {
+            _directory: dir,
+            initiator: left,
+            responder: right,
+            issuer,
+        },
+        extra,
+    ))
 }
 
 pub(crate) fn hex(bytes: &[u8]) -> String {
@@ -964,6 +1054,7 @@ pub(crate) fn send(
 #[test]
 fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
     let s = setup()?;
+    marker_publication_control(&s.initiator)?;
     eprintln!("PUBLIC_SERVICE_STAGE enrollment_complete");
     fs::write(s.initiator.join("role"), [2])?;
     let wrong_role = match Peer::open(&s.initiator) {

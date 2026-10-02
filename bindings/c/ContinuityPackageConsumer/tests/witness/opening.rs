@@ -53,7 +53,7 @@ fn stalled_tls(path: &Path, prefix: &str) -> Result<(SocketAddr, thread::JoinHan
         if header[0] != 22 || header[1] != 3 || u16::from_be_bytes([header[3], header[4]]) == 0 {
             return Err("expected actual TLS handshake record".into());
         }
-        fixture::store(&held_path, &format!("{prefix}-held"), b"1")?;
+        fixture::publish_marker(&held_path, &format!("{prefix}-held"))?;
         let mut received = header.to_vec();
         let mut buffer = [0; 1024];
         loop {
@@ -67,7 +67,7 @@ fn stalled_tls(path: &Path, prefix: &str) -> Result<(SocketAddr, thread::JoinHan
             }
         }
         fixture::store(&held_path, &format!("{prefix}-client-hello"), &received)?;
-        fixture::store(&held_path, &format!("{prefix}-closed"), b"1")?;
+        fixture::publish_marker(&held_path, &format!("{prefix}-closed"))?;
         Ok(())
     });
     Ok((stalled, worker))

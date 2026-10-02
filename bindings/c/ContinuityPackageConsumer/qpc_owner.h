@@ -75,10 +75,59 @@ enum {
     QPC_MESSAGE_DELIVERY_UNKNOWN = 5, QPC_MESSAGE_RESERVATION_ABANDONED = 6
 };
 enum { QPC_CONSUMPTION_CONFIRMED = 1, QPC_CONSUMPTION_PREFIX_PENDING = 2 };
+enum {
+    QPC_ACCOUNT_ABSENT = 0, QPC_ACCOUNT_RESERVED = 1, QPC_ACCOUNT_COMMITTED = 2,
+    QPC_ACCOUNT_ABANDONING = 3, QPC_ACCOUNT_ABANDONED = 4, QPC_ACCOUNT_RETIRED = 5
+};
+enum {
+    QPC_ACCOUNT_CONFIRMED = 1, QPC_ACCOUNT_PREFIX_PENDING = 2,
+    QPC_ACCOUNT_RESOLUTION_PENDING = 3, QPC_ACCOUNT_DELIVERY_UNKNOWN = 4,
+    QPC_ACCOUNT_HISTORY_RETIRED = 5, QPC_ACCOUNT_RESERVATION_ABANDONED = 6
+};
+typedef struct {
+    uint64_t peer;
+    uint8_t session[32];
+} qpc_account_target_v1;
+typedef struct {
+    uint8_t device[16];
+    uint8_t session[32];
+    uint8_t message[32];
+    uint32_t outcome;
+    uint32_t exchanges;
+} qpc_account_delivered_v1;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Device-parent operations. next_account only reads the original journal's next
+ * ID; retain it before submitting. status describes LOCAL aggregate state and
+ * returns the exact 32-byte report only for ABANDONING/ABANDONED (otherwise zero).
+ * COMMITTED is not remote delivery. Cancelled/closed parent admission still fails.
+ * Send copies 1..32 aligned targets, each a distinct live child of this exact
+ * parent with a distinct nonzero session. selected is a zero-based array index.
+ * Every current recipient in the account's signed roster is required; the local
+ * sender is excluded only for its own account. All peers remain locked and owned
+ * for the call. Any member cancel signals this invocation, preserving other
+ * owners' permanent tokens; any member close/operation returns BUSY. The parent
+ * also remains BUSY. Idle peers outside the set keep their independent lifetime.
+ * The native journal admits the complete original input before each attempt;
+ * this function never decomposes the transaction into unary sends. Each call
+ * delivers ONE selected member. Retain the same ID, account, complete set and
+ * input across retries and other members. Remote effects are not atomic.
+ * Zero exchanges reports an already retained outcome, which may be unknown or
+ * retired, not necessarily consumed. Failure/cancel may follow local/remote
+ * commit. No pointer is retained after return. id/account are 32 readable bytes.
+ */
+int32_t qpc_device_v1_next_account(uint64_t parent, uint8_t id[32], qpc_error_v1 *error);
+int32_t qpc_device_v1_account_status(uint64_t parent, const uint8_t id[32],
+                                   uint8_t *status, uint8_t report[32], qpc_error_v1 *error);
+int32_t qpc_device_v1_send_account_member(uint64_t parent,
+    const qpc_account_target_v1 *targets, size_t count, size_t selected,
+    const uint8_t id[32], const uint8_t account[32],
+    const uint8_t *peer, size_t peer_length,
+    const uint8_t *plaintext, size_t plaintext_length,
+    const uint8_t *ad, size_t ad_length,
+    qpc_account_delivered_v1 *delivered, qpc_error_v1 *error);
 /* path is an absolute UTF-8 private ORIGINAL consumer configuration directory,
  * no embedded NUL. This API opens existing stores only. It never provisions,
  * replaces pins, repairs files or downgrades required-witness protection.

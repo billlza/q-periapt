@@ -305,6 +305,7 @@ int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int wi
 int device_command(int argc, char **argv, const qpc_witness_v1 *witness, int witness_tls);
 uint64_t device_open(const char *path, const qpc_witness_v1 *witness, int witness_tls);
 uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, const uint8_t *existing);
+#include "account_client.c"
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -330,6 +331,10 @@ int main(int argc, char **argv) {
             fail("existing session requires an operational command");
     }
     self_check();
+    if (!strncmp(argv[1],"account-",8)) {
+        if (device_path || existing) fail("account command owns its explicit device parent");
+        return account_command(argc,argv,witness,witness_tls);
+    }
     if (strncmp(argv[1], "device-", 7) == 0) {
         if (device_path || existing) fail("device lifecycle mode does not accept another owner selection");
         return device_command(argc,argv,witness,witness_tls);

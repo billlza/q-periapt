@@ -128,14 +128,13 @@ impl Witness {
                         "witness-cancelled-prefix",
                         &prefix,
                     )?;
-                    fixture::store(
+                    fixture::publish_marker(
                         marker.parent().ok_or("marker parent")?,
                         marker
                             .file_name()
                             .ok_or("marker name")?
                             .to_str()
                             .ok_or("marker encoding")?,
-                        b"1",
                     )?;
                     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
                     let mut byte = [0];

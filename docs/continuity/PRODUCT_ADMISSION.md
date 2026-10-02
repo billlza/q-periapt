@@ -31,11 +31,15 @@ fences later calls; successful parent close releases storage even with retained
 idle children. Native errors keep their original reconciliation requirements.
 Current C workloads exercise both roles, multiple handles for one context at each
 endpoint, lifetime/capacity/identity refusal, real delivery recovery and required
-witness profiles. Distinct-peer account fanout and foreign-language wrappers still
-need their own integration and package evidence.
+witness profiles. The C account adapter now retains the exact parent and every
+selected peer through one native `send_account_member` invocation. A separate
+three-installation workload covers two distinct recipient devices, complete-set
+refusal, original-message crash/retry, unary replay refusal, reordered targets and
+aggregate cancellation/close behavior. Fresh packages, required-witness account
+delivery, own-account C fanout and foreign-language wrappers retain separate gates.
 
 The [`C header`](../../bindings/c/ContinuityPackageConsumer/qpc_owner.h) exposes
-pairwise operations, device/peer preparation and restricted original-session
+pairwise operations, device/peer preparation, complete-account member delivery and restricted original-session
 recovery. Swift and Kotlin currently wrap the earlier pairwise interface. Actual package execution, witness
 admission, callback lifetime and crash/retry evidence for these operations are
 necessary, but cannot demonstrate APIs that the adapter does not expose.
@@ -43,7 +47,7 @@ necessary, but cannot demonstrate APIs that the adapter does not expose.
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
 | Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate` | Controlled enrollment/provisioning owners, independent retained identities, typed setup results and original-operation recovery |
-| Device-scoped protocol service | Native shared service and C device-parent/peer registry retain one journal and archive index under one installation lease | Distinct-peer account transactions and language-level parent/child owners with installed-package lifetime qualification |
+| Device-scoped protocol service | Native shared service and C device-parent/peer registry retain one journal and archive index under one installation lease; C account calls pin the complete peer set | Language-level parent/child owners and current installed-package lifetime qualification |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes | Complete-roster input admission and typed aggregate results through installed C/Swift/Kotlin/Android/WASM packages |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |

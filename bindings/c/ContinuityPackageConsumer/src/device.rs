@@ -151,6 +151,16 @@ impl Shared {
         locked.take();
         Ok(poisoned)
     }
+
+    pub(crate) fn with_journal<T>(
+        &self,
+        deadline: Instant,
+        action: impl FnOnce(&mut p::DeviceJournal) -> Result<T>,
+    ) -> Result<T> {
+        self.with_device(deadline, &self.cancel, |device| {
+            action(device.service.stores()?.0)
+        })
+    }
 }
 
 pub(crate) fn parent(handle: u64, deadline: Instant) -> Result<Arc<Shared>> {
@@ -176,6 +186,14 @@ pub(crate) struct Peer {
     name: String,
 }
 impl Peer {
+    pub(crate) fn belongs_to(&self, parent: &Arc<Shared>) -> bool {
+        Arc::ptr_eq(&self.parent, parent)
+    }
+
+    pub(crate) fn context(&self) -> &Arc<p::BootstrapContext> {
+        &self.context
+    }
+
     pub(crate) fn open(
         parent: Arc<Shared>,
         path: &Path,

@@ -2,6 +2,7 @@
 //! Unpublished C consumer of the installed Continuity Rust owner, not product ABI 2.
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod account;
 mod device;
 mod invocation;
 mod opening;
