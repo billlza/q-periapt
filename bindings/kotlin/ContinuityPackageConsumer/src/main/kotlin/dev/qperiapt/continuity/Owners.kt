@@ -160,4 +160,24 @@ class ContinuityRecoveryOwner private constructor(private val native: NativeOwne
     fun acknowledge(report: ClosureReportID) = native.call { ContinuityNative.idOperation(it, "acknowledge", report) }
     fun retire(report: ClosureReportID): Boolean = native.call { ContinuityNative.retire(it, report) }
     fun restoreIndex() = native.call { ContinuityNative.simple(it, "restore_index") }
+    /** Consumes discovery and authenticates every original member before recovery writes. */
+    fun selectAccount(operation: AccountOperationID) = native.call { ContinuityNative.idOperation(it, "select_account", operation) }
+    /** Permanently freezes the whole account; read all members and nested entries before host acknowledgement. */
+    fun beginAccountCleanup(): AccountCleanupHeader = native.call { ContinuityNative.accountBegin(it) }
+    /** Fresh aggregate status; it never infers delivery or cached witness permission. */
+    fun accountCleanupStatus(): AccountStatus = native.call { ContinuityNative.accountCleanupStatus(it) }
+    fun accountMemberAt(member: Long): AccountCleanupMember = native.call { ContinuityNative.accountMember(it, member) }
+    fun accountReservation(member: Long): ReservedLoss = native.call { ContinuityNative.accountReservation(it, member) }
+    fun accountEpochAt(member: Long, epoch: Long): ClosureEpoch = native.call { ContinuityNative.accountEpoch(it, member, epoch) }
+    fun accountUnconfirmedAt(member: Long, epoch: Long, index: Long): UnconfirmedLoss =
+        native.call { ContinuityNative.accountUnconfirmed(it, member, epoch, index) }
+    fun accountDeliveryAt(member: Long, epoch: Long, index: Long): DeliveryLoss =
+        native.call { ContinuityNative.accountDelivery(it, member, epoch, index) }
+    /** A skipped position does not prove a peer ever sent that message. */
+    fun accountSkippedPosition(member: Long, epoch: Long, index: Long): Counter64 =
+        native.call { ContinuityNative.accountSkipped(it, member, epoch, index) }
+    /** Only after the complete report and original IDs are durable in one deduplicated host transaction. */
+    fun acknowledgeAccount(report: AccountAbandonmentID) = native.call { ContinuityNative.idOperation(it, "account_acknowledge", report) }
+    /** Retires acknowledged metadata only; original tombstones and consumed capacity remain. */
+    fun retireAccount() = native.call { ContinuityNative.simple(it, "account_retire") }
 }

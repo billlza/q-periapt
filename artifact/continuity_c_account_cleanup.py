@@ -16,7 +16,7 @@ PROBES = ((0, "before"), (1, "before"), (1, "after"), (2, "before"), (2, "after"
 
 
 def scope(language: str) -> str:
-    sdk.require(language in ("C", "Swift"), "unqualified account cleanup language")
+    sdk.require(language in ("C", "Swift", "Kotlin"), "unqualified account cleanup language")
     return SCOPE.replace("installed C ", "installed " + language + " ")
 
 
@@ -179,7 +179,8 @@ def verify_public(result: dict, directory: Path, *, language: str = "C") -> dict
 
 
 def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Path,
-            helper: Path, probe: Path, smoke: Path, library: Path, *, language: str = "C") -> dict:
+            helper: Path, probe: Path, smoke: Path, library: Path, *, language: str = "C",
+            jvm_runtime: dict[str, Path] | None = None) -> dict:
     from continuity_c_faults import Matrix, MAX_SYNC, events
     selected_scope = scope(language)
     private = outside / (language.lower() + "-account-cleanup-" + profile)
@@ -188,7 +189,8 @@ def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Pa
     artifacts.mkdir(parents=True, mode=0o700)
     # Reuse the existing bounded process runner and independently checked sync probe.
     runner = Matrix(private, artifacts, profile, runtime, client, helper, probe, smoke,
-                    language=language, expected_library=library if language != "C" else None)
+                    language=language, expected_library=library if language != "C" else None,
+                    jvm_runtime=jvm_runtime)
     identity = sdk.snapshot(library, maximum=256 * 1024**2)
     runner.binaries["installed_library"] = dict(path=str(library), sha256=identity.sha256, bytes=identity.size)
     runner.identities[str(library)] = identity.sha256
@@ -208,7 +210,7 @@ def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Pa
         native_result(data, name)
     def call(mode, label, root):
         identifier = sdk.snapshot(root / "cleanup-batch").data.hex()
-        return runner.command([client, mode, root, identifier], label)
+        return runner.command([*runner.client_command, mode, root, identifier], label)
     try:
         helper_inventory(runner.command([helper, "--list"], "helper-inventory"))
         runner.probe_check()
@@ -224,7 +226,7 @@ def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Pa
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 address = "127.0.0.1:" + str(listener.getsockname()[1])
-            arguments = [client, "account-send", root, root / "peer-0",
+            arguments = [*runner.client_command, "account-send", root, root / "peer-0",
                 sdk.snapshot(root / "cleanup-session-0").data.hex(), root / "peer-1",
                 sdk.snapshot(root / "cleanup-session-1").data.hex(),
                 sdk.snapshot(root / "cleanup-account").data.hex(), sdk.snapshot(root / "cleanup-batch").data.hex(),

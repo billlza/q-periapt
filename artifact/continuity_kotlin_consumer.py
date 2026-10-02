@@ -15,6 +15,7 @@ import continuity_c_opening as opening
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_account as account
+import continuity_c_account_cleanup as account_cleanup
 from continuity_c_witness import export_selected
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
@@ -38,6 +39,7 @@ TEST_NAMES = frozenset({
     "devicePreparationCannotGrantPeerAuthorityAndSharesCapacity",
     "aggregateStatusPreservesReportsAndRejectsMalformedOutput",
     "accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes",
+    "accountCleanupCannotAcquireAuthorityFromPendingCancelledOrClosedOwner",
 })
 
 
@@ -482,6 +484,12 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             fault_files = export_selected(fault_checked, fault_evidence,
                 output / "kotlin-public/sync-faults" / profile, sync_faults["scope"],
                 replay=lambda path: faults.verify_public(sync_faults, path, language="Kotlin"))
+            cleanup_helper = row["account_cleanup"]["binaries"]["native_helper"]
+            sdk.require(sdk.snapshot(Path(cleanup_helper["path"]), maximum=c.MAX_BINARY).sha256 == cleanup_helper["sha256"],
+                        "native account cleanup helper changed before Kotlin execution")
+            cleaned = account_cleanup.qualify(outside, output, profile, runtime, launcher,
+                Path(cleanup_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                library_path, language="Kotlin", jvm_runtime=jvm_runtime)
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -535,7 +543,8 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed during execution")
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
-            result["profiles"][profile] = {"account_owner": accounts, "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
+            result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned,
+                "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,

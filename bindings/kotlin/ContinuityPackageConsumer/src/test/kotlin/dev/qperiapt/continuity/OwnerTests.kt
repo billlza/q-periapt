@@ -42,6 +42,7 @@ class OwnerTests {
             "reserved" to (48L to 8L), "unconfirmed" to (64L to 1L),
             "delivery" to (48L to 8L), "status" to (36L to 4L),
             "account_target" to (40L to 8L), "account_delivery" to (88L to 4L),
+            "account_cleanup_header" to (72L to 4L), "account_cleanup_member" to (136L to 8L),
         ), ContinuityNative.layouts())
     }
     @Test fun pendingOwnersRejectWorkAndCancellationNeverActivates() {
@@ -151,11 +152,37 @@ class OwnerTests {
                 ContinuityNative.decodeAccountStatus(state, if (state in 3..4) zero else report)
             }
         }
-        for (state in listOf(-1, 6, 255)) {
+        for (state in listOf(-1, 6, 255, 256, 259)) {
             assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeAccountStatus(state, zero) }
         }
         assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeAccountStatus(0, byteArrayOf(0)) }
         assertNotEquals<ContinuityID>(AccountOperationID(report), AccountID(report))
+    }
+    @Test fun accountCleanupCannotAcquireAuthorityFromPendingCancelledOrClosedOwner() {
+        val owner = ContinuityRecoveryOwner.prepare("/unused")
+        val operation = AccountOperationID(ByteArray(32) { 1 })
+        val report = AccountAbandonmentID(ByteArray(32) { 2 })
+        val actions: List<() -> Unit> = listOf(
+            { owner.selectAccount(operation) }, { owner.beginAccountCleanup() }, { owner.accountCleanupStatus() },
+            { owner.accountMemberAt(0) }, { owner.accountReservation(0) }, { owner.accountEpochAt(0, 0) },
+            { owner.accountUnconfirmedAt(0, 0, 0) }, { owner.accountDeliveryAt(0, 0, 0) },
+            { owner.accountSkippedPosition(0, 0, 0) }, { owner.acknowledgeAccount(report) }, { owner.retireAccount() },
+        )
+        try {
+            for (action in actions) fails(6, action)
+            for (index in listOf(-1L, 0x1_0000_0000L)) {
+                assertFailsWith<IllegalArgumentException> { owner.accountMemberAt(index) }
+                assertFailsWith<IllegalArgumentException> { owner.accountReservation(index) }
+                assertFailsWith<IllegalArgumentException> { owner.accountEpochAt(0, index) }
+                assertFailsWith<IllegalArgumentException> { owner.accountUnconfirmedAt(0, 0, index) }
+                assertFailsWith<IllegalArgumentException> { owner.accountDeliveryAt(0, index, 0) }
+                assertFailsWith<IllegalArgumentException> { owner.accountSkippedPosition(index, 0, 0) }
+            }
+            owner.cancel()
+            fails(302) { owner.finishOpen() }
+            for (action in actions) fails(2, action)
+        } finally { owner.close() }
+        for (action in actions) fails(2, action)
     }
     @Test fun accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes() {
         val session = SessionID(ByteArray(32) { 7 })

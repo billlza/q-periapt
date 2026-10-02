@@ -62,6 +62,12 @@ internal object ContinuityNative {
     private val accountTargetLayout = struct("peer" to JAVA_LONG, "session" to array(32))
     private val accountDeliveryLayout = struct("device" to array(16), "session" to array(32),
         "message" to array(32), "outcome" to JAVA_INT, "exchanges" to JAVA_INT)
+    private val accountCleanupHeaderLayout = struct("batch" to array(32), "report" to array(32),
+        "member_count" to JAVA_INT, "reserved_zero" to JAVA_INT)
+    private val accountCleanupMemberLayout = struct("generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
+        "sending_epoch" to JAVA_LONG, "receiving_epoch" to JAVA_LONG, "pending_epoch" to JAVA_LONG,
+        "has_pending_epoch" to JAVA_INT, "role" to JAVA_INT, "epoch_count" to JAVA_INT,
+        "reserved_zero" to JAVA_INT, "device" to array(16), "context" to array(32), "session" to array(32))
 
     private val linker = Linker.nativeLinker().also {
         require(ADDRESS.byteSize() == 8L && it.canonicalLayouts().getValue("size_t").withoutName() == JAVA_LONG) {
@@ -113,6 +119,17 @@ internal object ContinuityNative {
         "acknowledge" to function("qpc_recovery_v1_acknowledge", JAVA_LONG, ADDRESS, ADDRESS),
         "retire" to function("qpc_recovery_v1_retire", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "restore_index" to function("qpc_recovery_v1_restore_index", JAVA_LONG, ADDRESS),
+        "select_account" to function("qpc_recovery_v1_select_account", JAVA_LONG, ADDRESS, ADDRESS),
+        "account_begin" to function("qpc_recovery_v1_account_begin", JAVA_LONG, ADDRESS, ADDRESS),
+        "account_cleanup_status" to function("qpc_recovery_v1_account_status", JAVA_LONG, ADDRESS, ADDRESS),
+        "account_member" to function("qpc_recovery_v1_account_member", JAVA_LONG, JAVA_INT, ADDRESS, ADDRESS),
+        "account_reserved" to function("qpc_recovery_v1_account_reserved", JAVA_LONG, JAVA_INT, ADDRESS, ADDRESS),
+        "account_epoch" to function("qpc_recovery_v1_account_epoch", JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        "account_unconfirmed" to function("qpc_recovery_v1_account_unconfirmed", JAVA_LONG, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        "account_delivery" to function("qpc_recovery_v1_account_delivery", JAVA_LONG, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        "account_skipped" to function("qpc_recovery_v1_account_skipped", JAVA_LONG, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        "account_acknowledge" to function("qpc_recovery_v1_account_acknowledge", JAVA_LONG, ADDRESS, ADDRESS),
+        "account_retire" to function("qpc_recovery_v1_account_retire", JAVA_LONG, ADDRESS),
     )
     private fun offset(layout: MemoryLayout, name: String) = layout.byteOffset(MemoryLayout.PathElement.groupElement(name))
     private fun malformed(message: String): Nothing = throw ContinuityBoundaryFailure(message)
@@ -475,7 +492,7 @@ internal object ContinuityNative {
     @JvmSynthetic internal fun reservation(handle: Long, at: Long): ReservedLoss = record(handle, "reserved", reservedLayout, listOf(index(at))) {
         ReservedLoss(MessageID(it.bytes("message", 32)), it.counter("plaintext_bytes"), it.counter("associated_data_bytes"))
     }
-    @JvmSynthetic internal fun epoch(handle: Long, at: Long): ClosureEpoch = record(handle, "epoch", epochLayout, listOf(index(at))) { fields ->
+    private fun decodeEpoch(fields: Fields): ClosureEpoch {
         if (fields.integer("reserved_zero") != 0) malformed("native epoch reserved field differs")
         val bytes = fields.bytes("resolution_report", 32)
         val resolution = when (fields.integer("resolution")) {
@@ -487,10 +504,12 @@ internal object ContinuityNative {
             2 -> EpochResolution.Acknowledged(ClosureReportID(bytes))
             else -> malformed("native epoch resolution differs")
         }
-        ClosureEpoch(fields.counter("epoch"), fields.counter("acknowledged_before"), fields.counter("sent"),
+        return ClosureEpoch(fields.counter("epoch"), fields.counter("acknowledged_before"), fields.counter("sent"),
             fields.counter("consumed_before"), fields.counter("received"), fields.optional("has_peer_sent", "peer_sent"),
             resolution, uint(fields.integer("unconfirmed_count")), uint(fields.integer("delivery_count")), uint(fields.integer("skipped_count")))
     }
+    @JvmSynthetic internal fun epoch(handle: Long, at: Long): ClosureEpoch =
+        record(handle, "epoch", epochLayout, listOf(index(at)), ::decodeEpoch)
     @JvmSynthetic internal fun unconfirmed(handle: Long, epoch: Long, at: Long): UnconfirmedLoss =
         record(handle, "unconfirmed", unconfirmedLayout, listOf(index(epoch), index(at))) {
             UnconfirmedLoss(MessageID(it.bytes("message", 32)), PublicBytes(it.bytes("ciphertext_digest", 32)))
@@ -511,11 +530,66 @@ internal object ContinuityNative {
         invoke(arena, "retire", handle, arena.bytes(report.encoded()), output)
         flag(output.get(JAVA_BYTE, 0).toInt())
     }
+    @JvmSynthetic internal fun accountBegin(handle: Long): AccountCleanupHeader =
+        record(handle, "account_begin", accountCleanupHeaderLayout) { fields ->
+            val operation = fields.bytes("batch", 32)
+            val report = fields.bytes("report", 32)
+            val count = uint(fields.integer("member_count"))
+            if (fields.integer("reserved_zero") != 0 || count !in 1..32 ||
+                operation.all { it == 0.toByte() } || report.all { it == 0.toByte() }) {
+                malformed("native account cleanup header differs")
+            }
+            AccountCleanupHeader(AccountOperationID(operation), AccountAbandonmentID(report), count)
+        }
+    @JvmSynthetic internal fun accountCleanupStatus(handle: Long): AccountStatus =
+        record(handle, "account_cleanup_status", statusLayout) { fields ->
+            decodeAccountStatus(fields.integer("phase"), fields.bytes("report", 32))
+        }
+    @JvmSynthetic internal fun accountMember(handle: Long, member: Long): AccountCleanupMember =
+        record(handle, "account_member", accountCleanupMemberLayout, listOf(index(member))) { fields ->
+            val device = fields.bytes("device", 16)
+            val session = fields.bytes("session", 32)
+            val generation = fields.counter("generation")
+            val count = uint(fields.integer("epoch_count"))
+            val role = SessionRole.entries.singleOrNull { it.code == fields.integer("role") }
+                ?: malformed("native account cleanup role differs")
+            if (fields.integer("reserved_zero") != 0 || generation == Counter64.ZERO || count !in 1..4 ||
+                device.all { it == 0.toByte() } || session.all { it == 0.toByte() }) {
+                malformed("native account cleanup member differs")
+            }
+            AccountCleanupMember(PublicBytes(device), PublicBytes(fields.bytes("context", 32)), SessionID(session),
+                generation, role, fields.counter("confirmed_epoch"), fields.counter("sending_epoch"),
+                fields.counter("receiving_epoch"), fields.optional("has_pending_epoch", "pending_epoch"), count)
+        }
+    @JvmSynthetic internal fun accountReservation(handle: Long, member: Long): ReservedLoss =
+        record(handle, "account_reserved", reservedLayout, listOf(index(member))) {
+            ReservedLoss(MessageID(it.bytes("message", 32)), it.counter("plaintext_bytes"), it.counter("associated_data_bytes"))
+        }
+    @JvmSynthetic internal fun accountEpoch(handle: Long, member: Long, epoch: Long): ClosureEpoch =
+        record(handle, "account_epoch", epochLayout, listOf(index(member), index(epoch)), ::decodeEpoch)
+    @JvmSynthetic internal fun accountUnconfirmed(handle: Long, member: Long, epoch: Long, at: Long): UnconfirmedLoss =
+        record(handle, "account_unconfirmed", unconfirmedLayout, listOf(index(member), index(epoch), index(at))) {
+            UnconfirmedLoss(MessageID(it.bytes("message", 32)), PublicBytes(it.bytes("ciphertext_digest", 32)))
+        }
+    @JvmSynthetic internal fun accountDelivery(handle: Long, member: Long, epoch: Long, at: Long): DeliveryLoss =
+        record(handle, "account_delivery", deliveryLayout, listOf(index(member), index(epoch), index(at))) {
+            DeliveryLoss(MessageID(it.bytes("message", 32)), it.counter("index"), it.counter("plaintext_bytes"))
+        }
+    @JvmSynthetic internal fun accountSkipped(handle: Long, member: Long, epoch: Long, at: Long): Counter64 =
+        Arena.ofConfined().use { arena ->
+            val selectedMember = index(member)
+            val selectedEpoch = index(epoch)
+            val selectedIndex = index(at)
+            val output = arena.allocate(JAVA_LONG)
+            invoke(arena, "account_skipped", handle, selectedMember, selectedEpoch, selectedIndex, output)
+            Counter64.fromBits(output.get(JAVA_LONG, 0))
+        }
     @JvmSynthetic internal fun layouts(): Map<String, Pair<Long, Long>> = mapOf(
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,
         "delivery" to deliveryLayout, "status" to statusLayout,
         "account_target" to accountTargetLayout, "account_delivery" to accountDeliveryLayout,
+        "account_cleanup_header" to accountCleanupHeaderLayout, "account_cleanup_member" to accountCleanupMemberLayout,
     ).mapValues { (_, layout) -> layout.byteSize() to layout.byteAlignment() }
 }

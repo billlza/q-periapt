@@ -6,8 +6,8 @@ import java.nio.file.Path
 import java.util.HexFormat
 import kotlin.system.exitProcess
 
-private fun bytes(value: PublicBytes) = HexFormat.of().formatHex(value.encoded())
-private fun present(value: Counter64?) = if (value == null) 0 else 1
+internal fun bytes(value: PublicBytes) = HexFormat.of().formatHex(value.encoded())
+internal fun present(value: Counter64?) = if (value == null) 0 else 1
 private fun savedReport(files: FixtureRecords): ClosureReportID {
     val record = files.read("c-loss-report")
     val prefix = "QPC-C-LOSS/1\nreport ".toByteArray()
@@ -65,6 +65,7 @@ private fun refusal(action: () -> Unit): Int {
 internal fun recover(args: List<String>, witness: WitnessCarrier): String {
     require(args.size in 2..3)
     val mode = args[0]; val path = args[1]
+    if (mode.startsWith("recover-account-")) return recoverAccount(args, witness)
     if (mode == "recover-kind") {
         require(args.size == 2)
         checkNativeKindSeparation(path, witness)

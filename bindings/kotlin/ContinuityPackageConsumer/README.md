@@ -99,6 +99,39 @@ authenticated archive before retiring catalogue metadata. Restoration grants no
 operational authority. Any failed/unknown operation requires reconciliation with
 the same installation and IDs, never an inferred empty result or a new ID.
 
+`ContinuityRecoveryOwner.selectAccount(operation)` consumes discovery and selects
+the complete original account operation, retaining all three native storage owners.
+It accepts no recipient subset and authenticates original member authority before
+recovery writes. Session and account selection are mutually exclusive.
+`beginAccountCleanup()` freezes all original members and returns the operation,
+report and member count. Traverse every `accountMemberAt`, `accountReservation`,
+`accountEpochAt`, `accountUnconfirmedAt`, `accountDeliveryAt` and
+`accountSkippedPosition` before host accounting. These records retain full-width
+unsigned counters and immutable copies of public identities. A failed read leaves
+an incomplete report, never an empty loss set.
+
+Only after the complete report and original IDs are durable in one deduplicated
+host transaction may `acknowledgeAccount(report)` discharge the reserved loss.
+Reconcile an unknown result with `accountCleanupStatus()` under the original
+operation/report. `retireAccount()` removes acknowledged batch metadata while
+retaining session/bootstrap tombstones and consumed capacity. It never reactivates
+keys. Cancellation blocks mutation but permits reading a retained immutable
+snapshot until close. Fresh required-witness status still requires the original
+witness. Independent session cleanup cannot discharge a whole-account loss.
+
+The separate account-cleanup collector drives actual JVM processes from the
+installed Maven consumer and pins its Java executable, full JAR classpath and
+native library. It injects calibrated sync interruptions directly into Java;
+setup helpers use the separately retained launcher. After durable SDK revocation,
+Kotlin retains the whole report, checks invalid indices/wrong-ID/cancellation
+refusals, acknowledges, retires and reopens. Independent native and Python readers
+compare every field with original pre-fault identities and ciphertext commitments.
+The local development trace covers native Debug/Release and minimum-Rust Release
+libraries, each with 28 commands and 139 public records. These are same-host,
+local-profile process cuts, not power loss, witnessed/own-account aggregate cleanup
+or Android JNI qualification. The actual distribution collector also requires this
+trace before accepting a Kotlin profile.
+
 The initial eight development tests execute native preparation, cancellation,
 failed activation, shared owner capacity, close and stale-handle behavior; compare
 C/JVM structure sizes/alignment; and verify unsigned counters and input copies.

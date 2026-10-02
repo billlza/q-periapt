@@ -77,6 +77,28 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Kotlin now carries the same whole-account cleanup contract through the existing
+recovery owner, explicitly aligned FFM layouts and unsigned `Counter64` values.
+The separately published local Maven JAR and installed consumer pass 12 boundary
+and owner tests, then actual cleanup against current native Debug/Release and
+minimum-Rust 1.90 Release libraries: **28 commands / 139 public records** per
+configuration. Each run preserves all two-member loss classes and original report
+identity across freeze, cancellation, acknowledgement, retirement and reopen.
+Both legacy single-session recovery profiles pass with 31 independently replayed
+public files. Twenty-three focused artifact contracts pass. The collector pins
+the JVM/JAR closure and injects process cuts directly into Java; the hosted upload
+lists include its public account-cleanup evidence. New complete archive-produced
+qualification remains separate and required.
+
+The first Kotlin development reader incorrectly used the Gradle Maven parent
+directory, whose extra metadata violates the exact coordinate inventory; it now
+stages the same coordinate subset as the distribution collector. A second attempt
+correctly refused dependencies recorded under the previous development cache.
+A fresh dedicated cache and dependency-resolution record preserve the original
+location check. These failed harness attempts remain retained; validation was not
+relaxed. This local profile does not close required-witness, own-account, Android,
+durable-WASM, power-loss or independent-engine release obligations.
+
 Swift now exposes complete original-account cleanup on its existing typed recovery
 owner. The complete report traversal retains original IDs, unsigned 64-bit counters
 and optional-field meaning. Selection cannot acquire operational or independent
