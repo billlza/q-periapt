@@ -156,8 +156,10 @@ Admission preserves configuration/journal/archive bytes, unknown-roster absence
 and full-capacity refusal. Tests retain loss before/after each of the two original
 witness exchanges; closing policy or runtime after either authenticated reply
 also returns no descriptor. All three public TLS harness tests, strict Clippy and
-no-TLS compilation pass. The full 342-test suite and fresh foreign packages were
-not rerun for this addition.
+no-TLS compilation pass. The later `18d6fcc9` checkpoint completes all 342 native
+library tests with all features, one thread and no skips, with unchanged source
+and binary hashes across execution. Fresh installed-package evidence remains
+separate; the later C invocation-cancellation change has its own qualification.
 
 At `caf5ab1e`, Rust 1.98.1 Debug and Rust 1.90.0 Release each pass all 25
 installation tests plus a two-peer account transaction test covering both local

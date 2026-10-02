@@ -77,6 +77,35 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `cde348b8` binds the C witness carrier to each active invocation's
+cancellation token and absolute deadline. Independently configured endpoints and
+credentials remain retained; no configuration is reread or cancellation reset.
+Existing public owners still use their original permanent token. This prepares
+shared-device operation but does not expose foreign parent/child handles. Current
+Rust Debug, minimum Rust 1.90 Release and current default-scheduler runs each pass
+**nine** admission/deadline/cancellation tests. Strict Clippy and **82** artifact
+tests pass. Four real C workloads cover fresh/restored constructors, signed TCP
+and mutual TLS witnesses, partial admission cancellation, original-state recovery
+and revoked cleanup; independent public replay verifies 37/39/59/34 selected files
+respectively. All 125 compiled Rust/C/header files match the commit, and the
+candidate C export set remains 34. The cohort has **418 files / 82,561,585 bytes**,
+inventory `ed98e7a480546cf16f568472c1a5e41aa6ff9d5fb3a3e79a4607fe05545ce7f1`.
+These are development overlays on checked SDK archives, not a newly completed
+installed-language producer or a controlled performance comparison. The first
+socket-fixture failure and a driver-environment failure remain retained. The
+latter invoked global rustup accidentally; it reported failed automatic recovery
+and rollback. Re-running with every subprocess bound to the isolated toolchain
+passes all 82 tests; no global repair was manually performed.
+
+Source `18d6fcc9` completes the full **342-test native library regression**, all
+features, one test thread and no skips, in **1842.558 seconds**. The 454-file
+before/after source maps and executed binary hash agree. The sealed cohort has
+**468 files / 35,249,091 bytes**, inventory
+`433552cb102062f32f58a54e9a68d7e3c9ec1d76ab8a2ad57b009c30c9fbf246`.
+This covers shared-service restoration and fresh peer admission. It predates the
+C invocation change above. Its CodeQL workflow succeeds; full hosted CI and the
+fresh installed Rust/C/Swift/Kotlin producer remain separately tracked.
+
 Source `469ccf31` adds `DeviceService::admit_peer` and `BootstrapPeer` for a freshly
 verified context under the original active service. It checks the exact local
 owner, policy/witness scope, current advertisement/credential/runtime authority,
@@ -92,15 +121,18 @@ closure after either authenticated reply. All three public TLS harness tests,
 strict Clippy and no-TLS compilation pass. All 454 compiled input hashes match
 the commit. The sealed cohort has **570 files / 98,942,877 bytes**, inventory
 `0a12373b893fc14247bbeb69f332f5f01b7ab624645396e620d2e65910e74920`.
-The full 342-test library regression and fresh foreign packages were not run for
-this addition. Foreign parent/child owners and product provisioning remain open.
+The later `18d6fcc9` checkpoint above closes the full 342-test library regression.
+Fresh foreign packages, parent/child owners and product provisioning remain open.
 
 The preceding `b32c046c` hosted push and PR workflows both finish with an Android
 16K runtime failure; CodeQL succeeds. The push run's full consumer passes, but its
 minimal consumer installs successfully but Android records the exact instrumentation
 process PID 5340 as `LOW_MEMORY`; the matching lowmemorykiller record reports a
 minimum-watermark breach. Instrumentation returns `Process crashed`. The PR run
-fails APK installation. These retained failures do not establish an SDK defect or
+fails APK installation with a null `PackageManagerInternal.freeStorage` reference.
+The failed-run cohort contains **162 files / 1,155,218 bytes**, inventory
+`8eea50ef3f278820d6fd45e558ad61ad6a9f2d5cfa04c525716e330ac33c6cd6`.
+These retained failures do not establish an SDK defect or
 the cause of the memory-system decision. At `1741866e`, the full push workflow succeeds, while
 the PR workflow's current-Rust Linux candidate job loses communication with the
 hosted runner. GitHub's annotation reports that loss; its job log is unavailable
