@@ -128,10 +128,15 @@ static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,i
             if((!strcmp(mode,"retained") || !strcmp(mode,"reverse-retained")) != (s.result.exchanges==0))fail("retained account network count");
             printf("account-delivered:%u:%u\n",s.result.outcome,s.result.exchanges);
             encode(s.result.session);encode(s.result.message);
-            for(size_t i=0;i<16;++i)printf("%02x",s.result.device[i]);putchar('\n');
+            for (size_t i = 0; i < 16; ++i) {
+                printf("%02x", s.result.device[i]);
+            }
+            putchar('\n');
         }
-        if(other_peer)close_owner(other_peer);if(other_parent)close_owner(other_parent);
-        if(peers[1])close_owner(peers[1]);close_owner(peers[0]);
+        if (other_peer) { close_owner(other_peer); }
+        if (other_parent) { close_owner(other_parent); }
+        if (peers[1]) { close_owner(peers[1]); }
+        close_owner(peers[0]);
     }else fail("unknown account command");
     close_owner(parent);return 0;
 }
