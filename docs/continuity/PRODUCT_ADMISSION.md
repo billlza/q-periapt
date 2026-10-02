@@ -40,9 +40,10 @@ delivery, own-account C fanout and foreign-language wrappers retain separate gat
 
 The [`C header`](../../bindings/c/ContinuityPackageConsumer/qpc_owner.h) exposes
 pairwise operations, device/peer preparation, complete-account member delivery and restricted original-session
-recovery. Swift now adds `ContinuityDevice`, native parent retention, typed account
-targets/status/results and complete-account member calls. Kotlin still wraps the
-earlier pairwise interface. Whole-account abandonment/report traversal is still a
+recovery. Swift and Kotlin now add `ContinuityDevice`, native parent retention,
+typed account targets/status/results and complete-account member calls. Their
+current installed-package and lifecycle evidence must bind the changed source.
+Whole-account abandonment/report traversal is still a
 native-only interface. Actual package execution, witness
 admission, callback lifetime and crash/retry evidence for these operations are
 necessary, but cannot demonstrate APIs that the adapter does not expose.

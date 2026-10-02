@@ -14,6 +14,7 @@ import continuity_c_faults as faults
 import continuity_c_opening as opening
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
+import continuity_c_account as account
 from continuity_c_witness import export_selected
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
@@ -34,6 +35,9 @@ TEST_NAMES = frozenset({
     "failedOpenReleasesTheOriginalOwnerSlot", "bothKindsShareCapacityAndDrainRemainsAvailable",
     "recoveryCancellationAndClosedStateKeepTheirNativeKinds",
     "textAndApplicationRefusalsCannotSilentlyCoerceInvalidInput",
+    "devicePreparationCannotGrantPeerAuthorityAndSharesCapacity",
+    "aggregateStatusPreservesReportsAndRejectsMalformedOutput",
+    "accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes",
 })
 
 
@@ -65,7 +69,8 @@ def maven_contract() -> jvm.MavenContract:
     return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
         "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
-        ("ContinuityOwner", "ContinuityRecoveryOwner", "SessionID", "MessageID", "Counter64"), FIXTURE)
+        ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "AccountTarget", "AccountOperationID",
+         "SessionID", "MessageID", "Counter64"), FIXTURE)
 
 
 def source_files() -> dict[str, bytes]:
@@ -137,6 +142,20 @@ def verify_server_execution(stdout: bytes, directory: Path) -> dict:
     checked = c.verify_server_execution(stdout, directory, language="Kotlin")
     checked["public_readbacks"] = checked.pop("application_readbacks") | {
         "c-server-public-result.json": sdk.snapshot(directory / "c-server-public-result.json").sha256}
+    return checked
+
+
+def verify_account_execution(stdout: bytes, directory: Path) -> dict:
+    checked = account.verify_execution(stdout, directory, language="Kotlin")
+    leaf = "initiator/kotlin-account-parent-lifetime"
+    receipt = sdk.snapshot(directory / leaf, maximum=256)
+    match = re.fullmatch(rb"QPC-JVM-ACCOUNT/1 collections=([1-9][0-9]{0,3})\n"
+        rb"public-parent-queued peers-activated close-winner=1 closed-aliases-held slots=64 store-reopened\n", receipt.data)
+    sdk.require(match is not None and 2 <= int(match[1]) <= 1024,
+                "Kotlin account parent collection and close workload did not complete")
+    checked["public_readbacks"][leaf] = receipt.sha256
+    checked["parent_lifetime"] = {"observed_collections": int(match[1]), "concurrent_close_winners": 1,
+        "native_slots_reclaimed_while_closed_aliases_live": 64, "public_parent_collected_before_activation": True}
     return checked
 
 
@@ -373,6 +392,24 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
                                             replay=lambda path: verify(stdout, path))
                 traces[label] = {"execution": checked, "public_files": exported}
+            accounts = {}
+            for collector in ("Serial", "G1"):
+                account_launcher = installed / ("client-account-" + collector.lower())
+                command = [str(java), "-Xms32m", "-Xmx96m", "-XX:+Use" + collector + "GC", *argv[1:]]
+                with account_launcher.open("x") as stream:
+                    stream.write("#!/bin/sh\nexec " + shlex.join(command) + ' "$@"\n')
+                account_launcher.chmod(0o700); account_digest = sdk.snapshot(account_launcher).sha256
+                evidence = outside / f"kotlin-{profile}-account-{collector.lower()}-runtime"
+                runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(account_launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
+                               QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+                stdout = run([str(trace), "--exact", account.TEST, "--nocapture"], f"account-{collector.lower()}-trace-{profile}", runtime=runtime)
+                evidence = evidence.with_name(evidence.name + "-account")
+                checked = verify_account_execution(stdout, evidence)
+                exported = export_selected(checked, evidence, output / "kotlin-public/account" / profile / collector, checked["scope"],
+                                           replay=lambda path: verify_account_execution(stdout, path))
+                sdk.require(sdk.snapshot(account_launcher).sha256 == account_digest, "Kotlin account launcher changed")
+                accounts[collector] = {"execution": checked, "public_files": exported, "command": command,
+                    "launcher": {"path": str(account_launcher), "sha256": account_digest}}
             restore_evidence = outside / f"kotlin-{profile}-restore-runtime"
             runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
                            QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(restore_evidence))
@@ -475,6 +512,20 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityOwner(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityOwner")
             sdk.require(not (installed / "negative-classes/RawOwnerProbe.class").exists(),
                         "raw-owner negative control produced an executable class")
+            raw_device = installed / "RawDeviceProbe.java"
+            sdk.copy(consumer / "negative/RawDeviceProbe.java.txt", raw_device)
+            run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                 "-d", str(installed / "negative-device-classes"), str(raw_device)], "negative-raw-device-" + profile,
+                rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityDevice(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityDevice")
+            sdk.require(not (installed / "negative-device-classes/RawDeviceProbe.class").exists(),
+                        "raw-device negative control produced an executable class")
+            raw_native = installed / "RawNativeOwnerProbe.java"
+            sdk.copy(consumer / "negative/RawNativeOwnerProbe.java.txt", raw_native)
+            run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                 "-d", str(installed / "negative-native-classes"), str(raw_native)], "negative-raw-native-owner-" + profile,
+                rejection="compiler.err.report.access: dev.qperiapt.continuity.NativeOwner(long,dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.NativeOwner")
+            sdk.require(not (installed / "negative-native-classes/RawNativeOwnerProbe.class").exists(),
+                        "raw-native-owner negative control produced an executable class")
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(installed / name, maximum=MAX_PACKAGE).sha256 == expected, "installed Kotlin package changed")
             sdk.require({p.name: sdk.snapshot(p).sha256 for p in (distribution / "lib").iterdir()} == jar_files
@@ -484,7 +535,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed during execution")
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
-            result["profiles"][profile] = {"archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
+            result["profiles"][profile] = {"account_owner": accounts, "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,
@@ -495,7 +546,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,
-                "negative_controls": sorted(negatives) + ["raw-owner-construction"]}
+                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-native-owner-construction"]}
         sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
                     "Kotlin sources or tool installation changed during qualification")
         result["completed"] = True

@@ -59,6 +59,9 @@ internal object ContinuityNative {
     private val unconfirmedLayout = struct("message" to array(32), "ciphertext_digest" to array(32))
     private val deliveryLayout = struct("index" to JAVA_LONG, "plaintext_bytes" to JAVA_LONG, "message" to array(32))
     private val statusLayout = struct("phase" to JAVA_INT, "report" to array(32))
+    private val accountTargetLayout = struct("peer" to JAVA_LONG, "session" to array(32))
+    private val accountDeliveryLayout = struct("device" to array(16), "session" to array(32),
+        "message" to array(32), "outcome" to JAVA_INT, "exchanges" to JAVA_INT)
 
     private val linker = Linker.nativeLinker().also {
         require(ADDRESS.byteSize() == 8L && it.canonicalLayouts().getValue("size_t").withoutName() == JAVA_LONG) {
@@ -76,7 +79,13 @@ internal object ContinuityNative {
         linker.downcallHandle(lookup.findOrThrow(name), FunctionDescriptor.of(JAVA_INT, *parameters))
     private val prepare = function("qpc_owner_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val prepareReopen = function("qpc_owner_v1_prepare_reopen", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
+    private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
+    private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
+        "next_account" to function("qpc_device_v1_next_account", JAVA_LONG, ADDRESS, ADDRESS),
+        "account_status" to function("qpc_device_v1_account_status", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "send_account_member" to function("qpc_device_v1_send_account_member", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_LONG,
+            ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
         "finish_open" to function("qpc_owner_v1_finish_open", JAVA_LONG, ADDRESS),
         "cancel" to function("qpc_owner_v1_cancel", JAVA_LONG, ADDRESS),
         "close" to function("qpc_owner_v1_close", JAVA_LONG, ADDRESS),
@@ -188,6 +197,103 @@ internal object ContinuityNative {
         }
     }
     @JvmSynthetic internal fun simple(handle: Long, operation: String) = Arena.ofConfined().use { invoke(it, operation, handle) }
+    @JvmSynthetic internal fun preparePeer(parent: Long, path: String, quality: PrekeyQuality,
+                                           role: BootstrapRole, session: SessionID?): Long {
+        val encoded = text(path, 4096)
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(JAVA_LONG)
+            val error = arena.allocate(errorLayout)
+            val args = listOf(parent, arena.bytes(encoded), encoded.size.toLong(), quality.code, role.code)
+            val code = if (session == null) {
+                preparePeer.invokeWithArguments(args + listOf(output, error)) as Int
+            } else {
+                preparePeerReopen.invokeWithArguments(args + listOf(arena.bytes(session.encoded()), output, error)) as Int
+            }
+            checked(if (session == null) "prepare_peer" else "prepare_peer_reopen", code, error)?.let { throw it }
+            output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native peer preparation returned a zero handle") }
+        }
+    }
+    @JvmSynthetic internal fun nextAccount(handle: Long): AccountOperationID = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(32)
+        invoke(arena, "next_account", handle, output)
+        val bytes = output.toArray(JAVA_BYTE)
+        if (bytes.all { it == 0.toByte() }) malformed("native account operation is zero")
+        AccountOperationID(bytes)
+    }
+    @JvmSynthetic internal fun decodeAccountStatus(state: Int, report: ByteArray): AccountStatus {
+        if (report.size != 32) malformed("native account report length differs")
+        val hasReport = report.any { it != 0.toByte() }
+        return when (state) {
+            0, 1, 2, 5 -> {
+                if (hasReport) malformed("native account status has an unexpected report")
+                when (state) {
+                    0 -> AccountStatus.Absent
+                    1 -> AccountStatus.Reserved
+                    2 -> AccountStatus.Committed
+                    else -> AccountStatus.Retired
+                }
+            }
+            3, 4 -> {
+                if (!hasReport) malformed("native account status is missing its report")
+                val id = AccountAbandonmentID(report)
+                if (state == 3) AccountStatus.Abandoning(id) else AccountStatus.Abandoned(id)
+            }
+            else -> malformed("native account status differs")
+        }
+    }
+    @JvmSynthetic internal fun accountStatus(handle: Long, operation: AccountOperationID): AccountStatus = Arena.ofConfined().use { arena ->
+        val status = arena.allocate(JAVA_BYTE)
+        val report = arena.allocate(32)
+        invoke(arena, "account_status", handle, arena.bytes(operation.encoded()), status, report)
+        decodeAccountStatus(status.get(JAVA_BYTE, 0).toInt(), report.toArray(JAVA_BYTE))
+    }
+    @JvmSynthetic internal fun decodeAccountDelivery(device: ByteArray, session: ByteArray, message: ByteArray,
+                                                     outcome: Int, count: Int, selected: SessionID): AccountDelivery {
+        if (device.size != 16 || device.all { it == 0.toByte() } || !session.contentEquals(selected.encoded()) ||
+            message.size != 32 || message.all { it == 0.toByte() } || count !in 0..8) {
+            malformed("native account delivery shape differs")
+        }
+        val result = when (outcome) {
+            1 -> AccountDeliveryOutcome.Consumed(Consumption.CONFIRMED)
+            2 -> {
+                if (count == 0) malformed("pending prefix has no exchange")
+                AccountDeliveryOutcome.Consumed(Consumption.PREFIX_PENDING)
+            }
+            3 -> AccountDeliveryOutcome.ResolutionPending
+            4 -> AccountDeliveryOutcome.DeliveryUnknown
+            5 -> AccountDeliveryOutcome.HistoryRetired
+            6 -> AccountDeliveryOutcome.ReservationAbandoned
+            else -> malformed("native account delivery outcome differs")
+        }
+        return AccountDelivery(PublicBytes(device), SessionID(session), MessageID(message), result, count)
+    }
+    @JvmSynthetic internal fun sendAccountMember(handle: Long, operation: AccountOperationID, account: AccountID,
+                                                  targets: List<Pair<Long, SessionID>>, selected: Int, peer: String,
+                                                  plaintext: ByteArray, associatedData: ByteArray): AccountDelivery {
+        require(targets.size in 1..32 && selected in targets.indices) { "invalid account target count or selection" }
+        require(plaintext.size <= 16384 && associatedData.size <= 1024) { "Continuity message input exceeds its byte bound" }
+        val address = text(peer, 128)
+        return Arena.ofConfined().use { arena ->
+            val records = arena.allocate(MemoryLayout.sequenceLayout(targets.size.toLong(), accountTargetLayout))
+            for ((index, target) in targets.withIndex()) {
+                val record = records.asSlice(index * accountTargetLayout.byteSize(), accountTargetLayout)
+                record.set(JAVA_LONG, offset(accountTargetLayout, "peer"), target.first)
+                record.asSlice(offset(accountTargetLayout, "session"), 32).copyFrom(MemorySegment.ofArray(target.second.encoded()))
+            }
+            val payload = arena.bytes(plaintext)
+            val ad = arena.bytes(associatedData)
+            try {
+                val output = arena.allocate(accountDeliveryLayout)
+                invoke(arena, "send_account_member", handle, records, targets.size.toLong(), selected.toLong(),
+                    arena.bytes(operation.encoded()), arena.bytes(account.encoded()), arena.bytes(address), address.size.toLong(),
+                    payload, plaintext.size.toLong(), ad, associatedData.size.toLong(), output)
+                fun bytes(name: String, size: Long) = output.asSlice(offset(accountDeliveryLayout, name), size).toArray(JAVA_BYTE)
+                decodeAccountDelivery(bytes("device", 16), bytes("session", 32), bytes("message", 32),
+                    output.get(JAVA_INT, offset(accountDeliveryLayout, "outcome")),
+                    output.get(JAVA_INT, offset(accountDeliveryLayout, "exchanges")), targets[selected].second)
+            } finally { payload.fill(0); ad.fill(0) }
+        }
+    }
     @JvmSynthetic internal fun establish(handle: Long, peer: String, request: InitiationID): Establishment {
         val address = text(peer, 128)
         return Arena.ofConfined().use { arena ->
@@ -410,5 +516,6 @@ internal object ContinuityNative {
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,
         "delivery" to deliveryLayout, "status" to statusLayout,
+        "account_target" to accountTargetLayout, "account_delivery" to accountDeliveryLayout,
     ).mapValues { (_, layout) -> layout.byteSize() to layout.byteAlignment() }
 }

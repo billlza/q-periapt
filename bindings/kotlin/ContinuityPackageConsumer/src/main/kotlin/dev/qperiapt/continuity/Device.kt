@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+package dev.qperiapt.continuity
+
+import java.lang.ref.Reference
+
+enum class BootstrapRole(val code: Int) { INITIATOR(1), RESPONDER(2) }
+class AccountID(bytes: ByteArray) : ContinuityID(bytes)
+class AccountOperationID(bytes: ByteArray) : ContinuityID(bytes)
+class AccountAbandonmentID(bytes: ByteArray) : ContinuityID(bytes)
+
+/** Local aggregate state; Committed does not assert remote consumption. */
+sealed interface AccountStatus {
+    data object Absent : AccountStatus
+    data object Reserved : AccountStatus
+    data object Committed : AccountStatus
+    data object Retired : AccountStatus
+    data class Abandoning(val report: AccountAbandonmentID) : AccountStatus
+    data class Abandoned(val report: AccountAbandonmentID) : AccountStatus
+}
+sealed interface AccountDeliveryOutcome {
+    data class Consumed(val consumption: Consumption) : AccountDeliveryOutcome
+    data object ResolutionPending : AccountDeliveryOutcome
+    data object DeliveryUnknown : AccountDeliveryOutcome
+    data object HistoryRetired : AccountDeliveryOutcome
+    data object ReservationAbandoned : AccountDeliveryOutcome
+}
+/** Retains a peer wrapper; native admission requires a distinct live child of the selected device. */
+data class AccountTarget(val peer: ContinuityOwner, val session: SessionID)
+data class AccountDelivery(val device: PublicBytes, val session: SessionID, val message: MessageID,
+                           val outcome: AccountDeliveryOutcome, val exchanges: Int)
+
+/** Original Active installation. Live peers retain its native owner, independently
+ * of this public wrapper. Explicit device close releases stores and invalidates
+ * children. Provisioning and credential renewal are separate operations.
+ */
+class ContinuityDevice private constructor(private val native: NativeOwner) : AutoCloseable {
+    companion object {
+        fun prepare(path: String, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityDevice =
+            NativeOwner.prepare(path, 3, 0, witness, ::ContinuityDevice)
+        fun open(path: String, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityDevice {
+            val device = prepare(path, witness)
+            try { device.finishOpen(); return device } catch (failure: Throwable) {
+                try { device.close() } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
+                throw failure
+            }
+        }
+    }
+    fun finishOpen() = native.call { ContinuityNative.simple(it, "finish_open") }
+    fun cancel() = native.call { ContinuityNative.simple(it, "cancel") }
+    override fun close() = native.close()
+    fun preparePeer(path: String, quality: PrekeyQuality, role: BootstrapRole): ContinuityOwner =
+        ContinuityOwner.preparePeer(native, path, quality, role, null)
+    fun preparePeerReopen(path: String, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
+        ContinuityOwner.preparePeer(native, path, quality, role, session)
+    fun openPeer(path: String, quality: PrekeyQuality, role: BootstrapRole): ContinuityOwner =
+        activate(preparePeer(path, quality, role))
+    fun reopenPeer(path: String, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
+        activate(preparePeerReopen(path, quality, role, session))
+    private fun activate(peer: ContinuityOwner): ContinuityOwner {
+        try { peer.finishOpen(); return peer } catch (failure: Throwable) {
+            try { peer.close() } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
+            throw failure
+        }
+    }
+    /** Read and retain before sending; this does not reserve or dispatch work. */
+    fun nextAccountOperation(): AccountOperationID = native.call { ContinuityNative.nextAccount(it) }
+    fun accountStatus(operation: AccountOperationID): AccountStatus = native.call { ContinuityNative.accountStatus(it, operation) }
+    /** Reconcile the exact complete input, then deliver one member. Every target
+     * stays reachable through return. Retain the same operation after failures;
+     * there is no implicit retry, omission or unary fallback.
+     */
+    fun sendAccountMember(operation: AccountOperationID, account: AccountID, targets: List<AccountTarget>, selected: Int,
+                          address: String, plaintext: ByteArray, associatedData: ByteArray): AccountDelivery {
+        require(targets.size in 1..32 && selected in targets.indices) { "invalid account target count or selection" }
+        val retained = targets.toList()
+        try {
+            val records = retained.map { target -> target.peer.call { it to target.session } }
+            return native.call { ContinuityNative.sendAccountMember(it, operation, account, records, selected,
+                address, plaintext, associatedData) }
+        } finally {
+            Reference.reachabilityFence(retained)
+        }
+    }
+}

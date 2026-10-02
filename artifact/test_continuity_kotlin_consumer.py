@@ -9,9 +9,31 @@ import xml.etree.ElementTree as ET
 
 import continuity_kotlin_consumer as kotlin
 import test_continuity_c_consumer as c_tests
+import test_continuity_c_account as account_tests
 
 
 class KotlinConsumerTests(unittest.TestCase):
+    def test_account_parent_collection_cannot_be_inferred_from_account_delivery_alone(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            account_tests.fixture(root)
+            result = root / "initiator/c-account-result.json"
+            document = json.loads(result.read_bytes()); document["language"] = "Kotlin"
+            result.write_text(json.dumps(document))
+            leaf = "initiator/kotlin-account-parent-lifetime"
+            valid = (b"QPC-JVM-ACCOUNT/1 collections=2\n"
+                     b"public-parent-queued peers-activated close-winner=1 closed-aliases-held slots=64 store-reopened\n")
+            account_tests.put(root, leaf, valid)
+            checked = kotlin.verify_account_execution(account_tests.STDOUT, root)
+            self.assertEqual(len(checked["public_readbacks"]), 11)
+            for changed in (valid[:-1], valid.replace(b"collections=2", b"collections=1"),
+                            valid.replace(b"collections=2", b"collections=1025"),
+                            valid.replace(b"close-winner=1", b"close-winner=2"),
+                            valid.replace(b"slots=64", b"slots=63"), valid.replace(b"closed-aliases-held", b"aliases-dropped")):
+                account_tests.put(root, leaf, changed)
+                with self.assertRaisesRegex(ValueError, "parent collection and close workload"):
+                    kotlin.verify_account_execution(account_tests.STDOUT, root)
+
     def test_inflight_receipts_bind_gc_and_returned_slots_to_original_delivery(self):
         stdout = (f"test {kotlin.c.SERVER_TEST} ... ok\n"
                   "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
@@ -86,12 +108,12 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_gc_execution(changed)
 
     def test_every_owner_test_must_execute_without_skips_or_diagnostics(self):
-        suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="8",
+        suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="11",
                            failures="0", errors="0", skipped="0")
         for name in sorted(kotlin.TEST_NAMES):
             ET.SubElement(suite, "testcase", name=name + "()", classname=suite.get("name"))
         data = ET.tostring(suite)
-        self.assertEqual(kotlin.verify_tests(data)["tests"], 8)
+        self.assertEqual(kotlin.verify_tests(data)["tests"], 11)
         suite.remove(suite[0])
         with self.assertRaisesRegex(ValueError, "did not all execute"):
             kotlin.verify_tests(ET.tostring(suite))

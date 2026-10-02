@@ -51,6 +51,39 @@ each call uses a [reachability fence](https://docs.oracle.com/en/java/javase/25/
 to keep that owner alive through return. Handles are process-local references,
 not permissions against hostile code inside the same process.
 
+`ContinuityDevice` prepares/opens an already Active original installation. Its
+`preparePeer`/`preparePeerReopen` methods take public peer configuration, quality,
+an explicit bootstrap role and (for restoration) the original session. A live
+peer retains the hidden native parent independently of the public device wrapper.
+Closing the device explicitly invalidates its children; closing a peer releases
+its parent link after success or known CLOSED. BUSY and unknown failures preserve
+the link and original diagnostic. Each native call takes a strong atomic parent
+snapshot and fences it through return. The Cleaner action retains upstream
+parents only, never its own registered object; there is no parent-to-child cycle.
+After the last child releases a hidden parent, its Cleaner still runs
+nondeterministically. Retain and explicitly close the device when deterministic
+store release is required.
+
+Account APIs expose `nextAccountOperation`, typed aggregate status and
+`sendAccountMember` with the complete original target list. Every target wrapper
+remains reachable through native return. Native admission verifies distinct live
+children of the exact selected parent, original sessions and the complete required
+recipient set. Committed aggregate state does not imply remote consumption;
+retained member outcomes distinguish confirmation, pending resolution, unknown
+delivery, retired history and abandoned reservations. Keep the original operation
+and inputs after failure; the wrapper does not retry, generate replacement IDs
+or fall back to unary sends. Whole-account abandonment/report traversal,
+provisioning/renewal, required-witness and own-account foreign delivery retain
+separate qualification requirements.
+
+The complete-account consumer additionally observes collection of the public
+device before prepared peer activation, races two explicit peer closes, and keeps
+closed aliases alive while checking all 64 native slots can be reclaimed and the
+original store reopens. Its bounded test-only Cleaner oracle retries only native
+capacity status 4; no protocol or installation operation is retried. Serial and
+G1 account runs are separate from the explicitly C2-compiled in-flight server
+tests below. New archive qualification must include both owner and account paths.
+
 The client surface includes establishment, original-ID send/status and rekey.
 The server surface binds one owned listener and serves bootstrap/application or
 control exchanges. Application callbacks receive owned copies and must return

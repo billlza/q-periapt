@@ -80,6 +80,10 @@ private fun run(arguments: List<String>): String {
     }
     if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening, existing)
     if (args[0].startsWith("recover-")) return recover(args, witness)
+    if (args[0].startsWith("account-")) {
+        require(existing == null)
+        return account(args, witness)
+    }
     fun openConfigured(): ContinuityOwner = if (existing == null) {
         ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness)
     } else {

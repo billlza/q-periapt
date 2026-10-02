@@ -4,38 +4,69 @@ package dev.qperiapt.continuity
 import java.lang.ref.Cleaner
 import java.lang.ref.Reference
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Level
 import java.util.logging.Logger
 
 /** Neither the cleaner action nor native code retains its registered JVM owner. */
-private class NativeOwner private constructor(private val handle: Long) : AutoCloseable {
-    private class Release(private val handle: Long) : Runnable {
+internal class NativeOwner private constructor(private val handle: Long, parent: NativeOwner? = null) : AutoCloseable {
+    // The cleaner action owns only an upstream parent, never its registered child.
+    // Atomic snapshots remain strong through native return even if another close
+    // clears the stored reference. No native call runs under a JVM monitor.
+    private class Release(private val handle: Long, parent: NativeOwner?) : Runnable {
         val disposed = AtomicBoolean(false)
+        val parent = AtomicReference(parent)
         override fun run() {
             if (!disposed.compareAndSet(false, true)) return
+            val retainedParent = parent.getAndSet(null)
             try {
                 ContinuityNative.simple(handle, "close")
             } catch (failure: ContinuityFailure) {
                 if (failure.code != 2) logger.log(Level.SEVERE, "Continuity disposal failed with native status {0}", failure.code)
             } catch (failure: Throwable) {
                 logger.log(Level.SEVERE, "Continuity disposal failed", failure)
+            } finally {
+                Reference.reachabilityFence(retainedParent)
             }
         }
     }
-    private val release = Release(handle)
+    private val release = Release(handle, parent)
     private val cleanable = cleaner.register(this, release)
-    fun <T> call(body: (Long) -> T): T = try { body(handle) } finally { Reference.reachabilityFence(this) }
+    @JvmSynthetic fun <T> call(body: (Long) -> T): T {
+        val parent = release.parent.get()
+        try { return body(handle) } finally {
+            Reference.reachabilityFence(parent)
+            Reference.reachabilityFence(this)
+        }
+    }
     override fun close() = call {
-        ContinuityNative.simple(it, "close") // BUSY/unknown failure leaves the owner registered and callable.
+        try {
+            ContinuityNative.simple(it, "close")
+        } catch (failure: ContinuityFailure) {
+            if (failure.code == 2) disposed()
+            throw failure // BUSY/unknown failure preserves the parent and original diagnostic.
+        }
+        disposed()
+    }
+    private fun disposed() {
         release.disposed.set(true)
+        release.parent.set(null)
         cleanable.clean()
     }
     companion object {
         private val cleaner = Cleaner.create()
         private val logger = Logger.getLogger("dev.qperiapt.continuity")
-        fun <T> prepare(path: String, kind: Int, quality: Int, witness: WitnessCarrier, wrap: (NativeOwner) -> T, session: SessionID? = null): T {
+        @JvmSynthetic internal fun <T> prepare(path: String, kind: Int, quality: Int, witness: WitnessCarrier, wrap: (NativeOwner) -> T, session: SessionID? = null): T {
             val handle = ContinuityNative.prepare(path, kind, quality, witness, session)
             return try { wrap(NativeOwner(handle)) } catch (failure: Throwable) {
+                try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
+                throw failure
+            }
+        }
+        @JvmSynthetic internal fun <T> preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
+                                                 role: BootstrapRole, session: SessionID?, wrap: (NativeOwner) -> T): T = parent.call {
+            val handle = ContinuityNative.preparePeer(it, path, quality, role, session)
+            try { wrap(NativeOwner(handle, parent)) } catch (failure: Throwable) {
                 try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
                 throw failure
             }
@@ -51,6 +82,9 @@ private class NativeOwner private constructor(private val handle: Long) : AutoCl
  */
 class ContinuityOwner private constructor(private val native: NativeOwner) : AutoCloseable {
     companion object {
+        @JvmSynthetic internal fun preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
+                                              role: BootstrapRole, session: SessionID?): ContinuityOwner =
+            NativeOwner.preparePeer(parent, path, quality, role, session, ::ContinuityOwner)
         fun prepare(path: String, quality: PrekeyQuality, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner =
             NativeOwner.prepare(path, 1, quality.code, witness, ::ContinuityOwner)
         fun open(path: String, quality: PrekeyQuality, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner {
@@ -74,6 +108,7 @@ class ContinuityOwner private constructor(private val native: NativeOwner) : Aut
             }
         }
     }
+    @JvmSynthetic internal fun <T> call(body: (Long) -> T): T = native.call(body)
     /** Activate once on this thread. Another thread may cancel this known pending owner. */
     fun finishOpen() = native.call { ContinuityNative.simple(it, "finish_open") }
     /** One-way; cancel, join active work, close and reopen the original installation. */
