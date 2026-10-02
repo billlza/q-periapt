@@ -294,6 +294,55 @@ Closing releases ownership, never refunds a transition
 or acknowledges a report. The C fixture's `QPC-C-LOSS/1` text is only its explicit
 host accounting format, not a new network or cryptographic protocol identifier.
 
+## Complete-account cleanup
+
+The original-installation recovery constructor also supports
+`qpc_recovery_v1_select_account`. It consumes discovery and selects an independently
+retained batch ID. Authenticated native state supplies the complete member set;
+callers cannot substitute recipients, split the reservation into single-session
+cleanup, reconstruct operational permission or select a weaker witness profile.
+The owner pins configuration, index and journal leases. Original installation scope
+and every member archive authenticate before a pending write can be reconciled.
+
+`account_begin` freezes every member and retains one immutable metadata-only loss
+snapshot. `account_member`, `account_reserved`, `account_epoch`,
+`account_unconfirmed`, `account_delivery` and `account_skipped` expose every field
+and nested count. Each member has exactly one reserved input. Header/member layouts
+are 72/136 bytes; epoch/item records reuse existing closure layouts. These structs
+are not a portable serialization. Durably record the **complete** report and its
+batch/report IDs before `account_acknowledge`. Wrong IDs conflict; exact repeated
+acknowledgement is idempotent. Only then may `account_retire` remove batch metadata,
+preserving all session/bootstrap tombstones and the monotonic counter. Logical
+erasure does not promise secure deletion of historical pages or application copies.
+
+`account_status` uses `QPC_ACCOUNT_*` local states. Committed batches cannot become
+reserved abandonment. Account owners reject independent-session methods. Cached
+report getters remain available after cancel; mutations are refused and witnessed
+status still needs fresh native admission. Unknown outcomes require original-ID
+close/reopen. Reopening retired metadata reports `QPC_RETIRED`; validated absence
+reports `QPC_DURABLE_ABSENT`. Neither provisions or reactivates state. The candidate
+has exactly 50 exports, including 11 new functions; product ABI 2 is unchanged.
+
+The standard collector builds a separate native fixture helper and uses the existing
+bounded sync-probe runner. Three installations establish two account sessions. An
+earlier committed send remains unconfirmed; incoming messages leave five unconsumed
+deliveries and two skipped positions. A real process exit at a measured journal sync
+leaves a complete reservation. After persistent SDK revocation, separate C processes
+freeze, fsync the complete host report, acknowledge, retire and reopen the same ID.
+Independent Rust readback matches every C report byte; Python also checks original
+pre-fault identities and ciphertext commitments. Wrong-report/cancellation refusal,
+committed/absent dispositions, bounds and independent-session separation are required.
+The probe separately checks an unrelated inode.
+
+Development Debug/Release on Rust 1.98.1 and Release on Rust 1.90 each pass this
+28-command path with 139 public records and exact installed-library linkage. The
+observed calibration is Committed without interruption, Absent at the first two
+pre-sync cuts and Reserved at cut three. This is finite process-interruption
+coverage, not all sync sites or physical power loss. Required-witness/own-account
+foreign cleanup, broader unknown freeze/ack/retirement outcomes, Swift/Kotlin
+adapters and final product admission remain separate. Earlier 39-export installed
+cohorts do not qualify this extension.
+
 ## Qualification path
 
 The required-witness trace provisions and explicitly enrolls both original

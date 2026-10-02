@@ -32,7 +32,7 @@ TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_recon
 def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
-        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
+        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
         "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/continuity_kotlin_consumer.py", "artifact/continuity_package_archive.py", "artifact/jvm_sdk_package.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     files.extend((ROOT / "bindings/swift/ContinuityPackageConsumer").rglob("*"))

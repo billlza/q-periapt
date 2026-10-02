@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Cleanup-only original-installation ownership; never recreates operational authority.
 use super::*;
+mod account;
 
 const ARCHIVE_BYTES: usize = 362;
 enum State {
     Discovery(Box<p::InstallationRecovery>),
     Session(Box<Session>),
+    Account(Box<account::Account>),
     Closed,
 }
 struct Session {
@@ -46,7 +48,7 @@ impl Recovery {
         match &mut self.state {
             State::Discovery(discovery) => Ok(discovery.session_ids()?),
             State::Closed => Err(p::DurableError::Closed.into()),
-            State::Session(_) => Err(p::Error::State.into()),
+            State::Session(_) | State::Account(_) => Err(p::Error::State.into()),
         }
     }
     fn select(
@@ -56,6 +58,16 @@ impl Recovery {
             Option<p::AnchorClient>,
         ) -> Result<(p::InstalledSessionRecovery, p::SessionClosureArchive)>,
     ) -> Result<()> {
+        let (discovery, anchor) = self.take_discovery()?;
+        let (owner, archive) = select(discovery, anchor)?;
+        self.state = State::Session(Box::new(Session {
+            owner,
+            archive,
+            report: None,
+        }));
+        Ok(())
+    }
+    fn take_discovery(&mut self) -> Result<(p::InstallationRecovery, Option<p::AnchorClient>)> {
         if !matches!(self.state, State::Discovery(_)) {
             return Err(p::Error::State.into());
         }
@@ -65,18 +77,12 @@ impl Recovery {
         let State::Discovery(discovery) = state else {
             return Err(failure(5));
         };
-        let (owner, archive) = select(*discovery, self.anchor.take())?;
-        self.state = State::Session(Box::new(Session {
-            owner,
-            archive,
-            report: None,
-        }));
-        Ok(())
+        Ok((*discovery, self.anchor.take()))
     }
     fn owner(&mut self) -> Result<&mut p::InstalledSessionRecovery> {
         match &mut self.state {
             State::Session(session) => Ok(&mut session.owner),
-            State::Discovery(_) => Err(p::Error::State.into()),
+            State::Discovery(_) | State::Account(_) => Err(p::Error::State.into()),
             State::Closed => Err(p::DurableError::Closed.into()),
         }
     }
@@ -472,7 +478,7 @@ pub unsafe extern "C" fn qpc_recovery_v1_archive(
                 .try_into()
                 .map_err(|_| p::Error::Encoding.into()),
             State::Closed => Err(p::DurableError::Closed.into()),
-            State::Discovery(_) => Err(p::Error::State.into()),
+            State::Discovery(_) | State::Account(_) => Err(p::Error::State.into()),
         })
     }
 }

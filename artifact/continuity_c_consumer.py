@@ -38,6 +38,9 @@ EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
 EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen"}
 EXPORTS |= {"qpc_device_v1_next_account", "qpc_device_v1_account_status",
             "qpc_device_v1_send_account_member"}
+EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_begin", "account_status",
+    "account_member", "account_reserved", "account_epoch", "account_unconfirmed", "account_delivery",
+    "account_skipped", "account_acknowledge", "account_retire")}
 
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
@@ -444,6 +447,15 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             outside, output, profile, runtime, executable, fault_helper, probe, smoke).execute()
         result["execution"][profile]["sync_fault_public_files"] = export_sync_faults(
             result["execution"][profile]["sync_faults"], output, profile)
+        from continuity_c_account_cleanup import qualify as qualify_account_cleanup
+        account_cleanup_build = run([*cargo, "test", "--locked", "--offline", "--test", "account_cleanup",
+                                     "--no-run", "--message-format=json", "-j", "2", *extra],
+                                    "account-cleanup-build-" + profile)
+        account_cleanup_helper = built_artifact(account_cleanup_build, consumer, build,
+                                               library=False, test_name="account_cleanup")
+        result["execution"][profile]["account_cleanup"] = qualify_account_cleanup(
+            outside, output, profile, runtime, executable, account_cleanup_helper,
+            probe, smoke, installed / filename)
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")

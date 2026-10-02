@@ -193,7 +193,10 @@ pub(crate) fn sdk(path: &Path) -> Result<PolicyStore> {
         q_periapt_sdk::Limits::default(),
     )?)
 }
-fn protocol_policy(path: &Path, store: &PolicyStore) -> Result<Arc<p::VerifiedSessionPolicy>> {
+pub(crate) fn protocol_policy(
+    path: &Path,
+    store: &PolicyStore,
+) -> Result<Arc<p::VerifiedSessionPolicy>> {
     let checkpoint = p::PolicyCheckpoint::from_trusted_state(
         u64::from_be_bytes(array(path, "policy-version")?),
         array(path, "policy-digest")?,
@@ -209,7 +212,7 @@ fn protocol_policy(path: &Path, store: &PolicyStore) -> Result<Arc<p::VerifiedSe
         now()?,
     )?))
 }
-fn account(path: &Path, label: &str) -> Result<p::AccountPin> {
+fn account(path: &Path, label: &str, family: [u8; 32]) -> Result<p::AccountPin> {
     Ok(p::AccountPin::new(
         array(path, &format!("{label}-account"))?,
         p::PublicKey::decode(&read(path, &format!("{label}-root"), 8192)?)?,
@@ -217,15 +220,22 @@ fn account(path: &Path, label: &str) -> Result<p::AccountPin> {
             u64::from_be_bytes(array(path, &format!("{label}-roster-version"))?),
             array(path, &format!("{label}-roster-digest"))?,
         )?,
-        array(path, "family")?,
+        family,
     )?)
 }
 fn with_bundle<T>(
     path: &Path,
     check: impl FnOnce(p::BootstrapBundle, p::BootstrapRequirements<'_>) -> Result<T>,
 ) -> Result<T> {
-    let i = account(path, "initiator")?;
-    let r = account(path, "responder")?;
+    with_bundle_for_family(path, array(path, "family")?, check)
+}
+pub(crate) fn with_bundle_for_family<T>(
+    path: &Path,
+    family: [u8; 32],
+    check: impl FnOnce(p::BootstrapBundle, p::BootstrapRequirements<'_>) -> Result<T>,
+) -> Result<T> {
+    let i = account(path, "initiator", family)?;
+    let r = account(path, "responder", family)?;
     let requirements = p::BootstrapRequirements {
         initiator: p::ExpectedDevice::new(
             &i,

@@ -377,6 +377,52 @@ int32_t qpc_recovery_v1_skipped(uint64_t handle, uint32_t epoch, uint32_t index,
 int32_t qpc_recovery_v1_acknowledge(uint64_t handle, const uint8_t report[32], qpc_error_v1 *error);
 int32_t qpc_recovery_v1_retire(uint64_t handle, const uint8_t report[32], uint8_t *removed, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_restore_index(uint64_t handle, qpc_error_v1 *error);
+
+/* Complete-account recovery uses the same original discovery owner and explicit
+ * witness constructors above. select_account consumes discovery; the authenticated
+ * journal chooses ALL original members. It accepts no recipient list or replacement
+ * peer context. Failed native selection stays closed. Original installation scope
+ * and every member archive must authenticate before any pending write is resolved.
+ * Required protection keeps the original witness/policy/signer; no local fallback.
+ * A selected account rejects independent-session methods with QPC_STATE and has no
+ * operational API. Close/cancel retain the existing owner/call lifetime contract.
+ *
+ * begin freezes the entire reserved batch and retains one immutable report. Ordinary
+ * committed batches cannot be relabeled as reserved abandonment. Read every member,
+ * its ONE reserved input, every epoch and every nested list before acknowledging.
+ * Member order is the original canonical device order; all indices are zero-based.
+ * Persist every field plus the batch/report IDs in a durable deduplicated host
+ * transaction. Raw C struct bytes are not a serialization. Only then acknowledge
+ * the exact report. Metadata retirement requires prior acknowledgement and keeps
+ * every session/bootstrap tombstone and the journal counter. Repeating retirement
+ * on the same owner is idempotent; authenticated reopen returns QPC_RETIRED after
+ * retirement and QPC_DURABLE_ABSENT for a genuinely absent original operation.
+ * Unknown commit/cancel requires exact original-ID reopen/status reconciliation.
+ * Cached member/epoch queries remain available after cancel. Required-witness
+ * status is fresh native admission and may fail; it cannot silently use a cache.
+ * Status uses QPC_ACCOUNT_* values, not independent-session closure phases.
+ */
+typedef struct {
+    uint8_t batch[32], report[32];
+    uint32_t member_count, reserved_zero;
+} qpc_account_cleanup_header_v1;
+typedef struct {
+    uint64_t generation, confirmed_epoch, sending_epoch, receiving_epoch, pending_epoch;
+    uint32_t has_pending_epoch, role, epoch_count, reserved_zero;
+    uint8_t device[16], context[32], session[32];
+} qpc_account_cleanup_member_v1;
+typedef struct { uint32_t phase; uint8_t report[32]; } qpc_account_cleanup_status_v1;
+int32_t qpc_recovery_v1_select_account(uint64_t handle, const uint8_t id[32], qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_begin(uint64_t handle, qpc_account_cleanup_header_v1 *header, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_status(uint64_t handle, qpc_account_cleanup_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_member(uint64_t handle, uint32_t member, qpc_account_cleanup_member_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_reserved(uint64_t handle, uint32_t member, qpc_closure_reserved_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_epoch(uint64_t handle, uint32_t member, uint32_t epoch, qpc_closure_epoch_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_unconfirmed(uint64_t handle, uint32_t member, uint32_t epoch, uint32_t index, qpc_closure_unconfirmed_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_delivery(uint64_t handle, uint32_t member, uint32_t epoch, uint32_t index, qpc_closure_delivery_v1 *record, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_skipped(uint64_t handle, uint32_t member, uint32_t epoch, uint32_t index, uint64_t *position, qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_acknowledge(uint64_t handle, const uint8_t report[32], qpc_error_v1 *error);
+int32_t qpc_recovery_v1_account_retire(uint64_t handle, qpc_error_v1 *error);
 #ifdef __cplusplus
 }
 #endif

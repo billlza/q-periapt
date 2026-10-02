@@ -77,6 +77,51 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The C candidate now exposes [complete original-account cleanup](../bindings/c/ContinuityPackageConsumer/README.md#complete-account-cleanup)
+through 11 additive functions, for exactly **50 exports**. It consumes original
+discovery, retains all three native owners, freezes the whole member set and offers
+complete nested loss accounting before exact acknowledgement and metadata retirement.
+Current Debug/Release and minimum-Rust 1.90 Release each pass the actual C process
+path: **28 commands / 139 independently replayed public records**, including two
+reserved inputs, two older unknown sends, five unconsumed deliveries and two skipped
+positions. A measured pre-sync process exit at cut three leaves Reserved; cuts one
+and two remain Absent, while the no-cut control commits. Persistent SDK revocation
+precedes cleanup. Original ciphertext commitments and all report fields match native
+and Python readbacks; wrong-ID and cancellation refusals remain strict. Both release
+compilers pass nine owner/admission tests, and strict Clippy passes. Twenty-four
+artifact tests include eight report controls that reject omitted members/items,
+substituted ciphertext and incomplete lifecycle observations. The tracked Rust census
+becomes **264**. This is development qualification; the standard collector/upload
+path is extended, but a new complete archive-produced cohort is still required.
+
+The first C fixture attempts remain: a configuration-file reader rejected legitimate
+empty stderr, and peer directories intentionally lacked the parent family field.
+The log reader is bounded and permits empty logs; configuration validation remains
+strict. Peer verification explicitly receives the original parent's family. An old
+single-session regression initially refused a mode-0755 evidence parent before any
+work; its continuation uses a fresh private parent without changing validation.
+None of these fixture corrections relaxes protocol, status or loss-report assertions.
+The old single-session C recovery trace also passes in both Debug and Release,
+including independent replay. Its first export attempt omitted the separately
+stored top-level public report; a fresh explicit export retains that verified JSON
+alongside the selected records. Private stores are not exported.
+
+The complete `d9638d1b` installed Rust/C/Swift/Kotlin producer finishes with exit 0
+in **2886.499 seconds**, followed by successful independent byte/runtime replay and
+admission/export checks. The sealed cohort has **21,227 files / 491,214,180 bytes**,
+inventory `38eb548a50ffb4f8a9c25e2fdbbaabd68c09a324c42c983ac197a75243f52ff0`.
+It retains the 39-export C surface and does not qualify the later C cleanup extension.
+Both hosted push/PR CI runs and CodeQL at `d9638d1b` complete successfully. This
+includes the macOS installed workload that previously exposed the socket-error race.
+The same source passes the four `sdk-020` groups on a USB iPad Pro M4 / iPadOS 27.0.1.
+Independent proof/signature/binary/result readback passes; the run-owned app is
+uninstalled, with three recorded absence observations and an independent live check.
+Provisioning updates and registration remain disabled. Its sealed device cohort has
+**58 files / 57,586,989 bytes**, inventory
+`86c19942c2f012819f40e720a24a001f7391085418eb7f6e5030659e2a516616`.
+This SDK workload uses test-only in-memory policy-update state; durable mobile
+Continuity and the full current/minimum iPhone/iPad matrix remain unqualified.
+
 At `f8efba8f`, the native [original-installation account cleanup](../research/continuity-identity-candidate/INSTALLATION.md#complete-account-cleanup-under-the-original-installation)
 entry now retains all three storage owners and authenticates installation scope
 before pending writes can be reconciled. It admits the complete authenticated

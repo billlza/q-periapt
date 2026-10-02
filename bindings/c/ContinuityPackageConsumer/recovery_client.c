@@ -178,8 +178,180 @@ static void snapshot(uint64_t handle, const char *path, int create, uint8_t repo
     qpc_closure_status_v1 current=status(handle);
     if (current.phase!=1 || memcmp(current.report,report,32)) bad("pending report identity");
 }
+
+_Static_assert(sizeof(qpc_account_cleanup_header_v1) == 72, "account report layout");
+_Static_assert(sizeof(qpc_account_cleanup_member_v1) == 136, "account member layout");
+_Static_assert(sizeof(qpc_account_cleanup_status_v1) == 36, "account status layout");
+
+static qpc_account_cleanup_status_v1 account_cleanup_status(uint64_t handle) {
+    qpc_error_v1 e; qpc_account_cleanup_status_v1 s;
+    code(qpc_recovery_v1_account_status(handle,&s,&e),&e,0);
+    return s;
+}
+static void account_snapshot(uint64_t handle, const char *path, const uint8_t batch[32],
+                             int create, uint8_t report[32]) {
+    qpc_error_v1 e; qpc_account_cleanup_header_v1 h;
+    code(qpc_recovery_v1_account_begin(handle,&h,&e),&e,0);
+    if (h.reserved_zero || !h.member_count || h.member_count>32 || memcmp(h.batch,batch,32)) {
+        bad("account report scope");
+    }
+    memcpy(report,h.report,32);
+    char *bytes=NULL; size_t length=0; FILE *out=open_memstream(&bytes,&length);
+    if (!out) { bad("account report stream"); }
+    fputs("QPC-C-ACCOUNT-LOSS/1\nbatch ",out); hex(out,h.batch,32);
+    fputs("\nreport ",out); hex(out,h.report,32);
+    fprintf(out,"\nmembers %u\n",h.member_count);
+    for (uint32_t member=0;member<h.member_count;++member) {
+        qpc_account_cleanup_member_v1 m;
+        code(qpc_recovery_v1_account_member(handle,member,&m,&e),&e,0);
+        if (m.reserved_zero || (m.role!=1 && m.role!=2) || !m.generation ||
+            m.has_pending_epoch>1 || !m.epoch_count || m.epoch_count>4) {
+            bad("account member shape");
+        }
+        fprintf(out,"member %u ",member); hex(out,m.device,16); fputc(' ',out);
+        hex(out,m.context,32); fputc(' ',out); hex(out,m.session,32);
+        fprintf(out," %u %" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64 " %u %" PRIu64 " %u\n",
+            m.role,m.generation,m.confirmed_epoch,m.sending_epoch,m.receiving_epoch,
+            m.has_pending_epoch,m.pending_epoch,m.epoch_count);
+        qpc_closure_reserved_v1 r;
+        code(qpc_recovery_v1_account_reserved(handle,member,&r,&e),&e,0);
+        fprintf(out,"reserved %u ",member); hex(out,r.message,32);
+        fprintf(out," %" PRIu64 " %" PRIu64 "\n",r.plaintext_bytes,r.associated_data_bytes);
+        for (uint32_t i=0;i<m.epoch_count;++i) {
+            qpc_closure_epoch_v1 p;
+            code(qpc_recovery_v1_account_epoch(handle,member,i,&p,&e),&e,0);
+            if (p.reserved_zero || p.has_peer_sent>1 || p.resolution>2 ||
+                p.unconfirmed_count>64 || p.delivery_count>128 || p.skipped_count>128) {
+                bad("account epoch shape");
+            }
+            fprintf(out,"epoch %u %u %" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64 " %" PRIu64 " %u %" PRIu64 " %u ",
+                member,i,p.epoch,p.acknowledged_before,p.sent,p.consumed_before,p.received,p.has_peer_sent,p.peer_sent,p.resolution);
+            hex(out,p.resolution_report,32);
+            fprintf(out," %u %u %u\n",p.unconfirmed_count,p.delivery_count,p.skipped_count);
+            for (uint32_t j=0;j<p.unconfirmed_count;++j) {
+                qpc_closure_unconfirmed_v1 u;
+                code(qpc_recovery_v1_account_unconfirmed(handle,member,i,j,&u,&e),&e,0);
+                fprintf(out,"unconfirmed %u %u %u ",member,i,j); hex(out,u.message,32);
+                fputc(' ',out); hex(out,u.ciphertext_digest,32); fputc('\n',out);
+            }
+            for (uint32_t j=0;j<p.delivery_count;++j) {
+                qpc_closure_delivery_v1 d;
+                code(qpc_recovery_v1_account_delivery(handle,member,i,j,&d,&e),&e,0);
+                fprintf(out,"delivery %u %u %u ",member,i,j); hex(out,d.message,32);
+                fprintf(out," %" PRIu64 " %" PRIu64 "\n",d.index,d.plaintext_bytes);
+            }
+            for (uint32_t j=0;j<p.skipped_count;++j) {
+                uint64_t position=0;
+                code(qpc_recovery_v1_account_skipped(handle,member,i,j,&position,&e),&e,0);
+                fprintf(out,"skipped %u %u %u %" PRIu64 "\n",member,i,j,position);
+            }
+            qpc_closure_unconfirmed_v1 u; qpc_closure_delivery_v1 d; uint64_t skipped;
+            code(qpc_recovery_v1_account_unconfirmed(handle,member,i,p.unconfirmed_count,&u,&e),&e,QPC_ARGUMENT);
+            code(qpc_recovery_v1_account_delivery(handle,member,i,p.delivery_count,&d,&e),&e,QPC_ARGUMENT);
+            code(qpc_recovery_v1_account_skipped(handle,member,i,p.skipped_count,&skipped,&e),&e,QPC_ARGUMENT);
+        }
+        qpc_closure_epoch_v1 absent;
+        code(qpc_recovery_v1_account_epoch(handle,member,m.epoch_count,&absent,&e),&e,QPC_ARGUMENT);
+    }
+    qpc_account_cleanup_member_v1 m; qpc_closure_reserved_v1 r; qpc_closure_epoch_v1 p;
+    qpc_closure_unconfirmed_v1 u; qpc_closure_delivery_v1 d; uint64_t skipped;
+    code(qpc_recovery_v1_account_member(handle,h.member_count,&m,&e),&e,QPC_ARGUMENT);
+    code(qpc_recovery_v1_account_reserved(handle,h.member_count,&r,&e),&e,QPC_ARGUMENT);
+    code(qpc_recovery_v1_account_epoch(handle,h.member_count,0,&p,&e),&e,QPC_ARGUMENT);
+    code(qpc_recovery_v1_account_unconfirmed(handle,h.member_count,0,0,&u,&e),&e,QPC_ARGUMENT);
+    code(qpc_recovery_v1_account_delivery(handle,h.member_count,0,0,&d,&e),&e,QPC_ARGUMENT);
+    code(qpc_recovery_v1_account_skipped(handle,h.member_count,0,0,&skipped,&e),&e,QPC_ARGUMENT);
+    if (ferror(out) || fclose(out)) { bad("account report formatting"); }
+    if (!length || length>1048576) { bad("account report size"); }
+    retain(path,"c-account-loss-report",(const uint8_t *)bytes,length,create); free(bytes);
+    qpc_account_cleanup_status_v1 current=account_cleanup_status(handle);
+    if (current.phase!=QPC_ACCOUNT_ABANDONING || memcmp(current.report,report,32)) {
+        bad("account pending report identity");
+    }
+}
+static void saved_account_report(const char *path,const uint8_t batch[32],uint8_t report[32]) {
+    size_t size=0; uint8_t *bytes=read_file(path,"c-account-loss-report",&size);
+    const char first[]="QPC-C-ACCOUNT-LOSS/1\nbatch ",second[]="\nreport ";
+    size_t offset=sizeof(first)-1, report_at=offset+64+sizeof(second)-1;
+    if (size<report_at+65 || memcmp(bytes,first,offset) ||
+        memcmp(bytes+offset+64,second,sizeof(second)-1) || bytes[report_at+64]!='\n') {
+        bad("saved account report framing");
+    }
+    char text[65]; uint8_t retained[32];
+    memcpy(text,bytes+offset,64); text[64]=0; decode(text,retained);
+    if (memcmp(retained,batch,32)) { bad("saved account batch differs"); }
+    memcpy(text,bytes+report_at,64); text[64]=0; decode(text,report); free(bytes);
+}
+static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *witness,int witness_tls) {
+    if (argc!=4) { bad("account recovery arguments"); }
+    const char *mode=argv[1],*path=argv[2];
+    uint8_t batch[32],report[32]; decode(argv[3],batch); qpc_error_v1 e;
+    uint64_t handle=open_recovery(path,witness,witness_tls);
+    if (!strcmp(mode,"recover-account-retired") || !strcmp(mode,"recover-account-absent")) {
+        int expected=!strcmp(mode,"recover-account-retired")?QPC_RETIRED:QPC_DURABLE_ABSENT;
+        code(qpc_recovery_v1_select_account(handle,batch,&e),&e,expected);
+        uint32_t count=0;
+        code(qpc_recovery_v1_session_count(handle,&count,&e),&e,QPC_DURABLE_CLOSED);
+        close_recovery(handle); printf("account-selection-refused:%d\n",expected); return 0;
+    }
+    code(qpc_recovery_v1_select_account(handle,batch,&e),&e,0);
+    uint32_t count=0; qpc_closure_header_v1 independent;
+    code(qpc_recovery_v1_session_count(handle,&count,&e),&e,QPC_STATE);
+    code(qpc_recovery_v1_begin(handle,&independent,&e),&e,QPC_STATE);
+    code(qpc_recovery_v1_restore_index(handle,&e),&e,QPC_STATE);
+    qpc_account_cleanup_member_v1 unavailable;
+    code(qpc_recovery_v1_account_member(handle,0,&unavailable,&e),&e,QPC_STATE);
+    qpc_account_cleanup_status_v1 current=account_cleanup_status(handle);
+    if (!strcmp(mode,"recover-account-committed")) {
+        if (current.phase!=QPC_ACCOUNT_COMMITTED) { bad("committed account fixture missing"); }
+        qpc_account_cleanup_header_v1 header;
+        code(qpc_recovery_v1_account_begin(handle,&header,&e),&e,QPC_SCOPE_CONFLICT);
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_SUSPENDED);
+        current=account_cleanup_status(handle);
+        if (current.phase!=QPC_ACCOUNT_COMMITTED) { bad("committed account was relabeled"); }
+        puts("account-committed-not-abandoned");
+    } else if (!strcmp(mode,"recover-account-freeze")) {
+        if (current.phase!=QPC_ACCOUNT_RESERVED) { bad("account reservation missing"); }
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_SUSPENDED);
+        account_snapshot(handle,path,batch,1,report);
+        uint8_t wrong[32]; memcpy(wrong,report,32); wrong[0]=report[0]==1?2:1;
+        code(qpc_recovery_v1_account_acknowledge(handle,wrong,&e),&e,QPC_SCOPE_CONFLICT);
+        current=account_cleanup_status(handle);
+        if (current.phase!=QPC_ACCOUNT_ABANDONING || memcmp(current.report,report,32)) { bad("wrong account report changed state"); }
+        code(qpc_owner_v1_cancel(handle,&e),&e,0);
+        code(qpc_recovery_v1_account_acknowledge(handle,report,&e),&e,QPC_CANCELLED);
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_CANCELLED);
+        qpc_account_cleanup_member_v1 member;
+        code(qpc_recovery_v1_account_member(handle,0,&member,&e),&e,0);
+        fputs("account-frozen:",stdout); hex(stdout,report,32); fputc('\n',stdout);
+    } else if (!strcmp(mode,"recover-account-ack")) {
+        if (current.phase!=QPC_ACCOUNT_ABANDONING) { bad("account frozen state missing"); }
+        account_snapshot(handle,path,batch,0,report);
+        code(qpc_recovery_v1_account_acknowledge(handle,report,&e),&e,0);
+        code(qpc_recovery_v1_account_acknowledge(handle,report,&e),&e,0);
+        current=account_cleanup_status(handle);
+        if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("account acknowledgement identity"); }
+        fputs("account-acknowledged:",stdout); hex(stdout,report,32); fputc('\n',stdout);
+    } else if (!strcmp(mode,"recover-account-retire")) {
+        saved_account_report(path,batch,report);
+        if (current.phase!=QPC_ACCOUNT_ABANDONED || memcmp(current.report,report,32)) { bad("account terminal report differs"); }
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,0);
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,0);
+        current=account_cleanup_status(handle);
+        uint8_t zero[32]={0};
+        if (current.phase!=QPC_ACCOUNT_RETIRED || memcmp(current.report,zero,32)) { bad("account retirement not reconciled"); }
+        qpc_account_cleanup_header_v1 header;
+        code(qpc_recovery_v1_account_begin(handle,&header,&e),&e,QPC_RETIRED);
+        puts("account-retired");
+    } else { bad("unknown account recovery mode"); }
+    close_recovery(handle); return 0;
+}
+
 int recovery_command(int argc,char **argv,const qpc_witness_v1 *witness,int witness_tls) {
     if (argc<3 || argc>4) bad("recovery arguments");
+    if (!strncmp(argv[1],"recover-account-",16)) {
+        return recovery_account_command(argc,argv,witness,witness_tls);
+    }
     const char *mode=argv[1], *path=argv[2]; qpc_error_v1 e;
     if (!strcmp(mode,"recover-kind")) {
         if (argc!=3) bad("kind arguments");
