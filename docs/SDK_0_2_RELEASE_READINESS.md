@@ -72,10 +72,58 @@ are retained runtime failures; the version transition does not close them.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | Installed Swift/macOS and archive-derived Rust peers pass twelve local process/socket cases with persistence. Hosted macOS package/connection qualification passes at named checkpoints, including 51982a6. These same-host runs do not qualify the requested Swift/macOS-to-Rust/Linux connection; that boundary remains open |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe. Each receipt keeps its source scope; public registries, signing and current/minimum-device coverage remain open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory at 5d782f94 contains 255 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory at c46695b6 contains 261 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+Source `c46695b6` exposes complete-account C operations through the original
+device parent. Calls retain every selected peer/context, reject another parent,
+and invoke native `FanoutInput`/`send_account_member` with the complete original
+input. They deliver one member and preserve distinct local aggregate and remote
+member outcomes. Current Rust 1.98.1 Debug and minimum Rust 1.90 Release pass the
+real three-installation/two-recipient workload; each independently replays **72**
+public records and checks **39** exact owner exports. The trace covers missing,
+duplicate, cancelled, closed and foreign-parent targets, receiver exit after
+application commit, original-message retry, refused unary replay, reordered
+targets and cancellation of an unselected member. All involved owners return BUSY
+during that call, while an idle peer outside the set can close. Current source
+also passes **13** account/native/device/legacy/witness traces, nine default-
+scheduler unit tests, strict Clippy and **90** artifact tests. Minimum Rust passes
+nine unit tests separately. All **128** compiled source inputs match the commit.
+The sealed development cohort has **624 files / 68,695,248 bytes**, inventory
+`8df78b5d2df0bf019316e51a7df8aff5b53d74687fb5a3b390460c6fcf0665c3`.
+This remains an overlay on checked SDK archives. Fresh installed packages,
+required-witness account delivery, own-account C fanout, language-level parent
+owners and provisioning/lifecycle integration retain their separate gates.
+
+The same change fixes qualification marker publication after an existing fresh-
+constructor workload reports `invalid socket barrier`. Its old writer exposed
+the final path before writing. A controlled pause in that window reproduces the
+unchanged C reader's failure on an empty file, followed by a valid final marker.
+The original failure did not record the individual read results. Markers now
+reuse write/sync-before-publication, with a retained deterministic visibility and
+no-replacement check; the full constructor/socket regressions pass. No marker
+retry, weaker assertion or longer timeout was added. The first account trace's
+strict newline-framing error and two pre-execution driver filename collisions
+also remain retained.
+
+The complete `e3b4da54` installed Rust/C/Swift/Kotlin producer finishes with exit 0
+in **2832.653 seconds**. Independent replay verifies **240** unchanged source
+inputs, archives, actual native/JVM artifacts and runtime closures. Both C
+profiles replay device-parent and required-witness parent paths with **36/17**
+public records, nine admission tests and exactly 36 exported owner symbols.
+Each C/Swift/Kotlin profile passes 59 sync cases and 771 commands, expiry and
+witness restoration. Swift's 235-file packages run nine owner tests/profile;
+Kotlin's 251-file packages run eight, seven refusal controls, Serial/G1 prepared
+and in-flight collection, compilation checks and 96 raw sync receipts/profile.
+The cohort has **20,572 files / 465,280,277 bytes**, inventory
+`dc71a591f00e564a9f944f8550822b797a14e341f9c09c77dbb1289f6455b120`.
+This closes installed qualification for C invocation/device-parent additions;
+Swift and Kotlin still wrap their earlier pairwise interface. It predates the
+account addition and marker fix above. CodeQL succeeds; push/PR CI are still in
+progress at the recorded snapshot. Same-host execution and qualification durations
+do not establish independent-engine, cross-host or controlled-performance claims.
 
 Source `e708c03f` adds a C device parent and prepared peer children under the
 original active installation, signer, policy, witness and storage leases. Both
