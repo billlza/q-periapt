@@ -15,6 +15,47 @@ downgrades a required witness. Carrier choice is explicit and never falls back.
 The directory still follows the native candidate qualification layout; production
 provisioning and migration remain separate unfinished interfaces.
 
+`ContinuityDevice.prepare/open` opens one already Active original device. Its
+`preparePeer/openPeer` and `preparePeerReopen/reopenPeer` methods return the same
+operational `ContinuityOwner` interface for a separately configured peer, with an
+explicit `BootstrapRole`. The peer retains the original native parent even when
+the public device wrapper leaves scope. Prepared and active peers keep that
+ownership until their wrappers are released. Peer close does not close the device;
+successful explicit device close releases storage and invalidates all children.
+Busy preserves the device; cancel, join and explicitly close again after active
+work drains. Retained closed aliases do not prevent that
+explicit teardown. The immutable ownership graph has no parent-to-child link.
+
+`nextAccountOperation` returns a journal-bound ID to retain before dispatch.
+`sendAccountMember` takes an `AccountID`, that original `AccountOperationID`, the
+complete `[AccountTarget]`, shared plaintext/AD and a selected member index.
+Every target retains its peer, and the wrapper explicitly keeps all targets and
+the selected device alive through native return. The native owner checks the exact
+parent, current complete roster, session archives and original input; passing a
+legacy pairwise owner or a child of another parent grants no account authority.
+Each call delivers one member. Remote account delivery is not atomic, and any
+failure/cancellation may follow local or remote commit. Reconcile the original ID
+and input; do not omit a failed target or replace the operation.
+
+`AccountStatus` distinguishes local reservation/commit, retained abandonment
+reports and retired history. `AccountDeliveryOutcome` separately represents
+confirmed or prefix-pending consumption, resolution pending, delivery unknown,
+history retired and abandoned reservation. A retained result with zero exchanges
+does not necessarily mean consumed. Malformed output, a changed selected session,
+unknown states or an inconsistent report fail explicitly.
+
+The account qualification CLI uses three original installations and two distinct
+recipient devices. Its bootstrap helper drops the public device wrapper while
+prepared peers remain, then verifies in-process lease reopening after those peers
+leave scope. It uses actual Swift operations for complete-set refusal, original
+message retry after receiver process exit, unary bypass refusal, target reordering
+and cancellation of an unselected target during TLS. The common Rust harness
+records the client language and uses independently owned receiver processes;
+the native protocol engine remains shared. Required-witness account delivery,
+own-account fanout, aggregate abandonment/recovery, credential lifecycle and
+platform-specific execution remain
+separate qualifications.
+
 `ContinuityOwner.prepareReopen(path:quality:session:witness:)` copies an explicit
 existing `SessionID` into the same pending native owner. `finishOpen` restores
 only original Active state with current authority; `reopen` is the synchronous

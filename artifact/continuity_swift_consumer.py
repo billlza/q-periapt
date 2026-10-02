@@ -45,11 +45,14 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "ServerTests.testServedRecordRejectsUnknownKindsAndInconsistentBootstrap",
              "RecoveryTests.testRecoverySharesRegistryAndRetainsCancelledClosedAuthority",
              "RecoveryTests.testClosureDecodingPreservesCountersAndRejectsUnknownStates",
-             "RecoveryTests.testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen"}
+             "RecoveryTests.testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen",
+             "DeviceTests.testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority",
+             "DeviceTests.testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates",
+             "DeviceTests.testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
-                and "Executed 9 tests, with 0 failures" in text,
+                and "Executed 12 tests, with 0 failures" in text,
                 "Swift owner tests did not all execute")
 
 
@@ -158,6 +161,15 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             from continuity_c_witness import export_selected
             public_files = export_selected(checked, evidence, exported, SCOPE,
                                            replay=lambda path: verify_execution(stdout, path))
+            from continuity_c_account import TEST as ACCOUNT_TEST, SCOPE as ACCOUNT_SCOPE, verify_execution as verify_account
+            account_evidence = outside / ("swift-" + profile + "-account-runtime")
+            runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(account_evidence)
+            account_stdout = run([str(trace), "--exact", ACCOUNT_TEST, "--nocapture"], "account-trace-" + profile, runtime=runtime)
+            account_evidence = account_evidence.with_name(account_evidence.name + "-account")
+            account_checked = verify_account(account_stdout, account_evidence, language="Swift")
+            account_files = export_selected(account_checked, account_evidence, output / "swift-public/account" / profile,
+                ACCOUNT_SCOPE.replace("C complete-account", "Swift complete-account"),
+                replay=lambda path: verify_account(account_stdout, path, language="Swift"))
             server_evidence = outside / ("swift-" + profile + "-server-runtime")
             runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(server_evidence)
             server_stdout = run([str(trace), "--exact", c.SERVER_TEST, "--nocapture"], "server-trace-" + profile, runtime=runtime)
@@ -219,6 +231,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files,
+                "account_owner": {"execution": account_checked, "public_files": account_files},
                 "server_execution": server_checked, "server_public_files": server_files,
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
                 "witnessed": witnessed, "restoration": {"execution": restored, "public_files": restored_files},

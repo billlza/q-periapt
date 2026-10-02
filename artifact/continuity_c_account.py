@@ -10,7 +10,8 @@ SCOPE = "same-host C complete-account owner; three installations and two recipie
 PAYLOAD = b"persisted before process exit"
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown account client language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
@@ -39,10 +40,10 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     report = parse_strict_json_bytes(read("initiator/c-account-result.json"), label="C account trace")
     flags = {"completed", "unknown_commit_reconciled", "cancelled_original_reconciled",
              "unary_refused", "reversed_targets_reconciled"}
-    numbers = {"schema_version": 1, "devices": 3, "recipients": 2, "accounts": 2,
+    numbers = {"schema_version": 2, "devices": 3, "recipients": 2, "accounts": 2,
                "admission_refusals": 6, "shape_controls": 4, "application_readbacks": 5, "busy_owners": 3}
-    sdk.require(type(report) is dict and set(report) == flags | numbers.keys() | {"cancellation_ms", "release_claim_eligible"}
-                and all(report[name] is True for name in flags) and report["release_claim_eligible"] is False
+    sdk.require(type(report) is dict and set(report) == flags | numbers.keys() | {"cancellation_ms", "release_claim_eligible", "language"}
+                and report["language"] == language and all(report[name] is True for name in flags) and report["release_claim_eligible"] is False
                 and all(type(report[name]) is int and report[name] == value for name, value in numbers.items()),
                 "account trace fields or census differ")
     elapsed = report["cancellation_ms"]
@@ -104,4 +105,4 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
                     "cancelled account application readback differs")
     sdk.require({path.relative_to(directory).as_posix() for path in directory.glob("*/c-account-*.std*")}
                 == logs.keys() and len(logs) == 62, "account command census differs")
-    return dict(report, scope=SCOPE, public_readbacks=public, command_logs=logs)
+    return dict(report, scope=SCOPE.replace("C complete-account", language + " complete-account"), public_readbacks=public, command_logs=logs)

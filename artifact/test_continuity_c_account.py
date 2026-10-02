@@ -22,7 +22,7 @@ def fixture(root):
         put(root, "initiator/c-account-" + name + ".stderr", b"")
     def state(name, value):
         command(name, f"account-status:{value}\n{'0' * 64}\n".encode())
-    report = dict(schema_version=1, completed=True, devices=3, recipients=2, accounts=2,
+    report = dict(schema_version=2, language="C", completed=True, devices=3, recipients=2, accounts=2,
                   admission_refusals=6, shape_controls=4, application_readbacks=5, busy_owners=3,
                   unknown_commit_reconciled=True, cancelled_original_reconciled=True,
                   unary_refused=True, reversed_targets_reconciled=True, cancellation_ms=12,
@@ -100,7 +100,7 @@ class AccountEvidenceTests(unittest.TestCase):
                     account.verify_execution(STDOUT, root)
 
     def test_claims_require_exact_flags_types_and_observation_bound(self):
-        for name, value in [("completed", 1), ("devices", True), ("shape_controls", 3),
+        for name, value in [("schema_version", 1), ("language", "Swift"), ("completed", 1), ("devices", True), ("shape_controls", 3),
                             ("cancellation_ms", 1000), ("cancellation_ms", -1),
                             ("unary_refused", False), ("release_claim_eligible", True)]:
             with self.subTest(name=name, value=value), tempfile.TemporaryDirectory() as temporary:

@@ -84,7 +84,13 @@ func textBytes(_ value: String, maximum: Int) throws -> [UInt8] {
 /// Every call pins this wrapper through return, including concurrent cancellation.
 final class NativeOwner: Sendable {
     private let handle: UInt64
-    private init(handle: UInt64) { self.handle = handle }
+    // The native registry does not retain language objects. A live peer must
+    // prevent ARC from closing its parent, including while prepared or in flight.
+    private let parent: NativeOwner?
+    private init(handle: UInt64, parent: NativeOwner? = nil) {
+        self.handle = handle
+        self.parent = parent
+    }
 
     /// Snapshot configuration without installation I/O. Call finishOpen before
     /// operations. A cancelled or failed activation never gains operational authority.
@@ -125,8 +131,30 @@ final class NativeOwner: Sendable {
         return NativeOwner(handle: handle)
     }
 
+    static func preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
+                            role: BootstrapRole, session: SessionID?) throws -> NativeOwner {
+        let path = try textBytes(path, maximum: 4096)
+        var result: UInt64 = 0
+        var error = qpc_error_v1()
+        let code = parent.call { parent in
+            path.withUnsafeBufferPointer { path in
+                if let session {
+                    return session.bytes.withUnsafeBufferPointer {
+                        qpc_peer_v1_prepare_reopen(parent, path.baseAddress, path.count,
+                            quality.rawValue, role.rawValue, $0.baseAddress, &result, &error)
+                    }
+                }
+                return qpc_peer_v1_prepare(parent, path.baseAddress, path.count,
+                    quality.rawValue, role.rawValue, &result, &error)
+            }
+        }
+        try checked(code, &error)
+        guard result != 0 else { throw ContinuityBoundaryError.malformedOutput }
+        return NativeOwner(handle: result, parent: parent)
+    }
+
     func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
-        try withExtendedLifetime(self) { try body(handle) }
+        try withExtendedLifetime((self, parent)) { try body(handle) }
     }
 
     public func finishOpen() throws {
@@ -160,11 +188,18 @@ final class NativeOwner: Sendable {
     }
 }
 
-/// Operational authority for one original installation, retaining its shared
-/// native owner through each call. It cannot be converted to cleanup authority.
+/// Operational authority for one original installation or admitted peer context,
+/// retaining its native owner and any parent through each call. It cannot be
+/// converted to cleanup authority.
 public final class ContinuityOwner: Sendable {
     private let native: NativeOwner
     private init(native: NativeOwner) { self.native = native }
+
+    static func preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
+                            role: BootstrapRole, session: SessionID?) throws -> ContinuityOwner {
+        try ContinuityOwner(native: NativeOwner.preparePeer(parent: parent, path: path,
+            quality: quality, role: role, session: session))
+    }
 
     /// Copies configuration only; finishOpen activates synchronously and can be
     /// cancelled from another thread. Failed activation grants no authority.

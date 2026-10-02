@@ -1478,6 +1478,7 @@ fn installed_owner_restores_expired_advertisement_and_reconciles_original_messag
 
 #[test]
 fn c_account_owner_requires_all_devices_and_reconciles_original_members() -> Result<()> {
+    let language = installed_language()?;
     let (setup, extra) = fixture::setup_devices(None, None, None, true)?;
     let right2 = extra.ok_or("second recipient missing")?;
     let left = &setup.initiator;
@@ -1756,7 +1757,7 @@ fn c_account_owner_requires_all_devices_and_reconciles_original_members() -> Res
         )?;
         delivered.push(message);
     }
-    let report = format!("{{\"schema_version\":1,\"completed\":true,\"devices\":3,\"recipients\":2,\"accounts\":2,\"admission_refusals\":6,\"shape_controls\":4,\"unary_refused\":true,\"reversed_targets_reconciled\":true,\"application_readbacks\":5,\"unknown_commit_reconciled\":true,\"cancelled_original_reconciled\":true,\"busy_owners\":3,\"cancellation_ms\":{elapsed},\"release_claim_eligible\":false}}\n");
+    let report = format!("{{\"schema_version\":2,\"language\":\"{language}\",\"completed\":true,\"devices\":3,\"recipients\":2,\"accounts\":2,\"admission_refusals\":6,\"shape_controls\":4,\"unary_refused\":true,\"reversed_targets_reconciled\":true,\"application_readbacks\":5,\"unknown_commit_reconciled\":true,\"cancelled_original_reconciled\":true,\"busy_owners\":3,\"cancellation_ms\":{elapsed},\"release_claim_eligible\":false}}\n");
     fixture::store(left, "c-account-result.json", report.as_bytes())?;
     Ok(())
 }
