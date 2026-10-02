@@ -57,7 +57,10 @@ fn observing_start(
         {
             true
         }
-        Err(error) => return Err(error),
+        // On Darwin a completed refusal can make getpeername return EINVAL.
+        // Preserve the original socket error instead of classifying that
+        // secondary observation as the connection outcome.
+        Err(error) => return Err(stream.take_error()?.unwrap_or(error)),
     };
     observed(pending)?;
     let mut events = Events::with_capacity(4);
@@ -89,7 +92,8 @@ fn observing_start(
                         | io::ErrorKind::WouldBlock
                         | io::ErrorKind::Interrupted
                 ) => {}
-            Err(error) => return Err(error),
+            // The socket can fail after the SO_ERROR check above as well.
+            Err(error) => return Err(stream.take_error()?.unwrap_or(error)),
         }
     }
     poll.registry().deregister(&mut stream)?;
@@ -184,6 +188,29 @@ mod tests {
         assert_ne!(expected.kind(), io::ErrorKind::TimedOut);
         assert_eq!(error.kind(), expected.kind());
         assert_eq!(error.raw_os_error(), expected.raw_os_error());
+        Ok(())
+    }
+
+    #[test]
+    fn closed_listeners_preserve_refusal_across_connect_completion_races() -> io::Result<()> {
+        for address in ["127.0.0.1:0", "[::1]:0"] {
+            let listener = TcpListener::bind(address)?;
+            let address = listener.local_addr()?;
+            drop(listener);
+            let expected = TcpStream::connect_timeout(&address, Duration::from_secs(1))
+                .expect_err("closed listener must refuse the control connection");
+            assert_eq!(expected.kind(), io::ErrorKind::ConnectionRefused);
+            for attempt in 0..256 {
+                let error = tcp(
+                    address,
+                    Instant::now() + Duration::from_secs(1),
+                    &Cancellation::default(),
+                )
+                .expect_err("closed listener must refuse the native connection");
+                assert_eq!(error.kind(), expected.kind(), "attempt {attempt}: {error}");
+                assert_eq!(error.raw_os_error(), expected.raw_os_error());
+            }
+        }
         Ok(())
     }
 

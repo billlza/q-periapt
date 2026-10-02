@@ -77,7 +77,7 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
-The native [original-installation account cleanup](../research/continuity-identity-candidate/INSTALLATION.md#complete-account-cleanup-under-the-original-installation)
+At `f8efba8f`, the native [original-installation account cleanup](../research/continuity-identity-candidate/INSTALLATION.md#complete-account-cleanup-under-the-original-installation)
 entry now retains all three storage owners and authenticates installation scope
 before pending writes can be reconciled. It admits the complete authenticated
 member set, including under the original required witness after operational policy
@@ -91,6 +91,8 @@ three-test suite is continued. An isolated late-admission integration returns th
 expected Conflict but changes the pending journal, establishing why refusal must
 precede recovery. These are native tests, not installed aggregate-cleanup binding
 or full current-source regression results. The tracked Rust census becomes 262.
+The sealed native cohort has **1,132 files / 115,152,755 bytes**, inventory
+`513489b80ad0319fb5095225711f224839aa0398ed938ed4235a61690d82a6b5`.
 
 The complete `20e22a41` installed producer finishes with exit 0 in **3101.257
 seconds**. Independent replay checks **250** unchanged inputs and the actual
@@ -108,10 +110,35 @@ At `c6668fb9`, hosted push Linux installed-package and Android 16 KiB jobs pass,
 while both push and PR macOS package tasks fail. The push fails in the Swift
 account trace; the PR passes C/Swift and fails in Kotlin G1 Debug. Both retained
 failures expose native status 310 with `Invalid argument (os error 22)` while an
-expected-refusal assertion is active. The exact socket call and causal link are
-still under investigation; neither a broader accepted-status list nor blanket
-EINVAL retry has been introduced. The new Linux artifact is downloaded, but its
-public-record retention and independent replay still require verification.
+expected-refusal assertion is active. A local isolated real-socket diagnostic
+reproduces the native error: **787 of 4,096** closed-listener attempts return
+EINVAL from the initial `peer_addr()` observation while the same socket retains
+ECONNREFUSED. The committed implementation's new regression fails on attempt zero.
+The repair reads the socket's original error when peer observation fails, both
+before polling and after readiness, and preserves the observation error if no
+socket error exists. Existing retry categories, limits, deadlines, TLS and exact
+account outcome assertions remain unchanged. All nine real connection/cancellation
+tests pass on Rust 1.98.1 Debug and 1.90 Release, including 256 closed-listener
+attempts per IP family; 13 TLS durable-session regressions and strict Clippy pass.
+The 455 qualification inputs match before/after execution. This establishes the
+local defect and repair; fresh installed-package and hosted macOS results remain
+required. The older `c9d713d2` C failure lacks enough diagnostics to assign the same
+cause. Apple's [getpeername contract](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/getpeername.2.html)
+permits EINVAL for a shut-down socket; it does not make all EINVAL errors retryable.
+
+The actual `c6668fb9` Linux artifact `11230645535` matches its GitHub SHA-256.
+Frozen source modules independently replay both profiles' restoration, witnessed
+restoration, device parent, witnessed device parent and account traces, with
+**24 / 39 / 36 / 17 / 72** verified public records per profile. All 250 recorded
+inputs match the commit. Including ten manifests, all **386** previously omitted
+files survive upload and readback. The first readback attempts incorrectly assumed
+empty harness diagnostics and used a wrong report filename; both are retained.
+The final reader compares the two intentional harness diagnostics byte-for-byte
+with their verified reports, while consumer stderr checks remain strict. The
+sealed readback cohort has **1,526 files / 29,218,049 bytes**, inventory
+`60a77c306ba4bec41ce541eff027f6a7d3d10f51bc1b60aab7b2c66f3e9a1ddb`.
+This closes those public-export gaps, not full retained-binary or macOS-to-Linux
+qualification.
 
 The complete `c9d713d2` installed Rust/C/Swift/Kotlin producer finishes with exit
 0 in **3075.250 seconds**. First independent replay verifies **246** unchanged
@@ -144,7 +171,7 @@ diagnostics before and after; it is not counted as a clean lint run. The retaine
 initial test-selector error is corrected using the actual parsed test class.
 The CI retention cohort has **22 files / 7,821,603 bytes**, inventory
 `76540c7633780dc237b996a26d6727e224dfd7570232c8fdaa26436dd417a94f`.
-A fresh hosted upload/readback remains required. One successful Android run does
+The later `c6668fb9` readback above closes these five export gaps. One successful Android run does
 not establish stability, and hosted job success cannot replace missing readbacks.
 
 Source `b41f91fe` adds mode, expected/actual status and zero-output diagnostics to
