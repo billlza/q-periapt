@@ -273,6 +273,39 @@ three recovery leases. Native tests also retain an actual unconfirmed outbox in
 the loss report, exercise original catalogue restoration, and refuse wrong key,
 changed configuration, Creating/missing storage and witness request/reply loss.
 
+## Complete account cleanup under the original installation
+
+`InstallationRecovery::open_account(id, anchor)` consumes discovery and returns
+`InstalledAccountRecovery`. The application supplies its independently retained
+account operation ID; authenticated journal state selects the complete original
+membership. The owner retains the configuration, archive index and journal leases
+and exposes only the existing restricted `FanoutAbandonmentJournal` through
+`journal()`. It grants no operational peer, signing, send or per-member erasure API.
+Closing it releases those leases without beginning or acknowledging abandonment.
+
+Admission checks the authenticated image against retained installation authority
+before witness access, absence/retirement disposition or recovery writes. Every
+original member archive must also match before a sealed pending transaction can
+be reconciled. Required protection retains the exact policy, witness and enrolled
+signer; unavailable witnesses cannot select local protection. An absent member
+archive fails without applying a partial account transaction. The existing whole
+loss report, durable host accounting, exact acknowledgement and metadata retirement
+semantics in [account abandonment](FANOUT_ABANDONMENT.md) remain unchanged.
+
+Five focused tests cover own-account and peer-account membership, local and real
+signed required-witness admission, closed operational policy, retained leases,
+complete losses, exact repeated acknowledgement and retirement. A selected real
+redb sync fault leaves a sealed reservation intent; wrong retained installation
+authority and missing member archives are rejected without changing that intent.
+An isolated deliberately late-checking integration still returns Conflict but
+fails the unchanged-state assertion because it reconciles first. This is a
+counterexample to admission after recovery, not a historical shipped defect.
+The focused tests pass on Rust 1.98.1 Debug and 1.90 Release; 49 fanout, 30
+installation and three archive-index tests pass with no ignored tests. Strict
+all-target/all-feature Clippy and the no-TLS build pass. These are native API
+results; installed language adapters and full current-source regression remain
+separate. No storage format, cryptographic transcript or published SDK ABI changes.
+
 ## Encoding and trust boundary
 
 The configuration contains exactly one `continuity_installation_v1` table and one

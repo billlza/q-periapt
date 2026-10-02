@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Original-installation admission for restricted session cleanup after expiry.
 use super::*;
-use crate::{codec::Decoder, SessionClosureArchive, SessionClosureJournal};
+use crate::{
+    codec::Decoder, FanoutAbandonmentJournal, FanoutId, RetainedInstallationAuthority as Authority,
+    SessionClosureArchive, SessionClosureJournal,
+};
 
-struct Authority {
-    owner: [u8; 32],
-    policy: [u8; 32],
-    witness: Option<[u8; 32]>,
-}
 impl Authority {
     fn retained(
         saved: &[u8],
@@ -118,6 +116,49 @@ impl InstallationRecovery {
             SessionClosureArchive::from_bytes(archive.as_bytes())
         })
     }
+    /// Select one independently retained account operation. The authenticated
+    /// journal chooses every member; the caller supplies no recipient subset.
+    /// Consumes discovery and retains the original installation/index leases.
+    /// All member archives must match the retained authority before reconciliation
+    /// can write. Missing state or the original required witness never provisions,
+    /// retries under different defaults, or restores operational authority.
+    pub fn open_account(
+        mut self,
+        id: FanoutId,
+        anchor: Option<AnchorClient>,
+    ) -> Result<InstalledAccountRecovery, DurableError> {
+        let RecoveryOwners {
+            mut archives,
+            key,
+            mut installation,
+            authority,
+        } = self.active.take().ok_or(DurableError::Closed)?;
+        if installation.status()? != InstallationStatus::Active {
+            return Err(DurableError::Conflict);
+        }
+        match (authority.witness, anchor.is_some()) {
+            (None, false) | (Some(_), true) => {}
+            (Some(_), false) => return Err(DurableError::AnchorRequired),
+            (None, true) => return Err(DurableError::Conflict),
+        }
+        let identity = installation.identity;
+        let journal = FanoutAbandonmentJournal::open_installed(
+            &installation.paths.journal,
+            key,
+            identity,
+            id,
+            &mut archives,
+            anchor,
+            &authority,
+        )?;
+        Ok(InstalledAccountRecovery {
+            active: Some(AccountOwners {
+                journal,
+                archives,
+                installation,
+            }),
+        })
+    }
     fn select(
         mut self,
         anchor: Option<AnchorClient>,
@@ -198,6 +239,40 @@ impl InstalledSessionRecovery {
         Ok((&mut owners.journal, &mut owners.archives))
     }
     /// Release all original owners without acknowledging loss or erasing records.
+    pub fn close(&mut self) {
+        self.active = None;
+    }
+}
+
+struct AccountOwners {
+    journal: FanoutAbandonmentJournal,
+    archives: SessionArchiveStore,
+    installation: DeviceInstallation,
+}
+/// Original-installation ownership of one complete account cleanup transaction.
+/// Only aggregate status, loss reporting, acknowledgement and metadata retirement
+/// are available. No peer contexts, operational keys or individual member erasure
+/// can be obtained through this owner. Closing it never acknowledges any loss.
+pub struct InstalledAccountRecovery {
+    active: Option<AccountOwners>,
+}
+impl InstalledAccountRecovery {
+    /// Borrow the existing restricted journal. The archive index stays pinned
+    /// privately; it cannot be replaced with a caller-selected recipient set.
+    pub fn journal(&mut self) -> Result<&mut FanoutAbandonmentJournal, DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        owners
+            .installation
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)?;
+        owners
+            .archives
+            .check_identity(owners.installation.identity)?;
+        Ok(&mut owners.journal)
+    }
+    /// Release the journal/key, archive index and installation leases in order.
+    /// This does not begin, acknowledge or retire an account transaction.
     pub fn close(&mut self) {
         self.active = None;
     }

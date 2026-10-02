@@ -164,21 +164,18 @@ impl SessionClosureArchive {
         witness: Option<[u8; 32]>,
     ) -> Result<(), DurableError> {
         let scope = self.authenticate(key, journal)?;
-        if scope.binding.owner != owner {
-            return Err(DurableError::Conflict);
+        let required = match scope.protection {
+            Protection::Local => None,
+            Protection::Required {
+                policy, witness, ..
+            } => Some((policy, witness)),
+        };
+        crate::RetainedInstallationAuthority {
+            owner,
+            policy,
+            witness,
         }
-        match (scope.protection, witness) {
-            (Protection::Local, None) => Ok(()),
-            (
-                Protection::Required {
-                    policy: saved,
-                    witness: pinned,
-                    ..
-                },
-                Some(required),
-            ) if saved == policy && pinned == required => Ok(()),
-            _ => Err(DurableError::Conflict),
-        }
+        .check(scope.binding.owner, required)
     }
     fn authenticate(
         &self,

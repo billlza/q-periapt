@@ -36,6 +36,7 @@ fn signer(device: &VerifiedDevice) -> DeviceSigningKey {
         id if id == [20; 16] => Ok(22),
         id if id == [40; 16] => Ok(42),
         id if id == [41; 16] => Ok(44),
+        id if id == [42; 16] => Ok(46),
         _ => Err("unexpected fixture device"),
     }
     .expect("known separately enrolled identity");
@@ -49,6 +50,213 @@ fn client(pin: &AnchorPin, witness: &Arc<Mutex<Witness>>, device: &VerifiedDevic
         Duration::from_secs(10),
     )
     .expect("witness client")
+}
+
+struct Installed {
+    network: installation::Managed,
+    witness: Arc<Mutex<Witness>>,
+    pin: AnchorPin,
+    _directory: tempfile::TempDir,
+}
+impl Installed {
+    fn new(same_account: bool) -> Self {
+        let directory = directory();
+        let path = canonical(&directory);
+        let store = AnchorStore::provision(
+            &path.join("witness.redb"),
+            JournalKey::provision(&path.join("key")).expect("witness key"),
+            AnchorSigningKey::generate().expect("witness signer"),
+            AnchorIdentity::generate().expect("witness ID"),
+        )
+        .expect("independent real witness");
+        let pin = store.pin().expect("pin");
+        let witness = Arc::new(Mutex::new(Witness {
+            store,
+            calls: 0,
+            now: 150,
+            fail: None,
+        }));
+        let f = fixture_with_anchor(4, same_account, None, AnchorRequirement::required(&pin));
+        let network = installation::Managed::with_fixture(f, |genesis, device, policy| {
+            witness
+                .lock()
+                .expect("witness")
+                .store
+                .enroll(genesis, device, policy, 150)
+                .expect("explicit enrollment");
+            Ok(client(&pin, &witness, device))
+        });
+        Self {
+            network,
+            witness,
+            pin,
+            _directory: directory,
+        }
+    }
+    fn open(&self, id: FanoutId) -> Result<crate::InstalledAccountRecovery, DurableError> {
+        self.network.discover()?.open_account(
+            id,
+            Some(client(&self.pin, &self.witness, &self.network.f.local)),
+        )
+    }
+    fn reserved(same_account: bool) -> Result<(Self, FanoutId, usize), DurableError> {
+        for offset in 1..=12 {
+            let mut c = Self::new(same_account);
+            let selected = targets(&c.network.f, &c.network.sessions);
+            let (journal, _) = c.network.service.stores().expect("original shared stores");
+            let id = journal.next_fanout_id().expect("retain original operation");
+            {
+                let mut witness = c.witness.lock().expect("witness");
+                witness.fail = Some((witness.calls + offset, true));
+            }
+            assert!(matches!(
+                journal.send_account_message(
+                    FanoutInput {
+                        id,
+                        account: c.network.f.peers.first().expect("account").account_id(),
+                        targets: &selected,
+                        plaintext: b"original witnessed reservation",
+                        associated_data: b"installed recovery",
+                    },
+                    150
+                ),
+                Err(DurableError::Anchor(_))
+            ));
+            c.network.service.close();
+            c.witness.lock().expect("witness").fail = None;
+            let opened = c.open(id);
+            let reserved = match opened {
+                Ok(mut owner) => {
+                    let state = owner
+                        .journal()
+                        .expect("journal")
+                        .status()
+                        .expect("actual reconciled phase");
+                    owner.close();
+                    state == FanoutStatus::Reserved
+                }
+                Err(DurableError::Absent) => false,
+                Err(error) => return Err(error),
+            };
+            if reserved {
+                return Ok((c, id, offset));
+            }
+        }
+        Err(Error::State.into())
+    }
+}
+
+#[test]
+fn installed_account_required_witness_admits_original_scope_and_refuses_each_lost_open_reply() {
+    for same_account in [false, true] {
+        let (c, id, cut) = Installed::reserved(same_account)
+            .expect("observe an actual original reservation boundary");
+        c.network
+            .f
+            .contexts
+            .first()
+            .expect("policy")
+            .policy()
+            .close();
+        assert!(matches!(
+            c.network.discover().expect("config").open_account(id, None),
+            Err(DurableError::AnchorRequired)
+        ));
+        let other = Installed::new(false);
+        let before_other = other.witness.lock().expect("other witness").calls;
+        assert!(matches!(
+            c.network.discover().expect("config").open_account(
+                id,
+                Some(client(&other.pin, &other.witness, &c.network.f.local))
+            ),
+            Err(DurableError::Conflict)
+        ));
+        assert_eq!(
+            other.witness.lock().expect("other witness unchanged").calls,
+            before_other
+        );
+        let wrong_signer = AnchorClient::new(
+            c.pin.clone(),
+            DeviceSigningKey::generate().expect("unrelated owner"),
+            Box::new(Transport(Arc::clone(&c.witness))),
+            Duration::from_secs(10),
+        )
+        .expect("client");
+        let before = c.witness.lock().expect("witness").calls;
+        assert!(matches!(
+            c.network
+                .discover()
+                .expect("config")
+                .open_account(id, Some(wrong_signer)),
+            Err(DurableError::Conflict)
+        ));
+        assert_eq!(
+            c.witness
+                .lock()
+                .expect("no query for unrelated owner")
+                .calls,
+            before
+        );
+        let original = c.network.installation_scope(None);
+        for at in [40, 72, 169] {
+            let mut changed = original.clone();
+            *changed
+                .get_mut(at)
+                .expect("retained owner, policy or witness") ^= 1;
+            c.network.installation_scope(Some(&changed));
+            let snapshot = c.network.snapshot();
+            assert!(matches!(c.open(id), Err(DurableError::Conflict)));
+            assert_eq!(c.network.snapshot(), snapshot);
+            assert_eq!(
+                c.witness
+                    .lock()
+                    .expect("scope checked before witness")
+                    .calls,
+                before
+            );
+        }
+        c.network.installation_scope(Some(&original));
+        let mut baseline = c.open(id).expect("same original witness");
+        baseline.close();
+        let calls = c.witness.lock().expect("measured witness").calls - before;
+        assert!(calls > 0 && calls <= 8);
+        for at in 1..=calls {
+            for after in [false, true] {
+                let before = c.witness.lock().expect("witness").calls;
+                c.witness.lock().expect("fault").fail = Some((before + at, after));
+                assert!(matches!(c.open(id), Err(DurableError::Anchor(_))));
+                {
+                    let mut witness = c.witness.lock().expect("witness");
+                    assert_eq!(witness.calls - before, at);
+                    witness.fail = None;
+                }
+                c.open(id)
+                    .expect("exact original operation reopens")
+                    .close();
+            }
+        }
+        let mut recovered = c.open(id).expect("original account owner");
+        let journal = recovered.journal().expect("restricted journal");
+        let report = journal.begin().expect("complete two-device loss report");
+        assert_eq!(report.sessions.len(), 2);
+        abandonment::account(&c.network.root, &report);
+        journal
+            .acknowledge(report.report)
+            .expect("durably accounted exact report");
+        assert_eq!(
+            journal.status().expect("account terminal"),
+            FanoutStatus::Abandoned(report.report)
+        );
+        journal
+            .retire_metadata()
+            .expect("explicit metadata retirement");
+        recovered.close();
+        assert!(matches!(
+            c.open(id),
+            Err(DurableError::Protocol(Error::Retired))
+        ));
+        eprintln!("INSTALLED_ACCOUNT_WITNESS same_account={same_account} reservation_loss={cut} open_calls={calls} refused_open_losses={}", calls * 2);
+    }
 }
 
 #[test]

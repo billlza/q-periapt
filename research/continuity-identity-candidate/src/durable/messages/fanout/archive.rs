@@ -19,6 +19,7 @@ impl Binding {
         key: &JournalKey,
         batch: Batch,
         index: &mut SessionArchiveStore,
+        authority: Option<&crate::RetainedInstallationAuthority>,
     ) -> Result<(Self, [u8; 32]), DurableError> {
         let mut archives = Vec::with_capacity(batch.members.len());
         let mut signer = None;
@@ -36,6 +37,15 @@ impl Binding {
                 batch.account,
                 member,
             )?;
+            if let Some(authority) = authority {
+                archive.check_installation(
+                    key,
+                    JournalIdentity(image.id),
+                    authority.owner,
+                    authority.policy,
+                    authority.witness,
+                )?;
+            }
             if signer.is_some_and(|saved| saved != current) {
                 return Err(DurableError::Conflict);
             }
@@ -108,7 +118,7 @@ impl FanoutAbandonmentJournal {
         batch: FanoutId,
         archives: &mut SessionArchiveStore,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, batch, archives, None)
+        Self::open_inner(path, key, expected, batch, archives, None, None)
     }
     /// Reopen with the original pinned witness and enrolled signing owner. Local
     /// policy expiry does not weaken witness enrollment or permit a local fallback.
@@ -120,7 +130,21 @@ impl FanoutAbandonmentJournal {
         archives: &mut SessionArchiveStore,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, batch, archives, Some(client))
+        Self::open_inner(path, key, expected, batch, archives, Some(client), None)
+    }
+    // Standalone callers above already supply their independent journal identity
+    // and key. An installation owner additionally checks every authenticated
+    // archive against its retained authority BEFORE any pending write is resolved.
+    pub(crate) fn open_installed(
+        path: &Path,
+        key: JournalKey,
+        expected: JournalIdentity,
+        id: FanoutId,
+        archives: &mut SessionArchiveStore,
+        client: Option<AnchorClient>,
+        authority: &crate::RetainedInstallationAuthority,
+    ) -> Result<Self, DurableError> {
+        Self::open_inner(path, key, expected, id, archives, client, Some(authority))
     }
     fn open_inner(
         path: &Path,
@@ -129,10 +153,22 @@ impl FanoutAbandonmentJournal {
         id: FanoutId,
         archives: &mut SessionArchiveStore,
         client: Option<AnchorClient>,
+        authority: Option<&crate::RetainedInstallationAuthority>,
     ) -> Result<Self, DurableError> {
         archives.check_identity(expected)?;
         let db = open_private_database(path)?;
         let (image, pending) = write_intent::load_cleanup_snapshot(&db, &key, expected)?;
+        if let Some(authority) = authority {
+            let required = match image.protection {
+                Protection::Local => None,
+                Protection::Required {
+                    policy, witness, ..
+                } => Some((policy, witness)),
+            };
+            // Even absence/retirement must describe this installation. Reject a
+            // differently scoped journal before any witness query or write.
+            authority.check(image.owner, required)?;
+        }
         match (image.protection, client.is_some()) {
             (Protection::Local, false) | (Protection::Required { .. }, true) => {}
             (Protection::Required { .. }, false) => return Err(DurableError::AnchorRequired),
@@ -186,7 +222,8 @@ impl FanoutAbandonmentJournal {
             }
             Err(error) => return Err(error),
         };
-        let (binding, original_signer) = Binding::retain(admitted, &active.key, batch, archives)?;
+        let (binding, original_signer) =
+            Binding::retain(admitted, &active.key, batch, archives, authority)?;
         if signer.is_some_and(|signer| signer != original_signer) {
             return Err(DurableError::Conflict);
         }

@@ -34,10 +34,38 @@ pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
-    InstallationRecovery, InstallationStatus, InstalledSessionRecovery, ReopenedPeer,
-    ReopenedSession,
+    InstallationRecovery, InstallationStatus, InstalledAccountRecovery, InstalledSessionRecovery,
+    ReopenedPeer, ReopenedSession,
 };
 pub use session_archives::SessionArchiveStore;
+
+// Retained installation metadata shared by cleanup admission layers. It is not
+// an operational capability and cannot be supplied by a public caller.
+pub(crate) struct RetainedInstallationAuthority {
+    owner: [u8; 32],
+    policy: [u8; 32],
+    witness: Option<[u8; 32]>,
+}
+impl RetainedInstallationAuthority {
+    fn check(
+        &self,
+        owner: [u8; 32],
+        required: Option<([u8; 32], [u8; 32])>,
+    ) -> Result<(), DurableError> {
+        if owner != self.owner {
+            return Err(DurableError::Conflict);
+        }
+        match (required, self.witness) {
+            (None, None) => Ok(()),
+            (Some((policy, witness)), Some(expected))
+                if policy == self.policy && witness == expected =>
+            {
+                Ok(())
+            }
+            _ => Err(DurableError::Conflict),
+        }
+    }
+}
 #[cfg(test)]
 mod tests;
 

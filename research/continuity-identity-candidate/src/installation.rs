@@ -19,7 +19,7 @@ const TAG: &[u8; 8] = b"QPCINS01";
 
 mod recovery;
 mod reopen;
-pub use recovery::{InstallationRecovery, InstalledSessionRecovery};
+pub use recovery::{InstallationRecovery, InstalledAccountRecovery, InstalledSessionRecovery};
 pub use reopen::{BootstrapPeer, ReopenedPeer, ReopenedSession};
 
 /// Exact independently configured paths. Keep the installation database and

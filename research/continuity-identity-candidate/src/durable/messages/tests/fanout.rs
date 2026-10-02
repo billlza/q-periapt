@@ -11,6 +11,7 @@ mod abandonment;
 mod archive;
 #[cfg(feature = "connection-tls")]
 mod connection;
+mod installation;
 mod lifecycle;
 mod process;
 mod roles;
@@ -377,91 +378,13 @@ fn wires(results: &[FanoutMember]) -> Vec<Vec<u8>> {
 #[test]
 fn device_service_restores_multiple_peers_for_one_complete_account_transaction() {
     for same_account in [false, true] {
-        let f = fixture(4, same_account, None);
-        let sender_dir = directory();
-        let root = canonical(&sender_dir);
-        let paths = crate::InstallationPaths::new(
-            &root.join("installation.redb"),
-            &root.join("journal.redb"),
-            &root.join("archives.redb"),
-        )
-        .expect("paths");
-        let key_path = root.join("key");
-        let key = JournalKey::provision(&key_path).expect("explicit original key");
-        let policy = f.contexts.first().expect("context").policy();
-        let mut installation =
-            crate::DeviceInstallation::provision(paths.clone(), &key, &f.local, policy, 150)
-                .expect("original installation");
-        installation
-            .prepare(
-                JournalKey::open(&key_path).expect("key"),
-                &f.local,
-                policy,
-                150,
-            )
-            .expect("prepare");
-        let mut service = installation
-            .activate(key, &f.local, policy, 150, None)
-            .expect("activate");
-        let mut receivers = Vec::new();
-        let mut receiver_dirs = Vec::new();
-        let mut sessions = Vec::new();
-        for (((context, device), signer), key) in f
-            .contexts
-            .iter()
-            .zip(&f.peers)
-            .zip(&f.peer_signers)
-            .zip(&f.keys)
-        {
-            let dir = directory();
-            let mut receiver = new_store(&canonical(&dir), device);
-            let admitted = service
-                .admit_peer(Arc::clone(context), crate::BootstrapRole::Initiator, 150)
-                .expect("independently verified fresh peer under the original service");
-            let context = admitted.context();
-            let (journal, archives) = service.stores().expect("one shared journal");
-            let initiation = InitiationId::generate().expect("initiation");
-            let initial = journal
-                .initiate(Arc::clone(context), initiation, &f.local_signer, 150)
-                .expect("initiate");
-            let reply = receiver
-                .respond(
-                    Arc::clone(context),
-                    &initial,
-                    signer,
-                    PqKeySource::from_key(key),
-                    TraditionalKeySource::from_key(key),
-                    150,
-                )
-                .expect("respond");
-            let completed = journal
-                .accept_reply(Arc::clone(context), initiation, &reply, 150)
-                .expect("reply");
-            let session = completed.session_id();
-            receiver
-                .finish(
-                    Arc::clone(context),
-                    &initial,
-                    completed.final_message(),
-                    150,
-                )
-                .expect("finish");
-            journal
-                .activate_initiator_messages(Arc::clone(context), initiation, 150)
-                .expect("sender");
-            receiver
-                .activate_responder_messages(Arc::clone(context), &initial, 150)
-                .expect("receiver");
-            let archive = journal
-                .archive_session_closure(context, session)
-                .expect("archive");
-            archives
-                .retain(journal, context, session, &archive)
-                .expect("retain exact archive");
-            sessions.push(session);
-            receivers.push(receiver);
-            receiver_dirs.push(dir);
-        }
+        let mut managed = installation::Managed::new(same_account);
+        let f = &managed.f;
+        let service = &mut managed.service;
+        let receivers = &mut managed.receivers;
+        let sessions = &managed.sessions;
+        let paths = managed.paths.clone();
+        let key_path = managed.key_path.clone();
         let request = |index: usize| crate::SessionReopenRequest {
             context: Arc::clone(f.contexts.get(index).expect("verified fixture context")),
             role: crate::BootstrapRole::Initiator,

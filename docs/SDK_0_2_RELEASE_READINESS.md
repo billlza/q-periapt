@@ -77,6 +77,42 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The native [original-installation account cleanup](../research/continuity-identity-candidate/INSTALLATION.md#complete-account-cleanup-under-the-original-installation)
+entry now retains all three storage owners and authenticates installation scope
+before pending writes can be reconciled. It admits the complete authenticated
+member set, including under the original required witness after operational policy
+closure. Five new tests pass on Rust 1.98.1 Debug and 1.90 Release. Related fanout,
+installation and archive-index suites pass **49 / 30 / 3** tests with zero ignored;
+strict all-target/all-feature Clippy and the no-TLS build pass. The 455 qualification
+inputs match before/after execution. The runner's substring guard erroneously
+matched `30 passed` as `0 passed`; its successful product result and failed driver
+are retained, exact summary replay confirms 30 successes, and only the unexecuted
+three-test suite is continued. An isolated late-admission integration returns the
+expected Conflict but changes the pending journal, establishing why refusal must
+precede recovery. These are native tests, not installed aggregate-cleanup binding
+or full current-source regression results. The tracked Rust census becomes 262.
+
+The complete `20e22a41` installed producer finishes with exit 0 in **3101.257
+seconds**. Independent replay checks **250** unchanged inputs and the actual
+Rust/C/Swift/Kotlin package/runtime closure. Both Kotlin profiles have **254 files**,
+11 owner tests and nine refusal controls; Serial/G1 each replay **73 account public
+records** per profile. Swift remains 238 files, 12 tests and 72 account records;
+C retains nine admission tests, exactly 39 exports and account/parent/witnessed
+parent records (72/36/17). Every foreign profile completes 59 sync cases/771
+commands and the retained restoration/GC/C2 qualifications. The sealed cohort has
+**21,226 files / 491,303,099 bytes**, inventory
+`d8d67688497eb2f2258ed57116a0c9f543a07a2b72c39c43868d4a235c726220`.
+This source predates the native aggregate recovery entry and does not qualify it.
+
+At `c6668fb9`, hosted push Linux installed-package and Android 16 KiB jobs pass,
+while both push and PR macOS package tasks fail. The push fails in the Swift
+account trace; the PR passes C/Swift and fails in Kotlin G1 Debug. Both retained
+failures expose native status 310 with `Invalid argument (os error 22)` while an
+expected-refusal assertion is active. The exact socket call and causal link are
+still under investigation; neither a broader accepted-status list nor blanket
+EINVAL retry has been introduced. The new Linux artifact is downloaded, but its
+public-record retention and independent replay still require verification.
+
 The complete `c9d713d2` installed Rust/C/Swift/Kotlin producer finishes with exit
 0 in **3075.250 seconds**. First independent replay verifies **246** unchanged
 source inputs, archives, actual binaries and JVM closures. Both Swift profiles
@@ -89,10 +125,10 @@ interface, including its existing GC, C2 and seven refusal checks. This source
 predates Kotlin device/account owners. The sealed cohort has **20,892 files /
 469,163,566 bytes**, inventory
 `4ef958d7a0e511be2b18353003900367a0e754eeb3db6cc52bd8501a7d038779`.
-The `20e22a41` producer includes the new Kotlin owners and remains in progress.
+The later `20e22a41` result above includes the new Kotlin owners.
 
 At `c9d713d2`, the hosted push Linux installed-package and Android 16 KiB jobs
-complete successfully, and CodeQL succeeds. Push CI remains in progress; PR CI
+complete successfully, and CodeQL succeeds. Push CI completes successfully; PR CI
 fails in the macOS installed task's C account refusal/output-initialization check
 before Swift/Kotlin execution, and in Android 16 KiB cleanup. The retained C
 diagnostic does not identify the mode, actual status or output predicate; its
