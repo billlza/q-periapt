@@ -301,7 +301,7 @@ class Matrix:
                                      "QPC_TEST_PATH": str(root / "responder")}).decode()
         names = re.findall(r"^test ([a-z_]+) \.\.\. ok$", stdout, re.MULTILINE)
         sdk.require(names == [name] and re.search(
-            r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", stdout, re.MULTILINE),
+            r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", stdout, re.MULTILINE),
             "installed fault helper did not execute the selected complete test")
 
     def c(self, mode: str, label: str, root: Path, tail=(), *, expected=0, extra=None) -> bytes:

@@ -538,7 +538,7 @@ unsafe fn open_owner(
         let _active = slot.invocation.enter(deadline)?;
         let owner = owner::Owner::open(
             Path::new(&path),
-            quality,
+            owner::Admission::Bootstrap(quality),
             witness,
             slot.cancel.clone(),
             slot.invocation.clone(),

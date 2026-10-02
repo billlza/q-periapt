@@ -89,15 +89,21 @@ final class NativeOwner: Sendable {
     /// Snapshot configuration without installation I/O. Call finishOpen before
     /// operations. A cancelled or failed activation never gains operational authority.
     static func prepare(path: String, kind: UInt32, quality: UInt32,
-                        witness: WitnessCarrier) throws -> NativeOwner {
+                        witness: WitnessCarrier, session: SessionID? = nil) throws -> NativeOwner {
         let pathBytes = try textBytes(path, maximum: 4096)
         var handle: UInt64 = 0
         var error = qpc_error_v1()
         func prepare(_ carrier: UInt32, _ witness: UnsafePointer<qpc_witness_v1>?) throws {
             var options = qpc_open_options_v1(kind: kind, quality: quality,
                                              carrier: carrier, witness: witness)
-            let code = pathBytes.withUnsafeBufferPointer {
-                qpc_owner_v1_prepare_open($0.baseAddress, $0.count, &options, &handle, &error)
+            let code = pathBytes.withUnsafeBufferPointer { path in
+                if let session {
+                    return session.bytes.withUnsafeBufferPointer {
+                        qpc_owner_v1_prepare_reopen(path.baseAddress, path.count, &options,
+                            $0.baseAddress, &handle, &error)
+                    }
+                }
+                return qpc_owner_v1_prepare_open(path.baseAddress, path.count, &options, &handle, &error)
             }
             try checked(code, &error)
         }
@@ -172,6 +178,22 @@ public final class ContinuityOwner: Sendable {
     public static func open(path: String, quality: PrekeyQuality,
                             witness: WitnessCarrier = .local) throws -> ContinuityOwner {
         let owner = try prepare(path: path, quality: quality, witness: witness)
+        try owner.finishOpen()
+        return owner
+    }
+
+    /// Prepare explicit restoration of this existing session without installation I/O.
+    /// finishOpen requires the original Active state and current authority; it may
+    /// authenticate expired advertisements but never creates missing session state.
+    public static func prepareReopen(path: String, quality: PrekeyQuality, session: SessionID,
+                                     witness: WitnessCarrier = .local) throws -> ContinuityOwner {
+        try ContinuityOwner(native: NativeOwner.prepare(path: path, kind: 1,
+            quality: quality.rawValue, witness: witness, session: session))
+    }
+    /// Restore only the selected original session, without a fresh-open fallback.
+    public static func reopen(path: String, quality: PrekeyQuality, session: SessionID,
+                              witness: WitnessCarrier = .local) throws -> ContinuityOwner {
+        let owner = try prepareReopen(path: path, quality: quality, session: session, witness: witness)
         try owner.finishOpen()
         return owner
     }

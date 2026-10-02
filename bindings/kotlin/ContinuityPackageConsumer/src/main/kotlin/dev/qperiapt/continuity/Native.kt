@@ -75,6 +75,7 @@ internal object ContinuityNative {
     private fun function(name: String, vararg parameters: MemoryLayout) =
         linker.downcallHandle(lookup.findOrThrow(name), FunctionDescriptor.of(JAVA_INT, *parameters))
     private val prepare = function("qpc_owner_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val prepareReopen = function("qpc_owner_v1_prepare_reopen", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
         "finish_open" to function("qpc_owner_v1_finish_open", JAVA_LONG, ADDRESS),
         "cancel" to function("qpc_owner_v1_cancel", JAVA_LONG, ADDRESS),
@@ -147,7 +148,7 @@ internal object ContinuityNative {
     private fun exchanges(value: Short): Int = java.lang.Short.toUnsignedInt(value).also {
         if (it !in 1..8) malformed("native exchange count differs")
     }
-    @JvmSynthetic internal fun prepare(path: String, kind: Int, quality: Int, carrier: WitnessCarrier): Long {
+    @JvmSynthetic internal fun prepare(path: String, kind: Int, quality: Int, carrier: WitnessCarrier, session: SessionID? = null): Long {
         val encoded = text(path, 4096)
         return Arena.ofConfined().use { arena ->
             val options = arena.allocate(optionsLayout)
@@ -176,8 +177,13 @@ internal object ContinuityNative {
             options.set(ADDRESS, offset(optionsLayout, "witness"), witness)
             val output = arena.allocate(JAVA_LONG)
             val error = arena.allocate(errorLayout)
-            val code = prepare.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options, output, error) as Int
-            checked("prepare_open", code, error)?.let { throw it }
+            val code = if (session == null) {
+                prepare.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options, output, error) as Int
+            } else {
+                prepareReopen.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options,
+                    arena.bytes(session.encoded()), output, error) as Int
+            }
+            checked(if (session == null) "prepare_open" else "prepare_reopen", code, error)?.let { throw it }
             output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native preparation returned a zero handle") }
         }
     }

@@ -5,6 +5,7 @@ import dev.qperiapt.continuity.ContinuityFailure
 import dev.qperiapt.continuity.ContinuityOwner
 import dev.qperiapt.continuity.ContinuityRecoveryOwner
 import dev.qperiapt.continuity.PrekeyQuality
+import dev.qperiapt.continuity.SessionID
 import java.lang.management.ManagementFactory
 import java.lang.ref.Reference
 import java.lang.ref.ReferenceQueue
@@ -22,9 +23,12 @@ private class PendingOwners : AutoCloseable {
     val values = ArrayList<PreparedInvocation>()
     fun fill() {
         repeat(OWNER_CAPACITY) { index ->
-            values.add(if (index % 2 == 0) PreparedInvocation.Operational(
-                ContinuityOwner.prepare(ABSENT_INSTALLATION, PrekeyQuality.ONE_TIME_BOTH))
-            else PreparedInvocation.Recovery(ContinuityRecoveryOwner.prepare(ABSENT_INSTALLATION)))
+            values.add(when (index % 3) {
+                0 -> PreparedInvocation.Operational(ContinuityOwner.prepare(ABSENT_INSTALLATION, PrekeyQuality.ONE_TIME_BOTH))
+                1 -> PreparedInvocation.Operational(ContinuityOwner.prepareReopen(ABSENT_INSTALLATION,
+                    PrekeyQuality.ONE_TIME_BOTH, SessionID(ByteArray(32) { 73 })))
+                else -> PreparedInvocation.Recovery(ContinuityRecoveryOwner.prepare(ABSENT_INSTALLATION))
+            })
         }
     }
     override fun close() {

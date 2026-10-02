@@ -45,7 +45,7 @@ def fixture(root: Path) -> tuple[bytes, dict]:
         (root / role / ("witness-" + name + ".stdout")).write_text(text)
         (root / role / ("witness-" + name + ".stderr")).write_bytes(b"")
     stdout = (f"test {tls.TEST} ... ok\n"
-              "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+              "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
     return stdout, report
 
 
@@ -77,7 +77,7 @@ class TlsWitnessEvidenceTests(unittest.TestCase):
             root = Path(folder)
             stdout, report = fixture(root)
             tls.verify_execution(stdout, root)
-            for changed in (b"", stdout + stdout, stdout.replace(b"7 filtered out", b"2 filtered out")):
+            for changed in (b"", stdout + stdout, stdout.replace(b"8 filtered out", b"2 filtered out")):
                 self.assertNotEqual(changed, stdout)
                 with self.subTest(stdout=changed), self.assertRaises(ValueError):
                     tls.verify_execution(changed, root)

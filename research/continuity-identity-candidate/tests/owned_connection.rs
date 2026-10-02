@@ -205,13 +205,13 @@ fn with_bundle<T>(
     )?)?;
     check(bundle, requirements)
 }
-fn context(path: &Path, sdk: &PolicyStore) -> Result<Arc<p::BootstrapContext>> {
+fn context(path: &Path, sdk: &PolicyStore, at: u64) -> Result<Arc<p::BootstrapContext>> {
     let policy = protocol_policy(path, sdk)?;
     let context = with_bundle(path, |bundle, requirements| {
         Ok(Arc::new(bundle.verify(
             Arc::clone(&policy),
             requirements,
-            now()?,
+            at,
         )?))
     })?;
     assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
@@ -241,17 +241,23 @@ impl Peer {
         Self::open_with_witness(path, None)
     }
     pub(crate) fn open_with_witness(path: &Path, witness: Option<&WitnessFixture>) -> Result<Self> {
+        Self::open_at_with_witness(path, witness, now()?)
+    }
+    pub(crate) fn open_at_with_witness(
+        path: &Path,
+        witness: Option<&WitnessFixture>,
+        at: u64,
+    ) -> Result<Self> {
         let policy_store = sdk(path)?;
-        let context = context(path, &policy_store)?;
+        let context = context(path, &policy_store, at)?;
         let role = role(path)?;
         let device = context.device(role);
         let key = key(path)?;
         let id = p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?;
         let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
-        let owner =
-            p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), now()?)?;
+        let owner = p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), at)?;
         let anchor = witness.map(|value| value.client(path)).transpose()?;
-        let service = owner.activate(key, device, context.policy(), now()?, anchor)?;
+        let service = owner.activate(key, device, context.policy(), at, anchor)?;
         Ok(Self {
             service,
             signer,
@@ -331,6 +337,13 @@ fn setup_with_advertisement(
     witness: Option<&WitnessFixture>,
     advertisement_seconds: Option<u64>,
 ) -> Result<Setup> {
+    setup_with_time(witness, advertisement_seconds, None)
+}
+pub(crate) fn setup_with_time(
+    witness: Option<&WitnessFixture>,
+    advertisement_seconds: Option<u64>,
+    at: Option<u64>,
+) -> Result<Setup> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
         if advertisement_seconds.is_some() {
@@ -383,7 +396,10 @@ fn setup_with_advertisement(
             id,
         )?);
     }
-    let time = now()?;
+    let time = match at {
+        Some(value) => value,
+        None => now()?,
+    };
     let validity = p::Validity::new(
         time.saturating_sub(1),
         time.checked_add(3600).ok_or("clock overflow")?,
@@ -833,6 +849,12 @@ fn service_peer_process() -> Result<()> {
     }
     if mode == "reopen-application" {
         return reopen::serve_reopened(root, attempt);
+    }
+    if let Some(application_mode) = mode.strip_prefix("restore-current-") {
+        if !matches!(application_mode, "application" | "crash-after-application") {
+            return Err("unknown current-clock restore scenario".into());
+        }
+        return reopen::serve_restored_current(root, attempt, application_mode);
     }
     let mut peer = Peer::open(root)?;
     let listener = TcpListener::bind("127.0.0.1:0")?;

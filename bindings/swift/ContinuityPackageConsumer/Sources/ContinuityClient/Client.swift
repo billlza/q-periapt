@@ -114,7 +114,14 @@ func waitMarker(_ path: String) throws {
                 .mutualTLS(address: args[1], timeoutMilliseconds: 3000)
             args.removeFirst(2)
         }
+        var existing: SessionID?
+        if args.first == "--session" {
+            try require(args.count >= 4, "existing session arguments")
+            existing = try decode(args[1]); args.removeFirst(2)
+        }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
+        try require(existing == nil || (!command.hasPrefix("opening-") && !command.hasPrefix("recover-") && command != "self-check"),
+                    "existing session requires an operational command")
         if command == "self-check" {
             try require(args.count == 1, "self-check arguments")
             try selfCheck()
@@ -130,10 +137,16 @@ func waitMarker(_ path: String) throws {
             try recover(args, witness: witness)
             return
         }
+        func openConfigured() throws -> ContinuityOwner {
+            if let existing {
+                return try ContinuityOwner.reopen(path: args[1], quality: .oneTimeBoth, session: existing, witness: witness)
+            }
+            return try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
+        }
         if command == "reject-open" {
             try require(args.count == 2, "reject arguments")
             do {
-                let owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
+                let owner = try openConfigured()
                 try close(owner)
             } catch let error as ContinuityFailure {
                 try output("rejected:\(error.code)")
@@ -141,7 +154,7 @@ func waitMarker(_ path: String) throws {
             }
             throw ProbeFailure.contract("invalid binding admitted")
         }
-        var owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
+        var owner = try openConfigured()
         let response: String
         switch command {
         case "serve":
@@ -225,7 +238,7 @@ func waitMarker(_ path: String) throws {
             try require(owner.status(session: session, message: message) == expected, "durable message status")
             if busy {
                 try close(owner)
-                owner = try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
+                owner = try openConfigured()
                 try require(owner.status(session: session, message: message) == .committed, "reopen lost committed work")
             }
             response = cancelled ? "cancelled-absent" :

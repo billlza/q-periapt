@@ -112,7 +112,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported witness language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
                 "installed C witness test did not execute completely")
     report_snapshot = sdk.snapshot(directory / "c-witness-public-result.json")
     report = parse_strict_json_bytes(report_snapshot.data, label="C witness result")

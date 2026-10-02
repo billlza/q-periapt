@@ -89,6 +89,21 @@ fn account(
     )?)
 }
 
+pub(crate) enum Admission {
+    Bootstrap(p::PrekeyQuality),
+    Existing {
+        quality: p::PrekeyQuality,
+        session: [u8; 32],
+    },
+}
+impl Admission {
+    fn quality(&self) -> p::PrekeyQuality {
+        match self {
+            Self::Bootstrap(quality) | Self::Existing { quality, .. } => *quality,
+        }
+    }
+}
+
 /// One original local installation, never a reconstructed policy permission.
 pub(crate) struct Owner {
     listener: Option<TcpListener>,
@@ -104,7 +119,7 @@ pub(crate) struct Owner {
 impl Owner {
     pub(crate) fn open(
         path: &Path,
-        quality: p::PrekeyQuality,
+        admission: Admission,
         witness: Option<crate::witness::Configuration>,
         cancel: Cancellation,
         invocation: crate::invocation::Scope,
@@ -142,40 +157,52 @@ impl Owner {
         crate::opening::check(&cancel, deadline)?;
         let initiator = account(&directory, "initiator", family)?;
         let responder = account(&directory, "responder", family)?;
-        let context = Arc::new(
-            p::BootstrapBundle::from_bytes(&read(
-                &directory,
-                "bootstrap.bundle",
-                p::MAX_BOOTSTRAP_BUNDLE_BYTES,
-            )?)?
-            .verify(
-                policy,
-                p::BootstrapRequirements {
-                    initiator: p::ExpectedDevice::new(
-                        &initiator,
-                        array(&directory, "initiator-device")?,
-                        u64::from_be_bytes(array(&directory, "initiator-generation")?),
-                    )?,
-                    responder: p::ExpectedDevice::new(
-                        &responder,
-                        array(&directory, "responder-device")?,
-                        u64::from_be_bytes(array(&directory, "responder-generation")?),
-                    )?,
-                    quality,
-                    directory: p::DirectoryExpectation::from_trusted_state(array(
-                        &directory,
-                        "directory",
-                    )?)?,
-                },
-                now().map_err(Failure::configuration)?,
+        let bundle = p::BootstrapBundle::from_bytes(&read(
+            &directory,
+            "bootstrap.bundle",
+            p::MAX_BOOTSTRAP_BUNDLE_BYTES,
+        )?)?;
+        let required = p::BootstrapRequirements {
+            initiator: p::ExpectedDevice::new(
+                &initiator,
+                array(&directory, "initiator-device")?,
+                u64::from_be_bytes(array(&directory, "initiator-generation")?),
             )?,
-        );
-        crate::opening::check(&cancel, deadline)?;
+            responder: p::ExpectedDevice::new(
+                &responder,
+                array(&directory, "responder-device")?,
+                u64::from_be_bytes(array(&directory, "responder-generation")?),
+            )?,
+            quality: admission.quality(),
+            directory: p::DirectoryExpectation::from_trusted_state(array(
+                &directory,
+                "directory",
+            )?)?,
+        };
         let role = match array(&directory, "role")? {
             [1] => p::BootstrapRole::Initiator,
             [2] => p::BootstrapRole::Responder,
             _ => return Err(Failure::argument()),
         };
+        enum Verified {
+            Bootstrap(Arc<p::BootstrapContext>),
+            Existing(p::SessionReopenRequest),
+        }
+        let verified = match admission {
+            Admission::Bootstrap(_) => Verified::Bootstrap(Arc::new(bundle.verify(
+                policy,
+                required,
+                now().map_err(Failure::configuration)?,
+            )?)),
+            Admission::Existing { session, .. } => Verified::Existing(bundle.request_reopen(
+                policy,
+                required,
+                role,
+                session,
+                now().map_err(Failure::configuration)?,
+            )?),
+        };
+        crate::opening::check(&cancel, deadline)?;
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
         let signer = p::DeviceSigningKey::open(
             &path.join("signer.key"),
@@ -183,27 +210,47 @@ impl Owner {
             p::SigningKeyId::from_trusted_state(array(&directory, "signer-id")?)?,
         )?;
         crate::opening::check(&cancel, deadline)?;
-        let device = context.device(role);
-        let installation = p::DeviceInstallation::open(
-            paths,
-            &key,
-            device,
-            context.policy(),
-            now().map_err(Failure::configuration)?,
-        )?;
-        // A witnessed constructor must match the policy exactly; absence never
-        // retries activation under a different persistence profile.
-        let anchor = witness
-            .map(|configured| configured.client(path, cancel.clone(), invocation))
-            .transpose()?;
-        crate::opening::check(&cancel, deadline)?;
-        let service = installation.activate(
-            key,
-            device,
-            context.policy(),
-            now().map_err(Failure::configuration)?,
-            anchor,
-        )?;
+        // Witness choice is explicit for both admission paths; failure never
+        // retries under a different profile or constructs replacement state.
+        let make_anchor = || {
+            witness
+                .map(|configured| configured.client(path, cancel.clone(), invocation))
+                .transpose()
+        };
+        let (service, context) = match verified {
+            Verified::Bootstrap(context) => {
+                let device = context.device(role);
+                let installation = p::DeviceInstallation::open(
+                    paths,
+                    &key,
+                    device,
+                    context.policy(),
+                    now().map_err(Failure::configuration)?,
+                )?;
+                let anchor = make_anchor()?;
+                crate::opening::check(&cancel, deadline)?;
+                let service = installation.activate(
+                    key,
+                    device,
+                    context.policy(),
+                    now().map_err(Failure::configuration)?,
+                    anchor,
+                )?;
+                (service, context)
+            }
+            Verified::Existing(request) => {
+                let anchor = make_anchor()?;
+                crate::opening::check(&cancel, deadline)?;
+                p::DeviceInstallation::reopen_session(
+                    paths,
+                    key,
+                    request,
+                    now().map_err(Failure::configuration)?,
+                    anchor,
+                )?
+                .into_parts()
+            }
+        };
         crate::opening::check(&cancel, deadline)?;
         let owner = Self {
             listener: None,

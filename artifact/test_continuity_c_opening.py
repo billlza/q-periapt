@@ -55,7 +55,7 @@ class ConstructorTranscriptTests(unittest.TestCase):
             for name, value in files.items(): (root / name).write_bytes(value)
             path = root / "c-opening-public-result.json"
             path.write_text(json.dumps(report))
-            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
             opening.verify_execution(stdout, root)
             for language in ("Swift", "Kotlin"):
                 with self.subTest(language=language):

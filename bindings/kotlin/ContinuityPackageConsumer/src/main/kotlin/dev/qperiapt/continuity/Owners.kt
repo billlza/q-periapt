@@ -33,8 +33,8 @@ private class NativeOwner private constructor(private val handle: Long) : AutoCl
     companion object {
         private val cleaner = Cleaner.create()
         private val logger = Logger.getLogger("dev.qperiapt.continuity")
-        fun <T> prepare(path: String, kind: Int, quality: Int, witness: WitnessCarrier, wrap: (NativeOwner) -> T): T {
-            val handle = ContinuityNative.prepare(path, kind, quality, witness)
+        fun <T> prepare(path: String, kind: Int, quality: Int, witness: WitnessCarrier, wrap: (NativeOwner) -> T, session: SessionID? = null): T {
+            val handle = ContinuityNative.prepare(path, kind, quality, witness, session)
             return try { wrap(NativeOwner(handle)) } catch (failure: Throwable) {
                 try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
                 throw failure
@@ -55,6 +55,19 @@ class ContinuityOwner private constructor(private val native: NativeOwner) : Aut
             NativeOwner.prepare(path, 1, quality.code, witness, ::ContinuityOwner)
         fun open(path: String, quality: PrekeyQuality, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner {
             val owner = prepare(path, quality, witness)
+            try { owner.finishOpen(); return owner } catch (failure: Throwable) {
+                try { owner.close() } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
+                throw failure
+            }
+        }
+        /** Copy an explicit existing-session selection; finishOpen performs all durable admission. */
+        fun prepareReopen(path: String, quality: PrekeyQuality, session: SessionID,
+                          witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner =
+            NativeOwner.prepare(path, 1, quality.code, witness, ::ContinuityOwner, session)
+        /** Restore original Active state; never create missing state or retry fresh admission. */
+        fun reopen(path: String, quality: PrekeyQuality, session: SessionID,
+                   witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner {
+            val owner = prepareReopen(path, quality, session, witness)
             try { owner.finishOpen(); return owner } catch (failure: Throwable) {
                 try { owner.close() } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
                 throw failure

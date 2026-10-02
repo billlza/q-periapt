@@ -11,7 +11,7 @@ pub struct Options {
     pub witness: *const witness::Options,
 }
 enum Kind {
-    Operational(p::PrekeyQuality),
+    Operational(owner::Admission),
     Recovery,
 }
 pub(crate) struct Request {
@@ -42,7 +42,7 @@ impl Request {
         // SAFETY: header contract requires immutable live options and pointed-to inputs.
         let options = unsafe { &*options };
         let kind = match (options.kind, options.quality) {
-            (1, value) => Kind::Operational(quality(value)?),
+            (1, value) => Kind::Operational(owner::Admission::Bootstrap(quality(value)?)),
             (2, 0) => Kind::Recovery,
             _ => return Err(Failure::argument()),
         };
@@ -67,15 +67,35 @@ impl Request {
             witness,
         })
     }
+    unsafe fn read_reopen(
+        path: *const u8,
+        length: usize,
+        options: *const Options,
+        session: *const u8,
+    ) -> Result<Self> {
+        // SAFETY: the explicit reopen entry forwards the same bounded input contract.
+        let mut request = unsafe { Self::read(path, length, options) }?;
+        let quality = match request.kind {
+            Kind::Operational(owner::Admission::Bootstrap(quality)) => quality,
+            _ => return Err(Failure::argument()),
+        };
+        // SAFETY: header requires a distinct live immutable 32-byte session ID.
+        let session = unsafe { fixed(session) }?;
+        if session.iter().all(|byte| *byte == 0) {
+            return Err(Failure::argument());
+        }
+        request.kind = Kind::Operational(owner::Admission::Existing { quality, session });
+        Ok(request)
+    }
     fn open(self, entry: &Entry, deadline: Instant) -> Result<Owned> {
         check(&entry.cancel, deadline)?;
         let path = Path::new(&self.path);
         let cancel = entry.cancel.clone();
         let invocation = entry.invocation.clone();
         let owner = match self.kind {
-            Kind::Operational(quality) => Owned::Operational(Box::new(owner::Owner::open(
+            Kind::Operational(admission) => Owned::Operational(Box::new(owner::Owner::open(
                 path,
-                quality,
+                admission,
                 self.witness,
                 cancel,
                 invocation,
@@ -117,6 +137,35 @@ pub unsafe extern "C" fn qpc_owner_v1_prepare_open(
         Ok(())
     };
     // SAFETY: caller owns this invocation's valid diagnostic output.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Prepare restoration of one independently selected existing session. Copies
+/// every input and exposes no operational authority until finish_open succeeds.
+/// # Safety
+/// Same input/output contract as prepare_open; session is a live immutable 32-byte
+/// input, distinct from all writable outputs. No pointer is retained.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_owner_v1_prepare_reopen(
+    path: *const u8,
+    length: usize,
+    options: *const Options,
+    session: *const u8,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(handle)?;
+        // SAFETY: validated aligned output and the caller's distinct-region contract.
+        unsafe { put(handle, 0) };
+        let request = unsafe { Request::read_reopen(path, length, options, session) }?;
+        let slot = Reservation::new()?;
+        let id = slot.publish(Owned::Opening(Box::new(request)), deadline)?;
+        // SAFETY: same exclusive writable output.
+        unsafe { put(handle, id) };
+        Ok(())
+    };
+    // SAFETY: invocation-local writable diagnostic supplied by the caller.
     unsafe { boundary(error, false, action) }
 }
 
@@ -254,6 +303,72 @@ mod tests {
             assert_eq!(qpc_owner_v1_cancel(handle, &mut error), 0);
             assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 302);
             assert_eq!(qpc_owner_v1_close(handle, &mut error), 0);
+        }
+        // The restoration request copies the caller's selected session and shares
+        // the same pending capacity, cancellation and one-shot activation contract.
+        options.kind = 1;
+        options.quality = 1;
+        let mut selected = [73; 32];
+        unsafe {
+            assert_eq!(
+                qpc_owner_v1_prepare_reopen(
+                    path.as_ptr(),
+                    path.len(),
+                    &options,
+                    selected.as_ptr(),
+                    &mut handle,
+                    &mut error
+                ),
+                0
+            );
+            selected.fill(0);
+            with_entry(handle, Instant::now() + invocation::TIMEOUT, |slot, _| {
+                match slot.as_ref() {
+                    Some(Owned::Opening(request)) => match &request.kind {
+                        Kind::Operational(owner::Admission::Existing { session, .. }) => {
+                            assert_eq!(*session, [73; 32])
+                        }
+                        _ => return Err(Failure::argument()),
+                    },
+                    _ => return Err(Failure::argument()),
+                }
+                Ok(())
+            })
+            .expect("copied exact session");
+            assert_eq!(qpc_owner_v1_cancel(handle, &mut error), 0);
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 302);
+            assert_eq!(qpc_owner_v1_finish_open(handle, &mut error), 2);
+            assert_eq!(qpc_owner_v1_close(handle, &mut error), 0);
+            for pointer in [std::ptr::null(), selected.as_ptr()] {
+                handle = 99;
+                assert_eq!(
+                    qpc_owner_v1_prepare_reopen(
+                        path.as_ptr(),
+                        path.len(),
+                        &options,
+                        pointer,
+                        &mut handle,
+                        &mut error
+                    ),
+                    1
+                );
+                assert_eq!(handle, 0);
+            }
+            selected.fill(73);
+            options.kind = 2;
+            options.quality = 0;
+            assert_eq!(
+                qpc_owner_v1_prepare_reopen(
+                    path.as_ptr(),
+                    path.len(),
+                    &options,
+                    selected.as_ptr(),
+                    &mut handle,
+                    &mut error
+                ),
+                1
+            );
+            assert_eq!(handle, 0);
         }
         assert!(TABLE.lock().expect("table").slots.is_empty());
         assert_eq!(CALLS.load(Ordering::Acquire), 0);

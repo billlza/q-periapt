@@ -33,7 +33,7 @@ from test_continuity_package import metadata
 
 
 STDOUT = (f"test {consumer.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
 
 
 def evidence(root):
@@ -213,7 +213,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder)
             report = evidence(root)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
-                           STDOUT.replace(b"4 filtered out", b"5 filtered out"), STDOUT + STDOUT):
+                           STDOUT.replace(b"6 filtered out", b"5 filtered out"), STDOUT + STDOUT):
                 with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "completely"):
                     consumer.verify_execution(stdout, root)
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),
@@ -280,6 +280,54 @@ class ContinuityCConsumerTests(unittest.TestCase):
                 with self.subTest(message=bad), self.assertRaises(ValueError):
                     consumer.built_artifact(bad, root, build, library=False)
 
+
+
+
+class RestorationTests(unittest.TestCase):
+    def test_expired_advertisement_restore_requires_actual_outputs_and_current_foreign_clock(self):
+        stdout = (f"test {consumer.RESTORE_TEST} ... ok\n"
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for role in ("initiator", "responder"):
+                (root / role).mkdir()
+                (root / role / "session").write_bytes(bytes.fromhex("11" * 32))
+                (root / role / "reopen-test-time").write_bytes((160).to_bytes(8, "big"))
+            report = {"language": "C", "session": "11" * 32, "message": "22" * 32,
+                      "advertisement_until": 160, "current_time": 170, "independent_readbacks": 2,
+                      **{k: True for k in ("fresh_refused", "wrong_session_refused", "pre_cancel_absent",
+                         "unknown_commit_reconciled", "actual_foreign_clock")}}
+            report_path = root / "c-restore-public-result.json"
+            report_path.write_text(json.dumps(report))
+            effect = root / "responder" / ("application-" + report["message"])
+            effect.write_bytes(bytes.fromhex(report["session"] + report["message"]) + b"persisted before process exit")
+            expected = {"restore-fresh-refused": "rejected:104\n", "restore-wrong-session": "rejected:201\n",
+                        "restore-next": report["message"] + "\n", "restore-cancelled": "cancelled-absent\n",
+                        "restore-same-slot": report["message"] + "\n", "restore-unknown": "delivery-unknown-committed\n",
+                        "restore-committed": "2\n", "restore-exact-resend": "consumed\n", "restore-acknowledged": "3\n"}
+            for name, content in expected.items():
+                (root / "initiator" / f"c-{name}.stdout").write_text(content)
+                (root / "initiator" / f"c-{name}.stderr").write_bytes(b"")
+            checked = consumer.verify_restore_execution(stdout, root)
+            self.assertEqual(len(checked["public_readbacks"]), 6)
+            self.assertEqual(len(checked["command_logs"]), 18)
+            for field, value in (("current_time", 160), ("actual_foreign_clock", False),
+                                 ("wrong_session_refused", 1), ("independent_readbacks", True), ("language", "Swift")):
+                report_path.write_text(json.dumps(dict(report, **{field: value})))
+                with self.subTest(field=field), self.assertRaises(ValueError):
+                    consumer.verify_restore_execution(stdout, root)
+            report_path.write_text(json.dumps(report))
+            for leaf in (effect, root / "initiator/c-restore-acknowledged.stdout", root / "responder/reopen-test-time"):
+                original = leaf.read_bytes();leaf.write_bytes(original[:-1] + b"!")
+                with self.subTest(file=leaf.name), self.assertRaises(ValueError):
+                    consumer.verify_restore_execution(stdout, root)
+                leaf.write_bytes(original)
+            for invalid in (b"", stdout + stdout, stdout.replace(b"6 filtered out", b"5 filtered out")):
+                with self.subTest(stdout=invalid), self.assertRaises(ValueError):
+                    consumer.verify_restore_execution(invalid, root)
+            for language in ("Swift", "Kotlin"):
+                report_path.write_text(json.dumps(dict(report, language=language)))
+                self.assertEqual(consumer.verify_restore_execution(stdout, root, language=language)["language"], language)
 
 if __name__ == "__main__":
     unittest.main(warnings="error")

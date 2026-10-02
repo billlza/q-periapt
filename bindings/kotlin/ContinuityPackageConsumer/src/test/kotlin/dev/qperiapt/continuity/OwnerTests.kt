@@ -44,18 +44,24 @@ class OwnerTests {
         ), ContinuityNative.layouts())
     }
     @Test fun pendingOwnersRejectWorkAndCancellationNeverActivates() {
-        val owner = ContinuityOwner.prepare("/absent-continuity-jvm-probe", PrekeyQuality.ONE_TIME_BOTH)
-        try {
-            // Input decoding precedes owner admission. An invalid message ID
-            // is not evidence about pending-owner authority.
-            fails(101) { owner.messageStatus(SessionID(ByteArray(32)), MessageID(ByteArray(32))) }
-            fails(6) { owner.listen("127.0.0.1:0") }
-            owner.cancel()
-            fails(302) { owner.finishOpen() }
-            fails(2) { owner.finishOpen() }
-        } finally { owner.close() }
-        fails(2) { owner.cancel() }
-        fails(2) { owner.close() }
+        val owners = listOf(
+            ContinuityOwner.prepare("/absent-continuity-jvm-probe", PrekeyQuality.ONE_TIME_BOTH),
+            ContinuityOwner.prepareReopen("/absent-continuity-jvm-probe", PrekeyQuality.ONE_TIME_BOTH, SessionID(ByteArray(32) { 73 })),
+        )
+        for (owner in owners) {
+            try {
+                fails(101) { owner.messageStatus(SessionID(ByteArray(32)), MessageID(ByteArray(32))) }
+                fails(6) { owner.listen("127.0.0.1:0") }
+                owner.cancel()
+                fails(302) { owner.finishOpen() }
+                fails(2) { owner.finishOpen() }
+            } finally { owner.close() }
+            fails(2) { owner.cancel() }
+            fails(2) { owner.close() }
+        }
+        fails(1) {
+            ContinuityOwner.prepareReopen("/absent-continuity-jvm-probe", PrekeyQuality.ONE_TIME_BOTH, SessionID(ByteArray(32)))
+        }
     }
     @Test fun failedOpenReleasesTheOriginalOwnerSlot() {
         repeat(128) {

@@ -22,6 +22,21 @@ cause. No method exposes a raw handle or converts recovery authority into an
 operational owner. IDs and public byte records own immutable copies. `Counter64`
 represents the entire native unsigned range without signed truncation.
 
+`ContinuityOwner.prepareReopen(path, quality, session, witness)` copies an
+explicit existing `SessionID` and returns the same kind of pending operational
+owner. `finishOpen` performs native historical-snapshot and Active-installation
+admission; `reopen` closes a failed preparation while preserving its original
+failure and any suppressed disposal error. It does not extend credential/policy
+validity, bypass current rosters/witnesses, create missing state or fall back from
+fresh admission. This requires the matching native library's additive
+`qpc_owner_v1_prepare_reopen` symbol; an older missing-symbol library is refused.
+The prepared-owner Serial/G1 matrix now interleaves fresh, restoration and cleanup
+preparations in the shared 64-slot registry. Every 64-owner round includes 21
+restoration preparations. The local restoration trace uses the public Kotlin
+method with its real current clock and independent Rust TLS receiver processes;
+unknown application commitment is reconciled using the same message identity.
+Foreign witnessed restoration remains a separate qualification boundary.
+
 All native calls are synchronous. The wrapper adds no operation executor or
 automatic retry. Native BUSY preserves the owner; cancellation remains available
 while another invocation is active. Deterministic `use`/`close` is required for

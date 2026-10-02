@@ -151,6 +151,18 @@ typedef struct {
 int32_t qpc_owner_v1_prepare_open(const uint8_t *path, size_t length,
                                 const qpc_open_options_v1 *options,
                                 uint64_t *handle, qpc_error_v1 *error);
+/* Explicit restoration of a nonzero existing session. options.kind must be 1;
+ * quality and witness carrier retain the same independent-selection contract.
+ * Preparation copies all inputs without installation I/O. session is exactly
+ * 32 readable immutable bytes. finish_open requires the original Active stores,
+ * exact established session/role/context and closure archive, current authority
+ * and required witness. It may authenticate expired public advertisement/roster
+ * snapshots but never extends credential/policy validity or creates new state.
+ * The fresh constructors do not automatically use this path after any failure.
+ */
+int32_t qpc_owner_v1_prepare_reopen(const uint8_t *path, size_t length,
+                                  const qpc_open_options_v1 *options, const uint8_t session[32],
+                                  uint64_t *handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_finish_open(uint64_t handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_cancel(uint64_t handle, qpc_error_v1 *error);
 int32_t qpc_owner_v1_close(uint64_t handle, qpc_error_v1 *error);

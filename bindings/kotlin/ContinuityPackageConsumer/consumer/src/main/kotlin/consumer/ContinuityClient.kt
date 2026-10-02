@@ -51,7 +51,14 @@ private fun run(arguments: List<String>): String {
             else WitnessCarrier.MutualTLS(args[1], 3000)
         args = args.drop(2)
     }
+    val existing = if (args.firstOrNull() == "--session") {
+        require(args.size >= 4) { "existing session arguments" }
+        SessionID(decode(args[1])).also { args = args.drop(2) }
+    } else null
     require(args.isNotEmpty()) { "command required" }
+    require(existing == null || (!inFlightGC && !interruptOpening && !args[0].startsWith("opening-") && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
+        "existing session requires an ordinary operational command"
+    }
     require(!inFlightGC || args[0] == "serve") { "in-flight GC requires a server fixture" }
     require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
     if (args[0] == "gc-owner-capacity") {
@@ -73,13 +80,18 @@ private fun run(arguments: List<String>): String {
     }
     if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening)
     if (args[0].startsWith("recover-")) return recover(args, witness)
+    fun openConfigured(): ContinuityOwner = if (existing == null) {
+        ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness)
+    } else {
+        ContinuityOwner.reopen(args[1], PrekeyQuality.ONE_TIME_BOTH, existing, witness)
+    }
     if (args[0] == "reject-open") {
         require(args.size == 2)
-        try { ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness).close() }
+        try { openConfigured().close() }
         catch (failure: ContinuityFailure) { return "rejected:${failure.code}" }
         error("invalid binding admitted")
     }
-    return ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness).use { owner ->
+    return openConfigured().use { owner ->
         when (args[0]) {
             "serve" -> {
                 require(args.size in 3..4)

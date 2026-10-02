@@ -992,3 +992,197 @@ fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_ex
     eprintln!("C_RECOVERY_PUBLIC_SERVICE_RESULT {}", report.trim());
     Ok(())
 }
+
+/// Qualification fixture only: establish at an explicit historical protocol
+/// instant, then let foreign owners operate with their real current wall clock.
+/// No product clock override, sleep race or expired fresh constructor is used.
+fn setup_established_expired_advertisement() -> Result<fixture::Setup> {
+    let at = fixture::now()?
+        .checked_sub(120)
+        .ok_or("historical fixture time")?;
+    let s = fixture::setup_with_time(None, Some(60), Some(at))?;
+    let mut initiator = fixture::Peer::open_at_with_witness(&s.initiator, None, at)?;
+    let mut responder = fixture::Peer::open_at_with_witness(&s.responder, None, at)?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let address = listener.local_addr()?;
+    let server_endpoint = p::connection_transport::ConnectionEndpoint::server(
+        &responder.context,
+        responder.credentials(),
+        fixture::tls_limits(),
+    )?;
+    let server = std::thread::spawn(move || -> Result<[u8; 32]> {
+        struct NoApplication;
+        impl p::connection_transport::Consumer for NoApplication {
+            fn commit(&mut self, _: [u8; 32], _: &p::CommittedPlaintext) -> std::io::Result<()> {
+                Err(std::io::Error::other(
+                    "unexpected application during historical bootstrap",
+                ))
+            }
+        }
+        let mut app = NoApplication;
+        match server_endpoint.serve(
+            fixture::accept(&listener)?,
+            responder.actor()?,
+            &mut app,
+            fixture::limits(),
+            &p::connection_transport::Cancellation::default(),
+            || Ok(at),
+        )? {
+            p::connection_transport::Served::Established(session) => Ok(session),
+            _ => Err("fixture bootstrap returned application result".into()),
+        }
+    });
+    let endpoint = p::connection_transport::ConnectionEndpoint::client(
+        &initiator.context,
+        initiator.credentials(),
+        fixture::tls_limits(),
+    )?;
+    let name = initiator.peer_name.clone();
+    let result = endpoint.establish(
+        initiator.actor()?,
+        p::InitiationId::generate()?,
+        p::connection_transport::Run {
+            address,
+            server_name: &name,
+            limits: fixture::limits(),
+            cancel: &p::connection_transport::Cancellation::default(),
+        },
+        || Ok(at),
+    );
+    let peer_result = server
+        .join()
+        .map_err(|_| "historical fixture server panicked")?;
+    let result = result?;
+    assert_eq!(result.session, peer_result?);
+    initiator.close();
+    for path in [&s.initiator, &s.responder] {
+        fixture::store(path, "session", &result.session)?;
+    }
+    assert!(at + 60 < fixture::now()?);
+    Ok(s)
+}
+
+#[test]
+fn installed_owner_restores_expired_advertisement_and_reconciles_original_message() -> Result<()> {
+    let language = installed_language()?;
+    let s = setup_established_expired_advertisement()?;
+    let path = &s.initiator;
+    let session = fixture::array::<32>(path, "session")?;
+    let selected = |command: &str, tail: &[String]| {
+        let mut values = vec![OsString::from("--session"), fixture::hex(&session).into()];
+        values.extend(args(command, path, tail));
+        values
+    };
+    assert_eq!(
+        run(
+            path,
+            "restore-fresh-refused",
+            &args("reject-open", path, &[])
+        )?,
+        "rejected:104\n"
+    );
+    let mut wrong = vec![OsString::from("--session"), fixture::hex(&[91; 32]).into()];
+    wrong.extend(args("reject-open", path, &[]));
+    assert_eq!(
+        run(path, "restore-wrong-session", &wrong)?,
+        "rejected:201\n"
+    );
+    let message = id(&run(
+        path,
+        "restore-next",
+        &selected("next", &[fixture::hex(&session)]),
+    )?)?;
+    let session_text = fixture::hex(&session);
+    let message_text = fixture::hex(&message);
+    let identity = [session_text.clone(), message_text.clone()];
+    assert_eq!(
+        run(
+            path,
+            "restore-cancelled",
+            &selected(
+                "cancel-send",
+                &[
+                    "127.0.0.1:1".into(),
+                    session_text.clone(),
+                    message_text.clone(),
+                ]
+            )
+        )?,
+        "cancelled-absent\n"
+    );
+    assert_eq!(
+        id(&run(
+            path,
+            "restore-same-slot",
+            &selected("next", &[fixture::hex(&session)])
+        )?)?,
+        message
+    );
+    let (mut server, address) =
+        fixture::spawn(&s.responder, 70, "restore-current-crash-after-application")?;
+    assert_eq!(
+        run(
+            path,
+            "restore-unknown",
+            &selected(
+                "uncertain-send",
+                &[
+                    address.to_string(),
+                    fixture::hex(&session),
+                    fixture::hex(&message),
+                ]
+            )
+        )?,
+        "delivery-unknown-committed\n"
+    );
+    assert_eq!(fixture::wait(&mut server)?.code(), Some(77));
+    fixture::effect(
+        &s.responder,
+        session,
+        p::MessageId::from_trusted_state(message)?,
+        PAYLOAD,
+    )?;
+    assert_eq!(
+        run(path, "restore-committed", &selected("status", &identity))?,
+        "2\n"
+    );
+    let (mut server, address) = fixture::spawn(&s.responder, 71, "restore-current-application")?;
+    assert_eq!(
+        run(
+            path,
+            "restore-exact-resend",
+            &selected(
+                "send",
+                &[
+                    address.to_string(),
+                    fixture::hex(&session),
+                    fixture::hex(&message),
+                ]
+            )
+        )?,
+        "consumed\n"
+    );
+    assert!(fixture::wait(&mut server)?.success());
+    fixture::effect(
+        &s.responder,
+        session,
+        p::MessageId::from_trusted_state(message)?,
+        PAYLOAD,
+    )?;
+    assert_eq!(
+        run(path, "restore-acknowledged", &selected("status", &identity))?,
+        "3\n"
+    );
+    let advertisement_until = u64::from_be_bytes(fixture::array(path, "reopen-test-time")?);
+    let current = fixture::now()?;
+    assert!(advertisement_until < current);
+    let report = format!("{{\"language\":\"{language}\",\"session\":\"{}\",\"message\":\"{}\",\"advertisement_until\":{advertisement_until},\"current_time\":{current},\"fresh_refused\":true,\"wrong_session_refused\":true,\"pre_cancel_absent\":true,\"unknown_commit_reconciled\":true,\"independent_readbacks\":2,\"actual_foreign_clock\":true}}\n", fixture::hex(&session), fixture::hex(&message));
+    fixture::store(
+        path.parent().ok_or("evidence root")?,
+        "c-restore-public-result.json",
+        report.as_bytes(),
+    )?;
+    eprintln!("FOREIGN_SESSION_RESTORE_RESULT {}", report.trim());
+    Ok(())
+}

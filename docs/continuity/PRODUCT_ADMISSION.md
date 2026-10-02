@@ -78,8 +78,14 @@ after public snapshot expiry, requiring its Active installation, exact message
 state/role and cleanup archive, current installed rosters, credential/policy/runtime
 authority, signed budget and fresh required witness. Native and public TLS
 qualification is recorded in `research/continuity-identity-candidate/INSTALLATION.md`.
-The C/Swift/Kotlin product owners still need explicit integration and actual-package
-qualification of this path; the existing fresh constructor must not auto-fallback.
+The C candidate now adds `qpc_owner_v1_prepare_reopen`; Swift/Kotlin expose
+`prepareReopen` and `reopen` through their existing lifetime owners. The prepared
+request copies an explicit session ID and preserves the original activation,
+cancellation and deadline boundary. Local-profile development runs exercise all
+three public foreign methods with genuinely expired advertisements at the current
+foreign clock and real TLS/application readbacks. Fresh archive qualification and
+foreign witnessed-restoration failure/lifecycle coverage remain required; the
+existing fresh constructor does not auto-fallback.
 Historical material verification must not turn an old timestamp into renewed
 operational authority or permit an expired selection to start a new bootstrap.
 

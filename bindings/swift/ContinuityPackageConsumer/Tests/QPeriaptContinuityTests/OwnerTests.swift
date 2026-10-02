@@ -22,6 +22,10 @@ final class OwnerTests: XCTestCase {
     func testIDsAndTextsRejectAmbiguousInput() throws {
         XCTAssertThrowsError(try SessionID(bytes: [UInt8](repeating: 0, count: 31)))
         XCTAssertThrowsError(try MessageID(bytes: [UInt8](repeating: 0, count: 33)))
+        XCTAssertThrowsError(try ContinuityOwner.prepareReopen(path: "/unused", quality: .oneTimeBoth,
+            session: SessionID(bytes: [UInt8](repeating: 0, count: 32)))) {
+            XCTAssertEqual(($0 as? ContinuityFailure)?.code, 1)
+        }
         XCTAssertThrowsError(try ContinuityOwner.prepare(path: "bad\0path", quality: .oneTimeBoth))
         XCTAssertThrowsError(try ContinuityOwner.prepare(path: String(repeating: "x", count: 4097), quality: .oneTimeBoth))
         XCTAssertThrowsError(try ContinuityOwner.prepare(path: "/unused", quality: .oneTimeBoth,
@@ -31,9 +35,11 @@ final class OwnerTests: XCTestCase {
     }
 
     func testARCRetiresPendingSlotsAndClosedAliases() throws {
-        for _ in 0..<256 {
-            // No explicit close: ARC must release more than the 64-slot capacity.
-            _ = try ContinuityOwner.prepare(path: "/unused", quality: .oneTimeBoth)
+        let session = try SessionID(bytes: [UInt8](repeating: 73, count: 32))
+        for index in 0..<256 {
+            // No explicit close: both pending admission paths share the 64-slot capacity.
+            if index % 2 == 0 { _ = try ContinuityOwner.prepare(path: "/unused", quality: .oneTimeBoth) }
+            else { _ = try ContinuityOwner.prepareReopen(path: "/unused", quality: .oneTimeBoth, session: session) }
         }
         let first = try ContinuityOwner.prepare(path: "/unused", quality: .oneTimeBoth)
         let alias = first
@@ -41,7 +47,7 @@ final class OwnerTests: XCTestCase {
         XCTAssertThrowsError(try alias.cancel()) {
             XCTAssertEqual(($0 as? ContinuityFailure)?.code, 2)
         }
-        let second = try ContinuityOwner.prepare(path: "/unused", quality: .oneTimeBoth)
+        let second = try ContinuityOwner.prepareReopen(path: "/unused", quality: .oneTimeBoth, session: session)
         XCTAssertThrowsError(try alias.close()) {
             XCTAssertEqual(($0 as? ContinuityFailure)?.code, 2)
         }

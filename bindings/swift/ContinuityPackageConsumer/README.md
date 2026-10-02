@@ -15,6 +15,19 @@ downgrades a required witness. Carrier choice is explicit and never falls back.
 The directory still follows the native candidate qualification layout; production
 provisioning and migration remain separate unfinished interfaces.
 
+`ContinuityOwner.prepareReopen(path:quality:session:witness:)` copies an explicit
+existing `SessionID` into the same pending native owner. `finishOpen` restores
+only original Active state with current authority; `reopen` is the synchronous
+convenience form. Expired advertisements and old roster snapshots may authenticate
+the original identity, but expired credentials/policy, revoked membership,
+missing archives/state and closure cannot obtain operational authority. Ordinary
+`open` keeps fresh-bootstrap admission. Neither path implicitly switches to the
+other, changes its witness profile or creates missing storage.
+The owner-test ARC workload covers fresh and restoration preparations. The foreign
+restore trace uses the public Swift method, its actual loaded library and current
+clock, independently owned Rust TLS receiver processes and application readbacks.
+This trace qualifies a local profile; witnessed restoration needs separate evidence.
+
 Swift references alias one immutable native handle. Native synchronization and
 monotonic handle identities govern races. Every call retains the wrapper until
 return. `close` throws on Busy and preserves the handle; `cancel` is one-way.

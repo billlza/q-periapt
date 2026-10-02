@@ -170,6 +170,13 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             recovery_checked = verify_recovery_execution(recovery_stdout, recovery_evidence)
             recovery_files = export_selected(recovery_checked, recovery_evidence, output / "swift-public/recovery" / profile, SCOPE,
                                               replay=lambda path: verify_recovery_execution(recovery_stdout, path))
+            restore_evidence = outside / ("swift-" + profile + "-restore-runtime")
+            runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(restore_evidence)
+            restored_stdout = run([str(trace), "--exact", c.RESTORE_TEST, "--nocapture"], "restore-trace-" + profile, runtime=runtime)
+            restore_evidence = restore_evidence.with_name(restore_evidence.name + "-session-reopen")
+            restored = c.verify_restore_execution(restored_stdout, restore_evidence, language="Swift")
+            restored_files = export_selected(restored, restore_evidence, output / "swift-public/restore" / profile, restored["scope"],
+                replay=lambda path: c.verify_restore_execution(restored_stdout, path, language="Swift"))
             witness_binary = Path(row["witness"]["binary"]["path"])
             sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
                         "native witness harness changed before Swift execution")
@@ -206,7 +213,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "execution": checked, "public_files": public_files,
                 "server_execution": server_checked, "server_public_files": server_files,
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
-                "witnessed": witnessed, "sync_faults": sync_faults, "sync_fault_public_files": fault_files}
+                "witnessed": witnessed, "restoration": {"execution": restored, "public_files": restored_files}, "sync_faults": sync_faults, "sync_fault_public_files": fault_files}
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:

@@ -373,6 +373,14 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
                                             replay=lambda path: verify(stdout, path))
                 traces[label] = {"execution": checked, "public_files": exported}
+            restore_evidence = outside / f"kotlin-{profile}-restore-runtime"
+            runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
+                           QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(restore_evidence))
+            restored_stdout = run([str(trace), "--exact", c.RESTORE_TEST, "--nocapture"], f"restore-trace-{profile}", runtime=runtime)
+            restore_evidence = restore_evidence.with_name(restore_evidence.name + "-session-reopen")
+            restored = c.verify_restore_execution(restored_stdout, restore_evidence, language="Kotlin")
+            restored_files = export_selected(restored, restore_evidence, output / "kotlin-public/restore" / profile, restored["scope"],
+                replay=lambda path: c.verify_restore_execution(restored_stdout, path, language="Kotlin"))
             inflight = {}
             for collector in ("Serial", "G1"):
                 label = "inflight-" + collector.lower()
@@ -471,6 +479,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,
+                "restoration": {"execution": restored, "public_files": restored_files},
                 "prepared_owner_gc": gc_execution,
                 "inflight_owner_gc": inflight,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,

@@ -34,14 +34,25 @@ fn open_existing(path: &Path, at: u64) -> Result<Peer> {
 }
 pub(super) fn serve_reopened(path: &Path, attempt: u8) -> Result<()> {
     let at = u64::from_be_bytes(array(path, "reopen-test-time")?);
-    let mut peer = open_existing(path, at)?;
+    serve_restored(path, attempt, "application", || Ok(at))
+}
+pub(super) fn serve_restored_current(path: &Path, attempt: u8, mode: &str) -> Result<()> {
+    serve_restored(path, attempt, mode, now)
+}
+fn serve_restored(
+    path: &Path,
+    attempt: u8,
+    mode: &str,
+    mut clock: impl FnMut() -> io::Result<u64>,
+) -> Result<()> {
+    let mut peer = open_existing(path, clock()?)?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
     listener.set_nonblocking(true)?;
     let endpoint = ConnectionEndpoint::server(&peer.context, peer.credentials(), tls_limits())?;
     publish_ready(path, &format!("ready-{attempt}"), listener.local_addr()?)?;
     let mut application = Application {
         path: path.into(),
-        mode: "application".into(),
+        mode: mode.into(),
     };
     endpoint.serve(
         accept(&listener)?,
@@ -49,7 +60,7 @@ pub(super) fn serve_reopened(path: &Path, attempt: u8) -> Result<()> {
         &mut application,
         limits(),
         &Cancellation::default(),
-        || Ok(at),
+        clock,
     )?;
     peer.close();
     Ok(())

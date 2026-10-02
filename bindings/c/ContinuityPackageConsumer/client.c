@@ -53,16 +53,28 @@ static void encode(const uint8_t bytes[32]) {
     if (putchar('\n') == EOF || fflush(stdout) != 0) fail("output failed");
 }
 static int32_t open_configured(const char *path,const qpc_witness_v1 *witness,int witness_tls,
-                              uint64_t *handle,qpc_error_v1 *error) {
+                              const uint8_t *existing, uint64_t *handle,qpc_error_v1 *error) {
+    if (existing) {
+        qpc_open_options_v1 options = {.kind=1,.quality=1,.carrier=witness ? (witness_tls ? 2U : 1U) : 0U,.witness=witness};
+        int32_t code = qpc_owner_v1_prepare_reopen((const uint8_t *)path,strlen(path),&options,existing,handle,error);
+        if (code) return code;
+        code = qpc_owner_v1_finish_open(*handle,error);
+        if (code) {
+            qpc_error_v1 disposal;
+            if (qpc_owner_v1_close(*handle,&disposal) != 0) fail("failed restore did not release pending owner");
+            *handle = 0;
+        }
+        return code;
+    }
     if (witness && witness_tls)
         return qpc_owner_v1_open_witness_tls((const uint8_t *)path,strlen(path),1,witness,handle,error);
     return witness ? qpc_owner_v1_open_witness((const uint8_t *)path,strlen(path),1,witness,handle,error)
                    : qpc_owner_v1_open((const uint8_t *)path,strlen(path),1,handle,error);
 }
-static uint64_t open_owner(const char *path,const qpc_witness_v1 *witness,int witness_tls) {
+static uint64_t open_owner(const char *path,const qpc_witness_v1 *witness,int witness_tls,const uint8_t *existing) {
     qpc_error_v1 error;
     uint64_t handle = 0;
-    int32_t code = open_configured(path,witness,witness_tls,&handle,&error);
+    int32_t code = open_configured(path,witness,witness_tls,existing,&handle,&error);
     require(code, &error);
     if (handle == 0) fail("success returned zero handle");
     return handle;
@@ -299,6 +311,13 @@ int main(int argc, char **argv) {
         options=(qpc_witness_v1){.address=(const uint8_t *)argv[2],.address_length=strlen(argv[2]),.timeout_ms=3000};
         witness=&options; argc-=2; argv+=2;
     }
+    uint8_t selected[32]; const uint8_t *existing=NULL;
+    if (!strcmp(argv[1],"--session")) {
+        if (argc < 5) fail("existing session arguments");
+        decode(argv[2],selected); existing=selected; argc-=2; argv+=2;
+        if (!strncmp(argv[1],"opening-",8) || !strncmp(argv[1],"recover-",8) || !strcmp(argv[1],"self-check"))
+            fail("existing session requires an operational command");
+    }
     self_check();
     if (strncmp(argv[1], "opening-", 8) == 0) return opening_command(argc, argv, witness, witness_tls);
     if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv,witness,witness_tls);
@@ -311,13 +330,13 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "reject-open") == 0) {
         qpc_error_v1 error;
         uint64_t handle = 99;
-        int32_t code = open_configured(argv[2],witness,witness_tls,&handle,&error);
+        int32_t code = open_configured(argv[2],witness,witness_tls,existing,&handle,&error);
         record(code, &error);
         if (code == 0 || handle != 0) fail("invalid original binding admitted");
         if (printf("rejected:%d\n", code) < 0 || fflush(stdout)) fail("output failed");
         return 0;
     }
-    uint64_t handle = open_owner(argv[2],witness,witness_tls);
+    uint64_t handle = open_owner(argv[2],witness,witness_tls,existing);
     qpc_error_v1 error;
     if (strcmp(argv[1], "serve") == 0) {
         if (argc < 4 || argc != (!strcmp(argv[3], "rekey") ? 5 : 4)) fail("serve arguments");
@@ -414,7 +433,7 @@ int main(int argc, char **argv) {
         if (status(handle, s.session, s.message) != expected) fail("exact message status differs");
         if (busy) {
             close_owner(handle);
-            uint64_t reopened = open_owner(argv[2],witness,witness_tls);
+            uint64_t reopened = open_owner(argv[2],witness,witness_tls,existing);
             if (reopened == handle || status(reopened, s.session, s.message) != QPC_MESSAGE_COMMITTED)
                 fail("reopen changed identity or durable result");
             handle = reopened;

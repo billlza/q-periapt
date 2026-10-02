@@ -74,6 +74,27 @@ pending. Successful initialization converts the same handle to the selected owne
 calling finish again returns OwnerKind without replacing it. The synchronous
 constructors remain available for callers that do not need an early handle.
 
+Existing message sessions have an explicit restoration entry:
+`qpc_owner_v1_prepare_reopen(path, length, options, session, handle, error)`.
+Options retain their existing layout, with `kind=1` and independently selected
+quality/carrier. The nonzero 32-byte session is copied during preparation.
+`finish_open` then invokes the native historical-snapshot request and Active
+installation admission. It requires the exact original session/context/local role,
+cleanup archive, current roster and credential/policy/runtime authority, signed
+budget and required witness. Missing or unfinished state is never recreated.
+Ordinary constructors retain fresh advertisement checks and never auto-fallback.
+Cancellation, deadlines, owner/call quotas and failed-activation cleanup are the
+same existing boundaries; no clock override or raw context/key getter is added.
+
+The installed restore trace establishes a fixture at a historical protocol time,
+then runs the foreign client at its actual current clock after advertisement expiry.
+It checks fresh-open and wrong-session refusal, pre-cancelled absence, an unknown
+external application commit, exact-ID retry and two application-file readbacks.
+The collector independently checks identities, time markers, command logs and
+application bytes, and exports only these public records. This new trace covers
+the local profile; foreign restoration with witness loss/replay and lifecycle
+transitions still requires its own qualification. This is not product provisioning.
+
 Cancellation is one-way for that owner. Cancel, join the active invocation, close,
 then reopen the same original installation to reconcile retained work. A successful
 close releases its owned state/leases and invalidates the handle. It neither rolls

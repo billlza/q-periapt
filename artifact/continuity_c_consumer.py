@@ -20,12 +20,13 @@ FEATURES = frozenset({"connection-tls", "control-tls", "anchor-tls"})
 MAX_BINARY = 256 * 1024**2
 FIXTURE = package.ROOT / "bindings/c/ContinuityPackageConsumer"
 TEST = "c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery"
+RESTORE_TEST = "installed_owner_restores_expired_advertisement_and_reconciles_original_message"
 SERVER_TEST = "c_server_preserves_callback_failures_unknown_commits_replay_and_rekey"
 SERVER_SCOPE = "installed native Rust client to unpublished C server; same host; local journal profile"
 SCOPE = "unpublished C client to installed Rust peer; same host; local journal profile"
 QUALIFICATION_SCOPE = "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles with explicit signed TCP or mutual TLS witness carrier"
 EXPORTS = {"qpc_owner_v1_" + name for name in
-           ("open", "prepare_open", "finish_open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
+           ("open", "prepare_open", "prepare_reopen", "finish_open", "cancel", "close", "establish", "next_message", "send", "message_status", "rekey",
             "listen", "serve", "serve_rekey")}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "session_at", "select", "select_archive",
             "archive", "begin", "status", "reserved", "epoch", "unconfirmed", "delivery", "skipped",
@@ -67,7 +68,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(passed == [TEST] and re.search(
-        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
         "installed C trace was not executed completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-public-result.json").data,
                                     label="C connection execution")
@@ -114,12 +115,65 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     return dict(report, application_readbacks=readbacks, command_logs=logs)
 
 
+
+def verify_restore_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown restoration language")
+    text = stdout.decode()
+    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [RESTORE_TEST]
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
+                              text, re.MULTILINE), "installed restoration trace did not execute completely")
+    report_file = sdk.snapshot(directory / "c-restore-public-result.json")
+    report = parse_strict_json_bytes(report_file.data, label="foreign session restoration")
+    flags = {"fresh_refused", "wrong_session_refused", "pre_cancel_absent", "unknown_commit_reconciled", "actual_foreign_clock"}
+    sdk.require(set(report) == flags | {"language", "session", "message", "advertisement_until", "current_time", "independent_readbacks"},
+                "foreign restoration fields differ")
+    sdk.require(report["language"] == language and all(report[name] is True for name in flags),
+                "foreign restoration outcome or language differs")
+    sdk.require(type(report["independent_readbacks"]) is int and report["independent_readbacks"] == 2,
+                "foreign restoration readback count differs")
+    sdk.require(all(type(report[name]) is int and 0 < report[name] < 2**64 for name in ("advertisement_until", "current_time"))
+                and report["advertisement_until"] < report["current_time"], "foreign owner did not run after advertisement expiry")
+    for name in ("session", "message"):
+        sdk.require(type(report[name]) is str and re.fullmatch(r"[0-9a-f]{64}", report[name]) and report[name] != "0" * 64,
+                    "foreign restoration identity differs")
+    readbacks = {"c-restore-public-result.json": report_file.sha256}
+    for role in ("initiator", "responder"):
+        leaf = role + "/reopen-test-time"
+        value = sdk.snapshot(directory / leaf)
+        sdk.require(value.data == report["advertisement_until"].to_bytes(8, "big"), "foreign restoration advertisement boundary differs")
+        readbacks[leaf] = value.sha256
+        leaf = role + "/session"
+        value = sdk.snapshot(directory / leaf)
+        sdk.require(value.data == bytes.fromhex(report["session"]), "foreign restoration selected a different session")
+        readbacks[leaf] = value.sha256
+    leaf = "responder/application-" + report["message"]
+    value = sdk.snapshot(directory / leaf)
+    sdk.require(value.data == bytes.fromhex(report["session"] + report["message"]) + b"persisted before process exit",
+                "foreign restoration application readback differs")
+    sdk.require(len(list((directory / "responder").glob("application-*"))) == 1
+                and not list((directory / "initiator").glob("application-*")), "foreign restoration duplicated application effects")
+    readbacks[leaf] = value.sha256
+    expected = {"restore-fresh-refused": "rejected:104\n", "restore-wrong-session": "rejected:201\n",
+                "restore-next": report["message"] + "\n", "restore-cancelled": "cancelled-absent\n",
+                "restore-same-slot": report["message"] + "\n", "restore-unknown": "delivery-unknown-committed\n",
+                "restore-committed": "2\n", "restore-exact-resend": "consumed\n", "restore-acknowledged": "3\n"}
+    logs = {}
+    for name, expected_stdout in expected.items():
+        for suffix, content in (("stdout", expected_stdout.encode()), ("stderr", b"")):
+            leaf = f"initiator/c-{name}.{suffix}"
+            value = sdk.snapshot(directory / leaf, maximum=65536)
+            sdk.require(value.data == content, "foreign restoration command output or diagnostic differs")
+            logs[leaf] = value.sha256
+    return dict(report, public_readbacks=readbacks, command_logs=logs,
+                release_claim_eligible=False, scope=f"installed {language} explicit existing-session restoration; same-host shared native engine; local profile; historical bootstrap fixture and actual current foreign clock")
+
+
 def verify_server_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown installed server language")
     expected_scope = SERVER_SCOPE.replace("C server", language + " server")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
                               text, re.MULTILINE), "installed C server trace did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-server-public-result.json").data,
                                     label="C server execution")
@@ -341,6 +395,14 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(recovery_evidence)
         tested = run([str(trace), "--exact", recovery.TEST, "--nocapture"], "recovery-trace-" + profile, runtime=runtime)
         result["execution"][profile]["recovery"] = recovery.verify_execution(tested, recovery_evidence)
+        restore_evidence = outside / ("c-" + profile + "-restore-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(restore_evidence)
+        restored_stdout = run([str(trace), "--exact", RESTORE_TEST, "--nocapture"], "restore-trace-" + profile, runtime=runtime)
+        restore_evidence = restore_evidence.with_name(restore_evidence.name + "-session-reopen")
+        restored = verify_restore_execution(restored_stdout, restore_evidence)
+        restored_files = witness.export_selected(restored, restore_evidence, output / "c-restore-public" / profile, restored["scope"],
+            replay=lambda path: verify_restore_execution(restored_stdout, path))
+        result["execution"][profile]["restoration"] = {"execution": restored, "public_files": restored_files}
         from continuity_c_faults import Matrix
         fault_build = run([*cargo, "test", "--locked", "--offline", "--test", "sync_fault", "--no-run",
                            "--message-format=json", "-j", "2", *extra], "fault-build-" + profile)
