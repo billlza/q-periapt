@@ -41,13 +41,13 @@ static void *finish_call(void *opaque) {
     call->code = qpc_owner_v1_finish_open(call->handle, &call->error);
     return NULL;
 }
-int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {
+int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls, const uint8_t *existing) {
     if (argc < 4) fail("opening arguments");
     int cancel = !strcmp(argv[1], "opening-cancel");
     int precancel = !strcmp(argv[1], "opening-pre-cancel");
     if (!cancel && !precancel && strcmp(argv[1], "opening-prepare")) fail("opening mode");
     uint32_t kind = !strcmp(argv[3], "operational") ? 1U : !strcmp(argv[3], "recovery") ? 2U : 0U;
-    if (!kind || argc != (cancel ? 5 : 4) || (cancel && kind != 1)) fail("opening selection");
+    if (!kind || argc != (cancel ? 5 : 4) || (cancel && kind != 1) || (existing && kind != 1)) fail("opening selection");
     char *path = strdup(argv[2]);
     char *address = witness ? strndup((const char *)witness->address, witness->address_length) : NULL;
     if (!path || (witness && !address)) fail("input copy allocation");
@@ -57,7 +57,13 @@ int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int tl
                                    witness ? &selected : NULL};
     qpc_error_v1 error;
     uint64_t handle = 0;
-    expect(qpc_owner_v1_prepare_open((const uint8_t *)path, strlen(path), &options, &handle, &error), 0, &error);
+    uint8_t selected_session[32] = {0};
+    if (existing) memcpy(selected_session, existing, sizeof(selected_session));
+    int32_t prepared = existing ? qpc_owner_v1_prepare_reopen((const uint8_t *)path, strlen(path),
+        &options, selected_session, &handle, &error) :
+        qpc_owner_v1_prepare_open((const uint8_t *)path, strlen(path), &options, &handle, &error);
+    expect(prepared, 0, &error);
+    memset(selected_session, 0, sizeof(selected_session));
     if (!handle) fail("zero pending handle");
     /* The actual subsequent open must use owned copies, including nested endpoint bytes. */
     memset(path, 'x', strlen(path));

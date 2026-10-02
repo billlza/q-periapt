@@ -16,18 +16,27 @@ import time
 
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
+from continuity_package import TESTS as PUBLIC_FIXTURE_TESTS
 
 MAX_SYNC = 64
 MAX_LOG = 2 * 1024**2
 COMMAND_TIMEOUT = 90
 HELPERS = {"prepare_fault_case", "observe_fault_case", "revoke_fault_case",
            "verify_closed_fault_case", "inspect_closure_fault_case"}
-FIXTURE_TESTS = {"fixture::service_peer_process",
-                 "fixture::owned_services_connect_restart_rekey_and_reconcile_unknown_delivery"}
+FIXTURE_TESTS = {"fixture::" + name for name in PUBLIC_FIXTURE_TESTS}
 DOMAIN = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/resolution-ciphertext/v1"
 SCOPE = ("same-host installed C local-profile journal sync process interruptions; "
          "SDK revoked before complete reserved-loss accounting; not power-loss qualification")
 JVM_ROLES = frozenset({"jvm_executable", "jvm_consumer", "jvm_sdk", "jvm_stdlib", "jvm_annotations"})
+
+
+def verify_helper_inventory(stdout: bytes) -> None:
+    listing = stdout.decode()
+    names = re.findall(r"^([^\n]+): test$", listing, re.MULTILINE)
+    expected = HELPERS | FIXTURE_TESTS
+    sdk.require(len(names) == len(expected) and set(names) == expected
+                and re.search(rf"^{len(expected)} tests, 0 benchmarks$", listing, re.MULTILINE),
+                "fault helper inventory changed")
 
 
 def jvm_command(runtime: dict[str, Path], library: Path) -> list[str]:
@@ -450,9 +459,7 @@ class Matrix:
             result["client_command"] = self.client_command
         started = time.monotonic()
         try:
-            listing = self.command([self.helper, "--list"], "helper-inventory").decode()
-            names = re.findall(r"^([^\n]+): test$", listing, re.MULTILINE)
-            sdk.require(len(names) == 7 and set(names) == HELPERS | FIXTURE_TESTS, "fault helper inventory changed")
+            verify_helper_inventory(self.command([self.helper, "--list"], "helper-inventory"))
             self.probe_check()
             count = self.send_case(0, "before")
             for cut in range(1, count + 1):

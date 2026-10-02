@@ -120,7 +120,7 @@ func waitMarker(_ path: String) throws {
             existing = try decode(args[1]); args.removeFirst(2)
         }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
-        try require(existing == nil || (!command.hasPrefix("opening-") && !command.hasPrefix("recover-") && command != "self-check"),
+        try require(existing == nil || (!command.hasPrefix("recover-") && command != "self-check"),
                     "existing session requires an operational command")
         if command == "self-check" {
             try require(args.count == 1, "self-check arguments")
@@ -130,7 +130,7 @@ func waitMarker(_ path: String) throws {
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
         if command.hasPrefix("opening-") {
-            try await opening(args, witness: witness)
+            try await opening(args, witness: witness, session: existing)
             return
         }
         if command.hasPrefix("recover-") {

@@ -14,6 +14,21 @@ import continuity_c_faults as f
 
 
 class ContinuityCFaultTests(unittest.TestCase):
+    def test_exact_current_public_fixture_and_fault_helper_inventory_is_required(self):
+        names = sorted(f.HELPERS | f.FIXTURE_TESTS)
+        self.assertIn("fixture::reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls", names)
+        rows = [name + ": test\n" for name in names]
+        footer = f"\n{len(names)} tests, 0 benchmarks\n"
+        complete = ("".join(rows) + footer).encode()
+        f.verify_helper_inventory(complete)
+        for invalid in (b"", "".join(rows).encode(),
+                        ("".join(rows[:-1]) + footer).encode(),
+                        ("".join(rows[:-1] + [rows[0]]) + footer).encode(),
+                        ("".join(rows) + "unexpected: test\n" + footer).encode()):
+            with self.subTest(output=invalid), self.assertRaisesRegex(ValueError, "inventory changed"):
+                f.verify_helper_inventory(invalid)
+
+
     def test_kotlin_faults_execute_the_exact_jvm_without_an_injected_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()

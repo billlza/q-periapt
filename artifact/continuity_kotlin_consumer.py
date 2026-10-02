@@ -420,6 +420,15 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 exported = export_selected(checked, evidence, output / "kotlin-public" / ("witness-" + label) / profile, checked["scope"],
                     replay=lambda path: verify_witness(stdout, path))
                 witnessed[label] = {"execution": checked, "public_files": exported}
+            restore_opening_evidence = outside / f"kotlin-{profile}-restore-opening-runtime"
+            runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(launcher), QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin",
+                           QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(restore_opening_evidence))
+            restore_opening_stdout = run([str(witness_binary), "--exact", opening.RESTORE_TEST, "--nocapture"],
+                                        f"restore-opening-trace-{profile}", runtime=runtime)
+            restore_opening = opening.verify_restore_execution(restore_opening_stdout, restore_opening_evidence, language="Kotlin")
+            restore_opening_files = export_selected(restore_opening, restore_opening_evidence,
+                output / "kotlin-public/restore-opening" / profile, restore_opening["scope"],
+                replay=lambda path: opening.verify_restore_execution(restore_opening_stdout, path, language="Kotlin"))
             sdk.require(sdk.snapshot(witness_binary, maximum=c.MAX_BINARY).sha256 == row["witness"]["binary"]["sha256"],
                         "native witness harness changed during Kotlin execution")
             fault_tools = faults.verified_tools(row["sync_faults"], language="C")
@@ -480,6 +489,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
                 "owner_tests": owner_tests, "witnessed": witnessed,
                 "restoration": {"execution": restored, "public_files": restored_files},
+                "restoration_opening": {"execution": restore_opening, "public_files": restore_opening_files},
                 "prepared_owner_gc": gc_execution,
                 "inflight_owner_gc": inflight,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,

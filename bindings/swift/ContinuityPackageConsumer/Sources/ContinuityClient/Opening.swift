@@ -35,19 +35,23 @@ private enum PreparedInvocation: Sendable {
     }
 }
 
-func opening(_ args: [String], witness selected: WitnessCarrier) async throws {
+func opening(_ args: [String], witness selected: WitnessCarrier, session: SessionID? = nil) async throws {
     try require(args.count >= 3, "opening arguments")
     let mode = args[0], kind = args[2]
     let cancelled = mode == "opening-cancel"
     let preCancelled = mode == "opening-pre-cancel"
     try require(cancelled || preCancelled || mode == "opening-prepare", "opening mode")
     try require(args.count == (cancelled ? 4 : 3) && (kind == "operational" || kind == "recovery") &&
-                (!cancelled || kind == "operational"), "opening selection")
+                (!cancelled || kind == "operational") && (session == nil || kind == "operational"), "opening selection")
     var path = args[1]
     var witness = selected
     let owner: PreparedInvocation
     if kind == "operational" {
-        owner = .operational(try ContinuityOwner.prepare(path: path, quality: .oneTimeBoth, witness: witness))
+        if let session {
+            owner = .operational(try ContinuityOwner.prepareReopen(path: path, quality: .oneTimeBoth, session: session, witness: witness))
+        } else {
+            owner = .operational(try ContinuityOwner.prepare(path: path, quality: .oneTimeBoth, witness: witness))
+        }
     } else {
         owner = .recovery(try ContinuityRecoveryOwner.prepare(path: path, witness: witness))
     }

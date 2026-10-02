@@ -83,9 +83,15 @@ The C candidate now adds `qpc_owner_v1_prepare_reopen`; Swift/Kotlin expose
 request copies an explicit session ID and preserves the original activation,
 cancellation and deadline boundary. Local-profile development runs exercise all
 three public foreign methods with genuinely expired advertisements at the current
-foreign clock and real TLS/application readbacks. Fresh archive qualification and
-foreign witnessed-restoration failure/lifecycle coverage remain required; the
-existing fresh constructor does not auto-fallback.
+foreign clock and real TLS/application readbacks. Separate C/Swift/Kotlin
+development runs restore the responder's original session under required signed
+TCP and mutual-TLS witnesses, refuse missing/wrong pins and bad signatures, cancel
+partial replies and stalled handshakes, and reopen the same session. Public
+readback verifies the selected session, command results and original witness/socket
+records; the existing constructor workload also passes in all three languages.
+Fresh archive qualification remains required. These finite workloads do not cover
+all witness-store rollback or credential/root lifecycle transitions. The existing
+fresh constructor does not auto-fallback.
 Historical material verification must not turn an old timestamp into renewed
 operational authority or permit an expired selection to start a new bootstrap.
 

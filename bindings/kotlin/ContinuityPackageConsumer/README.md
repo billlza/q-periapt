@@ -35,7 +35,12 @@ preparations in the shared 64-slot registry. Every 64-owner round includes 21
 restoration preparations. The local restoration trace uses the public Kotlin
 method with its real current clock and independent Rust TLS receiver processes;
 unknown application commitment is reconciled using the same message identity.
-Foreign witnessed restoration remains a separate qualification boundary.
+A separate development trace restores the responder's original session with
+required signed TCP and mutual-TLS witnesses. Missing/wrong pins and bad signatures
+refuse admission; partial reply and stalled handshake cancellation must allow the
+same session to reopen afterward. Independent readback checks the public records.
+Fresh archive qualification remains required. Advertisement expiry, witnessed
+constructor cancellation and Kotlin interruption retain separate workloads.
 
 All native calls are synchronous. The wrapper adds no operation executor or
 automatic retry. Native BUSY preserves the owner; cancellation remains available

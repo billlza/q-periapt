@@ -91,9 +91,17 @@ then runs the foreign client at its actual current clock after advertisement exp
 It checks fresh-open and wrong-session refusal, pre-cancelled absence, an unknown
 external application commit, exact-ID retry and two application-file readbacks.
 The collector independently checks identities, time markers, command logs and
-application bytes, and exports only these public records. This new trace covers
-the local profile; foreign restoration with witness loss/replay and lifecycle
-transitions still requires its own qualification. This is not product provisioning.
+application bytes, and exports only these public records. This trace covers the
+local profile. A separate responder-session trace performs real foreign-to-foreign
+TLS bootstrap under a required witness, refuses missing/wrong witness pins and a
+corrupted reply signature, and exercises restored-owner preparation through signed
+TCP and mutual TLS. Partial query replies and stalled TLS handshakes are cancelled;
+the original session must reopen afterward. Independent public readback binds the
+session, command results, original witness transcript and socket observations.
+All three language development runs pass both traces; fresh archive qualification
+remains required. Advertisement expiry and witnessed constructor cancellation are
+separate workloads. This is not product provisioning or witness-store rollback
+qualification.
 
 Cancellation is one-way for that owner. Cancel, join the active invocation, close,
 then reopen the same original installation to reconcile retained work. A successful

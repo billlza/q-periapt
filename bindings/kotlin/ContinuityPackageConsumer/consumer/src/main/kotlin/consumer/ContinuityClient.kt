@@ -56,7 +56,7 @@ private fun run(arguments: List<String>): String {
         SessionID(decode(args[1])).also { args = args.drop(2) }
     } else null
     require(args.isNotEmpty()) { "command required" }
-    require(existing == null || (!inFlightGC && !interruptOpening && !args[0].startsWith("opening-") && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
+    require(existing == null || (!inFlightGC && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
         "existing session requires an ordinary operational command"
     }
     require(!inFlightGC || args[0] == "serve") { "in-flight GC requires a server fixture" }
@@ -78,7 +78,7 @@ private fun run(arguments: List<String>): String {
         require(args.size in 3..4)
         return serveUnrooted(args[1], args[2], args.getOrNull(3), witness)
     }
-    if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening)
+    if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening, existing)
     if (args[0].startsWith("recover-")) return recover(args, witness)
     fun openConfigured(): ContinuityOwner = if (existing == null) {
         ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness)

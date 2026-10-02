@@ -55,7 +55,7 @@ class ConstructorTranscriptTests(unittest.TestCase):
             for name, value in files.items(): (root / name).write_bytes(value)
             path = root / "c-opening-public-result.json"
             path.write_text(json.dumps(report))
-            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+            stdout = (f"test {opening.TEST} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
             opening.verify_execution(stdout, root)
             for language in ("Swift", "Kotlin"):
                 with self.subTest(language=language):
@@ -116,6 +116,62 @@ class ConstructorTranscriptTests(unittest.TestCase):
         for changed in (prefix[:-1], prefix + b'x', b'\0' + prefix[1:-1] + b'x'):
             with self.subTest(prefix=changed[:4]), self.assertRaises(ValueError):
                 opening.query_transcript(data, authority, changed)
+
+
+class RestoredConstructorTests(unittest.TestCase):
+    def test_exact_session_role_and_failed_admission_readbacks_are_required(self):
+        stdout = (f"test {opening.RESTORE_TEST} ... ok\n"
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for role in ("initiator", "responder"):(root / role).mkdir()
+            session = "12" * 32
+            identity, key = b'i' * 32, b'k' * 1985
+            authority = opening.commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-AUTHORITY/v1", identity + key)
+            _, data, prefix = queries(authority)
+            files = {"restore-opening-witness-transcript": data,
+                     "responder/witness-id": identity, "responder/witness-public": key,
+                     "responder/witness-cancelled-prefix": prefix,
+                     "responder/restore-opening-tcp-held": b"1", "responder/restore-opening-tls-held": b"1",
+                     "responder/restore-opening-tls-closed": b"1",
+                     "responder/restore-opening-tls-client-hello": b"\x16\x03\x03\x00\x01X"}
+            for role in ("initiator", "responder"):files[role + "/restore-selected-session"] = bytes.fromhex(session)
+            for name, content in files.items():(root / name).write_bytes(content)
+            report = {"schema_version": 1, "language": "C", "session": session, "local_role": 2,
+                      "tcp_cancel_ms": 12, "tls_cancel_ms": 15, "tcp_exchanges": 4,
+                      "pre_cancel_cases": 3, "snapshot_open_cases": 4, "release_claim_eligible": False,
+                      **{k: True for k in ("missing_witness_refused", "wrong_pin_refused", "bad_signature_refused",
+                         "failed_handles_closed", "same_session_reopened")}}
+            report_file = root / "c-restore-opening-public-result.json";report_file.write_text(json.dumps(report))
+            expected = {"restore-opening-missing": "rejected:216\n", "restore-opening-wrong-pin": "rejected:211\n",
+                        "restore-opening-bad-signature": "rejected:218\n"}
+            for carrier in ("local", "tcp", "tls"):expected[f"restore-opening-{carrier}-pre"] = "prepared-pre-cancel:1\n"
+            for carrier in ("tcp", "tls"):
+                for stage in ("ready", "reopen"):expected[f"restore-opening-{carrier}-{stage}"] = "prepared-open:1\n"
+                expected[f"restore-opening-{carrier}-cancel"] = f"prepared-cancelled:218:{report[carrier+'_cancel_ms']}\n"
+            for name, content in expected.items():
+                (root / "responder" / f"witness-{name}.stdout").write_text(content)
+                (root / "responder" / f"witness-{name}.stderr").write_bytes(b"")
+            (root / "initiator/witness-restore-bootstrap-client.stdout").write_text(session + "\n")
+            (root / "responder/witness-restore-bootstrap-server.stdout").write_text(f"listening:45678\nserved:1:0:0:0\n{session}\n" + "0" * 64 + "\n")
+            for role, label in (("initiator", "client"), ("responder", "server")):
+                (root / role / f"witness-restore-bootstrap-{label}.stderr").write_bytes(b"")
+            result = opening.verify_restore_execution(stdout, root)
+            self.assertEqual(len(result["command_logs"]), 28)
+            self.assertEqual(len(result["public_readbacks"]), 11)
+            for field, value in (("local_role", 1), ("tcp_cancel_ms", 1000), ("snapshot_open_cases", True),
+                                 ("same_session_reopened", False), ("session", "34" * 32)):
+                report_file.write_text(json.dumps(dict(report, **{field: value})))
+                with self.subTest(field=field), self.assertRaises(ValueError):opening.verify_restore_execution(stdout, root)
+            report_file.write_text(json.dumps(report))
+            for name in ("responder/restore-selected-session", "responder/witness-cancelled-prefix",
+                         "responder/restore-opening-tls-client-hello", "responder/witness-restore-opening-tcp-reopen.stdout"):
+                path = root / name;original = path.read_bytes();path.write_bytes(b"!")
+                with self.subTest(file=name), self.assertRaises(ValueError):opening.verify_restore_execution(stdout, root)
+                path.write_bytes(original)
+            for language in ("Swift", "Kotlin"):
+                report_file.write_text(json.dumps(dict(report, language=language)))
+                self.assertEqual(opening.verify_restore_execution(stdout, root, language=language)["language"], language)
 
 
 if __name__ == '__main__':

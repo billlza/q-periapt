@@ -26,7 +26,12 @@ other, changes its witness profile or creates missing storage.
 The owner-test ARC workload covers fresh and restoration preparations. The foreign
 restore trace uses the public Swift method, its actual loaded library and current
 clock, independently owned Rust TLS receiver processes and application readbacks.
-This trace qualifies a local profile; witnessed restoration needs separate evidence.
+This trace qualifies a local profile. A separate development trace restores the
+responder's original session with required signed TCP and mutual-TLS witnesses,
+rejects missing/wrong witness pins and bad signatures, cancels partial replies and
+stalled TLS handshakes, then reopens the same session. The collector checks original
+public records independently. Fresh archive qualification remains required; the
+expiry and witnessed-constructor workloads retain their separate scopes.
 
 Swift references alias one immutable native handle. Native synchronization and
 monotonic handle identities govern races. Every call retains the wrapper until

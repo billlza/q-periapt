@@ -259,6 +259,17 @@ fn start_carrier(
     witness: Option<SocketAddr>,
     carrier: &str,
 ) -> Result<Process> {
+    start_selected(path, label, mode, tail, witness, carrier, None)
+}
+fn start_selected(
+    path: &Path,
+    label: &str,
+    mode: &str,
+    tail: &[String],
+    witness: Option<SocketAddr>,
+    carrier: &str,
+    session: Option<&str>,
+) -> Result<Process> {
     let client = PathBuf::from(
         std::env::var_os("QPERIAPT_C_OWNER_CLIENT").ok_or("installed C client missing")?,
     );
@@ -277,6 +288,9 @@ fn start_carrier(
     let mut command = Command::new(client);
     if let Some(address) = witness {
         command.args([carrier, &address.to_string()]);
+    }
+    if let Some(session) = session {
+        command.args(["--session", session]);
     }
     command
         .arg(mode)

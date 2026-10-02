@@ -430,6 +430,15 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         result["execution"][profile]["opening"] = opening.verify_execution(tested, opening_evidence)
         result["execution"][profile]["opening"]["exported_public_files"] = opening.export_public(
             tested, opening_evidence, output / "c-opening-public" / profile)
+        restore_opening_evidence = outside / ("c-" + profile + "-restore-opening-runtime")
+        runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(restore_opening_evidence)
+        restored_opening_stdout = run([str(witness_helper), "--exact", opening.RESTORE_TEST, "--nocapture"],
+                                     "restore-opening-trace-" + profile, runtime=runtime)
+        restored_opening = opening.verify_restore_execution(restored_opening_stdout, restore_opening_evidence)
+        restored_opening_files = witness.export_selected(restored_opening, restore_opening_evidence,
+            output / "c-restore-opening-public" / profile, restored_opening["scope"],
+            replay=lambda path: opening.verify_restore_execution(restored_opening_stdout, path))
+        result["execution"][profile]["restoration_opening"] = {"execution": restored_opening, "public_files": restored_opening_files}
         witness_evidence = outside / ("c-" + profile + "-witness-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(witness_evidence)
         tested = run([str(witness_helper), "--exact", witness.TEST, "--nocapture"], "witness-trace-" + profile, runtime=runtime)

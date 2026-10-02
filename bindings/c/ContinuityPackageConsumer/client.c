@@ -301,7 +301,7 @@ static void serve(uint64_t handle, const char *path, const char *mode, const cha
     }
 }
 int recovery_command(int argc, char **argv,const qpc_witness_v1 *witness,int witness_tls);
-int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int witness_tls);
+int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int witness_tls, const uint8_t *existing);
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -315,11 +315,11 @@ int main(int argc, char **argv) {
     if (!strcmp(argv[1],"--session")) {
         if (argc < 5) fail("existing session arguments");
         decode(argv[2],selected); existing=selected; argc-=2; argv+=2;
-        if (!strncmp(argv[1],"opening-",8) || !strncmp(argv[1],"recover-",8) || !strcmp(argv[1],"self-check"))
+        if (!strncmp(argv[1],"recover-",8) || !strcmp(argv[1],"self-check"))
             fail("existing session requires an operational command");
     }
     self_check();
-    if (strncmp(argv[1], "opening-", 8) == 0) return opening_command(argc, argv, witness, witness_tls);
+    if (strncmp(argv[1], "opening-", 8) == 0) return opening_command(argc, argv, witness, witness_tls, existing);
     if (strncmp(argv[1], "recover-", 8) == 0) return recovery_command(argc, argv,witness,witness_tls);
     if (strcmp(argv[1], "self-check") == 0) {
         if (argc != 2) fail("self-check arguments");

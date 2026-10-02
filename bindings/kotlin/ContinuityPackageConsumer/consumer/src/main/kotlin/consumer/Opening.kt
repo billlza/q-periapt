@@ -27,16 +27,17 @@ internal sealed interface PreparedInvocation : AutoCloseable {
     }
 }
 
-internal fun opening(args: List<String>, selected: WitnessCarrier, interruptController: Boolean): String {
+internal fun opening(args: List<String>, selected: WitnessCarrier, interruptController: Boolean, session: SessionID? = null): String {
     require(args.size >= 3)
     val mode = args[0]; val kind = args[2]
     val cancelled = mode == "opening-cancel"
     require(mode in setOf("opening-cancel", "opening-pre-cancel", "opening-prepare"))
     require(args.size == if (cancelled) 4 else 3)
-    require(kind in setOf("operational", "recovery") && (!cancelled || kind == "operational"))
+    require(kind in setOf("operational", "recovery") && (!cancelled || kind == "operational") && (session == null || kind == "operational"))
     var path = args[1]; var witness = selected
     val owner: PreparedInvocation = if (kind == "operational") {
-        PreparedInvocation.Operational(ContinuityOwner.prepare(path, PrekeyQuality.ONE_TIME_BOTH, witness))
+        PreparedInvocation.Operational(if (session == null) ContinuityOwner.prepare(path, PrekeyQuality.ONE_TIME_BOTH, witness)
+            else ContinuityOwner.prepareReopen(path, PrekeyQuality.ONE_TIME_BOTH, session, witness))
     } else PreparedInvocation.Recovery(ContinuityRecoveryOwner.prepare(path, witness))
     // Activation follows closure of the preparation call's native arena and
     // reassignment of the caller's value references. It must use original input.
