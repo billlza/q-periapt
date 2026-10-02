@@ -265,6 +265,19 @@ does not rule out userspace low-memory kills. Cleanup verifies the owned APK,
 uninstalls it and confirms absence, but the runtime result remains failed.
 The matching push run passes; the intermittent failure remains unresolved.
 
+At `b32c046c`, [push run 36968128946](https://github.com/billlza/q-periapt/actions/runs/36968128946)
+passes the full consumer, then installs the minimal consumer successfully but
+receives `INSTRUMENTATION_RESULT: shortMsg=Process crashed.` Its retained Android
+exit history records PID 5340 as `LOW_MEMORY` at 05:33:22.600; the same PID's
+lowmemorykiller entry at 05:33:22.581 reports 112,588 KiB RSS, adjustment 0 and
+`min watermark is breached even after kill`. A subsequently started activity,
+PID 5463, is also killed and appears separately in exit history. The before/failure
+snapshots retain about 1.32 GB `MemAvailable`; these are point observations and
+do not establish the cause of the watermark decision or peak application memory.
+The runtime fingerprint and reported 16-KiB page size remain recorded. The
+diagnostic archive is artifact `11210818387`. The matching PR workflow fails APK
+installation instead; neither failure is erased by earlier successful runs.
+
 Failure diagnostics also attempt `emulator-app-exit-info.txt` for the fixed
 `dev.qperiapt.androidsmoke` package, before cleanup after an instrumentation
 failure. The read-only `dumpsys activity exit-info` query uses Android's recorded

@@ -122,6 +122,17 @@ own targeted native evidence and still requires foreign owner integration.
 
 ## Lifetime and protocol integration
 
+For a freshly verified context, `service.admit_peer(context, role, now)` checks
+the original active installation's local owner and policy/witness scope, current
+advertisement/credential/runtime validity, current local and known-peer rosters,
+and the original witness. An unknown remote account is checked against its
+independently verified initial snapshot and remaining roster capacity. This call
+does not install or advance any roster, reserve a prekey/operation, create a
+session or acquire another storage lease. `BootstrapPeer` retains only the public
+context owner and checked local role. Actual bootstrap repeats admission and
+persists a new account roster with its first operation reservation. Retaining an
+earlier descriptor cannot bypass a subsequent durable revocation.
+
 For an already active service, `service.reopen_peer(request, now)` restores an
 additional established peer without reopening those leases. `ReopenedPeer`
 retains the exact session ID, local role and verified context owner. The request
@@ -135,8 +146,18 @@ same peer-admission path.
 A peer descriptor is not durable operation authority and cannot reopen a closed
 service. Protocol calls still recheck current authority. Dropping a descriptor
 does not close the service or retire a session, and descriptors do not hold an
-independent storage lease after service close. Fresh peer registration and foreign
-parent/child ownership are separate integration work.
+independent storage lease after service close. Fresh admission and existing-session
+restoration remain distinct: expired advertisements cannot be admitted for a new
+bootstrap. Foreign parent/child ownership remains separate integration work.
+
+At `469ccf31`, current Rust 1.98.1 Debug and minimum Rust 1.90.0 Release each pass
+30 installation tests, six roster tests and the two-peer account transaction test.
+Admission preserves configuration/journal/archive bytes, unknown-roster absence
+and full-capacity refusal. Tests retain loss before/after each of the two original
+witness exchanges; closing policy or runtime after either authenticated reply
+also returns no descriptor. All three public TLS harness tests, strict Clippy and
+no-TLS compilation pass. The full 342-test suite and fresh foreign packages were
+not rerun for this addition.
 
 At `caf5ab1e`, Rust 1.98.1 Debug and Rust 1.90.0 Release each pass all 25
 installation tests plus a two-peer account transaction test covering both local

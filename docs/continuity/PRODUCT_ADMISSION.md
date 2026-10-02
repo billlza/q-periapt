@@ -63,7 +63,19 @@ closes protocol authority. Both same-account and peer-account tests restore two
 contexts, refuse an omitted recipient without partial mutation, execute the
 existing complete-roster transaction and replay its exact ciphertext after
 original-installation restart. This is the native existing-session prerequisite;
-fresh peer registration and foreign parent/child handles remain unimplemented.
+the separate native fresh-admission entry is described next. Foreign parent/child
+handles remain unimplemented.
+
+`DeviceService::admit_peer` now admits a freshly and independently verified peer
+context against the same active installation. It rechecks current advertisements,
+credentials/runtime, local and known-peer rosters and the original witness. An
+unknown account's initial verified roster is checked without installation or
+advancement; the first actual bootstrap must repeat admission and persist that
+roster with its operation reservation. `BootstrapPeer` owns public context and
+role, without a session or durable grant. Both roles, later revocation, full roster
+capacity, unchanged stores and policy/runtime closure during authenticated witness
+queries are tested on current and minimum Rust. This supplies the native fresh
+boundary, but not foreign registration, enrollment or parent/child lifetimes.
 
 ## Required owner and input separation
 
@@ -103,8 +115,9 @@ readback verifies the selected session, command results and original witness/soc
 records; the existing constructor workload also passes in all three languages.
 The complete `a897ba54` Rust/C/Swift/Kotlin archive producer and independent
 package/public-record readback now pass in both profiles. The later `caf5ab1e`
-shared-service native addition has separate targeted evidence; its installed
-foreign packages have not been requalified. These finite workloads do not cover
+shared-service restoration and `469ccf31` fresh-admission additions have separate
+targeted native evidence; their installed foreign packages have not been
+requalified. These finite workloads do not cover
 all witness-store rollback or credential/root lifecycle transitions. The existing
 fresh constructor does not auto-fallback.
 Historical material verification must not turn an old timestamp into renewed

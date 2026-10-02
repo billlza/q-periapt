@@ -77,6 +77,35 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `469ccf31` adds `DeviceService::admit_peer` and `BootstrapPeer` for a freshly
+verified context under the original active service. It checks the exact local
+owner, policy/witness scope, current advertisement/credential/runtime authority,
+current local and known-peer rosters, and the original witness. An unknown account
+uses its independently verified initial snapshot without installing or advancing a
+roster. Admission reserves no operation or session; actual bootstrap repeats all
+native checks and first persists that roster with its operation reservation.
+Rust 1.98.1 Debug and Rust 1.90.0 Release each pass **30 installation tests, six
+roster tests and the two-peer account transaction test**. They cover unchanged
+storage bytes, both roles, full roster capacity, expiry versus explicit restoration,
+later revocation, loss of either required-witness exchange and policy/runtime
+closure after either authenticated reply. All three public TLS harness tests,
+strict Clippy and no-TLS compilation pass. All 454 compiled input hashes match
+the commit. The sealed cohort has **570 files / 98,942,877 bytes**, inventory
+`0a12373b893fc14247bbeb69f332f5f01b7ab624645396e620d2e65910e74920`.
+The full 342-test library regression and fresh foreign packages were not run for
+this addition. Foreign parent/child owners and product provisioning remain open.
+
+The preceding `b32c046c` hosted push and PR workflows both finish with an Android
+16K runtime failure; CodeQL succeeds. The push run's full consumer passes, but its
+minimal consumer installs successfully but Android records the exact instrumentation
+process PID 5340 as `LOW_MEMORY`; the matching lowmemorykiller record reports a
+minimum-watermark breach. Instrumentation returns `Process crashed`. The PR run
+fails APK installation. These retained failures do not establish an SDK defect or
+the cause of the memory-system decision. At `1741866e`, the full push workflow succeeds, while
+the PR workflow's current-Rust Linux candidate job loses communication with the
+hosted runner. GitHub's annotation reports that loss; its job log is unavailable
+(HTTP 404). Neither the annotation nor the successful push identifies the cause.
+
 Source `caf5ab1e` adds `DeviceService::reopen_peer` and `ReopenedPeer`: established
 peer contexts can be restored under one original installation/journal/archive
 lease. Admission requires the exact local owner, policy/witness scope, session,
@@ -90,8 +119,9 @@ ciphertext replay after restart. Public TLS passes all three harness tests;
 strict Clippy and no-TLS compilation pass. All 454 compiled input hashes match
 the commit. The cohort has **498 files / 45,918,300 bytes**, inventory
 `950fb7b1e544b4ec51352818c61d58455e2829804f5cb57fcfb558d4b8431553`.
-Fresh peer registration, foreign parent/child owners, and current-source complete
-library/package qualification remain separate requirements.
+The later `469ccf31` checkpoint supplies native fresh admission. Foreign
+parent/child owners and current-source complete library/package qualification
+remain separate requirements.
 
 The complete `a897ba54` Rust/C/Swift/Kotlin installed-package producer finishes
 with exit 0 in **3114.736 seconds**. Independent replay binds 238 unchanged source
@@ -118,8 +148,8 @@ bytes**, inventory
 Its hosted [push check job](https://github.com/billlza/q-periapt/actions/runs/36963673665)
 also passes 2,456 artifact tests with three macOS-ACL-only skips and the exact
 source gate. The Git-maintenance red/green regression passes locally and there:
-all five maintenance workers exit before their owning commands return. This does
-not imply every workflow job has completed, and neither 1741866e result covers
+all five maintenance workers exit before their owning commands return. The full
+workflow outcomes are recorded above; neither 1741866e result covers
 the later 336-test shared-service source. Qualification durations are elapsed
 times, not controlled performance comparisons.
 
