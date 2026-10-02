@@ -9,6 +9,8 @@ use q_periapt_sdk::HybridKey;
 
 mod abandonment;
 mod archive;
+#[cfg(feature = "connection-tls")]
+mod connection;
 mod lifecycle;
 mod process;
 mod roles;
@@ -648,6 +650,127 @@ fn account_fanout_roster_changes_never_silently_change_the_retained_recipient_se
         );
     }
 }
+
+#[test]
+fn committed_account_members_cannot_bypass_revoked_recipient_via_individual_replay() {
+    let mut n = Network::new(4, false);
+    let id = n.sender.next_fanout_id().expect("original aggregate");
+    let members = n
+        .send(id, b"retained complete recipients")
+        .expect("all members committed");
+    let member = members.first().expect("unrevoked member");
+    let entry =
+        n.f.root
+            .roster_entry(n.f.certificates.first().expect("first credential"))
+            .expect("entry");
+    let issued =
+        n.f.root
+            .issue_roster(2, interval(), &[entry])
+            .expect("revoke other required member");
+    let pin = AccountPin::new(
+        n.f.root.account_id().expect("account"),
+        n.f.root.public_key().expect("root"),
+        issued.checkpoint(),
+        n.f.contexts.first().expect("context").policy().family(),
+    )
+    .expect("independent pin");
+    let roster = pin
+        .verify_roster(issued.as_bytes(), 150)
+        .expect("authenticated update");
+    n.sender
+        .install_roster(&roster, 150)
+        .expect("durable revocation");
+    n.reopen();
+    let before = n.sender.image().expect("before").revision;
+    let context = n.f.contexts.first().expect("unrevoked context");
+    let mut released = Vec::new();
+    for (name, result) in [
+        (
+            "send_message",
+            n.sender.send_message(
+                context,
+                member.session,
+                member.message,
+                b"retained complete recipients",
+                b"account-message",
+                150,
+            ),
+        ),
+        (
+            "resume_message",
+            n.sender
+                .resume_message(context, member.session, member.message, 150),
+        ),
+    ] {
+        match result {
+            Ok(wire) => released.push((name, wire.len())),
+            Err(error) => assert!(
+                matches!(error, DurableError::Suspended),
+                "unexpected admission error: {error}"
+            ),
+        }
+    }
+    assert!(released.is_empty(), "individual paths released ciphertext after another required member was revoked: {released:?}");
+    assert_eq!(n.sender.image().expect("unchanged").revision, before);
+    assert_eq!(
+        n.sender.fanout_status(id).expect("same aggregate"),
+        FanoutStatus::Committed
+    );
+}
+
+#[test]
+fn committed_account_replay_checks_the_budget_of_every_live_member() {
+    let mut n = Network::new(1, false);
+    let id = n.sender.next_fanout_id().expect("original aggregate");
+    let members = n
+        .send(id, b"bounded input")
+        .expect("all members use their only slot");
+    let session = *n.sessions.get(1).expect("other member");
+    let mut exceeded = state(&mut n.sender, &session);
+    let extra = MessageId::for_epoch(&session, 1, 0, 1).expect("one beyond signed budget");
+    let traffic = exceeded.traffic_mut(0).expect("traffic");
+    traffic.pending = Some(SendPlan {
+        id: extra,
+        fanout: None,
+        plaintext: Zeroizing::new(b"invalid extra input".to_vec()),
+        ad: AD_FOR_BUDGET_TEST.to_vec(),
+    });
+    traffic
+        .send(extra, b"invalid extra input", AD_FOR_BUDGET_TEST)
+        .expect("structurally valid extra outbox");
+    let mut image = n.sender.image().expect("image");
+    image
+        .records
+        .get_mut(&record_id(&session))
+        .expect("record")
+        .payload = exceeded.encode();
+    n.sender
+        .persist(&mut image)
+        .expect("authenticated but policy-invalid fixture");
+    n.reopen();
+    let image = n.sender.image().expect("structurally valid image");
+    let first = members.first().expect("unaffected member");
+    let first_state = state(&mut n.sender, &first.session);
+    assert_eq!(
+        &first_state
+            .traffic(0)
+            .expect("first traffic")
+            .outgoing
+            .get(&first.message)
+            .expect("first cached wire")
+            .wire,
+        committed_wire(first)
+    );
+    let before = image.revision;
+    assert!(matches!(
+        n.sender
+            .resume_account_message(id, &targets(&n.f, &n.sessions), 150),
+        Err(DurableError::Protocol(Error::State))
+    ));
+    assert_eq!(n.sender.image().expect("unchanged").revision, before);
+}
+
+const AD_FOR_BUDGET_TEST: &[u8] = b"budget fixture";
 
 #[test]
 fn account_fanout_sync_faults_reconcile_all_members_together_at_every_measured_barrier() {

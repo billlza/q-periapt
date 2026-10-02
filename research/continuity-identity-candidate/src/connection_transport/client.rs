@@ -1,6 +1,70 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
+fn accept_consumption(
+    journal: &mut DeviceJournal,
+    context: &BootstrapContext,
+    session: [u8; 32],
+    message: MessageId,
+    reply: &[u8],
+    clock: &mut impl FnMut() -> io::Result<u64>,
+) -> Result<Consumption, Error> {
+    let ack = payload(reply, ACK)?;
+    if crate::durable::acknowledgement_epoch(ack).map_err(|_| Error::Protocol)?
+        != crate::durable::message_epoch(message).map_err(Error::Authority)?
+    {
+        return Err(Error::Protocol);
+    }
+    journal.accept_message_acknowledgement(
+        context,
+        session,
+        ack,
+        clock().map_err(Error::Clock)?,
+    )?;
+    match journal.message_status(context, session, message)? {
+        MessageStatus::Acknowledged => Ok(Consumption::Confirmed),
+        MessageStatus::Committed => Ok(Consumption::PrefixPending),
+        _ => Err(Error::Protocol),
+    }
+}
+
+fn account_member(
+    journal: &mut DeviceJournal,
+    input: &FanoutInput<'_>,
+    session: [u8; 32],
+    now: u64,
+) -> Result<FanoutMember, Error> {
+    // This is the same complete-roster reservation/replay transaction on every
+    // attempt. No individual send and no cached member wire bypass its checks.
+    let members = journal.send_account_message(
+        FanoutInput {
+            id: input.id,
+            account: input.account,
+            targets: input.targets,
+            plaintext: input.plaintext,
+            associated_data: input.associated_data,
+        },
+        now,
+    )?;
+    members
+        .into_iter()
+        .find(|member| member.session == session)
+        .ok_or(Error::Binding)
+}
+
+fn retained_outcome(output: FanoutOutput) -> Option<AccountDeliveryOutcome> {
+    match output {
+        FanoutOutput::Committed(_) => None,
+        FanoutOutput::Acknowledged => {
+            Some(AccountDeliveryOutcome::Consumption(Consumption::Confirmed))
+        }
+        FanoutOutput::ResolutionPending => Some(AccountDeliveryOutcome::ResolutionPending),
+        FanoutOutput::DeliveryUnknown => Some(AccountDeliveryOutcome::DeliveryUnknown),
+        FanoutOutput::HistoryRetired => Some(AccountDeliveryOutcome::HistoryRetired),
+        FanoutOutput::ReservationAbandoned => Some(AccountDeliveryOutcome::ReservationAbandoned),
+    }
+}
+
 struct Invocation<'a> {
     endpoint: &'a ConnectionEndpoint,
     context: &'a BootstrapContext,
@@ -208,23 +272,14 @@ impl ConnectionEndpoint {
             )?;
             frame(MESSAGE, &codec::pair(input.associated_data, &wire)?)
         })?;
-        let ack = payload(&reply, ACK)?;
-        if crate::durable::acknowledgement_epoch(ack).map_err(|_| Error::Protocol)?
-            != crate::durable::message_epoch(input.message).map_err(Error::Authority)?
-        {
-            return Err(Error::Protocol);
-        }
-        journal.accept_message_acknowledgement(
+        let consumption = accept_consumption(
+            journal,
             context,
             input.session,
-            ack,
-            clock().map_err(Error::Clock)?,
+            input.message,
+            &reply,
+            &mut clock,
         )?;
-        let consumption = match journal.message_status(context, input.session, input.message)? {
-            MessageStatus::Acknowledged => Consumption::Confirmed,
-            MessageStatus::Committed => Consumption::PrefixPending,
-            _ => return Err(Error::Protocol),
-        };
         check(
             context,
             invocation.run.cancel,
@@ -236,5 +291,110 @@ impl ConnectionEndpoint {
             consumption,
             exchanges: invocation.attempts,
         })
+    }
+
+    /// Commit/resume the original complete-roster input, then deliver one member.
+    /// All target archives must exist before reservation. Every network attempt
+    /// re-admits the entire saved recipient set, exact input and current authority
+    /// through the aggregate journal operation. Never substitute a new aggregate
+    /// ID or omit a failed recipient. Individual remote effects are not atomic.
+    /// Already accounted outcomes return explicitly without connecting. A failure
+    /// or cancellation can follow local or remote commit; reconcile the same ID.
+    pub fn send_account_member(
+        &self,
+        actor: Actor<'_>,
+        input: FanoutInput<'_>,
+        session: [u8; 32],
+        run: Run<'_>,
+        mut clock: impl FnMut() -> io::Result<u64>,
+    ) -> Result<AccountDelivered, Error> {
+        let Actor {
+            journal,
+            archives,
+            context,
+            ..
+        } = actor;
+        let mut invocation = Invocation::new(self, context, run)?;
+        if input.targets.is_empty() || input.targets.len() > crate::MAX_DEVICES {
+            return Err(crate::DurableError::Capacity.into());
+        }
+        if input
+            .targets
+            .iter()
+            .filter(|target| {
+                target.session == session && target.context.digest() == context.digest()
+            })
+            .count()
+            != 1
+        {
+            return Err(Error::Binding);
+        }
+        check(
+            context,
+            invocation.run.cancel,
+            invocation.deadline,
+            &mut clock,
+        )?;
+        for target in input.targets {
+            archives
+                .require(journal, target.context, target.session)
+                .map_err(Error::Archive)?;
+        }
+        check(
+            context,
+            invocation.run.cancel,
+            invocation.deadline,
+            &mut clock,
+        )?;
+        let original = account_member(journal, &input, session, clock().map_err(Error::Clock)?)?;
+        check(
+            context,
+            invocation.run.cancel,
+            invocation.deadline,
+            &mut clock,
+        )?;
+        let result = |outcome, exchanges| AccountDelivered {
+            device: original.device,
+            session,
+            message: original.message,
+            outcome,
+            exchanges,
+        };
+        if let Some(outcome) = retained_outcome(original.output) {
+            return Ok(result(outcome, 0));
+        }
+        let reply = invocation.call(&mut clock, |now| {
+            let member = account_member(journal, &input, session, now)?;
+            if member.device != original.device || member.message != original.message {
+                return Err(Error::Binding);
+            }
+            let FanoutOutput::Committed(wire) = member.output else {
+                return Err(Error::Protocol);
+            };
+            frame(MESSAGE, &codec::pair(input.associated_data, &wire)?)
+        })?;
+        let consumption = accept_consumption(
+            journal,
+            context,
+            session,
+            original.message,
+            &reply,
+            &mut clock,
+        )?;
+        // ACK persistence is per member. A later roster/policy/witness failure
+        // retains that commit but cannot become a successful account admission.
+        let checked = account_member(journal, &input, session, clock().map_err(Error::Clock)?)?;
+        if checked.device != original.device || checked.message != original.message {
+            return Err(Error::Binding);
+        }
+        let outcome = retained_outcome(checked.output)
+            .unwrap_or(AccountDeliveryOutcome::Consumption(consumption));
+        check(
+            context,
+            invocation.run.cancel,
+            invocation.deadline,
+            &mut clock,
+        )?;
+        Ok(result(outcome, invocation.attempts))
     }
 }

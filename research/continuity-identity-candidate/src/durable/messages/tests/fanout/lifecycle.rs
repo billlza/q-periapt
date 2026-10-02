@@ -2,7 +2,7 @@
 use super::*;
 use std::os::unix::fs::OpenOptionsExt;
 
-fn rekey_second(n: &mut Network, target: u64) {
+pub(super) fn rekey_second(n: &mut Network, target: u64) {
     let context = n.f.contexts.get(1).expect("second context");
     let session = *n.sessions.get(1).expect("second session");
     let peer = n.receivers.get_mut(1).expect("second peer");
@@ -34,7 +34,7 @@ fn rekey_second(n: &mut Network, target: u64) {
 
 // This scenario has no plaintext deliveries or skipped keys. Persist every
 // report field that it does contain before acknowledging host accounting.
-fn account(path: &Path, report: &ClosedEpochResolution) {
+pub(super) fn account(path: &Path, report: &ClosedEpochResolution) {
     assert!(report.unconsumed_deliveries().is_empty());
     assert!(report.skipped_indices().is_empty());
     let mut file = fs::OpenOptions::new()
@@ -268,17 +268,26 @@ fn independent_session_closure_preserves_committed_fanout_outcomes_and_reserved_
                 Err(DurableError::Suspended)
             ));
             let second = result.get(1).expect("second");
+            assert!(matches!(
+                n.sender.resume_message(
+                    n.f.contexts.get(1).expect("second context"),
+                    second.session,
+                    second.message,
+                    150
+                ),
+                Err(DurableError::Suspended)
+            ));
+            let complete = n
+                .sender
+                .resume_account_message(id, &targets(&n.f, &n.sessions), 150)
+                .expect("complete admission with settled first member");
+            assert!(matches!(
+                complete.first().expect("settled member").output,
+                FanoutOutput::Acknowledged
+            ));
             assert_eq!(
-                n.sender
-                    .resume_message(
-                        n.f.contexts.get(1).expect("second context"),
-                        second.session,
-                        second.message,
-                        150
-                    )
-                    .expect("unrelated live member")
-                    .as_slice(),
-                committed_wire(second).as_slice()
+                committed_wire(complete.get(1).expect("live member")),
+                committed_wire(second)
             );
         }
     }

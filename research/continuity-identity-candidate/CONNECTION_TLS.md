@@ -67,6 +67,39 @@ It is automatically included in all-feature Debug/Release candidate CI.
 
 ## Durable application effects and confirmation
 
+### Complete-roster account members
+
+`send_account_member` accepts the original `FanoutInput` and one selected member
+session. Its actor still holds one device journal and archive index; the input
+contains every independently verified context required by the account roster.
+The selected session must occur exactly once with the endpoint's context, and
+all selected archives must exist before reservation. It delegates reservation and
+replay to `send_account_message`: all local member outboxes commit together before
+the first network dispatch. Every retry repeats complete-roster admission with
+the original aggregate ID, plaintext and AD. No failed member may be omitted.
+
+This is sequential remote delivery, not atomic remote application execution.
+`AccountDelivered` identifies the exact device, session and message. A successful
+exchange reports only that member's authenticated consumption prefix. A retained
+acknowledgement returns `Consumption(Confirmed)` with zero exchanges; pending
+resolution, recorded unknown delivery and retired history retain their distinct
+outcomes and never connect or become confirmed consumption. Native abandonment
+and closed-state admission still govern whether a particular outcome is readable.
+The complete roster is checked again after ACK persistence; a failure there may
+follow a committed per-member ACK and requires original-ID reconciliation.
+
+Aggregate members cannot be replayed through the ordinary `send_message` or
+`resume_message` entry points while their batch is reserved, committed or being
+abandoned. That includes a previously committed wire: checking only the selected
+pair could otherwise bypass revocation of a different mandatory recipient.
+Abandoned terminal sessions keep their existing `Retired` result. Durable formats,
+application frames and the peer's existing `Consumer`/ACK contract are unchanged.
+
+This native carrier is a prerequisite for the installed multi-peer adapters.
+It does not by itself implement their registration, enrollment or owner APIs.
+
+### Per-member application transaction
+
 `Consumer::commit` is an explicit external transaction boundary. Success means
 that both the application effect and its session/message deduplication record
 are durable together. The library cannot implement or certify that external

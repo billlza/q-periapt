@@ -205,9 +205,10 @@ fn report(image: &Image, batch: &Batch) -> Result<FanoutAbandonment, DurableErro
 }
 
 impl DeviceJournal {
-    // Cleanup uses exact previously admitted context/owner bindings. It does not
-    // require continued peer authorization, and can only destroy local authority.
-    pub(in crate::durable::messages::fanout) fn check_fanout_cleanup(
+    // Only exact previously admitted context/owner bindings. Cleanup can use
+    // this after revocation; operational callers MUST also authorize every
+    // context, the complete current roster and the current witness before release.
+    pub(in crate::durable::messages::fanout) fn check_fanout_bindings(
         &self,
         image: &Image,
         batch: &Batch,
@@ -260,7 +261,7 @@ impl DeviceJournal {
     ) -> Result<FanoutAbandonment, DurableError> {
         let image = self.image()?;
         let batch = codec::get(&image, id)?;
-        self.check_fanout_cleanup(&image, &batch, targets)?;
+        self.check_fanout_bindings(&image, &batch, targets)?;
         self.begin_fanout_cleanup(image, batch)
     }
     pub(in crate::durable::messages::fanout) fn begin_fanout_cleanup(
@@ -317,7 +318,7 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         let image = self.image()?;
         let batch = codec::get(&image, id)?;
-        self.check_fanout_cleanup(&image, &batch, targets)?;
+        self.check_fanout_bindings(&image, &batch, targets)?;
         self.acknowledge_fanout_cleanup(image, batch, report)
     }
     pub(in crate::durable::messages::fanout) fn acknowledge_fanout_cleanup(

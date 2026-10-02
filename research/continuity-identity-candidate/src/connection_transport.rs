@@ -5,8 +5,8 @@
 use crate::native_transport::{self, check, retryable, Channel};
 pub use crate::native_transport::{Cancellation, Error, RunLimits};
 use crate::{
-    BootstrapContext, CommittedPlaintext, DeviceJournal, DeviceSigningKey, InitiationId, MessageId,
-    MessageStatus, SessionArchiveStore,
+    BootstrapContext, CommittedPlaintext, DeviceJournal, DeviceSigningKey, FanoutInput,
+    FanoutMember, FanoutOutput, InitiationId, MessageId, MessageStatus, SessionArchiveStore,
 };
 use q_periapt_rustls::connection::{Credentials, Endpoint, Limits};
 use std::{
@@ -80,6 +80,34 @@ pub struct Delivered {
     /// Exact proof-based outcome; a response alone never means Confirmed.
     pub consumption: Consumption,
     /// Attempted exchanges including failures, without resetting on reconnect.
+    pub exchanges: u16,
+}
+/// One member's exact outcome; no variant asserts remote atomic account delivery.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AccountDeliveryOutcome {
+    /// The original session's authenticated consumption-prefix result.
+    Consumption(Consumption),
+    /// An existing epoch-resolution report still needs durable host accounting.
+    ResolutionPending,
+    /// Host accounting retained an unknown delivery outcome, not consumption.
+    DeliveryUnknown,
+    /// Settled epoch history was retired; its original delivery outcome is gone.
+    HistoryRetired,
+    /// The reserved input was abandoned through whole-session accounting.
+    ReservationAbandoned,
+}
+/// One explicitly selected member of an original complete-roster transaction.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AccountDelivered {
+    /// Credential-bound member device, derived by the journal.
+    pub device: [u8; 16],
+    /// Original member session selected by this invocation.
+    pub session: [u8; 32],
+    /// Original message ID allocated by the complete-roster transaction.
+    pub message: MessageId,
+    /// Delivery or retained accounting state, never inferred from a missing wire.
+    pub outcome: AccountDeliveryOutcome,
+    /// Attempted exchanges; zero means a previously retained outcome was read.
     pub exchanges: u16,
 }
 /// The host owns its external transaction and must deduplicate by session/message.

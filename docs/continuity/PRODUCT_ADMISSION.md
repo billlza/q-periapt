@@ -1,6 +1,8 @@
 # Continuity product admission boundary
 
-Status: source-grounded integration review of `7997282c00342325c79d3c3d2b9d086e718df1e7`.
+Status: unpublished product integration. The initial adapter review used
+`7997282c00342325c79d3c3d2b9d086e718df1e7`; subsequent native account-member
+carrier work is noted below.
 This records implementation work still required for 0.2.0. It is not a frozen
 foreign ABI, a completed provisioning interface or permission to publish the
 candidate packages. Product ABI major 2 and the existing KEM/KAT contracts remain
@@ -42,6 +44,15 @@ local commit and does not implement this contract. Opening a separate current C
 owner for each peer also conflicts with the exclusive installation/journal leases.
 Neither approach is an acceptable multi-device implementation.
 
+The native TLS carrier now adds `send_account_member`, which takes the original
+complete `FanoutInput` and an explicitly selected member session. It checks all
+archive/recipient inputs, commits the whole local aggregate, and re-admits that
+aggregate on every network retry. Unary replay of a live committed aggregate
+member is fenced at the journal boundary. Foreign multi-peer owners must use this
+shared carrier and preserve its distinct consumption, pending-resolution, unknown
+delivery and retired-history outcomes. This native addition does not supply the
+foreign context-registration or provisioning APIs described below.
+
 ## Required owner and input separation
 
 The next adapter implementation needs a device-scoped service owner, bounded
@@ -57,6 +68,15 @@ match the service's original local storage owner and policy binding; merely
 matching a display name, account ID or certificate is insufficient. Reopening
 reconstructs the same verified inputs and does not manufacture missing sessions.
 
+Restart also needs separate existing-session and fresh-bootstrap admission.
+The current C constructor re-verifies its fixture bootstrap bundle at the wall
+clock; that path includes prekey-advertisement validity. The native message
+engine deliberately distinguishes this from current session-identity checks.
+Qualify exact reopen after prekey advertisement and old roster-snapshot expiry,
+with current installed roster, credential and policy authority still enforced.
+Historical material verification must not turn an old timestamp into renewed
+operational authority or permit an expired selection to start a new bootstrap.
+
 Operations must select an admitted context explicitly, preserve its current
 policy/roster/witness checks, and keep both context and parent service alive until
 the operation returns. Closing a peer context cannot acknowledge messages, erase
@@ -65,6 +85,16 @@ must have defined effects across all its active calls; call and owner capacity
 must leave close/reconciliation available. This extension must reuse the native
 state machine and its transaction boundaries rather than introducing a second
 ratchet in any language binding.
+
+Peer disposal needs its own lifetime boundary. An idle peer's destructor or
+Cleaner must be able to retire that peer while an unrelated peer uses the device
+service. Requiring the parent's long-running network lock for that cleanup could
+return BUSY after the foreign object becomes unreachable and strand capacity.
+Active account calls must retain every selected peer and the parent through the
+native return, not merely copy their integer IDs. Parent close must invalidate
+child operations while preserving already borrowed objects until their calls
+drain. The adapter must test these races and budget reclamation explicitly; the
+existing single-owner reachability-fence tests do not establish child ownership.
 
 An aggregate result must preserve every member's original session/message IDs and
 the distinction between committed ciphertext, peer acknowledgement, pending

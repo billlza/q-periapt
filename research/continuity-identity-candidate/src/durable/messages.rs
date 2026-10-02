@@ -618,8 +618,8 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let mut image = self.image()?;
-        fanout::require_individual(&image, session, id)?;
         let mut state = self.message_state(&image, context, &session, now)?;
+        fanout::require_individual(&image, session, id)?;
         if plaintext.len() > MAX_PLAINTEXT || associated_data.len() > MAX_AD {
             return Err(DurableError::Capacity);
         }
@@ -776,8 +776,8 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let image = self.image()?;
-        fanout::require_individual(&image, session, id)?;
         let mut state = self.message_state(&image, context, &session, now)?;
+        fanout::require_individual(&image, session, id)?;
         let index = id.check(&session, state.role)?;
         let traffic = state.traffic_mut(id.epoch()?)?;
         traffic.require_unresolved()?;

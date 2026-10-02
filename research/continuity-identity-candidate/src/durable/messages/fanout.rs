@@ -347,62 +347,126 @@ impl DeviceJournal {
         let mut image = self.image()?;
         let mut batch = codec::get(&image, id)?;
         batch.intent()?;
+        if !batch.reserved() {
+            return self.replay_committed_fanout(&image, &batch, targets, now);
+        }
         let mut selected = self.select_fanout(&image, batch.account, targets, Some(now))?;
         batch.match_targets(&selected)?;
         if self.authorize_fanout(&image, batch.account, &selected, now)? != batch.roster {
             return Err(Error::Checkpoint.into());
         }
-        if batch.reserved() {
-            for (member, item) in batch.members.iter().zip(&mut selected) {
-                let traffic = item.state.traffic_mut(member.message.epoch()?)?;
-                let plan = traffic.pending.take().ok_or(DurableError::Corrupt)?;
-                if plan.id != member.message
-                    || plan.fanout != Some(id)
-                    || intent(b"send-intent", &plan.plaintext, &plan.ad) != *batch.intent()?
-                {
-                    return Err(DurableError::Corrupt);
-                }
-                let plaintext = Zeroizing::new(plan.plaintext.to_vec());
-                let ad = plan.ad.clone();
-                traffic.pending = Some(plan);
-                // No per-member persistence or release. Only the aggregate below
-                // installs any ciphertext or advances a durable chain.
-                let wire = traffic.send(member.message, &plaintext, &ad)?;
-                #[cfg(all(test, unix))]
-                tests::after_fanout_computation(&wire);
-                drop(wire);
+        for (member, item) in batch.members.iter().zip(&mut selected) {
+            let traffic = item.state.traffic_mut(member.message.epoch()?)?;
+            let plan = traffic.pending.take().ok_or(DurableError::Corrupt)?;
+            if plan.id != member.message
+                || plan.fanout != Some(id)
+                || intent(b"send-intent", &plan.plaintext, &plan.ad) != *batch.intent()?
+            {
+                return Err(DurableError::Corrupt);
             }
-            for item in &selected {
-                image
-                    .records
-                    .get_mut(&record_id(&item.member.session))
-                    .ok_or(DurableError::Corrupt)?
-                    .payload = item.state.encode();
-            }
-            batch.state = BatchState::Committed(batch.intent()?.clone());
+            let plaintext = Zeroizing::new(plan.plaintext.to_vec());
+            let ad = plan.ad.clone();
+            traffic.pending = Some(plan);
+            // No per-member persistence or release. Only the aggregate below
+            // installs any ciphertext or advances a durable chain.
+            let wire = traffic.send(member.message, &plaintext, &ad)?;
+            #[cfg(all(test, unix))]
+            tests::after_fanout_computation(&wire);
+            drop(wire);
+        }
+        for item in &selected {
             image
                 .records
-                .insert(batch_key(id), batch.record(image.local_account));
-            self.persist(&mut image)?;
-            #[cfg(all(test, unix))]
-            tests::after_stage("fanout-committed");
+                .get_mut(&record_id(&item.member.session))
+                .ok_or(DurableError::Corrupt)?
+                .payload = item.state.encode();
         }
-        if self.authorize_fanout(&image, batch.account, &selected, now)? != batch.roster {
+        batch.state = BatchState::Committed(batch.intent()?.clone());
+        image
+            .records
+            .insert(batch_key(id), batch.record(image.local_account));
+        self.persist(&mut image)?;
+        #[cfg(all(test, unix))]
+        tests::after_stage("fanout-committed");
+        self.replay_committed_fanout(&image, &batch, targets, now)
+    }
+    // A settled member may have a terminal session record while another member
+    // is still dispatchable. Retain the complete binding and current authority
+    // checks without demanding an erased live ratchet from that terminal member.
+    fn replay_committed_fanout(
+        &mut self,
+        image: &Image,
+        batch: &Batch,
+        targets: &[FanoutTarget<'_>],
+        now: u64,
+    ) -> Result<Vec<FanoutMember>, DurableError> {
+        if !matches!(batch.state, BatchState::Committed(_)) {
+            return Err(DurableError::Suspended);
+        }
+        // This helper supplies only original bindings. Operational authority is
+        // separately rechecked below for EVERY context, including terminal ones.
+        self.check_fanout_bindings(image, batch, targets)?;
+        for target in targets {
+            rosters::authorize_context(image, target.context, now)?;
+            let record = self.message_record_for_status(image, target.context, target.session)?;
+            if !matches!(
+                record.phase,
+                DurableStatus::Messages
+                    | DurableStatus::MessagesClosing
+                    | DurableStatus::MessagesClosed
+            ) {
+                return Err(DurableError::Corrupt);
+            }
+            if record.phase != DurableStatus::MessagesClosed {
+                let state = State::decode(&record.payload)?;
+                check_message_owner(image, target.context, state.role)?;
+                state.send_progress(target.context.policy().application_send_budget())?;
+            }
+        }
+        let roster = rosters::current(image, &batch.account)?;
+        roster.check_time(now)?;
+        if roster.checkpoint() != batch.roster {
             return Err(Error::Checkpoint.into());
         }
-        batch
+        let first = batch.members.first().ok_or(DurableError::Corrupt)?;
+        let context = targets
+            .iter()
+            .find(|target| target.session == first.session)
+            .ok_or(DurableError::Conflict)?
+            .context;
+        let local = if first.role == 1 {
+            context.device(crate::BootstrapRole::Initiator)
+        } else {
+            context.device(crate::BootstrapRole::Responder)
+        };
+        let expected: Vec<_> = roster
+            .members()
+            .filter(|(device, _, _)| {
+                batch.account != image.local_account || *device != local.device_id()
+            })
+            .collect();
+        let actual: Vec<_> = batch
             .members
             .iter()
-            .zip(&selected)
-            .map(|(member, item)| {
+            .map(|member| (member.device, member.generation, member.credential))
+            .collect();
+        if actual != expected {
+            return Err(Error::PolicyDenied.into());
+        }
+        let result = batch
+            .members
+            .iter()
+            .map(|member| {
                 Ok(FanoutMember {
                     device: member.device,
                     session: member.session,
                     message: member.message,
-                    output: codec::output(&item.state, member, batch.intent()?)?,
+                    output: codec::record_output(image, batch, member)?,
                 })
             })
-            .collect()
+            .collect::<Result<Vec<_>, DurableError>>()?;
+        self.check_release(image)?;
+        Ok(result)
     }
     /// Retire aggregate metadata only when every member has separate authenticated
     /// acknowledgement or completed epoch accounting. The monotonic ID is never
@@ -420,7 +484,7 @@ impl DeviceJournal {
         ) {
             return Err(DurableError::Suspended);
         }
-        self.check_fanout_cleanup(&image, &batch, targets)?;
+        self.check_fanout_bindings(&image, &batch, targets)?;
         self.retire_fanout_cleanup(image, batch)
     }
     fn retire_fanout_cleanup(
@@ -463,10 +527,10 @@ pub(super) fn require_individual(
         .filter(|(_, r)| r.kind == RecordKind::Fanout)
     {
         let batch = Batch::decode(image, key, record)?;
-        if matches!(
-            batch.state,
-            BatchState::Reserved(_) | BatchState::Abandoning { .. }
-        ) && batch
+        // A committed member still belongs to the complete-roster release
+        // contract. Unary replay would check only this pair and could release
+        // its cached wire after another mandatory recipient was revoked.
+        if batch
             .members
             .iter()
             .any(|m| m.session == session && m.message == id)

@@ -86,6 +86,15 @@ counter is not reset, so a retired ID never becomes a new operation. Delivery to
 one peer neither acknowledges another peer nor permits reporting aggregate remote
 success. Existing per-session delivery ACKs remain distinct from local commit.
 
+Committed batch members retain the complete-recipient admission contract. Unary
+`send_message` and `resume_message` reject their original member IDs while the
+batch remains live; otherwise replay of one cached ciphertext would check only
+that pair and could bypass another mandatory member's revocation. New unrelated
+ordinary message IDs are still governed by their normal session limits. The
+[native TLS account-member path](CONNECTION_TLS.md#complete-roster-account-members)
+performs the original aggregate operation on every network attempt and preserves
+explicit per-member consumption and loss-accounting outcomes.
+
 At most 16 batch records and 32 recipients per batch are admitted. Existing
 16-KiB plaintext, 1-KiB AD, per-session receipt/progress limits, 128-operation bound
 and 2-MiB aggregate image limit also apply. These are concurrent bounds; reaching

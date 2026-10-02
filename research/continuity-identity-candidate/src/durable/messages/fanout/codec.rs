@@ -419,5 +419,15 @@ pub(super) fn record_output(
             _ => Err(DurableError::Corrupt),
         };
     }
-    output(&State::decode(&record.payload)?, member, batch.intent()?)
+    let result = output(&State::decode(&record.payload)?, member, batch.intent()?)?;
+    // Session closure freezes dispatch before the host acknowledges its report.
+    // Retained ACK/unknown/history outcomes remain distinguishable; a live wire
+    // in that frozen record is accounting-only until the session is terminal.
+    if record.phase == DurableStatus::MessagesClosing
+        && matches!(result, FanoutOutput::Committed(_))
+    {
+        Ok(FanoutOutput::ResolutionPending)
+    } else {
+        Ok(result)
+    }
 }
