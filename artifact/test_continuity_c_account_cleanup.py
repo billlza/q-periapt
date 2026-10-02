@@ -65,6 +65,18 @@ def fixture(root):
 
 
 class AccountLossTests(unittest.TestCase):
+    def test_foreign_scope_must_be_explicit_and_cannot_be_relabelled(self):
+        base = dict(schema_version=1, completed=True, release_claim_eligible=False, profile="debug")
+        for actual, requested in (("C", "Swift"), ("Swift", "C")):
+            report = dict(base, language=actual, scope=cleanup.scope(actual))
+            with self.subTest(actual=actual), self.assertRaisesRegex(ValueError, "scope differs"):
+                cleanup.verify_public(report, self.root, language=requested)
+        with self.assertRaisesRegex(ValueError, "scope differs"):
+            cleanup.verify_public(dict(base, scope=cleanup.scope("Swift")), self.root, language="Swift")
+        for language in ("Kotlin", "unknown"):
+            with self.subTest(language=language), self.assertRaisesRegex(ValueError, "unqualified"):
+                cleanup.scope(language)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

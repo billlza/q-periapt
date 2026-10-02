@@ -77,6 +77,30 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Swift now exposes complete original-account cleanup on its existing typed recovery
+owner. The complete report traversal retains original IDs, unsigned 64-bit counters
+and optional-field meaning. Selection cannot acquire operational or independent
+session authority. Cancellation, explicit close and ARC use the original native
+registry; no raw handle becomes public. Current Debug/Release and a Swift Release
+client linked to the minimum-Rust 1.90 library each pass **15 Swift tests** and the
+real interrupted-reservation cleanup: **28 commands / 139 public records** per
+configuration, with two reserved inputs, two unknown sends, five unconsumed
+deliveries and two skipped positions independently read back. Twenty-eight artifact
+contracts pass, including explicit language-scope rejection. This is development
+qualification against the retained C libraries; a new complete archive-produced
+Swift cohort remains required. Witnessed/own-account aggregate cleanup and the
+other foreign surfaces remain open.
+The pre-existing single-session Swift recovery trace also passes in Debug and
+Release, with **31 public files** independently exported and replayed per profile.
+
+The first full installed run at `11efbd82` stopped after compiling the new account
+helper: the package selector still admitted only the three historical test-target
+names. At `63b0e824`, the selector explicitly admits `account_cleanup` while keeping
+exact source, target-kind and profile-path validation. The expanded regression
+fails on the old selector and passes with the fix; all 20 C consumer/account-report
+contracts and the source gate pass. The failed full run is retained; a fresh full
+cohort is running. Packaging and runtime results remain distinct.
+
 The C candidate now exposes [complete original-account cleanup](../bindings/c/ContinuityPackageConsumer/README.md#complete-account-cleanup)
 through 11 additive functions, for exactly **50 exports**. It consumes original
 discovery, retains all three native owners, freezes the whole member set and offers

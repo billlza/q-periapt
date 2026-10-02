@@ -1,4 +1,4 @@
-"""Whole-account C loss accounting through real installed-library process cuts."""
+"""Whole-account loss accounting through qualified foreign owners after process cuts."""
 from pathlib import Path
 import hashlib
 import re
@@ -13,6 +13,11 @@ SCOPE = ("installed C complete-account cleanup after operational SDK revocation;
 HELPERS = {"prepare_account_cleanup_case", "observe_account_cleanup_case", "revoke_account_cleanup_case",
            "compare_account_cleanup_report", "verify_account_cleanup_terminal"}
 PROBES = ((0, "before"), (1, "before"), (1, "after"), (2, "before"), (2, "after"))
+
+
+def scope(language: str) -> str:
+    sdk.require(language in ("C", "Swift"), "unqualified account cleanup language")
+    return SCOPE.replace("installed C ", "installed " + language + " ")
 
 
 def loss_report(directory: Path) -> dict:
@@ -95,10 +100,11 @@ def native_result(data: bytes, name: str) -> None:
         data.decode(), re.MULTILINE), "account cleanup native helper did not execute completely")
 
 
-def verify_public(result: dict, directory: Path) -> dict:
+def verify_public(result: dict, directory: Path, *, language: str = "C") -> dict:
     from continuity_c_faults import events, MAX_SYNC
     sdk.require(result["schema_version"] == 1 and result["completed"] is True
-                and result["release_claim_eligible"] is False and result["scope"] == SCOPE
+                and result["release_claim_eligible"] is False and result["scope"] == scope(language)
+                and result.get("language", "C") == language
                 and result["profile"] in ("debug", "release"), "account cleanup result scope differs")
     cases = result["cases"]
     sdk.require(type(cases) is list and 2 <= len(cases) <= MAX_SYNC + 1
@@ -173,14 +179,16 @@ def verify_public(result: dict, directory: Path) -> dict:
 
 
 def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Path,
-            helper: Path, probe: Path, smoke: Path, library: Path) -> dict:
+            helper: Path, probe: Path, smoke: Path, library: Path, *, language: str = "C") -> dict:
     from continuity_c_faults import Matrix, MAX_SYNC, events
-    private = outside / ("account-cleanup-" + profile)
+    selected_scope = scope(language)
+    private = outside / (language.lower() + "-account-cleanup-" + profile)
     private.mkdir(mode=0o700)
-    artifacts = output / "c-account-cleanup" / profile
+    artifacts = output / (language.lower() + "-account-cleanup") / profile
     artifacts.mkdir(parents=True, mode=0o700)
     # Reuse the existing bounded process runner and independently checked sync probe.
-    runner = Matrix(private, artifacts, profile, runtime, client, helper, probe, smoke)
+    runner = Matrix(private, artifacts, profile, runtime, client, helper, probe, smoke,
+                    language=language, expected_library=library if language != "C" else None)
     identity = sdk.snapshot(library, maximum=256 * 1024**2)
     runner.binaries["installed_library"] = dict(path=str(library), sha256=identity.sha256, bytes=identity.size)
     runner.identities[str(library)] = identity.sha256
@@ -188,7 +196,7 @@ def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Pa
     public = artifacts / "public"
     public.mkdir(mode=0o700)
     cases = []
-    result = dict(schema_version=1, profile=profile, scope=SCOPE, completed=False,
+    result = dict(schema_version=1, profile=profile, language=language, scope=selected_scope, completed=False,
                   release_claim_eligible=False, binaries=runner.binaries)
     def native(name, label, root=None, evidence=None):
         extra = {}
@@ -263,7 +271,7 @@ def qualify(outside: Path, output: Path, profile: str, runtime: dict, client: Pa
         sdk.require(all(sdk.snapshot(Path(path), maximum=256 * 1024**2).sha256 == digest
                         for path, digest in runner.identities.items()), "account cleanup binaries changed")
         verified = dict(result, completed=True, cases=cases, commands=runner.command_records)
-        checked = verify_public(verified, public)
+        checked = verify_public(verified, public, language=language)
         verified["public_files"] = checked["public_readbacks"]
         verified["loss_accounting"] = {key: value for key, value in checked.items() if key != "public_readbacks"}
         sdk.write_json(public / "PUBLIC_FILES.json", dict(completed=True, files=verified["public_files"]))

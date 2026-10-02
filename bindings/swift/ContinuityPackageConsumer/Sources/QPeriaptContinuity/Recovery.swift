@@ -60,10 +60,10 @@ public struct ClosureDelivery: Sendable {
 }
 
 // Called only with imported fixed uint8_t arrays, not padded native records.
-private func octets<T>(_ value: T) -> [UInt8] {
+func octets<T>(_ value: T) -> [UInt8] {
     withUnsafeBytes(of: value) { Array($0) }
 }
-private func optionalCounter(_ present: UInt32, _ value: UInt64) throws -> UInt64? {
+func optionalCounter(_ present: UInt32, _ value: UInt64) throws -> UInt64? {
     guard present <= 1, present == 1 || value == 0 else {
         throw ContinuityBoundaryError.malformedOutput
     }
@@ -129,7 +129,7 @@ public final class ContinuityRecoveryOwner: Sendable {
     public func cancel() throws { try native.cancel() }
     public func close() throws { try native.close() }
 
-    private func read<T>(_ initial: T,
+    func read<T>(_ initial: T,
         _ body: (UInt64, UnsafeMutablePointer<T>, UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws -> T {
         try withExtendedLifetime(self) {
             try native.call { handle in
@@ -139,7 +139,7 @@ public final class ContinuityRecoveryOwner: Sendable {
             }
         }
     }
-    private func change(_ body: (UInt64, UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws {
+    func change(_ body: (UInt64, UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws {
         try withExtendedLifetime(self) {
             try native.call { handle in
                 var error = qpc_error_v1()

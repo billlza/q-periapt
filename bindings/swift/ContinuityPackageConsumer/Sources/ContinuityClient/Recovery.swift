@@ -8,8 +8,8 @@ import Darwin
 import Glibc
 #endif
 
-private func hexBytes(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
-private func closeRecovery(_ owner: ContinuityRecoveryOwner) throws {
+func hexBytes(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
+func closeRecovery(_ owner: ContinuityRecoveryOwner) throws {
     try owner.close()
     try failure([2]) { try owner.cancel() }
 }
@@ -133,6 +133,10 @@ private func refusal(_ action: () throws -> Void) throws -> Int32 {
 func recover(_ args: [String], witness: WitnessCarrier) throws {
     try require((2...3).contains(args.count), "recovery arguments")
     let mode = args[0], path = args[1]
+    if mode.hasPrefix("recover-account-") {
+        try recoverAccount(args, witness: witness)
+        return
+    }
     if mode == "recover-kind" {
         try require(args.count == 2, "kind arguments")
         try checkNativeKindSeparation(path, witness: witness)

@@ -2022,6 +2022,7 @@ jobs:
             target/continuity-installed-swift/c-device-witness-public/**
             target/continuity-installed-swift/c-account-public/**
             target/continuity-installed-swift/c-account-cleanup/**
+            target/continuity-installed-swift/swift-account-cleanup/**
             target/continuity-installed-swift/swift-public/**
             target/continuity-installed-swift/kotlin-public/**
             target/continuity-installed-swift/kotlin-inflight-compilation/**

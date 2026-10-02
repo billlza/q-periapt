@@ -150,6 +150,39 @@ discovery are hints; selecting one or its retained archive authenticates origina
 durable state. Native selection failure closes discovery; close and reopen the
 same installation to reconcile. The explicit witness choice cannot fall back.
 
+`select(account:)` instead selects the exact original `AccountOperationID` and
+consumes discovery. Native admission authenticates all original members before
+recovery writes, retaining the installation, key-vault and journal owners. It
+accepts no recipient subset. Session and account selection are mutually exclusive;
+an account loss cannot be discharged by closing its sessions independently.
+`beginAccountCleanup()` freezes the complete account and returns the operation ID,
+report ID and member count. `accountMember`, `accountReservation`, `accountEpoch`,
+`accountUnconfirmed`, `accountDelivery` and `accountSkippedPosition` expose all
+fields of the immutable snapshot, including original device/context/session
+identities, generations and full-width counters. Every read may fail; a partial
+traversal is never a complete report.
+
+Persist the complete report and original IDs in a deduplicated host transaction
+before `acknowledgeAccount(report:)`. Use `accountCleanupStatus()` to reconcile an
+unknown result against the original operation and report. `retireAccount()` is
+admitted only after exact acknowledgement; it retires batch metadata while
+retaining session/bootstrap tombstones and consumed capacity. It cannot reactivate
+keys. Cancellation blocks mutation but leaves a retained immutable snapshot
+readable until close; a required-witness status read still needs that witness.
+
+The installed collector includes a separate Swift whole-account trace. It observes
+actual calibrated pre-sync process interruptions until a Reserved batch exists,
+revokes operational SDK permission, and freezes, traverses, acknowledges and
+retires via Swift. The host durably retains the full report before acknowledgement.
+Independent native and Python readbacks check both original members, reservations,
+older unknown ciphertext commitments, unconsumed deliveries and skipped positions.
+It also checks absent/committed dispositions, invalid indices, wrong-report and
+cancellation refusals, same-ID reopen and terminal tombstones. Reports explicitly
+identify Swift and retain the original shared harness file format. This is a
+same-host local-profile process-interruption test, not power-loss, required-witness
+or own-account aggregate-cleanup qualification. Product SDK integration, Kotlin,
+Android and durable WASM aggregate cleanup remain separate work.
+
 `begin` permanently freezes the session and returns every scalar/count of its
 immutable loss snapshot. Read every reservation, epoch, unconfirmed ciphertext
 commitment, unconsumed delivery and skipped position using the typed getters.

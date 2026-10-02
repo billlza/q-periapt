@@ -106,7 +106,7 @@ class SwiftConsumerTests(unittest.TestCase):
 
     def test_passing_summary_without_each_swift_test_is_refused(self):
         with self.assertRaisesRegex(ValueError, "all execute"):
-            swift.verify_tests(b"Executed 12 tests, with 0 failures", b"")
+            swift.verify_tests(b"Executed 15 tests, with 0 failures", b"")
         names = (("OwnerTests", "testARCRetiresPendingSlotsAndClosedAliases"),
                  ("OwnerTests", "testDiagnosticRejectsInconsistentAndInvalidUTF8"),
                  ("OwnerTests", "testIDsAndTextsRejectAmbiguousInput"),
@@ -116,11 +116,14 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("RecoveryTests", "testRecoverySharesRegistryAndRetainsCancelledClosedAuthority"),
                  ("RecoveryTests", "testClosureDecodingPreservesCountersAndRejectsUnknownStates"),
                  ("RecoveryTests", "testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen"),
+                 ("AccountRecoveryTests", "testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence"),
+                 ("AccountRecoveryTests", "testAccountCleanupStatusRejectsNarrowingAndKeepsExactReport"),
+                 ("AccountRecoveryTests", "testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner"),
                  ("DeviceTests", "testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority"),
                  ("DeviceTests", "testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates"),
                  ("DeviceTests", "testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 12 tests, with 0 failures").encode()
+                  + "\nExecuted 15 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")

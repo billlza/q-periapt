@@ -10,6 +10,7 @@ import continuity_c_opening as opening
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_faults as faults
+import continuity_c_account_cleanup as account_cleanup
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
@@ -46,13 +47,16 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "RecoveryTests.testRecoverySharesRegistryAndRetainsCancelledClosedAuthority",
              "RecoveryTests.testClosureDecodingPreservesCountersAndRejectsUnknownStates",
              "RecoveryTests.testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen",
+             "AccountRecoveryTests.testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence",
+             "AccountRecoveryTests.testAccountCleanupStatusRejectsNarrowingAndKeepsExactReport",
+             "AccountRecoveryTests.testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner",
              "DeviceTests.testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority",
              "DeviceTests.testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates",
              "DeviceTests.testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
-                and "Executed 12 tests, with 0 failures" in text,
+                and "Executed 15 tests, with 0 failures" in text,
                 "Swift owner tests did not all execute")
 
 
@@ -222,6 +226,12 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             fault_files = export_selected(fault_checked, fault_evidence,
                 output / "swift-public/sync-faults" / profile, sync_faults["scope"],
                 replay=lambda path: faults.verify_public(sync_faults, path, language="Swift"))
+            cleanup_helper = row["account_cleanup"]["binaries"]["native_helper"]
+            sdk.require(sdk.snapshot(Path(cleanup_helper["path"]), maximum=c.MAX_BINARY).sha256 == cleanup_helper["sha256"],
+                        "native account cleanup helper changed before Swift execution")
+            cleaned = account_cleanup.qualify(outside, output, profile, runtime, binary,
+                Path(cleanup_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                native_dir / LIBRARY, language="Swift")
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -232,6 +242,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
+                "account_cleanup": cleaned,
                 "server_execution": server_checked, "server_public_files": server_files,
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
                 "witnessed": witnessed, "restoration": {"execution": restored, "public_files": restored_files},
