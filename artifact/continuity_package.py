@@ -25,7 +25,8 @@ NAME = "q-periapt-continuity-identity-candidate"
 VERSION = "0.0.0"
 CONSUMER = "q-periapt-continuity-package-consumer"
 FIXTURE = "bindings/rust/ContinuityPackageConsumer/Cargo.toml"
-TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_reconcile_unknown_delivery"}
+TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
+         "reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls"}
 
 
 def source_inputs() -> dict:
@@ -91,12 +92,12 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
     return dict(result, candidate_crates=1)
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path) -> dict:
     text = stdout.decode()
-    passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
-    sdk.require(len(passed) == 2 and set(passed) == TESTS and re.search(
-        r"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
-        "installed candidate did not execute both complete public API tests")
+    passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
+    sdk.require(len(passed) == 3 and set(passed) == TESTS and re.search(
+        r"^test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        "installed candidate did not execute all three complete public API tests")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "public-result.json").data,
                                     label="installed Continuity execution")
     for field in ("session", "forward_message", "reverse_message"):
@@ -124,7 +125,40 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
                for leaf in ("closure-id", "cleanup-complete", "cleanup-verified")]
     sdk.require(len(cleanup[0]) == 32 and cleanup[0] == cleanup[1] == cleanup[2],
                 "installed cleanup did not retain its original report identity")
-    return dict(report, application_readbacks=readbacks, cleanup_id=cleanup[0].hex())
+    return dict(report, application_readbacks=readbacks, cleanup_id=cleanup[0].hex(),
+                session_reopen=verify_reopen_execution(reopen_directory))
+
+
+
+def verify_reopen_execution(directory: Path) -> dict:
+    report = parse_strict_json_bytes(sdk.snapshot(directory / "public-reopen-result.json").data,
+                                    label="installed session restoration")
+    for field in ("session", "message", "context"):
+        sdk.require(isinstance(report.get(field), str) and re.fullmatch(r"[0-9a-f]{64}", report[field]),
+                    "installed session restoration identity is invalid")
+    for field in ("original_context", "exact_outbox", "unknown_commit_reconciled", "fresh_bootstrap_refused",
+                  "independent_processes", "injected_protocol_clock"):
+        sdk.require(report.get(field) is True, f"installed session restoration did not qualify {field}")
+    sdk.require(type(report.get("application_readbacks")) is int and report["application_readbacks"] == 2,
+                "installed session restoration readback count differs")
+    sdk.require(type(report.get("test_protocol_time")) is int and 0 < report["test_protocol_time"] < 2**64,
+                "installed session restoration protocol clock differs")
+    for role in ("initiator", "responder"):
+        sdk.require(sdk.snapshot(directory / role / "reopen-test-time").data == report["test_protocol_time"].to_bytes(8, "big"),
+                    "installed session restoration peers did not use the same protocol clock")
+    original = sdk.snapshot(directory / "original-outbox")
+    restored = sdk.snapshot(directory / "restored-outbox")
+    sdk.require(original.size > 0 and original.data == restored.data,
+                "installed session restoration changed the retained ciphertext")
+    leaf = "responder/application-" + report["message"]
+    received = sdk.snapshot(directory / leaf)
+    sdk.require(received.data == bytes.fromhex(report["session"] + report["message"])
+                + b"original application commit before advertisement expiry",
+                "installed session restoration application readback differs")
+    sdk.require(len(list((directory / "responder").glob("application-*"))) == 1,
+                "installed session restoration duplicated application effects")
+    return dict(report, original_outbox_sha256=original.sha256,
+                restored_outbox_sha256=restored.sha256, application_file={leaf: received.sha256})
 
 
 def verify_candidate_files(directory: Path, files: dict[str, bytes]) -> None:
@@ -288,7 +322,7 @@ def qualify(args: argparse.Namespace) -> dict:
             runtime_environment = {k: v for k, v in environment.items() if not k.startswith(("DYLD_", "LD_"))}
             tested = run([str(executable), "--nocapture"], "consumer-" + profile, consumer,
                          env=dict(runtime_environment, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence)))
-            result["execution"][profile] = verify_execution(tested, evidence)
+            result["execution"][profile] = verify_execution(tested, evidence, evidence.with_name(evidence.name + "-session-reopen"))
             sdk.require(sdk.snapshot(executable, maximum=256 * 1024**2).sha256 == binary.sha256,
                         "installed test executable changed during execution")
             result["execution"][profile]["binary"] = {"path": str(executable), "sha256": binary.sha256,

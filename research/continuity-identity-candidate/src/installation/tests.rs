@@ -15,6 +15,7 @@ use std::{
 };
 
 mod recovery;
+mod reopen;
 
 fn paths(root: &Path) -> InstallationPaths {
     InstallationPaths::new(

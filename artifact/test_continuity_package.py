@@ -39,11 +39,26 @@ def evidence(root):
     for leaf in ("closure-id", "cleanup-complete", "cleanup-verified"):
         (root / "responder" / leaf).write_bytes(b"x" * 32)
     (root / "public-result.json").write_text(json.dumps(report))
+    restored = root / "reopen"
+    (restored / "initiator").mkdir(parents=True)
+    (restored / "responder").mkdir()
+    reopened = {"session": "44" * 32, "message": "55" * 32, "context": "66" * 32,
+                "test_protocol_time": 170, "application_readbacks": 2,
+                **{k: True for k in ("original_context", "exact_outbox", "unknown_commit_reconciled",
+                   "fresh_bootstrap_refused", "independent_processes", "injected_protocol_clock")}}
+    (restored / "public-reopen-result.json").write_text(json.dumps(reopened))
+    for role in ("initiator", "responder"):
+        (restored / role / "reopen-test-time").write_bytes((170).to_bytes(8, "big"))
+    for leaf in ("original-outbox", "restored-outbox"):
+        (restored / leaf).write_bytes(b"original ciphertext")
+    (restored / "responder" / ("application-" + reopened["message"])).write_bytes(
+        bytes.fromhex(reopened["session"] + reopened["message"])
+        + b"original application commit before advertisement expiry")
     return report
 
 
 STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
-          "\ntest result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n").encode()
+          "\ntest result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n").encode()
 
 
 class ContinuityPackageTests(unittest.TestCase):
@@ -78,17 +93,17 @@ class ContinuityPackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             report = evidence(root)
-            self.assertEqual(len(package.verify_execution(STDOUT, root)["application_readbacks"]), 2)
+            self.assertEqual(len(package.verify_execution(STDOUT, root, root / "reopen")["application_readbacks"]), 2)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
                            STDOUT.replace(b"0 filtered out", b"1 filtered out")):
-                with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "both complete"):
-                    package.verify_execution(stdout, root)
+                with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "all three complete"):
+                    package.verify_execution(stdout, root, root / "reopen")
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),
                                  ("cleanup_after_revocation", False), ("unknown_delivery_reconciled", 1)):
                 changed = dict(report, **{field: value})
                 (root / "public-result.json").write_text(json.dumps(changed))
                 with self.subTest(field=field, value=value), self.assertRaises(ValueError):
-                    package.verify_execution(STDOUT, root)
+                    package.verify_execution(STDOUT, root, root / "reopen")
 
     def test_receipt_cannot_replace_independent_application_and_cleanup_readback(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -98,11 +113,11 @@ class ContinuityPackageTests(unittest.TestCase):
             original = received.read_bytes()
             received.write_bytes(original[:-1] + b"!")
             with self.assertRaisesRegex(ValueError, "readback differs"):
-                package.verify_execution(STDOUT, root)
+                package.verify_execution(STDOUT, root, root / "reopen")
             received.write_bytes(original)
             (root / "responder/cleanup-verified").write_bytes(b"y" * 32)
             with self.assertRaisesRegex(ValueError, "original report identity"):
-                package.verify_execution(STDOUT, root)
+                package.verify_execution(STDOUT, root, root / "reopen")
 
     def test_installed_source_cannot_change_or_gain_extra_files(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -138,3 +153,32 @@ class ContinuityPackageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(warnings="error")
+
+
+class SessionReopenEvidenceTests(unittest.TestCase):
+    def test_restoration_receipt_does_not_replace_actual_ciphertext_and_application_readback(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence(root)
+            restored = root / "reopen"
+            for relative in ("restored-outbox", "responder/application-" + "55" * 32,
+                             "initiator/reopen-test-time"):
+                path = restored / relative
+                original = path.read_bytes()
+                path.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
+                with self.subTest(relative=relative), self.assertRaises(ValueError):
+                    package.verify_execution(STDOUT, root, restored)
+                path.write_bytes(original)
+            report_path = restored / "public-reopen-result.json"
+            original = json.loads(report_path.read_text())
+            for field, value in (("fresh_bootstrap_refused", False), ("exact_outbox", 1),
+                                 ("application_readbacks", True)):
+                report_path.write_text(json.dumps(dict(original, **{field: value})))
+                with self.subTest(field=field), self.assertRaises(ValueError):
+                    package.verify_execution(STDOUT, root, restored)
+            report_path.write_text(json.dumps(original))
+            self.assertTrue(package.verify_execution(STDOUT, root, restored)["session_reopen"]["exact_outbox"])
+
+
+if __name__ == "__main__":
+    unittest.main()

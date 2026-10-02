@@ -338,3 +338,128 @@ fn bundle_rejects_a_fully_valid_same_account_bundle_for_the_wrong_device_roles()
         "valid signatures cannot replace the caller's intended roles"
     );
 }
+
+#[test]
+fn reopen_request_authenticates_every_historical_field_and_preserves_all_mode_identities() {
+    use crate::{bootstrap::tests::fixture_with_public_validity, Validity};
+    for quality in [
+        PrekeyQuality::OneTimeBoth,
+        PrekeyQuality::ReusableBoth,
+        PrekeyQuality::SignedClassicalOneTimePq,
+        PrekeyQuality::OneTimeClassicalLastResortPq,
+    ] {
+        let short = Validity::new(100, 160).expect("short public snapshot");
+        let f = fixture_with_public_validity(quality, short, short);
+        let policy = f.policy_owner(BootstrapRole::Initiator);
+        let request = f
+            .bundle
+            .request_reopen(
+                Arc::clone(&policy),
+                f.bundle_requirements(quality),
+                BootstrapRole::Initiator,
+                [75; 32],
+                170,
+            )
+            .expect("historical authentication");
+        assert_eq!(request.context.digest(), f.initiator.digest());
+        assert!(matches!(request.context.check(170), Err(Error::Validity)));
+        request
+            .context
+            .check_session_identity(170)
+            .expect("still valid identity");
+        let original = fields(&f.bundle);
+        for (index, field) in original.iter().enumerate() {
+            if field.is_empty() {
+                continue;
+            }
+            let mut changed = original.clone();
+            *changed
+                .get_mut(index)
+                .expect("field")
+                .last_mut()
+                .expect("nonempty field") ^= 1;
+            assert!(
+                untrusted(&changed, quality)
+                    .request_reopen(
+                        Arc::clone(&policy),
+                        f.bundle_requirements(quality),
+                        BootstrapRole::Initiator,
+                        [75; 32],
+                        170
+                    )
+                    .is_err(),
+                "historical field {index} was not authenticated"
+            );
+        }
+        for now in [99, 200, u64::MAX] {
+            assert!(f
+                .bundle
+                .request_reopen(
+                    Arc::clone(&policy),
+                    f.bundle_requirements(quality),
+                    BootstrapRole::Initiator,
+                    [75; 32],
+                    now
+                )
+                .is_err());
+        }
+        let mut wrong = f.bundle_requirements(quality);
+        wrong.responder = ExpectedDevice::new(&f.pin_r, [93; 16], 1).expect("wrong identity");
+        assert!(matches!(
+            f.bundle.request_reopen(
+                Arc::clone(&policy),
+                wrong,
+                BootstrapRole::Initiator,
+                [75; 32],
+                170
+            ),
+            Err(Error::Scope)
+        ));
+        policy.close();
+        assert!(matches!(
+            f.bundle.request_reopen(
+                policy,
+                f.bundle_requirements(quality),
+                BootstrapRole::Initiator,
+                [75; 32],
+                170
+            ),
+            Err(Error::Closed)
+        ));
+    }
+}
+
+#[test]
+fn historical_request_does_not_extend_device_credential_lifetime() {
+    use crate::{bootstrap::tests::fixture_with_public_and_credential_validity, Validity};
+    let quality = PrekeyQuality::OneTimeBoth;
+    let f = fixture_with_public_and_credential_validity(
+        quality,
+        crate::tests::interval(),
+        Validity::new(100, 160).expect("prekeys"),
+        Validity::new(100, 170).expect("credential"),
+    );
+    let policy = f.policy_owner(BootstrapRole::Initiator);
+    policy
+        .check_mode(quality, 170)
+        .expect("policy and runtime still live");
+    f.bundle
+        .request_reopen(
+            Arc::clone(&policy),
+            f.bundle_requirements(quality),
+            BootstrapRole::Initiator,
+            [75; 32],
+            169,
+        )
+        .expect("credential live after advertisement expiry");
+    assert!(matches!(
+        f.bundle.request_reopen(
+            policy,
+            f.bundle_requirements(quality),
+            BootstrapRole::Initiator,
+            [75; 32],
+            170
+        ),
+        Err(Error::Validity)
+    ));
+}

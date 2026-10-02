@@ -34,7 +34,7 @@ pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use installation::{
     DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
-    InstallationRecovery, InstallationStatus, InstalledSessionRecovery,
+    InstallationRecovery, InstallationStatus, InstalledSessionRecovery, ReopenedSession,
 };
 pub use session_archives::SessionArchiveStore;
 #[cfg(test)]
@@ -51,7 +51,7 @@ pub use bootstrap::{
 };
 pub use bootstrap_bundle::{
     BootstrapBundle, BootstrapMaterials, BootstrapRequirements, ExpectedDevice,
-    MAX_BOOTSTRAP_BUNDLE_BYTES,
+    SessionReopenRequest, MAX_BOOTSTRAP_BUNDLE_BYTES,
 };
 pub use crypto::{
     AnchorSigningKey, DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId,

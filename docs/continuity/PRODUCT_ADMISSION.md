@@ -72,8 +72,14 @@ Restart also needs separate existing-session and fresh-bootstrap admission.
 The current C constructor re-verifies its fixture bootstrap bundle at the wall
 clock; that path includes prekey-advertisement validity. The native message
 engine deliberately distinguishes this from current session-identity checks.
-Qualify exact reopen after prekey advertisement and old roster-snapshot expiry,
-with current installed roster, credential and policy authority still enforced.
+The native `BootstrapBundle::request_reopen` and
+`DeviceInstallation::reopen_session` path now reconstructs the original session
+after public snapshot expiry, requiring its Active installation, exact message
+state/role and cleanup archive, current installed rosters, credential/policy/runtime
+authority, signed budget and fresh required witness. Native and public TLS
+qualification is recorded in `research/continuity-identity-candidate/INSTALLATION.md`.
+The C/Swift/Kotlin product owners still need explicit integration and actual-package
+qualification of this path; the existing fresh constructor must not auto-fallback.
 Historical material verification must not turn an old timestamp into renewed
 operational authority or permit an expired selection to start a new bootstrap.
 

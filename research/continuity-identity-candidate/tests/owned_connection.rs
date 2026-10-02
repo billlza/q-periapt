@@ -28,6 +28,9 @@ use std::{
 };
 use zeroize::Zeroizing;
 
+#[path = "owned_connection/reopen.rs"]
+mod reopen;
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub(crate) fn now() -> io::Result<u64> {
     Ok(SystemTime::now()
@@ -175,7 +178,10 @@ fn account(path: &Path, label: &str) -> Result<p::AccountPin> {
         array(path, "family")?,
     )?)
 }
-fn context(path: &Path, sdk: &PolicyStore) -> Result<Arc<p::BootstrapContext>> {
+fn with_bundle<T>(
+    path: &Path,
+    check: impl FnOnce(p::BootstrapBundle, p::BootstrapRequirements<'_>) -> Result<T>,
+) -> Result<T> {
     let i = account(path, "initiator")?;
     let r = account(path, "responder")?;
     let requirements = p::BootstrapRequirements {
@@ -197,8 +203,17 @@ fn context(path: &Path, sdk: &PolicyStore) -> Result<Arc<p::BootstrapContext>> {
         "bootstrap.bundle",
         p::MAX_BOOTSTRAP_BUNDLE_BYTES,
     )?)?;
+    check(bundle, requirements)
+}
+fn context(path: &Path, sdk: &PolicyStore) -> Result<Arc<p::BootstrapContext>> {
     let policy = protocol_policy(path, sdk)?;
-    let context = Arc::new(bundle.verify(Arc::clone(&policy), requirements, now()?)?);
+    let context = with_bundle(path, |bundle, requirements| {
+        Ok(Arc::new(bundle.verify(
+            Arc::clone(&policy),
+            requirements,
+            now()?,
+        )?))
+    })?;
     assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
     assert_eq!(
         context.device(p::BootstrapRole::Initiator).device_id(),
@@ -310,8 +325,19 @@ impl WitnessFixture {
     }
 }
 pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Setup> {
+    setup_with_advertisement(witness, None)
+}
+fn setup_with_advertisement(
+    witness: Option<&WitnessFixture>,
+    advertisement_seconds: Option<u64>,
+) -> Result<Setup> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
-        let path = PathBuf::from(path);
+        let mut path = PathBuf::from(path);
+        if advertisement_seconds.is_some() {
+            let mut name = path.file_name().ok_or("evidence filename")?.to_os_string();
+            name.push("-session-reopen");
+            path.set_file_name(name);
+        }
         if !path.is_absolute() {
             return Err("reference evidence path must be absolute".into());
         }
@@ -362,6 +388,16 @@ pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Set
         time.saturating_sub(1),
         time.checked_add(3600).ok_or("clock overflow")?,
     )?;
+    let advertisement = match advertisement_seconds {
+        Some(seconds) => p::Validity::new(
+            validity.from(),
+            time.checked_add(seconds).ok_or("advertisement overflow")?,
+        )?,
+        None => validity,
+    };
+    if advertisement.until() > validity.until() {
+        return Err("advertisement exceeds credential".into());
+    }
     let mut authority = p::PolicySigningKey::generate()?;
     let sdk = stores.first().ok_or("SDK owner")?.runtime()?;
     let issued = authority.issue_session_policy(
@@ -460,6 +496,15 @@ pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Set
         let anchor = witness.map(|witness| witness.client(path)).transpose()?;
         services.push(install.activate(key(path)?, device, &policy, time, anchor)?);
     }
+    if advertisement_seconds.is_some() {
+        for path in [&left, &right] {
+            store(
+                path,
+                "reopen-test-time",
+                &advertisement.until().to_be_bytes(),
+            )?;
+        }
+    }
     let server_device = devices.get(1).ok_or("responder")?;
     let server_policy = protocol_policy(&right, stores.get(1).ok_or("responder SDK")?)?;
     let mut leaves = Vec::new();
@@ -479,7 +524,14 @@ pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Set
                 .ok_or("server service")?
                 .stores()?
                 .0
-                .generate_prekey(&server_policy, server_device, request, kind, validity, time)?,
+                .generate_prekey(
+                    &server_policy,
+                    server_device,
+                    request,
+                    kind,
+                    advertisement,
+                    time,
+                )?,
         );
     }
     let manifest = signing.get(1).ok_or("responder signer")?.issue_manifest(
@@ -489,7 +541,7 @@ pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Set
             sdk.trusted_state().digest(),
             p::bootstrap_suite_digest(),
             [99; 32],
-            validity,
+            advertisement,
         )?,
         &leaves,
     )?;
@@ -778,6 +830,9 @@ fn service_peer_process() -> Result<()> {
         assert!(matches!(owner.stores(), Err(p::DurableError::Closed)));
         store(root, "cleanup-complete", report.report.as_bytes())?;
         return Ok(());
+    }
+    if mode == "reopen-application" {
+        return reopen::serve_reopened(root, attempt);
     }
     let mut peer = Peer::open(root)?;
     let listener = TcpListener::bind("127.0.0.1:0")?;

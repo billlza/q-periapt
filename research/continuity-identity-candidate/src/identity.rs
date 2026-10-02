@@ -270,6 +270,19 @@ pub struct AccountPin {
     family: [u8; 32],
 }
 impl AccountPin {
+    // Only selects a candidate instant for the complete historical verifier.
+    // This is not device admission: verify_device must still verify the credential,
+    // exact identity, membership and overlapping validity at the returned instant.
+    pub(crate) fn snapshot_start(&self, certificate: &[u8], roster: &[u8]) -> Result<u64, Error> {
+        let (body, _) = open_envelope(certificate)?;
+        let credential = Credential::decode(body)?;
+        let roster = self.authenticate_roster(roster)?;
+        Ok(credential
+            .description
+            .validity
+            .from
+            .max(roster.validity.from))
+    }
     /// Provision one expected account, root, roster checkpoint and policy family.
     pub fn new(
         expected_account: [u8; 32],

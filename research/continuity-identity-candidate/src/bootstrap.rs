@@ -988,21 +988,28 @@ pub(crate) mod tests {
         roster: IssuedRoster,
         pin: AccountPin,
     }
-    fn enrolled(seed: u8, family: [u8; 32], signer: Option<DeviceSigningKey>) -> Enrollment {
+    fn enrolled(
+        seed: u8,
+        family: [u8; 32],
+        signer: Option<DeviceSigningKey>,
+        roster_validity: Validity,
+        credential_validity: Validity,
+    ) -> Enrollment {
         let root = RootSigningKey::deterministic([seed; 32], [seed + 1; 32]).expect("root");
         let signer = signer.unwrap_or_else(|| {
             DeviceSigningKey::deterministic([seed + 2; 32], [seed + 3; 32]).expect("device")
         });
         let certificate = root
             .issue_device(
-                DeviceDescription::new([seed; 16], 1, family, interval()).expect("description"),
+                DeviceDescription::new([seed; 16], 1, family, credential_validity)
+                    .expect("description"),
                 signer.public_key().expect("public"),
             )
             .expect("certificate");
         let roster = root
             .issue_roster(
                 1,
-                interval(),
+                roster_validity,
                 &[root.roster_entry(&certificate).expect("entry")],
             )
             .expect("roster");
@@ -1056,6 +1063,7 @@ pub(crate) mod tests {
             None,
             AnchorRequirement::local_only(),
             budget,
+            None,
         )
     }
     #[cfg(unix)]
@@ -1074,6 +1082,7 @@ pub(crate) mod tests {
             Some(signers),
             AnchorRequirement::local_only(),
             ApplicationSendBudget::new(1024).expect("fixture budget"),
+            None,
         )
     }
     #[cfg(unix)]
@@ -1088,6 +1097,7 @@ pub(crate) mod tests {
             None,
             AnchorRequirement::local_only(),
             ApplicationSendBudget::new(1024).expect("fixture budget"),
+            None,
         )
     }
     pub(crate) fn fixture_with_anchor_and_budget(
@@ -1102,6 +1112,7 @@ pub(crate) mod tests {
             None,
             anchor,
             budget,
+            None,
         )
     }
     #[cfg(unix)]
@@ -1116,6 +1127,30 @@ pub(crate) mod tests {
             None,
             AnchorRequirement::local_only(),
             budget,
+            None,
+        )
+    }
+    pub(crate) fn fixture_with_public_validity(
+        quality: PrekeyQuality,
+        roster: Validity,
+        prekey: Validity,
+    ) -> Fixture {
+        fixture_with_public_and_credential_validity(quality, roster, prekey, interval())
+    }
+    pub(crate) fn fixture_with_public_and_credential_validity(
+        quality: PrekeyQuality,
+        roster: Validity,
+        prekey: Validity,
+        credential: Validity,
+    ) -> Fixture {
+        fixture_with_options(
+            quality,
+            None,
+            q_periapt_sdk::Limits::default(),
+            None,
+            AnchorRequirement::local_only(),
+            ApplicationSendBudget::new(1024).expect("fixture budget"),
+            Some((roster, prekey, credential)),
         )
     }
     fn fixture_with_options(
@@ -1128,7 +1163,10 @@ pub(crate) mod tests {
         signers: Option<(DeviceSigningKey, DeviceSigningKey)>,
         anchor: AnchorRequirement,
         budget: ApplicationSendBudget,
+        public_validity: Option<(Validity, Validity, Validity)>,
     ) -> Fixture {
+        let (roster_validity, prekey_validity, credential_validity) =
+            public_validity.unwrap_or((interval(), interval(), interval()));
         let (_, issued, pin, runtime_r) =
             session_policy_fixture_with_budget(&[quality], anchor, budget);
         let runtime_i = sdk_runtime_with_limits(limits);
@@ -1150,14 +1188,26 @@ pub(crate) mod tests {
             certificate: certificate_i,
             roster: roster_i,
             pin: pin_i,
-        } = enrolled(90, policy_r.family(), signer_i);
+        } = enrolled(
+            90,
+            policy_r.family(),
+            signer_i,
+            roster_validity,
+            credential_validity,
+        );
         let Enrollment {
             signer: signer_r,
             device: device_r,
             certificate: certificate_r,
             roster: roster_r,
             pin: pin_r,
-        } = enrolled(94, policy_r.family(), signer_r);
+        } = enrolled(
+            94,
+            policy_r.family(),
+            signer_r,
+            roster_validity,
+            credential_validity,
+        );
         let reusable = runtime_r.generate_key().expect("reusable");
         let once = runtime_r.generate_key().expect("one time");
         let (public, one) = match public_keys {
@@ -1175,7 +1225,7 @@ pub(crate) mod tests {
             (LeafKind::LastResortPq, pq),
             (LeafKind::OneTimePq, pq_once),
         ]
-        .map(|(kind, key)| PrekeyLeaf::new(kind, key, interval()).expect("leaf"));
+        .map(|(kind, key)| PrekeyLeaf::new(kind, key, prekey_validity).expect("leaf"));
         let manifest = signer_r
             .issue_manifest(
                 &device_r,
@@ -1184,7 +1234,7 @@ pub(crate) mod tests {
                     runtime_r.trusted_state().digest(),
                     bootstrap_suite_digest(),
                     [99; 32],
-                    interval(),
+                    prekey_validity,
                 )
                 .expect("manifest context"),
                 &leaves,

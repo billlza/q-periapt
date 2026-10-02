@@ -7,6 +7,8 @@ use crate::{
 };
 use std::sync::Arc;
 mod codec;
+mod reopen;
+pub use reopen::SessionReopenRequest;
 
 /// Maximum complete public bootstrap bundle, including all length prefixes.
 pub use crate::contract::MAX_BOOTSTRAP_BUNDLE_BYTES;

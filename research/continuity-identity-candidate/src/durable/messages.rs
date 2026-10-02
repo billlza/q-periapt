@@ -578,6 +578,25 @@ impl DeviceJournal {
         state.send_progress(context.policy().application_send_budget())?;
         Ok(state)
     }
+    pub(crate) fn check_reopened_session(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+        role: crate::BootstrapRole,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        let image = self.image()?;
+        let state = self.message_state(&image, context, &session, now)?;
+        let expected_role = match role {
+            crate::BootstrapRole::Initiator => 1,
+            crate::BootstrapRole::Responder => 2,
+        };
+        if state.role != expected_role {
+            return Err(DurableError::Conflict);
+        }
+        context.check_session_identity(now)?;
+        self.check_context_release(&image, context, now)
+    }
     /// Read the current send slot before submitting input. Retain this ID across
     /// retries. Concurrent readers may see the same slot; differing inputs conflict.
     pub fn next_message_id(

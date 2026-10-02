@@ -66,6 +66,57 @@ A crash before the initial configuration transaction commits can leave a partial
 configuration file. It remains refused without implicit repair. No journal has been
 created at that point, but this does not turn an arbitrary open error into first use.
 
+## Existing sessions after public snapshot expiry
+
+A prekey advertisement's lifetime does not set an established session's lifetime.
+Fresh bootstrap still uses `BootstrapBundle::verify` at current trusted time.
+For an existing session use the explicit two-stage path:
+
+1. `bundle.request_reopen(policy, independent_requirements, local_role, session, now)`
+   authenticates the original snapshot into an opaque `SessionReopenRequest`.
+2. `DeviceInstallation::reopen_session(paths, key, request, now, anchor)` admits it
+   against the original Active installation and returns `ReopenedSession`.
+3. `into_parts()` transfers the same `DeviceService` and `Arc<BootstrapContext>`
+   to the existing protocol engines. `session_id()` and `role()` identify the
+   checked session; no private keys are exported.
+
+The request supplies no operational context. It derives a candidate historical
+instant from the maximum start of the signed policy, both credential/roster
+snapshots and all supplied baseline/selected leaves. It then invokes the complete
+ordinary bundle verifier at that instant. Every signature, exact independent pin,
+identity, membership proof, interval and manifest-containment check still applies.
+A future or non-overlapping snapshot is refused. Time hints are not authority.
+Current policy, runtime and both device credential lifetimes are also checked.
+
+The installation step never creates files or activates Creating state. It matches
+original paths, wrapping key, local device owner, policy and witness binding, opens
+existing children, requires the exact session closure archive, and checks the
+persisted message session's context, local role and signed send budget. Current
+journal rosters and the required independent witness remain authoritative. The
+old snapshot is not installed as a newer roster. Closing/closed sessions, missing
+sessions or archives, revoked membership, expired current credentials/policy and
+closed owners return no operating service. Required witness failures never fall
+back to local-only. All acquired owners are dropped on refusal.
+
+This reconstructs the original context commitment; reissuing a bundle against a
+new roster would change that commitment and cannot substitute for restoration.
+Subsequent operations still perform their current admission checks. In particular,
+a restored context with expired advertisement cannot start a fresh bootstrap.
+Credential/policy renewal and cross-installation migration remain separate work.
+`InstallationRecovery` retains its distinct cleanup-only authority.
+
+The native regression includes expiry, durable roster updates/revocation, both
+roles, exact original outbox replay, duplicate owner refusal, missing configuration/
+children/archive, closed owner, Creating and closing-state refusal. Required-witness
+checks inject loss before and after each actual exchange. The public consumer test
+`reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls`
+uses independent receiver processes and real TLS: an application commit followed
+by process exit, explicit protocol-clock advancement past advertisement expiry,
+restoration of both peers, exact retry and durable acknowledgement with two
+independent application-file readbacks. Only the protocol clock is injected; no
+wall-clock change or long-lived deployment is claimed by that test. Language
+binding owners still need their explicit restoration interfaces and qualification.
+
 ## Lifetime and protocol integration
 
 `DeviceService::stores` borrows the existing journal and archive engines together.

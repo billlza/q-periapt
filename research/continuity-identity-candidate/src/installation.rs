@@ -18,7 +18,9 @@ const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_ins
 const TAG: &[u8; 8] = b"QPCINS01";
 
 mod recovery;
+mod reopen;
 pub use recovery::{InstallationRecovery, InstalledSessionRecovery};
+pub use reopen::ReopenedSession;
 
 /// Exact independently configured paths. Keep the installation database and
 /// wrapping key outside journal backups. Missing configuration is not first use.
@@ -245,6 +247,14 @@ impl DeviceInstallation {
         now: u64,
     ) -> Result<Self, DurableError> {
         admit(device, policy, now)?;
+        Self::open_bound(paths, key, device, policy)
+    }
+    fn open_bound(
+        paths: InstallationPaths,
+        key: &JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+    ) -> Result<Self, DurableError> {
         let db = open_private_database(&paths.configuration)?;
         let (identity, saved, _) = read(&db)?;
         let expected = scope(&paths, identity, key, device, policy)?;
@@ -376,21 +386,7 @@ impl DeviceInstallation {
     ) -> Result<DeviceService, DurableError> {
         self.check(&key, device, policy, now)?;
         let phase = self.status()?;
-        let mut journal = match (policy.anchor_requirement().binding(), anchor) {
-            (None, None) => DeviceJournal::open(&self.paths.journal, key, device, self.identity)?,
-            (Some(_), Some(client)) => DeviceJournal::open_anchored(
-                &self.paths.journal,
-                key,
-                device,
-                policy,
-                self.identity,
-                client,
-            )?,
-            (Some(_), None) => return Err(DurableError::AnchorRequired),
-            (None, Some(_)) => return Err(DurableError::Conflict),
-        };
-        let mut archives = SessionArchiveStore::open(&self.paths.archives, self.identity)?;
-        archives.check_journal(&journal)?;
+        let (mut journal, mut archives) = self.open_children(key, device, policy, anchor)?;
         if phase == InstallationStatus::Creating {
             journal.check_installation_state(device, policy, true)?;
             if !archives.session_ids()?.is_empty() {
@@ -422,6 +418,30 @@ impl DeviceInstallation {
                 installation: self,
             }),
         })
+    }
+    fn open_children(
+        &self,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        anchor: Option<AnchorClient>,
+    ) -> Result<(DeviceJournal, SessionArchiveStore), DurableError> {
+        let journal = match (policy.anchor_requirement().binding(), anchor) {
+            (None, None) => DeviceJournal::open(&self.paths.journal, key, device, self.identity)?,
+            (Some(_), Some(client)) => DeviceJournal::open_anchored(
+                &self.paths.journal,
+                key,
+                device,
+                policy,
+                self.identity,
+                client,
+            )?,
+            (Some(_), None) => return Err(DurableError::AnchorRequired),
+            (None, Some(_)) => return Err(DurableError::Conflict),
+        };
+        let archives = SessionArchiveStore::open(&self.paths.archives, self.identity)?;
+        archives.check_journal(&journal)?;
+        Ok((journal, archives))
     }
     /// Release the initialization lease. Persisted phase and identities remain.
     pub fn close(&mut self) {

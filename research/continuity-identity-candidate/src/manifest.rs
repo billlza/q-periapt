@@ -232,6 +232,10 @@ pub struct LeafProof {
     siblings: Vec<[u8; 32]>,
 }
 impl LeafProof {
+    // Untrusted hint only; the complete manifest/member verifier must follow.
+    pub(crate) fn untrusted_start(&self) -> u64 {
+        self.leaf.validity.from
+    }
     /// Serialize one bounded proof. Its manifest supplies the tree size and scope.
     pub fn encode(&self) -> Result<Vec<u8>, Error> {
         let leaf = self.leaf.encode();

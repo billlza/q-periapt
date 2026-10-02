@@ -267,7 +267,6 @@ impl SessionArchiveStore {
         }
         result
     }
-    #[cfg(feature = "connection-tls")]
     pub(crate) fn require(
         &mut self,
         journal: &DeviceJournal,

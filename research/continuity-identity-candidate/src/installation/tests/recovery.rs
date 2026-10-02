@@ -265,7 +265,7 @@ fn installation_recovery_rejects_absent_creating_wrong_key_and_changed_scope_wit
     assert!(!paths(&root).journal.exists() && !paths(&root).archives.exists());
 }
 
-fn anchored_session(c: &Anchored) -> ([u8; 32], SessionClosureArchive) {
+pub(super) fn anchored_session(c: &Anchored) -> ([u8; 32], SessionClosureArchive) {
     let owner = c.prepare();
     let mut service = c.activate(owner).expect("original service");
     let dir = directory();
