@@ -100,9 +100,48 @@ the owned test app is uninstalled, with three recorded absence observations and
 a subsequent independent live absence check. Automatic provisioning updates and
 device registration remain disabled. The 60-file / 57,474,051-byte cohort has
 inventory `dc8fb4418b6d7a2304aac86c30e4ad0732d1d0b81717757631739b6402146900`.
-This is one current-OS device with test-only in-memory policy state, not a complete
-iPhone/iPad or minimum-OS matrix or durable Apple Continuity. The current iPad
-route is localNetwork and fails the wired-lane preflight without running an app.
+That capture initially left the iPad lane open: its localNetwork route failed the
+wired preflight before running an app. The original iPhone cohort preserves that
+observation unchanged.
+
+After USB reconnection, the same clean `7997282c` source completes the physical
+iPad Pro 11-inch M4 workload on iPadOS 27.0.1 (24A446), in 133.123 seconds. All four
+sdk-020 groups pass, with existing-profile signing, actual installation/execution,
+device-marker readback and independent proof verification. Its owned app is
+uninstalled, followed by three recorded absence observations and an independent
+live absence check. Provisioning updates and device registration remain disabled.
+The canonical matrix emitter and independent verifier qualify byte-identical
+copies of both original child proofs: distinct devices/runs, wired transports,
+matching clean source and Xcode provenance, and the default 24-hour age bound.
+Both bind native static library
+`756a73e6590727e1f3985b4123bf3d58586932fd5b4bbaaac303c4eb98aac4bd`.
+The new 99-file / 65,402,188-byte matrix cohort has inventory
+`ccb2e3cb6926ce982ec463d0240eafe045f291a065c9672d506ad840dc5d4256`.
+This closes the exact source's current-OS USB iPhone/iPad SDK matrix. The two
+retained sequential runs were assembled using the canonical proof commands;
+`apple-device-matrix.sh` was not rerun as one combined invocation. Test-only
+in-memory policy state, minimum-OS coverage and durable Apple Continuity remain
+distinct boundaries. The later evidence-export commit is not the runtime source.
+
+Source `7997282c` also completes [push CI](https://github.com/billlza/q-periapt/actions/runs/36937435741),
+[PR CI](https://github.com/billlza/q-periapt/actions/runs/36937442924) and
+[CodeQL](https://github.com/billlza/q-periapt/actions/runs/36937442938). Its
+[installed macOS Swift/Kotlin job](https://github.com/billlza/q-periapt/actions/runs/36937435741/job/110623201473)
+retains artifact 11201701023, 49,008,567 bytes, SHA-256
+`cd2db8fd4813cfb1dca33f17b8dc423b7a9eaabe3140ae395ac8118eab8ba663`.
+Independent local replay of the Kotlin portion binds 233 committed inputs, two
+251-file archives and all 1,398 selected public records. Each profile verifies
+eight owner tests, seven refusal controls, Java module execution, ordinary and
+witnessed connections, controlling-thread interruption, all 59 sync-cut cases /
+771 commands / 96 raw sync receipts, and eight real Reserved sends. Serial and
+G1 each complete 16 prepared-owner rounds and 1,024 forgotten/live/stale graphs;
+each in-flight run preserves eight callback receipts, seven returned native-slot
+checks and 13 verified C2 invocation logs. Original hosted processes and tool
+installations are not rerun locally. The 7,192-file / 321,505,587-byte cohort has
+inventory `9b5cb7e38ab39c7a7fe9e8743e95132ac04733b0f6ae523593a9dd8f12e3ff3c`.
+This closes the exact source's hosted Kotlin lifetime/package checkpoint; it does
+not extend the tested JVM/GC scope or establish a repair for the older Android
+transport failure.
 
 Hosted source `0511ce84` also completes [push CI](https://github.com/billlza/q-periapt/actions/runs/36928969828)
 and its macOS installed Swift/Kotlin job. Artifact 11199326147 matches SHA-256
