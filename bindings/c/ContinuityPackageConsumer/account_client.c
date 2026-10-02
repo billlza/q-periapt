@@ -23,11 +23,15 @@ static void *account_call(void *opaque) {
         s->body,s->body_length,ad,sizeof(ad)-1,&s->result,&s->error);
     return NULL;
 }
-static void account_failed(const struct AccountSend *s, int32_t expected) {
+static void account_failed(const struct AccountSend *s, int32_t expected, const char *mode) {
     record(s->code,&s->error);
     const qpc_account_delivered_v1 empty={0};
-    if (s->code!=expected || memcmp(&s->result,&empty,sizeof(empty)))
+    int output_zero = memcmp(&s->result,&empty,sizeof(empty)) == 0;
+    if (s->code!=expected || !output_zero) {
+        fprintf(stderr,"account-refusal mode=%s expected=%ld actual=%ld output_zero=%d\n",
+            mode,(long)expected,(long)s->code,output_zero);
         fail("account refusal or output initialization differs");
+    }
     printf("account-refused:%d\n",s->code);
 }
 static void account_shape_check(void) {
@@ -114,14 +118,14 @@ static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,i
             if(clock_gettime(CLOCK_MONOTONIC,&after))fail("account clock");
             int64_t ns=(int64_t)(after.tv_sec-before.tv_sec)*1000000000LL+after.tv_nsec-before.tv_nsec;
             if(ns<0 || ns>=1000000000LL)fail("account cancellation exceeded observation bound");
-            account_failed(&s,QPC_CANCELLED);
+            account_failed(&s,QPC_CANCELLED,mode);
             uint8_t next[32];require(qpc_device_v1_next_account(parent,next,&error),&error);
             require(qpc_owner_v1_next_message(peers[0],s.targets[0].session,next,&error),&error);
             printf("account-cancel-active:%lld:3\n",(long long)(ns/1000000LL));
             close_owner(peers[1]);close_owner(peers[0]);close_owner(parent);return 0;
         }else if(strcmp(mode,"deliver") && strcmp(mode,"retained") && strcmp(mode,"reverse-retained"))fail("account mode");
         account_call(&s);
-        if(expected)account_failed(&s,expected);
+        if(expected)account_failed(&s,expected,mode);
         else{
             require(s.code,&s.error);
             if(s.result.outcome!=QPC_ACCOUNT_CONFIRMED || memcmp(s.result.session,s.targets[s.selected].session,32))fail("account delivery scope/outcome");

@@ -92,8 +92,12 @@ predates Kotlin device/account owners. The sealed cohort has **20,892 files /
 The `20e22a41` producer includes the new Kotlin owners and remains in progress.
 
 At `c9d713d2`, the hosted push Linux installed-package and Android 16 KiB jobs
-complete successfully, and CodeQL succeeds; the complete push/PR workflows are
-still in progress at the retained snapshot. The downloaded Linux artifact
+complete successfully, and CodeQL succeeds. Push CI remains in progress; PR CI
+fails in the macOS installed task's C account refusal/output-initialization check
+before Swift/Kotlin execution, and in Android 16 KiB cleanup. The retained C
+diagnostic does not identify the mode, actual status or output predicate; its
+root cause is not established. Local package success does not override either
+hosted failure. The downloaded Linux artifact
 `11226214231` matches its GitHub SHA-256 but lacks five new C public directories:
 restoration, witnessed restoration, device parent, witnessed parent and account
 delivery. Source `84707ad4` adds them explicitly to both Linux/macOS upload lists.
