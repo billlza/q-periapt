@@ -77,6 +77,36 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The complete `c9d713d2` installed Rust/C/Swift/Kotlin producer finishes with exit
+0 in **3075.250 seconds**. First independent replay verifies **246** unchanged
+source inputs, archives, actual binaries and JVM closures. Both Swift profiles
+now contain **238 files**, pass **12** strict owner tests and replay the complete
+account path with **72 public records**, including the closed-alias store-reopen
+check. C retains nine admission tests, exactly 39 exports and account/parent/
+witnessed-parent records (72/36/17). Each C/Swift/Kotlin profile passes 59 sync
+cases/771 commands; Kotlin remains the earlier 251-file/eight-test pairwise
+interface, including its existing GC, C2 and seven refusal checks. This source
+predates Kotlin device/account owners. The sealed cohort has **20,892 files /
+469,163,566 bytes**, inventory
+`4ef958d7a0e511be2b18353003900367a0e754eeb3db6cc52bd8501a7d038779`.
+The `20e22a41` producer includes the new Kotlin owners and remains in progress.
+
+At `c9d713d2`, the hosted push Linux installed-package and Android 16 KiB jobs
+complete successfully, and CodeQL succeeds; the complete push/PR workflows are
+still in progress at the retained snapshot. The downloaded Linux artifact
+`11226214231` matches its GitHub SHA-256 but lacks five new C public directories:
+restoration, witnessed restoration, device parent, witnessed parent and account
+delivery. Source `84707ad4` adds them explicitly to both Linux/macOS upload lists.
+Replaying old/new selections on the actual local exports changes coverage from
+zero to **386 files per lane**. The workflow source/toolchain contract passes.
+Local actionlint reports the same two pre-existing `ubuntu-26.04` catalogue
+diagnostics before and after; it is not counted as a clean lint run. The retained
+initial test-selector error is corrected using the actual parsed test class.
+The CI retention cohort has **22 files / 7,821,603 bytes**, inventory
+`76540c7633780dc237b996a26d6727e224dfd7570232c8fdaa26436dd417a94f`.
+A fresh hosted upload/readback remains required. One successful Android run does
+not establish stability, and hosted job success cannot replace missing readbacks.
+
 Source `249c40a5` adds Kotlin device parents, fresh/restored peer children, typed
 account status/results and complete-set member delivery. An atomic parent
 reference and call reachability fences retain live/in-flight native ownership;
@@ -113,8 +143,9 @@ failure and partial exports remain retained. The corrected reader copies the sam
 version coordinate as the producer and applies the unchanged strict verifier.
 This cohort uses new Kotlin/Maven overlays on installed native bytes; full current
 archives, required-witness/own-account delivery, aggregate lifecycle and broader
-platform/provisioning qualification remain open. The `c9d713d2` full package run
-and hosted workflows are still in progress and predate this Kotlin change.
+platform/provisioning qualification remain open. The completed `c9d713d2` package
+cohort above predates this Kotlin change; its hosted workflows retain their own
+recorded status and evidence limits.
 
 Source `dba721b8` corrects Swift peer lifetime after explicit close. The earlier
 `a8ae179a` implementation passes its 12 unit tests but a stronger real account
