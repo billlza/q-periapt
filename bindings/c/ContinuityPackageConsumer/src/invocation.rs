@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! One explicit owner-local deadline shared with its deeply owned witness client.
-use crate::{failure, p, Result};
+use crate::{failure, p, Cancellation, Result};
 use std::{
     io,
     sync::{Arc, Mutex},
@@ -17,34 +17,53 @@ pub(crate) fn check(deadline: Instant) -> Result<()> {
     }
 }
 
+struct Invocation {
+    deadline: Instant,
+    cancel: Cancellation,
+}
 #[derive(Clone, Default)]
-pub(crate) struct Scope(Arc<Mutex<Option<Instant>>>);
+pub(crate) struct Scope(Arc<Mutex<Option<Invocation>>>);
 
 impl Scope {
-    pub(crate) fn enter(&self, deadline: Instant) -> Result<Active> {
+    pub(crate) fn enter(&self, deadline: Instant, cancel: &Cancellation) -> Result<Active> {
         let mut current = self.0.lock().map_err(|_| failure(5))?;
         if current.is_some() {
             return Err(failure(3));
         }
         check(deadline)?;
-        *current = Some(deadline);
+        *current = Some(Invocation {
+            deadline,
+            cancel: cancel.clone(),
+        });
         Ok(Active(self.clone()))
     }
 
     pub(crate) fn constrain(&self, attempt: Instant) -> io::Result<Instant> {
-        let deadline = self
+        self.transport_context(attempt)
+            .map(|(deadline, _)| deadline)
+    }
+
+    /// Snapshot the same call's deadline and cancellation owner together. A
+    /// retained witness transport must not keep another peer's previous token.
+    pub(crate) fn transport_context(
+        &self,
+        attempt: Instant,
+    ) -> io::Result<(Instant, Cancellation)> {
+        let current = self
             .0
             .lock()
-            .map_err(|_| io::Error::other("C invocation scope poisoned"))?
-            .ok_or_else(|| io::Error::other("witness requires an active C invocation"))?
-            .min(attempt);
+            .map_err(|_| io::Error::other("C invocation scope poisoned"))?;
+        let current = current
+            .as_ref()
+            .ok_or_else(|| io::Error::other("witness requires an active C invocation"))?;
+        let deadline = current.deadline.min(attempt);
         if Instant::now() >= deadline {
             return Err(io::Error::new(
                 io::ErrorKind::TimedOut,
                 "C invocation deadline expired",
             ));
         }
-        Ok(deadline)
+        Ok((deadline, current.cancel.clone()))
     }
 }
 
@@ -68,14 +87,15 @@ mod tests {
     #[test]
     fn enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered() {
         let scope = Scope::default();
+        let cancel = Cancellation::default();
         let deadline = Instant::now() + Duration::from_secs(1);
-        let active = scope.enter(deadline).expect("first invocation");
+        let active = scope.enter(deadline, &cancel).expect("first invocation");
         let witness = scope.clone();
         assert_eq!(
             witness.constrain(deadline + TIMEOUT).expect("active"),
             deadline
         );
-        assert!(matches!(scope.enter(deadline + TIMEOUT), Err(error) if error.code == 3));
+        assert!(matches!(scope.enter(deadline + TIMEOUT, &cancel), Err(error) if error.code == 3));
         assert_eq!(
             witness.constrain(deadline + TIMEOUT).expect("unchanged"),
             deadline
@@ -83,7 +103,7 @@ mod tests {
         drop(active);
         assert!(witness.constrain(deadline + TIMEOUT).is_err());
         let later = deadline + TIMEOUT;
-        let _next = scope.enter(later).expect("next invocation");
+        let _next = scope.enter(later, &cancel).expect("next invocation");
         assert_eq!(
             witness.constrain(later + TIMEOUT).expect("new scope"),
             later
@@ -93,12 +113,15 @@ mod tests {
     #[test]
     fn expired_admission_and_independent_owners_do_not_change_active_scope() {
         let scope = Scope::default();
+        let cancel = Cancellation::default();
         let expired = Instant::now();
-        assert!(matches!(scope.enter(expired), Err(error) if error.code == 303));
+        assert!(matches!(scope.enter(expired, &cancel), Err(error) if error.code == 303));
         let deadline = Instant::now() + TIMEOUT;
-        let _active = scope.enter(deadline).expect("valid invocation");
+        let _active = scope.enter(deadline, &cancel).expect("valid invocation");
         let other = Scope::default();
-        let _other = other.enter(deadline + TIMEOUT).expect("independent owner");
+        let _other = other
+            .enter(deadline + TIMEOUT, &cancel)
+            .expect("independent owner");
         assert_eq!(
             scope.constrain(deadline + TIMEOUT).expect("original scope"),
             deadline
@@ -110,5 +133,26 @@ mod tests {
                 .kind(),
             io::ErrorKind::TimedOut
         );
+    }
+
+    #[test]
+    fn sequential_calls_keep_their_own_cancellation_without_retaining_idle_authority() {
+        let scope = Scope::default();
+        let first = Cancellation::default();
+        let second = Cancellation::default();
+        let deadline = Instant::now() + TIMEOUT;
+        let active = scope.enter(deadline, &first).expect("first call");
+        let (_, retained) = scope.transport_context(deadline).expect("first snapshot");
+        first.cancel();
+        assert!(retained.is_cancelled());
+        assert!(!second.is_cancelled());
+        drop(active);
+        assert!(scope.transport_context(deadline).is_err());
+        let _active = scope.enter(deadline, &second).expect("second call");
+        let (_, current) = scope.transport_context(deadline).expect("second snapshot");
+        assert!(!current.is_cancelled());
+        assert!(retained.is_cancelled());
+        current.cancel();
+        assert!(second.is_cancelled());
     }
 }

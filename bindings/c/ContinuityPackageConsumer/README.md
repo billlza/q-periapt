@@ -149,6 +149,18 @@ deadline on return; a later call receives a new budget but one-way cancellation
 remains set. A completed mutation followed by cancellation or expiration remains
 an unknown outcome requiring exact original-ID reconciliation. Native failures
 retain their typed diagnostics even when the call's deadline has also elapsed.
+The internal invocation scope snapshots its cancellation token together with that
+deadline. A retained witness endpoint creates each already-required fresh native
+TCP/TLS exchange using this snapshot; it does not retain another call's token or
+reread trust/configuration files. Existing public owners still use their original
+permanent cancellation token on every call. This separation prepares shared-device
+ownership; it does not add public peer handles or weaken cancellation/commit rules.
+Native unit checks exercise two different tokens through one retained endpoint,
+real stalled TCP and TLS sockets, pre-cancelled refusal without a connection and
+refusal outside an active scope. These byte-carrier tests supply no authenticated
+reply; actual signed-witness C workloads separately exercise authentication,
+restoration and revoked cleanup. Transport construction timings are not a
+controlled performance comparison.
 The installed C server regression waits 15 seconds before TCP admission and then
 stalls TLS. It must return the invocation deadline outcome and close the socket
 within the test's 23-second observation bound; this is not a latency SLA.

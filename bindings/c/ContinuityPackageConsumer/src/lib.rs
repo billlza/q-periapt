@@ -341,7 +341,7 @@ fn with_entry<T>(
             return Err(failure(5));
         }
     };
-    let _active = entry.invocation.enter(deadline)?;
+    let _active = entry.invocation.enter(deadline, &entry.cancel)?;
     match catch_unwind(AssertUnwindSafe(|| action(&mut locked, &entry))) {
         Ok(result) => result,
         Err(_) => {
@@ -535,7 +535,7 @@ unsafe fn open_owner(
             .transpose()?;
         let quality = opening::quality(u32::from(quality))?;
         let slot = Reservation::new()?;
-        let _active = slot.invocation.enter(deadline)?;
+        let _active = slot.invocation.enter(deadline, &slot.cancel)?;
         let owner = owner::Owner::open(
             Path::new(&path),
             owner::Admission::Bootstrap(quality),

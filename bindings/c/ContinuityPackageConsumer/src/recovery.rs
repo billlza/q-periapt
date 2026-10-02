@@ -361,7 +361,9 @@ unsafe fn open_recovery(
             .map(|(value, carrier)| unsafe { witness::Configuration::read(value, carrier) })
             .transpose()?;
         let reservation = Reservation::new()?;
-        let _active = reservation.invocation.enter(deadline)?;
+        let _active = reservation
+            .invocation
+            .enter(deadline, &reservation.cancel)?;
         let owner = Recovery::open(
             Path::new(&path),
             witness,

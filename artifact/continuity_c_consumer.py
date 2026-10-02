@@ -250,13 +250,16 @@ def verify_admission(stdout: bytes) -> None:
         "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
         "invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered",
         "invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope",
+        "invocation::tests::sequential_calls_keep_their_own_cancellation_without_retaining_idle_authority",
         "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
         "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
+        "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
+        "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
     }
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 

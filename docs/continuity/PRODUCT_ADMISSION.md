@@ -142,6 +142,17 @@ child operations while preserving already borrowed objects until their calls
 drain. The adapter must test these races and budget reclamation explicitly; the
 existing single-owner reachability-fence tests do not establish child ownership.
 
+Witness I/O also needs the selected invocation's cancellation owner. The C
+adapter now retains the independently configured witness endpoint and credentials,
+but snapshots the active call's token and absolute deadline together for each
+fresh native exchange. Sequential cancelled calls under one retained endpoint are
+tested with distinct tokens and real stalled TCP/TLS sockets. Existing public
+owners still reuse their original one-way token. A future device parent must fence
+new child calls after parent cancellation and signal its active child invocation;
+single-peer cancellation must not poison another peer's future calls. This
+transport preparation does not itself implement that parent/child registry or
+claim parallel journal operations.
+
 An aggregate result must preserve every member's original session/message IDs and
 the distinction between committed ciphertext, peer acknowledgement, pending
 resolution, unknown delivery, retired history and abandoned reservation. Local
