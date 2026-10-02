@@ -77,6 +77,52 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `caf5ab1e` adds `DeviceService::reopen_peer` and `ReopenedPeer`: established
+peer contexts can be restored under one original installation/journal/archive
+lease. Admission requires the exact local owner, policy/witness scope, session,
+role and archive, with the existing current-authority checks. The original key
+commitment is retained privately in memory; durable scope and protocol formats
+are unchanged. Rust 1.98.1 Debug and Rust 1.90.0 Release each pass all **25**
+installation tests plus the complete two-peer account transaction test. The latter
+covers own-account and peer-account recipients, omitted-recipient refusal without
+partial mutation, delivery to independent receiver journals and original
+ciphertext replay after restart. Public TLS passes all three harness tests;
+strict Clippy and no-TLS compilation pass. All 454 compiled input hashes match
+the commit. The cohort has **498 files / 45,918,300 bytes**, inventory
+`950fb7b1e544b4ec51352818c61d58455e2829804f5cb57fcfb558d4b8431553`.
+Fresh peer registration, foreign parent/child owners, and current-source complete
+library/package qualification remain separate requirements.
+
+The complete `a897ba54` Rust/C/Swift/Kotlin installed-package producer finishes
+with exit 0 in **3114.736 seconds**. Independent replay binds 238 unchanged source
+inputs, candidate/package archives, native executables and JVM closures. Every
+foreign language/profile pair passes both the 24-public-file real-clock expiry
+restoration trace and the 39-public-file required-witness constructor trace.
+Each C/Swift/Kotlin profile completes 59 sync-fault cases and 771 commands.
+Swift's two 235-file packages run nine owner tests each; Kotlin's two 251-file
+packages run eight owner tests, seven refusal controls, Serial/G1 prepared and
+in-flight collection and checked compilation evidence. Its 96 raw sync receipts
+per profile include eight Reserved sends. The first readback driver failed on
+the older native verifier signature; the corrected driver supplies the separate
+restoration directory and passes without rerunning or weakening the producer.
+The cohort has **20,452 files / 462,488,561 bytes**, inventory
+`ebf925916b48de75ccaeefc0aeb7481a34aafb3a398d5eac269052ef8044cc9d`.
+Private runtime keys/journals/databases are excluded. This is same-host execution
+with one native protocol engine, predating the shared-service addition.
+
+Source `1741866e` separately passes all **333** current-Rust Debug native library
+tests, all features, one test thread, no skips, in **2014.799 seconds**. Before/after
+source maps and the binary hash agree. The cohort has **468 files / 35,067,123
+bytes**, inventory
+`c8d37f4ffd3f465d46dc479751219c02a5d2facbe8f66dca09143c382021c364`.
+Its hosted [push check job](https://github.com/billlza/q-periapt/actions/runs/36963673665)
+also passes 2,456 artifact tests with three macOS-ACL-only skips and the exact
+source gate. The Git-maintenance red/green regression passes locally and there:
+all five maintenance workers exit before their owning commands return. This does
+not imply every workflow job has completed, and neither 1741866e result covers
+the later 336-test shared-service source. Qualification durations are elapsed
+times, not controlled performance comparisons.
+
 Source `65c0b5c0` integrates explicit existing-session restoration into C
 `qpc_owner_v1_prepare_reopen` and the Swift/Kotlin `prepareReopen`/`reopen` owners.
 Local development runs use the actual current foreign clock after advertisement
@@ -104,8 +150,8 @@ sync-helper inventory gate: the public fixture had eight tests while the validat
 still required seven. Its failed run and partial output are preserved. The fix
 derives the exact names from the canonical public fixture contract, still refusing
 missing/duplicate/extra names, with negative regression coverage. The fresh clean
-`a897ba54` source gate passes; its full archive producer is running and is not yet
-qualified by this checkpoint. The sealed development cohort has **1224 files /
+`a897ba54` source gate passes; its subsequently completed full archive producer is
+recorded above. The earlier sealed development cohort has **1224 files /
 50,023,141 bytes**, inventory
 `27c6ecaa60995a4889bdfebb17acc9e0f8a81b3dcf311a818362b8fb1fa64e13`.
 It retains source snapshots, SDK inputs, actual foreign binaries/JARs, selected

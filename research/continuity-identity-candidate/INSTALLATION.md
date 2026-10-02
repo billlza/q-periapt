@@ -114,13 +114,40 @@ uses independent receiver processes and real TLS: an application commit followed
 by process exit, explicit protocol-clock advancement past advertisement expiry,
 restoration of both peers, exact retry and durable acknowledgement with two
 independent application-file readbacks. Only the protocol clock is injected; no
-wall-clock change or long-lived deployment is claimed by that test. Language
-binding owners still need their explicit restoration interfaces and qualification.
+wall-clock change or long-lived deployment is claimed by that test. C, Swift and
+Kotlin gain explicit restoration owners in `65c0b5c0`; their real-current-clock
+expiry and separate required-witness constructor traces complete both installed
+package profiles at `a897ba54`. The later shared-service addition below has its
+own targeted native evidence and still requires foreign owner integration.
 
 ## Lifetime and protocol integration
 
+For an already active service, `service.reopen_peer(request, now)` restores an
+additional established peer without reopening those leases. `ReopenedPeer`
+retains the exact session ID, local role and verified context owner. The request
+must match the service's original local owner, signed-policy digest and witness
+profile; current identity/roster/budget/witness admission and the original archive
+remain mandatory. The original key commitment is retained privately in memory to
+check that same installation scope, without exporting key bytes or changing the
+persisted scope format. The whole-installation `reopen_session` entry uses this
+same peer-admission path.
+
+A peer descriptor is not durable operation authority and cannot reopen a closed
+service. Protocol calls still recheck current authority. Dropping a descriptor
+does not close the service or retire a session, and descriptors do not hold an
+independent storage lease after service close. Fresh peer registration and foreign
+parent/child ownership are separate integration work.
+
+At `caf5ab1e`, Rust 1.98.1 Debug and Rust 1.90.0 Release each pass all 25
+installation tests plus a two-peer account transaction test covering both local
+and remote account recipient sets, omitted-recipient refusal without mutation,
+complete aggregate delivery and exact replay after restart. The public TLS
+workload passes all three harness tests; strict Clippy and no-TLS compilation
+pass. These are targeted checks; the complete 336-test library suite and fresh
+foreign packages were not rerun for this addition.
+
 `DeviceService::stores` borrows the existing journal and archive engines together.
-The caller can supply these directly to the existing connection `Actor`, inventory,
+The caller can supply both engines to the existing connection `Actor`, inventory,
 message or rekey methods. No duplicate protocol/transport implementation or private
 key getter is introduced. `close` and Rust drop release the child owners before the
 installation lease. A failed lower-level journal operation retains its existing

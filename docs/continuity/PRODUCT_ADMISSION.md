@@ -53,6 +53,18 @@ shared carrier and preserve its distinct consumption, pending-resolution, unknow
 delivery and retired-history outcomes. This native addition does not supply the
 foreign context-registration or provisioning APIs described below.
 
+The native `DeviceService::reopen_peer` entry now restores an established peer
+under the already retained installation/journal/archive leases. Its opaque
+`SessionReopenRequest` must match the original local owner, policy and witness
+scope, session, role and archive, with current native identity/roster/budget/witness
+checks. The returned `ReopenedPeer` retains public context ownership and its exact
+session/role; it holds no additional storage lease. Closing the service still
+closes protocol authority. Both same-account and peer-account tests restore two
+contexts, refuse an omitted recipient without partial mutation, execute the
+existing complete-roster transaction and replay its exact ciphertext after
+original-installation restart. This is the native existing-session prerequisite;
+fresh peer registration and foreign parent/child handles remain unimplemented.
+
 ## Required owner and input separation
 
 The next adapter implementation needs a device-scoped service owner, bounded
@@ -89,7 +101,10 @@ TCP and mutual-TLS witnesses, refuse missing/wrong pins and bad signatures, canc
 partial replies and stalled handshakes, and reopen the same session. Public
 readback verifies the selected session, command results and original witness/socket
 records; the existing constructor workload also passes in all three languages.
-Fresh archive qualification remains required. These finite workloads do not cover
+The complete `a897ba54` Rust/C/Swift/Kotlin archive producer and independent
+package/public-record readback now pass in both profiles. The later `caf5ab1e`
+shared-service native addition has separate targeted evidence; its installed
+foreign packages have not been requalified. These finite workloads do not cover
 all witness-store rollback or credential/root lifecycle transitions. The existing
 fresh constructor does not auto-fallback.
 Historical material verification must not turn an old timestamp into renewed
