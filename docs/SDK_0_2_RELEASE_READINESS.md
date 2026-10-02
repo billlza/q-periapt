@@ -77,6 +77,55 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Source `b60c76ee` adds explicit restoration of an existing native session after
+prekey-advertisement and original roster-snapshot expiry. The retained old-path
+counterexample admits a message session at time 170, then fails reconstruction
+with `Validity` because its advertisement ended at 160. An opaque
+`SessionReopenRequest` now authenticates the original snapshot; only the original
+Active installation can release its exact context/service after checking the
+persisted message session, local role, closure archive, current rosters, policy,
+credential/runtime lifetime, signed send budget and required witness. It creates
+no missing files and grants no expired advertisement permission for a new bootstrap.
+
+Current Rust 1.98.1 Debug and minimum Rust 1.90.0 Release each pass **23**
+installation tests. Bundle regressions independently distinguish current device
+credential expiry from policy expiry. All-target/all-feature strict Clippy,
+no-TLS library compilation, seven package-evidence tests, 43 clean-clone CodeQL
+gate tests and the clean source gate pass. Three current-source public API
+harness tests pass using separate fixture roots. The new independent-process TLS
+scenario reconciles an unknown application commit after explicit protocol-clock
+advancement and both peer restarts: original ciphertext bytes and two application
+readbacks match, and a further restart retains Acknowledged. This is a controlled
+clock/process-loss experiment, not elapsed deployment or physical power-loss proof.
+The **2,029-file / 92,587,042-byte** native cohort has inventory
+`e6eeff194256173885717a79731f3216eb4e76bfa34105b541b6e2a7b7e3cb54`.
+Full 333-test regression was not rerun for this change; these are targeted scopes.
+Actual installed-package qualification of this commit is a separate run, and
+C/Swift/Kotlin restoration-owner integration remains required.
+
+The preceding `47a476f6` hosted CodeQL run refused its stale exact source count
+(254 required, 255 tracked). `b60c76ee` updates the requirement and guide to the
+current **259-file** Rust inventory while retaining exact extracted-path equality
+and every quality metric. Local gate tests pass in a real clean clone; a managed
+worktree's `.git` file remains refused by the unchanged provenance boundary.
+This is not a passing new hosted CodeQL result.
+
+The complete actual Rust/C/Swift/Kotlin producer at clean `5d782f94` has now
+finished in **2,629.997 seconds**, exit 0. Independent readback binds **234**
+source inputs, the installed candidate, both **235-file Swift** packages and
+both **251-file Kotlin** packages, actual binaries/runtime closures and public
+records. Both profiles of each C/Swift/Kotlin matrix execute **59** calibrated
+sync-fault cases and **771** commands; the Kotlin raw **96** receipts/profile,
+eight Reserved sends, Serial/G1 prepared/in-flight GC and C2 invocation evidence
+are replayed. Swift runs nine owner tests/profile; Kotlin runs eight owner tests
+and seven refusal controls/profile. The C public sync records are exported and
+replayed from this exact fresh producer, closing the earlier exporter-only scope.
+The **20,002-file / 448,490,281-byte** sealed cohort has inventory
+`dfec60e64508ed0f8ff6ba68647ccbdebee3275ed59f3bbd5d093296f493dda1`.
+This remains same-host macOS arm64 execution with a shared protocol engine and
+does not include the later `b60c76ee` restoration API. Private runtime state and
+keys are excluded from the cohort. Neither checkpoint grants release admission.
+
 Source `5d782f94` fixes a complete-account authority bypass: after aggregate
 commit and revocation of another mandatory recipient, the old unary
 `send_message` and `resume_message` paths both still returned 137 ciphertext
@@ -106,9 +155,9 @@ Independent readback checks the final input map, compiler identities, actual
 test-binary bytes and raw logs. Earlier failed fence/lint/test-driver attempts
 remain retained with their scopes. The 133-file / 57,323,609-byte cohort has
 inventory `5d4de98bff8673b488684013416ec8f0ab7181a8412e8613f6a645dc9b1a161b`.
-This qualifies local native macOS arm64 behavior. A separate installed
-Rust/C/Swift/Kotlin producer was launched from clean `5d782f94`; this checkpoint
-does not claim its completion, foreign multi-peer integration or release admission.
+This qualifies local native macOS arm64 behavior. The separate completed
+Rust/C/Swift/Kotlin producer at the same source is recorded above; foreign
+multi-peer integration and release admission remain open.
 
 Clean source `7997282c` completes the full local macOS arm64 Rust/C/Kotlin
 installed-package producer in 2,082.055 seconds, exit 0. Independent readback binds
