@@ -870,8 +870,10 @@ def repository_head() -> str:
 
 
 def _git_fixture_command(root: pathlib.Path, *arguments: str) -> None:
+    # Keep every maintenance worker owned by this invocation until it exits;
+    # TemporaryDirectory must not race a detached writer inside .git/objects.
     subprocess.run(
-        ["/usr/bin/git", "-C", str(root), *arguments],
+        ["/usr/bin/git", "-c", "maintenance.autoDetach=false", "-C", str(root), *arguments],
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -5098,6 +5100,41 @@ with _temporary_release_test_directories(parents):
                 ),
                 {},
             )
+
+    def test_first_parent_fixture_joins_each_automatic_maintenance_worker(self) -> None:
+        with tempfile.TemporaryDirectory() as evidence:
+            trace_path = pathlib.Path(evidence).resolve() / "git-trace.jsonl"
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "GIT_TRACE2_EVENT": str(trace_path),
+                    "GIT_CONFIG_COUNT": "3",
+                    "GIT_CONFIG_KEY_0": "maintenance.commit-graph.enabled",
+                    "GIT_CONFIG_VALUE_0": "true",
+                    "GIT_CONFIG_KEY_1": "maintenance.commit-graph.auto",
+                    "GIT_CONFIG_VALUE_1": "-1",
+                    "GIT_CONFIG_KEY_2": "maintenance.auto",
+                    "GIT_CONFIG_VALUE_2": "true",
+                },
+            ):
+                self.test_first_parent_history_does_not_read_a_merge_second_parent()
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+            workers = [event for event in events
+                       if event["event"] == "cmd_name" and event["name"] == "maintenance"]
+            self.assertEqual(len(workers), 5)
+            for worker in workers:
+                with self.subTest(worker=worker["sid"]):
+                    owned = [event for event in events if event["sid"] == worker["sid"]]
+                    self.assertFalse(any(event["event"] == "region_enter"
+                        and event.get("category") == "maintenance" and event.get("label") == "detach"
+                        for event in owned), "fixture maintenance detached from its owning Git command")
+                    exits = [event for event in owned if event["event"] == "exit"]
+                    self.assertEqual(len(exits), 1)
+                    self.assertEqual(exits[0]["code"], 0)
+                    parent_sid = worker["sid"].rsplit("/", 1)[0]
+                    parent_exit = next(event for event in events
+                                       if event["event"] == "exit" and event["sid"] == parent_sid)
+                    self.assertLess(events.index(exits[0]), events.index(parent_exit))
 
     def test_footprint_csv_rejects_duplicate_and_inconsistent_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
