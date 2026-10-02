@@ -45,7 +45,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target

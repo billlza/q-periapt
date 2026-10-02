@@ -272,16 +272,24 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder).resolve()
             build = root / "build/debug"
             (build / "deps").mkdir(parents=True)
-            binary = build / "deps/c_owner-test"
-            binary.write_bytes(b"test")
-            item = {"reason": "compiler-artifact", "executable": str(binary), "filenames": [str(binary)],
-                    "target": {"name": "c_owner", "kind": ["test"], "src_path": str(root / "tests/c_owner.rs")}}
             encoded = lambda value: json.dumps(value).encode() + b"\n"
-            self.assertEqual(consumer.built_artifact(encoded(item), root, build, library=False), binary)
-            for bad in (b"", encoded(item) * 2,
-                        encoded(dict(item, target=dict(item["target"], src_path=str(root / "substitute.rs"))))):
-                with self.subTest(message=bad), self.assertRaises(ValueError):
-                    consumer.built_artifact(bad, root, build, library=False)
+            for name in ("c_owner", "sync_fault", "witness", "account_cleanup"):
+                binary = build / ("deps/" + name + "-test")
+                binary.write_bytes(b"test")
+                outside = build / binary.name
+                outside.write_bytes(b"wrong profile")
+                item = {"reason": "compiler-artifact", "executable": str(binary), "filenames": [str(binary)],
+                        "target": {"name": name, "kind": ["test"], "src_path": str(root / ("tests/" + name + ".rs"))}}
+                with self.subTest(target=name):
+                    self.assertEqual(consumer.built_artifact(encoded(item), root, build,
+                        library=False, test_name=name), binary)
+                for bad in (b"", encoded(item) * 2,
+                            encoded(dict(item, target=dict(item["target"], src_path=str(root / "substitute.rs")))),
+                            encoded(dict(item, executable=str(outside)))):
+                    with self.subTest(target=name, message=bad), self.assertRaises(ValueError):
+                        consumer.built_artifact(bad, root, build, library=False, test_name=name)
+            with self.assertRaisesRegex(ValueError, "unknown installed C test target"):
+                consumer.built_artifact(encoded(item), root, build, library=False, test_name="unqualified")
 
 
 
