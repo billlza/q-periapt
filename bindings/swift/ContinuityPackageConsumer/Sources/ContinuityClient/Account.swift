@@ -42,7 +42,7 @@ func account(_ args: [String], witness: WitnessCarrier) async throws {
             return try [device.preparePeer(path: args[2], quality: .oneTimeBoth, role: .initiator),
                         device.preparePeer(path: args[3], quality: .oneTimeBoth, role: .initiator)]
         }
-        func establish() throws -> [SessionID] {
+        func establish() async throws -> [SessionID] {
             let peers = try preparedPeers()
             try require(observedDevice == nil, "public device wrapper remained alive")
             var sessions: [SessionID] = []
@@ -50,10 +50,36 @@ func account(_ args: [String], witness: WitnessCarrier) async throws {
                 try peers[index].finishOpen()
                 sessions.append(try peers[index].establish(peer: args[4 + index], request: decode(args[6 + index])).session)
             }
-            for peer in peers.reversed() { try close(peer) }
+            let first = peers[0]
+            let closeFirst = Task.detached { Result { try first.close() } }
+            let closeAlias = Task.detached { Result { try first.close() } }
+            let firstOutcome = await closeFirst.value
+            let aliasOutcome = await closeAlias.value
+            var completedCloses = 0
+            for outcome in [firstOutcome, aliasOutcome] {
+                switch outcome {
+                case .success: completedCloses += 1
+                case let .failure(error):
+                    guard let native = error as? ContinuityFailure, native.code == 2 || native.code == 3 else {
+                        throw error
+                    }
+                }
+            }
+            try require(completedCloses == 1, "concurrent peer close did not have one winner")
+            try failure([2]) { try first.cancel() }
+            try close(peers[1])
+            // Explicit close must release hidden parent ownership even while
+            // application aliases keep these closed peer wrappers alive.
+            try withExtendedLifetime(peers) {
+                let reopened = try ContinuityDevice.open(path: path, witness: witness)
+                try closeDevice(reopened)
+                for peer in peers {
+                    try failure([2]) { try peer.nextMessage(session: sessions[0]) }
+                }
+            }
             return sessions
         }
-        let sessions = try establish()
+        let sessions = try await establish()
         // Once those child wrappers leave scope, ARC must release the original
         // parent lease in this same process, without depending on process exit.
         let reopened = try ContinuityDevice.open(path: path, witness: witness)

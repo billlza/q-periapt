@@ -20,11 +20,17 @@ provisioning and migration remain separate unfinished interfaces.
 operational `ContinuityOwner` interface for a separately configured peer, with an
 explicit `BootstrapRole`. The peer retains the original native parent even when
 the public device wrapper leaves scope. Prepared and active peers keep that
-ownership until their wrappers are released. Peer close does not close the device;
+ownership until successful close or disposal; each in-flight call separately
+retains a snapshot. A closed peer's aliases no longer keep a hidden parent alive.
+Peer close preserves a device still owned by its caller or other live peers;
 successful explicit device close releases storage and invalidates all children.
 Busy preserves the device; cancel, join and explicitly close again after active
 work drains. Retained closed aliases do not prevent that
-explicit teardown. The immutable ownership graph has no parent-to-child link.
+explicit teardown. Ownership points from peers to parents, with no reverse link.
+The small parent-reference cell uses a lock only to snapshot or clear a reference;
+native work and final parent release run after unlocking. Busy and unknown close
+failures retain the link. Confirmed close clears it, while in-flight snapshots
+continue to pin the parent through return.
 
 `nextAccountOperation` returns a journal-bound ID to retain before dispatch.
 `sendAccountMember` takes an `AccountID`, that original `AccountOperationID`, the
@@ -45,9 +51,10 @@ does not necessarily mean consumed. Malformed output, a changed selected session
 unknown states or an inconsistent report fail explicitly.
 
 The account qualification CLI uses three original installations and two distinct
-recipient devices. Its bootstrap helper drops the public device wrapper while
-prepared peers remain, then verifies in-process lease reopening after those peers
-leave scope. It uses actual Swift operations for complete-set refusal, original
+recipient devices. Its bootstrap helper observes release of the public device
+wrapper while prepared peers remain, races two closes of one peer with exactly
+one winner, then verifies in-process lease reopening while closed peer aliases
+remain alive and again after they leave scope. It uses actual Swift operations for complete-set refusal, original
 message retry after receiver process exit, unary bypass refusal, target reordering
 and cancellation of an unselected target during TLS. The common Rust harness
 records the client language and uses independently owned receiver processes;

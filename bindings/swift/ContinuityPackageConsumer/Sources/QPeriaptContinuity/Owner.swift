@@ -79,6 +79,26 @@ func textBytes(_ value: String, maximum: Int) throws -> [UInt8] {
     return Array(value.utf8)
 }
 
+/// The sole mutable field is private and all access is under `lock`. A call
+/// receives a strong snapshot before unlocking; clearing releases its old value
+/// after unlocking. No native operation or destructor runs under this lock.
+/// The compiler cannot derive NSLock's protection, so only this small reference
+/// cell supplies the manual Sendable conformance.
+private final class NativeParentReference: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: NativeOwner?
+    init(_ value: NativeOwner) { self.value = value }
+    func snapshot() -> NativeOwner? { lock.withLock { value } }
+    func clear() {
+        let released = lock.withLock {
+            let previous = value
+            value = nil
+            return previous
+        }
+        withExtendedLifetime(released) {}
+    }
+}
+
 /// One shared reference to the native original-installation owner. Only an
 /// immutable handle crosses threads; the native registry serializes operations.
 /// Every call pins this wrapper through return, including concurrent cancellation.
@@ -86,10 +106,10 @@ final class NativeOwner: Sendable {
     private let handle: UInt64
     // The native registry does not retain language objects. A live peer must
     // prevent ARC from closing its parent, including while prepared or in flight.
-    private let parent: NativeOwner?
+    private let parent: NativeParentReference?
     private init(handle: UInt64, parent: NativeOwner? = nil) {
         self.handle = handle
-        self.parent = parent
+        self.parent = parent.map(NativeParentReference.init)
     }
 
     /// Snapshot configuration without installation I/O. Call finishOpen before
@@ -154,7 +174,8 @@ final class NativeOwner: Sendable {
     }
 
     func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
-        try withExtendedLifetime((self, parent)) { try body(handle) }
+        let retainedParent = parent?.snapshot()
+        return try withExtendedLifetime((self, retainedParent)) { try body(handle) }
     }
 
     public func finishOpen() throws {
@@ -172,10 +193,18 @@ final class NativeOwner: Sendable {
     }
     /// Busy is an error and preserves the owner. All aliases observe a successful close.
     public func close() throws {
-        try call { handle in
-            var error = qpc_error_v1()
-            try checked(qpc_owner_v1_close(handle, &error), &error)
+        do {
+            try call { handle in
+                var error = qpc_error_v1()
+                try checked(qpc_owner_v1_close(handle, &error), &error)
+            }
+        } catch let failure as ContinuityFailure where failure.code == QPC_CLOSED {
+            // Preserve the closed diagnostic while releasing an already stale
+            // peer's ownership link. Busy and unknown failures retain the link.
+            parent?.clear()
+            throw failure
         }
+        parent?.clear()
     }
     deinit {
         var error = qpc_error_v1()

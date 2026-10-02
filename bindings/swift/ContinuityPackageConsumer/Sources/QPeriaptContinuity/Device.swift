@@ -19,8 +19,9 @@ public enum AccountDeliveryOutcome: Sendable, Equatable {
     case consumption(Consumption)
     case resolutionPending, deliveryUnknown, historyRetired, reservationAbandoned
 }
-/// Retains the operational peer and its original native parent. Native admission
-/// verifies that every target is a distinct child of the selected device.
+/// Retains the peer wrapper. A live peer retains its original native parent;
+/// closed peers grant no authority. Native admission verifies that every target
+/// is a distinct live child of the selected device.
 public struct AccountTarget: Sendable {
     public let peer: ContinuityOwner
     public let session: SessionID
@@ -81,8 +82,8 @@ func accountDelivery(_ result: inout qpc_account_delivered_v1, session: SessionI
 }
 
 /// One already Active original installation. Provisioning and renewal are explicit
-/// separate operations. Peer wrappers retain native parent ownership; closing a
-/// peer does not close this device. Explicit device close releases its stores and
+/// separate operations. Live peers retain native parent ownership; closing one
+/// preserves a separately owned device. Successful device close releases its stores and
 /// invalidates children even if their Swift objects remain alive.
 public final class ContinuityDevice: Sendable {
     private let native: NativeOwner
