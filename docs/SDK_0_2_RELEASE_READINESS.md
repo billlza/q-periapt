@@ -77,6 +77,39 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+Complete peer-account delivery now runs through all three foreign owners with the
+original required mutual-TLS witness. The first receiver persists application
+bytes then exits 77 before native consumption. Original batch/message retry
+repeats the idempotent callback with zero new application records, confirms that
+member and completes the second member. Retained confirmations use zero further
+application-network exchanges while original witness admission remains mandatory.
+Current Debug/Release and minimum-Rust Release libraries pass all nine development
+configurations, retaining **50 C / 50 Swift / 51 Kotlin** public files and
+**266 / 272 / 271** TLS admissions. The actual exit receipt, pre-restart application
+snapshot, original identities, post-restart bytes and all eight phase ranges are
+required by the public reader. No foreign phase contacts the plaintext witness.
+
+The two isolated controls fail: an incorrect expected exit code, and a caller
+replacing its retained batch with a fresh one. The latter creates a second business
+record and fails the existing complete-delivery check before the fixture's later
+ID assertion. The original negative-driver failure is preserved and its expected
+failure boundary is corrected from this observation; no product check is relaxed.
+Earlier probe failures also remain: an empty diagnostic file was incorrectly read
+as nonempty private configuration, and application-only commit was incorrectly
+treated as prior native consumption. The existing native pending/consumed contract
+and callback-retry test establish the corrected explicit outcomes.
+
+All nine original signed-TCP, encrypted baseline and four-loss encrypted account
+regressions pass, as do all three local account-cleanup paths with **28 commands /
+139 public records** each. Current Clippy and minimum Rust 1.90 all-target checks
+pass without warnings. The helpers share server readiness, exact process exit and
+the existing TLS phase observer. Native library, ABI and foreign implementation
+remain unchanged; the Rust source census becomes **272**. This finite development
+qualification is separate from complete current archive production, remaining
+platforms, own-account lifecycle, the broader failure/concurrency matrix,
+independent witness deployment and final product/recovery-analysis admission.
+
+At `03cac3a2`,
 The new encrypted unknown-outcome workload covers reservation, freeze,
 acknowledgement and retirement through actual C/Swift/Kotlin owners. A test-only
 relay withholds ciphertext after the unchanged native witness has committed and

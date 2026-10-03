@@ -2,6 +2,8 @@
 //! Complete-account recovery through actual foreign owners and the original witness.
 #[path = "common/account_cleanup.rs"]
 mod common;
+#[path = "account_witness/delivery.rs"]
+mod delivery;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "account_witness/tls.rs"]
@@ -72,11 +74,16 @@ fn run(
 ) -> Result<String> {
     common::client(path, label, &arguments(mode, path, tail, endpoint))
 }
-fn server(path: &Path, endpoint: Carrier) -> Result<(common::Process, SocketAddr)> {
+fn server(
+    path: &Path,
+    label: &str,
+    mode: &str,
+    endpoint: Carrier,
+) -> Result<(common::Process, SocketAddr)> {
     let mut process = common::start_client(
         path,
-        "account-server",
-        &arguments("serve", path, &["bootstrap".into()], Some(endpoint)),
+        label,
+        &arguments("serve", path, &[mode.into()], Some(endpoint)),
     )?;
     let until = Instant::now() + Duration::from_secs(25);
     loop {
@@ -153,8 +160,8 @@ fn retain_tls_authorities(setup: &fixture::Setup, second: &Path) -> Result<()> {
 
 fn connect(setup: &fixture::Setup, second: &Path, endpoint: Carrier) -> Result<Vec<[u8; 32]>> {
     let root = &setup.initiator;
-    let (server0, address0) = server(&setup.responder, endpoint)?;
-    let (server1, address1) = server(second, endpoint)?;
+    let (server0, address0) = server(&setup.responder, "account-server", "bootstrap", endpoint)?;
+    let (server1, address1) = server(second, "account-server", "bootstrap", endpoint)?;
     let peers = [root.join("peer-0"), root.join("peer-1")];
     let connect = run(
         root,

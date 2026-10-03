@@ -77,8 +77,9 @@ The account workload uses three independent installations and two distinct devic
 in one recipient account. It exercises incomplete/duplicate/cancelled/closed/wrong-
 parent refusal, receiver exit after application commit, original message retry,
 unary replay refusal, reordered retained targets and cancellation of an unselected
-member during TLS. Required-witness account delivery, own-account foreign fanout,
-provisioning and Android/WASM integration retain their separate gates;
+member during TLS. The separate required-TLS-witness delivery trace below now
+covers original-message recovery and both recipients. Broader delivery faults,
+own-account foreign fanout, provisioning and Android/WASM retain separate gates;
 the native own-account and witness tests cannot substitute for foreign execution.
 
 ## Scope and original configuration
@@ -578,3 +579,37 @@ Two isolated one-line controls fail when no loss is armed or a query is dropped
 instead of an advance. Both originals and failures are retained. These finite
 same-host traces do not qualify an independent witness engine, physical power
 loss, all TLS failure sites or a completed required-witness account delivery.
+
+## Complete-account delivery with a required TLS witness
+
+The mandatory `account_delivery` trace runs actual C, Swift or Kotlin endpoints
+under the three original enrolled certificate/subject bindings. The first receiver
+fsyncs its application bytes and exits 77 inside the callback, before the native
+consumption transaction. The sender retains the original committed batch and
+message. A fresh receiver retries the idempotent application callback, creates no
+second record, consumes the original message and returns confirmation. The other
+member then receives its original reserved message. Both retained confirmations
+subsequently require zero application-network exchanges; required witness admission
+still occurs. No plaintext witness request is allowed during any foreign phase.
+
+Application persistence is distinct from native consumption: this recovery returns
+`duplicate=false` with one callback and zero new application records. Only a
+previously consumed message skips the callback with `duplicate=true`. The collector
+requires the actual receiver exit code, the application snapshot taken before
+restart, original IDs, exact post-restart bytes and both consumption receipts.
+Eight phase ranges and their exact admission counts are checked. Current
+Debug/Release and minimum-Rust Release libraries pass 266 C / 272 Swift / 271 Kotlin
+admissions, retaining 50/50/51 public files per configuration.
+
+An isolated wrong-exit control fails on the actual 77 exit. A second control asks
+for a new batch instead of retrying the retained one; it creates another application
+record and is rejected by the consumer's complete-delivery check. It must not be
+reported as successful original-operation recovery. The negative driver's initial
+expectation of a later ID assertion was corrected to the earlier observed consumer
+failure; the failed driver and both runtime attempts are retained.
+
+The workload shares the existing native TLS server, bounded process lifecycle and
+foreign owners. It adds no wire format, native export or alternate state engine.
+This is finite peer-account delivery qualification, with same-host endpoints. It
+does not qualify own-account lifecycle, the complete fault/concurrency matrix,
+independent witness deployment or final archive/platform/product admission.

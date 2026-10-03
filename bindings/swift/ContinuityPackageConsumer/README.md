@@ -58,8 +58,10 @@ remain alive and again after they leave scope. It uses actual Swift operations f
 message retry after receiver process exit, unary bypass refusal, target reordering
 and cancellation of an unselected target during TLS. The common Rust harness
 records the client language and uses independently owned receiver processes;
-the native protocol engine remains shared. Required-witness account delivery,
-own-account fanout, credential lifecycle and
+the native protocol engine remains shared. A separate
+[required-TLS-witness account delivery trace](../../c/ContinuityPackageConsumer/README.md#complete-account-delivery-with-a-required-tls-witness)
+now verifies original-ID retry after receiver exit, idempotent application readback
+and both member confirmations. Broader delivery faults, own-account fanout, credential lifecycle and
 platform-specific execution remain
 separate qualifications.
 

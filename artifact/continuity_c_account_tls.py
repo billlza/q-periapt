@@ -21,12 +21,12 @@ def scope(language: str) -> str:
     return SCOPE.replace("installed C ", "installed " + language + " ")
 
 
-def phases(data: bytes) -> dict:
+def phases(data: bytes, *, expected_phases: dict[str, bool] = PHASES) -> dict:
     sdk.require(len(data) <= 1024 and data.endswith(b"\n"), "TLS account phases truncated")
     rows = data.decode("ascii").splitlines()
-    sdk.require(len(rows) == len(PHASES), "TLS account phase omitted")
+    sdk.require(len(rows) == len(expected_phases), "TLS account phase omitted")
     result, previous = {}, 0
-    for (label, admitted), row in zip(PHASES.items(), rows, strict=True):
+    for (label, admitted), row in zip(expected_phases.items(), rows, strict=True):
         match = re.fullmatch(rf"{label} (0|[1-9][0-9]*) (0|[1-9][0-9]*) 0", row)
         sdk.require(match is not None, "TLS account phase or plaintext count differs")
         before, after = map(int, match.groups())
@@ -41,7 +41,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     selected_scope = scope(language)
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
                               text, re.MULTILINE), "TLS account trace did not execute completely")
     public = {}
     def read(name, maximum=1048576):

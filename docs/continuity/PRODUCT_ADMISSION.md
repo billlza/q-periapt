@@ -36,8 +36,11 @@ selected peer through one native `send_account_member` invocation. A separate
 three-installation workload covers two distinct recipient devices, complete-set
 refusal, original-message crash/retry, unary replay refusal, reordered targets and
 aggregate cancellation/close behavior. Swift and Kotlin retain the same parent
-and complete peer set through their typed owners. Required-witness account
-delivery, own-account foreign fanout and final product admission retain separate gates.
+and complete peer set through their typed owners. A separate native mutual-TLS
+witness workload now completes both member deliveries after the first receiver
+exits following application persistence, preserving the original batch/message
+and idempotent readback. Broader delivery faults, own-account foreign fanout and
+final product admission retain separate gates.
 
 The [`C header`](../../bindings/c/ContinuityPackageConsumer/qpc_owner.h) exposes
 pairwise operations, device/peer preparation, complete-account member delivery and restricted original-session
@@ -56,7 +59,7 @@ own-account foreign lifecycle and the broader failure matrix remain required.
 | --- | --- | --- |
 | Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate` | Controlled enrollment/provisioning owners, independent retained identities, typed setup results and original-operation recovery |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
-| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission and cleanup | Required-witness delivery, own-account foreign lifecycle and Android/WASM integration |
+| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness member delivery and cleanup | Broader delivery faults/concurrency, own-account foreign lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 

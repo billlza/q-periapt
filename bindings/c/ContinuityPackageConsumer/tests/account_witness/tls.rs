@@ -10,7 +10,7 @@ fn plain_count(plain: &witness::Witness) -> Result<usize> {
         .map_err(|_| "plain witness capture lock")?
         .len())
 }
-fn encrypted<T>(
+pub(super) fn encrypted<T>(
     plain: &witness::Witness,
     tls: &witness_tls::TlsWitness,
     phases: &mut String,

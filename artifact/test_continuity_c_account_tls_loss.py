@@ -36,9 +36,9 @@ class TlsLossTests(unittest.TestCase):
                 loss.exchanges(self.wire, data)
 
     def test_old_or_incomplete_workload_does_not_qualify(self):
-        stdout=(f'test {loss.TEST} ... ok\n'+'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n').encode()
+        stdout=(f'test {loss.TEST} ... ok\n'+'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n').encode()
         with tempfile.TemporaryDirectory() as folder:
-            for data in (b'',stdout+stdout,stdout.replace(b'5 filtered',b'4 filtered'),stdout.replace(b'0 ignored',b'1 ignored')):
+            for data in (b'',stdout+stdout,stdout.replace(b'6 filtered',b'4 filtered'),stdout.replace(b'0 ignored',b'1 ignored')):
                 with self.subTest(data=data), self.assertRaisesRegex(ValueError,'completely'):
                     loss.verify_execution(data,Path(folder))
 
@@ -61,7 +61,7 @@ class TlsLossTests(unittest.TestCase):
                 loss.require_workload(row, 'Swift' if language == 'C' else 'C')
 
     def test_carrier_language_and_completion_cannot_be_relabelled(self):
-        stdout=(f'test {loss.TEST} ... ok\n'+'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n').encode()
+        stdout=(f'test {loss.TEST} ... ok\n'+'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n').encode()
         base=dict(schema_version=1,language='C',completed=True,batch='11'*32,report='22'*32,
                   carrier='q-periapt-anchor/1',lost_advances=4,witness_exchanges=12,release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:

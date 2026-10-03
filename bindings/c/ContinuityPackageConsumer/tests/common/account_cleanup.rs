@@ -459,13 +459,19 @@ impl Process {
     pub(crate) fn output(&self) -> Result<String> {
         command_log(&self.stdout)
     }
-    pub(crate) fn finish(mut self) -> Result<String> {
+    pub(crate) fn finish(self) -> Result<String> {
+        self.finish_with_exit(0).map(|(output, _)| output)
+    }
+    pub(crate) fn finish_with_exit(mut self, expected: i32) -> Result<(String, i32)> {
         let status = fixture::wait(&mut self.child)?;
         let output = self.output()?;
         let error = command_log(&self.stderr)?;
-        if !status.success() || !error.is_empty() {
+        if status.code() != Some(expected) || !error.is_empty() {
             return Err(format!("foreign cleanup command failed: {status}: {error}").into());
         }
-        Ok(output)
+        Ok((
+            output,
+            status.code().ok_or("foreign process lacked exit code")?,
+        ))
     }
 }

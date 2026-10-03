@@ -72,7 +72,11 @@ recipient set. Committed aggregate state does not imply remote consumption;
 retained member outcomes distinguish confirmation, pending resolution, unknown
 delivery, retired history and abandoned reservations. Keep the original operation
 and inputs after failure; the wrapper does not retry, generate replacement IDs
-or fall back to unary sends. Provisioning/renewal, required-witness and own-account foreign delivery retain
+or fall back to unary sends. The separate
+[required-TLS-witness delivery trace](../../c/ContinuityPackageConsumer/README.md#complete-account-delivery-with-a-required-tls-witness)
+now verifies receiver exit after application commit, original-ID replay and both
+member confirmations through actual Kotlin processes. Provisioning/renewal,
+own-account foreign delivery and broader fault/concurrency coverage retain
 separate qualification requirements.
 
 The complete-account consumer additionally observes collection of the public

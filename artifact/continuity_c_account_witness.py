@@ -10,6 +10,7 @@ from evidence_io import parse_strict_json_bytes
 TEST = "account_cleanup_requires_original_witness_and_reconciles_lost_advances"
 TLS_TEST = "tls::account_cleanup_keeps_original_authority_over_mutual_tls"
 TLS_LOSS_TEST = "tls_loss::account_cleanup_reconciles_four_committed_tls_reply_losses"
+DELIVERY_TEST = "delivery::account_delivery_reconciles_original_members_with_tls_witness"
 SCOPE = ("installed C required-witness complete-account cleanup after SDK revocation; "
          "three original installations over native signed TCP; four lost committed witness responses; "
          "same host and shared engine; no TLS, own-account, power-loss or independent-engine qualification")
@@ -24,9 +25,9 @@ def scope(language: str) -> str:
 def helper_inventory(data: bytes) -> None:
     from continuity_package import TESTS
     names = re.findall(r"^([a-z_:]+): test$", data.decode(), re.MULTILINE)
-    expected = {TEST, TLS_TEST, TLS_LOSS_TEST} | {"fixture::" + name for name in TESTS}
+    expected = {TEST, TLS_TEST, TLS_LOSS_TEST, DELIVERY_TEST} | {"fixture::" + name for name in TESTS}
     sdk.require(len(names) == len(expected) and set(names) == expected
-                and re.search(r"^6 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
+                and re.search(r"^7 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
                 "account witness helper inventory differs")
 
 
@@ -57,7 +58,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     selected_scope = scope(language)
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
                               text, re.MULTILINE), "account witness trace did not execute completely")
     public = {}
     def read(name, maximum=1048576):
@@ -120,13 +121,16 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
             scenario: str = "signed-tcp") -> dict:
     from continuity_c_faults import jvm_command
     sdk.require((language == "Kotlin") == (jvm_runtime is not None), "account witness JVM closure differs")
-    sdk.require(scenario in {"signed-tcp", "mutual-tls", "mutual-tls-loss"}, "unknown account witness scenario")
+    sdk.require(scenario in {"signed-tcp", "mutual-tls", "mutual-tls-loss", "mutual-tls-delivery"}, "unknown account witness scenario")
     if scenario == "mutual-tls":
         import continuity_c_account_tls as tls
         selected_scope, selected_test, verify, suffix = tls.scope(language), TLS_TEST, tls.verify_execution, "account-tls"
     elif scenario == "mutual-tls-loss":
         import continuity_c_account_tls_loss as tls_loss
         selected_scope, selected_test, verify, suffix = tls_loss.scope(language), TLS_LOSS_TEST, tls_loss.verify_execution, "account-tls-loss"
+    elif scenario == "mutual-tls-delivery":
+        import continuity_c_account_delivery as delivery
+        selected_scope, selected_test, verify, suffix = delivery.scope(language), DELIVERY_TEST, delivery.verify_execution, "account-delivery"
     else:
         selected_scope, selected_test, verify, suffix = scope(language), TEST, verify_execution, "account-witness"
     if jvm_runtime is not None:
@@ -147,7 +151,9 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
     try:
         helper_inventory(sdk.command([str(helper), "--list"], output / (prefix + "inventory-" + profile), outside, environment=runtime))
         stdout = sdk.command([str(helper), "--exact", selected_test, "--nocapture"], output / (prefix + "trace-" + profile), outside, environment=runtime)
-        selected = evidence.with_name(evidence.name + "-account") / "initiator"
+        selected = evidence.with_name(evidence.name + "-account")
+        if scenario != "mutual-tls-delivery":
+            selected = selected / "initiator"
         checked = verify(stdout, selected, language=language)
         public = witness.export_selected(checked, selected, output / (prefix + "public") / profile, selected_scope,
             replay=lambda path: verify(stdout, path, language=language))

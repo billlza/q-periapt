@@ -42,26 +42,26 @@ class AccountTlsTests(unittest.TestCase):
 
     def test_account_helper_requires_both_carriers(self):
         from continuity_package import TESTS
-        names = sorted({witness.TEST, tls.TEST, witness.TLS_LOSS_TEST} | {"fixture::" + name for name in TESTS})
-        data = ("".join(name + ": test\n" for name in names) + "\n6 tests, 0 benchmarks\n").encode()
+        names = sorted({witness.TEST, tls.TEST, witness.TLS_LOSS_TEST, witness.DELIVERY_TEST} | {"fixture::" + name for name in TESTS})
+        data = ("".join(name + ": test\n" for name in names) + "\n7 tests, 0 benchmarks\n").encode()
         witness.helper_inventory(data)
         for broken in (data.replace((tls.TEST + ": test\n").encode(), b""), data + data,
-                       data.replace(b"6 tests", b"5 tests")):
+                       data.replace(b"7 tests", b"6 tests")):
             with self.subTest(broken=broken), self.assertRaises(ValueError):
                 witness.helper_inventory(broken)
 
     def test_wrong_target_or_omitted_test_cannot_qualify(self):
         data = (f"test {tls.TEST} ... ok\n"
-                "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
+                "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as folder:
-            for broken in (b"", data + data, data.replace(b"5 filtered", b"4 filtered"),
+            for broken in (b"", data + data, data.replace(b"6 filtered", b"4 filtered"),
                            data.replace(tls.TEST.encode(), witness.TEST.encode())):
                 with self.subTest(broken=broken), self.assertRaisesRegex(ValueError, "completely"):
                     tls.verify_execution(broken, Path(folder))
 
     def test_setup_carrier_and_language_cannot_be_relabelled(self):
         data = (f"test {tls.TEST} ... ok\n"
-                "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
+                "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
         base = dict(schema_version=1, language="C", completed=True, batch="11" * 32, report="22" * 32,
                     carrier="q-periapt-anchor/1", reservation_carrier="signed-tcp", witness_exchanges=5,
                     rejected_connections=2, release_claim_eligible=False)
