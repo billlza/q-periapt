@@ -1971,7 +1971,9 @@ jobs:
   continuity-installed-swift:
     needs: rust-publish-contract
     runs-on: macos-15
-    timeout-minutes: 45
+    # Complete Rust/C/Swift/Kotlin runtime and fault workloads exceed 45 minutes.
+    # Keep the native call/transport and individual command deadlines unchanged.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
