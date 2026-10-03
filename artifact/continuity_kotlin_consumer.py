@@ -18,6 +18,7 @@ import continuity_c_account as account
 import continuity_c_account_cleanup as account_cleanup
 import continuity_c_account_witness as account_witness
 import continuity_c_setup as setup
+import continuity_setup_faults as setup_faults
 from continuity_c_witness import export_selected
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
@@ -522,6 +523,12 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             configured = {scenario: setup.qualify(outside, output, profile, runtime, launcher,
                 Path(setup_helper["path"]), library_path, scenario=scenario, language="Kotlin", jvm_runtime=jvm_runtime)
                 for scenario in ("local", "witness")}
+            setup_fault_helper = row["setup_faults"]["binaries"]["native_helper"]
+            sdk.require(sdk.snapshot(Path(setup_fault_helper["path"]), maximum=c.MAX_BINARY).sha256 == setup_fault_helper["sha256"],
+                        "native setup fault helper changed before Kotlin execution")
+            interrupted_setup = setup_faults.qualify(outside, output, profile, runtime, launcher,
+                Path(setup_fault_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                language="Kotlin", expected_library=library_path, jvm_runtime=jvm_runtime)
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -583,6 +590,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
+                "setup_faults": interrupted_setup,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
                 "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),

@@ -16,9 +16,10 @@ static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, i
     int create = !strcmp(argv[1],"setup-create");
     int prepare = !strcmp(argv[1],"setup-storage");
     int activate = !strcmp(argv[1],"setup-activate");
+    int device = !strcmp(argv[1],"setup-device");
     int precancel = !strcmp(argv[1],"setup-pre-cancel");
     int cancel = !strcmp(argv[1],"setup-cancel");
-    if (!create && !prepare && !activate && !precancel && !cancel && strcmp(argv[1],"setup-status"))
+    if (!create && !prepare && !activate && !device && !precancel && !cancel && strcmp(argv[1],"setup-status"))
         fail("setup selection");
     if (cancel && (argc != 4 || !witness)) fail("setup cancellation barrier missing");
     int32_t expected = 0;
@@ -32,7 +33,8 @@ static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, i
     qpc_open_options_v1 options = {3,0,witness ? (tls ? 2U : 1U) : 0U,witness};
     qpc_error_v1 error;
     uint64_t handle = 0;
-    int32_t code = (create || precancel) ?
+    int32_t code = device ?
+        qpc_owner_v1_prepare_open((const uint8_t *)argv[2],strlen(argv[2]),&options,&handle,&error) : (create || precancel) ?
         qpc_setup_v1_prepare_create((const uint8_t *)argv[2],strlen(argv[2]),&options,&handle,&error) :
         qpc_setup_v1_prepare_resume((const uint8_t *)argv[2],strlen(argv[2]),&options,&handle,&error);
     require(code,&error);
@@ -40,7 +42,12 @@ static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, i
     if (precancel) require(qpc_owner_v1_cancel(handle,&error),&error);
     code = qpc_owner_v1_finish_open(handle,&error);
     record(code,&error);
-    if (!code && (prepare || activate || cancel)) {
+    if (!code && device && !expected) {
+        uint8_t batch[32];
+        require(qpc_device_v1_next_account(handle,batch,&error),&error);
+        puts("setup-device");
+        encode(batch);
+    } else if (!code && (prepare || activate || cancel)) {
         if (cancel) {
             struct SetupActivation call = {.handle=handle};
             pthread_t worker;

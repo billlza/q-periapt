@@ -226,8 +226,16 @@ setup reference for cleanup and cannot justify new provisioning.
 Actual extracted Swift and Maven consumers exercise local and required-witness
 setup. They release/collect the old setup, use the successor, retain original
 creation identity across restart, and check held-reply cancellation and TCP/TLS
-activation. Broader activation-commit faults, complete current archive cohorts and
-each supported device remain separate qualifications.
+activation. The local activation/close process-cut matrix now calibrates actual
+installation syncs in installed C/Swift/Kotlin consumers and interrupts before and
+after every observed sync. It distinguishes complete replies already observed
+from unknown results, and requires unknown results to cover both Creating and
+Active. Independent native readback preserves original journal identity, the next
+account position, absent account state and empty archives. Creating rejects ordinary
+device access; original resume reconciles either phase and Active cannot recreate
+children. Complete source-bound archives, returned I/O errors, witnessed activation
+commit cuts, initial intent/child preparation faults and each supported device
+remain separate qualifications. Process interruption is not physical power loss.
 
 An open error must never select provisioning. Existing, partial or conflicting
 key/configuration/child files remain errors. Creating may resume only the original

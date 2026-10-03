@@ -36,6 +36,12 @@ The setup CLI checks that closed setup aliases grant no authority, their wrapper
 is released, and the transferred device remains usable. Both local and required
 witness workloads retain original IDs through restart; the witness workload also
 checks bad signatures, held-reply cancellation and explicit TCP/mutual TLS.
+The separate installation sync-interruption matrix runs the installed activation
+and close path. It distinguishes a visible completed reply from an unknown result,
+requires unknown Creating and Active outcomes, and checks original-ID/native-phase
+readback before reconciliation. Creating cannot open an ordinary device; neither
+phase permits replacement provisioning. This finite local process-cut workload
+does not qualify power loss, returned I/O errors or required-witness commit cuts.
 
 `ContinuityDevice.prepare/open` opens one already Active original device. Its
 `preparePeer/openPeer` and `preparePeerReopen/reopenPeer` methods return the same

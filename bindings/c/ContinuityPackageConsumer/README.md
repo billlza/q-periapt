@@ -566,6 +566,21 @@ Only selected fault children add the separately hashed probe through
 change the installed library; those binaries are rehashed after the fault matrix.
 Uninstrumented installation and connection checks remain independently required.
 
+The installation activation matrix also calibrates sync calls on the original
+installation database, then interrupts the actual consumer before and after every
+observed sync. It includes activation and subsequent close. A complete activation
+reply already printed before a later close interruption is recorded as observed;
+it is not counted as an unknown result. Unknown-result cuts must reach both
+Creating and Active. An independent native observer checks the original journal
+ID, unchanged next account position, absent account operation and empty archive
+index. Creating must reject an ordinary device open, and explicit create must
+reject the retained installation. Resume/activation must reconcile the original
+state; Active must refuse storage recreation. C, Swift and Kotlin call their
+actual installed interfaces. The probe is test-process-only, with a separately
+checked unrelated inode; no fault switch is added to the SDK. This qualifies
+process interruption of a local profile, not physical power loss, returned I/O
+errors, required-witness commit cuts or initial intent/child creation failures.
+
 Private test runtime directories contain wrapping/signing keys and journal images;
 do not publish them. Retain the collector's public JSON, command logs, hashes and
 dependency/loader records. Results qualify only the executed source/platform and

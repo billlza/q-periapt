@@ -44,7 +44,7 @@ func setupCommand(_ args: [String], witness: WitnessCarrier) async throws {
     try require((2...3).contains(args.count), "setup arguments")
     let mode = args[0], path = args[1]
     let cancelled = mode == "setup-cancel", preCancelled = mode == "setup-pre-cancel"
-    try require(["setup-create", "setup-status", "setup-storage", "setup-activate", "setup-pre-cancel", "setup-cancel"].contains(mode), "setup selection")
+    try require(["setup-create", "setup-status", "setup-storage", "setup-activate", "setup-device", "setup-pre-cancel", "setup-cancel"].contains(mode), "setup selection")
     var expected: Int32?
     if cancelled {
         try require(args.count == 3, "setup cancellation barrier missing")
@@ -53,6 +53,26 @@ func setupCommand(_ args: [String], witness: WitnessCarrier) async throws {
     else if args.count == 3 {
         guard let value = Int32(args[2]), (1...10000).contains(value) else { throw ProbeFailure.contract("setup expected status") }
         expected = value
+    }
+    if mode == "setup-device" {
+        func operation() throws -> AccountOperationID {
+            let device = try ContinuityDevice.open(path: path, witness: witness)
+            let batch: AccountOperationID
+            do { batch = try device.nextAccountOperation() }
+            catch {
+                let original = error
+                do { try device.close() }
+                catch { throw ProbeFailure.contract("device open failed: \(original); disposal failed: \(error)") }
+                throw original
+            }
+            try device.close()
+            return batch
+        }
+        if let expected {
+            try failure([expected]) { try operation() }
+            try output("setup-refused:\(expected)")
+        } else { try output("setup-device\n\(hex(operation()))") }
+        return
     }
     if mode == "setup-activate" && expected == nil {
         let (device, old) = try transferSetup(path, witness)

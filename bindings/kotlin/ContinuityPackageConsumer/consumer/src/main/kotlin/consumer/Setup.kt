@@ -29,9 +29,16 @@ internal fun setup(args: List<String>, witness: WitnessCarrier): String {
     val mode = args[0]
     val cancelled = mode == "setup-cancel"
     val preCancelled = mode == "setup-pre-cancel"
-    require(mode in setOf("setup-create", "setup-status", "setup-storage", "setup-activate", "setup-pre-cancel", "setup-cancel"))
+    require(mode in setOf("setup-create", "setup-status", "setup-storage", "setup-activate", "setup-device", "setup-pre-cancel", "setup-cancel"))
     if (cancelled) require(args.size == 3 && witness != WitnessCarrier.Local) { "setup cancellation barrier missing" }
     val expected = if (!cancelled && args.size == 3) args[2].toInt().also { require(it in 1..10000) } else null
+    if (mode == "setup-device") {
+        fun operation(): AccountOperationID = ContinuityDevice.open(args[1], witness).use { it.nextAccountOperation() }
+        return if (expected == null) "setup-device\n${hex(operation())}" else {
+            refused(setOf(expected)) { operation() }
+            "setup-refused:$expected"
+        }
+    }
     if (mode == "setup-activate" && expected == null) {
         val queue = ReferenceQueue<ContinuitySetup>()
         val transfer = transferSetup(args[1], witness, queue)

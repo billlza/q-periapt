@@ -47,7 +47,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -484,6 +484,13 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             scenario: qualify_setup(outside, output, profile, runtime, executable, setup_helper,
                                     installed / filename, scenario=scenario)
             for scenario in ("local", "witness")}
+        from continuity_setup_faults import qualify as qualify_setup_faults
+        setup_fault_build = run([*cargo, "test", "--locked", "--offline", "--test", "setup_fault", "--no-run",
+                                 "--message-format=json", "-j", "2", *extra], "setup-fault-build-" + profile)
+        setup_fault_helper = built_artifact(setup_fault_build, consumer, build, library=False, test_name="setup_fault")
+        result["execution"][profile]["setup_faults"] = qualify_setup_faults(
+            outside, output, profile, runtime, executable, setup_fault_helper, probe, smoke,
+            expected_library=installed / filename)
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")

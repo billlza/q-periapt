@@ -13,6 +13,7 @@ import continuity_c_faults as faults
 import continuity_c_account_cleanup as account_cleanup
 import continuity_c_account_witness as account_witness
 import continuity_c_setup as setup
+import continuity_setup_faults as setup_faults
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
@@ -259,6 +260,12 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             configured = {scenario: setup.qualify(outside, output, profile, runtime, binary,
                 Path(setup_helper["path"]), native_dir / LIBRARY, scenario=scenario, language="Swift")
                 for scenario in ("local", "witness")}
+            setup_fault_helper = row["setup_faults"]["binaries"]["native_helper"]
+            sdk.require(sdk.snapshot(Path(setup_fault_helper["path"]), maximum=c.MAX_BINARY).sha256 == setup_fault_helper["sha256"],
+                        "native setup fault helper changed before Swift execution")
+            interrupted_setup = setup_faults.qualify(outside, output, profile, runtime, binary,
+                Path(setup_fault_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                language="Swift", expected_library=native_dir / LIBRARY)
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -269,7 +276,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
-                "account_cleanup": cleaned, "setup": configured,
+                "account_cleanup": cleaned, "setup": configured, "setup_faults": interrupted_setup,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
                 "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "server_execution": server_checked, "server_public_files": server_files,

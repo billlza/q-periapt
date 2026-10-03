@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Installed-language setup calls over native independently provisioned enrollment inputs.
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
-mod fixture;
+pub(crate) mod fixture;
 #[path = "common/witness.rs"]
 mod witness;
 #[path = "common/witness_tls.rs"]
@@ -144,7 +144,7 @@ fn status(text: &str, phase: u32) -> Result<[u8; 32]> {
     Ok(*p::JournalIdentity::from_trusted_state(id)?.as_bytes())
 }
 
-fn paths(root: &Path) -> Result<p::InstallationPaths> {
+pub(crate) fn paths(root: &Path) -> Result<p::InstallationPaths> {
     Ok(p::InstallationPaths::new(
         &root.join("installation.redb"),
         &root.join("journal.redb"),
@@ -152,7 +152,7 @@ fn paths(root: &Path) -> Result<p::InstallationPaths> {
     )?)
 }
 
-fn local(root: &Path) -> Result<p::VerifiedDevice> {
+pub(crate) fn local(root: &Path) -> Result<p::VerifiedDevice> {
     let account = p::AccountPin::new(
         fixture::array(root, "local-account")?,
         p::PublicKey::decode(&fixture::read(root, "local-root", p::PUBLIC_KEY_BYTES)?)?,

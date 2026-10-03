@@ -45,6 +45,13 @@ within 32 test-only GC rounds, and then uses the successor. Its native fixture
 checks original state through local and witnessed restart, bad signatures,
 held-reply cancellation, and explicit signed TCP/mutual-TLS activation. This is
 bounded runtime evidence; it does not establish every JVM or mobile lifecycle.
+The installation sync-interruption matrix injects its test-only probe directly
+into the selected JVM and actual native library, preserving the verified JAR
+closure. It calibrates activation/close syncs, checks each before/after process
+cut, distinguishes observed from unknown replies, and reopens original Creating
+or Active state. Ordinary device access follows that persisted phase, and resume
+must preserve the original journal/account position. This finite local workload
+does not qualify power loss, returned I/O errors or required-witness commit cuts.
 
 `ContinuityOwner.prepareReopen(path, quality, session, witness)` copies an
 explicit existing `SessionID` and returns the same kind of pending operational

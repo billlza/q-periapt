@@ -77,6 +77,34 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The installation activation/close fault increment adds a calibrated, test-process
+sync probe workload over the actual installed C/Swift/Kotlin entry points. In each
+current Debug/current Release/minimum-Rust Release configuration it observes seven
+installation syncs and executes the baseline plus every before/after interruption.
+Across the nine configurations, **135 cases / 1,944 commands** pass: 9 uncut
+baselines, 102 unknown-result interruptions and 24 interruptions after a complete C
+activation result was already observed. Of the unknown results, **66** reopen as
+Active and **36** as Creating. Every case retains its original journal identity,
+next account position, absent account operation and empty archives. Creating
+rejects ordinary device access; explicit create rejects retained state; original
+resume reconciles both phases and Active refuses storage recreation.
+
+Each configuration exports **753 verified public/log files**. Independent replay
+binds original observations, exact commands, all sync receipts and actual response
+visibility; known replies are not counted as unknown outcomes. Seven mutations of
+actual public evidence are rejected. All six original local/witness setup
+regressions pass. Strict current Clippy and minimum Rust all-target checking pass;
+the new native observer increases the tracked Rust inventory to **275**. A first
+prototype incorrectly assumed every interruption had no output; preserved evidence
+shows C prints its complete activation result before close syncs. The corrected
+oracle separates those observed results and still requires both unknown durable
+phases. Collection review also reproduced a Debug/Release output-directory
+collision before fixing profile ownership. The shared-root regression exercises
+both actual profile collections. No SDK assertion, timeout or safety check is
+weakened. Full current archives/CI, returned I/O errors, required-witness commit
+cuts, initial setup creation/preparation faults and all broader release requirements
+remain open; this local process-cut evidence is not power-loss qualification.
+
 The typed setup increment adds Swift/Kotlin `ContinuitySetup`, original
 Creating/Active status and journal/genesis values, and activation into the existing
 device owner. The transfer moves one native owning reference without registering
