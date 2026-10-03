@@ -39,9 +39,21 @@ class ContinuityCWitnessTests(unittest.TestCase):
         result = w.transcript(data, authority, expected_lost_advances=3, expected_subjects=3)
         self.assertEqual(result["subjects"], 3)
         self.assertEqual(len(result["lost_commands"]), 3)
-        for count in (0, 1, 4, True, None):
+        with self.assertRaises(ValueError):
+            w.transcript(data, authority, expected_lost_advances=3, expected_subjects=1)
+        for count in (0, 4, True, None):
             with self.subTest(count=count), self.assertRaisesRegex(ValueError, "subject census"):
                 w.transcript(data, authority, expected_subjects=count)
+
+    def test_single_setup_subject_requires_explicit_scope(self):
+        authority, rows = fixture(1)
+        data = b"".join(rows)
+        with self.assertRaises(ValueError):
+            w.transcript(data, authority, expected_lost_advances=1)
+        result = w.transcript(data, authority, expected_lost_advances=1, expected_subjects=1)
+        self.assertEqual((result["subjects"], result["logical_advances"]), (1, 1))
+        with self.assertRaises(ValueError):
+            w.transcript(data, authority, expected_lost_advances=0, expected_subjects=1)
 
     def test_export_replays_selected_bytes_before_publishing_completion(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -31,7 +31,7 @@ def head(data: bytes) -> tuple[int, int, bytes]:
 
 def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2,
                expected_lost_queries: int = 0, expected_subjects: int = 2) -> dict:
-    sdk.require(type(expected_subjects) is int and expected_subjects in (2, 3),
+    sdk.require(type(expected_subjects) is int and expected_subjects in (1, 2, 3),
                 "unqualified witness subject census")
     sdk.require(all(type(value) is int and 0 <= value <= 4096
                     for value in (expected_lost_advances, expected_lost_queries)), "invalid expected witness loss census")

@@ -9,6 +9,7 @@ mod opening;
 mod owner;
 mod recovery;
 mod server;
+mod setup;
 mod witness;
 use p::connection_transport::{Cancellation, Consumption, Submission};
 use q_periapt_continuity_identity_candidate as p;
@@ -211,6 +212,7 @@ enum Owned {
     Recovery(Box<recovery::Recovery>),
     Device(Arc<device::Shared>),
     Peer(Box<device::Peer>),
+    Setup(Box<setup::Owner>),
 }
 struct Entry {
     cancel: Cancellation,

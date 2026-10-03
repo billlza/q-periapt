@@ -77,6 +77,40 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The C installation setup increment adds explicit create/resume, original phase
+and identity queries, Creating-only storage preparation and activation into the
+same device handle. It reuses native transactions and the device authority loader;
+key generation, credential issuance and trust installation remain independent
+inputs. Actual C Debug processes pass both local and required-witness setup.
+Missing witness and corrupted signature return no service; held-query cancellation
+checks Busy close/concurrent calls, releases the owner and retains Creating before
+the original activation is retried. The same Active installation then reopens
+through mutual TLS, with no plaintext witness request during that operation.
+
+Independent public replay checks **20 local / 36 witness** files, original journal
+and genesis, 14 signed queries with one interrupted response and zero advances,
+five TLS admissions and a sub-second held-call cancellation observation. Current
+Clippy/minimum Rust checking and the 32 focused artifact tests pass. All nine C
+admission tests and original client, device, witnessed-device and account-owner
+traces pass against the new **55-export** C candidate. The source census becomes
+**274**. An initial regression driver incorrectly supplied an explicit C language
+marker to a harness whose C path uses the absent default; it failed before runtime.
+The corrected driver preserves that failure. Earlier compile/driver failures are
+also retained. New C setup APIs are implemented, but current archive, Release/MSRV
+execution, activation-commit cuts, Swift/Kotlin setup owners and complete public
+enrollment/provisioning are not yet qualified.
+
+At `0c84a7c2`, the complete Rust/C/Swift/Kotlin archive producer succeeds in
+**3368.858 seconds**. Independent replay checks 271 committed inputs, actual
+archives/binaries, both own/peer layouts and both delivery/four-loss workloads in
+every Debug/Release foreign profile. C passes nine admission tests and exactly
+50 exports, Swift 15 owner tests and Kotlin 12. The seal has **25,824 files /
+586,491,808 bytes**, inventory
+`7d095e7b534bccebc9734434f49ae27de6f94ef3e039b7bb24246cf2b860123b`.
+This qualifies the own-account checkpoint below and predates the new setup owner.
+Current CI and open security findings retain their separate gates.
+
+At `0c84a7c2`,
 The current own-account increment executes actual C/Swift/Kotlin owners with three
 distinct devices in one original signed roster, alongside the existing two-account
 layout. Both delivery layouts refuse an omitted recipient before reservation,

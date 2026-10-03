@@ -236,7 +236,7 @@ fn account_cleanup_requires_original_witness_and_reconciles_lost_advances() -> R
     let mut witness = witness::Witness::start()?;
     let endpoint = Carrier::Signed(witness.configured.address);
     let (setup, second) =
-        fixture::setup_devices(Some(&witness.configured), None, None, true, false)?;
+        fixture::setup_devices(Some(&witness.configured), None, None, true, false, true)?;
     let second = second.ok_or("second original member")?;
     let root = &setup.initiator;
     let sessions = connect(&setup, &second, endpoint)?;

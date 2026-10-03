@@ -16,8 +16,14 @@ fn own_account_delivery_reconciles_original_members_with_tls_witness() -> Result
 
 fn execute(same_account: bool) -> Result<()> {
     let mut plain = witness::Witness::start()?;
-    let (setup, second) =
-        fixture::setup_devices(Some(&plain.configured), None, None, true, same_account)?;
+    let (setup, second) = fixture::setup_devices(
+        Some(&plain.configured),
+        None,
+        None,
+        true,
+        same_account,
+        true,
+    )?;
     let second = second.ok_or("second account recipient")?;
     let root = &setup.initiator;
     let mut tls = witness_tls::TlsWitness::start(

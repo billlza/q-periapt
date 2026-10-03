@@ -23,6 +23,42 @@ owners and local TLS credentials. Local credential/roster validity and the exact
 controlled signer are checked independently of any peer bundle. This constructor
 requires a current local identity snapshot; it is not credential renewal.
 
+An independent installation setup owner now exposes the native Creating/Active
+boundary. `qpc_setup_v1_prepare_create` and `prepare_resume` copy the same bounded
+original configuration path and device options (`kind=3`, `quality=0`), then
+`qpc_owner_v1_finish_open` executes the explicitly selected action. Creation
+commits a new intent before child storage; resume opens only the original intent.
+Neither operation generates wrapping/signing keys, issues credentials or installs
+account trust. Those original enrollment inputs must already be independently
+prepared. An open error never selects creation.
+
+`qpc_setup_v1_status` returns the durable phase and original journal identity.
+`prepare_storage` admits only Creating, either creates genuinely missing initial
+children or verifies their exact original genesis, and returns no service. A
+local-only result has explicitly zero subject/digest fields. Required protection
+returns the original public witness subject and initial image digest for separate
+authorized enrollment; it supplies neither a signed witness receipt nor permission
+to enroll. Repeating successful preparation retains the same identity and bytes.
+
+`qpc_setup_v1_activate` consumes setup and converts that same handle to a device
+parent only after native activation. Failure releases partial owners and may
+leave Active durable; close and resume the original configuration to reconcile.
+An Active setup owner can reopen existing children, but cannot prepare replacements.
+The ordinary device constructor still refuses Creating. The setup owner shares
+the existing owner/call quota, cancellation, exclusive invocation and deadline
+machinery, with no detached task or alternate state engine.
+
+The mandatory C setup traces cover local create/prepare/repeat/activate/reopen and
+separately enrolled required-witness setup. Bad signatures and missing witnesses
+are refused. A held reply checks Busy close/concurrent status, cancellation, lease
+release and original Creating readback before a fresh activation. Signed TCP and
+mutual TLS both reopen the original Active installation. Public replay retains
+20 local or 36 witness records, 14 signed queries with one interrupted reply and
+zero advances, and five TLS admissions without plaintext fallback. These finite
+same-host development results do not complete key enrollment, credential lifecycle,
+activation-commit interruption, power-loss or fresh full-archive qualification.
+Swift/Kotlin setup owners remain to be integrated.
+
 `qpc_peer_v1_prepare` and `qpc_peer_v1_prepare_reopen` retain that device control
 owner and copy a separate trusted peer-configuration path, explicit quality and
 local role. Restoration additionally copies the original session ID. The peer

@@ -6,21 +6,80 @@ use q_periapt_host_store::{filesystem::OwnedPrivateDirectory, PolicyStore};
 use std::{net::TcpListener, sync::atomic::AtomicBool};
 use zeroize::Zeroizing;
 
-struct Device {
-    service: p::DeviceService,
+pub(crate) struct Authority {
+    pub(crate) identity: p::VerifiedDevice,
     signer: p::DeviceSigningKey,
-    policy: Arc<p::VerifiedSessionPolicy>,
+    pub(crate) policy: Arc<p::VerifiedSessionPolicy>,
     policy_store: PolicyStore,
     family: [u8; 32],
     certificate: Vec<u8>,
     tls_key: Zeroizing<Vec<u8>>,
 }
-impl Drop for Device {
+impl Drop for Authority {
     fn drop(&mut self) {
-        self.service.close();
         self.signer.close();
         self.policy.close();
         self.policy_store.close();
+    }
+}
+struct Device {
+    service: p::DeviceService,
+    authority: Authority,
+}
+impl Drop for Device {
+    fn drop(&mut self) {
+        self.service.close();
+    }
+}
+
+pub(crate) fn paths(path: &Path) -> Result<p::InstallationPaths> {
+    Ok(p::InstallationPaths::new(
+        &path.join("installation.redb"),
+        &path.join("journal.redb"),
+        &path.join("archives.redb"),
+    )?)
+}
+
+impl Authority {
+    pub(crate) fn load(
+        path: &Path,
+        cancel: &Cancellation,
+        deadline: Instant,
+    ) -> Result<(Self, p::JournalKey)> {
+        opening::check(cancel, deadline)?;
+        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+        let (policy_store, policy, family) =
+            owner::configured_policy(path, &directory, cancel, deadline)?;
+        let account = owner::account(&directory, "local", family)?;
+        let identity = account.verify_device(
+            &read(&directory, "local-certificate", 8192)?,
+            &read(&directory, "local-roster", 65_536)?,
+            now().map_err(Failure::configuration)?,
+        )?;
+        if identity.device_id() != array(&directory, "local-device")?
+            || identity.generation() != u64::from_be_bytes(array(&directory, "local-generation")?)
+        {
+            return Err(p::Error::Scope.into());
+        }
+        opening::check(cancel, deadline)?;
+        let key = p::JournalKey::open(&path.join("wrap.key"))?;
+        let signer = p::DeviceSigningKey::open(
+            &path.join("signer.key"),
+            &key,
+            p::SigningKeyId::from_trusted_state(array(&directory, "signer-id")?)?,
+        )?;
+        signer.check_device(&identity)?;
+        let authority = Self {
+            identity,
+            signer,
+            policy,
+            policy_store,
+            family,
+            certificate: read(&directory, "tls-cert", 8192)?,
+            tls_key: owner::private_bytes(&directory, "tls-key", 8192)?,
+        };
+        opening::check(cancel, deadline)?;
+        Ok((authority, key))
     }
 }
 
@@ -40,39 +99,12 @@ impl Shared {
         invocation: invocation::Scope,
         deadline: Instant,
     ) -> Result<Arc<Self>> {
-        opening::check(&cancel, deadline)?;
-        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-        let (policy_store, policy, family) =
-            owner::configured_policy(path, &directory, &cancel, deadline)?;
-        let account = owner::account(&directory, "local", family)?;
-        let device = account.verify_device(
-            &read(&directory, "local-certificate", 8192)?,
-            &read(&directory, "local-roster", 65_536)?,
-            now().map_err(Failure::configuration)?,
-        )?;
-        if device.device_id() != array(&directory, "local-device")?
-            || device.generation() != u64::from_be_bytes(array(&directory, "local-generation")?)
-        {
-            return Err(p::Error::Scope.into());
-        }
-        opening::check(&cancel, deadline)?;
-        let key = p::JournalKey::open(&path.join("wrap.key"))?;
-        let signer = p::DeviceSigningKey::open(
-            &path.join("signer.key"),
-            &key,
-            p::SigningKeyId::from_trusted_state(array(&directory, "signer-id")?)?,
-        )?;
-        signer.check_device(&device)?;
-        let paths = p::InstallationPaths::new(
-            &path.join("installation.redb"),
-            &path.join("journal.redb"),
-            &path.join("archives.redb"),
-        )?;
+        let (authority, key) = Authority::load(path, &cancel, deadline)?;
         let mut installation = p::DeviceInstallation::open(
-            paths,
+            paths(path)?,
             &key,
-            &device,
-            &policy,
+            &authority.identity,
+            &authority.policy,
             now().map_err(Failure::configuration)?,
         )?;
         // Operational restart never creates children or activates a creation intent.
@@ -85,27 +117,27 @@ impl Shared {
         opening::check(&cancel, deadline)?;
         let service = installation.activate(
             key,
-            &device,
-            &policy,
+            &authority.identity,
+            &authority.policy,
             now().map_err(Failure::configuration)?,
             anchor,
         )?;
-        let device = Device {
-            service,
-            signer,
-            policy,
-            policy_store,
-            family,
-            certificate: read(&directory, "tls-cert", 8192)?,
-            tls_key: owner::private_bytes(&directory, "tls-key", 8192)?,
-        };
         opening::check(&cancel, deadline)?;
-        Ok(Arc::new(Self {
-            device: Mutex::new(Some(device)),
+        Ok(Self::from_parts(service, authority, cancel, invocation))
+    }
+
+    pub(crate) fn from_parts(
+        service: p::DeviceService,
+        authority: Authority,
+        cancel: Cancellation,
+        invocation: invocation::Scope,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            device: Mutex::new(Some(Device { service, authority })),
             cancel,
             invocation,
             closed: AtomicBool::new(false),
-        }))
+        })
     }
 
     fn with_device<T>(
@@ -204,8 +236,8 @@ impl Peer {
     ) -> Result<Self> {
         parent.with_device(deadline, cancel, |device| {
             let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-            let initiator = owner::account(&directory, "initiator", device.family)?;
-            let responder = owner::account(&directory, "responder", device.family)?;
+            let initiator = owner::account(&directory, "initiator", device.authority.family)?;
+            let responder = owner::account(&directory, "responder", device.authority.family)?;
             let required = p::BootstrapRequirements {
                 initiator: p::ExpectedDevice::new(
                     &initiator,
@@ -232,13 +264,16 @@ impl Peer {
             let time = now().map_err(Failure::configuration)?;
             let context = match admission {
                 owner::Admission::Bootstrap(_) => {
-                    let context =
-                        Arc::new(bundle.verify(Arc::clone(&device.policy), required, time)?);
+                    let context = Arc::new(bundle.verify(
+                        Arc::clone(&device.authority.policy),
+                        required,
+                        time,
+                    )?);
                     Arc::clone(device.service.admit_peer(context, role, time)?.context())
                 }
                 owner::Admission::Existing { session, .. } => {
                     let request = bundle.request_reopen(
-                        Arc::clone(&device.policy),
+                        Arc::clone(&device.authority.policy),
                         required,
                         role,
                         session,
@@ -265,10 +300,10 @@ impl Peer {
         owner::Operation {
             listener: &mut self.listener,
             service: &mut device.service,
-            signer: &device.signer,
+            signer: &device.authority.signer,
             context: &self.context,
-            certificate: &device.certificate,
-            tls_key: &device.tls_key,
+            certificate: &device.authority.certificate,
+            tls_key: &device.authority.tls_key,
             peer_certificate: &self.certificate,
             peer_name: &self.name,
         }

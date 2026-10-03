@@ -36,6 +36,8 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
 EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
 EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
 EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen"}
+EXPORTS |= {"qpc_setup_v1_" + name for name in
+            ("prepare_create", "prepare_resume", "status", "prepare_storage", "activate")}
 EXPORTS |= {"qpc_device_v1_next_account", "qpc_device_v1_account_status",
             "qpc_device_v1_send_account_member"}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_begin", "account_status",
@@ -45,7 +47,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -474,6 +476,14 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             outside, output, profile, runtime, executable, account_witness_helper, installed / filename, scenario="own-tls-delivery")
         result["execution"][profile]["own_account_tls_loss"] = qualify_account_witness(
             outside, output, profile, runtime, executable, account_witness_helper, installed / filename, scenario="own-tls-loss")
+        from continuity_c_setup import qualify as qualify_setup
+        setup_build = run([*cargo, "test", "--locked", "--offline", "--test", "setup", "--no-run",
+                           "--message-format=json", "-j", "2", *extra], "setup-build-" + profile)
+        setup_helper = built_artifact(setup_build, consumer, build, library=False, test_name="setup")
+        result["execution"][profile]["setup"] = {
+            scenario: qualify_setup(outside, output, profile, runtime, executable, setup_helper,
+                                    installed / filename, scenario=scenario)
+            for scenario in ("local", "witness")}
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)
         witness_helper = built_artifact(witness_build, consumer, build, library=False, test_name="witness")

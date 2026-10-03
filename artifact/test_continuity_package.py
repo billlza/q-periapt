@@ -67,8 +67,9 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_c_account_tls as tls
         import continuity_c_account_tls_loss as loss
         import continuity_c_account_delivery as delivery
+        import continuity_c_setup as setup
         sources = package.source_inputs()['files']
-        for module in (signed, tls, loss, delivery):
+        for module in (signed, tls, loss, delivery, setup):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):

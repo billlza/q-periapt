@@ -14,6 +14,9 @@ enum Kind {
     Operational(owner::Admission),
     Recovery,
     Device,
+    Setup {
+        create: bool,
+    },
     Peer {
         parent: Arc<device::Shared>,
         admission: owner::Admission,
@@ -100,6 +103,13 @@ impl Request {
         let cancel = entry.cancel.clone();
         let invocation = entry.invocation.clone();
         let owner = match self.kind {
+            Kind::Setup { create } => Owned::Setup(Box::new(setup::Owner::open(
+                path,
+                create,
+                self.witness,
+                &cancel,
+                deadline,
+            )?)),
             Kind::Device => Owned::Device(device::Shared::open(
                 path,
                 self.witness,
@@ -133,6 +143,64 @@ impl Request {
         check(&entry.cancel, deadline)?;
         Ok(owner)
     }
+}
+
+unsafe fn prepare_setup(
+    path: *const u8,
+    length: usize,
+    options: *const Options,
+    create: bool,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(handle)?;
+        // SAFETY: the caller provides the distinct aligned writable output.
+        unsafe { put(handle, 0) };
+        // SAFETY: the explicit setup entry has the same bounded input contract.
+        let mut request = unsafe { Request::read(path, length, options) }?;
+        if !matches!(request.kind, Kind::Device) {
+            return Err(Failure::argument());
+        }
+        request.kind = Kind::Setup { create };
+        let reservation = Reservation::new()?;
+        let id = reservation.publish(Owned::Opening(Box::new(request)), deadline)?;
+        // SAFETY: same exclusive output region.
+        unsafe { put(handle, id) };
+        Ok(())
+    };
+    // SAFETY: invocation-local diagnostic contract.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Prepare an explicit new installation intent; no filesystem I/O before finish_open.
+/// # Safety
+/// Inputs and outputs satisfy the C header's size, lifetime and nonoverlap rules.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_setup_v1_prepare_create(
+    path: *const u8,
+    length: usize,
+    options: *const Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forwarded setup construction contract.
+    unsafe { prepare_setup(path, length, options, true, handle, error) }
+}
+
+/// Prepare an exact existing Creating/Active intent; never creates a missing intent.
+/// # Safety
+/// Inputs and outputs satisfy the C header's size, lifetime and nonoverlap rules.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_setup_v1_prepare_resume(
+    path: *const u8,
+    length: usize,
+    options: *const Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forwarded original-state restoration contract.
+    unsafe { prepare_setup(path, length, options, false, handle, error) }
 }
 
 unsafe fn prepare_peer(

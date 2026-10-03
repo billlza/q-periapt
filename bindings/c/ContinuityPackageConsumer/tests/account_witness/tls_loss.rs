@@ -58,8 +58,14 @@ fn own_account_cleanup_reconciles_four_committed_tls_reply_losses() -> Result<()
 
 fn execute(same_account: bool) -> Result<()> {
     let mut original = witness::Witness::start()?;
-    let (setup, second) =
-        fixture::setup_devices(Some(&original.configured), None, None, true, same_account)?;
+    let (setup, second) = fixture::setup_devices(
+        Some(&original.configured),
+        None,
+        None,
+        true,
+        same_account,
+        true,
+    )?;
     let second = second.ok_or("second TLS account member")?;
     let root = &setup.initiator;
     let account = fixture::array::<32>(&setup.responder, "local-account")?;

@@ -396,7 +396,7 @@ pub(crate) fn setup_with_time(
     advertisement_seconds: Option<u64>,
     at: Option<u64>,
 ) -> Result<Setup> {
-    Ok(setup_devices(witness, advertisement_seconds, at, false, false)?.0)
+    Ok(setup_devices(witness, advertisement_seconds, at, false, false, true)?.0)
 }
 
 /// Build a pair or three devices, with an explicit shared or separate account root.
@@ -406,6 +406,7 @@ pub(crate) fn setup_devices(
     at: Option<u64>,
     multi: bool,
     same_account: bool,
+    operational: bool,
 ) -> Result<(Setup, Option<PathBuf>)> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
@@ -598,6 +599,39 @@ pub(crate) fn setup_devices(
         }
         peers.push(peer);
     }
+    let mut identities = Vec::new();
+    for (index, path) in all_paths.iter().enumerate() {
+        let name = if index == 0 {
+            "initiator.test"
+        } else {
+            "responder.test"
+        };
+        let tls = rcgen::generate_simple_self_signed(vec![name.into()])?;
+        store(path, "tls-cert", tls.cert.der())?;
+        store(
+            path,
+            "tls-key",
+            &Zeroizing::new(tls.signing_key.serialize_der()),
+        )?;
+        identities.push(tls);
+    }
+    if !operational {
+        for key in &mut signing {
+            key.close();
+        }
+        for policy in &mut stores {
+            policy.close();
+        }
+        return Ok((
+            Setup {
+                _directory: dir,
+                initiator: left,
+                responder: right,
+                issuer,
+            },
+            extra,
+        ));
+    }
     let mut services = Vec::new();
     for (index, path) in all_paths.iter().enumerate() {
         let wrapping = key(path)?;
@@ -630,22 +664,6 @@ pub(crate) fn setup_devices(
                 &advertisement.until().to_be_bytes(),
             )?;
         }
-    }
-    let mut identities = Vec::new();
-    for (index, path) in all_paths.iter().enumerate() {
-        let name = if index == 0 {
-            "initiator.test"
-        } else {
-            "responder.test"
-        };
-        let tls = rcgen::generate_simple_self_signed(vec![name.into()])?;
-        store(path, "tls-cert", tls.cert.der())?;
-        store(
-            path,
-            "tls-key",
-            &Zeroizing::new(tls.signing_key.serialize_der()),
-        )?;
-        identities.push(tls);
     }
     for (index, responder) in all_paths.iter().enumerate().skip(1) {
         let peer = peers.get(index - 1).ok_or("sender peer")?;

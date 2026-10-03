@@ -1952,6 +1952,8 @@ jobs:
             target/continuity-installed-rust/c-own-account-tls-loss-public/**
             target/continuity-installed-rust/c-account-delivery-public/**
             target/continuity-installed-rust/c-own-account-delivery-public/**
+            target/continuity-installed-rust/c-setup-local-public/**
+            target/continuity-installed-rust/c-setup-witness-public/**
             target/continuity-installed-rust/kotlin-account-witness-public/**
             target/continuity-installed-rust/kotlin-account-tls-public/**
             target/continuity-installed-rust/kotlin-account-tls-loss-public/**
@@ -2043,6 +2045,8 @@ jobs:
             target/continuity-installed-swift/c-own-account-tls-loss-public/**
             target/continuity-installed-swift/c-account-delivery-public/**
             target/continuity-installed-swift/c-own-account-delivery-public/**
+            target/continuity-installed-swift/c-setup-local-public/**
+            target/continuity-installed-swift/c-setup-witness-public/**
             target/continuity-installed-swift/swift-account-witness-public/**
             target/continuity-installed-swift/swift-account-tls-public/**
             target/continuity-installed-swift/swift-account-tls-loss-public/**

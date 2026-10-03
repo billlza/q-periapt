@@ -201,6 +201,55 @@ typedef struct {
 int32_t qpc_owner_v1_prepare_open(const uint8_t *path, size_t length,
                                 const qpc_open_options_v1 *options,
                                 uint64_t *handle, qpc_error_v1 *error);
+/* Explicit installation setup over independently provisioned original key,
+ * signing, local-* credential/roster, SDK/protocol policy and TLS configuration.
+ * Both preparations copy bounded inputs without I/O and require kind=3, quality=0.
+ * finish_open then either CREATEs a new durable Creating intent (refusing existing
+ * children/configuration), or RESUMEs only an existing original Creating/Active
+ * intent. An error or missing file never selects the other action. This interface
+ * does not generate/enroll keys, issue credentials or install trust from peers.
+ *
+ * status returns phase 1=Creating or 2=Active and its original public journal ID.
+ * prepare_storage is Creating-only: it creates genuinely missing initial children
+ * or verifies the exact original empty genesis. Existing partial/conflicting files
+ * fail; no file is removed, repaired or replaced. protection=1 is the signed
+ * local-only profile, with zero subject/digest; protection=2 requires independent
+ * enrollment of the exact 96-byte subject and 32-byte initial image digest under
+ * the ORIGINAL witness. These are public enrollment inputs, not signed receipts
+ * or enrollment permission. Repeating successful preparation preserves the ID.
+ *
+ * activate consumes setup, admits the original witness and commits Active before
+ * converting the SAME handle to a device parent. Required protection cannot fall
+ * back to local-only. A missing/unavailable witness returns its native error.
+ * On admitted activation failure, only cancel/close remain; reopen with
+ * prepare_resume to reconcile original durable state, which may already be Active.
+ * Setup status/preparation after successful activation returns OWNER_KIND.
+ * Active setup can activate existing children but cannot prepare replacements.
+ * All stages share the owner/call quotas, one-way cancellation, exclusive call
+ * ownership and deadlines above. Setup itself grants no peer/message authority.
+ * Creating/Active status does not extend credential, policy or roster validity.
+ */
+typedef struct {
+    uint32_t phase;
+    uint8_t journal[32];
+} qpc_setup_status_v1;
+typedef struct {
+    uint32_t protection;
+    uint8_t journal[32];
+    uint8_t subject[96];
+    uint8_t image_digest[32];
+} qpc_setup_preparation_v1;
+int32_t qpc_setup_v1_prepare_create(const uint8_t *path, size_t length,
+                                  const qpc_open_options_v1 *options,
+                                  uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_setup_v1_prepare_resume(const uint8_t *path, size_t length,
+                                  const qpc_open_options_v1 *options,
+                                  uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_setup_v1_status(uint64_t handle, qpc_setup_status_v1 *status,
+                          qpc_error_v1 *error);
+int32_t qpc_setup_v1_prepare_storage(uint64_t handle, qpc_setup_preparation_v1 *preparation,
+                                   qpc_error_v1 *error);
+int32_t qpc_setup_v1_activate(uint64_t handle, qpc_error_v1 *error);
 /* A device parent opens only an already Active original installation using its
  * independently configured local-* identity, SDK/protocol policy and witness.
  * It does not read a bootstrap bundle, select a peer, provision, or activate a
