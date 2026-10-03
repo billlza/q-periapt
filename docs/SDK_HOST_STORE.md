@@ -10,25 +10,31 @@ table now has 43 exports.** This crate is unpublished.
 ## Accepted state and ownership
 
 `provision(path, policy, signature, root, limits)` is explicit first installation.
-It verifies the signed document, exclusively creates a new private file and
-commits its complete image before returning a runtime owner. It never overwrites
-an existing path. `open(path, root, limits)` opens existing state, validates its
-schema/root/exact state and re-verifies the stored signed policy. Missing, empty,
-corrupt, foreign or unsupported storage does not become first installation.
+It verifies the signed document, initializes a fresh private staging database with
+immediate two-phase commit, syncs its complete initial state, then publishes it by
+NOREPLACE rename and pinned-parent sync. The same Database and exclusive lock remain
+owned throughout; no second backend is constructed from a probe descriptor. Only
+after publication does the caller receive its runtime owner. Existing destinations
+are never overwritten. `open(path, root, limits)` opens existing state, validates its
+schema/root/exact state and re-verifies the signed policy. Missing, empty, corrupt,
+foreign or unsupported storage does not become first installation.
 
-A failed creation is not proof that no state was installed. Once the private file
-has been admitted to the initializer, the shared filesystem layer preserves that
-file and the original error, including an unknown commit result. It does not unlink
-a potentially committed store or a complete key file already admitted by another
-process. A later `provision` still refuses the existing path. Reconcile with the
-same independently retained root and configured signed policy; a partial or
-malformed store remains an explicit error and must be preserved for diagnosis.
-No error path silently resets it or starts a new lineage. Admission failures before
-initialization also retain the newly created file. The basename may now refer to
-another writer's replacement, so failure cleanup cannot safely unlink it. A
-zero-length or partial file remains refused by reopen and exclusive create; no
-owner can be opened from it. Safe explicit reconciliation of incomplete
-first-install state remains a separate release requirement.
+A failed creation is not proof that no state was installed. Before publication,
+failure can retain a private `.private-publication-*` staging inode while the formal
+path remains absent. Only the original explicit first-use intent, before any active
+use, can authorize a bounded retry; neither an arbitrary open error nor loss of a
+previously active store authorizes it. After publication, an error retains the
+formal database and its original state. Reconcile it with the same independently
+retained root and configured signed policy. No failure deletes staging or formal
+names, and no recovery scans or selects staging files. Exclusive orphan maintenance
+and physical erasure are separate host responsibilities.
+
+Existing partial formal databases remain refused without schema initialization or
+replacement. An admitted redb open can still update its own allocator/recovery
+metadata before application-schema rejection; this is not a promise of byte-for-byte
+read-only diagnostics. The low-level unreleased Rust initializer now borrows
+`&Database` and returns `()`, while the helper retains and returns the original
+Database. Product C/Swift runtime function signatures are unchanged.
 
 `open_configured(path, policy, signature, root, limits)` also reconciles the
 host's configured policy before exposing the runtime: the same exact state is

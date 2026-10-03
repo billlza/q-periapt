@@ -30,9 +30,13 @@ credential/generation cannot silently reuse it. One authoritative journal per
 device lineage is a host configuration requirement; a new empty journal is not
 recovery.
 
-Mutable database initialization still retains its formal file on any initializer
-error: an error does not establish that a commit never occurred. Immutable key
-publication instead keeps incomplete bytes under an unpublished staging name.
+Initial mutable database creation now commits in an unpublished private staging
+inode, then publishes using the same non-replacing file/directory barriers as keys.
+The original Database and lock stay alive throughout publication; initializer
+callbacks borrow it and cannot consume its owner. An initializer error can leave
+committed staging, but no formal name or business owner. A post-publication error
+retains the original formal database. Existing mutable update transactions keep
+their original unknown-commit reconciliation semantics.
 Once the complete key is published, any later error retains the destination.
 The real concurrent-opener regression uses the published wrapping key to create a
 dependent signer, then makes the original creator fail before owner return; both
@@ -73,13 +77,15 @@ that exact ID into the encrypted revision-1 genesis and commits it before return
 an owner. The ID is not taken from the incoming database, and is not a rollback
 anchor. Never reuse an ID to replace a previously active missing journal.
 
-If the process exits after genesis commit but before returning, local-only storage
+If the process exits after genesis publication but before returning, local-only storage
 can reopen with the original path/key/device/ID and perform normal authenticated
-work. An uncommitted creation, missing file, wrong key/ID/device or malformed state
-remains an error. There is no `open_or_create`, implicit repair, reinitialization or
-replacement of an existing path. The host must retain an explicit provisioning
-intent until it has reconciled the result; absence is not evidence that an older
-active lineage may be replaced.
+work. Before publication, interruption may retain an unpublished staging image. The
+formal name remains absent; only the retained original first-use intent can retry
+with the same independently retained journal ID. No recovery chooses a staging
+image, and retries must be bounded. Wrong key/ID/device, malformed formal state or
+loss of previously active storage remains an error. There is no `open_or_create`,
+implicit repair or replacement of an existing path. The host retains explicit
+provisioning intent until reconciliation; absence alone never authorizes reset.
 
 Required-witness storage must not use local-only reopening. The restricted
 `DeviceJournal::recover_anchor_genesis` returns only public enrollment metadata for

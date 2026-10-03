@@ -90,9 +90,12 @@ New immutable wrapping/signing files use complete staged publication, so a crash
 before rename cannot expose a partial formal key. In Preparing, the enrollment's
 committed original intent may retry an absent unpublished signer with the retained
 SigningKeyId; once Requested, it must recover the exact original signer. Private
-staging orphans are never selected as keys or swept automatically. This does not
-make initial redb configuration creation atomic or authorize replacing a lost active
-identity. See [signing-owner recovery](SIGNING_OWNERS.md).
+staging orphans are never selected as keys or swept automatically. Initial enrollment, installation, journal and archive databases now commit in
+private staging and publish while retaining their original exclusive Database owner.
+A failed initial enrollment publication can be retried only under its original
+explicit first-use intent, before any released request or active identity. A
+published configuration is always reopened; an active missing identity is never
+replaced. Unpublished staging may survive either an error or process interruption. See [signing-owner recovery](SIGNING_OWNERS.md).
 Hardware key storage, orphan maintenance, independent authority transport,
 foreign bindings, current device runs and complete replacement/upgrade remain open.
 

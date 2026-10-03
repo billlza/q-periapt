@@ -1,4 +1,4 @@
-//! Atomic, non-replacing publication of complete immutable private images.
+//! Atomic, non-replacing publication beneath a pinned private parent.
 use std::{io, path::Path};
 
 /// Publication failed; the destination may already contain the complete image.
@@ -84,7 +84,8 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 use super::{
-    open_private_parent, validate_private_directory, validate_regular_file, OwnedPrivateDirectory,
+    open_locked_database, open_private_parent, validate_private_directory, validate_regular_file,
+    DatabaseOpenMode, OwnedPrivateDirectory, PrivateDatabaseError,
 };
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 use std::{ffi::OsStr, fs::File, io::Write, os::fd::OwnedFd};
@@ -134,77 +135,160 @@ fn same_leaf(parent: &OwnedPrivateDirectory, leaf: &OsStr, original: &OwnedFd) -
     Ok(())
 }
 
+/// Internal publication capability. The descriptor is a plain probe only: never
+/// wrap a duplicate in a second lock-managing backend or explicitly unlock it.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub(super) struct StagedFile {
+    parent: OwnedPrivateDirectory,
+    destination: std::ffi::OsString,
+    name: std::ffi::OsString,
+    descriptor: OwnedFd,
+}
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+impl StagedFile {
+    pub(super) fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
+        use rustix::fs::{openat, statat, AtFlags, Mode, OFlags};
+        let (parent, destination) = open_private_parent(path).map_err(|_| admission())?;
+        // This avoids staging for known-existing destinations; NOREPLACE below
+        // still decides concurrent winners.
+        match statat(&parent.descriptor, destination, AtFlags::SYMLINK_NOFOLLOW) {
+            Ok(_) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "private destination already exists",
+                )
+                .into())
+            }
+            Err(rustix::io::Errno::NOENT) => {}
+            Err(error) => return Err(io::Error::from(error).into()),
+        }
+        let mut token = [0u8; 16];
+        getrandom::fill(&mut token).map_err(io::Error::other)?;
+        let token: String = token.iter().map(|b| format!("{b:02x}")).collect();
+        let name = std::ffi::OsString::from(format!(".private-publication-{token}"));
+        let descriptor = openat(
+            &parent.descriptor,
+            &name,
+            OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::CLOEXEC | OFlags::NOFOLLOW,
+            Mode::RUSR | Mode::WUSR,
+        )
+        .map_err(io::Error::from)?;
+        let staged = Self {
+            parent,
+            destination: destination.to_owned(),
+            name,
+            descriptor,
+        };
+        same_leaf(&staged.parent, &staged.name, &staged.descriptor).map_err(|e| staged.error(e))?;
+        Ok(staged)
+    }
+    fn error(&self, operation: io::Error) -> PrivatePublicationError {
+        PrivatePublicationError {
+            operation,
+            staging_name: Some(self.name.clone()),
+        }
+    }
+    pub(super) fn file(&self) -> Result<File, PrivatePublicationError> {
+        self.descriptor
+            .try_clone()
+            .map(File::from)
+            .map_err(|e| self.error(e))
+    }
+    pub(super) fn publish(&self) -> Result<(), PrivatePublicationError> {
+        let file = self.file()?;
+        self.publish_with(&file, &mut |_, _, _, _| Ok(()))
+    }
+    fn publish_with(
+        &self,
+        file: &File,
+        hook: &mut impl FnMut(Step, &OwnedPrivateDirectory, &OsStr, &File) -> io::Result<()>,
+    ) -> Result<(), PrivatePublicationError> {
+        let operation = (|| -> io::Result<()> {
+            same_leaf(&self.parent, &self.name, &self.descriptor)?;
+            hook(Step::BeforeFileSync, &self.parent, &self.name, file)?;
+            file.sync_all()?;
+            hook(Step::FileSynced, &self.parent, &self.name, file)?;
+            hook(Step::BeforeRename, &self.parent, &self.name, file)?;
+            same_leaf(&self.parent, &self.name, &self.descriptor)?;
+            rustix::fs::renameat_with(
+                &self.parent.descriptor,
+                &self.name,
+                &self.parent.descriptor,
+                &self.destination,
+                rustix::fs::RenameFlags::NOREPLACE,
+            )?;
+            hook(Step::Published, &self.parent, &self.name, file)?;
+            same_leaf(&self.parent, &self.destination, &self.descriptor)?;
+            hook(Step::BeforeDirectorySync, &self.parent, &self.name, file)?;
+            rustix::fs::fsync(&self.parent.descriptor)?;
+            hook(Step::DirectorySynced, &self.parent, &self.name, file)?;
+            same_leaf(&self.parent, &self.destination, &self.descriptor)?;
+            Ok(())
+        })();
+        operation.map_err(|e| self.error(e))
+    }
+}
+
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 fn publish_with(
     path: &Path,
     bytes: &[u8],
     mut hook: impl FnMut(Step, &OwnedPrivateDirectory, &OsStr, &File) -> io::Result<()>,
 ) -> Result<(), PrivatePublicationError> {
-    use rustix::fs::{openat, renameat_with, statat, AtFlags, Mode, OFlags, RenameFlags};
-    let (parent, destination) = open_private_parent(path).map_err(|_| admission())?;
-    // Avoid allocating staging for a known existing destination. The later
-    // NOREPLACE operation, not this advisory check, decides concurrent winners.
-    match statat(&parent.descriptor, destination, AtFlags::SYMLINK_NOFOLLOW) {
-        Ok(_) => {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "private destination already exists",
-            )
-            .into())
-        }
-        Err(rustix::io::Errno::NOENT) => {}
-        Err(error) => return Err(io::Error::from(error).into()),
-    }
-    let mut token = [0u8; 16];
-    getrandom::fill(&mut token).map_err(io::Error::other)?;
-    let token: String = token.iter().map(|b| format!("{b:02x}")).collect();
-    let stage = format!(".private-publication-{token}");
-    let stage = OsStr::new(&stage);
-    let descriptor = openat(
-        &parent.descriptor,
-        stage,
-        OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-        Mode::RUSR | Mode::WUSR,
-    )
-    .map_err(io::Error::from)?;
-    let operation = (|| -> io::Result<()> {
-        same_leaf(&parent, stage, &descriptor)?;
-        let mut file = File::from(descriptor.try_clone()?);
-        hook(Step::Created, &parent, stage, &file)?;
+    let staged = StagedFile::new(path)?;
+    let mut file = staged.file()?;
+    let write = (|| -> io::Result<()> {
+        hook(Step::Created, &staged.parent, &staged.name, &file)?;
         file.write_all(bytes)?;
-        hook(Step::Written, &parent, stage, &file)?;
-        same_leaf(&parent, stage, &descriptor)?;
+        hook(Step::Written, &staged.parent, &staged.name, &file)?;
         if file.metadata()?.len() != bytes.len() as u64 {
             return Err(admission());
         }
-        hook(Step::BeforeFileSync, &parent, stage, &file)?;
-        file.sync_all()?;
-        hook(Step::FileSynced, &parent, stage, &file)?;
-        hook(Step::BeforeRename, &parent, stage, &file)?;
-        same_leaf(&parent, stage, &descriptor)?;
-        renameat_with(
-            &parent.descriptor,
-            stage,
-            &parent.descriptor,
-            destination,
-            RenameFlags::NOREPLACE,
-        )?;
-        hook(Step::Published, &parent, stage, &file)?;
-        same_leaf(&parent, destination, &descriptor)?;
-        hook(Step::BeforeDirectorySync, &parent, stage, &file)?;
-        rustix::fs::fsync(&parent.descriptor)?;
-        hook(Step::DirectorySynced, &parent, stage, &file)?;
-        same_leaf(&parent, destination, &descriptor)?;
         Ok(())
     })();
-    match operation {
-        Ok(()) => Ok(()),
-        Err(operation) => Err(PrivatePublicationError {
-            operation,
-            staging_name: Some(stage.to_owned()),
-        }),
-    }
+    write.map_err(|e| staged.error(e))?;
+    staged.publish_with(&file, &mut hook)
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub(super) fn provision_database<E>(
+    path: &Path,
+    initialize: impl FnOnce(&redb::Database) -> Result<(), E>,
+) -> Result<redb::Database, E>
+where
+    E: From<PrivateDatabaseError>,
+{
+    provision_database_with(path, initialize, StagedFile::publish)
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn provision_database_with<E>(
+    path: &Path,
+    initialize: impl FnOnce(&redb::Database) -> Result<(), E>,
+    publish: impl FnOnce(&StagedFile) -> Result<(), PrivatePublicationError>,
+) -> Result<redb::Database, E>
+where
+    E: From<PrivateDatabaseError>,
+{
+    let staged = StagedFile::new(path)
+        .map_err(PrivateDatabaseError::from)
+        .map_err(E::from)?;
+    let file = staged
+        .file()
+        .map_err(PrivateDatabaseError::from)
+        .map_err(E::from)?;
+    // Exactly one backend manages this open description's lock. Plain staging
+    // probes may be dropped, but a second backend's close could explicitly unlock it.
+    let database = open_locked_database(file, DatabaseOpenMode::New).map_err(E::from)?;
+    initialize(&database)?;
+    publish(&staged)
+        .map_err(PrivateDatabaseError::from)
+        .map_err(E::from)?;
+    Ok(database)
 }
 
 #[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
 mod tests;
+
+#[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+pub(super) mod database_tests;

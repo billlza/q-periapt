@@ -33,8 +33,9 @@ A crash before rename can leave a private `.private-publication-*` orphan. These
 files are not recovery authority and are never selected or automatically swept.
 Only an explicit original first-use intent with an absent destination may retry
 with fresh unpublished material. A previously active missing key is data loss.
-Orphan cleanup/physical erasure and crash-safe initial database creation remain
-separate lifecycle work; applications must bound explicit first-use retries.
+Database genesis now shares the staged publication capability. Orphan cleanup,
+physical erasure and old partial-state recovery remain separate lifecycle work;
+applications must bound explicit first-use retries.
 
 `open` requires an existing exact-size private file, the independently expected
 ID, the same role and the protected wrapping key. It authenticates the full image,

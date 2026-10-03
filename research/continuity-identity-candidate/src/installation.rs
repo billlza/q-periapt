@@ -251,7 +251,7 @@ impl DeviceInstallation {
         let db = provision_private_database(&paths.configuration, |db| {
             let mut row = scope.clone();
             row.push(InstallationStatus::Creating.byte());
-            let tx = transaction(&db)?;
+            let tx = transaction(db)?;
             tx.open_table(TABLE)
                 .map_err(storage)?
                 .insert("installation", row.as_slice())
@@ -259,7 +259,7 @@ impl DeviceInstallation {
             #[cfg(all(test, unix))]
             tests::at_boundary("intent-before-commit");
             tx.commit().map_err(DurableError::CommitUncertain)?;
-            Ok::<_, DurableError>(db)
+            Ok::<_, DurableError>(())
         })?;
         let mut owner = Self {
             active: Some(db),
@@ -271,6 +271,7 @@ impl DeviceInstallation {
         if owner.status()? != InstallationStatus::Creating {
             return Err(DurableError::Conflict);
         }
+        admit(device, policy, now)?;
         #[cfg(all(test, unix))]
         tests::at_boundary("intent");
         Ok(owner)

@@ -61,21 +61,22 @@ impl AnchorStore {
             entries: BTreeMap::new(),
         };
         let bytes = encode(&wrapping, &pin, &image)?;
-        provision_private_database(path, |db| {
-            let tx = transaction(&db)?;
+        let db = provision_private_database(path, |db| {
+            let tx = transaction(db)?;
             tx.open_table(TABLE)
                 .map_err(storage)?
                 .insert("image", bytes.as_slice())
                 .map_err(storage)?;
             tx.commit().map_err(DurableError::CommitUncertain)?;
-            Ok(Self {
-                active: Some(Active {
-                    db,
-                    wrapping,
-                    signer,
-                    pin,
-                }),
-            })
+            Ok::<_, DurableError>(())
+        })?;
+        Ok(Self {
+            active: Some(Active {
+                db,
+                wrapping,
+                signer,
+                pin,
+            }),
         })
     }
     /// Reopen the same witness instance and key. Missing/corrupt state never creates

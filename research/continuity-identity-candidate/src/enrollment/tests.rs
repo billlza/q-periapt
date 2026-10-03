@@ -456,6 +456,96 @@ thread_local! {
     static CLOSE_POLICY_AFTER_ACTIVE: std::cell::RefCell<Option<Arc<VerifiedSessionPolicy>>> = const { std::cell::RefCell::new(None) };
 }
 
+pub(super) fn initial_boundary(stage: &str) {
+    let Some(root) = std::env::var_os("QPERIAPT_ENROLLMENT_INITIAL_ROOT") else {
+        return;
+    };
+    if std::env::var("QPERIAPT_ENROLLMENT_INITIAL_STAGE").expect("stage") != stage {
+        return;
+    }
+    let root = Path::new(&root);
+    fs::write(root.join("initial-ready.pending"), stage).expect("marker");
+    fs::rename(
+        root.join("initial-ready.pending"),
+        root.join("initial-ready"),
+    )
+    .expect("marker publication");
+    loop {
+        std::thread::park();
+    }
+}
+
+#[test]
+fn unpublished_initial_enrollment_configuration_resumes_explicit_first_use() {
+    use crate::durable::tests::ChildGuard;
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+    for cut in ["before-commit", "after-commit"] {
+        let c = case();
+        let root = c.paths.configuration.parent().expect("root");
+        fs::write(root.join("trusted-root"), c.intent.root.encode()).expect("independent root");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "enrollment::tests::enrollment_process_cut_child",
+                    "--nocapture",
+                ])
+                .env("QPERIAPT_ENROLLMENT_CUT_ROOT", root)
+                .env("QPERIAPT_ENROLLMENT_CUT_PHASE", "0")
+                .env("QPERIAPT_ENROLLMENT_INITIAL_ROOT", root)
+                .env("QPERIAPT_ENROLLMENT_INITIAL_STAGE", cut)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("creator"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !root.join("initial-ready").exists() {
+            assert!(child.0.try_wait().expect("status").is_none() && Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!c.paths.configuration.exists());
+        assert!(!c.paths.signer.exists());
+        assert!(!c.paths.installation.files().iter().any(|p| p.exists()));
+        child.0.kill().expect("kill initial creator");
+        assert!(!child.0.wait().expect("reap").success());
+        assert!(DeviceEnrollment::open(c.paths.clone(), c.intent.clone()).is_err());
+        let mut owner = create(&c);
+        let original = owner.identity().expect("newly published ID");
+        let wire = owner.request(150).expect("first released request");
+        assert_eq!(
+            VerifiedEnrollmentRequest::verify(&wire, &c.intent, 150)
+                .expect("proof")
+                .identity(),
+            original
+        );
+        let (certificate, roster, pin) = response(&c, &wire);
+        let journal = owner
+            .accept(&certificate, roster.as_bytes(), &pin, &c.policy, 150)
+            .expect("response");
+        owner.prepare(&c.policy, 150).expect("installation");
+        let mut service = owner
+            .activate(&c.policy, 150, None)
+            .expect("active original published enrollment");
+        assert_eq!(
+            service
+                .parts()
+                .expect("parts")
+                .0
+                .stores()
+                .expect("stores")
+                .0
+                .identity()
+                .expect("journal"),
+            journal
+        );
+        eprintln!("ENROLLMENT_INITIAL_PUBLICATION_CUT cut={cut} unpublished_children_absent=true explicit_intent_resumed=true");
+    }
+}
+
 pub(super) fn after_commit(bytes: &[u8]) {
     if bytes.get(72) == Some(&4) {
         CLOSE_POLICY_AFTER_ACTIVE.with(|pending| {

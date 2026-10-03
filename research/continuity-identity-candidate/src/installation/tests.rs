@@ -449,6 +449,26 @@ fn installation_busy_child() {
     };
     let root = Path::new(&root);
     let f = fixture(PrekeyQuality::OneTimeBoth);
+    let stage = std::env::var("QPERIAPT_INSTALLATION_BUSY_STAGE").expect("stage");
+    if stage == "intent-before-commit" {
+        assert!(!paths(root).configuration.exists());
+        let staged: Vec<_> = fs::read_dir(root)
+            .expect("owned fixture")
+            .map(|e| e.expect("entry").path())
+            .filter(|p| {
+                p.file_name()
+                    .expect("leaf")
+                    .to_string_lossy()
+                    .starts_with(".private-publication-")
+            })
+            .collect();
+        assert_eq!(staged.len(), 1);
+        assert!(matches!(
+            open_private_database(staged.first().expect("staging")),
+            Err(PrivateDatabaseError::Busy)
+        ));
+        return;
+    }
     assert!(matches!(
         DeviceInstallation::open(
             paths(root),
@@ -459,7 +479,6 @@ fn installation_busy_child() {
         ),
         Err(DurableError::Database(PrivateDatabaseError::Busy))
     ));
-    let stage = std::env::var("QPERIAPT_INSTALLATION_BUSY_STAGE").expect("stage");
     if stage.starts_with("activation-") {
         for path in [paths(root).journal, paths(root).archives] {
             assert!(matches!(
@@ -551,17 +570,13 @@ fn installation_process_cuts_preserve_intent_and_prevent_new_lineage() {
                 150
             )
             .is_err());
-            assert!(paths(&root).configuration.exists());
+            assert!(!paths(&root).configuration.exists());
             assert!(!paths(&root).journal.exists() && !paths(&root).archives.exists());
-            assert!(DeviceInstallation::provision(
-                paths(&root),
-                &key(&root),
-                f.initiator_device(),
-                f.initiator.policy(),
-                150
-            )
-            .is_err());
-            eprintln!("INSTALLATION_PROCESS_CUT stage={stage} partial_configuration_refused=true");
+            let mut fresh = create(&root, &f);
+            prepare(&mut fresh, &root, &f);
+            let mut service = activate(fresh, &root, &f);
+            service.close();
+            eprintln!("INSTALLATION_PROCESS_CUT stage={stage} unpublished_configuration_absent=true explicit_first_use_retry=true");
             continue;
         }
         let mut owner = open(&root, &f);

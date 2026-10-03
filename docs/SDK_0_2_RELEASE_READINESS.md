@@ -4666,3 +4666,26 @@ This changes the shared host-store SDK source inputs. The earlier packaged SDK a
 Continuity archive receipts do **not** qualify this new source. The retained local
 verification is native macOS source testing, not a new archive, Linux/device run,
 physical power-loss claim, independent implementation or full lifecycle release.
+
+### Initial database publication (native source candidate, 2026-10-03)
+
+The host policy store and Continuity enrollment, installation, journal, archive and
+witness genesis now initialize in private staging, commit their complete schema,
+and publish with file sync, NOREPLACE rename, inode verification and pinned-parent
+sync. One original Database and exclusive lock span publication and probe drops.
+The unreleased low-level Rust initializer now borrows `&Database` and returns `()`;
+all workspace callers are updated. This does not alter product C export signatures,
+wire/schema encodings, established mutable-transaction semantics or crypto KAT inputs.
+
+Pre-publication interruption leaves no formal database and releases no owner. Only
+an original never-active first-use intent can authorize a bounded retry. After
+publication, unknown results reopen the original state. Existing partial formal
+schemas remain refused; redb may update its own allocator/recovery metadata while
+opening before application-schema refusal. No failure removes names or chooses
+staging orphans. Exclusive orphan maintenance and legacy-partial recovery remain
+unclosed. Anchored journal creation also rechecks the live policy after publication;
+a concurrently closed policy withholds the owner without resetting its genesis.
+
+This is local native implementation and validation. Fresh SDK/Continuity archive
+consumers, current Linux/device runs, final-source full qualification and the wider
+lifecycle/recovery/performance/security requirements remain independent gates.

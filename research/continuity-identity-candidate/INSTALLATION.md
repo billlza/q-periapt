@@ -21,8 +21,10 @@ durably retains the fresh public journal identity before creating either child.
 The exact original wrapping-key commitment, device storage owner, signed policy
 checkpoint, required-witness binding and all three configured paths are retained
 in the same record. The key is not stored in this database or exported by the owner.
-The private-file provider durably reserves the filename in its pinned parent before
-the initializer runs; redb uses the existing immediate two-phase transaction.
+The shared provider initializes an unpublished private staging database using an
+immediate two-phase transaction, syncs it, then publishes with NOREPLACE rename and
+pinned-parent sync. One Database holds the same lifetime lock through publication.
+Current device/policy admission is rechecked after publication and schema readback.
 
 For restart use `DeviceInstallation::open` with the original paths, key, independently
 verified device and exact policy. This reads existing trusted configuration, rather
@@ -62,9 +64,14 @@ Any activation failure returns no service and drops the journal, index and
 configuration leases. A commit or witness error may leave `Active` durable even
 though the caller received no service. Reopen the original configuration to observe
 the actual phase and retry the same identity; do not infer absence from the error.
-A crash before the initial configuration transaction commits can leave a partial
-configuration file. It remains refused without implicit repair. No journal has been
-created at that point, but this does not turn an arbitrary open error into first use.
+A crash before initial configuration publication leaves no formal configuration;
+it can retain an unpublished private staging inode even if its initial transaction
+committed. No journal has been created yet. Only the original explicit first-use
+intent may authorize a bounded retry. After configuration publication, retain its
+original journal ID and scope. Initial journal/archive publication follows the same
+staging protocol under that recorded intent. Old partial formal files remain
+refused; active-state loss never authorizes reinitialization. Staging names are not
+recovery candidates or deletion authority.
 
 ## Existing sessions after public snapshot expiry
 

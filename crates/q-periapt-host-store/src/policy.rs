@@ -2,7 +2,7 @@
 #[cfg(all(test, unix))]
 use crate::filesystem::MAX_PRIVATE_DATABASE_BYTES as MAX_DATABASE_BYTES;
 use crate::filesystem::{
-    open_locked_database, open_private_file, provision_private_file, DatabaseOpenMode,
+    open_locked_database, open_private_file, provision_private_database, DatabaseOpenMode,
     PrivateDatabaseError,
 };
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
@@ -97,13 +97,18 @@ fn database(file: File, create: bool) -> Result<Database, StoreError> {
     } else {
         DatabaseOpenMode::Existing
     };
-    open_locked_database(file, mode).map_err(|error| match error {
-        PrivateDatabaseError::File => StoreError::PrivateFile,
-        PrivateDatabaseError::Busy => StoreError::Busy,
-        PrivateDatabaseError::Corrupt => StoreError::Corrupt,
-        PrivateDatabaseError::Io(error) => StoreError::Io(error),
-        PrivateDatabaseError::Storage(error) => StoreError::Storage(error),
-    })
+    open_locked_database(file, mode).map_err(StoreError::from)
+}
+impl From<PrivateDatabaseError> for StoreError {
+    fn from(error: PrivateDatabaseError) -> Self {
+        match error {
+            PrivateDatabaseError::File => Self::PrivateFile,
+            PrivateDatabaseError::Busy => Self::Busy,
+            PrivateDatabaseError::Corrupt => Self::Corrupt,
+            PrivateDatabaseError::Io(error) => Self::Io(error),
+            PrivateDatabaseError::Storage(error) => Self::Storage(error),
+        }
+    }
 }
 
 struct Active {
@@ -144,35 +149,31 @@ impl PolicyStore {
         let runtime = Arc::new(Runtime::from_signed_policy(
             policy, signature, root, None, limits,
         )?);
-        provision_private_file(
-            path,
-            |_| StoreError::PrivateFile,
-            |file| {
-                let database = database(file, true)?;
-                let transaction = write_transaction(&database)?;
-                if let Err(error) = write_image(
-                    &transaction,
-                    None,
-                    root,
-                    policy,
-                    signature,
-                    runtime.trusted_state(),
-                ) {
-                    transaction.abort().map_err(storage)?;
-                    return Err(error);
-                }
-                transaction.commit().map_err(StoreError::CommitUncertain)?;
-                #[cfg(all(test, unix))]
-                tests::after_provision_commit()?;
-                Ok(Self {
-                    active: Some(Active {
-                        database,
-                        runtime,
-                        root: root.to_vec(),
-                    }),
-                })
-            },
-        )
+        let database = provision_private_database(path, |database| {
+            let transaction = write_transaction(database)?;
+            if let Err(error) = write_image(
+                &transaction,
+                None,
+                root,
+                policy,
+                signature,
+                runtime.trusted_state(),
+            ) {
+                transaction.abort().map_err(storage)?;
+                return Err(error);
+            }
+            transaction.commit().map_err(StoreError::CommitUncertain)?;
+            Ok::<_, StoreError>(())
+        })?;
+        #[cfg(all(test, unix))]
+        tests::after_provision_commit()?;
+        Ok(Self {
+            active: Some(Active {
+                database,
+                runtime,
+                root: root.to_vec(),
+            }),
+        })
     }
 
     /// Reopen the exact committed signed image under an independently pinned root.

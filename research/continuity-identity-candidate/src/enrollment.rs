@@ -210,8 +210,9 @@ struct Active {
 }
 
 /// Exclusive, authenticated original enrollment transaction. `provision` is an
-/// explicit first-use decision; use `open` after every interrupted/unknown result.
-/// Partial key/configuration files fail closed and are never deleted or replaced.
+/// explicit first-use decision. Reopen published unknown results; only the original
+/// never-active first-use intent can retry an absent unpublished configuration.
+/// Partial formal files fail closed and are never deleted or replaced.
 pub struct DeviceEnrollment {
     active: Option<Active>,
     paths: EnrollmentPaths,
@@ -238,9 +239,13 @@ impl DeviceEnrollment {
         };
         let bytes = encode(&key, binding, &image)?;
         let database = provision_private_database(&paths.configuration, |database| {
-            write(&database, &bytes)?;
-            Ok::<_, DurableError>(database)
+            write(database, &bytes)?;
+            #[cfg(all(test, unix))]
+            tests::initial_boundary("after-commit");
+            Ok::<_, DurableError>(())
         })?;
+        #[cfg(all(test, unix))]
+        tests::after_commit(&bytes);
         let mut owner = Self {
             active: Some(Active { database, key }),
             paths,
@@ -301,7 +306,10 @@ impl DeviceEnrollment {
         let result = (|| {
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
             let bytes = encode(&active.key, self.binding, image)?;
-            write(&active.database, &bytes)
+            write(&active.database, &bytes)?;
+            #[cfg(all(test, unix))]
+            tests::after_commit(&bytes);
+            Ok(())
         })();
         if result.is_err() {
             self.close();
@@ -755,8 +763,8 @@ fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
         .map_err(storage)?
         .insert("enrollment", bytes)
         .map_err(storage)?;
-    tx.commit().map_err(DurableError::CommitUncertain)?;
     #[cfg(all(test, unix))]
-    tests::after_commit(bytes);
+    tests::initial_boundary("before-commit");
+    tx.commit().map_err(DurableError::CommitUncertain)?;
     Ok(())
 }

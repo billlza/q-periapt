@@ -5,13 +5,27 @@ use crate::{
     AnchorClient, AnchorIdentity, AnchorPin, AnchorRequirement, AnchorSigningKey, AnchorStore,
     AnchorTransport, ApplicationSendBudget, PublicKey,
 };
+use redb::ReadableDatabase;
+
+thread_local! {
+    static CLOSE_POLICY_AFTER_PUBLICATION: std::cell::RefCell<Option<Arc<crate::BootstrapContext>>> = const { std::cell::RefCell::new(None) };
+}
 
 pub(in crate::durable) fn genesis_boundary(stage: &str, id: &[u8; 32], digest: [u8; 32]) {
+    if stage == "after-publication" {
+        CLOSE_POLICY_AFTER_PUBLICATION.with(|pending| {
+            if let Some(context) = pending.borrow_mut().take() {
+                std::thread::spawn(move || context.policy().close())
+                    .join()
+                    .expect("concurrent policy close");
+            }
+        });
+    }
     let Some(path) = std::env::var_os("QPERIAPT_GENESIS_CUT_DIR") else {
         return;
     };
     let selected =
-        std::env::var("QPERIAPT_GENESIS_CUT_STAGE").unwrap_or_else(|_| "after-commit".into());
+        std::env::var("QPERIAPT_GENESIS_CUT_STAGE").unwrap_or_else(|_| "after-publication".into());
     if selected != stage {
         return;
     }
@@ -30,6 +44,50 @@ pub(in crate::durable) fn genesis_boundary(stage: &str, id: &[u8; 32], digest: [
     loop {
         std::thread::park();
     }
+}
+
+#[test]
+fn policy_closed_after_genesis_publication_withholds_new_anchored_owner() {
+    let pin = AnchorPin::new(
+        AnchorIdentity::generate().expect("witness ID"),
+        AnchorSigningKey::generate()
+            .expect("witness owner")
+            .public_key()
+            .expect("pin"),
+    );
+    let f = fixture_with_anchor_and_budget(
+        PrekeyQuality::OneTimeBoth,
+        AnchorRequirement::required(&pin),
+        ApplicationSendBudget::new(1024).expect("budget"),
+    );
+    let dir = directory();
+    let path = dir.path().canonicalize().expect("path");
+    let expected = prepare(&path);
+    CLOSE_POLICY_AFTER_PUBLICATION.with(|pending| {
+        *pending.borrow_mut() = Some(Arc::clone(&f.responder));
+    });
+    let result = DeviceJournal::provision_anchored(
+        &path.join("state.redb"),
+        JournalKey::open(&path.join("key")).expect("key"),
+        f.local_device(),
+        f.responder.policy(),
+        expected,
+        150,
+    );
+    assert!(
+        matches!(result, Err(DurableError::Protocol(Error::Closed))),
+        "closed policy released a newly published anchored journal"
+    );
+    let db = open_private_database(&path.join("state.redb")).expect("published original database");
+    let image = load(
+        &db,
+        &JournalKey::open(&path.join("key")).expect("original key"),
+        bootstrap::storage_owner(f.local_device()),
+    )
+    .expect("authenticated original genesis");
+    assert_eq!(image.id, *expected.as_bytes());
+    assert_eq!(image.revision, 1);
+    assert_eq!(image.operation_count(), 0);
 }
 pub(super) fn retain_identity(path: &Path, identity: JournalIdentity) {
     let mut file = fs::File::create_new(path).expect("new independent request");
@@ -96,6 +154,25 @@ fn journal_genesis_busy_child() -> Result<(), Box<dyn std::error::Error>> {
     };
     let path = Path::new(&path);
     let (f, _) = peer(path)?;
+    let stage = std::env::var("QPERIAPT_GENESIS_BUSY_STAGE")?;
+    if stage != "after-publication" {
+        assert!(!path.join("state.redb").exists());
+        let staged: Vec<_> = fs::read_dir(path)?
+            .map(|e| e.expect("entry").path())
+            .filter(|p| {
+                p.file_name()
+                    .expect("leaf")
+                    .to_string_lossy()
+                    .starts_with(".private-publication-")
+            })
+            .collect();
+        assert_eq!(staged.len(), 1);
+        assert!(matches!(
+            open_private_database(staged.first().expect("staging")),
+            Err(PrivateDatabaseError::Busy)
+        ));
+        return Ok(());
+    }
     assert!(matches!(
         DeviceJournal::open(
             &path.join("state.redb"),
@@ -148,6 +225,7 @@ fn cut_creation(path: &Path, stage: &str) {
                     "--nocapture",
                 ])
                 .env("QPERIAPT_GENESIS_BUSY_DIR", path)
+                .env("QPERIAPT_GENESIS_BUSY_STAGE", stage)
                 .stdout(Stdio::from(log.try_clone().expect("log")))
                 .stderr(Stdio::from(log))
                 .spawn()
@@ -199,7 +277,7 @@ fn journal_unknown_creation_reopens_using_the_identity_retained_before_the_call(
     let dir = directory();
     let path = dir.path().canonicalize().expect("path");
     let expected = prepare(&path);
-    cut_creation(&path, "after-commit");
+    cut_creation(&path, "after-publication");
     assert!(matches!(
         DeviceJournal::open(
             &path.join("state.redb"),
@@ -273,12 +351,57 @@ fn journal_unknown_creation_reopens_using_the_identity_retained_before_the_call(
 }
 
 #[test]
-fn journal_uncommitted_creation_is_not_repaired_or_reprovisioned() {
+fn journal_unpublished_initialization_retries_only_the_original_explicit_intent() {
+    for cut in ["before-commit", "after-commit"] {
+        let f = fixture(PrekeyQuality::OneTimeBoth);
+        let dir = directory();
+        let path = dir.path().canonicalize().expect("path");
+        let expected = prepare(&path);
+        cut_creation(&path, cut);
+        assert!(!path.join("state.redb").exists());
+        assert!(DeviceJournal::open(
+            &path.join("state.redb"),
+            JournalKey::open(&path.join("key")).expect("key"),
+            f.local_device(),
+            expected
+        )
+        .is_err());
+        let mut journal = DeviceJournal::provision(
+            &path.join("state.redb"),
+            JournalKey::open(&path.join("key")).expect("key"),
+            f.local_device(),
+            expected,
+        )
+        .expect("explicit original first use retry");
+        assert_eq!(journal.identity().expect("identity"), expected);
+        assert_eq!(journal.image().expect("genesis").operation_count(), 0);
+        journal.close();
+        let mut reopened = reopen(&path, f.local_device());
+        assert_eq!(reopened.identity().expect("original ID"), expected);
+        assert_eq!(reopened.image().expect("genesis").revision, 1);
+        eprintln!("JOURNAL_UNPUBLISHED_INITIALIZATION cut={cut} original_intent_reused=true");
+    }
+}
+
+#[test]
+fn legacy_uncommitted_formal_database_is_still_refused_without_replacement() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let dir = directory();
     let path = dir.path().canonicalize().expect("path");
     let expected = prepare(&path);
-    cut_creation(&path, "before-commit");
+    let db = q_periapt_host_store::filesystem::provision_private_file(
+        &path.join("state.redb"),
+        |_| DurableError::PrivateFile,
+        |file| {
+            redb::Database::builder()
+                .create_with_backend(FileBackend::new(file).expect("locked backend"))
+                .map_err(storage)
+        },
+    )
+    .expect("legacy incomplete configuration fixture");
+    drop(db);
+    use std::os::unix::fs::MetadataExt;
+    let original = fs::metadata(path.join("state.redb")).expect("old inode");
     assert!(matches!(
         DeviceJournal::open(
             &path.join("state.redb"),
@@ -288,7 +411,24 @@ fn journal_uncommitted_creation_is_not_repaired_or_reprovisioned() {
         ),
         Err(DurableError::Corrupt)
     ));
-    let bytes = fs::read(path.join("state.redb")).expect("existing uncommitted file");
+    let after_open = fs::metadata(path.join("state.redb")).expect("same inode");
+    assert_eq!(
+        (after_open.dev(), after_open.ino()),
+        (original.dev(), original.ino())
+    );
+    let db = open_private_database(&path.join("state.redb")).expect("existing redb fixture");
+    assert_eq!(
+        db.begin_read()
+            .expect("read")
+            .list_tables()
+            .expect("tables")
+            .count(),
+        0
+    );
+    drop(db);
+    // Opening redb may update allocator/recovery metadata. The failed application
+    // admission must not create its schema; reprovisioning must not touch this file.
+    let before = fs::read(path.join("state.redb")).expect("retained partial schema");
     assert!(DeviceJournal::provision(
         &path.join("state.redb"),
         JournalKey::open(&path.join("key")).expect("key"),
@@ -297,17 +437,9 @@ fn journal_uncommitted_creation_is_not_repaired_or_reprovisioned() {
     )
     .is_err());
     assert_eq!(
-        fs::read(path.join("state.redb")).expect("preserved file"),
-        bytes
+        fs::read(path.join("state.redb")).expect("same old partial"),
+        before
     );
-    assert!(DeviceJournal::open(
-        &path.join("missing.redb"),
-        JournalKey::open(&path.join("key")).expect("key"),
-        f.local_device(),
-        expected
-    )
-    .is_err());
-    assert!(!path.join("missing.redb").exists());
 }
 
 struct Witness(Arc<std::sync::Mutex<AnchorStore>>);
@@ -337,7 +469,7 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
     bytes.extend_from_slice(&pin.public_key().encode());
     fs::write(path.join("witness-pin"), bytes).expect("independent test pin");
     let (f, _) = peer(&path).expect("independent fixture pin");
-    cut_creation(&path, "after-commit");
+    cut_creation(&path, "after-publication");
     assert!(matches!(
         DeviceJournal::open(
             &path.join("state.redb"),

@@ -129,6 +129,23 @@ impl std::error::Error for PrivateDatabaseError {
         }
     }
 }
+impl From<PrivatePublicationError> for PrivateDatabaseError {
+    fn from(error: PrivatePublicationError) -> Self {
+        let kind = error.operation().kind();
+        if error.staging_name().is_none()
+            && matches!(
+                kind,
+                std::io::ErrorKind::AlreadyExists
+                    | std::io::ErrorKind::PermissionDenied
+                    | std::io::ErrorKind::Unsupported
+            )
+        {
+            Self::File
+        } else {
+            Self::Io(std::io::Error::new(kind, error))
+        }
+    }
+}
 fn database_error(error: redb::DatabaseError) -> PrivateDatabaseError {
     if matches!(error, redb::DatabaseError::DatabaseAlreadyOpen) {
         PrivateDatabaseError::Busy
@@ -169,7 +186,12 @@ impl redb::StorageBackend for BoundedBackend {
         self.0.set_len(len)
     }
     fn sync_data(&self) -> std::io::Result<()> {
-        self.0.sync_data()
+        #[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+        publication::database_tests::at_database_sync(false)?;
+        self.0.sync_data()?;
+        #[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+        publication::database_tests::at_database_sync(true)?;
+        Ok(())
     }
     fn try_lock_range(
         &self,
@@ -224,22 +246,33 @@ pub fn open_private_database(path: &Path) -> Result<redb::Database, PrivateDatab
     open_locked_database(file, DatabaseOpenMode::Existing)
 }
 
-/// Exclusively create a private database and initialize its application schema
-/// through the same pinned parent/descriptor. The initializer must durably commit
-/// before returning its owner. Once initialization starts, failure preserves the
-/// file and original error for exact reconciliation, including unknown commits.
-pub fn provision_private_database<T, E>(
+/// Initialize a private staging database, then publish its complete initial state.
+/// The initializer must durably commit its application schema without releasing
+/// handles, identities or external effects. Its errors preserve the original error
+/// and leave the staging inode unpublished. No error deletes any file.
+///
+/// The original Database and exclusive lock are retained across file sync,
+/// NOREPLACE rename, published-inode verification and pinned-parent sync. Only
+/// then is this same Database returned. Published unknown results must be reopened
+/// with original expectations; a missing formerly active store is never first use.
+/// Pre-publication retries require the original explicit first-use intent and
+/// must be bounded; private staging orphans are not recovery or deletion authority.
+pub fn provision_private_database<E>(
     path: &Path,
-    initialize: impl FnOnce(redb::Database) -> Result<T, E>,
-) -> Result<T, E>
+    initialize: impl FnOnce(&redb::Database) -> Result<(), E>,
+) -> Result<redb::Database, E>
 where
     E: From<PrivateDatabaseError>,
 {
-    provision_private_file(
-        path,
-        |_| E::from(PrivateDatabaseError::File),
-        |file| initialize(open_locked_database(file, DatabaseOpenMode::New).map_err(E::from)?),
-    )
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        publication::provision_database(path, initialize)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        let _ = (path, initialize);
+        Err(E::from(PrivateDatabaseError::File))
+    }
 }
 
 /// An already-open, owner-owned exact-`0700` directory.

@@ -35,17 +35,20 @@ fresh inode/extent admission; a previously cached file/image cannot replace the
 authoritative state under the acquired lease. These checks do not isolate mutually
 hostile code running as the same user.
 
-A mutable database initializer failure preserves the newly created file: its data may already have
-been committed or admitted by another opener. A partial file is subsequently refused.
-Immutable wrapping and signing files instead publish complete synced staging
-inodes with NOREPLACE rename and parent sync. Existing formal names are never
-removed on error. A pre-publication crash can leave private staging orphans; they
-are not recovery inputs and no later attempt sweeps them. Explicit first-use retry
-must not be confused with replacement of a lost active key.
-A complete wrapping-key file is admitted only after exact shape/link checks and
-file/parent synchronization. No `open_or_create` recovery path exists. The retained
-[creation regression](../../research/continuity-identity-candidate/DURABILITY.md)
-includes an opener using a complete key before its original creator reports failure.
+Initial databases and immutable keys now keep incomplete/unpublished bytes beneath
+private staging names. Database initialization durably commits its schema before
+file sync, NOREPLACE publication, inode verification and pinned-parent sync. The
+same Database and exclusive lock survive every step; auxiliary plain file probes
+never manage locks. Existing destination names are never replaced or removed.
+
+Before publication, failed first-use attempts may leave staging orphans; these are
+not recovery inputs and later attempts do not sweep them. A bounded retry requires
+the retained original explicit first-use intent. After publication, reconcile the
+original formal database/key; missing previously active state never permits reset.
+Existing partial formal databases remain refused at application-schema admission,
+although redb opening can update its own allocator/recovery metadata. No
+`open_or_create` recovery path exists. Existing transaction failures still require
+exact old-or-new commit reconciliation.
 
 ## Aggregate image and local write intent
 

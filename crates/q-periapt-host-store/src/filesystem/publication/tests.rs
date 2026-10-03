@@ -35,6 +35,31 @@ impl std::fmt::Display for Injected {
 impl std::error::Error for Injected {}
 
 #[test]
+fn database_initialization_failure_never_publishes_partial_configuration() {
+    use crate::filesystem::{provision_private_database, PrivateDatabaseError};
+    let tmp = directory();
+    let path = tmp
+        .path()
+        .canonicalize()
+        .expect("path")
+        .join("configuration.redb");
+    let result = provision_private_database(&path, |db| {
+        let _uncommitted = db
+            .begin_write()
+            .map_err(|e| PrivateDatabaseError::Storage(Box::new(e.into())))?;
+        Err::<(), _>(PrivateDatabaseError::Io(io::Error::other(Injected(
+            Step::Created,
+        ))))
+    });
+    assert!(matches!(result, Err(PrivateDatabaseError::Io(ref error))
+        if error.get_ref().and_then(|e| e.downcast_ref::<Injected>()).is_some()));
+    assert!(
+        !path.exists(),
+        "failed initial transaction published a partial formal database"
+    );
+}
+
+#[test]
 fn every_publication_boundary_withholds_success_and_preserves_original_errors() {
     for target in [
         Step::Created,

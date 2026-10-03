@@ -353,3 +353,14 @@ any published original signer. Shared-host source changes invalidate reuse of th
 older SDK archive cohort for this candidate. Atomic initial database creation,
 unpublished-staging maintenance, foreign adapters and new archive/device evidence
 remain required; this increment is not full lifecycle or release admission.
+
+
+The next native source increment also stages initial policy, enrollment,
+installation, journal, archive and witness databases. The same exclusive Database
+owner survives initial commit and publication; callers borrow it during genesis
+initialization. Successful old-image reopen and before-publication explicit retry
+remain distinct. Formal partial files are not replaced, and no staging cleanup is
+inferred from names. Post-publication live-policy closure is checked before an
+anchored journal owner escapes. This does not close orphan maintenance, legacy
+migration, actual archive/foreign/platform consumers, full recovery analysis or
+release admission.

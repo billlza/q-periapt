@@ -559,8 +559,9 @@ impl DeviceJournal {
     }
     /// Explicitly provision a new empty journal for the independently verified local device.
     /// The caller must durably retain this fresh identity before calling. After an
-    /// unknown result, reopen this exact path/key/device/identity; never create a
-    /// replacement for a missing or malformed journal that may have been active.
+    /// unknown published result, reopen this exact path/key/device/identity. Only the
+    /// original never-active first-use intent can retry absent unpublished genesis;
+    /// never replace a missing or malformed journal that may have been active.
     pub fn provision(
         path: &Path,
         key: JournalKey,
@@ -589,8 +590,8 @@ impl DeviceJournal {
             records: rosters::genesis(device),
         };
         let sealed = seal(&key, &image)?;
-        provision_private_database(path, |db| {
-            let transaction = transaction(&db)?;
+        let db = provision_private_database(path, |db| {
+            let transaction = transaction(db)?;
             {
                 transaction
                     .open_table(TABLE)
@@ -605,18 +606,22 @@ impl DeviceJournal {
                 .map_err(DurableError::CommitUncertain)?;
             #[cfg(all(test, unix))]
             tests::provisioning::genesis_boundary("after-commit", &id, image_hash(&sealed));
-            Ok(Self {
-                active: Some(Active {
-                    db,
-                    key,
-                    owner,
-                    id,
-                    protection,
-                    anchor: None,
-                }),
-            })
+            Ok::<_, DurableError>(())
+        })?;
+        #[cfg(all(test, unix))]
+        tests::provisioning::genesis_boundary("after-publication", &id, image_hash(&sealed));
+        Ok(Self {
+            active: Some(Active {
+                db,
+                key,
+                owner,
+                id,
+                protection,
+                anchor: None,
+            }),
         })
     }
+
     /// Authenticate and reopen existing storage; missing, wrong-key and malformed stores fail.
     pub fn open(
         path: &Path,

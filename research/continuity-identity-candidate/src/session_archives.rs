@@ -83,18 +83,19 @@ impl SessionArchiveStore {
     /// Explicitly create and sync a new empty index for an independently retained
     /// journal identity. Existing paths are never replaced or treated as first use.
     pub fn provision(path: &Path, journal: JournalIdentity) -> Result<Self, DurableError> {
-        provision_private_database(path, |db| {
-            let tx = transaction(&db)?;
+        let db = provision_private_database(path, |db| {
+            let tx = transaction(db)?;
             tx.open_table(TABLE)
                 .map_err(storage)?
                 .insert(&HEADER, header(journal).as_slice())
                 .map_err(storage)?;
             tx.commit().map_err(DurableError::CommitUncertain)?;
-            load(&db, journal)?;
-            Ok(Self {
-                active: Some(db),
-                journal,
-            })
+            load(db, journal)?;
+            Ok::<_, DurableError>(())
+        })?;
+        Ok(Self {
+            active: Some(db),
+            journal,
         })
     }
     /// Acquire the existing exclusive lease and validate exact schema, pinned

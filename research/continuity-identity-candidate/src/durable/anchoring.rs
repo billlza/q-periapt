@@ -233,7 +233,7 @@ impl DeviceJournal {
             .anchor_requirement()
             .binding()
             .ok_or(DurableError::AnchorRequired)?;
-        Self::provision_with_protection(
+        let journal = Self::provision_with_protection(
             path,
             key,
             device,
@@ -243,7 +243,12 @@ impl DeviceJournal {
                 witness,
                 fence: 1,
             },
-        )
+        )?;
+        // Publication adds durable I/O after initial admission. A close during
+        // that work withholds the new owner but retains its original genesis.
+        policy.check_device(device, now)?;
+        policy.check_mode(mode, now)?;
+        Ok(journal)
     }
     /// Recover only the public enrollment metadata after an unknown creation result.
     /// Requires the independently retained creation identity and exact original
