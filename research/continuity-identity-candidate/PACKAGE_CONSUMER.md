@@ -22,7 +22,7 @@ version/checksum from the candidate's committed lockfile. Fetch is bounded and
 locked; packaging, compilation and execution are offline with a fresh Cargo home.
 
 Both Debug and Release execute the complete public service trace: independent
-processes, retained installation owners, confirmed bootstrap, application fsync
+processes, original public enrollment and retained enrollment/service owners, confirmed bootstrap, application fsync
 followed by process exit before receipt, exact retransmission after restart,
 identity-signed network rekey, reverse traffic, lease contention, pre-cancellation,
 durable SDK revocation, and cleanup-only restart after revocation. A test exit code
@@ -67,3 +67,35 @@ The archive-shipped fixture provisions/enrolls test state through public APIs;
 it does not expose provisioning through the C owner API. The witness carrier is
 signed TCP, so this does not qualify encrypted metadata, an independent witness
 implementation, external service operation or cross-host deployment.
+
+## Enrollment through the shipped connection
+
+The ordinary bidirectional TLS trace now creates device identities through
+`DeviceEnrollment::provision/request`, verifies each request against the account
+authority's independently approved root and exact device metadata, signs the
+credential with `issue_enrollment`, and admits the current roster through `accept`.
+The same transaction prepares and activates the original installation. No private
+signing key is exported. Every traffic restart opens the original enrollment and
+retains `EnrolledDevice` while borrowing its existing service and signer.
+
+`owner-mode` is explicit trusted fixture configuration. An enrolled path never
+selects preconfigured installation recovery just because an enrollment file is
+missing. Both devices' original signed requests, public keys, signing identities,
+accepted/active/reopened journal IDs and real application effects are independently
+read back. Two child processes probe the actual enrollment databases for Busy;
+the ordinary connection now checks ten live database leases. Cleanup remains the
+separate three-store, traffic-disabled recovery path after SDK revocation.
+
+`artifact/continuity_enrollment.py` requires and exports exactly 46 public files
+per build profile. Missing registration evidence or evidence naming a different
+connection fails the package gate even if the old connection log reports success.
+Native public APIs verify signatures; the Python reader checks framing, commitments
+and cross-file identities and is not an independent protocol implementation.
+
+The C/Swift/Kotlin setup fixture continues to use the explicit preconfigured-input
+mode and leaves installation children absent before foreign setup. Roster renewal
+and expired-bootstrap restoration also retain their explicit installation profile.
+This trace does not add foreign enrollment, remote account authentication,
+credential/root replacement, or enrollment-level authority renewal. The original
+accepted roster/policy still governs enrollment reopening; replacing or expiring
+that authority requires further lifecycle work, not fallback activation.

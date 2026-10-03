@@ -119,7 +119,7 @@ fn c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery() -> 
         "unpublished {} client to installed Rust peer; same host; local journal profile",
         installed_language()?
     );
-    let setup = fixture::setup()?;
+    let setup = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let path = &setup.initiator;
     assert_eq!(
         run(path, "self-check", &["self-check".into()])?,
@@ -384,7 +384,7 @@ fn c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery() -> Res
         "C",
         "device child API requires its C consumer"
     );
-    let setup = fixture::setup()?;
+    let setup = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let mut peers = Vec::new();
     let mut reopen_changed = 0;
     for (root, role) in [(&setup.initiator, "1"), (&setup.responder, "2")] {
@@ -694,7 +694,7 @@ fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Re
         "installed native Rust client to unpublished {} server; same host; local journal profile",
         installed_language()?
     );
-    let setup = fixture::setup()?;
+    let setup = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let path = &setup.responder;
     // The original implementation refreshed a 20-second budget after accept:
     // 15 seconds listening plus the TLS engine's 10 seconds took about 25 seconds.
@@ -878,12 +878,13 @@ fn c_server_preserves_callback_failures_unknown_commits_replay_and_rekey() -> Re
         peer.credentials(),
         fixture::tls_limits(),
     )?;
-    let (journal, _) = peer.service.stores()?;
+    let (service, signer) = peer.service.parts()?;
+    let (journal, _) = service.stores()?;
     let completed = control.run(
         p::control_transport::Session {
             journal,
             context: &peer.context,
-            signer: &peer.signer,
+            signer,
         },
         p::control_transport::Run {
             target: 1,
@@ -955,7 +956,7 @@ fn recovery_call(
 }
 #[test]
 fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_exit() -> Result<()> {
-    let setup = fixture::setup()?;
+    let setup = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let session = {
         let request = p::InitiationId::generate()?;
         let (mut server, address) = fixture::spawn(&setup.responder, 60, "bootstrap")?;
@@ -1006,14 +1007,15 @@ fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_ex
         fixture::tls_limits(),
     )?;
     let name = left.peer_name.clone();
-    let (journal, _) = left.service.stores()?;
+    let (service, signer) = left.service.parts()?;
+    let (journal, _) = service.stores()?;
     assert_eq!(
         control
             .run(
                 p::control_transport::Session {
                     journal,
                     context: &left.context,
-                    signer: &left.signer
+                    signer
                 },
                 p::control_transport::Run {
                     target: 1,
@@ -1081,10 +1083,11 @@ fn c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_ex
     )?;
     let old_resolution = *resolution.resolution_id().as_bytes();
     drop(resolution);
-    let _offer = right.service.stores()?.0.prepare_rekey_offer(
+    let (service, signer) = right.service.parts()?;
+    let _offer = service.stores()?.0.prepare_rekey_offer(
         &right.context,
         session,
-        &right.signer,
+        signer,
         fixture::now()?,
     )?;
     let progress = right

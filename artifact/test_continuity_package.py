@@ -9,6 +9,7 @@ import continuity_package as package
 import rust_sdk_profile as sdk
 from test_rust_sdk_profile import archive
 from test_continuity_roster_renewal import fixture as roster_evidence
+from test_continuity_enrollment import fixture as enrollment_evidence
 
 
 def metadata(root):
@@ -27,7 +28,7 @@ def metadata(root):
 
 def evidence(root):
     report = {"session": "11" * 32, "forward_message": "22" * 32, "reverse_message": "33" * 32,
-              "network_rekeys": 1, "independent_readbacks": 3, "exclusive_leases_checked": 8,
+              "network_rekeys": 1, "independent_readbacks": 3, "exclusive_leases_checked": 10,
               "unknown_delivery_reconciled": True, "durable_sdk_revocation": True,
               "cleanup_after_revocation": True, "cleanup_exclusive_leases_checked": 3}
     for role, field, payload in (
@@ -56,6 +57,13 @@ def evidence(root):
         bytes.fromhex(reopened["session"] + reopened["message"])
         + b"original application commit before advertisement expiry")
     roster_evidence(root / "roster")
+    enrollment_evidence(root / "enrollment-public")
+    for role in ("initiator", "responder"):
+        folder = root / "enrollment-public" / role
+        for leaf, field in (("session", "session"), ("forward-message", "forward_message"), ("reverse-message", "reverse_message")):
+            (folder / leaf).write_bytes(bytes.fromhex(report[field]))
+        for leaf, receiving, field in (("forward-effect", "responder", "forward_message"), ("reverse-effect", "initiator", "reverse_message")):
+            (folder / leaf).write_bytes((root / receiving / ("application-" + report[field])).read_bytes())
     return report
 
 
@@ -71,8 +79,9 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_c_account_delivery as delivery
         import continuity_c_setup as setup
         import continuity_roster_renewal as renewal
+        import continuity_enrollment as enrollment
         sources = package.source_inputs()['files']
-        for module in (signed, tls, loss, delivery, setup, renewal):
+        for module in (signed, tls, loss, delivery, setup, renewal, enrollment):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):
@@ -142,6 +151,28 @@ class ContinuityPackageTests(unittest.TestCase):
             evidence(root)
             (root / "roster/public-roster-result.json").unlink()
             with self.assertRaises(ValueError):
+                package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
+
+    def test_connection_log_requires_original_enrollment_evidence(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence(root)
+            path = root / "enrollment-public/initiator/reopened-request"
+            path.unlink()
+            with self.assertRaisesRegex(ValueError, "public file inventory"):
+                package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
+
+    def test_other_self_consistent_enrollment_connection_is_refused(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence(root)
+            for role in ("initiator", "responder"):
+                folder = root / "enrollment-public" / role
+                (folder / "session").write_bytes(b"z" * 32)
+                for name in ("forward-effect", "reverse-effect"):
+                    original = (folder / name).read_bytes()
+                    (folder / name).write_bytes(b"z" * 32 + original[32:])
+            with self.assertRaisesRegex(ValueError, "another connection"):
                 package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
 
     def test_installed_source_cannot_change_or_gain_extra_files(self):

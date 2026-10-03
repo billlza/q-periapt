@@ -3,6 +3,11 @@
 use super::*;
 
 fn open_existing(path: &Path, at: u64) -> Result<Peer> {
+    if array::<1>(path, "owner-mode")? != [1] {
+        return Err(
+            "session restoration requires the explicit preconfigured installation profile".into(),
+        );
+    }
     let policy_store = sdk(path)?;
     let policy = protocol_policy(path, &policy_store)?;
     let local_role = role(path)?;
@@ -22,8 +27,7 @@ fn open_existing(path: &Path, at: u64) -> Result<Peer> {
     let (service, context) = restored.into_parts();
     assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
     Ok(Peer {
-        service,
-        signer,
+        service: enrollment::DeviceOwner::installed(service, signer),
         context,
         policy_store,
         certificate: read(path, "tls-cert", 8192)?,

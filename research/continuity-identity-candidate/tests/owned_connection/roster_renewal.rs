@@ -286,7 +286,7 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
         false,
         false,
         true,
-        true,
+        enrollment::SetupKind::RosterRenewal,
     )?;
     let root = s.initiator.parent().ok_or("evidence root")?;
     let public = root.join("public");
@@ -313,10 +313,11 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
             at,
         )?;
     let context = Arc::clone(&peer.context);
-    let journal = peer.service.stores()?.0;
+    let (service, signer) = peer.service.parts()?;
+    let journal = service.stores()?.0;
     journal.install_roster(short.roster(), at)?;
     store(&public, "original-journal", journal.identity()?.as_bytes())?;
-    let initial = journal.initiate(Arc::clone(&context), request_id()?, &peer.signer, at)?;
+    let initial = journal.initiate(Arc::clone(&context), request_id()?, signer, at)?;
     store(&public, "original-outbox", &initial)?;
     store(&public, "original-context", &context.digest())?;
     let before = observe(path, address)?;

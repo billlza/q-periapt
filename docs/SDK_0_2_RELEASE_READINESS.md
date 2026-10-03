@@ -86,9 +86,14 @@ path. Independent review found a live-policy closure window across the final
 new commit; a concurrent-close regression fails before the release-fence repair
 and passes afterward. Source-bound commands and limitations are retained in
 [the enrollment record](../research/sdk-alpha1/evidence/20261003-enrollment-c28cc7d5/RESULTS.json).
-This increment is not covered by the preceding installed-package receipt. External
-public-consumer enrollment, foreign adapters, authority transport, atomic initial
-key publication and credential replacement remain required before lifecycle admission.
+That earlier enrollment increment was not covered by the preceding installed-package
+receipt. The current ordinary public TLS workload now uses the enrollment transaction
+through original-state restart, real bidirectional delivery and rekey, retaining its
+lease during communication. Its package gate requires 46 public registration/connection
+readbacks per profile and ten real database-lease checks, including enrollment. Explicit
+loss of the active enrollment record is refused without installation fallback. Foreign
+adapters, authority transport and credential/root/policy replacement remain required;
+archive and device qualification are source-bound gates, not implied by this code change.
 
 The archive consumer now requires public-API witness roster refresh and original
 installation recovery before its existing connection workload can pass. Current

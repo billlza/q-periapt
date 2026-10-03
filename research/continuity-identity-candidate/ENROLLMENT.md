@@ -103,3 +103,11 @@ The regression suite covers actual signature/policy checks, real SDK prekey work
 exact restart, exclusive leases, request/acceptance/activation sync faults, process
 interruption after commits, Active child loss and policy closure at final release.
 These selected cuts are not physical power-loss or full lifecycle qualification.
+
+The archive-shipped ordinary TLS connection now uses this owner from registration
+through activation, original-state restart, bidirectional traffic and signed rekey.
+The package gate binds public registration materials to the actual connection and
+independent database-lease probes; see [installed connection](PACKAGE_CONSUMER.md).
+The separate roster-refresh and expired-bootstrap restoration traces still use
+the preconfigured installation API. Enrollment reopening verifies its original
+accepted authority and does not yet accept renewed credentials, roots or policies.

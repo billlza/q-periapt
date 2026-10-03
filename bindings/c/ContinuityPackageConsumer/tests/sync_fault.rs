@@ -39,7 +39,7 @@ fn output_id(data: Vec<u8>) -> Result<String> {
 }
 #[test]
 fn prepare_fault_case() -> Result<()> {
-    let setup = fixture::setup()?;
+    let setup = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let client =
         PathBuf::from(std::env::var_os("QPERIAPT_C_OWNER_CLIENT").ok_or("C client missing")?);
     let request = p::InitiationId::generate()?;

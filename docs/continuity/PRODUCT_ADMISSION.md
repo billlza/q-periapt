@@ -203,8 +203,13 @@ admission and one future journal identity. It delegates child creation and servi
 activation to the existing installation engine. A committed Activating phase makes
 an unknown cross-record activation result resumable without choosing a new lineage.
 A final live-policy check follows the enrollment commit before releasing owners.
-This is native source work; the foreign setup loaders below still use their existing
-protected configuration and have not been switched to this enrollment transaction.
+The ordinary archive-shipped native TLS connection now retains this enrollment
+owner through activation, original-state restart, traffic and rekey, with mandatory
+public identity/readback checks in the package gate. The foreign setup loaders below
+still use their existing protected configuration and have not been switched to this
+enrollment transaction. The separate roster-refresh and expired-bootstrap restoration
+profiles remain preconfigured installations; current-authority enrollment reopening
+and replacement are not qualified by those separate traces.
 Wrapping-key creation, trusted account authorization/transport and current response
 checkpoint acquisition remain explicit host inputs. Partial initial files are
 retained/refused; this does not close the complete enrollment/replacement lifecycle.

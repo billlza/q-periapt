@@ -28,6 +28,8 @@ use std::{
 };
 use zeroize::Zeroizing;
 
+#[path = "owned_connection/enrollment.rs"]
+pub(crate) mod enrollment;
 #[path = "owned_connection/reopen.rs"]
 mod reopen;
 #[path = "owned_connection/roster_renewal.rs"]
@@ -281,8 +283,7 @@ fn context(path: &Path, sdk: &PolicyStore, at: u64) -> Result<Arc<p::BootstrapCo
 }
 
 pub(crate) struct Peer {
-    pub(crate) service: p::DeviceService,
-    pub(crate) signer: p::DeviceSigningKey,
+    pub(crate) service: enrollment::DeviceOwner,
     pub(crate) context: Arc<p::BootstrapContext>,
     policy_store: PolicyStore,
     certificate: Vec<u8>,
@@ -313,14 +314,21 @@ impl Peer {
         let context = context(path, &policy_store, at)?;
         let role = role(path)?;
         let device = context.device(role);
-        let key = key(path)?;
-        let id = p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?;
-        let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
-        let owner = p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), at)?;
-        let service = owner.activate(key, device, context.policy(), at, anchor)?;
+        let service = match array::<1>(path, "owner-mode")? {
+            [1] => {
+                let key = key(path)?;
+                let id = p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?;
+                let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
+                let owner =
+                    p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), at)?;
+                let service = owner.activate(key, device, context.policy(), at, anchor)?;
+                enrollment::DeviceOwner::installed(service, signer)
+            }
+            [2] => enrollment::open(path, context.policy(), device, at, anchor)?,
+            _ => return Err("unknown configured device owner".into()),
+        };
         Ok(Self {
             service,
-            signer,
             context,
             policy_store,
             certificate: read(path, "tls-cert", 8192)?,
@@ -337,17 +345,17 @@ impl Peer {
         }
     }
     pub(crate) fn actor(&mut self) -> Result<Actor<'_>> {
-        let (journal, archives) = self.service.stores()?;
+        let (service, signer) = self.service.parts()?;
+        let (journal, archives) = service.stores()?;
         Ok(Actor {
             journal,
             archives,
             context: &self.context,
-            signer: &self.signer,
+            signer,
         })
     }
     pub(crate) fn close(&mut self) {
         self.service.close();
-        self.signer.close();
         self.context.policy().close();
         self.policy_store.close();
     }
@@ -359,8 +367,16 @@ pub(crate) struct Setup {
     pub(crate) responder: PathBuf,
     pub(crate) issuer: SdkIssuer,
 }
-pub(crate) fn setup() -> Result<Setup> {
-    setup_with_witness(None)
+pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
+    match kind {
+        enrollment::SetupKind::Installed => setup_with_witness(None),
+        enrollment::SetupKind::Enrolled => {
+            Ok(setup_devices_for(None, None, None, false, false, true, kind)?.0)
+        }
+        enrollment::SetupKind::RosterRenewal => {
+            Err("roster renewal requires its explicit witness and clock".into())
+        }
+    }
 }
 /// Qualification-only explicit real witness store and socket, not incoming trust.
 pub(crate) struct WitnessFixture {
@@ -423,7 +439,7 @@ pub(crate) fn setup_devices(
         multi,
         same_account,
         operational,
-        false,
+        enrollment::SetupKind::Installed,
     )
 }
 fn setup_devices_for(
@@ -433,8 +449,13 @@ fn setup_devices_for(
     multi: bool,
     same_account: bool,
     operational: bool,
-    roster_renewal: bool,
+    kind: enrollment::SetupKind,
 ) -> Result<(Setup, Option<PathBuf>)> {
+    let roster_renewal = kind == enrollment::SetupKind::RosterRenewal;
+    let enrolled = kind == enrollment::SetupKind::Enrolled;
+    if enrolled && (!operational || advertisement_seconds.is_some() || multi || roster_renewal) {
+        return Err("enrollment reference requires its explicit initial-connection profile".into());
+    }
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
         if advertisement_seconds.is_some() || multi || roster_renewal {
@@ -474,7 +495,7 @@ fn setup_devices_for(
     let issuer = SdkIssuer::new()?;
     let (policy, signature) = issuer.policy(1, true)?;
     let mut stores = Vec::new();
-    let mut signing = Vec::new();
+    let mut pending = Vec::new();
     for (index, path) in all_paths.iter().enumerate() {
         let role = if index == 0 { 1u8 } else { 2u8 };
         store(path, "sdk-policy", &policy)?;
@@ -488,14 +509,8 @@ fn setup_devices_for(
             &issuer.public,
             q_periapt_sdk::Limits::default(),
         )?);
-        let key = p::JournalKey::provision(&path.join("wrap.key"))?;
-        let id = p::SigningKeyId::generate()?;
-        store(path, "signer-id", id.as_bytes())?;
-        signing.push(p::DeviceSigningKey::provision(
-            &path.join("signer.key"),
-            &key,
-            id,
-        )?);
+        p::JournalKey::provision(&path.join("wrap.key"))?;
+        store(path, "owner-mode", &[if enrolled { 2 } else { 1 }])?;
     }
     let time = match at {
         Some(value) => value,
@@ -562,10 +577,38 @@ fn setup_devices_for(
         let mut root = p::RootSigningKey::generate()?;
         let mut certificates = Vec::new();
         for ordinal in group.clone() {
-            certificates.push(root.issue_device(
-                p::DeviceDescription::new([u8::try_from(ordinal + 1)?; 16], 1, family, validity)?,
-                signing.get(ordinal).ok_or("signer")?.public_key()?,
-            )?);
+            let path = all_paths.get(ordinal).ok_or("enrollment path")?;
+            let description =
+                p::DeviceDescription::new([u8::try_from(ordinal + 1)?; 16], 1, family, validity)?;
+            if enrolled {
+                let intent = p::EnrollmentIntent::new(root.public_key()?, description);
+                let mut owner =
+                    p::DeviceEnrollment::provision(enrollment::paths(path)?, intent.clone())?;
+                let request = owner.request(time)?;
+                let verified = p::VerifiedEnrollmentRequest::verify(&request, &intent, time)?;
+                assert_eq!(owner.identity()?, verified.identity());
+                store(path, "signer-id", verified.identity().as_bytes())?;
+                store(path, "request", &request)?;
+                store(path, "public-key", &verified.public_key().encode())?;
+                store(
+                    path,
+                    "enrollment-validity",
+                    &[
+                        validity.from().to_be_bytes(),
+                        validity.until().to_be_bytes(),
+                    ]
+                    .concat(),
+                )?;
+                certificates.push(root.issue_enrollment(&verified, time)?);
+                pending.push(enrollment::PendingOwner::Enrolling(Box::new(owner)));
+            } else {
+                let id = p::SigningKeyId::generate()?;
+                store(path, "signer-id", id.as_bytes())?;
+                let signer =
+                    p::DeviceSigningKey::provision(&path.join("signer.key"), &key(path)?, id)?;
+                certificates.push(root.issue_device(description, signer.public_key()?)?);
+                pending.push(enrollment::PendingOwner::Installed(Box::new(signer)));
+            }
         }
         let entries = certificates
             .iter()
@@ -628,6 +671,13 @@ fn setup_devices_for(
             ] {
                 store(path, &format!("local-{name}"), &bytes)?;
             }
+            if let enrollment::PendingOwner::Enrolling(owner) =
+                pending.get_mut(ordinal).ok_or("enrollment owner")?
+            {
+                let policy = protocol_policy(path, stores.get(ordinal).ok_or("SDK owner")?)?;
+                let journal = owner.accept(&certificate, roster.as_bytes(), &pin, &policy, time)?;
+                store(path, "accepted-journal", journal.as_bytes())?;
+            }
             credentials.push(certificate);
             rosters.push(roster.as_bytes().to_vec());
         }
@@ -680,8 +730,8 @@ fn setup_devices_for(
         identities.push(tls);
     }
     if !operational {
-        for key in &mut signing {
-            key.close();
+        for owner in &mut pending {
+            owner.close();
         }
         for policy in &mut stores {
             policy.close();
@@ -697,28 +747,12 @@ fn setup_devices_for(
         ));
     }
     let mut services = Vec::new();
-    for (index, path) in all_paths.iter().enumerate() {
-        let wrapping = key(path)?;
+    for ((index, path), owner) in all_paths.iter().enumerate().zip(pending) {
         let policy = protocol_policy(path, stores.get(index).ok_or("SDK owner")?)?;
         let device = devices.get(index).ok_or("device")?;
-        let mut install =
-            p::DeviceInstallation::provision(paths(path)?, &wrapping, device, &policy, time)?;
-        match (witness, install.prepare(wrapping, device, &policy, time)?) {
-            (None, p::InstallationPreparation::Local) => {}
-            (Some(witness), p::InstallationPreparation::RequiresEnrollment(genesis)) => {
-                // Retain the operator's original enrollment scope for TLS peer
-                // authorization; never infer that scope from an incoming request.
-                store(path, "witness-subject", &genesis.subject().to_bytes())?;
-                witness
-                    .store
-                    .lock()
-                    .map_err(|_| "witness enrollment lock poisoned")?
-                    .enroll(&genesis, device, &policy, time)?;
-            }
-            _ => return Err("installation changed the requested witness profile".into()),
-        }
-        let anchor = witness.map(|witness| witness.client(path)).transpose()?;
-        services.push(install.activate(key(path)?, device, &policy, time, anchor)?);
+        services.push(enrollment::activate_pending(
+            owner, path, device, &policy, time, witness,
+        )?);
     }
     if advertisement_seconds.is_some() {
         for path in &all_paths {
@@ -760,9 +794,11 @@ fn setup_devices_for(
                     )?,
             );
         }
-        let manifest = signing
-            .get(index)
-            .ok_or("responder signer")?
+        let manifest = services
+            .get_mut(index)
+            .ok_or("responder owner")?
+            .parts()?
+            .1
             .issue_manifest(
                 server_device,
                 p::ManifestContext::new(
@@ -813,9 +849,6 @@ fn setup_devices_for(
     }
     for service in &mut services {
         service.close();
-    }
-    for key in &mut signing {
-        key.close();
     }
     for policy in &mut stores {
         policy.close();
@@ -930,6 +963,10 @@ fn child(path: &Path, attempt: u8, mode: &str) -> Result<OwnedChild> {
     Ok(OwnedChild(
         Command::new(std::env::current_exe()?)
             .args(["--exact", &process_test, "--nocapture"])
+            .env(
+                "QPERIAPT_PUBLIC_SERVICE_PARENT_PID",
+                std::process::id().to_string(),
+            )
             .env("QPERIAPT_PUBLIC_SERVICE_ROOT", path)
             .env("QPERIAPT_PUBLIC_SERVICE_ATTEMPT", attempt.to_string())
             .env("QPERIAPT_PUBLIC_SERVICE_MODE", mode)
@@ -1001,6 +1038,23 @@ fn service_peer_process() -> Result<()> {
         } else {
             &["installation.redb", "journal.redb", "archives.redb"]
         };
+        if mode == "contender" && array::<1>(root, "owner-mode")? == [2] {
+            assert!(matches!(
+                open_private_database(&root.join("enrollment.redb")),
+                Err(PrivateDatabaseError::Busy)
+            ));
+            store(
+                root,
+                "lease-observation",
+                &[
+                    u64::from(std::process::id()).to_be_bytes(),
+                    std::env::var("QPERIAPT_PUBLIC_SERVICE_PARENT_PID")?
+                        .parse::<u64>()?
+                        .to_be_bytes(),
+                ]
+                .concat(),
+            )?;
+        }
         for name in files {
             assert!(
                 matches!(
@@ -1084,13 +1138,14 @@ fn service_peer_process() -> Result<()> {
             peer.credentials(),
             tls_limits(),
         )?;
-        let (journal, _) = peer.service.stores()?;
+        let (service, signer) = peer.service.parts()?;
+        let (journal, _) = service.stores()?;
         control.serve(
             accept(&listener)?,
             p::control_transport::Session {
                 journal,
                 context: &peer.context,
-                signer: &peer.signer,
+                signer,
             },
             limits(),
             &Cancellation::default(),
@@ -1153,8 +1208,9 @@ pub(crate) fn send(
 #[test]
 fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
     roster_renewal::public_roster_refresh_recovers_original_intent_over_signed_tcp()?;
-    let s = setup()?;
+    let s = setup(enrollment::SetupKind::Enrolled)?;
     marker_publication_control(&s.initiator)?;
+    enrollment::missing_record_control(&s.initiator)?;
     eprintln!("PUBLIC_SERVICE_STAGE enrollment_complete");
     fs::write(s.initiator.join("role"), [2])?;
     let wrong_role = match Peer::open(&s.initiator) {
@@ -1267,12 +1323,13 @@ fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Resu
             client.credentials(),
             tls_limits(),
         )?;
-        let (journal, _) = client.service.stores()?;
+        let (service, signer) = client.service.parts()?;
+        let (journal, _) = service.stores()?;
         let result = control.run(
             p::control_transport::Session {
                 journal,
                 context: &client.context,
-                signer: &client.signer,
+                signer,
             },
             p::control_transport::Run {
                 target: 1,
@@ -1404,13 +1461,14 @@ fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Resu
             .session_ids()?
             .is_empty()
     );
-    let receipt = format!("{{\"session\":\"{}\",\"forward_message\":\"{}\",\"reverse_message\":\"{}\",\"network_rekeys\":{network_rekeys},\"independent_readbacks\":3,\"exclusive_leases_checked\":8,\"unknown_delivery_reconciled\":true,\"durable_sdk_revocation\":true,\"cleanup_after_revocation\":true,\"cleanup_exclusive_leases_checked\":3}}\n",
+    enrollment::export(&s, established.session, saved, id)?;
+    let receipt = format!("{{\"session\":\"{}\",\"forward_message\":\"{}\",\"reverse_message\":\"{}\",\"network_rekeys\":{network_rekeys},\"independent_readbacks\":3,\"exclusive_leases_checked\":10,\"unknown_delivery_reconciled\":true,\"durable_sdk_revocation\":true,\"cleanup_after_revocation\":true,\"cleanup_exclusive_leases_checked\":3}}\n",
         hex(&established.session),hex(saved.as_bytes()),hex(id.as_bytes()));
     store(
         s.initiator.parent().ok_or("reference root")?,
         "public-result.json",
         receipt.as_bytes(),
     )?;
-    eprintln!("OWNED_SERVICE_PUBLIC_REFERENCE processes=true local_private_signers=true persistent_sdk_policy=true unknown_commit_reconciled=true independent_readbacks=3 bidirectional=true network_rekeys={network_rekeys} exclusive_leases_checked=8 pre_cancel_refused=true durable_revocation=true");
+    eprintln!("OWNED_SERVICE_PUBLIC_REFERENCE processes=true local_private_signers=true persistent_sdk_policy=true unknown_commit_reconciled=true independent_readbacks=3 bidirectional=true network_rekeys={network_rekeys} exclusive_leases_checked=10 pre_cancel_refused=true durable_revocation=true");
     Ok(())
 }
