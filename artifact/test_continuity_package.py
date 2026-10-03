@@ -8,6 +8,7 @@ import unittest
 import continuity_package as package
 import rust_sdk_profile as sdk
 from test_rust_sdk_profile import archive
+from test_continuity_roster_renewal import fixture as roster_evidence
 
 
 def metadata(root):
@@ -54,6 +55,7 @@ def evidence(root):
     (restored / "responder" / ("application-" + reopened["message"])).write_bytes(
         bytes.fromhex(reopened["session"] + reopened["message"])
         + b"original application commit before advertisement expiry")
+    roster_evidence(root / "roster")
     return report
 
 
@@ -68,8 +70,9 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_c_account_tls_loss as loss
         import continuity_c_account_delivery as delivery
         import continuity_c_setup as setup
+        import continuity_roster_renewal as renewal
         sources = package.source_inputs()['files']
-        for module in (signed, tls, loss, delivery, setup):
+        for module in (signed, tls, loss, delivery, setup, renewal):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):
@@ -107,17 +110,17 @@ class ContinuityPackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             report = evidence(root)
-            self.assertEqual(len(package.verify_execution(STDOUT, root, root / "reopen")["application_readbacks"]), 2)
+            self.assertEqual(len(package.verify_execution(STDOUT, root, root / "reopen", root / "roster")["application_readbacks"]), 2)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
                            STDOUT.replace(b"0 filtered out", b"1 filtered out")):
                 with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "all three complete"):
-                    package.verify_execution(stdout, root, root / "reopen")
+                    package.verify_execution(stdout, root, root / "reopen", root / "roster")
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),
                                  ("cleanup_after_revocation", False), ("unknown_delivery_reconciled", 1)):
                 changed = dict(report, **{field: value})
                 (root / "public-result.json").write_text(json.dumps(changed))
                 with self.subTest(field=field, value=value), self.assertRaises(ValueError):
-                    package.verify_execution(STDOUT, root, root / "reopen")
+                    package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
 
     def test_receipt_cannot_replace_independent_application_and_cleanup_readback(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -127,11 +130,19 @@ class ContinuityPackageTests(unittest.TestCase):
             original = received.read_bytes()
             received.write_bytes(original[:-1] + b"!")
             with self.assertRaisesRegex(ValueError, "readback differs"):
-                package.verify_execution(STDOUT, root, root / "reopen")
+                package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
             received.write_bytes(original)
             (root / "responder/cleanup-verified").write_bytes(b"y" * 32)
             with self.assertRaisesRegex(ValueError, "original report identity"):
-                package.verify_execution(STDOUT, root, root / "reopen")
+                package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
+
+    def test_old_success_log_cannot_omit_roster_recovery_stage(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence(root)
+            (root / "roster/public-roster-result.json").unlink()
+            with self.assertRaises(ValueError):
+                package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
 
     def test_installed_source_cannot_change_or_gain_extra_files(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -165,9 +176,6 @@ class ContinuityPackageTests(unittest.TestCase):
                     package.built_test_binary(invalid, consumer, build)
 
 
-if __name__ == "__main__":
-    unittest.main(warnings="error")
-
 
 class SessionReopenEvidenceTests(unittest.TestCase):
     def test_restoration_receipt_does_not_replace_actual_ciphertext_and_application_readback(self):
@@ -181,7 +189,7 @@ class SessionReopenEvidenceTests(unittest.TestCase):
                 original = path.read_bytes()
                 path.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
                 with self.subTest(relative=relative), self.assertRaises(ValueError):
-                    package.verify_execution(STDOUT, root, restored)
+                    package.verify_execution(STDOUT, root, restored, root / "roster")
                 path.write_bytes(original)
             report_path = restored / "public-reopen-result.json"
             original = json.loads(report_path.read_text())
@@ -189,10 +197,10 @@ class SessionReopenEvidenceTests(unittest.TestCase):
                                  ("application_readbacks", True)):
                 report_path.write_text(json.dumps(dict(original, **{field: value})))
                 with self.subTest(field=field), self.assertRaises(ValueError):
-                    package.verify_execution(STDOUT, root, restored)
+                    package.verify_execution(STDOUT, root, restored, root / "roster")
             report_path.write_text(json.dumps(original))
-            self.assertTrue(package.verify_execution(STDOUT, root, restored)["session_reopen"]["exact_outbox"])
+            self.assertTrue(package.verify_execution(STDOUT, root, restored, root / "roster")["session_reopen"]["exact_outbox"])
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(warnings="error")

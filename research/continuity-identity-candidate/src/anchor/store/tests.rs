@@ -24,6 +24,9 @@ struct Case {
     _directory: tempfile::TempDir,
 }
 fn case() -> Case {
+    case_with_peer(fixture(PrekeyQuality::OneTimeBoth))
+}
+fn case_with_peer(peer: Fixture) -> Case {
     let directory = directory();
     let path = directory.path().canonicalize().expect("path");
     let client = path.join("client");
@@ -36,7 +39,6 @@ fn case() -> Case {
         .mode(0o700)
         .create(&server)
         .expect("server directory");
-    let peer = fixture(PrekeyQuality::OneTimeBoth);
     let (policy, device, _) = peer.responder.inventory_inputs();
     let mut journal = new_store(&client, device);
     let genesis = journal
@@ -629,5 +631,634 @@ fn restoring_the_witness_itself_exposes_its_independent_storage_trust_requiremen
         apply_request(&mut c, &query).observed_head(),
         initial(&c),
         "this software provider does not protect its own authority from whole-store rollback"
+    );
+}
+
+fn renewal_case() -> Case {
+    case_with_peer(crate::bootstrap::tests::fixture_with_public_validity(
+        PrekeyQuality::OneTimeBoth,
+        Validity::new(100, 160).expect("short roster"),
+        Validity::new(100, 160).expect("short advertisement"),
+    ))
+}
+fn renewed_device(device: &VerifiedDevice, version: u64, validity: Validity) -> VerifiedDevice {
+    let root = crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("same account root");
+    let certificate = root
+        .issue_device(device.description.clone(), device.key.clone())
+        .expect("same credential body");
+    let roster = root
+        .issue_roster(
+            version,
+            validity,
+            &[root.roster_entry(&certificate).expect("entry")],
+        )
+        .expect("new signed roster");
+    let pin = crate::AccountPin::new(
+        device.account_id(),
+        root.public_key().expect("root"),
+        roster.checkpoint(),
+        device.description.family,
+    )
+    .expect("independent new checkpoint");
+    let verified = pin
+        .verify_device(&certificate, roster.as_bytes(), validity.from().max(150))
+        .expect("verified unchanged credential");
+    assert_eq!(verified.credential_digest(), device.credential_digest());
+    verified
+}
+
+#[test]
+fn roster_authority_refresh_preserves_advanced_head_fence_and_exact_last_command() {
+    let mut c = renewal_case();
+    let advance = request(
+        &c,
+        AnchorOperation::advance(initial(&c), [141; 32]).expect("advance"),
+    );
+    let head = apply_request(&mut c, &advance)
+        .applied_head()
+        .expect("head");
+    let fenced = request(&c, AnchorOperation::fence_writer(head).expect("fence"));
+    let head = apply_request(&mut c, &fenced)
+        .applied_head()
+        .expect("fenced head");
+    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let next = renewed_device(
+        previous,
+        2,
+        Validity::new(100, 190).expect("renewed interval"),
+    );
+    assert!(matches!(
+        c.store.enroll(&c.genesis, &next, policy, 160),
+        Err(DurableError::Conflict)
+    ));
+    let pending = AnchorRequest::new(
+        &c.pin,
+        c.genesis.subject(),
+        AnchorOperation::advance(head, [142; 32]).expect("next command"),
+        &c.peer.signer_r,
+    )
+    .expect("signed next command");
+    assert!(matches!(
+        c.store.handle(pending.as_bytes(), 160),
+        Err(AnchorError::Rejected(Error::Validity))
+    ));
+    let before = c.store.image().expect("before").revision;
+    assert_eq!(
+        c.store
+            .update_roster_authority(
+                c.genesis.subject(),
+                previous.roster().checkpoint(),
+                &next,
+                policy,
+                160
+            )
+            .expect("explicit renewal"),
+        next.roster().checkpoint()
+    );
+    let image = c.store.image().expect("after");
+    assert_eq!(image.revision, before + 1);
+    let alternative_previous = renewed_device(
+        previous,
+        1,
+        Validity::new(100, 159).expect("different historical checkpoint"),
+    );
+    assert_eq!(
+        c.store
+            .update_roster_authority(
+                c.genesis.subject(),
+                alternative_previous.roster().checkpoint(),
+                &next,
+                policy,
+                160
+            )
+            .expect("target readback, not a claim about its predecessor"),
+        next.roster().checkpoint()
+    );
+    assert_eq!(
+        c.store.image().expect("readback has no mutation").revision,
+        before + 1
+    );
+    let entry = image
+        .entries
+        .get(&c.genesis.subject.id(&c.pin.binding))
+        .expect("same subject");
+    assert_eq!(entry.subject, c.genesis.subject);
+    assert_eq!(entry.genesis, c.genesis.digest);
+    assert_eq!(entry.head, head);
+    assert_eq!(entry.last, Some(fenced.command_id()));
+    c.store.close();
+    c.store = reopen(&c.server);
+    assert_eq!(
+        c.store
+            .update_roster_authority(
+                c.genesis.subject(),
+                previous.roster().checkpoint(),
+                &next,
+                policy,
+                160
+            )
+            .expect("exact target reconciliation"),
+        next.roster().checkpoint()
+    );
+    assert_eq!(
+        c.store.image().expect("no repeated write").revision,
+        before + 1
+    );
+    let retry = request(&c, fenced.operation);
+    assert_eq!(retry.command_id(), fenced.command_id());
+    let replay = c
+        .store
+        .handle(retry.as_bytes(), 160)
+        .expect("original data-plane last command");
+    assert_eq!(
+        c.pin
+            .verify_reply(&retry, &replay)
+            .expect("authenticated replay")
+            .outcome(),
+        AnchorOutcome::AlreadyAppliedExact
+    );
+    let wire = c
+        .store
+        .handle(pending.as_bytes(), 160)
+        .expect("pending original command now authorized");
+    let result = c
+        .pin
+        .verify_reply(&pending, &wire)
+        .expect("verified real reply");
+    assert_eq!(result.outcome(), AnchorOutcome::Advanced);
+    assert_eq!(
+        result.applied_head().expect("head").revision(),
+        head.revision() + 1
+    );
+    let later = AnchorRequest::new(
+        &c.pin,
+        c.genesis.subject(),
+        AnchorOperation::fence_writer(result.applied_head().expect("head")).expect("later fence"),
+        &c.peer.signer_r,
+    )
+    .expect("signed");
+    assert!(matches!(
+        c.store.handle(later.as_bytes(), 190),
+        Err(AnchorError::Rejected(Error::Validity))
+    ));
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            190
+        ),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+}
+
+#[test]
+fn roster_authority_refresh_refuses_stale_forked_or_different_lineage_inputs() {
+    let mut c = renewal_case();
+    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let next = renewed_device(previous, 2, Validity::new(100, 190).expect("interval"));
+    let fork = renewed_device(
+        previous,
+        2,
+        Validity::new(100, 180).expect("different same-version roster"),
+    );
+    let later = renewed_device(
+        previous,
+        3,
+        Validity::new(100, 195).expect("later interval"),
+    );
+    let image = c.store.image().expect("original").digest;
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            previous,
+            policy,
+            150
+        ),
+        Err(DurableError::Protocol(Error::Checkpoint))
+    ));
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            190
+        ),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    let wrong = c.peer.initiator_device();
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            wrong.roster().checkpoint(),
+            &next,
+            policy,
+            150
+        ),
+        Err(DurableError::Conflict)
+    ));
+    let mut unknown = c.genesis.subject;
+    unknown.journal = [144; 32];
+    assert!(matches!(
+        c.store.update_roster_authority(
+            unknown,
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            150
+        ),
+        Err(DurableError::Absent)
+    ));
+    assert_eq!(
+        c.store.image().expect("all refusals preserve image").digest,
+        image
+    );
+    c.store
+        .update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            160,
+        )
+        .expect("first winner");
+    let updated = c.store.image().expect("winner").digest;
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &fork,
+            policy,
+            160
+        ),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &later,
+            policy,
+            160
+        ),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            next.roster().checkpoint(),
+            &fork,
+            policy,
+            160
+        ),
+        Err(DurableError::Protocol(Error::Checkpoint))
+    ));
+    assert_eq!(c.store.image().expect("losers unchanged").digest, updated);
+    c.store
+        .update_roster_authority(
+            c.genesis.subject(),
+            next.roster().checkpoint(),
+            &later,
+            policy,
+            160,
+        )
+        .expect("next exact predecessor");
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            160
+        ),
+        Err(DurableError::Conflict)
+    ));
+    policy.close();
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            next.roster().checkpoint(),
+            &later,
+            policy,
+            160
+        ),
+        Err(DurableError::Protocol(Error::Closed))
+    ));
+}
+
+fn with_fault_database(
+    c: &mut Case,
+    after: bool,
+) -> (
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+) {
+    c.store.close();
+    let (db, remaining, count, _) = fault_database_path(&c.server.join("anchor.redb"), after);
+    let (wrapping, signer, id) = owners(&c.server);
+    let pin = AnchorPin::new(id, signer.public_key().expect("public"));
+    c.store = AnchorStore {
+        active: Some(Active {
+            db,
+            wrapping,
+            signer,
+            pin,
+        }),
+    };
+    (remaining, count)
+}
+
+#[test]
+fn roster_authority_refresh_each_sync_fault_reconciles_current_target_without_reset() {
+    let mut calibration = renewal_case();
+    let (_, count) = with_fault_database(&mut calibration, false);
+    let (policy, previous, _) = calibration.peer.responder.inventory_inputs();
+    let next = renewed_device(previous, 2, Validity::new(100, 190).expect("interval"));
+    count.store(0, Ordering::SeqCst);
+    calibration
+        .store
+        .update_roster_authority(
+            calibration.genesis.subject(),
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            160,
+        )
+        .expect("calibrate");
+    let barriers = count.load(Ordering::SeqCst);
+    assert!((2..=8).contains(&barriers));
+    for after in [false, true] {
+        for cut in 1..=barriers {
+            let mut c = renewal_case();
+            let first = request(
+                &c,
+                AnchorOperation::advance(initial(&c), [145; 32]).expect("advance"),
+            );
+            let head = apply_request(&mut c, &first).applied_head().expect("head");
+            let (remaining, _) = with_fault_database(&mut c, after);
+            let (policy, previous, _) = c.peer.responder.inventory_inputs();
+            let next = renewed_device(previous, 2, Validity::new(100, 190).expect("interval"));
+            let before = c.store.image().expect("before").revision;
+            remaining.store(cut, Ordering::SeqCst);
+            let result = c.store.update_roster_authority(
+                c.genesis.subject(),
+                previous.roster().checkpoint(),
+                &next,
+                policy,
+                160,
+            );
+            crate::durable::tests::assert_sync_failure(result, after);
+            assert!(c.store.active.is_none());
+            c.store = reopen(&c.server);
+            c.store
+                .update_roster_authority(
+                    c.genesis.subject(),
+                    previous.roster().checkpoint(),
+                    &next,
+                    policy,
+                    160,
+                )
+                .expect("original target reconciliation");
+            let image = c.store.image().expect("one update");
+            assert_eq!(image.revision, before + 1);
+            let entry = image
+                .entries
+                .get(&c.genesis.subject.id(&c.pin.binding))
+                .expect("entry");
+            assert_eq!(entry.head, head);
+            assert_eq!(entry.last, Some(first.command_id()));
+            assert_eq!(entry.genesis, c.genesis.digest);
+            assert_eq!(entry.authority, next.authority_binding());
+        }
+    }
+    eprintln!(
+        "ANCHOR_ROSTER_REFRESH_SYNC barriers={barriers} before_after_faults={}",
+        barriers * 2
+    );
+}
+
+#[test]
+fn roster_authority_refresh_process_child() {
+    let Some(path) = std::env::var_os("QPERIAPT_ANCHOR_RENEWAL_DIR") else {
+        return;
+    };
+    let path = Path::new(&path);
+    let bytes = fs::read(path.join("renewal-subject")).expect("retained public metadata");
+    let subject = AnchorSubject::from_trusted_state(&bytes).expect("original trusted subject");
+    let bytes = fs::read(path.join("renewal-predecessor")).expect("retained checkpoint");
+    let mut d = Decoder::new(&bytes);
+    let predecessor = crate::RosterCheckpoint::from_trusted_state(
+        d.u64().expect("version"),
+        d.array().expect("digest"),
+    )
+    .expect("original expected checkpoint");
+    d.finish().expect("exact checkpoint bytes");
+    let peer = crate::bootstrap::tests::fixture_with_public_validity(
+        PrekeyQuality::OneTimeBoth,
+        Validity::new(100, 160).expect("roster"),
+        Validity::new(100, 160).expect("advertisement"),
+    );
+    let (policy, previous, _) = peer.responder.inventory_inputs();
+    let next = renewed_device(previous, 2, Validity::new(100, 190).expect("renewal"));
+    let mut store = reopen(path);
+    store
+        .update_roster_authority(subject, predecessor, &next, policy, 160)
+        .expect("renewal");
+    fs::write(path.join("returned-renewal"), b"current target").expect("public result");
+}
+
+#[test]
+fn roster_authority_refresh_process_loss_recovers_without_resetting_last_data_command() {
+    let mut c = renewal_case();
+    let first = request(
+        &c,
+        AnchorOperation::advance(initial(&c), [146; 32]).expect("advance"),
+    );
+    let head = apply_request(&mut c, &first).applied_head().expect("head");
+    fs::write(
+        c.server.join("renewal-subject"),
+        c.genesis.subject().to_bytes(),
+    )
+    .expect("original public subject");
+    let checkpoint = c.peer.responder.inventory_inputs().1.roster().checkpoint();
+    let mut expected = checkpoint.version().to_be_bytes().to_vec();
+    expected.extend_from_slice(&checkpoint.digest());
+    fs::write(c.server.join("renewal-predecessor"), expected)
+        .expect("original independent predecessor");
+    let revision = c.store.image().expect("before").revision;
+    c.store.close();
+    let log = fs::File::create_new(c.server.join("renewal-child.log")).expect("log");
+    let mut child = ChildGuard(
+        Process::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "anchor::store::tests::roster_authority_refresh_process_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_ANCHOR_RENEWAL_DIR", &c.server)
+            .env("QPERIAPT_ANCHOR_SERVER_DIR", &c.server)
+            .env("QPERIAPT_ANCHOR_CRASH_REVISION", (revision + 1).to_string())
+            .stdout(Stdio::from(log.try_clone().expect("log clone")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned process"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !c.server.join("ready").exists() {
+        assert!(
+            child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+            "renewal child deadline"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!c.server.join("returned-renewal").exists());
+    child.0.kill().expect("kill owned process");
+    assert!(!child.0.wait().expect("reap").success());
+    c.store = reopen(&c.server);
+    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let next = renewed_device(previous, 2, Validity::new(100, 190).expect("renewal"));
+    c.store
+        .update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            160,
+        )
+        .expect("reconcile original target");
+    assert_eq!(
+        c.store.image().expect("no second mutation").revision,
+        revision + 1
+    );
+    let retry = request(&c, first.operation);
+    assert_eq!(retry.command_id(), first.command_id());
+    let reply = c
+        .store
+        .handle(retry.as_bytes(), 160)
+        .expect("original command is still exact last");
+    let reply = c
+        .pin
+        .verify_reply(&retry, &reply)
+        .expect("authenticated reply");
+    assert_eq!(reply.outcome(), AnchorOutcome::AlreadyAppliedExact);
+    assert_eq!(reply.applied_head().expect("original head"), head);
+    eprintln!("ANCHOR_ROSTER_REFRESH_PROCESS retained_public_checkpoint=true original_head=true original_last_command=true result_not_returned=true");
+}
+
+#[test]
+fn roster_authority_refresh_never_becomes_credential_key_or_policy_replacement() {
+    let mut c = renewal_case();
+    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let root = crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("original root");
+    let replacement_key =
+        DeviceSigningKey::deterministic([148; 32], [149; 32]).expect("different identity key");
+    let before = c.store.image().expect("before").digest;
+    #[derive(Debug)]
+    enum Change {
+        Credential,
+        Key,
+        Generation,
+        Family,
+    }
+    for change in [
+        Change::Credential,
+        Change::Key,
+        Change::Generation,
+        Change::Family,
+    ] {
+        let mut description = previous.description.clone();
+        let mut public = previous.key.clone();
+        match change {
+            Change::Credential => {
+                description.validity = Validity::new(100, 195).expect("different credential body")
+            }
+            Change::Key => public = replacement_key.public_key().expect("different public key"),
+            Change::Generation => description.generation += 1,
+            Change::Family => description.family = [150; 32],
+        }
+        let certificate = root
+            .issue_device(description.clone(), public)
+            .expect("authentic replacement credential");
+        let roster = root
+            .issue_roster(
+                2,
+                Validity::new(100, 190).expect("roster"),
+                &[root.roster_entry(&certificate).expect("entry")],
+            )
+            .expect("signed roster");
+        let pin = crate::AccountPin::new(
+            previous.account_id(),
+            root.public_key().expect("root"),
+            roster.checkpoint(),
+            description.family,
+        )
+        .expect("independent pin");
+        let next = pin
+            .verify_device(&certificate, roster.as_bytes(), 150)
+            .expect("valid identity in its own scope");
+        assert!(
+            matches!(
+                c.store.update_roster_authority(
+                    c.genesis.subject(),
+                    previous.roster().checkpoint(),
+                    &next,
+                    policy,
+                    150
+                ),
+                Err(DurableError::Protocol(Error::Scope))
+            ),
+            "{change:?}"
+        );
+    }
+    let next = renewed_device(previous, 2, Validity::new(100, 190).expect("renewal"));
+    let mut subject = c.genesis.subject;
+    subject.policy = [151; 32];
+    assert!(matches!(
+        c.store.update_roster_authority(
+            subject,
+            previous.roster().checkpoint(),
+            &next,
+            policy,
+            150
+        ),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    let future = renewed_device(previous, 2, Validity::new(160, 190).expect("future roster"));
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            previous.roster().checkpoint(),
+            &future,
+            policy,
+            150
+        ),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    let certificate = root
+        .issue_device(previous.description.clone(), previous.key.clone())
+        .expect("original credential");
+    let revoked = root
+        .issue_roster(2, Validity::new(100, 190).expect("validity"), &[])
+        .expect("explicit revocation");
+    let pin = crate::AccountPin::new(
+        previous.account_id(),
+        root.public_key().expect("root"),
+        revoked.checkpoint(),
+        previous.description.family,
+    )
+    .expect("current revoked pin");
+    assert!(matches!(
+        pin.verify_device(&certificate, revoked.as_bytes(), 150),
+        Err(Error::Scope)
+    ));
+    assert_eq!(
+        c.store
+            .image()
+            .expect("all authentic invalid-scope requests are read-only")
+            .digest,
+        before
     );
 }

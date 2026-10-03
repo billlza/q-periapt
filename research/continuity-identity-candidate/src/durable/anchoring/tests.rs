@@ -1426,3 +1426,168 @@ fn actual_tcp_carrier_verifies_real_witness_and_bounds_frames_and_total_deadline
             .expect("server exchange");
     }
 }
+
+fn retained_device_with_roster(
+    device: &VerifiedDevice,
+    version: u64,
+    until: u64,
+) -> VerifiedDevice {
+    let root =
+        crate::RootSigningKey::deterministic([90; 32], [91; 32]).expect("original account root");
+    let certificate = root
+        .issue_device(device.description.clone(), device.key.clone())
+        .expect("unchanged credential");
+    let roster = root
+        .issue_roster(
+            version,
+            crate::Validity::new(100, until).expect("roster validity"),
+            &[root.roster_entry(&certificate).expect("entry")],
+        )
+        .expect("signed roster");
+    let pin = crate::AccountPin::new(
+        device.account_id(),
+        root.public_key().expect("public root"),
+        roster.checkpoint(),
+        device.description.family,
+    )
+    .expect("independent roster expectation");
+    pin.verify_device(&certificate, roster.as_bytes(), 150)
+        .expect("retained credential in current roster")
+}
+
+fn assert_expired_witness<T>(result: Result<T, DurableError>) {
+    assert!(
+        matches!(result, Err(DurableError::Anchor(error))
+        if matches!(*error, AnchorClientError::Transport(ref error)
+            if matches!(error.get_ref().and_then(|source| source.downcast_ref::<crate::AnchorError>()),
+                Some(crate::AnchorError::Rejected(Error::Validity))))),
+        "the actual native witness must reject expired write authority"
+    );
+}
+
+#[test]
+fn roster_authority_refresh_recovers_the_original_anchored_roster_write_and_outbox() {
+    let mut c = case();
+    let previous = retained_device_with_roster(c.peer.initiator_device(), 2, 160);
+    let next = retained_device_with_roster(c.peer.initiator_device(), 3, 190);
+    c.server
+        .lock()
+        .expect("server")
+        .store
+        .update_roster_authority(
+            c.subject,
+            c.peer.initiator_device().roster().checkpoint(),
+            &previous,
+            c.peer.initiator.policy(),
+            150,
+        )
+        .expect("explicit shorter admission");
+    c.journal
+        .install_roster(previous.roster(), 150)
+        .expect("same short client authority");
+    let initial = initiate(&mut c).expect("actual committed initial outbox");
+    let identity = c.journal.identity().expect("original journal");
+    let head = client(&c.pin, &c.server, true)
+        .exchange(c.subject, AnchorOperation::query())
+        .expect("fresh original head")
+        .observed_head();
+    c.server.lock().expect("server").now = 160;
+    assert!(matches!(
+        c.journal
+            .resume_initial(Arc::clone(&c.peer.initiator), request_id(), 160),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    assert_expired_witness(c.journal.install_roster(next.roster(), 160));
+    assert!(
+        c.journal.active.is_none(),
+        "failed witness advance closes the original owner"
+    );
+    assert_expired_witness(reopen(&c));
+    assert_eq!(
+        client(&c.pin, &c.server, true)
+            .exchange(c.subject, AnchorOperation::query())
+            .expect("read-only after expiry")
+            .observed_head(),
+        head
+    );
+    c.server
+        .lock()
+        .expect("server")
+        .store
+        .update_roster_authority(
+            c.subject,
+            previous.roster().checkpoint(),
+            &next,
+            c.peer.initiator.policy(),
+            160,
+        )
+        .expect("explicit original-subject renewal");
+    assert_eq!(
+        client(&c.pin, &c.server, true)
+            .exchange(c.subject, AnchorOperation::query())
+            .expect("renewal preserves the actual head")
+            .observed_head(),
+        head
+    );
+    c.journal = reopen(&c).expect("reconcile the original retained write intent");
+    assert_eq!(c.journal.identity().expect("same journal"), identity);
+    assert_eq!(
+        c.journal
+            .roster_checkpoint(next.account_id())
+            .expect("original intended roster"),
+        next.roster().checkpoint()
+    );
+    assert_eq!(
+        c.journal
+            .resume_initial(Arc::clone(&c.peer.initiator), request_id(), 160)
+            .expect("same original outbox"),
+        initial
+    );
+    let after = client(&c.pin, &c.server, true)
+        .exchange(c.subject, AnchorOperation::query())
+        .expect("fresh reconciled head")
+        .observed_head();
+    assert_eq!(after.revision(), head.revision() + 1);
+    assert_eq!(after.fence(), head.fence());
+    c.journal
+        .install_roster(next.roster(), 160)
+        .expect("same roster retry");
+    assert_eq!(
+        client(&c.pin, &c.server, true)
+            .exchange(c.subject, AnchorOperation::query())
+            .expect("no second commit")
+            .observed_head(),
+        after
+    );
+    let revoked = rosters::tests::update_with_validity(
+        c.peer.initiator_device(),
+        90,
+        4,
+        false,
+        crate::Validity::new(100, 190).expect("revocation validity"),
+    );
+    c.server.lock().expect("server").now = 170;
+    c.journal
+        .install_roster(&revoked, 170)
+        .expect("durable local revocation");
+    c.server
+        .lock()
+        .expect("server")
+        .store
+        .update_roster_authority(
+            c.subject,
+            previous.roster().checkpoint(),
+            &next,
+            c.peer.initiator.policy(),
+            170,
+        )
+        .expect("witness metadata readback is not current client authority");
+    c.journal.close();
+    c.journal = reopen(&c).expect("original journal can be inspected after revocation");
+    assert!(matches!(
+        c.journal
+            .resume_initial(Arc::clone(&c.peer.initiator), request_id(), 170),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    eprintln!("ANCHOR_ROSTER_REFRESH_JOURNAL original_journal=true retained_intent=true original_outbox=true exactly_one_roster_commit=true revoked_replay_refused=true");
+}

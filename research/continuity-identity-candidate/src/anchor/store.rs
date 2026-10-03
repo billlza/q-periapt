@@ -124,49 +124,8 @@ impl AnchorStore {
     ) -> Result<(), DurableError> {
         let subject = genesis.subject;
         let genesis = genesis.digest;
-        let quality = [
-            PrekeyQuality::OneTimeBoth,
-            PrekeyQuality::ReusableBoth,
-            PrekeyQuality::SignedClassicalOneTimePq,
-            PrekeyQuality::OneTimeClassicalLastResortPq,
-        ]
-        .into_iter()
-        .find(|quality| policy.allowed_modes().permits(*quality))
-        .ok_or(Error::PolicyDenied)?;
-        policy.check_mode(quality, now)?;
-        policy.check_device(device, now)?;
-        if subject.owner != storage_owner(device) || subject.policy != policy.checkpoint().digest()
-        {
-            return Err(Error::Scope.into());
-        }
+        let validity = self.admit_enrollment(subject, device, policy, now)?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        if policy
-            .anchor_requirement()
-            .binding()
-            .is_some_and(|binding| binding != active.pin.binding())
-        {
-            return Err(Error::Scope.into());
-        }
-        if active.pin.key.shares_component(&device.key)
-            || active.pin.key.shares_component(&device.authority_key)
-        {
-            return Err(Error::Scope.into());
-        }
-        policy.check_external_signer(&active.pin.key)?;
-        let validity = Validity::new(
-            device
-                .description
-                .validity
-                .from()
-                .max(device.roster_validity.from())
-                .max(policy.validity().from()),
-            device
-                .description
-                .validity
-                .until()
-                .min(device.roster_validity.until())
-                .min(policy.validity().until()),
-        )?;
         let head = AnchorHead::from_trusted_state(1, 1, genesis)?;
         let id = subject.id(&active.pin.binding);
         let mut image = self.image()?;
@@ -205,6 +164,89 @@ impl AnchorStore {
             },
         );
         self.persist(&mut image)
+    }
+    fn admit_enrollment(
+        &self,
+        subject: AnchorSubject,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<Validity, DurableError> {
+        let quality = [
+            PrekeyQuality::OneTimeBoth,
+            PrekeyQuality::ReusableBoth,
+            PrekeyQuality::SignedClassicalOneTimePq,
+            PrekeyQuality::OneTimeClassicalLastResortPq,
+        ]
+        .into_iter()
+        .find(|quality| policy.allowed_modes().permits(*quality))
+        .ok_or(Error::PolicyDenied)?;
+        policy.check_mode(quality, now)?;
+        policy.check_device(device, now)?;
+        if subject.owner != storage_owner(device) || subject.policy != policy.checkpoint().digest()
+        {
+            return Err(Error::Scope.into());
+        }
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        if policy
+            .anchor_requirement()
+            .binding()
+            .is_some_and(|binding| binding != active.pin.binding())
+        {
+            return Err(Error::Scope.into());
+        }
+        if active.pin.key.shares_component(&device.key)
+            || active.pin.key.shares_component(&device.authority_key)
+        {
+            return Err(Error::Scope.into());
+        }
+        policy.check_external_signer(&active.pin.key)?;
+        enrollment_validity(device, policy)
+    }
+    /// Explicit trusted control-plane refresh for the SAME credential and policy.
+    /// Restore `subject` from the original trusted configuration; it must already
+    /// exist in this witness. `previous` is an independently retained expectation,
+    /// not historical authority. The operator independently admits the current
+    /// next roster; ordinary signed requests cannot invoke this method. It must be
+    /// newer than the expected predecessor and still contain the exact device
+    /// credential. Credential/key/policy replacement
+    /// requires a different lifecycle transaction.
+    ///
+    /// Compare the retained enrollment authority with `previous`, or reconcile an
+    /// already-current exact `next` target. Preserve subject, genesis, head, fence
+    /// and the last data-plane command. A storage error closes the owner; reopen
+    /// and retry the same inputs. The returned checkpoint confirms current state,
+    /// not which invocation committed it. Expired targets grant no renewed authority.
+    pub fn update_roster_authority(
+        &mut self,
+        subject: AnchorSubject,
+        previous: crate::RosterCheckpoint,
+        next: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::RosterCheckpoint, DurableError> {
+        let validity = self.admit_enrollment(subject, next, policy, now)?;
+        if next.checkpoint.version() <= previous.version() {
+            return Err(Error::Checkpoint.into());
+        }
+        let expected =
+            crate::identity::authority_binding(next.account, previous, next.description.family);
+        let id = subject.id(&self.pin()?.binding);
+        let mut image = self.image()?;
+        let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
+        if entry.subject != subject || entry.device != next.key {
+            return Err(DurableError::Conflict);
+        }
+        if entry.authority == next.authority_binding() && entry.validity == validity {
+            return Ok(next.checkpoint);
+        }
+        if entry.authority != expected {
+            return Err(DurableError::Conflict);
+        }
+        entry.authority = next.authority_binding();
+        entry.validity = validity;
+        self.persist(&mut image)?;
+        Ok(next.checkpoint)
     }
     /// Handle one bounded dual-signed request. Sign a reply only after any exact
     /// state/fence mutation commits. Fresh query challenges prevent receipt replay;
@@ -294,6 +336,26 @@ impl AnchorStore {
         }
         result
     }
+}
+
+fn enrollment_validity(
+    device: &VerifiedDevice,
+    policy: &VerifiedSessionPolicy,
+) -> Result<Validity, DurableError> {
+    Ok(Validity::new(
+        device
+            .description
+            .validity
+            .from()
+            .max(device.roster_validity.from())
+            .max(policy.validity().from()),
+        device
+            .description
+            .validity
+            .until()
+            .min(device.roster_validity.until())
+            .min(policy.validity().until()),
+    )?)
 }
 
 fn authenticator(key: &JournalKey) -> Result<Hmac<Sha256>, DurableError> {

@@ -1264,3 +1264,17 @@ fn complete_roster_rejects_forks_replacements_and_each_forged_signature() {
         Error::Authentication,
     );
 }
+
+#[test]
+fn authority_checkpoint_projection_preserves_v1_binding_bytes() {
+    // Independent Python hashlib SHA3-256 over LP8(domain) || LP8(body), where
+    // body is account[1;32] || version 3 (u64 BE) || digest[4;32] || family[2;32].
+    let checkpoint = RosterCheckpoint::from_trusted_state(3, [4; 32]).expect("expected checkpoint");
+    assert_eq!(
+        crate::identity::authority_binding([1; 32], checkpoint, [2; 32]),
+        [
+            227, 10, 183, 174, 89, 181, 200, 209, 243, 186, 50, 95, 160, 52, 102, 189, 29, 193,
+            108, 33, 240, 36, 127, 130, 100, 14, 182, 39, 39, 153, 20, 250
+        ]
+    );
+}

@@ -39,9 +39,67 @@ length-prefixed digest under `Q-PERIAPT-CONTINUITY-ANCHOR-SUBJECT/v1` over
 `authority_binding || subject`. Only one subject may be registered per credential
 owner. Exact enrollment retries retain an advanced head; a changed genesis,
 journal, policy or enrollment checkpoint cannot reset it. Ordinary request bytes
-cannot create registrations. Authorization refresh, revocation and migration need
-separate authenticated control-plane transitions; enrollment does not track later
-roster changes automatically.
+cannot create registrations. Enrollment does not track later roster changes
+automatically. Revocation, credential/policy replacement and migration need their
+own authenticated control-plane transitions.
+
+### Explicit refresh under a newer roster
+
+The native trusted operator uses
+`AnchorStore::update_roster_authority(subject, previous, next, policy, now)` for an
+existing subject whose **credential, device key, account root and policy remain
+unchanged**. Restore `subject` with `AnchorSubject::from_trusted_state` from the
+original protected configuration. Retain the original `RosterCheckpoint` before
+the call; it is a compare-and-set expectation, not historical authorization. The
+host does not need to revive an expired `VerifiedDevice` using an old clock.
+Only `next`, verified against independently admitted current account/roster pins,
+supplies current membership and time authority. An incoming roster cannot select
+its own trusted checkpoint. This method is not a data-plane network command.
+
+The next version must exceed the expected predecessor. Its exact credential owner,
+public key, policy digest, witness binding and current SDK policy/runtime must pass
+the existing enrollment checks. The stored authority must equal the canonical
+account/checkpoint/family binding of the expected predecessor. A different current
+head or a same-version fork is refused. Current verification always precedes any
+idempotent readback, so an expired/future target or closed policy is not a success.
+
+The transaction changes only the enrollment-authority digest and the intersection
+of credential, next-roster and policy validity. A newer authorized roster can
+shorten or extend that interval within those limits. Subject, original genesis,
+journal head, writer fence, last data-plane command, witness key and `QPANC001`
+encoding remain unchanged. No entry is created by this method. A storage error
+closes the witness owner; reopen its original database/key and retry the original
+subject, predecessor and target. If the exact target is already current, the
+returned checkpoint confirms that state without another write. It does not prove
+which invocation committed it and is not `AlreadyAppliedExact` for an administrative
+command. A newer, different target cannot be overwritten by this retry.
+
+After a witness admission expires, a client roster write may already have a durable
+local intent but lack its witness advance. Explicit witness refresh preserves the
+old head, allowing `DeviceJournal::open_anchored` to reconcile that same intent.
+The client still has to install the current roster; witness refresh alone grants
+no application-send permission and cannot undo an observed client revocation.
+The native regression exercises this path with a retained encrypted bootstrap
+outbox, original journal identity, one roster commit and refused revoked replay.
+Separate tests retain exact data-command confirmation across a witness process
+kill after refresh commit and returned errors before/after each measured sync.
+
+The archive-shipped `owned_connection` consumer now requires the same recovery
+through public APIs and signed TCP. Three separate device processes reopen the
+original installation for expiry refusal, exact recovery, and durable revocation;
+the witness runs in the parent process. The package collector checks the public
+request/response commitments, two refused attempts of one immutable command, one
+subsequent advance, unchanged journal identity/fence/bootstrap outbox, signed
+roster checkpoints, and child completion. Only that checked public closure is
+exported and re-read; private keys and databases are excluded. Protocol time is
+injected. This path does not establish application-message restoration after
+credential replacement or an independent witness implementation.
+
+This is a native control-plane operation, not a deployed administrative service or
+complete credential-renewal protocol. Independent current-roster admission,
+authenticated operator transport, deployment/device qualification and credential,
+policy or witness-key replacement remain separate product work. No global discovery
+of unseen revocations or physical power-loss guarantee is claimed.
 
 ## Heads, commands and attempts
 

@@ -488,6 +488,92 @@ fn device_service_restores_multiple_peers_for_one_complete_account_transaction()
 }
 
 #[test]
+fn account_fanout_payload_boundaries_match_individual_traffic_and_restart() {
+    for same_account in [false, true] {
+        let mut n = Network::new(8, same_account);
+        for (sample, (length, ad_length)) in [(0, 0), (1024, 32), (MAX_PLAINTEXT, MAX_AD)]
+            .into_iter()
+            .cycle()
+            .take(6)
+            .enumerate()
+        {
+            let plaintext = Zeroizing::new(vec![0x5a; length]);
+            let ad = vec![0xa5; ad_length];
+            let id = n.sender.next_fanout_id().expect("original batch ID");
+            let selected = targets(&n.f, &n.sessions);
+            let mut expected = Vec::new();
+            for session in &n.sessions {
+                let mut saved = state(&mut n.sender, session);
+                let traffic = saved.traffic_mut(0).expect("original epoch");
+                let message =
+                    MessageId::for_epoch(session, 1, 0, traffic.sent).expect("original message ID");
+                traffic.pending = Some(SendPlan {
+                    id: message,
+                    fanout: Some(id),
+                    plaintext: Zeroizing::new(plaintext.to_vec()),
+                    ad: ad.clone(),
+                });
+                expected.push(
+                    traffic
+                        .send(message, &plaintext, &ad)
+                        .expect("same traffic input"),
+                );
+            }
+            let start = std::time::Instant::now();
+            let result = n
+                .sender
+                .send_account_message(
+                    FanoutInput {
+                        id,
+                        account: n.f.peers.first().expect("account").account_id(),
+                        targets: &selected,
+                        plaintext: &plaintext,
+                        associated_data: &ad,
+                    },
+                    150,
+                )
+                .expect("complete durable transaction");
+            let elapsed = start.elapsed().as_nanos();
+            assert_eq!(wires(&result), expected);
+            n.reopen();
+            let selected = targets(&n.f, &n.sessions);
+            assert_eq!(
+                wires(
+                    &n.sender
+                        .resume_account_message(id, &selected, 150)
+                        .expect("exact restart")
+                ),
+                expected
+            );
+            for ((receiver, context), member) in
+                n.receivers.iter_mut().zip(&n.f.contexts).zip(&result)
+            {
+                let wrong_ad = if ad.is_empty() {
+                    vec![1]
+                } else {
+                    vec![0; ad.len()]
+                };
+                assert!(receiver
+                    .receive_message(
+                        context,
+                        member.session,
+                        committed_wire(member),
+                        &wrong_ad,
+                        150
+                    )
+                    .is_err());
+                let delivered = receiver
+                    .receive_message(context, member.session, committed_wire(member), &ad, 150)
+                    .expect("original authenticated data after refused substitution");
+                assert_eq!(delivered.as_bytes(), plaintext.as_slice());
+                assert_eq!(delivered.message_id(), member.message);
+            }
+            eprintln!("fanout_path_sample same_account={same_account} sample={sample} plaintext={length} ad={ad_length} recipients={} elapsed_ns={elapsed}", result.len());
+        }
+    }
+}
+
+#[test]
 fn account_fanout_is_complete_exact_and_durable_for_peer_and_own_accounts() {
     for same_account in [false, true] {
         let mut n = Network::new(4, same_account);

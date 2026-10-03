@@ -64,7 +64,7 @@ own-account traces do not qualify the complete multi-device lifecycle.
 | Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate`; C setup owner and Swift/Kotlin reference transfer delegate Creating/Active transitions with original configured inputs | Public key enrollment and independent trust-input contract, initial-intent/child creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
-| Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
+| Authority lifecycle | Signed roster checks, original installation/policy/witness bindings and native same-credential witness roster-authority refresh | Product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
 The native fanout methods are in
@@ -267,6 +267,39 @@ are not by themselves a complete public enrollment contract. Account-root issuan
 device credential issuance and local device operation remain different authorities.
 The product must define renewal/replacement, including retained sessions and loss
 accounting, before accepting a new credential or policy into an Active lineage.
+
+In particular, extending a device credential's validity changes its signed body
+and credential digest even when its account, device ID, generation and public
+keys are unchanged. `bootstrap::storage_owner` includes that digest. Both
+`DeviceInstallation::open_bound` and the sealed journal header require the
+original owner, so accepting the new credential at the installation layer alone
+cannot implement renewal. Restricted installation recovery only permits accounting
+and closure; successful cleanup is not renewed operational authority. These are
+source-derived constraints, not an executed credential-renewal qualification.
+Installing a newer roster for unchanged credentials is a separate operation;
+existing roster-renewal tests do not qualify replacement credentials.
+The native witness now has an explicit
+[`update_roster_authority`](../../research/continuity-identity-candidate/ANCHOR_WITNESS.md#explicit-refresh-under-a-newer-roster)
+for that unchanged-credential case. It takes the retained subject and predecessor
+checkpoint, validates the current successor and preserves all journal-head and
+last-command state. It enables reconciliation of an original client roster write
+after witness admission expiry; it neither changes an installation's credential
+binding nor supplies the complete operator enrollment/renewal service.
+The archive-shipped Rust consumer makes same-credential refresh and original
+installation recovery a mandatory stage. Its public evidence reader checks exact
+request/commit identities and original bootstrap outbox readback across separate
+device processes. Signed TCP, injected protocol time and a parent-process witness
+are explicit limits; these checks do not qualify the foreign adapters or
+credential replacement.
+
+A renewal transaction therefore needs independently authorized old/new bindings,
+the original journal/session/message identities and explicit treatment of retained
+operations, archive ownership and required witnesses. Configuration and journal
+updates must reconcile the same renewal after every interrupted or unknown commit;
+stale or conflicting credentials must not regain send authority. Removing the
+credential digest from the owner or accepting a mismatched header would change the
+existing security contract. Public enrollment, this transaction and its failure
+matrix remain release requirements.
 
 ## Platform and release admission
 

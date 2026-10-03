@@ -1934,6 +1934,8 @@ jobs:
             target/continuity-installed-rust/*.stdout
             target/continuity-installed-rust/*.stderr
             target/continuity-installed-rust/*.events
+            target/continuity-installed-rust/debug-roster-renewal-public/**
+            target/continuity-installed-rust/release-roster-renewal-public/**
             target/continuity-installed-rust/c-opening-public/**
             target/continuity-installed-rust/c-witness-public/**
             target/continuity-installed-rust/c-witness-tls-public/**
@@ -2033,6 +2035,8 @@ jobs:
             target/continuity-installed-swift/*.stdout
             target/continuity-installed-swift/*.stderr
             target/continuity-installed-swift/*.events
+            target/continuity-installed-swift/debug-roster-renewal-public/**
+            target/continuity-installed-swift/release-roster-renewal-public/**
             target/continuity-installed-swift/kotlin-owner-tests*.xml
             target/continuity-installed-swift/c-opening-public/**
             target/continuity-installed-swift/c-witness-public/**

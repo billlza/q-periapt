@@ -140,8 +140,14 @@ expiry, while an unperformed mutation still requires current authority.
 The witness independently persists its head before reply signing. A signing failure
 after that commit is `ReplyUnavailable`, not rejection. A query is a fresh observation,
 not a lease preventing later writers. The client does not automatically adopt a
-higher fence. Witness renewal, replacement, independent deployment and authenticated
-lineage migration remain explicit product lifecycle work.
+higher fence. The native trusted control-plane
+[`update_roster_authority`](../../research/continuity-identity-candidate/ANCHOR_WITNESS.md#explicit-refresh-under-a-newer-roster)
+can refresh the same credential/policy subject against an independently admitted
+newer roster, preserving its genesis/head/fence/last command. The saved predecessor
+checkpoint is only a compare-and-set expectation; current authorization comes from
+the verified target. Its result confirms current enrollment metadata, not an exact
+administrative-command receipt. Credential/policy or witness-key replacement,
+independent deployment and authenticated lineage migration remain lifecycle work.
 
 ## Installation, archives and application transactions
 

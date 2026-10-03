@@ -322,11 +322,6 @@ impl AccountPin {
         credential.description.validity.check(trusted_time)?;
         let certificate = certificate_digest(body);
         let verified_roster = self.verify_roster(roster, trusted_time)?;
-        let mut authority = Vec::with_capacity(104);
-        authority.extend_from_slice(&self.account);
-        authority.extend_from_slice(&self.checkpoint.version.to_be_bytes());
-        authority.extend_from_slice(&self.checkpoint.digest);
-        authority.extend_from_slice(&self.family);
         let device = VerifiedDevice {
             authority_key: self.root.clone(),
             account: self.account,
@@ -336,7 +331,7 @@ impl AccountPin {
             checkpoint: self.checkpoint,
             roster_validity: verified_roster.validity,
             roster: Arc::new(verified_roster),
-            authority: digest(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", &authority),
+            authority: authority_binding(self.account, self.checkpoint, self.family),
         };
         device.roster.authorize_device(&device, trusted_time)?;
         Ok(device)
@@ -504,6 +499,21 @@ impl VerifiedRoster {
         }
         Ok(())
     }
+}
+
+// One canonical projection for verified identity and witness compare-and-set.
+// A checkpoint supplied here is an expectation, never an authorization grant.
+pub(crate) fn authority_binding(
+    account: [u8; 32],
+    checkpoint: RosterCheckpoint,
+    family: [u8; 32],
+) -> [u8; 32] {
+    let mut authority = Vec::with_capacity(104);
+    authority.extend_from_slice(&account);
+    authority.extend_from_slice(&checkpoint.version.to_be_bytes());
+    authority.extend_from_slice(&checkpoint.digest);
+    authority.extend_from_slice(&family);
+    digest(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", &authority)
 }
 
 /// Actual verified account-to-device chain under one exact independently retained pin.

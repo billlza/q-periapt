@@ -77,6 +77,77 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The archive consumer now requires public-API witness roster refresh and original
+installation recovery before its existing connection workload can pass. Current
+Rust 1.98.1 and minimum Rust 1.90 execute all three public consumer tests, including
+three separate device processes for expiry refusal, recovery and revoked replay.
+The reader checks two native validity refusals of the same pending command, one
+subsequent advance, unchanged journal/fence and exact bootstrap outbox. It exports
+only the checked public closure and re-verifies it after copying; CI retains that
+closure. The source-level runs and package qualification have separate receipts in
+[the roster package record](../research/sdk-alpha1/evidence/20261003-roster-package-c28cc7d5/RESULTS.json).
+A development run exposed inherited nonblocking mode on an accepted test-server
+socket; the final fixture explicitly selects blocking I/O with three-second
+read/write timeouts. The original failed run is retained. These are same-host
+native Rust checks with injected protocol time, not credential replacement,
+foreign-package requalification, deployed operator transport or release readiness.
+
+The witness roster-authority increment based on `c28cc7d5` adds the explicit native
+`AnchorStore::update_roster_authority` control-plane operation. It accepts the
+original retained subject and predecessor checkpoint plus a currently verified
+successor with the same credential/key/policy. It preserves genesis, journal head,
+writer fence and last data-plane command. The predecessor is a compare-and-set
+expectation; it does not revive an expired identity object. Current target checks
+precede idempotent readback. The existing authority-binding encoding is shared with
+identity verification and checked against an independent fixed SHA3-256 vector.
+
+Current Rust 1.98.1 passes **38 witness/transport tests, 18 journal-witness tests
+and the authority-binding vector**, with no failures or ignored tests in those
+selections. Minimum Rust 1.90 passes all **seven refresh-path tests**. All-feature,
+all-target Clippy passes with warnings denied, as do formatting and diff checks.
+The new fault matrix measures two real commit syncs and returns the exact injected
+error before/after each. A separate process is killed after refresh commits but
+before its result returns, then resumes from its retained public subject/checkpoint.
+The original data command still reconciles with a fresh challenge and unchanged ID.
+
+The actual encrypted client journal trace first fails its roster write against an
+expired witness and preserves the original intent. Explicit witness refresh changes
+no journal head; original reopen applies that one intended roster commit and releases
+the same retained bootstrap outbox. A subsequently observed device revocation still
+refuses replay after restart. The [scoped local record](../research/sdk-alpha1/evidence/20261003-witness-roster-c28cc7d5/RESULTS.json)
+retains the source hashes, command outputs and earlier failed test-development runs.
+These are native source tests with real storage/signatures; the new renewal trace
+does not claim deployed administrative transport, fresh installed packages, full
+credential/policy/root replacement, physical power loss or release readiness.
+
+The preceding fanout-borrow snapshot based on `c28cc7d5` borrows each reserved fanout
+member's plaintext and associated data through the same traffic send engine.
+It removes two temporary nonempty vectors per recipient without changing journal
+encoding, original intent checks, whole-account commit or release checks. For two
+recipients at the 16 KiB plaintext/1 KiB AD limits, this removes 34,816 copied bytes
+per resume calculation; that is source accounting, not a measured peak-memory or
+allocator result. Per-recipient persisted reservations remain unchanged.
+
+Current Rust 1.98.1 passes **50 fanout tests and 91 other message tests**, with zero
+failures or ignored tests in those selections, plus all-feature/all-target Clippy
+with warnings denied. Rust 1.90 passes the added payload-boundary/restart test.
+The new regression compares exact ordinary/fanout ciphertexts for empty, ordinary
+and maximum inputs, rejects changed AD and restores exact output after restart.
+Existing real sync/process/witness faults, revocation and epoch isolation remain
+covered by the selected suites. The retained-reservation disclosure counterexamples
+still recover six messages after confirmed epoch one under their stated compromise
+cuts; passing those tests does not establish post-compromise recovery.
+
+Matching isolated source snapshots also build both Release test executables.
+Eight alternating-order runs retain **96 native journal send samples**, with eight
+samples per variant/account/input group. Candidate/baseline median ratios range
+from **0.987 to 1.025**, so no stable latency advantage is established. This local
+diagnostic includes the original durable journal path, but not an installed archive
+consumer, TLS/witness/FFI timing, controlled tails, allocator measurement or energy.
+The [local scoped record](../research/sdk-alpha1/evidence/20261003-fanout-borrow-c28cc7d5/RESULTS.json)
+retains commands, source/binary hashes and raw observations. Fresh package/CI
+qualification and the complete release requirements remain open.
+
 The shared host-store admission correction removes filename-based deletion after
 an initial file validation or sync error. A pinned parent directory does not pin
 the leaf's name: another writer can replace that name while the failing operation

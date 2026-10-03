@@ -2,6 +2,11 @@
 //! Traffic, receipt and ACK authority isolated to one authenticated key epoch.
 use super::*;
 
+enum SendInput<'a> {
+    Submitted(&'a [u8], &'a [u8]),
+    Reserved,
+}
+
 pub(super) struct Traffic {
     pub(super) session: [u8; 32],
     pub(super) role: u8,
@@ -361,7 +366,23 @@ impl Traffic {
         plaintext: &[u8],
         ad: &[u8],
     ) -> Result<Vec<u8>, Error> {
+        self.send_input(id, SendInput::Submitted(plaintext, ad))
+    }
+    // The aggregate caller has checked this reservation against its original
+    // member and intent. Borrow its retained bytes through the same send path;
+    // no temporary plaintext/AD copies or alternate encryption implementation.
+    pub(super) fn send_reserved(&mut self, id: MessageId) -> Result<Vec<u8>, Error> {
+        self.send_input(id, SendInput::Reserved)
+    }
+    fn send_input(&mut self, id: MessageId, input: SendInput<'_>) -> Result<Vec<u8>, Error> {
         self.require_unresolved()?;
+        let (plaintext, ad) = match input {
+            SendInput::Submitted(plaintext, ad) => (plaintext, ad),
+            SendInput::Reserved => {
+                let plan = self.pending.as_ref().ok_or(Error::State)?;
+                (plan.plaintext.as_slice(), plan.ad.as_slice())
+            }
+        };
         if plaintext.len() > MAX_PLAINTEXT || ad.len() > MAX_AD {
             return Err(Error::Capacity);
         }

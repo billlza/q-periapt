@@ -30,6 +30,8 @@ use zeroize::Zeroizing;
 
 #[path = "owned_connection/reopen.rs"]
 mod reopen;
+#[path = "owned_connection/roster_renewal.rs"]
+mod roster_renewal;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub(crate) fn now() -> io::Result<u64> {
@@ -300,6 +302,13 @@ impl Peer {
         witness: Option<&WitnessFixture>,
         at: u64,
     ) -> Result<Self> {
+        Self::open_with_anchor(
+            path,
+            witness.map(|value| value.client(path)).transpose()?,
+            at,
+        )
+    }
+    fn open_with_anchor(path: &Path, anchor: Option<p::AnchorClient>, at: u64) -> Result<Self> {
         let policy_store = sdk(path)?;
         let context = context(path, &policy_store, at)?;
         let role = role(path)?;
@@ -308,7 +317,6 @@ impl Peer {
         let id = p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?;
         let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
         let owner = p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), at)?;
-        let anchor = witness.map(|value| value.client(path)).transpose()?;
         let service = owner.activate(key, device, context.policy(), at, anchor)?;
         Ok(Self {
             service,
@@ -408,11 +416,36 @@ pub(crate) fn setup_devices(
     same_account: bool,
     operational: bool,
 ) -> Result<(Setup, Option<PathBuf>)> {
+    setup_devices_for(
+        witness,
+        advertisement_seconds,
+        at,
+        multi,
+        same_account,
+        operational,
+        false,
+    )
+}
+fn setup_devices_for(
+    witness: Option<&WitnessFixture>,
+    advertisement_seconds: Option<u64>,
+    at: Option<u64>,
+    multi: bool,
+    same_account: bool,
+    operational: bool,
+    roster_renewal: bool,
+) -> Result<(Setup, Option<PathBuf>)> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
-        if advertisement_seconds.is_some() || multi {
+        if advertisement_seconds.is_some() || multi || roster_renewal {
             let mut name = path.file_name().ok_or("evidence filename")?.to_os_string();
-            name.push(if multi { "-account" } else { "-session-reopen" });
+            name.push(if roster_renewal {
+                "-roster-renewal"
+            } else if multi {
+                "-account"
+            } else {
+                "-session-reopen"
+            });
             path.set_file_name(name);
         }
         if !path.is_absolute() {
@@ -539,6 +572,37 @@ pub(crate) fn setup_devices(
             .map(|certificate| root.roster_entry(certificate))
             .collect::<std::result::Result<Vec<_>, _>>()?;
         let roster = root.issue_roster(1, validity, &entries)?;
+        // Qualification inputs are signed while the original account owner is
+        // alive. The runtime never derives trust from a received witness reply.
+        if roster_renewal {
+            for (version, seconds, members) in [
+                (2, 60, entries.as_slice()),
+                (3, 600, entries.as_slice()),
+                (4, 600, &[]),
+            ] {
+                let update = root.issue_roster(
+                    version,
+                    p::Validity::new(
+                        validity.from(),
+                        time.checked_add(seconds).ok_or("roster clock overflow")?,
+                    )?,
+                    members,
+                )?;
+                for ordinal in group.clone() {
+                    let path = all_paths.get(ordinal).ok_or("roster path")?;
+                    store(
+                        path,
+                        &format!("renewal-roster-{version}"),
+                        update.as_bytes(),
+                    )?;
+                    store(
+                        path,
+                        &format!("renewal-digest-{version}"),
+                        &update.checkpoint().digest(),
+                    )?;
+                }
+            }
+        }
         let pin = p::AccountPin::new(
             root.account_id()?,
             root.public_key()?,
@@ -923,6 +987,9 @@ fn service_peer_process() -> Result<()> {
     let root = Path::new(&root);
     let attempt: u8 = std::env::var("QPERIAPT_PUBLIC_SERVICE_ATTEMPT")?.parse()?;
     let mode = std::env::var("QPERIAPT_PUBLIC_SERVICE_MODE")?;
+    if let Some(mode) = mode.strip_prefix("roster-renewal-") {
+        return roster_renewal::device_process(root, mode);
+    }
     if mode == "contender" || mode == "recovery-contender" {
         let files: &[&str] = if mode == "contender" {
             &[
@@ -1085,6 +1152,7 @@ pub(crate) fn send(
 
 #[test]
 fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
+    roster_renewal::public_roster_refresh_recovers_original_intent_over_signed_tcp()?;
     let s = setup()?;
     marker_publication_control(&s.initiator)?;
     eprintln!("PUBLIC_SERVICE_STAGE enrollment_complete");

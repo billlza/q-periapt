@@ -357,19 +357,16 @@ impl DeviceJournal {
         }
         for (member, item) in batch.members.iter().zip(&mut selected) {
             let traffic = item.state.traffic_mut(member.message.epoch()?)?;
-            let plan = traffic.pending.take().ok_or(DurableError::Corrupt)?;
+            let plan = traffic.pending.as_ref().ok_or(DurableError::Corrupt)?;
             if plan.id != member.message
                 || plan.fanout != Some(id)
                 || intent(b"send-intent", &plan.plaintext, &plan.ad) != *batch.intent()?
             {
                 return Err(DurableError::Corrupt);
             }
-            let plaintext = Zeroizing::new(plan.plaintext.to_vec());
-            let ad = plan.ad.clone();
-            traffic.pending = Some(plan);
             // No per-member persistence or release. Only the aggregate below
             // installs any ciphertext or advances a durable chain.
-            let wire = traffic.send(member.message, &plaintext, &ad)?;
+            let wire = traffic.send_reserved(member.message)?;
             #[cfg(all(test, unix))]
             tests::after_fanout_computation(&wire);
             drop(wire);
