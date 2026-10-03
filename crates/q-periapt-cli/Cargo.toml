@@ -35,15 +35,20 @@ path = "src/main.rs"
 # ordinary edges carrying the same exact `=` requirement as
 # every other internal dependency in the workspace, so the published crate
 # resolves them from crates.io and must be uploaded after all four.
-q-periapt-core = { version = "=0.1.5", path = "../q-periapt-core" }
-q-periapt-sig = { version = "=0.1.5", path = "../q-periapt-sig" }
-q-periapt-policy = { version = "=0.1.5", path = "../q-periapt-policy" }
-q-periapt-backends = { version = "=0.1.5", path = "../q-periapt-backends" }
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
+q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
+rustls = { version = "0.23.45", default-features = false, optional = true }
 
 [features]
 default = []
+# Explicit native SDK catalogue, including the configured standard TLS provider.
+# It cannot be emitted from a build which does not link those implementations.
+sdk-cbom = ["dep:q-periapt-rustls", "dep:rustls"]
 # The CBOM's three SLH-DSA rows. It forwards to `q-periapt-backends`' own
 # off-by-default gate -- on crates.io exactly as in this workspace, because the
 # edge is a normal dependency of the published crate -- so the feature cannot be

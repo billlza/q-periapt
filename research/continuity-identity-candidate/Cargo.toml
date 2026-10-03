@@ -1,0 +1,72 @@
+[package]
+name = "q-periapt-continuity-identity-candidate"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+license = "Apache-2.0 OR MIT"
+description = "Isolated Continuity accountable identity and prekey-manifest candidate"
+repository = "https://github.com/billlza/q-periapt"
+readme = "README.md"
+
+# Candidate implementation, outside the published SDK graph and its lockfile.
+[workspace]
+resolver = "2"
+members = ["."]
+
+[dependencies]
+q-periapt-core = { version = "=0.2.0", path = "../../crates/q-periapt-core" }
+q-periapt-backends = { version = "=0.2.0", path = "../../crates/q-periapt-backends" }
+q-periapt-sdk = { version = "=0.2.0", path = "../../crates/q-periapt-sdk", features = ["sealed-operations"] }
+q-periapt-host-store = { version = "=0.2.0", path = "../../crates/q-periapt-host-store" }
+redb = "=4.3.0"
+chacha20poly1305 = { version = "=0.11.0", default-features = false, features = ["alloc", "zeroize"] }
+p256 = { version = "=0.14.0", default-features = false, features = ["ecdsa", "std"] }
+sha3 = { version = "=0.12.0", default-features = false }
+getrandom = "0.4"
+zeroize = "1"
+mio = { version = "=1.2.3", default-features = false, features = ["net", "os-poll"] }
+hkdf = "=0.13.0"
+hmac = { version = "=0.13.0", features = ["zeroize"] }
+sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
+q-periapt-rustls = { version = "=0.2.0", path = "../../crates/q-periapt-rustls", features = ["reference-connection"], optional = true }
+rustls = { version = "=0.23.45", default-features = false, features = ["std"], optional = true }
+
+[features]
+# Explicit standard TLS carrier; no plaintext or classic-only fallback.
+control-tls = ["dep:q-periapt-rustls"]
+# Complete bootstrap and application delivery over the same standard TLS engine.
+connection-tls = ["dep:q-periapt-rustls"]
+# Separate encrypted witness carrier; no operational SDK activation or fallback.
+anchor-tls = ["dep:q-periapt-rustls", "dep:rustls"]
+
+[dev-dependencies]
+socket2 = "=0.6.5"
+q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
+q-periapt-sig = { version = "=0.2.0", path = "../../crates/q-periapt-sig" }
+tempfile = "=3.27.0"
+rcgen = "=0.14.10"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+unreachable_pub = "deny"
+
+[lints.clippy]
+indexing_slicing = "deny"
+panic = "deny"
+unwrap_used = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true
+
+# The journal/state machine stays unoptimized in debug tests. Run primitive,
+# TLS and storage dependencies at normal speed while retaining their debug
+# assertions and arithmetic overflow checks; no fault case is skipped.
+[profile.dev.package."*"]
+opt-level = 3
+debug-assertions = true
+overflow-checks = true

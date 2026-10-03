@@ -1,10 +1,11 @@
 # Q-Periapt Continuity — protocol research direction
 
-> **Status: G0 is complete and G1 is partially started. Only a non-normative,
-> public-commitment effect/journal lifecycle model plus a strict non-production
-> prekey-selection record is implemented; no Continuity protocol, wire format,
-> identity/prekey service, ratchet, production session crate,
-> or security claim exists. Evidence date: 2026-07-12.**
+> **Status: G0 is complete and G1 is partially started.** The non-normative
+> public-commitment lifecycle model and strict prekey-selection record are joined
+> by an [isolated identity/manifest candidate](../research/continuity-identity-candidate)
+> using actual ML-DSA-65 and P-256 signatures. Complete protocol/wire definitions,
+> the identity/prekey service, ratchet and production session store remain open.
+> Evidence date: 2026-09-28.
 > The implemented artifact remains the hybrid-KEM, signed-policy, bindings,
 > formal-handshake, and proof-to-byte work described in the repository claim ledger.
 > Continuity is scoped to two-party, pairwise, per-device sessions and their
@@ -77,7 +78,7 @@ still three different claims.
 | Multi-device | Pairwise per-device sessions | Sesame-style device/session records | No | Independent device sessions, monotonic roster, revocation and convergence |
 | Identity directory | IDS + Contact Key Verification | Identity keys, safety-number verification, service directory | Pinned demo server key only | Account/device certificates plus transparent or explicitly TOFU directory semantics |
 | Implementation-level proof | External game/symbolic analyses and review | ProVerif design plus hax/F* implementation checks reported in CI | Abstract EasyCrypt plus separate symbolic handshake; no refinement | State-machine proof and spec-to-Rust refinement or translation validation |
-| Deployment evidence | Global production | Large deployment/rollout | Research artifact | Pilot telemetry and independent audit; local tests cannot substitute |
+| Deployment evidence | Global production | Large deployment/rollout | Research artifact | Protocol/implementation review and pilot telemetry within the intended deployment scope |
 
 Apple's public PQ3 description says the initial exchange uses Kyber-1024 plus
 P-256, while ongoing PQ rekeys use Kyber-768 and were initially scheduled at about
@@ -613,7 +614,7 @@ Continuity therefore requires:
    The production backend migration removed the `libcrux`/hax
    `proc-macro-error2` advisory edge, and the current lockfile passes
    `cargo audit --deny warnings` with no ignore. That dependency result does not
-   satisfy the separate model-to-Rust refinement or independent audit requirement.
+   satisfy the separate model-to-Rust refinement or internal security review requirement.
 5. **Differential/reference lane:** exact state and wire comparisons against the
    published reference algorithms, plus negative controls for every security premise.
 6. **Cross-language vectors:** Swift/Kotlin/C/WASM must reproduce canonical parsing,
@@ -631,7 +632,7 @@ Continuity therefore requires:
 | **G3 — research proofs** | R1–R8 deltas each have attack/proof/benchmark justification; protocol, storage, padding/linkability, service-equivocation, and fingerprinting models pass | Scoped design-level claims |
 | **G4 — implementation refinement** | Rust transition/effect core refines the model and is panic-free; cross-language vectors and WAL/backup/crash/telemetry secret-retention fault tests pass | Scoped implementation claim |
 | **G5 — physical performance and observable surface** | Same-source iPad, iPhone, macOS, and physical Android matrix meets declared latency/wire/energy/state/padding/metadata budgets under frozen cache and traffic traces | Measured non-regression or Pareto claim for those cells |
-| **G6 — independent review and pilot** | External cryptographic/code review plus operational fault/scale telemetry | Limited deployment claim within audited scope |
+| **G6 — review and pilot** | Cryptographic/code review plus operational fault/scale telemetry | Limited deployment claim within the verified scope |
 
 No gate may be skipped by relabeling a diagnostic as release evidence.
 
@@ -684,7 +685,7 @@ Forbidden now and until independently established:
    directory fork, and rollback assumptions while measuring receipt linkability.
 6. Select the sparse-ratchet candidate only after trace-based wire/energy/healing
    experiments, not from primitive microbenchmarks.
-7. Make implementation refinement, physical-device budgets, and independent review
+7. Make implementation refinement, physical-device budgets, and protocol/code review
    release gates from the first prototype.
 
 The current `models/q-periapt-continuity-model` artifact exercises only the candidate

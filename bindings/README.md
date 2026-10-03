@@ -1,5 +1,25 @@
 # Language bindings
 
+For the unpublished **0.2.0 source**, start with the
+[installation and language guide](../docs/SDK_GETTING_STARTED.md) and
+[owned SDK API and lifecycle contract](../docs/SDK_OWNERSHIP.md). Rust, C, Swift,
+Kotlin/JVM, Android/JNI and WASM now expose native/linear-memory key owners.
+ABI major and native library names remain **2**. The current extension has
+43 exact C exports; the historical 0.1.5 contract has nine and is retained
+separately. Current host checks do not replace package or device qualification;
+see the [release-readiness ledger](../docs/SDK_0_2_RELEASE_READINESS.md).
+
+For JavaScript/TypeScript, start with the
+[product npm package quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md).
+The local alpha candidate has outside-checkout Node CJS/ESM and Chrome evidence;
+browser engines and bundlers beyond those checked remain unqualified.
+
+Rust consumers use the [SDK package gate](../docs/SDK_RUST_PACKAGE.md) and
+its [external public-API fixture](rust/SDKPackageConsumer/src/lib.rs). The
+candidate archives remain separate from the historical public registry cohort.
+
+The following package/status records describe the retained 0.1.5 surface.
+
 One Rust core (`q-periapt-ffi`, the C ABI), shared by **C**,
 **WASM**, **Swift**, and **Kotlin/JVM** (JDK 25+),
 plus a package-tested **Android AAR/JNI** surface.

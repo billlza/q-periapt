@@ -160,6 +160,35 @@ class WorkflowArtifactTests(unittest.TestCase):
         )
         self._assert_outputs(destination, expected)
 
+    def test_sdk_android_profile_is_separate_and_extracts_only_its_fixed_members(self) -> None:
+        profile = workflow_artifact.ANDROID_SDK_AAR_PROFILE
+        expected = self._write_profile(profile)
+        destination = workflow_artifact.extract_profile(profile.name)
+        self.assertEqual(destination, self.repository / "target/qperiapt-android-aar/q-periapt-android-0.2.0")
+        self._assert_outputs(destination, expected)
+        self.assertEqual(set(expected), {"q-periapt-android-0.2.0.aar", "MANIFEST.json", "SHA256SUMS"})
+
+    def test_sdk_runtime_intakes_extract_complete_fixed_profile_pairs(self) -> None:
+        for target, profile in workflow_artifact.ANDROID_SDK_RUNTIME_REPLAY_PROFILES.items():
+            with self.subTest(target=target):
+                expected = self._write_profile(profile)
+                destination = workflow_artifact.extract_profile(profile.name)
+                self.assertEqual(destination, self.repository / f"target/android-sdk-runtime-intake-{target}")
+                self.assertEqual(len(expected), 56)
+                self._assert_outputs(destination, expected)
+                shutil.rmtree(self.raw)  # Only this test's synthetic raw wrapper.
+
+    def test_sdk_runtime_intake_rejects_the_other_target_wrapper(self) -> None:
+        profiles = workflow_artifact.ANDROID_SDK_RUNTIME_REPLAY_PROFILES
+        self._write_profile(profiles["api23-4k"])
+        with self.assertRaisesRegex(workflow_artifact.WorkflowArtifactError, "raw artifact files differ"):
+            workflow_artifact.extract_profile(profiles["api35-16k"].name)
+
+    def test_sdk_android_intake_rejects_a_legacy_raw_artifact(self) -> None:
+        self._write_profile(workflow_artifact.ANDROID_AAR_PROFILE)
+        with self.assertRaisesRegex(workflow_artifact.WorkflowArtifactError, "raw artifact files differ"):
+            workflow_artifact.extract_profile(workflow_artifact.ANDROID_SDK_AAR_PROFILE.name)
+
     def test_platform_candidate_extracts_three_fixed_wrappers(self) -> None:
         profile = workflow_artifact.PLATFORM_CANDIDATE_PROFILE
         expected = self._write_profile(profile)

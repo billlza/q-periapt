@@ -5,11 +5,15 @@ reviewer with only Rust installed can run **Tier 1** in ~10 minutes; **Tier 2** 
 gates in ~1 hour given a few extra toolchains; **Tier 3** reproduces the hardware-dependent
 measurements (network shaping, binary constant-time) and needs specific hosts.
 
-This artifact evaluates the implemented hybrid-KEM, policy, bindings, four-flight
-demo handshake, and evidence chain. It does **not** evaluate a Q-Periapt Continuity
-protocol: there is no account/device directory, prekey service, wire protocol,
-persistent ratchet, multi-device manager, recovery adapter, or stateful protocol
-implementation in this repository. A separate `publish = false` lifecycle model has
+These paper artifact tiers evaluate the implemented hybrid-KEM, policy, bindings,
+four-flight demo handshake, and evidence chain. They do **not** establish release
+readiness for Q-Periapt Continuity. The separate `publish = false`
+[identity candidate](research/continuity-identity-candidate/README.md) implements
+authenticated identity/prekey operations, durable sessions, PQ rekey and witness
+reconciliation; it remains outside the published SDK dependency graph. Its
+[release ledger](docs/SDK_0_2_RELEASE_READINESS.md) retains source-bound results and
+open protocol, implementation, platform and deployment requirements.
+A separate `publish = false` lifecycle model has
 31 lifecycle integration tests, 12 canonical-context tests, eight strict canonical
 prekey-selection tests, and one private receipt-atomicity regression. It retains trusted pairwise session/current-context
 admission across reconstruction, exact version+digest state advances, and a candidate
@@ -25,36 +29,39 @@ model boundary are in
 [`docs/CONTINUITY_RESEARCH.md`](docs/CONTINUITY_RESEARCH.md); no existing pass marker
 may be interpreted as a PQ3/Signal-parity claim.
 
-All commands run from the repository root. `cargo` ≥ 1.85 is the only hard prerequisite for the
-host smoke; proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
+All commands run from the repository root. The host smoke and repository development tests use
+the pinned Rust 1.98.1 toolchain. The product's Rust 1.90 minimum is checked separately by a
+workspace build and the [public SDK package consumer](docs/SDK_RUST_PACKAGE.md#minimum-compiler-and-development-toolchain).
+Proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
 uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PATH fallback.
 
 ## Rust CodeQL analysis boundary
 
-The Rust CodeQL lane uses the CodeQL 2.26.2 bundle linked to the exact pinned CodeQL Action
+The Rust CodeQL lane uses the CodeQL 2.27.1 bundle linked to the exact pinned CodeQL Action
 commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
-with a Rust 1.94.0 analysis sysroot
-because the bundled Rust extractor cannot completely expand this repository with the canonical
-Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.96.1
+with a Rust 1.97.0 analysis sysroot. The 2.27.1 extractor's process-macro
+artifacts identify Rust 1.97.0; retaining the former 1.94.0 macro server produced
+an ABI mismatch and left seven tracked sources incompletely extracted. Align the
+analysis sysroot with those artifacts and require fresh complete extraction. This is a compatibility analysis configuration, not native Rust 1.98.1
 CodeQL analysis. Before CodeQL initialization, the same commit must pass
-`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.96.1 with
+`cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-106 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+277 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
 format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
 sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
 complete, self-reconciling classification and reported as telemetry rather than required to be
 zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
 produce type-inference telemetry; this is not a claim of complete extractor semantics for that
-generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
+generated code. The canonical Rust 1.98.1 all-target compile and the separate WASM Node gate cover
 those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
 budget while retaining its 300-second process deadline and bounded diagnostic output; a resource or
 deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
 upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
 publish results. The quality adapter accepts no environment-selected executable, database, or
-temporary path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout,
+temporary path: it uses the exact Linux CodeQL 2.27.1 toolcache path and workflow database layout,
 rejects unsafe file types, requires the database paths to be current-user-owned and without
 cross-account write permission, and revalidates their open path identities around every query and
 decode.
@@ -246,8 +253,7 @@ remains portable C; each native profile is fixed at build time with no runtime
 dispatch. This selection does not change ABI 2, key formats, or wire bytes. Upstream
 HOL-Light evidence applies only to selected upstream assembly source/object routines,
 not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
-tag/commit is not a signed provenance statement, and neither upstream mlkem-native
-nor this integration has completed an independent audit.
+tag/commit is not a signed provenance statement.
 
 ABI 2 / `0.1.5` is the stable-version source line, succeeding the fully published
 `0.1.4` release. All ten `0.1.5` crates are published and independently verified;
@@ -321,15 +327,15 @@ signed release provenance, device-energy evidence, or cross-implementation perfo
 
 `artifact/source_results_assembler.py` is the stable-source proof-input state machine,
 not a general-purpose release finalizer. Its `finalize` command performs the
-190-to-249 proof-input migration once per source line: once the generated results-only
-successor R is installed, the 249 baseline makes that mode inapplicable, and re-running it
+190-to-254 proof-input migration once per source line: once the generated results-only
+successor R is installed, the 254 baseline makes that mode inapplicable, and re-running it
 is expected to fail closed because `require_initial=True` requires the exact
 pre-migration shape. That failure must not be bypassed by relabelling or hand-editing
 `artifact/results.json`. The only supported way back is the reviewed `reopen-source`
 reverse transform, which re-arms `finalize` for the next line. It requires a fully
-installed 249-key manifest and validates every publication leaf fail-closed *before*
+installed 254-key manifest and validates every publication leaf fail-closed *before*
 removing any, then emits a 190-key initial candidate that recomputes the retained
-proof-input digests from the current source tree while dropping the fixed 59-key delta,
+proof-input digests from the current source tree while dropping the fixed 64-key delta,
 and reduces `release_publications` to exactly the five frozen historical leaves. It drops
 only in-flight pending publication candidates and refuses outright on any leaf outside
 that frozen floor that is not pending, so a published-immutable receipt is never silently
@@ -349,7 +355,7 @@ that floor; absent that, the durable record of that line's publication is its im
 public release and registry material plus its annotated verified-cohort tag, not `main`'s
 results. Do not physically edit, extract, or delete the assembler between R and verified
 publication Q; doing so would create a new source change after the evidence freeze. Retain
-`verify-installed` and the exact CI dispatch until their durable 249-key
+`verify-installed` and the exact CI dispatch until their durable 254-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
 
@@ -358,9 +364,9 @@ the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
 `e855315ef2eec1aea0ff8b128933ac9673b9bb46c0e2e10e005c6f2480409c0a`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
-and fixed 59-key delta, requires a clean expected commit/tree identity, and samples
-the complete 249-key input authority twice before emitting
-`SOURCE_TRANSITION_READINESS_PASS`. For an exact 249-key installed map it emits
+and fixed 64-key delta, requires a clean expected commit/tree identity, and samples
+the complete 254-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 254-key installed map it emits
 only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
 Malformed, mixed, or changing states fail; an initial-readiness failure never falls
 back to the installed path.
@@ -1122,7 +1128,7 @@ These produce the paper's primary network table and the binary constant-time dis
   nested `profile_inputs` records the fixed suite/version/application context for ContextBound and
   canonical absence (`[]`, `0`, `[]`) for CompatXWing. `implementation_improvement` is a
   separate ContextBound `hybrid_core` native/portable comparison over an
-  `expanded_fips203_2400` key and the same coins, corpus, suite, version, and context.
+  `expanded_fips203_2410` key and the same coins, corpus, suite, version, and context.
   It covers encapsulation and decapsulation only; `includes_ffi=false` and
   `includes_os_rng=false`, so it is not a C-ABI, policy, entropy, rustls, or complete-product
   measurement. The portable implementation is a symbol-renamed static

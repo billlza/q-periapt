@@ -2429,8 +2429,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
             '$LlvmAr = $RustLlvmTools.Ar',
             '$LlvmNm = $RustLlvmTools.Nm',
             '-RustToolsSearchDirectory $RustLlvmTools.Bin',
-            'rustc 1.97.0 (2d8144b78 2026-07-07)',
-            'cargo 1.97.0 (c980f4866 2026-06-30)',
+            'rustc 1.98.1 (48a229cea 2026-09-01)',
+            'cargo 1.98.1 (797e8a9bc 2026-08-05)',
             '$ManifestRustcVersion -cne $RustcVersion',
             '$ManifestCargoVersion -cne $CargoVersion',
             'Windows Rust toolchain changed during release package construction',
@@ -2512,7 +2512,9 @@ class WindowsPackageManifestTests(unittest.TestCase):
             'Write-Host "WINDOWS_PACKAGE_MANIFEST_VERIFY_PASS"',
             '<redacted invocation and output>',
             '-RedactArguments:$RedactArguments',
-            'if ($Echo -and -not $RedactArguments)',
+            'if ($Echo -and (-not $RedactArguments -or $PublicOutput))',
+            '$compilerRootScanArguments.Add("--redact-paths")',
+            '-RedactArguments -PublicOutput',
             'throw [System.InvalidOperationException]::new(',
             'Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"',
         ):
@@ -2563,8 +2565,8 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertEqual(len(rustup_tool_invocations), 11)
         for invocation in rustup_tool_invocations:
             self.assertTrue(
-                script[invocation.end() :].lstrip().startswith('"+1.97.0"'),
-                "every Windows release rustc/cargo invocation must select 1.97.0",
+                script[invocation.end() :].lstrip().startswith('"+1.98.1"'),
+                "every Windows release rustc/cargo invocation must select 1.98.1",
             )
         self.assertNotIn(
             "debug_directory_absent",
@@ -2952,7 +2954,9 @@ class WindowsPackageManifestTests(unittest.TestCase):
         self.assertIn("$env:PATH =", path_binding_body)
         self.assertIn("Assert-TrustedMsvcPath", path_binding_body)
         self.assertGreaterEqual(script.count("-Cl $Cl `"), 3)
-        self.assertEqual(2, script.count("Invoke-Checked -FilePath $Cl"))
+        # Two legacy consumer links plus the SDK dynamic/static consumer loop
+        # must all use the same resolved MSVC compiler boundary.
+        self.assertEqual(3, script.count("Invoke-Checked -FilePath $Cl"))
         toolchain_test = (
             self.repository_root / "artifact/windows-toolchain-tests.ps1"
         ).read_text(encoding="utf-8")

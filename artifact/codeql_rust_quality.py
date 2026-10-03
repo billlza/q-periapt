@@ -25,13 +25,13 @@ EXTRACTED_PATHS_QUERY = QUERY_DIR / "ExtractedPaths.ql"
 METRICS_QUERY = QUERY_DIR / "Metrics.ql"
 UNRESOLVED_MACROS_QUERY = QUERY_DIR / "UnresolvedMacros.ql"
 FIXED_CODEQL_BINARY = pathlib.Path(
-    "/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql"
+    "/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/codeql"
 )
 FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 106
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = 277
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000

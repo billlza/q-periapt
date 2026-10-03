@@ -2,6 +2,12 @@
 
 Auditability & migration tooling for the PQ/T hybrid suite.
 
+For the unpublished 0.2.0 native SDK, build with `--features sdk-cbom` and use
+`qperiapt cbom --native-sdk`. This emits the distinct 37-asset
+[native SDK inventory](../../docs/SDK_CBOM.md), including configured TLS choices.
+The default command below remains the backend catalogue and is insufficient for
+new native packages. Package validators must select `BomProfile.NATIVE_SDK_020`.
+
 ## Commands
 
 ```sh

@@ -108,12 +108,50 @@ class ThirdPartyLicenseTests(unittest.TestCase):
         )
         self.assertEqual(first, verified)
 
+    def test_installed_continuity_resolution_keeps_the_exact_lock_and_licenses(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-continuity-c-consumer"
+        (self.root / "Cargo.lock").write_text(
+            f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+            f'source = "{self.source}"\nchecksum = "{self.checksum}"\n', encoding="utf-8")
+        with mock.patch.object(third_party_licenses, "_cargo_metadata", side_effect=AssertionError("global Cargo used")):
+            collected = third_party_licenses.collect(self.root, self.package_root, "aarch64-apple-darwin",
+                root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
+        self.assertEqual(collected["packages"][0]["checksum"], self.checksum)
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root,
+            expected_target="aarch64-apple-darwin", root_package="q-periapt-continuity-c-consumer"))
+        other = self.package_root.parent / "missing-lock"
+        other.mkdir()
+        lock = self.root / "Cargo.lock"
+        lock.write_text(lock.read_text(encoding="utf-8").replace('name = "dep"', 'name = "other"'), encoding="utf-8")
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "absent from Cargo.lock"):
+            third_party_licenses.collect(self.root, other, "aarch64-apple-darwin",
+                root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
+
     def test_dev_only_dependency_is_not_treated_as_shipped(self) -> None:
         with self.assertRaisesRegex(
             third_party_licenses.ThirdPartyLicenseError,
             "no external packages",
         ):
             self.collect(self.metadata(kind="dev"))
+
+    def test_wasm_root_is_explicit_and_does_not_change_native_default(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-sdk-wasm"
+        with (
+            mock.patch.object(third_party_licenses, "_cargo_metadata", return_value=metadata),
+            mock.patch.object(third_party_licenses, "_lock_checksums",
+                              return_value={("dep", "1.2.3", self.source): self.checksum}),
+        ):
+            inventory = third_party_licenses.collect(self.root, self.package_root,
+                "wasm32-unknown-unknown", root_package="q-periapt-sdk-wasm")
+        self.assertEqual(inventory["root_package"], "q-periapt-sdk-wasm")
+        self.assertEqual(inventory, third_party_licenses.verify(self.package_root,
+            expected_target="wasm32-unknown-unknown", root_package="q-periapt-sdk-wasm"))
+        with self.assertRaisesRegex(ValueError, "root package differs"):
+            third_party_licenses.verify(self.package_root)
+        with self.assertRaisesRegex(ValueError, "unsupported license root"):
+            third_party_licenses._production_dependency_ids(metadata, "unknown")
 
     def test_missing_or_escaping_license_fails_closed(self) -> None:
         (self.dependency_root / "LICENSE-MIT").unlink()

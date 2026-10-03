@@ -60,25 +60,43 @@ jobs:
         if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.94.0
+          toolchain: 1.97.0
           components: rust-src
 
       - name: Set up canonical Rust toolchain
         if: matrix.language == 'java-kotlin' || matrix.language == 'rust' || matrix.language == 'swift'
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
 
       - name: Compile all Rust targets with compatibility and canonical toolchains
         if: matrix.language == 'rust'
         run: |
           test ! -e target && test ! -L target
           RUSTFLAGS='-D warnings' \
-            CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.94.0" \
-            cargo +1.94.0 check --workspace --all-targets --locked
+            CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.97.0" \
+            cargo +1.97.0 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
           RUSTFLAGS='-D warnings' \
-            CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.96.1" \
-            cargo +1.96.1 check --workspace --all-targets --locked
+            CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.98.1" \
+            cargo +1.98.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
+          test ! -e target && test ! -L target
+
+      - name: Compile isolated ratchet references with both analysis toolchains
+        if: matrix.language == 'rust'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          for reference_toolchain in 1.97.0 1.98.1; do
+            RUSTFLAGS='-D warnings' \
+              CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-spqr-check-${reference_toolchain}" \
+              cargo +"$reference_toolchain" check --manifest-path research/continuity-spqr-reference/Cargo.toml --all-targets --locked
+            RUSTFLAGS='-D warnings' \
+              CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-whole-kem-check-${reference_toolchain}" \
+              cargo +"$reference_toolchain" check --manifest-path research/continuity-whole-kem-reference/Cargo.toml --all-targets --locked
+            RUSTFLAGS='-D warnings' \
+              CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-continuity-check-${reference_toolchain}" \
+              cargo +"$reference_toolchain" check --manifest-path research/continuity-identity-candidate/Cargo.toml --all-targets --all-features --locked
+          done
           test ! -e target && test ! -L target
 
       - name: Verify Rust CodeQL checkout before initialization
@@ -90,15 +108,15 @@ jobs:
       - name: Bind Rust CodeQL to the compatible analysis sysroot
         if: matrix.language == 'rust'
         run: |
-          test "$(rustc +1.94.0 --version)" = \
-            "rustc 1.94.0 (4a4ef493e 2026-03-02)"
-          analysis_sysroot=$(rustc +1.94.0 --print sysroot)
+          test "$(rustc +1.97.0 --version)" = \
+            "rustc 1.97.0 (2d8144b78 2026-07-07)"
+          analysis_sysroot=$(rustc +1.97.0 --print sysroot)
           analysis_sysroot_src="${analysis_sysroot}/lib/rustlib/src/rust/library"
           test -d "$analysis_sysroot_src"
           [[ "$analysis_sysroot" = /* ]]
           [[ "$analysis_sysroot" != *$'\n'* ]]
           {
-            printf 'RUSTUP_TOOLCHAIN=%s\n' '1.94.0'
+            printf 'RUSTUP_TOOLCHAIN=%s\n' '1.97.0'
             printf 'CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT=%s\n' "$analysis_sysroot"
             printf 'CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT_SRC=%s\n' "$analysis_sysroot_src"
           } >> "$GITHUB_ENV"
@@ -118,19 +136,29 @@ jobs:
           java -version
           javac -version
 
-      - name: Set up Gradle 9.2.1
+      - name: Set up Gradle 9.8.0
         if: matrix.language == 'java-kotlin'
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
-          gradle-version: "9.2.1"
+          gradle-version: "9.8.0"
 
-      - name: Verify Gradle JVM
+      - name: Restore and verify selected Java after Gradle setup
         if: matrix.language == 'java-kotlin'
-        run: gradle --version
+        run: |
+          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          printf '%s\n' "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+          command -v java
+          command -v javac
+          java -version
+          javac -version
+          gradle --version
 
       - name: Initialize CodeQL
         id: codeql_init
-        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           build-mode: ${{ matrix.build_mode }}
           config: |
@@ -145,7 +173,7 @@ jobs:
         env:
           CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
         run: |
-          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql
+          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/codeql
           test "$CODEQL_BINARY" = "$fixed_codeql"
           stat --format='CODEQL_TOOLCACHE_STAT type=%F mode=%a uid=%u gid=%g nlink=%h' \
             -- "$fixed_codeql"
@@ -153,7 +181,7 @@ jobs:
       - name: Verify linked CodeQL bundle
         env:
           CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
-        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.26.2"
+        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.1"
 
       - name: Build Kotlin binding
         if: matrix.language == 'java-kotlin'
@@ -184,7 +212,7 @@ jobs:
 
       - name: Analyze
         id: codeql_analyze
-        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: /language:${{ matrix.language }}
           upload: ${{ matrix.language == 'rust' && 'never' || 'always' }}
@@ -208,7 +236,7 @@ jobs:
 
       - name: Upload quality-gated Rust CodeQL results
         if: matrix.language == 'rust'
-        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: /language:${{ matrix.language }}
           sarif_file: ${{ steps.codeql_analyze.outputs.sarif-output }}

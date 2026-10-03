@@ -108,8 +108,8 @@ POINTER_KIND = "qperiapt.local_release_index.pointer"
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent.parent
 ABI_MAJOR = 2
 EXPORT_COUNT = 9
-EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+EXPECTED_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 EXPECTED_SWIFT_RUST_HOST = "aarch64-apple-darwin"
 EXPECTED_SWIFT_VERSION = (
     "swift-driver version: 1.148.6 Apple Swift version 6.3.3 "

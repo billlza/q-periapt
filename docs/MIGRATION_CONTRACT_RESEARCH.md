@@ -243,10 +243,11 @@ The reference-candidate gates are:
    persistent state, fork/reset, and an active network adversary;
 5. link the model's accepted decision to the exact bytes passed to ABI 2;
 6. implement the Policy Agent with transaction/crash/concurrency tests; and
-7. obtain independent cryptographic, protocol, service-boundary, and ABI review.
+7. record contract and implementation review across cryptographic, protocol,
+   service-boundary and ABI behavior, with findings resolved or scoped.
 
-Gates 1–6 are wired into the repository's V2 reference checks. Gate 7 remains open
-as an external review/deployment gate. The machine-checked models are abstract, and
+Gates 1–6 are wired into the repository's V2 reference checks. Gate 7 records the
+review scope, evidence and disposition of findings. The machine-checked models are abstract, and
 the independent byte verifier is translation validation rather than refinement.
 
 Until all relevant gates close, the repository must keep separate claims for:

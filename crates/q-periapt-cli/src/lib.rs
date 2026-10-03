@@ -22,6 +22,11 @@ use q_periapt_sig::{SigAlg, Signer};
 use serde_json::{json, Value};
 use std::path::Path;
 
+#[cfg(feature = "sdk-cbom")]
+mod sdk_cbom;
+#[cfg(feature = "sdk-cbom")]
+pub use sdk_cbom::{native_sdk_cbom, CbomError};
+
 /// The CycloneDX facts about an algorithm that no suite crate represents.
 ///
 /// `primitive`, `functions`, `family`, `oid` and `note` are editorial: they
@@ -125,7 +130,8 @@ struct CryptoAsset {
 }
 
 const KEM_FUNCTIONS: &[&str] = &["keygen", "encapsulate", "decapsulate"];
-const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "key-agree"];
+// CycloneDX 1.6 calls the primitive key-agree, but its function keyderive.
+const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "keyderive"];
 const SIGNATURE_FUNCTIONS: &[&str] = &["keygen", "sign", "verify"];
 const DIGEST_FUNCTIONS: &[&str] = &["digest"];
 

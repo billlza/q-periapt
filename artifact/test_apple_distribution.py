@@ -2092,7 +2092,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertNotIn('"notarized": apple_release_mode', self.builder)
         self.assertIn('"notarized": False', self.builder)
         self.assertIn("not_applicable_static_sdk_payload", self.builder)
-        self.assertIn('"schema_version": 5', self.builder)
+        self.assertIn('"schema_version": 6 if package_profile == "sdk-020" else 5', self.builder)
 
     def test_release_revision_and_toolchain_are_exactly_bound(self) -> None:
         self.assertEqual(apple_distribution.PRODUCT_VERSION, "0.1.5")
@@ -2268,7 +2268,7 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             self.workflow.index("  bindings-kotlin:")
         ]
         install_cbindgen = swift_job.index(
-            "cargo +1.96.1 install cbindgen --version 0.29.4 --locked"
+            "cargo +1.98.1 install cbindgen --version 0.29.4 --locked"
         )
         verify_generated_headers = swift_job.index(
             "- name: Generated C/Swift header freshness"
@@ -2280,11 +2280,11 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
         self.assertLess(verify_generated_headers, build_xcframework)
         self.assertEqual(
             swift_job.count(
-                "cargo +1.96.1 install cbindgen --version 0.29.4 --locked"
+                "cargo +1.98.1 install cbindgen --version 0.29.4 --locked"
             ),
             1,
         )
-        self.assertIn("          toolchain: 1.96.1\n", swift_job)
+        self.assertIn("          toolchain: 1.98.1\n", swift_job)
         self.assertNotIn(
             "rust_distributed_compiler_builtins_members_v1", self.builder
         )

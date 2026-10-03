@@ -7,6 +7,7 @@ import io
 import json
 import os
 import pathlib
+import pty
 import select
 import shlex
 import signal
@@ -15,8 +16,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+import termios
 import threading
+import types
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 import android_bounded_command as commands
@@ -28,7 +32,7 @@ from android_emulator_control import (
     OwnedUnixListenerDialect,
     OwnedUnixListenerObservation,
 )
-from bounded_process import BoundedResult
+from bounded_process import BoundedProcessError, BoundedResult, capture_output
 from process_identity import ProcessExecutionSnapshot
 from process_identity import parse_token as parse_process_identity_token
 
@@ -60,6 +64,11 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.account_state_parent = self.root / ".local" / "state"
         self.account_state_parent.mkdir(parents=True, mode=0o700)
         self.constants = (
+            # Command-deadline fixtures must not replace the process-wide time
+            # module used by receipt locks or concurrent lifecycle writers.
+            mock.patch.object(commands, "time", types.SimpleNamespace(
+                monotonic=commands.time.monotonic, sleep=commands.time.sleep,
+            )),
             mock.patch.object(state, "REPOSITORY_ROOT", self.root),
             mock.patch.object(state, "TARGET_ROOT", self.target),
             mock.patch.object(state, "RUNS_ROOT", self.runs),
@@ -100,6 +109,15 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    @staticmethod
+    def run_guest_fixture(argv: list[str], environment: dict[str, str]) -> BoundedResult:
+        # Guest programs spawn native-command fixtures. A timeout must end the
+        # entire owned group before tearDown removes their writable directory.
+        return capture_output(
+            argv, timeout_seconds=5, maximum_stdout_bytes=65536,
+            maximum_stderr_bytes=65536, environment=environment,
+        )
 
     def test_shared_adb_profile_policy_rejects_non_text_and_unknown_values(
         self,
@@ -921,7 +939,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_operation_table_has_only_fixed_modes_and_outputs(self) -> None:
         self.assertEqual(set(commands.OPERATION_SPECS), set(commands.AndroidOperation))
-        output_pairs: set[tuple[commands.OutputRoot, str]] = set()
+        output_pairs: dict[tuple[commands.OutputRoot, str], set[commands.AndroidOperation]] = {}
         for operation, spec in commands.OPERATION_SPECS.items():
             with self.subTest(operation=operation.value):
                 self.assertIn(
@@ -929,20 +947,26 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     {
                         "run",
                         "capture",
+                        "page-size-auxv",
                         "write",
                         "package-state",
                         "recover-emulator",
                         "observe-apk",
                         "logcat",
+                        "emulator-diagnostics",
                         "register-emulator",
                     },
                 )
                 self.assertGreaterEqual(spec.timeout_maximum, spec.timeout_seconds)
                 if spec.output is not None:
                     pair = (spec.output.root, spec.output.leaf)
-                    self.assertNotIn(pair, output_pairs)
-                    output_pairs.add(pair)
+                    output_pairs.setdefault(pair, set()).add(operation)
                     self.assertNotIn("/", spec.output.leaf)
+        aliases = {pair: operations for pair, operations in output_pairs.items() if len(operations) != 1}
+        self.assertEqual(aliases, {
+            (commands.OutputRoot.PROOF, "adb-device-time.txt"):
+                {commands.AndroidOperation.DEVICE_TIME, commands.AndroidOperation.DEVICE_TIME_CALENDAR},
+        })
         source = pathlib.Path(commands.__file__).read_text(encoding="utf-8")
         self.assertNotIn("argparse.REMAINDER", source)
         self.assertNotIn("--output", source)
@@ -1501,12 +1525,28 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(write_arguments["maximum_bytes"], 65536)
             self.assertEqual(write_arguments["timeout_seconds"], 15)
 
+    def package_query_reply(
+        self, payload: bytes, status: int = 0, line_ending: bytes = b"\n",
+    ) -> bytes:
+        completion = (
+            "QPERIAPT_PACKAGE_QUERY_EXIT:" + self.layout.run_id + ":" + str(status)
+        ).encode("ascii")
+        return payload + line_ending + completion + line_ending
+
     def test_package_state_maps_exact_absent_present_and_nonzero_results(self) -> None:
         cases = (
-            (BoundedResult(0, b""), b"absent\n"),
+            (BoundedResult(0, self.package_query_reply(b"")), b"absent\n"),
             (
                 BoundedResult(
-                    0, b"package:dev.qperiapt.androidsmoke\n"
+                    0, self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")
+                ),
+                b"present\n",
+            ),
+            (
+                BoundedResult(
+                    0, self.package_query_reply(
+                        b"package:dev.qperiapt.androidsmoke\r\n", line_ending=b"\r\n"
+                    )
                 ),
                 b"present\n",
             ),
@@ -1520,15 +1560,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             ),
         )
         capability = self.load_capability()
-        expected_argv = commands._device(
-            capability,
-            "shell",
-            "cmd",
-            "package",
-            "list",
-            "packages",
-            commands.PACKAGE,
-        )
+        expected_argv = commands._package_state_argv(capability)
         self.assertNotIn("-u", expected_argv)
         for raw, expected in cases:
             with (
@@ -1552,6 +1584,126 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 capture.call_args.kwargs["environment"],
                 commands._client_environment(capability),
             )
+
+    def test_package_query_remote_failure_cannot_be_reported_absent(self) -> None:
+        # Legacy adb shell reports local success even when its guest command
+        # exits nonzero. Execute the real fixed guest command through a shell,
+        # with a failing local pm fixture, and model only that lost exit code.
+        directory = self.root / "guest-bin"
+        directory.mkdir()
+        pm = directory / "pm"
+        exits = []
+
+        def legacy_shell(argv: tuple[str, ...], **kwargs: object) -> BoundedResult:
+            program = " ".join(argv[argv.index("shell") + 1:])
+            guest = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(directory) + ":/usr/bin:/bin"},
+            )
+            exits.append(guest.returncode)
+            return BoundedResult(0, guest.stdout + guest.stderr)
+
+        cases = (
+            ("exit 7\n", b"retryable:query-nonzero\n"),
+            ("exit 0\n", b"absent\n"),
+            ("printf 'package:dev.qperiapt.androidsmoke\\n'\nexit 0\n", b"present\n"),
+            ("printf 'package:dev.qperiapt.androidsmoke\\n'\nexit 9\n", b"retryable:query-nonzero\n"),
+        )
+        for body, expected in cases:
+            pm.write_text(
+                '#!/bin/sh\n[ "$#" -eq 3 ] && [ "$1" = list ] '
+                '&& [ "$2" = packages ] && [ "$3" = dev.qperiapt.androidsmoke ] '
+                '|| exit 99\n' + body, encoding="ascii",
+            )
+            pm.chmod(0o700)
+            with (
+                self.subTest(body=body),
+                mock.patch.object(commands, "capture_stdout", side_effect=legacy_shell),
+            ):
+                self.assertEqual(
+                    self.invoke(commands.AndroidOperation.PACKAGE_STATE),
+                    BoundedResult(0, expected),
+                )
+        self.assertEqual(exits, [7, 0, 0, 9])
+
+    def test_package_query_requires_matching_complete_exit_record(self) -> None:
+        valid = b"\nQPERIAPT_PACKAGE_QUERY_EXIT:" + self.run_id.encode() + b":0\n"
+        malformed = (
+            b"", valid[:-1], valid.replace(self.run_id.encode(), b"b" * 32),
+            valid.replace(b":0\n", b":00\n"),
+            valid.replace(b":0\n", b":256\n"),
+            valid.replace(b":0\n", b":-1\n"),
+            valid + b"late diagnostic\n", valid + valid,
+            valid.replace(b":0\n", b":0\r\n"),
+        )
+        for reply in malformed:
+            with (
+                self.subTest(reply=reply),
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, reply)),
+                self.assertRaises(commands.AndroidCommandError),
+            ):
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+        for reply in (valid, valid.replace(b"\n", b"\r\n")):
+            with (
+                self.subTest(reply=reply),
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, reply)),
+            ):
+                self.assertEqual(
+                    self.invoke(commands.AndroidOperation.PACKAGE_STATE),
+                    BoundedResult(0, b"absent\n"),
+                )
+
+    def test_package_state_accepts_one_complete_line_from_legacy_pty(self) -> None:
+        # API 23 adbd sends shell output through a PTY. Exercise the actual
+        # terminal newline transformation, then feed its bytes to the observer.
+        master, slave = pty.openpty()
+        try:
+            attributes = termios.tcgetattr(slave)
+            attributes[1] |= termios.OPOST | termios.ONLCR
+            termios.tcsetattr(slave, termios.TCSANOW, attributes)
+            line = self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")
+            self.assertEqual(os.write(slave, line), len(line))
+            readable, _, _ = select.select([master], [], [], 5)
+            self.assertEqual(readable, [master])
+            output = os.read(master, 4096)
+        finally:
+            os.close(slave)
+            os.close(master)
+        self.assertEqual(
+            output,
+            self.package_query_reply(b"package:dev.qperiapt.androidsmoke\r\n", line_ending=b"\r\n"),
+        )
+        with mock.patch.object(
+            commands, "capture_stdout", return_value=BoundedResult(0, output)
+        ):
+            self.assertEqual(
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE),
+                BoundedResult(0, b"present\n"),
+            )
+
+    def test_instrumentation_write_captures_and_bounds_stderr(self) -> None:
+        capability = self.load_capability()
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.RUN_INSTRUMENTATION]
+        shell = str(pathlib.Path("/bin/sh").resolve())
+        result = commands._write_operation(
+            self.layout, capability, spec,
+            (shell, "-c", "printf 'stdout\\n'; printf 'stderr\\n' >&2"), 5,
+        )
+        self.assertEqual(result.returncode, 0)
+        output = self.proof / "adb-instrumentation.txt"
+        self.assertEqual(output.read_bytes(), b"stdout\nstderr\n")
+        # The same fixed budget must cover stderr. A limit failure must leave
+        # the previous committed output untouched rather than publish a prefix.
+        limited = replace(
+            spec, output=replace(spec.output, maximum_bytes=32)
+        )
+        with self.assertRaises(commands.BoundedProcessError) as raised:
+            commands._write_operation(
+                self.layout, capability, limited,
+                (shell, "-c", "printf '%064d' 0 >&2"), 5,
+            )
+        self.assertEqual(raised.exception.kind, "output_limit")
+        self.assertEqual(output.read_bytes(), b"stdout\nstderr\n")
 
     def test_package_state_maps_only_bounded_timeout_to_retryable(self) -> None:
         with mock.patch.object(
@@ -2149,7 +2301,12 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             b"package:dev.qperiapt.androidsmoke\n\n",
             b" package:dev.qperiapt.androidsmoke\n",
             b"package:dev.qperiapt.other\n",
-            b"package:dev.qperiapt.androidsmoke\r\n",
+            b"package:dev.qperiapt.androidsmoke\r",
+            b"package:dev.qperiapt.androidsmoke\r\r\n",
+            b"package:dev.qperiapt.androidsmoke\r\n\r\n",
+            b"package:dev.qperiapt.androidsmoke\r\npackage:dev.qperiapt.other\r\n",
+            b"package:dev.qperiapt.android\rsmoke\n",
+            b"package:dev.qperiapt.androidsmoke\x1b\n",
             b"package:dev.qperiapt.androidsmoke\x00\n",
             b"\xff",
         )
@@ -2159,7 +2316,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 mock.patch.object(
                     commands,
                     "capture_stdout",
-                    return_value=BoundedResult(0, output),
+                    return_value=BoundedResult(0, self.package_query_reply(output)),
                 ),
                 self.assertRaises(
                     (commands.AndroidCommandError, state.AndroidRuntimeStateError)
@@ -2169,8 +2326,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
 
     def test_package_state_always_postchecks_owned_server(self) -> None:
         for raw in (
-            BoundedResult(0, b""),
-            BoundedResult(0, b"package:dev.qperiapt.androidsmoke\n"),
+            BoundedResult(0, self.package_query_reply(b"")),
+            BoundedResult(0, self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")),
             BoundedResult(9, b"raw diagnostic\n"),
         ):
             with (
@@ -2188,6 +2345,30 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     run_id=self.layout.run_id,
                 )
             self.assertEqual(guard.call_count, 2)
+
+    def test_malformed_package_state_diagnostic_keeps_physical_output_private(self) -> None:
+        reply = self.package_query_reply(b"package:dev.qperiapt.androidsmoke\r\r\n\x1b[31m\xff")
+        for kind, serial in (("physical", "SERIAL123"), ("emulator", "emulator-5584")):
+            self.create_capability(device_kind=kind, expected_serial=serial)
+            diagnostic = io.StringIO()
+            with (
+                self.subTest(kind=kind),
+                mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, reply)) as capture,
+                contextlib.redirect_stderr(diagnostic),
+                self.assertRaisesRegex(commands.AndroidCommandError, "package-state output is malformed"),
+            ):
+                self.invoke(commands.AndroidOperation.PACKAGE_STATE)
+            expected = {
+                "operation": "package-state", "stage": "observation", "failure": "malformed",
+                "returncode": 0, "output_bytes": len(reply),
+                "output_sha256": hashlib.sha256(reply).hexdigest(),
+            }
+            if kind == "emulator":
+                expected["output"] = reply.decode("utf-8", errors="backslashreplace")
+            self.assertEqual(json.loads(diagnostic.getvalue()), expected)
+            self.assertNotIn("\x1b", diagnostic.getvalue())
+            self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
+            self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
 
     def test_package_state_preserves_primary_when_postcheck_also_fails(self) -> None:
         with (
@@ -2224,7 +2405,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 commands,
                 "capture_stdout",
                 return_value=BoundedResult(
-                    0, b"package:dev.qperiapt.androidsmoke\n"
+                    0, self.package_query_reply(b"package:dev.qperiapt.androidsmoke\n")
                 ),
             ) as capture,
         ):
@@ -3379,6 +3560,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         copied_bytes: bytes | None = None,
         pull_result: BoundedResult = BoundedResult(0),
         timeout_seconds: int = 30,
+        transport_state: commands.ExpectedTransportState = commands.ExpectedTransportState.DEVICE,
     ) -> tuple[BoundedResult, mock.Mock, mock.Mock]:
         path_capture = mock.Mock(side_effect=path_results)
 
@@ -3397,6 +3579,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands, "capture_stdout", path_capture),
             mock.patch.object(commands, "write_stdout_at", write),
             mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_observe_expected_transport", return_value=transport_state),
         ):
             result = commands.invoke_operation(
                 commands.AndroidOperation.OBSERVE_INSTALLED_APK,
@@ -3457,8 +3640,73 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         write.assert_called_once()
         self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
 
+    def test_installed_apk_retry_distinguishes_proven_transport_absence_from_other_failures(self) -> None:
+        for kind, serial in (("emulator", "emulator-5584"), ("physical", "SERIAL123")):
+            self.create_capability(device_kind=kind, expected_serial=serial)
+            for state in commands.ExpectedTransportState:
+                with self.subTest(kind=kind, state=state):
+                    result, capture, write = self._invoke_installed_apk_observation(
+                        path_results=[BoundedResult(1, b"path command failed\n")],
+                        transport_state=state)
+                    absent_emulator = kind == "emulator" and state is commands.ExpectedTransportState.ABSENT
+                    expected = b"transport-absent" if absent_emulator else b"package-unavailable"
+                    self.assertEqual(result, BoundedResult(0, b"retryable:" + expected + b"\n"))
+                    capture.assert_called_once()
+                    write.assert_not_called()
+
+    def test_installed_apk_path_failure_records_bounded_emulator_reply_per_stage(self) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        path = b"package:/data/app/run/base.apk\n"
+        reply = b"\x1b[31mpackage service unavailable\xff\n::error::guest text\n"
+        for stage in ("before-copy", "after-copy"):
+            responses = [BoundedResult(7, reply)]
+            if stage == "after-copy":
+                responses.insert(0, BoundedResult(0, path))
+            error_log = io.StringIO()
+            with self.subTest(stage=stage):
+                with contextlib.redirect_stderr(error_log):
+                    result, capture, write = self._invoke_installed_apk_observation(
+                        path_results=responses, copied_bytes=self.apk.read_bytes(),
+                    )
+                self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+                self.assertEqual(len(error_log.getvalue().splitlines()), 1)
+                self.assertNotIn("\x1b", error_log.getvalue())
+                self.assertEqual(json.loads(error_log.getvalue()), {
+                    "operation": "installed-apk-path", "stage": stage,
+                    "failure": "unavailable", "returncode": 7,
+                    "output_bytes": len(reply),
+                    "output_sha256": hashlib.sha256(reply).hexdigest(),
+                    "output": reply.decode("utf-8", errors="backslashreplace"),
+                })
+                for call in capture.call_args_list:
+                    self.assertEqual(call.kwargs["maximum_bytes"], 65536)
+                    self.assertEqual(call.kwargs["stderr"], subprocess.STDOUT)
+                self.assertEqual(write.call_count, int(stage == "after-copy"))
+                self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_path_diagnostic_keeps_physical_reply_private(self) -> None:
+        self.create_capability(device_kind="physical", expected_serial="SERIAL123")
+        reply = b"device SERIAL123 package service unavailable\n"
+        error_log = io.StringIO()
+        with contextlib.redirect_stderr(error_log):
+            result, _capture, write = self._invoke_installed_apk_observation(
+                path_results=[BoundedResult(1, reply)],
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+        self.assertEqual(json.loads(error_log.getvalue()), {
+            "operation": "installed-apk-path", "stage": "before-copy",
+            "failure": "unavailable", "returncode": 1,
+            "output_bytes": len(reply),
+            "output_sha256": hashlib.sha256(reply).hexdigest(),
+        })
+        self.assertNotIn("SERIAL123", error_log.getvalue())
+        self.assertNotIn("package service unavailable", error_log.getvalue())
+        write.assert_not_called()
+
     def test_installed_apk_observation_retries_only_bounded_timeouts(self) -> None:
+        error_log = io.StringIO()
         with (
+            contextlib.redirect_stderr(error_log),
             mock.patch.object(
                 commands,
                 "capture_stdout",
@@ -3473,6 +3721,10 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 timeout_seconds=30,
             )
         self.assertEqual(result, BoundedResult(0, b"retryable:package-unavailable\n"))
+        self.assertEqual(json.loads(error_log.getvalue()), {
+            "operation": "installed-apk-path", "stage": "before-copy",
+            "failure": "timeout",
+        })
         write.assert_not_called()
 
         path = b"package:/data/app/run/base.apk\n"
@@ -3790,6 +4042,62 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 65536)
         self.assertEqual(capture.call_args.kwargs["stderr"], subprocess.STDOUT)
 
+    def test_boot_query_waits_for_full_framework_using_real_native_property_program(self) -> None:
+        guest_bin = self.root / "boot-native-bin"
+        guest_bin.mkdir()
+        getprop = guest_bin / "getprop"
+        getprop.write_text('''#!/bin/sh
+case "$1" in
+    sys.boot_completed) printf '%s\\n' "$BOOT_VALUE"; exit "$BOOT_STATUS" ;;
+    vold.decrypt) printf '%s\\n' "$DECRYPT_VALUE"; exit "$DECRYPT_STATUS" ;;
+    *) exit 9 ;;
+esac
+''')
+        getprop.chmod(0o700)
+        capability = self.load_capability()
+        argv = commands._boot_completed_argv(capability)
+        program = " ".join(argv[argv.index("shell") + 1:])
+        environment = {"PATH": str(guest_bin) + ":/usr/bin:/bin", "BOOT_VALUE": "1", "BOOT_STATUS": "0",
+                       "DECRYPT_VALUE": "trigger_restart_min_framework", "DECRYPT_STATUS": "0"}
+        # Reproduce the old admission condition while encryption is still active.
+        old = self.run_guest_fixture([str(getprop), "sys.boot_completed"], environment)
+        self.assertEqual(old.returncode, 0, old.stderr)
+        self.assertEqual(old.stdout, b"1\n")
+        for decrypt in ("trigger_restart_min_framework", "trigger_encryption", "trigger_default_encryption",
+                        "trigger_reset_main", "trigger_load_persist_props", "trigger_post_fs_data",
+                        "trigger_shutdown_framework", "unexpected_state", "trigger_restart_framework", ""):
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program],
+                                         dict(environment, DECRYPT_VALUE=decrypt))
+            self.assertEqual(raw.returncode, 0, raw.stderr)
+            with self.subTest(decrypt=decrypt), mock.patch.object(commands, "capture_stdout",
+                    return_value=BoundedResult(0, raw.stdout)) as capture:
+                result = self.invoke(commands.AndroidOperation.BOOT_COMPLETED)
+            self.assertEqual(result, BoundedResult(0, b"1\n" if decrypt in ("", "trigger_restart_framework") else b"0\n"))
+            self.assertEqual(capture.call_args.args[0], argv)
+            self.assertEqual(capture.call_args.kwargs["timeout_seconds"], 15)
+        for boot in ("", "0"):
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program],
+                                         dict(environment, BOOT_VALUE=boot, DECRYPT_VALUE="trigger_restart_framework"))
+            self.assertEqual(raw.returncode, 0, raw.stderr)
+            self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw.stdout), self.run_id), BoundedResult(0, b"0\n"))
+        for boot_status, decrypt_status, expected in ((7, 9, 7), (0, 9, 9)):
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program],
+                                         dict(environment, BOOT_STATUS=str(boot_status), DECRYPT_STATUS=str(decrypt_status)))
+            self.assertEqual(raw.returncode, expected)
+            # Legacy adb reports host success; the framed guest failure survives.
+            self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw.stdout), self.run_id), BoundedResult(expected))
+
+    def test_boot_query_refuses_incomplete_malformed_and_host_failed_results(self) -> None:
+        complete = (b"boot_completed=1\nvold_decrypt=trigger_restart_framework\n\n"
+                    + f"QPERIAPT_BOOT_QUERY_EXIT:{self.run_id}:0\n".encode())
+        for raw in (complete, complete.replace(b"\n", b"\r\n")):
+            self.assertEqual(commands._boot_readiness_result(BoundedResult(0, raw), self.run_id), BoundedResult(0, b"1\n"))
+        for raw in (b"1\n", complete[:-1], complete.replace(self.run_id.encode(), b"b" * 32),
+                    complete.replace(b"boot_completed=1", b"boot_completed=true"), complete + b"extra\n"):
+            with self.subTest(raw=raw), self.assertRaises(commands.AndroidCommandError):
+                commands._boot_readiness_result(BoundedResult(0, raw), self.run_id)
+        self.assertEqual(commands._boot_readiness_result(BoundedResult(7, b"1\n"), self.run_id), BoundedResult(7))
+
     def test_removed_force_stop_operation_is_rejected_before_execution(self) -> None:
         with (
             contextlib.redirect_stderr(io.StringIO()),
@@ -3800,27 +4108,398 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(rejected.exception.code, 2)
         invoke.assert_not_called()
 
+    def test_minimum_page_probe_parses_complete_aux_vectors_and_refuses_failure(self) -> None:
+        def vector(width, entries):
+            return b"".join(value.to_bytes(width, "little") for entry in entries for value in entry)
+
+        for width in (4, 8):
+            for pages in (4096, 16384):
+                data = vector(width, [(3, 0x12340000), (6, pages), (11, 2000), (0, 0)])
+                with mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(0, data)) as capture:
+                    result = self.invoke(commands.AndroidOperation.PAGE_SIZE_AUXV)
+                self.assertEqual(result, BoundedResult(0, f"{pages}\n".encode()))
+                self.assertEqual(capture.call_args.args[0][-3:], ("exec-out", "cat", "/proc/self/auxv"))
+                self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 4096)
+            for entries in ([(6, 4096)], [(0, 0)], [(6, 8192), (0, 0)],
+                            [(6, 4096), (6, 4096), (0, 0)],
+                            [(0, 0), (6, 4096), (0, 0)], [(6, 4096), (0, 1)]):
+                with self.subTest(width=width, entries=entries), self.assertRaises(commands.AndroidCommandError):
+                    commands._auxv_page_size(vector(width, entries))
+        for data in (b"", b"permission denied\n", b"\0" * 4097, vector(8, [(6, 4096), (0, 0)])[:-1]):
+            with self.assertRaises(commands.AndroidCommandError):
+                commands._auxv_page_size(data)
+        for result in (BoundedResult(1, b""), BoundedResult(0, b"error reading auxv\n")):
+            with mock.patch.object(commands, "capture_stdout", return_value=result), self.assertRaises(commands.AndroidCommandError):
+                self.invoke(commands.AndroidOperation.PAGE_SIZE_AUXV)
+
+    def test_calendar_clock_keeps_its_format_as_one_guest_shell_argument(self) -> None:
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.DEVICE_TIME_CALENDAR]
+        argv = spec.build_argv(self.load_capability())
+        shell_command = " ".join(argv[argv.index("shell") + 1:])
+        result = self.run_guest_fixture(
+            ["/bin/sh", "-c", shell_command],
+            {"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, b"")
+        timestamp = result.stdout.decode("ascii").rstrip("\n")
+        self.assertTrue(timestamp.endswith(".000"))
+        self.assertEqual(commands.canonical_logcat_start_time(timestamp), timestamp)
+
     def test_logcat_epoch_is_validated_before_it_enters_argv(self) -> None:
         epoch_path = self.proof / "adb-device-time.txt"
-        epoch_path.write_text("1786240000.123\n", encoding="ascii")
-        epoch_path.chmod(0o600)
-        with mock.patch.object(
-            commands, "write_stdout_at", return_value=BoundedResult(0)
-        ) as write:
-            self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
-        argv = write.call_args.args[0]
-        self.assertIn("1786240000.123", argv)
+        for epoch in ("1786240000.123", "09-27 21:30:01.000", "02-29 23:59:59.999"):
+            epoch_path.write_text(epoch + "\n", encoding="ascii")
+            epoch_path.chmod(0o600)
+            with mock.patch.object(
+                commands, "write_stdout_at", return_value=BoundedResult(0)
+            ) as write:
+                self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
+            argv = write.call_args.args[0]
+            self.assertIn(epoch, argv)
 
-        epoch_path.write_text("1786240000.123 --help\n", encoding="ascii")
-        epoch_path.chmod(0o600)
-        with (
-            mock.patch.object(commands, "write_stdout_at") as write,
-            self.assertRaises(
-                (commands.AndroidCommandError, state.AndroidRuntimeStateError)
-            ),
+        for invalid in ("1786240000.123 --help\n", "1786240000.%3N\n",
+                        "02-30 21:30:01.000\n", "09-27 24:00:00.000\n",
+                        "9-27 21:30:01.000\n", "09-27 21:30:01.000 --help\n"):
+            epoch_path.write_text(invalid, encoding="ascii")
+            epoch_path.chmod(0o600)
+            with (
+                mock.patch.object(commands, "write_stdout_at") as write,
+                self.assertRaises(
+                    (commands.AndroidCommandError, state.AndroidRuntimeStateError)
+                ),
+            ):
+                self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
+            write.assert_not_called()
+
+    def test_emulator_crash_logs_refuse_physical_or_missing_owner_before_read(self) -> None:
+        cases = (
+            ("physical", commands.AndroidCommandError, "owned emulator"),
+            ("emulator", state.AndroidRuntimeStateError, "owned runtime receipt is missing"),
+        )
+        for kind, error_type, expected in cases:
+            if kind == "emulator":
+                self.create_capability(device_kind=kind, expected_serial="emulator-5584")
+            for operation in (
+                commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
+                commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO,
+                commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE,
+                commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT,
+                commands.AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME,
+            ):
+                with (
+                    self.subTest(kind=kind, operation=operation),
+                    mock.patch.object(commands, "write_stdout_at") as write,
+                    self.assertRaisesRegex(error_type, expected),
+                ):
+                    self.invoke(operation)
+                write.assert_not_called()
+
+    def test_emulator_crash_logs_are_bounded_and_recheck_the_same_live_owner(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout,
+            capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path,
+            backend=receipt.backend_path,
+            current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        epoch = self.proof / "adb-device-time.txt"
+        epoch.write_text("1786240000.123\n", encoding="ascii")
+        epoch.chmod(0o600)
+        for phase, operation in (
+            (phase, operation)
+            for phase in ("success", "replaced-before-read", "replaced-after-read", "read-and-postcheck-fail")
+            for operation in (commands.AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
+                              commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT)
         ):
-            self.invoke(commands.AndroidOperation.CAPTURE_LOGCAT)
-        write.assert_not_called()
+            processes = [identity, None] if phase == "replaced-before-read" else [identity, identity, None if phase != "success" else identity]
+            with (
+                self.subTest(phase=phase),
+                mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+                mock.patch.object(commands, "_same_receipt_process", side_effect=processes),
+                mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+                mock.patch.object(commands, "write_stdout_at", return_value=BoundedResult(0)) as write,
+            ):
+                if phase == "read-and-postcheck-fail":
+                    write.side_effect = commands.BoundedProcessError("timeout", "fixture diagnostic read timeout")
+                    with self.assertRaisesRegex(commands.BoundedProcessError, "diagnostic read timeout") as raised:
+                        self.invoke(operation)
+                    self.assertTrue(any("postcheck also failed" in note for note in raised.exception.__notes__))
+                elif phase != "success":
+                    with self.assertRaisesRegex(commands.AndroidCommandError, "identity changed"):
+                        self.invoke(operation)
+                else:
+                    self.assertEqual(self.invoke(operation), BoundedResult(0))
+                    argv = write.call_args.args[0]
+                    self.assertEqual(argv[argv.index("logcat"):], (
+                        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-b", "events",
+                        "-v", "threadtime",
+                        "-T", "1786240000.123", "-s", "AndroidRuntime:E", "art:W",
+                        "dalvikvm:E", "debuggerd:E", "Watchdog:*",
+                        "ActivityManager:I", "SystemServer:E", "PackageManager:E",
+                        "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
+                        "Zygote:E", "lmkd:*", "lowmemorykiller:*", "killinfo:I",
+                        "libc:F", "DEBUG:*",
+                        "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",
+                    ))
+                    self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], commands.OPERATION_SPECS[operation].timeout_maximum)
+                    self.assertEqual(write.call_args.kwargs["maximum_bytes"], 16777216)
+                    expected_leaf = "emulator-recovery-logcat.txt" if operation is commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT else "emulator-crash-logcat.txt"
+                    self.assertEqual(write.call_args.kwargs["output_name"], expected_leaf)
+                    self.assertEqual(listeners.call_count, 2)
+                self.assertEqual(write.call_count, 0 if phase == "replaced-before-read" else 1)
+
+    def test_emulator_state_probes_preserve_native_arguments_and_first_failure(self) -> None:
+        guest_bin = self.root / "state-native-bin"
+        guest_bin.mkdir()
+        calls = self.root / "state-native-calls.txt"
+        script = r'''#!/bin/sh
+tool=${0##*/}
+printf '%s %s\n' "$tool" "$*" >>"$QPERIAPT_TEST_CALLS"
+printf 'native fixture %s\n' "$*"
+case "$tool" in
+    cat)
+        case "$1" in
+            /proc/vmstat) exit "$QPERIAPT_TEST_VMSTAT_STATUS" ;;
+            /proc/zoneinfo) exit "$QPERIAPT_TEST_ZONEINFO_STATUS" ;;
+        esac ;;
+    df) exit "$QPERIAPT_TEST_DF_STATUS" ;;
+    ps) exit "$QPERIAPT_TEST_PS_STATUS" ;;
+esac
+'''
+        for name in ("cat", "df", "getprop", "ps"):
+            path = guest_bin / name
+            path.write_text(script)
+            path.chmod(0o700)
+        argv = commands._emulator_state_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        for vmstat_status, zoneinfo_status, df_status, ps_status, expected in (
+            (0, 0, 0, 0, 0), (0, 0, 7, 9, 7),
+            (13, 5, 7, 9, 13), (0, 5, 7, 9, 5),
+        ):
+            calls.write_text("")
+            result = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                     "QPERIAPT_TEST_VMSTAT_STATUS": str(vmstat_status),
+                     "QPERIAPT_TEST_ZONEINFO_STATUS": str(zoneinfo_status),
+                     "QPERIAPT_TEST_DF_STATUS": str(df_status), "QPERIAPT_TEST_PS_STATUS": str(ps_status)},
+            )
+            self.assertEqual(result.returncode, expected, result.stderr)
+            status, payload = commands._parse_guest_completion(result.stdout, self.run_id, "emulator-state")
+            self.assertEqual(status, expected)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:memory-vmstat:{vmstat_status}".encode(), payload)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:memory-zones:{zoneinfo_status}".encode(), payload)
+            self.assertEqual(payload.count(b"QPERIAPT_STATE_STATUS:"), 13)
+            self.assertTrue(payload.startswith(b"QPERIAPT_EMULATOR_STATE_VERSION=2\n"))
+            self.assertIn(f"QPERIAPT_STATE_STATUS:data-space:{df_status}".encode(), payload)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:processes:{ps_status}".encode(), payload)
+            self.assertEqual(calls.read_text().splitlines(), [
+                "cat /proc/sys/kernel/random/boot_id", "cat /proc/uptime", "cat /proc/meminfo",
+                "cat /proc/vmstat", "cat /proc/zoneinfo",
+                "df /data", "cat /proc/mounts", "getprop ro.crypto.state", "getprop vold.decrypt",
+                "getprop ro.zygote", "getprop init.svc.zygote",
+                "getprop init.svc.zygote_secondary", "ps ",
+            ])
+
+    def test_memory_runtime_probe_reads_fixed_inputs_and_keeps_first_failure(self) -> None:
+        guest_bin = self.root / "memory-runtime-native-bin"
+        guest_bin.mkdir()
+        calls = self.root / "memory-runtime-native-calls.txt"
+        for name in ("uname", "getconf", "getprop"):
+            probe = guest_bin / name
+            probe.write_text('''#!/bin/sh
+name=${0##*/}
+printf '%s %s\\n' "$name" "$*" >>"$QPERIAPT_TEST_CALLS"
+case "$name" in
+  uname) printf 'kernel fixture\\n'; exit "$QPERIAPT_TEST_KERNEL_STATUS" ;;
+  getconf) printf '16384\\n' ;;
+  getprop)
+    case "$1" in
+      ro.build.fingerprint) printf 'build fingerprint fixture\\n' ;;
+      ro.system.build.fingerprint) printf 'system fingerprint fixture\\n'; exit "$QPERIAPT_TEST_BINARY_STATUS" ;;
+      *) exit 64 ;;
+    esac ;;
+esac
+''')
+            probe.chmod(0o700)
+        argv = commands._emulator_memory_runtime_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        for kernel_status, binary_status in ((0, 0), (7, 0), (0, 11), (7, 11)):
+            calls.write_text("")
+            result = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                 "QPERIAPT_TEST_KERNEL_STATUS": str(kernel_status),
+                 "QPERIAPT_TEST_BINARY_STATUS": str(binary_status)},
+            )
+            expected = kernel_status or binary_status
+            self.assertEqual(result.returncode, expected, result.stderr)
+            status, body = commands._parse_guest_completion(result.stdout, self.run_id, "memory-runtime")
+            self.assertEqual(status, expected)
+            self.assertTrue(body.startswith(b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=2\n"))
+            self.assertEqual(body.count(b"QPERIAPT_STATE_STATUS:"), 4)
+            self.assertIn(f"QPERIAPT_STATE_STATUS:system-build-fingerprint:{binary_status}".encode(), body)
+            self.assertEqual(calls.read_text().splitlines(), [
+                "uname -r", "getconf PAGE_SIZE", "getprop ro.build.fingerprint",
+                "getprop ro.system.build.fingerprint",
+            ])
+
+    def test_app_exit_info_probe_keeps_exact_package_and_native_failure(self) -> None:
+        guest_bin = self.root / "exit-info-native-bin"
+        guest_bin.mkdir()
+        calls = self.root / "exit-info-native-calls.txt"
+        probe = guest_bin / "dumpsys"
+        probe.write_text('''#!/bin/sh
+printf '%s\\n' "$@" >"$QPERIAPT_TEST_CALLS"
+printf 'native exit history fixture\\n'
+exit "$QPERIAPT_TEST_DUMP_STATUS"
+''')
+        probe.chmod(0o700)
+        argv = commands._emulator_app_exit_info_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        for status in (0, 7):
+            result = self.run_guest_fixture(
+                ["/bin/sh", "-c", program],
+                {"PATH": str(guest_bin) + ":/usr/bin:/bin", "QPERIAPT_TEST_CALLS": str(calls),
+                     "QPERIAPT_TEST_DUMP_STATUS": str(status)},
+            )
+            self.assertEqual(result.returncode, status, result.stderr)
+            remote_status, body = commands._parse_guest_completion(result.stdout, self.run_id, "app-exit-info")
+            self.assertEqual(remote_status, status)
+            self.assertEqual(body, b"native exit history fixture\n")
+            self.assertEqual(calls.read_text().splitlines(), ["activity", "exit-info", commands.PACKAGE])
+
+    def test_guest_state_timeout_closes_descendants_before_directory_cleanup(self) -> None:
+        guest_bin = self.root / "blocked-state-bin"
+        guest_bin.mkdir()
+        gate = self.root / "state-gate"
+        os.mkfifo(gate, 0o600)
+        ready = self.root / "state-probe-ready"
+        for name in ("cat", "df", "getprop", "ps"):
+            path = guest_bin / name
+            path.write_text('#!/bin/sh\nif [ "${0##*/}" = df ]; then\n'
+                            'printf ready > "$QPERIAPT_TEST_READY"\n'
+                            'read -r release < "$QPERIAPT_TEST_GATE"\nfi\nexit 0\n')
+            path.chmod(0o700)
+        argv = commands._emulator_state_argv(self.load_capability())
+        program = " ".join(argv[argv.index("shell") + 1:])
+        try:
+            with self.assertRaises(BoundedProcessError) as raised:
+                self.run_guest_fixture(
+                    ["/bin/sh", "-c", program],
+                    {"PATH": str(guest_bin) + ":/usr/bin:/bin",
+                     "QPERIAPT_TEST_READY": str(ready), "QPERIAPT_TEST_GATE": str(gate)},
+                )
+            self.assertEqual(raised.exception.kind, "timeout")
+            self.assertFalse(raised.exception.cleanup_ambiguous)
+            self.assertEqual(ready.read_text(), "ready")
+        finally:
+            # Release a surviving fixture even when a regression makes the
+            # assertion fail; never leave it writing into the next test.
+            try:
+                descriptor = os.open(gate, os.O_WRONLY | os.O_NONBLOCK)
+            except OSError as exc:
+                if exc.errno != errno.ENXIO:
+                    raise
+                survived = False
+            else:
+                survived = True
+                try:
+                    os.write(descriptor, b"release\n")
+                finally:
+                    os.close(descriptor)
+        self.assertFalse(survived, "guest descendant survived the timeout")
+
+    def test_emulator_state_capture_requires_completion_and_keeps_distinct_files(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout, capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path, backend=receipt.backend_path, current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        for operation, leaf, kind, marker, limit in (
+            (commands.AndroidOperation.CAPTURE_EMULATOR_BASELINE, "emulator-state-before.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE, "emulator-state-failure.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE, "emulator-state-recovery.txt", "emulator-state", "QPERIAPT_EMULATOR_STATE_EXIT", 65536),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO, "emulator-app-exit-info.txt", "app-exit-info", "QPERIAPT_APP_EXIT_INFO_EXIT", 1048576),
+            (commands.AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME, "emulator-memory-runtime.txt", "memory-runtime", "QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT", 4194304),
+        ):
+            for remote_status, crlf in ((0, False), (0, True), (7, False), (None, False)):
+                raw = b"native diagnostic body\n"
+                if remote_status is not None:
+                    raw += f"\n{marker}:{self.run_id}:{remote_status}\n".encode()
+                if crlf:
+                    raw = raw.replace(b"\n", b"\r\n")
+
+                def write_fixture(*args, **kwargs):
+                    path = self.proof / kwargs["output_name"]
+                    path.write_bytes(raw)
+                    path.chmod(0o600)
+                    # Simulate only legacy adb's loss of the guest exit code.
+                    return BoundedResult(0)
+
+                with (
+                    self.subTest(operation=operation, remote_status=remote_status, crlf=crlf),
+                    mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+                    mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+                    mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+                    mock.patch.object(commands, "write_stdout_at", side_effect=write_fixture) as write,
+                ):
+                    if remote_status is None:
+                        with self.assertRaisesRegex(commands.AndroidCommandError, kind + " output is malformed"):
+                            self.invoke(operation)
+                    else:
+                        self.assertEqual(self.invoke(operation), BoundedResult(remote_status))
+                    self.assertEqual(write.call_args.kwargs["output_name"], leaf)
+                    self.assertLessEqual(write.call_args.kwargs["timeout_seconds"], 15)
+                    self.assertEqual(write.call_args.kwargs["maximum_bytes"], limit)
+                    self.assertEqual(write.call_args.kwargs["stderr"], subprocess.STDOUT)
+                    self.assertEqual(listeners.call_count, 2)
+
+    def test_modern_adb_diagnostic_failure_retains_output_and_fails(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout, capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path, backend=receipt.backend_path, current_boot=True,
+        )
+        identity = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        payload = (b"native diagnostic refusal\n"
+                   + f"\nQPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT:{self.run_id}:7\n".encode())
+        real_write = commands.write_stdout_at
+
+        def modern_adb_fixture(_argv, **kwargs):
+            # Use the real bounded writer and a real nonzero child; only the
+            # transport response is a fixture, not an emulator qualification.
+            return real_write(
+                [sys.executable, "-I", "-S", "-c",
+                 f"import sys; sys.stdout.buffer.write({payload!r}); raise SystemExit(7)"],
+                **kwargs,
+            )
+
+        with (
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=identity),
+            mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+            mock.patch.object(commands, "write_stdout_at", side_effect=modern_adb_fixture),
+        ):
+            result = self.invoke(commands.AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME)
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual((self.proof / "emulator-memory-runtime.txt").read_bytes(), payload)
+        self.assertEqual(listeners.call_count, 2)
 
     def test_parser_rejects_unknown_operation_and_extra_arguments(self) -> None:
         diagnostics = io.StringIO()
@@ -3936,6 +4615,13 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                             0,
                         )
                     self.assertEqual(output.getvalue(), f"{expected}\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(commands.main([
+                    "runtime-avd-name", "--adb-profile", "linux-system",
+                    "--device-abi", "x86_64", "--runtime-profile", "api23-4k",
+                ]), 0)
+            self.assertEqual(output.getvalue(), "QPeriapt_SDK_4K_API_23_CI_V1\n")
             with self.assertRaisesRegex(
                 state.AndroidRuntimeStateError,
                 "no fixed AVD selection",
@@ -5883,11 +6569,50 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
 
+    def test_normal_retirement_preserves_private_pstore_ram_before_checkpoint(self) -> None:
+        receipt = self.create_active_emulator_runtime_receipt()
+        pstore = self.create_sdk_pstore_fixture()
+        ram = pstore / "pstore.bin"
+        contents = bytes(range(256)) * 256
+        ram.write_bytes(contents)
+        ram.chmod(0o600)
+        before = state._avd_scratch_identity(ram.stat())
+        state.retire_recovery_capability(self.layout, receipt)
+        self.private_adb_directory.rmdir()
+
+        def checkpoint_after_restoration(exact: state.OwnedRuntimeReceipt) -> None:
+            self.assertEqual(exact, receipt)
+            self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+            self.assertEqual(ram.read_bytes(), contents)
+            self.assertEqual(state._avd_scratch_identity(ram.stat()), before)
+            self.assertTrue(state.owned_runtime_receipt_path().exists())
+            state.validate_runtime_avd_selection("macos-account", "arm64-v8a")
+
+        with (
+            mock.patch.object(state, "validate_lane_lock_descriptor"),
+            mock.patch.object(commands, "_same_receipt_process", return_value=None),
+            mock.patch.object(commands, "_same_receipt_adb_server_process", return_value=None),
+            mock.patch.object(
+                state, "record_post_cleanup_adb_isolation_checkpoint",
+                side_effect=checkpoint_after_restoration,
+            ) as checkpoint,
+        ):
+            commands.retire_stopped_owned_runtime(receipt.run_id)
+        checkpoint.assert_called_once_with(receipt)
+        self.assertFalse(state.owned_runtime_receipt_path().exists())
+        self.assertEqual(ram.read_bytes(), contents)
+        self.assertEqual(state._avd_scratch_identity(ram.stat()), before)
+
     def test_failed_retirement_requires_primary_failure_and_omits_checkpoints(
         self,
     ) -> None:
         receipt = self.create_active_emulator_runtime_receipt()
         pstore = self.create_sdk_pstore_fixture()
+        ram = pstore / "pstore.bin"
+        contents = b"preserved guest RAM".ljust(65536, b"\0")
+        ram.write_bytes(contents)
+        ram.chmod(0o600)
+        before = state._avd_scratch_identity(ram.stat())
         with self.assertRaisesRegex(
             commands.AndroidCommandError,
             "nonzero primary exit status",
@@ -5940,6 +6665,8 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         )
         self.assertFalse(state.owned_runtime_receipt_path().exists())
         self.assertEqual(stat.S_IMODE(pstore.stat().st_mode), 0o700)
+        self.assertEqual(ram.read_bytes(), contents)
+        self.assertEqual(state._avd_scratch_identity(ram.stat()), before)
 
     def test_retirement_refuses_nonempty_pstore_and_retains_recovery_receipt(
         self,

@@ -36,10 +36,10 @@ echo "[gate] cargo build --locked --lib"
 cargo build --locked --lib
 
 if rustup toolchain list | grep -Eq '^1\.85(-|\s)'; then
-  echo "[gate] cargo +1.85 check --locked --lib"
-  cargo +1.85 check --locked --lib
+  echo "[gate] cargo +1.90 check --locked --lib"
+  cargo +1.90 check --locked --lib
 else
-  echo "[not-run] MSRV toolchain 1.85 is not installed"
+  echo "[not-run] MSRV toolchain 1.90 is not installed"
 fi
 
 targets=(

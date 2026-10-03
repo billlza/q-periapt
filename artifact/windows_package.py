@@ -13,14 +13,17 @@ import pathlib
 import re
 import signal
 import stat
+import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Callable
 from typing import Any, BinaryIO, Iterable
 
 from c_abi_contract import ABI_MAJOR, PACKAGE_SEMVER, load_contract
+from sdk_abi2_spec import PACKAGE_SEMVER as SDK_PACKAGE_SEMVER
 from evidence_io import (
     EvidenceIOError,
     FileSnapshot,
@@ -28,6 +31,7 @@ from evidence_io import (
     read_regular_snapshot,
 )
 from package_bom import (
+    BomProfile,
     EXPECTED_CRYPTO_ASSETS,
     PackageBomError,
     verify as verify_package_boms,
@@ -309,11 +313,20 @@ CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES = (
     "dbghelp.lib",
     "msvcrt.lib",
 )
+# The SDK's reference-connection closure includes getrandom 0.2 through ring.
+# Its Windows backend links BCryptGenRandom and RtlGenRandom explicitly. Keep
+# the historical 0.1.5 tuple separate: neither profile admits arbitrary libs.
+SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS = (
+    "bcrypt.lib", "advapi32.lib", *EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS
+)
+SDK_WINDOWS_NATIVE_STATIC_LIBRARIES = (
+    "bcrypt.lib", "advapi32.lib", *CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES
+)
 
 WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]", re.ASCII)
 REQUIRED_MSVC_LINK_ARGUMENTS = ("/nologo", "/wx")
-EXPECTED_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
-EXPECTED_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
+EXPECTED_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+EXPECTED_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 
 EXPECTED_PAYLOAD_FILES = frozenset(
     {
@@ -339,6 +352,43 @@ EXPECTED_PAYLOAD_FILES = frozenset(
     }
 )
 EXPECTED_ALL_FILES = EXPECTED_PAYLOAD_FILES | {"MANIFEST.json", "SHA256SUMS"}
+PACKAGE_PROFILES = ("legacy", "sdk-020")
+SDK_SCHEMA_VERSION = 4
+SDK_KIND = "qperiapt.windows_sdk_package_manifest"
+SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_RUST_LIBRARY_NOTICE = "LICENSES/Rust-1.98.1-library.html"
+SDK_UNSIGNED_REASON = (
+    "This alpha candidate is unsigned; hashes and source records do not "
+    "establish Authenticode trust or publication."
+)
+LEGACY_UNSIGNED_REASON = (
+    "No trusted Windows Authenticode credential was available; integrity "
+    "relies on GitHub immutable-release and artifact attestations."
+)
+SDK_PAYLOAD_SOURCES = {
+    "include/qperiapt/abi2/q_periapt.h": "crates/q-periapt-ffi/include/q_periapt.h",
+    "include/qperiapt/abi2/signed_policy_fixture.h": "bindings/c/signed_policy_fixture.h",
+    "include/qperiapt/abi2/sdk_policy_update_fixture.h": "bindings/c/sdk_policy_update_fixture.h",
+    "share/q-periapt/smoke.c": "bindings/c/smoke.c",
+    "share/q-periapt/sdk_smoke.c": "bindings/c/sdk_smoke.c",
+    "share/q-periapt/legacy/q_periapt.h": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
+    SDK_RUST_LIBRARY_NOTICE: SDK_RUST_LIBRARY_NOTICE,
+}
+SDK_PAYLOAD_FILES = (EXPECTED_PAYLOAD_FILES - {"share/q-periapt/abi/q-periapt-c-abi-v2.json"}) \
+    | {SDK_EMBEDDED_CONTRACT} | frozenset(SDK_PAYLOAD_SOURCES)
+SDK_SOURCE_INPUT_PATHS = {
+    **SOURCE_INPUT_PATHS,
+    "c_abi_contract": SDK_CONTRACT_PATH,
+    "sdk_abi_spec": "artifact/sdk_abi2_spec.py",
+    "sdk_smoke_consumer": "bindings/c/sdk_smoke.c",
+    "sdk_policy_fixture": "bindings/c/sdk_policy_update_fixture.h",
+    "legacy_header": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
+    "sdk_cbom_source": "crates/q-periapt-cli/src/sdk_cbom.rs",
+    "sdk_tls_inventory": "artifact/fixtures/sdk-native-020-tls-inventory.json",
+    "rust_library_notice": SDK_RUST_LIBRARY_NOTICE,
+    "sdk_profile_tests": "artifact/windows-sdk-profile-tests.ps1",
+}
 
 
 class WindowsPackageError(ValueError):
@@ -348,6 +398,249 @@ class WindowsPackageError(ValueError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise WindowsPackageError(message)
+
+
+def _static_archive_layout(data: bytes) -> list[tuple[bytes, int, int]]:
+    """Bounded regular archive framing; no member name is used as a path here."""
+    _require(data.startswith(b"!<arch>\n"), "static library must be a regular COFF archive")
+    cursor = 8
+    members = []
+    while cursor < len(data):
+        _require(cursor + 60 <= len(data), "truncated static archive member header")
+        header = data[cursor:cursor + 60]
+        size_text = header[48:58].strip()
+        _require(header[58:] == b"`\n" and size_text.isdigit(), "invalid static archive member header")
+        size = int(size_text)
+        start, end = cursor + 60, cursor + 60 + size
+        _require(end + size % 2 <= len(data), "truncated static archive member")
+        members.append((header, start, end))
+        _require(len(members) <= 10_000, "static archive member budget exceeded")
+        cursor = end + size % 2
+    return members
+
+
+def normalize_static_debug_filenames(data: bytes) -> tuple[bytes, int]:
+    """Replace only AMD64 COFF FILE auxiliary filenames, without moving any byte.
+
+    Rust's archive also contains short import records, which llvm-strip cannot
+    process. Those records and the archive indexes remain byte-identical. This
+    accepts the normal COFF objects emitted by the pinned toolchain; unsupported
+    object dialects fail. It never searches/replaces strings in code or data.
+    """
+    result = bytearray(data)
+    changed = 0
+    for header, start, end in _static_archive_layout(data):
+        if header[:16].strip() in (b"/", b"//", b"/SYM64/"):
+            continue # Linker/string indexes are preserved, including duplicate member names.
+        member = memoryview(data)[start:end]
+        _require(len(member) >= 20, "truncated COFF member")
+        if member[:8] == b"\x00\x00\xff\xff\x00\x00\x64\x86":
+            _require(struct.unpack_from("<I", member, 12)[0] == len(member) - 20,
+                     "invalid AMD64 import record size")
+            continue # Short imports have no COFF symbol table or FILE auxiliary records.
+        machine, sections, _, symbol_offset, symbols, optional, _ = struct.unpack_from("<HHIIIHH", member)
+        _require(machine == 0x8664 and optional == 0, "unsupported static COFF object dialect")
+        header_end = 20 + 40 * sections
+        _require(header_end <= len(member), "truncated COFF section table")
+        if symbols == 0:
+            continue
+        symbol_end = symbol_offset + 18 * symbols
+        _require(header_end <= symbol_offset < symbol_end <= len(member), "invalid COFF symbol table extent")
+        # Refuse aliases into section contents, relocations or line records.
+        # This makes the write boundary independent of a producer's layout.
+        for index in range(sections):
+            _, _, _, raw_size, raw_pointer, reloc_pointer, line_pointer, relocs, lines, flags = struct.unpack_from(
+                "<8sIIIIIIHHI", member, 20 + 40 * index)
+            if flags & 0x01000000: # IMAGE_SCN_LNK_NRELOC_OVFL: first record stores the count.
+                _require(relocs == 0xffff and 0 < reloc_pointer <= len(member) - 10,
+                         "invalid COFF relocation overflow record")
+                relocs = struct.unpack_from("<I", member, reloc_pointer)[0]
+                _require(relocs > 0xffff, "invalid COFF relocation overflow count")
+            ranges = [(reloc_pointer, 10 * relocs), (line_pointer, 6 * lines)]
+            if raw_pointer or not flags & 0x80: # Uninitialized .bss has no stored bytes.
+                ranges.append((raw_pointer, raw_size))
+            for offset, length in ranges:
+                if length:
+                    _require(header_end <= offset and offset + length <= len(member), "invalid COFF section extent")
+                    _require(offset + length <= symbol_offset or symbol_end <= offset,
+                             "COFF symbol table overlaps section contents")
+        index = 0
+        while index < symbols:
+            location = symbol_offset + 18 * index
+            name, _, section, _, storage, auxiliaries = struct.unpack_from("<8sIhHBB", member, location)
+            _require(index + 1 + auxiliaries <= symbols, "truncated COFF auxiliary records")
+            if storage == 103: # IMAGE_SYM_CLASS_FILE, PE/COFF Auxiliary Format 4.
+                _require(name == b".file\0\0\0" and section == -2 and auxiliaries > 0,
+                         "invalid COFF FILE symbol")
+                first, length = start + location + 18, 18 * auxiliaries
+                result[first:first + length] = b"<source>".ljust(length, b"\0")
+                changed += 1
+            index += 1 + auxiliaries
+    return bytes(result), changed
+
+
+def _static_archive_objects(data: bytes) -> list[tuple[str, bytes]]:
+    layout = _static_archive_layout(data)
+    tables = [data[start:end] for header, start, end in layout if header[:16].strip() == b"//"]
+    _require(len(tables) <= 1, "ambiguous static archive long-name table")
+    objects = []
+    for header, start, end in layout:
+        name = header[:16].strip()
+        if name in (b"/", b"//", b"/SYM64/"):
+            continue
+        if name.startswith(b"/"):
+            _require(name[1:].isdigit() and len(tables) == 1, "invalid static archive name reference")
+            offset, table = int(name[1:]), tables[0]
+            _require(0 <= offset < len(table), "static archive name offset is out of range")
+            endings = [position for terminator in (b"\0", b"/\n") if (position := table.find(terminator, offset)) >= 0]
+            _require(bool(endings), "unterminated static archive member name")
+            name = table[offset:min(endings)]
+        else:
+            name = name.removesuffix(b"/")
+        _require(re.fullmatch(rb"[\x20-\x7e]{1,32767}", name) is not None,
+                 "static archive member name is not bounded ASCII")
+        # Some Rust compiler-builtins members carry the upstream absolute path
+        # as their archive label. It never selects a host input file. Use only
+        # its basename for the copied member, preserving duplicates by index.
+        name = ntpath.basename(name.decode("ascii")).encode("ascii")
+        _require(re.fullmatch(rb"[A-Za-z0-9_.$+-]{1,255}", name) is not None
+                 and name not in (b".", b"..")
+                 and re.fullmatch(rb"(?i)(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?", name) is None,
+                 "static archive member name is not a safe basename")
+        objects.append((name.decode("ascii"), data[start:end]))
+    _require(bool(objects), "static archive has no object members")
+    return objects
+
+
+def _is_reviewed_codeview_object(data: bytes) -> bool:
+    """Select only the reviewed CodeView-bearing NASM object layout.
+
+    Rewriting a plain MSVC object can invalidate linker metadata such as
+    .voltbl even when its external symbols are unchanged. Preserve every byte
+    of every other layout, including debug-bearing compiler objects with
+    linker metadata. The final path scan still rejects any retained private
+    path; this classification does not admit the distribution package.
+    """
+    _require(len(data) >= 20 and data[:2] == b"\x64\x86", "unsupported static object for debug stripping")
+    count = struct.unpack_from("<H", data, 2)[0]
+    optional = struct.unpack_from("<H", data, 16)[0]
+    _require(optional == 0 and 20 + count * 40 <= len(data), "invalid static COFF section headers")
+    names = {data[20 + index * 40:28 + index * 40].rstrip(b"\0") for index in range(count)}
+    return bool(names.intersection({b".debug$S", b".debug$T"})) and names <= {
+        b".debug$S", b".debug$T", b".text", b".rdata", b".pdata", b".xdata",
+    }
+
+
+def strip_static_archive_debug(source: pathlib.Path, destination: pathlib.Path,
+                               *, llvm_strip: pathlib.Path, llvm_ar: pathlib.Path) -> dict[str, object]:
+    """Strip reviewed CodeView objects, preserving plain objects/imports and member order."""
+    snapshot = read_regular_snapshot(source, maximum=MAX_PACKAGE_FILE_BYTES, label="static metadata archive")
+    objects = _static_archive_objects(snapshot.data)
+    _require(not destination.exists() and not destination.is_symlink(), "static distribution output already exists")
+    suffix = ".exe" if os.name == "nt" else ""
+    strip = _regular_windows_tool(llvm_strip, expected_name="llvm-strip" + suffix, label="LLVM strip")
+    ar = _regular_windows_tool(llvm_ar, expected_name="llvm-ar" + suffix, label="LLVM archiver")
+    # Retain intermediate objects/logs on failure as well as success. Each index
+    # gets its own directory, so repeated import member names never overwrite.
+    work = pathlib.Path(tempfile.mkdtemp(prefix="static-debug-", dir=destination.parent)).resolve()
+    paths, debug_objects, imports, unchanged_objects = [], [], {}, {}
+    for index, (name, data) in enumerate(objects):
+        folder = work / str(index)
+        folder.mkdir()
+        path = folder / name
+        with path.open("xb") as stream:
+            stream.write(data)
+        paths.append(path)
+        if data[:8] == b"\x00\x00\xff\xff\x00\x00\x64\x86":
+            _require(len(data) >= 20 and struct.unpack_from("<I", data, 12)[0] == len(data) - 20,
+                     "invalid AMD64 import record size")
+            imports[index] = data
+        elif _is_reviewed_codeview_object(data):
+            debug_objects.append(path)
+        else:
+            unchanged_objects[index] = data
+
+    def batches(selected: list[pathlib.Path]) -> Iterable[list[str]]:
+        batch, length = [], 0
+        for path in selected:
+            argument = str(path)
+            _require(len(argument) < 8_000, "static object tool argument is too long")
+            if length + len(argument) + 3 > 16_000:
+                yield batch
+                batch, length = [], 0
+            batch.append(argument)
+            length += len(argument) + 3
+        if batch:
+            yield batch
+
+    invocation = 0
+    def run(arguments: list[str]) -> None:
+        nonlocal invocation
+        invocation += 1
+        completed = _run_bounded_process(arguments, cwd=str(work), stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=60)
+        (work / f"tool-{invocation}.stdout").write_bytes(completed.stdout)
+        (work / f"tool-{invocation}.stderr").write_bytes(completed.stderr)
+        _require(completed.returncode == 0 and not completed.stdout and not completed.stderr,
+                 "static archive tool failed or emitted diagnostics; attempt logs retained")
+
+    for batch in batches(debug_objects):
+        run([str(strip), "--strip-debug", *batch])
+    candidate = work / "distribution.lib"
+    for batch in batches(paths):
+        run([str(ar), "--format=coff", "qcD", str(candidate), *batch])
+    run([str(ar), "sD", str(candidate)])
+    final = read_regular_snapshot(candidate, maximum=MAX_PACKAGE_FILE_BYTES, label="stripped static archive")
+    rebuilt = _static_archive_objects(final.data)
+    _require([name for name, _ in rebuilt] == [name for name, _ in objects], "static archive member order or names changed")
+    for index, (_, data) in enumerate(rebuilt):
+        object_snapshot = read_regular_snapshot(paths[index], maximum=MAX_PACKAGE_FILE_BYTES, label="stripped object")
+        _require(data == object_snapshot.data, "static archive member changed during indexing")
+        if index in imports:
+            _require(data == imports[index], "static import record changed")
+        if index in unchanged_objects:
+            _require(data == unchanged_objects[index], "unselected static object changed")
+    _require(_sha256(source) == snapshot.sha256, "static metadata source changed")
+    with destination.open("xb") as stream:
+        _require(stream.write(final.data) == len(final.data), "incomplete stripped static archive")
+        stream.flush()
+        os.fsync(stream.fileno())
+    return {"source_sha256": snapshot.sha256, "sha256": final.sha256,
+            "object_members": len(debug_objects) + len(unchanged_objects),
+            "stripped_codeview_members": len(debug_objects),
+            "unchanged_object_members": len(unchanged_objects),
+            "unchanged_import_members": len(imports)}
+
+
+def create_static_distribution_copy(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
+    snapshot = read_regular_snapshot(source, maximum=MAX_PACKAGE_FILE_BYTES, label="static compiler archive")
+    data, count = normalize_static_debug_filenames(snapshot.data)
+    with destination.open("xb") as output:
+        _require(output.write(data) == len(data), "incomplete static distribution copy")
+        output.flush()
+        os.fsync(output.fileno())
+    return {"source_sha256": snapshot.sha256, "sha256": hashlib.sha256(data).hexdigest(),
+            "bytes": len(data), "normalized_filename_records": count}
+
+
+def _sdk_profile(profile: str) -> bool:
+    _require(profile in PACKAGE_PROFILES, "unknown Windows package profile")
+    return profile == "sdk-020"
+
+
+def profile_source_paths(profile: str) -> dict[str, str]:
+    return dict(SDK_SOURCE_INPUT_PATHS if _sdk_profile(profile) else SOURCE_INPUT_PATHS)
+
+
+def profile_payload_files(profile: str) -> frozenset[str]:
+    return SDK_PAYLOAD_FILES if _sdk_profile(profile) else EXPECTED_PAYLOAD_FILES
+
+
+def _validate_sdk_payload_sources(root: pathlib.Path, repository: pathlib.Path | None) -> None:
+    if repository is not None:
+        for packaged, source in SDK_PAYLOAD_SOURCES.items():
+            _require(_sha256(root / packaged) == _sha256(repository / source),
+                     f"Windows SDK shipped source differs: {packaged}")
 
 
 def _validate_msvc_version(value: object, label: str) -> None:
@@ -601,34 +894,39 @@ def _third_party_rust_files(root: pathlib.Path) -> tuple[dict[str, Any], frozens
     return inventory, frozenset(paths)
 
 
-def _validate_boms(package_root: pathlib.Path, repository_root: pathlib.Path | None) -> None:
+def _validate_boms(package_root: pathlib.Path, repository_root: pathlib.Path | None,
+                   profile: str = "legacy") -> None:
     try:
         verify_package_boms(
             package_root,
             cargo_lock=(repository_root / "Cargo.lock") if repository_root else None,
+            profile=BomProfile.NATIVE_SDK_020 if _sdk_profile(profile) else BomProfile.BACKENDS_V0_1_5,
         )
     except PackageBomError as exc:
         raise WindowsPackageError(str(exc)) from exc
 
 
-def _validate_contracts(package_root: pathlib.Path, repository_root: pathlib.Path | None) -> tuple[str, str]:
-    embedded_path = package_root / "share/q-periapt/abi/q-periapt-c-abi-v2.json"
+def _validate_contracts(package_root: pathlib.Path, repository_root: pathlib.Path | None,
+                        profile: str = "legacy") -> tuple[str, str]:
+    sdk = _sdk_profile(profile)
+    embedded_path = package_root / (SDK_EMBEDDED_CONTRACT if sdk else "share/q-periapt/abi/q-periapt-c-abi-v2.json")
     try:
         embedded = load_contract(embedded_path)
     except ValueError as exc:
         raise WindowsPackageError(f"embedded ABI contract is invalid: {exc}") from exc
-    _require(embedded.document["package"]["semver"] == PACKAGE_SEMVER, "embedded contract package version differs")
+    _require(embedded.document["package"]["semver"] == (SDK_PACKAGE_SEMVER if sdk else PACKAGE_SEMVER), "embedded contract package version differs")
     identity = embedded.document["package"]["platforms"][ABI_PLATFORM]
     _require(identity["shared_filename"] == "q_periapt_ffi_abi2.dll", "embedded Windows DLL identity differs")
     _require(identity["import_library_filename"] == "q_periapt_ffi_abi2.lib", "embedded Windows import-library identity differs")
     _require(identity["static_filename"] == "q_periapt_ffi_abi2_static.lib", "embedded Windows static-library identity differs")
     if repository_root is not None:
         source = load_contract(
-            repository_root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+            repository_root / (SDK_CONTRACT_PATH if sdk else "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
         )
         _require(source.sha256 == embedded.sha256, "embedded ABI contract differs from repository trust root")
     exports = sorted(item["name"] for item in embedded.document["abi"]["exports"])
-    _require(len(exports) == 9 and len(exports) == len(set(exports)), "ABI export set is not exactly nine unique names")
+    _require(len(exports) == (43 if sdk else 9) and len(exports) == len(set(exports)),
+             "ABI export set differs from the selected closed profile")
     exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode()).hexdigest()
     return embedded.sha256, exports_sha256
 
@@ -702,9 +1000,14 @@ def parse_dumpbin_dependents(output: bytes) -> list[str]:
     return _normalize_dependencies(dependencies)
 
 
-def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
+def parse_rustc_native_static_libraries(output: bytes, *, profile: str = "legacy") -> list[str]:
     """Parse and freeze rustc's ordered Windows static-link contract."""
 
+    _require(profile in PACKAGE_PROFILES, "unknown Windows native static library profile")
+    expected = (SDK_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS if profile == "sdk-020"
+                else EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS)
+    canonical = (SDK_WINDOWS_NATIVE_STATIC_LIBRARIES if profile == "sdk-020"
+                 else CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
     _require(isinstance(output, bytes), "rustc native-static-libs output must be bytes")
     _require(
         len(output) <= MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES,
@@ -737,10 +1040,10 @@ def parse_rustc_native_static_libraries(output: bytes) -> list[str]:
     )
     libraries = matches[0].split()
     _require(
-        tuple(libraries) == EXPECTED_WINDOWS_NATIVE_STATIC_LIBRARY_TOKENS,
+        tuple(libraries) == expected,
         "rustc Windows native-static-libs contract differs",
     )
-    return list(CANONICAL_WINDOWS_NATIVE_STATIC_LIBRARIES)
+    return list(canonical)
 
 
 def _decode_rust_debug_string(
@@ -1853,10 +2156,10 @@ def inspect_dumpbin_dependencies(
     return parse_dumpbin_dependents(completed.stdout)
 
 
-def _source_hashes(repository_root: pathlib.Path) -> dict[str, str]:
+def _source_hashes(repository_root: pathlib.Path, profile: str = "legacy") -> dict[str, str]:
     result = {
         name: _sha256(repository_root / relative)
-        for name, relative in SOURCE_INPUT_PATHS.items()
+        for name, relative in profile_source_paths(profile).items()
     }
     result["rust_workspace_build_inputs"] = _tree_hash(
         repository_root, RUST_WORKSPACE_INPUTS
@@ -1883,17 +2186,20 @@ def create_manifest(
     cl: str,
     dependencies: Iterable[str],
     forbidden_windows_paths: Iterable[str] = (),
+    profile: str = "legacy",
 ) -> dict[str, Any]:
     """Create deterministic MANIFEST.json and SHA256SUMS after every native gate passed."""
 
     root = _validate_package_root(package_root)
+    sdk = _sdk_profile(profile)
+    package_version = SDK_PACKAGE_SEMVER if sdk else PACKAGE_SEMVER
     repository = pathlib.Path(repository_root).resolve(strict=True)
     dependency_list = list(dependencies)
     windows_path_list = list(forbidden_windows_paths)
     _require(COMMIT_RE.fullmatch(git_commit) is not None, "git commit must be 40 lowercase hexadecimal digits")
     _require(TREE_RE.fullmatch(git_tree) is not None, "git tree must be 40 to 64 lowercase hexadecimal digits")
     _require(type(source_date_epoch) is int, "source date epoch must be an integer")
-    _require(version == PACKAGE_SEMVER, f"Windows package version must be {PACKAGE_SEMVER}")
+    _require(version == package_version, f"Windows package version must be {package_version}")
     _require(package_name == f"q-periapt-c-abi2-{version}-{TARGET}", "Windows package name differs from release contract")
     _require(
         rustc == EXPECTED_RUSTC_VERSION,
@@ -1906,11 +2212,13 @@ def create_manifest(
     _validate_msvc_version(cl, "cl version")
 
     third_party, third_party_files = _third_party_rust_files(root)
-    expected_payload_files = EXPECTED_PAYLOAD_FILES | third_party_files
+    expected_payload_files = profile_payload_files(profile) | third_party_files
     inventory = _inventory(root)
     _require(set(inventory) == expected_payload_files, f"Windows payload file set differs: missing={sorted(expected_payload_files - set(inventory))} extra={sorted(set(inventory) - expected_payload_files)}")
-    _validate_boms(root, repository)
-    contract_sha256, exports_sha256 = _validate_contracts(root, repository)
+    _validate_boms(root, repository, profile)
+    contract_sha256, exports_sha256 = _validate_contracts(root, repository, profile)
+    if sdk:
+        _validate_sdk_payload_sources(root, repository)
     pe_evidence, pe_sha256, pe_size = inspect_windows_pe_evidence(
         inventory["bin/q_periapt_ffi_abi2.dll"]
     )
@@ -1942,8 +2250,8 @@ def create_manifest(
         )
 
     payload: dict[str, Any] = {
-        "schema_version": SCHEMA_VERSION,
-        "kind": KIND,
+        "schema_version": SDK_SCHEMA_VERSION if sdk else SCHEMA_VERSION,
+        "kind": SDK_KIND if sdk else KIND,
         "package": package_name,
         "version": version,
         "generated_at": _iso8601(source_date_epoch),
@@ -1958,14 +2266,14 @@ def create_manifest(
             "certificate_directory_present": pe_evidence[
                 "authenticode_certificate_directory_present"
             ],
-            "reason": "No trusted Windows Authenticode credential was available; integrity relies on GitHub immutable-release and artifact attestations.",
+            "reason": SDK_UNSIGNED_REASON if sdk else LEGACY_UNSIGNED_REASON,
         },
         "abi": {
             "major": ABI_MAJOR,
             "platform": ABI_PLATFORM,
             "contract_sha256": contract_sha256,
             "exports_sha256": exports_sha256,
-            "export_count": 9,
+            "export_count": 43 if sdk else 9,
             "shared_filename": "q_periapt_ffi_abi2.dll",
             "import_library_filename": "q_periapt_ffi_abi2.lib",
             "static_filename": "q_periapt_ffi_abi2_static.lib",
@@ -1982,9 +2290,11 @@ def create_manifest(
             "package_count": len(third_party["packages"]),
         },
         "toolchain": {"cargo": cargo, "cl": cl, "rustc": rustc},
-        "source_inputs_sha256": _source_hashes(repository),
+        "source_inputs_sha256": _source_hashes(repository, profile),
         "files": entries,
     }
+    if sdk:
+        payload.update(profile=profile, release_claim_eligible=False)
     manifest_path = root / "MANIFEST.json"
     manifest_path.write_bytes(_canonical_json(payload))
     sums_entries = [*entries, {"path": "MANIFEST.json", "sha256": _sha256(manifest_path)}]
@@ -2002,6 +2312,7 @@ def create_manifest(
         expected_git_commit=git_commit,
         expected_git_tree=git_tree,
         forbidden_windows_paths=windows_path_list,
+        profile=profile,
     )
     return payload
 
@@ -2034,13 +2345,16 @@ def verify_package(
     expected_git_commit: str | None = None,
     expected_git_tree: str | None = None,
     forbidden_windows_paths: Iterable[str] = (),
+    profile: str = "legacy",
 ) -> dict[str, Any]:
     """Verify the complete extracted package without trusting archive metadata."""
 
     root = _validate_package_root(package_root)
+    sdk = _sdk_profile(profile)
+    package_version = SDK_PACKAGE_SEMVER if sdk else PACKAGE_SEMVER
     windows_path_list = list(forbidden_windows_paths)
     third_party, third_party_files = _third_party_rust_files(root)
-    expected_payload_files = EXPECTED_PAYLOAD_FILES | third_party_files
+    expected_payload_files = profile_payload_files(profile) | third_party_files
     expected_all_files = expected_payload_files | {"MANIFEST.json", "SHA256SUMS"}
     inventory = _inventory(root)
     _require(set(inventory) == expected_all_files, f"Windows package file set differs: missing={sorted(expected_all_files - set(inventory))} extra={sorted(set(inventory) - expected_all_files)}")
@@ -2057,14 +2371,18 @@ def verify_package(
         == _canonical_json(manifest),
         "Windows manifest is not canonical JSON",
     )
-    _require(set(manifest) == MANIFEST_KEYS, "Windows manifest fields differ")
-    _require(manifest.get("schema_version") == SCHEMA_VERSION, "Windows manifest schema differs")
-    _require(manifest.get("kind") == KIND, "Windows manifest kind differs")
+    _require(set(manifest) == MANIFEST_KEYS | ({"profile", "release_claim_eligible"} if sdk else set()), "Windows manifest fields differ")
+    _require(type(manifest.get("schema_version")) is int and manifest["schema_version"] ==
+             (SDK_SCHEMA_VERSION if sdk else SCHEMA_VERSION), "Windows manifest schema differs")
+    _require(manifest.get("kind") == (SDK_KIND if sdk else KIND), "Windows manifest kind differs")
+    if sdk:
+        _require(manifest["profile"] == profile and manifest["release_claim_eligible"] is False,
+                 "Windows SDK profile or release boundary differs")
     _require(
-        manifest.get("package") == f"q-periapt-c-abi2-{PACKAGE_SEMVER}-{TARGET}",
+        manifest.get("package") == f"q-periapt-c-abi2-{package_version}-{TARGET}",
         "Windows manifest package differs",
     )
-    _require(manifest.get("version") == PACKAGE_SEMVER, "Windows manifest version differs")
+    _require(manifest.get("version") == package_version, "Windows manifest version differs")
     _require(manifest.get("target") == TARGET, "Windows manifest target differs")
     source_date_epoch = manifest.get("source_date_epoch")
     _require(type(source_date_epoch) is int, "Windows source date epoch is invalid")
@@ -2091,7 +2409,7 @@ def verify_package(
         "certificate_directory_present": pe_evidence[
             "authenticode_certificate_directory_present"
         ],
-        "reason": "No trusted Windows Authenticode credential was available; integrity relies on GitHub immutable-release and artifact attestations.",
+        "reason": SDK_UNSIGNED_REASON if sdk else LEGACY_UNSIGNED_REASON,
     }, "Windows Authenticode boundary differs")
     _require(manifest.get("hardening") == {
         **pe_evidence["hardening"],
@@ -2137,7 +2455,7 @@ def verify_package(
     source_inputs = manifest.get("source_inputs_sha256")
     _require(
         isinstance(source_inputs, dict)
-        and set(source_inputs) == set(SOURCE_INPUT_PATHS) | {"rust_workspace_build_inputs"},
+        and set(source_inputs) == set(profile_source_paths(profile)) | {"rust_workspace_build_inputs"},
         "Windows source input fields differ",
     )
     for label, digest in source_inputs.items():
@@ -2147,18 +2465,22 @@ def verify_package(
         )
     if repository is not None:
         _require(
-            source_inputs == _source_hashes(repository),
+            source_inputs == _source_hashes(repository, profile),
             "Windows source input digests differ from repository",
         )
-    contract_sha256, exports_sha256 = _validate_contracts(root, repository)
+    contract_sha256, exports_sha256 = _validate_contracts(root, repository, profile)
+    if sdk:
+        _validate_sdk_payload_sources(root, repository)
     abi = manifest.get("abi")
     _require(isinstance(abi, dict), "Windows manifest ABI object is missing")
+    _require(type(abi.get("major")) is int and type(abi.get("export_count")) is int,
+             "Windows manifest ABI integers have the wrong type")
     _require(abi == {
         "major": ABI_MAJOR,
         "platform": ABI_PLATFORM,
         "contract_sha256": contract_sha256,
         "exports_sha256": exports_sha256,
-        "export_count": 9,
+        "export_count": 43 if sdk else 9,
         "shared_filename": "q_periapt_ffi_abi2.dll",
         "import_library_filename": "q_periapt_ffi_abi2.lib",
         "static_filename": "q_periapt_ffi_abi2_static.lib",
@@ -2200,7 +2522,7 @@ def verify_package(
     sums = _parse_sums(inventory["SHA256SUMS"], expected_payload_files)
     expected_sums = {**manifest_hashes, "MANIFEST.json": _sha256(inventory["MANIFEST.json"])}
     _require(sums == expected_sums, "Windows SHA256SUMS differs from package bytes")
-    _validate_boms(root, repository)
+    _validate_boms(root, repository, profile)
     for relative in ("MANIFEST.json", "SHA256SUMS"):
         try:
             scan_release_file(
@@ -2216,7 +2538,14 @@ def verify_package(
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    static_copy = subparsers.add_parser("create-static-distribution-copy")
+    static_copy.add_argument("--source", required=True, type=pathlib.Path)
+    static_copy.add_argument("--destination", required=True, type=pathlib.Path)
+    static_debug = subparsers.add_parser("strip-static-debug")
+    for name in ("source", "destination", "llvm-strip", "llvm-ar"):
+        static_debug.add_argument("--" + name, required=True, type=pathlib.Path)
     native_libraries = subparsers.add_parser("parse-native-static-libraries")
+    native_libraries.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
     native_libraries.add_argument(
         "--compiler-output", required=True, type=pathlib.Path
     )
@@ -2247,6 +2576,7 @@ def _parse_args() -> argparse.Namespace:
     verify.add_argument("--expected-git-commit")
     verify.add_argument("--expected-git-tree")
     for command in (create, verify):
+        command.add_argument("--profile", choices=PACKAGE_PROFILES, default="legacy")
         command.add_argument(
             "--forbid-windows-path",
             action="append",
@@ -2258,13 +2588,22 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     try:
+        if args.command == "create-static-distribution-copy":
+            result = create_static_distribution_copy(args.source, args.destination)
+            print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+            return 0
+        if args.command == "strip-static-debug":
+            result = strip_static_archive_debug(args.source, args.destination,
+                llvm_strip=args.llvm_strip, llvm_ar=args.llvm_ar)
+            print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+            return 0
         if args.command == "parse-native-static-libraries":
             output = read_regular_snapshot(
                 args.compiler_output,
                 maximum=MAX_RUSTC_NATIVE_STATIC_LIBS_BYTES,
                 label="rustc native-static-libs output",
             ).data
-            libraries = parse_rustc_native_static_libraries(output)
+            libraries = parse_rustc_native_static_libraries(output, profile=args.profile)
             payload = (
                 json.dumps(libraries, separators=(",", ":")) + "\n"
             ).encode("ascii")
@@ -2312,6 +2651,7 @@ def main() -> int:
                 cl=args.cl,
                 dependencies=dependencies,
                 forbidden_windows_paths=args.forbid_windows_path,
+                profile=args.profile,
             )
         else:
             result = verify_package(
@@ -2321,6 +2661,7 @@ def main() -> int:
                 expected_git_commit=args.expected_git_commit,
                 expected_git_tree=args.expected_git_tree,
                 forbidden_windows_paths=args.forbid_windows_path,
+                profile=args.profile,
             )
     except (OSError, ValueError, WindowsPackageError) as exc:
         raise SystemExit(f"error: {exc}") from exc

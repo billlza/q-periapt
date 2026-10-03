@@ -1,0 +1,1428 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+use super::*;
+use crate::{
+    bootstrap::tests::{fixture_with_anchor_and_budget, Fixture},
+    durable::tests::directory,
+    AnchorIdentity, AnchorPin, AnchorRequest, AnchorRequirement, AnchorSigningKey, AnchorStore,
+    AnchorTransport, InitiatorOperation, PrekeyQuality,
+};
+use redb::ReadableDatabase;
+use std::{
+    fs,
+    path::PathBuf,
+    sync::Mutex,
+    time::{Duration, Instant},
+};
+
+struct Server {
+    now: u64,
+    store: AnchorStore,
+    requests: Vec<Vec<u8>>,
+    replies: Vec<Vec<u8>>,
+    fail: Option<(usize, bool)>,
+    substitute: Option<Vec<u8>>,
+}
+struct Carrier(Arc<Mutex<Server>>);
+impl AnchorTransport for Carrier {
+    fn exchange(&mut self, request: &[u8], _: Instant) -> io::Result<Vec<u8>> {
+        let mut server = self.0.lock().expect("server lock");
+        server.requests.push(request.to_vec());
+        let attempt = server.requests.len();
+        if let Some(reply) = &server.substitute {
+            return Ok(reply.clone());
+        }
+        if server.fail == Some((attempt, false)) {
+            return Err(io::ErrorKind::ConnectionReset.into());
+        }
+        let now = server.now;
+        let reply = server
+            .store
+            .handle(request, now)
+            .map_err(io::Error::other)?;
+        server.replies.push(reply.clone());
+        if server.fail == Some((attempt, true)) {
+            return Err(io::ErrorKind::ConnectionReset.into());
+        }
+        Ok(reply)
+    }
+}
+
+struct ScopedCarrier {
+    inner: Carrier,
+    deadline: Instant,
+    late_reply: bool,
+}
+impl AnchorTransport for ScopedCarrier {
+    fn constrain_deadline(&self, _: Instant) -> io::Result<Instant> {
+        Ok(self.deadline)
+    }
+    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
+        let reply = self.inner.exchange(request, deadline)?;
+        if self.late_reply {
+            std::thread::sleep(
+                deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(5),
+            );
+        }
+        Ok(reply)
+    }
+}
+
+#[test]
+fn enclosing_witness_deadline_does_not_refresh_between_signed_queries() {
+    let c = case();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let count = c.server.lock().expect("server").requests.len();
+    let mut client = AnchorClient::new(
+        c.pin.clone(),
+        DeviceSigningKey::deterministic([92; 32], [93; 32]).expect("device signer"),
+        Box::new(ScopedCarrier {
+            inner: Carrier(Arc::clone(&c.server)),
+            deadline,
+            late_reply: false,
+        }),
+        Duration::from_secs(10),
+    )
+    .expect("scoped client");
+    client
+        .exchange(c.subject, AnchorOperation::query())
+        .expect("first authenticated query");
+    assert_eq!(c.server.lock().expect("server").requests.len(), count + 1);
+    std::thread::sleep(
+        deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(5),
+    );
+    assert!(
+        matches!(client.exchange(c.subject, AnchorOperation::query()),
+        Err(crate::AnchorClientError::Transport(error)) if error.kind() == io::ErrorKind::TimedOut)
+    );
+    assert_eq!(
+        c.server.lock().expect("server").requests.len(),
+        count + 1,
+        "expired query was dispatched"
+    );
+}
+
+#[test]
+fn witness_transport_cannot_extend_attempt_or_admit_a_late_authentic_reply() {
+    let c = case();
+    let count = c.server.lock().expect("server").requests.len();
+    let mut client = AnchorClient::new(
+        c.pin.clone(),
+        DeviceSigningKey::deterministic([92; 32], [93; 32]).expect("device signer"),
+        Box::new(ScopedCarrier {
+            inner: Carrier(Arc::clone(&c.server)),
+            deadline: Instant::now() + Duration::from_secs(30),
+            late_reply: true,
+        }),
+        Duration::from_millis(500),
+    )
+    .expect("attempt client");
+    let started = Instant::now();
+    assert!(
+        matches!(client.exchange(c.subject, AnchorOperation::query()),
+        Err(crate::AnchorClientError::Transport(error)) if error.kind() == io::ErrorKind::TimedOut)
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "transport extended the caller's attempt"
+    );
+    assert_eq!(c.server.lock().expect("server").requests.len(), count + 1);
+}
+struct Case {
+    peer: Fixture,
+    server: Arc<Mutex<Server>>,
+    pin: AnchorPin,
+    journal: DeviceJournal,
+    identity: JournalIdentity,
+    subject: AnchorSubject,
+    path: PathBuf,
+    _folder: tempfile::TempDir,
+}
+fn client(pin: &AnchorPin, server: &Arc<Mutex<Server>>, initiator: bool) -> AnchorClient {
+    let seed = if initiator { 92 } else { 96 };
+    AnchorClient::new(
+        pin.clone(),
+        DeviceSigningKey::deterministic([seed; 32], [seed + 1; 32]).expect("same test credential"),
+        Box::new(Carrier(Arc::clone(server))),
+        Duration::from_secs(10),
+    )
+    .expect("client")
+}
+fn case() -> Case {
+    case_with_budget(1024)
+}
+fn case_with_budget(budget: u16) -> Case {
+    let folder = directory();
+    let path = folder.path().canonicalize().expect("path");
+    let wrapping = JournalKey::provision(&path.join("witness-key")).expect("wrapping");
+    let signer = AnchorSigningKey::generate().expect("witness signer");
+    let store = AnchorStore::provision(
+        &path.join("witness.redb"),
+        wrapping,
+        signer,
+        AnchorIdentity::generate().expect("witness identity"),
+    )
+    .expect("store");
+    let pin = store.pin().expect("pin");
+    let peer = fixture_with_anchor_and_budget(
+        PrekeyQuality::OneTimeBoth,
+        AnchorRequirement::required(&pin),
+        crate::ApplicationSendBudget::new(budget).expect("signed fixture budget"),
+    );
+    let key = JournalKey::provision(&path.join("key")).expect("journal key");
+    let mut journal = DeviceJournal::provision_anchored(
+        &path.join("state.redb"),
+        key,
+        peer.initiator_device(),
+        peer.initiator.policy(),
+        crate::durable::tests::retain_new_identity(&path.join("store-id")),
+        150,
+    )
+    .expect("required journal");
+    let genesis = journal
+        .anchor_genesis(peer.initiator_device(), peer.initiator.policy())
+        .expect("genesis");
+    let identity = journal.identity().expect("identity");
+    let server = Arc::new(Mutex::new(Server {
+        now: 150,
+        store,
+        requests: Vec::new(),
+        replies: Vec::new(),
+        fail: None,
+        substitute: None,
+    }));
+    server
+        .lock()
+        .expect("server")
+        .store
+        .enroll(
+            &genesis,
+            peer.initiator_device(),
+            peer.initiator.policy(),
+            150,
+        )
+        .expect("trusted enrollment");
+    journal
+        .activate_anchor(
+            peer.initiator_device(),
+            peer.initiator.policy(),
+            client(&pin, &server, true),
+        )
+        .expect("activate");
+    Case {
+        peer,
+        server,
+        pin,
+        journal,
+        identity,
+        subject: genesis.subject(),
+        path,
+        _folder: folder,
+    }
+}
+fn reopen(c: &Case) -> Result<DeviceJournal, DurableError> {
+    DeviceJournal::open_anchored(
+        &c.path.join("state.redb"),
+        JournalKey::open(&c.path.join("key")).expect("key"),
+        c.peer.initiator_device(),
+        c.peer.initiator.policy(),
+        c.identity,
+        client(&c.pin, &c.server, true),
+    )
+}
+fn request_id() -> InitiationId {
+    InitiationId::from_trusted_state([51; 32]).expect("request")
+}
+fn initiate(c: &mut Case) -> Result<Vec<u8>, DurableError> {
+    c.journal.initiate(
+        Arc::clone(&c.peer.initiator),
+        request_id(),
+        &c.peer.signer_i,
+        150,
+    )
+}
+
+#[test]
+fn required_policy_has_no_volatile_or_local_journal_bypass() {
+    let mut c = case();
+    assert!(matches!(
+        InitiatorOperation::start(Arc::clone(&c.peer.initiator), &c.peer.signer_i, 150),
+        Err(Error::PolicyDenied)
+    ));
+    let (pq, classical) = c.peer.sources();
+    assert!(matches!(
+        ResponderOperation::new(Arc::clone(&c.peer.responder)).respond(
+            &[],
+            &c.peer.signer_r,
+            pq,
+            classical,
+            150
+        ),
+        Err(Error::PolicyDenied)
+    ));
+    let key = JournalKey::provision(&c.path.join("local-key")).expect("local key");
+    let mut local = DeviceJournal::provision(
+        &c.path.join("local.redb"),
+        key,
+        c.peer.initiator_device(),
+        crate::durable::tests::retain_new_identity(&c.path.join("local-id")),
+    )
+    .expect("local journal");
+    assert!(matches!(
+        local.initiate(
+            Arc::clone(&c.peer.initiator),
+            request_id(),
+            &c.peer.signer_i,
+            150
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    c.journal.close();
+    assert!(matches!(
+        DeviceJournal::open(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.peer.initiator_device(),
+            c.identity
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    let other = AnchorPin::new(
+        AnchorIdentity::generate().expect("different instance"),
+        c.pin.public_key().clone(),
+    );
+    assert!(matches!(
+        DeviceJournal::open_anchored(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.peer.initiator_device(),
+            c.peer.initiator.policy(),
+            c.identity,
+            client(&other, &c.server, true)
+        ),
+        Err(DurableError::Conflict)
+    ));
+    c.journal = reopen(&c).expect("matching owner");
+    let initial = initiate(&mut c).expect("anchored initial");
+    assert_eq!(
+        c.journal
+            .resume_initial(Arc::clone(&c.peer.initiator), request_id(), 150)
+            .expect("same flight"),
+        initial
+    );
+}
+
+#[test]
+fn both_real_journals_complete_handshake_under_required_witness_policy() {
+    let mut c = case_with_budget(2);
+    let (policy, device, _) = c.peer.responder.inventory_inputs();
+    let key = JournalKey::provision(&c.path.join("responder-key")).expect("key");
+    let mut responder = DeviceJournal::provision_anchored(
+        &c.path.join("responder.redb"),
+        key,
+        device,
+        policy,
+        crate::durable::tests::retain_new_identity(&c.path.join("responder-id")),
+        150,
+    )
+    .expect("responder");
+    let genesis = responder.anchor_genesis(device, policy).expect("genesis");
+    let responder_identity = responder.identity().expect("independent identity");
+    c.server
+        .lock()
+        .expect("server")
+        .store
+        .enroll(&genesis, device, policy, 150)
+        .expect("enrollment");
+    responder
+        .activate_anchor(device, policy, client(&c.pin, &c.server, false))
+        .expect("activation");
+    let initial = initiate(&mut c).expect("initial");
+    let (pq, classical) = c.peer.sources();
+    let reply = responder
+        .respond(
+            Arc::clone(&c.peer.responder),
+            &initial,
+            &c.peer.signer_r,
+            pq,
+            classical,
+            150,
+        )
+        .expect("reply");
+    let result = c
+        .journal
+        .accept_reply(Arc::clone(&c.peer.initiator), request_id(), &reply, 150)
+        .expect("final");
+    assert_eq!(
+        responder
+            .finish(
+                Arc::clone(&c.peer.responder),
+                &initial,
+                result.final_message(),
+                150
+            )
+            .expect("responder completed"),
+        result.session_id()
+    );
+    c.journal.close();
+    c.journal = reopen(&c).expect("restart");
+    assert_eq!(
+        c.journal
+            .resume_reply(Arc::clone(&c.peer.initiator), request_id(), 150)
+            .expect("exact final")
+            .final_message(),
+        result.final_message()
+    );
+    let session = result.session_id();
+    assert_eq!(
+        c.journal
+            .activate_initiator_messages(Arc::clone(&c.peer.initiator), request_id(), 150)
+            .expect("message chains"),
+        session
+    );
+    assert_eq!(
+        responder
+            .activate_responder_messages(Arc::clone(&c.peer.responder), &initial, 150)
+            .expect("peer chains"),
+        session
+    );
+    let id = c
+        .journal
+        .next_message_id(&c.peer.initiator, session, 150)
+        .expect("message id");
+    let wire = c
+        .journal
+        .send_message(
+            &c.peer.initiator,
+            session,
+            id,
+            b"anchored message",
+            b"application",
+            150,
+        )
+        .expect("anchored send");
+    assert_eq!(
+        responder
+            .receive_message(&c.peer.responder, session, &wire, b"application", 150)
+            .expect("anchored receive")
+            .as_bytes(),
+        b"anchored message"
+    );
+    // Cached output still needs a fresh release query, after image admission.
+    {
+        let mut server = c.server.lock().expect("server");
+        server.fail = Some((server.requests.len() + 2, false));
+    }
+    assert!(matches!(
+        c.journal
+            .resume_message(&c.peer.initiator, session, id, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover current witness head");
+    assert_eq!(
+        c.journal
+            .resume_message(&c.peer.initiator, session, id, 150)
+            .expect("same committed outbox"),
+        wire
+    );
+    {
+        let mut server = c.server.lock().expect("server");
+        server.fail = Some((server.requests.len() + 2, false));
+    }
+    assert!(matches!(
+        responder.receive_message(&c.peer.responder, session, &wire, b"application", 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    let open_responder = || {
+        DeviceJournal::open_anchored(
+            &c.path.join("responder.redb"),
+            JournalKey::open(&c.path.join("responder-key")).expect("key"),
+            c.peer.local_device(),
+            c.peer.responder.policy(),
+            responder_identity,
+            client(&c.pin, &c.server, false),
+        )
+        .expect("reopen anchored responder")
+    };
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .consume_message(&c.peer.responder, session, id, 150)
+            .expect("consume"),
+        1
+    );
+    let ack = responder
+        .message_acknowledgement(&c.peer.responder, session, 150)
+        .expect("ack");
+    {
+        let mut server = c.server.lock().expect("server");
+        server.fail = Some((server.requests.len() + 2, false));
+    }
+    assert!(matches!(
+        responder.message_acknowledgement(&c.peer.responder, session, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .message_acknowledgement(&c.peer.responder, session, 150)
+            .expect("same committed prefix"),
+        ack
+    );
+    assert_eq!(
+        c.journal
+            .accept_message_acknowledgement(&c.peer.initiator, session, &ack, 150)
+            .expect("anchored retirement"),
+        1
+    );
+    assert_eq!(
+        c.journal
+            .message_status(&c.peer.initiator, session, id)
+            .expect("retired status"),
+        crate::MessageStatus::Acknowledged
+    );
+    let unresolved_id = c
+        .journal
+        .next_message_id(&c.peer.initiator, session, 150)
+        .expect("old slot");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        c.journal.send_message(
+            &c.peer.initiator,
+            session,
+            unresolved_id,
+            b"old delivery awaiting application resolution",
+            b"application",
+            150,
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("last slot committed before lost witness release");
+    let spent = c
+        .journal
+        .application_send_progress(&c.peer.initiator, session)
+        .expect("retained spending");
+    assert_eq!(
+        (spent.committed, spent.reserved, spent.remaining),
+        (2, false, 0)
+    );
+    assert!(matches!(
+        c.journal.next_message_id(&c.peer.initiator, session, 150),
+        Err(DurableError::Protocol(Error::RekeyRequired))
+    ));
+    let unresolved = c
+        .journal
+        .resume_message(&c.peer.initiator, session, unresolved_id, 150)
+        .expect("same last-slot outbox");
+    responder
+        .receive_message(&c.peer.responder, session, &unresolved, b"application", 150)
+        .expect("retain unconsumed plaintext");
+    // The idle-designated proposer can be requested without an application send.
+    // Lose the final release query after both request transactions committed.
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        responder.prepare_rekey_request(&c.peer.responder, session, &c.peer.signer_r, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .rekey_request_status(&c.peer.responder, session)
+            .expect("request phase"),
+        crate::RekeyRequestStatus::Committed
+    );
+    let control_request = responder
+        .prepare_rekey_request(&c.peer.responder, session, &c.peer.signer_r, 150)
+        .expect("release the exact request after reconciliation");
+    // Three exact persisted stages each advance/query the witness. Lose only
+    // the final release query, after the signed offer is already committed.
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 8, false));
+    assert!(matches!(
+        c.journal
+            .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 8);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("reconcile committed offer");
+    assert_eq!(
+        c.journal
+            .rekey_offer_status(&c.peer.initiator, session)
+            .expect("status"),
+        crate::RekeyOfferStatus::Committed
+    );
+    let offer = c
+        .journal
+        .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150)
+        .expect("exact offer release");
+    assert_eq!(
+        c.journal
+            .respond_rekey_request(
+                &c.peer.initiator,
+                session,
+                &control_request,
+                &c.peer.signer_i,
+                150
+            )
+            .expect("request joins the existing offer"),
+        offer
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        c.journal
+            .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("reopen current head");
+    assert_eq!(
+        c.journal
+            .prepare_rekey_offer(&c.peer.initiator, session, &c.peer.signer_i, 150)
+            .expect("same bytes after lost release"),
+        offer
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 8, false));
+    assert!(matches!(
+        responder.respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 8);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .rekey_response_status(&c.peer.responder, session)
+            .expect("pending response"),
+        crate::RekeyResponseStatus::Committed
+    );
+    let response = responder
+        .respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150)
+        .expect("exact response release");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        responder.respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .respond_rekey_offer(&c.peer.responder, session, &offer, &c.peer.signer_r, 150)
+            .expect("same response after lost release"),
+        response
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        c.journal.accept_rekey_response(
+            &c.peer.initiator,
+            session,
+            &response,
+            &c.peer.signer_i,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover final commit");
+    let final_wire = c
+        .journal
+        .rekey_outbox(
+            &c.peer.initiator,
+            session,
+            1,
+            crate::RekeyFlight::Final,
+            150,
+        )
+        .expect("committed final");
+    let progress = c
+        .journal
+        .rekey_progress(&c.peer.initiator, session)
+        .expect("half cutover");
+    assert_eq!(
+        (
+            progress.sending_epoch,
+            progress.receiving_epoch,
+            progress.confirmed_epoch
+        ),
+        (1, 0, 0)
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 6, false));
+    assert!(matches!(
+        responder.finish_rekey(
+            &c.peer.responder,
+            session,
+            &final_wire,
+            &c.peer.signer_r,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 6);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    let receipt = responder
+        .rekey_outbox(
+            &c.peer.responder,
+            session,
+            1,
+            crate::RekeyFlight::Receipt,
+            150,
+        )
+        .expect("committed receipt");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 4, false));
+    assert!(matches!(
+        c.journal
+            .accept_rekey_receipt(&c.peer.initiator, session, &receipt, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 4);
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover receive cutover");
+    let fresh = c
+        .journal
+        .application_send_progress(&c.peer.initiator, session)
+        .expect("only committed receipt advances budget");
+    assert_eq!(
+        (fresh.confirmed_epoch, fresh.committed, fresh.remaining),
+        (1, 0, 2)
+    );
+    assert_eq!(
+        c.journal
+            .accept_rekey_receipt(&c.peer.initiator, session, &receipt, 150)
+            .expect("receipt replay"),
+        1
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        c.journal.rekey_outbox(
+            &c.peer.initiator,
+            session,
+            1,
+            crate::RekeyFlight::Final,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(c.journal.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    c.journal = reopen(&c).expect("recover cached release");
+    let id = c
+        .journal
+        .next_message_id(&c.peer.initiator, session, 150)
+        .expect("new epoch ID");
+    let wire = c
+        .journal
+        .send_message(
+            &c.peer.initiator,
+            session,
+            id,
+            b"anchored epoch one",
+            b"application",
+            150,
+        )
+        .expect("new anchored traffic");
+    assert_eq!(
+        responder
+            .receive_message(&c.peer.responder, session, &wire, b"application", 150)
+            .expect("actual new epoch receipt")
+            .as_bytes(),
+        b"anchored epoch one"
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 4, false));
+    assert!(matches!(
+        responder.begin_closed_epoch_resolution(&c.peer.responder, session, 0, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert_eq!(c.server.lock().expect("server").requests.len(), start + 4);
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    let resolution = match responder
+        .closed_epoch_resolution_status(&c.peer.responder, session, 0)
+        .expect("committed frozen report")
+    {
+        crate::EpochResolutionStatus::Pending(id) => Some(id),
+        _ => None,
+    }
+    .expect("expected frozen report");
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 2, false));
+    assert!(matches!(
+        responder.begin_closed_epoch_resolution(&c.peer.responder, session, 0, 150),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    let report = responder
+        .begin_closed_epoch_resolution(&c.peer.responder, session, 0, 150)
+        .expect("authorized exact report");
+    assert_eq!(report.resolution_id(), resolution);
+    assert_eq!(
+        report
+            .unconsumed_deliveries()
+            .first()
+            .expect("retained old secret")
+            .as_bytes(),
+        b"old delivery awaiting application resolution"
+    );
+    let start = c.server.lock().expect("server").requests.len();
+    c.server.lock().expect("server").fail = Some((start + 4, false));
+    assert!(matches!(
+        responder.acknowledge_closed_epoch_resolution(
+            &c.peer.responder,
+            session,
+            0,
+            resolution,
+            150
+        ),
+        Err(DurableError::Anchor(_))
+    ));
+    assert!(responder.active.is_none());
+    c.server.lock().expect("server").fail = None;
+    responder = open_responder();
+    assert_eq!(
+        responder
+            .closed_epoch_resolution_status(&c.peer.responder, session, 0)
+            .expect("exact accounted outcome"),
+        crate::EpochResolutionStatus::Acknowledged(resolution)
+    );
+    responder
+        .acknowledge_closed_epoch_resolution(&c.peer.responder, session, 0, resolution, 150)
+        .expect("idempotent authorized recovery");
+}
+
+#[test]
+fn restored_client_database_is_rejected_while_witness_remains_ahead() {
+    let mut c = case();
+    c.journal.close();
+    let snapshot = c.path.join("genesis-snapshot.redb");
+    fs::copy(c.path.join("state.redb"), &snapshot).expect("owned snapshot");
+    c.journal = reopen(&c).expect("fresh current head");
+    initiate(&mut c).expect("advance");
+    c.journal.close();
+    fs::copy(snapshot, c.path.join("state.redb")).expect("restore test-owned old image");
+    assert!(matches!(reopen(&c), Err(DurableError::Anchor(_))));
+}
+
+#[test]
+fn external_writer_fence_suspends_instead_of_adopting_new_authority() {
+    let mut c = case();
+    let image = c.journal.image().expect("current image");
+    let head = AnchorHead::from_trusted_state(1, image.revision, image.digest).expect("head");
+    let request = AnchorRequest::new(
+        &c.pin,
+        c.subject,
+        AnchorOperation::fence_writer(head).expect("fence"),
+        &c.peer.signer_i,
+    )
+    .expect("request");
+    let wire = c
+        .server
+        .lock()
+        .expect("server")
+        .store
+        .handle(request.as_bytes(), 150)
+        .expect("fenced");
+    assert_eq!(
+        c.pin
+            .verify_reply(&request, &wire)
+            .expect("reply")
+            .applied_head()
+            .expect("applied")
+            .fence(),
+        2
+    );
+    assert!(matches!(initiate(&mut c), Err(DurableError::Anchor(_))));
+    assert!(c.journal.active.is_none());
+    assert!(matches!(reopen(&c), Err(DurableError::Anchor(_))));
+}
+
+#[test]
+fn every_initial_exchange_loss_recovers_only_the_durable_exact_target() {
+    let mut baseline = case();
+    let before = baseline.server.lock().expect("server").requests.len();
+    initiate(&mut baseline).expect("baseline");
+    let count = baseline.server.lock().expect("server").requests.len() - before;
+    assert_eq!(count, 12, "read, five advance/query pairs, release");
+    for offset in 1..=count {
+        for after in [false, true] {
+            let mut c = case();
+            {
+                let mut server = c.server.lock().expect("server");
+                server.fail = Some((server.requests.len() + offset, after));
+            }
+            assert!(
+                matches!(initiate(&mut c), Err(DurableError::Anchor(_))),
+                "offset {offset}, after {after}"
+            );
+            assert!(c.journal.active.is_none());
+            // Inspect the real authenticated image and pending transaction without applying it.
+            let db = open_private_database(&c.path.join("state.redb")).expect("readback");
+            let key = JournalKey::open(&c.path.join("key")).expect("key");
+            let owner = bootstrap::storage_owner(c.peer.initiator_device());
+            let (image, pending) =
+                write_intent::load_snapshot(&db, &key, owner).expect("authenticated snapshot");
+            let tx = db.begin_read().expect("read");
+            let table = tx.open_table(TABLE).expect("table");
+            let target = table.get("pending").expect("pending lookup").map(|value| {
+                let bytes = value.value();
+                bytes
+                    .get(156..bytes.len() - 32)
+                    .expect("exact sealed target")
+                    .to_vec()
+            });
+            assert_eq!(pending.is_some(), target.is_some());
+            // The ordinary opener must not apply even a valid saved intent.
+            assert!(matches!(
+                write_intent::recover(&db, &key, owner, c.identity),
+                Err(DurableError::AnchorRequired)
+            ));
+            let (unchanged, _) = write_intent::load_snapshot(&db, &key, owner).expect("unchanged");
+            assert_eq!(unchanged.digest, image.digest);
+            drop(table);
+            drop(tx);
+            drop(db);
+            c.server.lock().expect("server").fail = None;
+            c.journal = reopen(&c).expect("exact command reconciliation");
+            if let Some(target) = target {
+                let restored = c.journal.image().expect("recovered");
+                assert_eq!(restored.digest, image_hash(&target));
+                assert_eq!(restored.revision, image.revision + 1);
+            }
+            let initial = initiate(&mut c).expect("finish retained operation");
+            assert_eq!(
+                c.journal
+                    .resume_initial(Arc::clone(&c.peer.initiator), request_id(), 150)
+                    .expect("same result"),
+                initial
+            );
+        }
+    }
+}
+
+#[test]
+fn captured_query_reply_cannot_reopen_or_release_a_required_journal() {
+    let mut c = case();
+    let captured = c
+        .server
+        .lock()
+        .expect("server")
+        .replies
+        .first()
+        .expect("activation reply")
+        .clone();
+    c.server.lock().expect("server").substitute = Some(captured);
+    assert!(matches!(initiate(&mut c), Err(DurableError::Anchor(_))));
+    assert!(c.journal.active.is_none());
+    assert!(matches!(reopen(&c), Err(DurableError::Anchor(_))));
+    c.server.lock().expect("server").substitute = None;
+    c.journal = reopen(&c).expect("fresh signed challenge response");
+    initiate(&mut c).expect("operation after independent reconciliation");
+}
+
+#[test]
+fn every_roster_witness_exchange_loss_recovers_exact_revocation() {
+    let mut baseline = case();
+    let revoked = rosters::tests::update(baseline.peer.initiator_device(), 90, 2, false);
+    let before = baseline.server.lock().expect("server").requests.len();
+    baseline
+        .journal
+        .install_roster(&revoked, 150)
+        .expect("baseline update");
+    let exchanges = baseline.server.lock().expect("server").requests.len() - before;
+    assert_eq!(
+        exchanges, 4,
+        "admission, advance, committed-head query, release"
+    );
+    for offset in 1..=exchanges {
+        for after in [false, true] {
+            let mut c = case();
+            let revoked = rosters::tests::update(c.peer.initiator_device(), 90, 2, false);
+            {
+                let mut server = c.server.lock().expect("server");
+                server.fail = Some((server.requests.len() + offset, after));
+            }
+            assert!(
+                matches!(
+                    c.journal.install_roster(&revoked, 150),
+                    Err(DurableError::Anchor(_))
+                ),
+                "exchange {offset}, after {after}"
+            );
+            assert!(c.journal.active.is_none());
+            assert!(matches!(initiate(&mut c), Err(DurableError::Closed)));
+            c.server.lock().expect("server").fail = None;
+            c.journal = reopen(&c).expect("reconcile exact durable intent and witness head");
+            let image = c.journal.image().expect("recovered head");
+            if offset == 1 {
+                assert_eq!(image.revision, 1, "admission loss precedes reservation");
+            } else {
+                assert_eq!(image.revision, 2);
+                assert_eq!(
+                    c.journal
+                        .roster_checkpoint(c.peer.initiator_device().account_id())
+                        .expect("durable revocation"),
+                    revoked.checkpoint()
+                );
+                assert!(matches!(
+                    initiate(&mut c),
+                    Err(DurableError::Protocol(Error::Scope))
+                ));
+            }
+            c.journal
+                .install_roster(&revoked, 150)
+                .expect("exact update retry");
+            assert_eq!(c.journal.image().expect("one update").revision, 2);
+            assert!(matches!(
+                initiate(&mut c),
+                Err(DurableError::Protocol(Error::Scope))
+            ));
+        }
+    }
+    eprintln!(
+        "ROSTER_WITNESS_RECOVERY exchanges={exchanges} losses={}",
+        exchanges * 2
+    );
+}
+
+#[test]
+fn restored_roster_snapshot_cannot_override_the_witness_revocation_head() {
+    let mut c = case();
+    c.journal.close();
+    let snapshot = c.path.join("enrolled-roster-snapshot.redb");
+    fs::copy(c.path.join("state.redb"), &snapshot).expect("owned initial snapshot");
+    c.journal = reopen(&c).expect("current head");
+    let revoked = rosters::tests::update(c.peer.initiator_device(), 90, 2, false);
+    c.journal
+        .install_roster(&revoked, 150)
+        .expect("witness-backed revocation");
+    c.journal.close();
+    fs::copy(snapshot, c.path.join("state.redb")).expect("restore owned older image");
+    assert!(matches!(reopen(&c), Err(DurableError::Anchor(_))));
+}
+
+#[test]
+fn each_local_commit_sync_failure_reconciles_against_the_real_witness() {
+    use std::sync::atomic::Ordering;
+    for after_sync in [false, true] {
+        for cut in 1..=4 {
+            let mut c = case();
+            let attached = c.journal.active.as_mut().expect("active").anchor.take();
+            c.journal.close();
+            let (mut journal, remaining, _, _) =
+                crate::durable::tests::fault_store(&c.path, c.peer.initiator_device(), after_sync);
+            journal.active.as_mut().expect("active").anchor = attached;
+            c.journal = journal;
+            remaining.store(cut, Ordering::SeqCst);
+            assert!(
+                matches!(initiate(&mut c), Err(DurableError::CommitUncertain(_))),
+                "sync {cut}, after {after_sync}"
+            );
+            assert!(c.journal.active.is_none());
+            c.journal = reopen(&c).expect("reconcile exact local intent and witness command");
+            let initial = initiate(&mut c).expect("retained computation");
+            assert_eq!(
+                c.journal
+                    .resume_initial(Arc::clone(&c.peer.initiator), request_id(), 150)
+                    .expect("one exact result"),
+                initial
+            );
+        }
+    }
+}
+
+#[test]
+fn inactive_required_journal_cannot_create_prekeys_and_active_inventory_is_anchored() {
+    let c = case();
+    let (policy, device, _) = c.peer.responder.inventory_inputs();
+    let key = JournalKey::provision(&c.path.join("inventory-key")).expect("key");
+    let mut journal = DeviceJournal::provision_anchored(
+        &c.path.join("inventory.redb"),
+        key,
+        device,
+        policy,
+        crate::durable::tests::retain_new_identity(&c.path.join("inventory-id")),
+        150,
+    )
+    .expect("inactive journal");
+    let identity = journal.identity().expect("identity");
+    let genesis = journal.anchor_genesis(device, policy).expect("genesis");
+    c.server
+        .lock()
+        .expect("server")
+        .store
+        .enroll(&genesis, device, policy, 150)
+        .expect("enrollment");
+    let request = PrekeyId::from_trusted_state([67; 32]).expect("request");
+    assert!(matches!(
+        journal.generate_prekey(
+            policy,
+            device,
+            request,
+            crate::LeafKind::OneTimePq,
+            crate::tests::interval(),
+            150
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    assert!(journal.active.is_none());
+    journal = DeviceJournal::open_anchored(
+        &c.path.join("inventory.redb"),
+        JournalKey::open(&c.path.join("inventory-key")).expect("key"),
+        device,
+        policy,
+        identity,
+        client(&c.pin, &c.server, false),
+    )
+    .expect("activate on reopen");
+    let leaf = journal
+        .generate_prekey(
+            policy,
+            device,
+            request,
+            crate::LeafKind::OneTimePq,
+            crate::tests::interval(),
+            150,
+        )
+        .expect("anchored public prekey");
+    assert_eq!(
+        journal
+            .prekey_leaf(policy, device, request, 150)
+            .expect("public readback")
+            .key_fingerprint(),
+        leaf.key_fingerprint()
+    );
+    journal
+        .retire_prekey(policy, device, request)
+        .expect("anchored retirement");
+    assert!(matches!(
+        journal.prekey_leaf(policy, device, request, 150),
+        Err(DurableError::KeyRetired)
+    ));
+}
+
+#[test]
+fn expiry_allows_only_confirmation_of_an_already_committed_exact_intent() {
+    for after in [false, true] {
+        let mut c = case();
+        {
+            let mut server = c.server.lock().expect("server");
+            server.fail = Some((server.requests.len() + 2, after));
+        }
+        assert!(matches!(initiate(&mut c), Err(DurableError::Anchor(_))));
+        {
+            let mut server = c.server.lock().expect("server");
+            server.fail = None;
+            server.now = 250;
+        }
+        let recovered = reopen(&c);
+        if after {
+            c.journal = recovered.expect("read-only confirmation of exact committed command");
+            assert_eq!(
+                c.journal
+                    .initiation_status(&c.peer.initiator, request_id())
+                    .expect("reconciled status"),
+                DurableStatus::InitialKeyReserved
+            );
+            assert!(matches!(
+                c.journal.initiate(
+                    Arc::clone(&c.peer.initiator),
+                    request_id(),
+                    &c.peer.signer_i,
+                    250
+                ),
+                Err(DurableError::Protocol(Error::Validity))
+            ));
+        } else {
+            assert!(
+                matches!(recovered, Err(DurableError::Anchor(_))),
+                "expiry cannot authorize an unperformed advance"
+            );
+        }
+    }
+}
+
+fn cancellation_owner(
+    c: &Case,
+    initiator: bool,
+) -> Result<BootstrapCancellationJournal, DurableError> {
+    BootstrapCancellationJournal::open_anchored(
+        &c.path.join("state.redb"),
+        JournalKey::open(&c.path.join("key")).expect("key"),
+        c.identity,
+        client(&c.pin, &c.server, initiator),
+    )
+}
+
+#[test]
+fn bootstrap_cancellation_requires_original_witness_and_enrolled_signer() {
+    let mut c = case();
+    initiate(&mut c).expect("initial");
+    let revision = c.journal.image().expect("image").revision;
+    c.journal.close();
+    assert!(matches!(
+        BootstrapCancellationJournal::open(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.identity
+        ),
+        Err(DurableError::AnchorRequired)
+    ));
+    assert!(matches!(
+        cancellation_owner(&c, false),
+        Err(DurableError::Anchor(_))
+    ));
+    let foreign = case();
+    assert!(matches!(
+        BootstrapCancellationJournal::open_anchored(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.identity,
+            client(&foreign.pin, &foreign.server, true)
+        ),
+        Err(DurableError::Conflict)
+    ));
+    c.peer.close_initiator_policy();
+    let mut normal = reopen(&c).expect("reconcile original subject");
+    assert_eq!(
+        normal.image().expect("unchanged after refusals").revision,
+        revision
+    );
+    normal.close();
+    let mut owner = cancellation_owner(&c, true).expect("original subject without live policy");
+    owner
+        .cancel(
+            c.peer.initiator.digest(),
+            BootstrapOperationId::for_initiation(request_id()),
+        )
+        .expect("cancel after local close with live original witness");
+    owner.close();
+}
+
+#[test]
+fn bootstrap_cancellation_witness_failures_reconcile_exact_receipt() {
+    // One read query, one exact advance, one post-commit query.
+    for after in [false, true] {
+        for offset in 1..=3 {
+            let mut c = case();
+            initiate(&mut c).expect("initial");
+            let image = c.journal.image().expect("image");
+            let op = initiator::operation_id(request_id());
+            let expected =
+                cancellation::metadata(&c.journal.active.as_ref().expect("active").key, &image, op)
+                    .expect("original receipt")
+                    .report;
+            c.journal.close();
+            let mut owner = cancellation_owner(&c, true).expect("cleanup owner");
+            {
+                let mut server = c.server.lock().expect("server");
+                server.fail = Some((server.requests.len() + offset, after));
+            }
+            assert!(matches!(
+                owner.cancel(
+                    c.peer.initiator.digest(),
+                    BootstrapOperationId::for_initiation(request_id())
+                ),
+                Err(DurableError::Anchor(_))
+            ));
+            assert!(matches!(owner.entries(), Err(DurableError::Closed)));
+            c.server.lock().expect("server").fail = None;
+            let mut owner = cancellation_owner(&c, true).expect("reconcile original command");
+            let receipt = owner
+                .cancel(
+                    c.peer.initiator.digest(),
+                    BootstrapOperationId::for_initiation(request_id()),
+                )
+                .expect("exact retry");
+            assert_eq!(receipt.report, expected);
+            owner.close();
+        }
+    }
+}
+
+#[test]
+fn bootstrap_cancellation_expired_witness_only_reconciles_already_applied_intent() {
+    for after in [false, true] {
+        let mut c = case();
+        initiate(&mut c).expect("initial");
+        c.journal.close();
+        let mut owner = cancellation_owner(&c, true).expect("owner");
+        {
+            let mut server = c.server.lock().expect("server");
+            server.fail = Some((server.requests.len() + 2, after));
+        }
+        assert!(matches!(
+            owner.cancel(
+                c.peer.initiator.digest(),
+                BootstrapOperationId::for_initiation(request_id())
+            ),
+            Err(DurableError::Anchor(_))
+        ));
+        {
+            let mut server = c.server.lock().expect("server");
+            server.fail = None;
+            server.now = 250;
+        }
+        let result = cancellation_owner(&c, true);
+        if after {
+            let mut owner = result.expect("exact already applied cancellation");
+            assert_eq!(
+                owner
+                    .cancel(
+                        c.peer.initiator.digest(),
+                        BootstrapOperationId::for_initiation(request_id())
+                    )
+                    .expect("existing immutable receipt")
+                    .entry
+                    .status,
+                DurableStatus::BootstrapCancelled
+            );
+        } else {
+            assert!(
+                matches!(result, Err(DurableError::Anchor(_))),
+                "cleanup must not bypass an expired unperformed advance"
+            );
+        }
+    }
+}
+
+#[test]
+fn actual_tcp_carrier_verifies_real_witness_and_bounds_frames_and_total_deadline() {
+    use std::net::TcpListener;
+    for behavior in 0..4 {
+        let c = case();
+        let listener = TcpListener::bind("127.0.0.1:0").expect("test-owned loopback endpoint");
+        listener.set_nonblocking(true).expect("bounded accept");
+        let address = listener.local_addr().expect("address");
+        let server = Arc::clone(&c.server);
+        let thread = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        assert!(Instant::now() < deadline, "client did not connect");
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => return Err(error),
+                }
+            };
+            stream
+                .set_nonblocking(false)
+                .expect("blocking accepted test socket");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .expect("read deadline");
+            stream
+                .set_write_timeout(Some(Duration::from_secs(3)))
+                .expect("write deadline");
+            let mut prefix = [0; 4];
+            stream.read_exact(&mut prefix).expect("frame");
+            assert_eq!(u32::from_be_bytes(prefix), 3674);
+            let mut request = vec![0; 3674];
+            stream.read_exact(&mut request).expect("request");
+            let reply = server
+                .lock()
+                .expect("server")
+                .store
+                .handle(&request, 150)
+                .expect("real witness");
+            match behavior {
+                0 => {
+                    stream.write_all(&3659u32.to_be_bytes()).expect("length");
+                    stream.write_all(&reply).expect("reply");
+                }
+                1 => stream
+                    .write_all(&u32::MAX.to_be_bytes())
+                    .expect("invalid oversized length"),
+                2 => {
+                    stream.write_all(&3659u32.to_be_bytes()).expect("length");
+                    stream
+                        .write_all(reply.get(..100).expect("partial reply range"))
+                        .expect("partial");
+                }
+                3 => {
+                    // No individual pause exceeds the total budget, but the complete prefix does.
+                    for byte in 3659u32.to_be_bytes() {
+                        std::thread::sleep(Duration::from_millis(100));
+                        if let Err(error) = stream.write_all(&[byte]) {
+                            assert!(matches!(
+                                error.kind(),
+                                io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+                            ));
+                            break;
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }
+            Ok::<(), io::Error>(())
+        });
+        let mut client = AnchorClient::new(
+            c.pin.clone(),
+            DeviceSigningKey::deterministic([92; 32], [93; 32]).expect("device"),
+            Box::new(crate::AnchorTcpTransport::new(address)),
+            if behavior == 3 {
+                Duration::from_millis(300)
+            } else {
+                Duration::from_secs(3)
+            },
+        )
+        .expect("client");
+        let started = Instant::now();
+        let result = client.exchange(c.subject, AnchorOperation::query());
+        if behavior == 0 {
+            assert_eq!(
+                result
+                    .expect("authenticated TCP reply")
+                    .observed_head()
+                    .revision(),
+                1
+            );
+        } else {
+            assert!(
+                matches!(result, Err(AnchorClientError::Transport(_))),
+                "behavior {behavior}"
+            );
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "bounded exchange"
+        );
+        thread
+            .join()
+            .expect("bounded server")
+            .expect("server exchange");
+    }
+}

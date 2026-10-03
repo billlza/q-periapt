@@ -16,17 +16,15 @@ workspace = true
 
 [dependencies]
 getrandom = "0.4"
-q-periapt-backends = { version = "=0.1.5", path = "../../crates/q-periapt-backends" }
-q-periapt-core = { version = "=0.1.5", path = "../../crates/q-periapt-core" }
-q-periapt-ffi = { version = "=0.1.5", path = "../../crates/q-periapt-ffi" }
-q-periapt-migration = { version = "=0.1.5", path = "../../models/q-periapt-migration" }
-q-periapt-policy = { version = "=0.1.5", path = "../../crates/q-periapt-policy" }
-q-periapt-sig = { version = "=0.1.5", path = "../../crates/q-periapt-sig" }
-# redb 2.6.3 is a pure-Rust ACID release whose declared MSRV matches this
-# workspace's Rust 1.85 floor; the current 4.2 release requires Rust 1.90. The
-# exact pin also fixes the durable file-format implementation reviewed for this
-# non-publishable service.
-redb = "=2.6.3"
+q-periapt-backends = { version = "=0.2.0", path = "../../crates/q-periapt-backends" }
+q-periapt-core = { version = "=0.2.0", path = "../../crates/q-periapt-core" }
+q-periapt-host-store = { version = "=0.2.0", path = "../../crates/q-periapt-host-store" }
+q-periapt-ffi = { version = "=0.2.0", path = "../../crates/q-periapt-ffi" }
+q-periapt-migration = { version = "=0.2.0", path = "../../models/q-periapt-migration" }
+q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
+q-periapt-sig = { version = "=0.2.0", path = "../../crates/q-periapt-sig" }
+# Pin the same durable file-format implementation as the host-store boundary.
+redb = "=4.3.0"
 
 [target.'cfg(unix)'.dependencies]
 # Descriptor-relative opens keep the durable-state boundary beneath an already
@@ -36,7 +34,7 @@ redb = "=2.6.3"
 # (socket type, listening state on Linux, and the bound name) without unsafe.
 # `event` supplies the bounded `poll` the serving loop waits in, so an idle
 # daemon still reaches its session-TTL sweep. It declares no dependencies.
-rustix = { version = "=1.1.4", features = ["event", "fs", "net", "process"] }
+rustix = { version = "=1.1.5", features = ["event", "fs", "net", "process"] }
 # `sigaction` is the one call this daemon makes that rustix deliberately does
 # not wrap: installing a handler is `unsafe` by nature, and the quarantined
 # `signals` module carries that review. This exact version is already in the

@@ -24,7 +24,7 @@
 //!   [`Q_PERIAPT_ERR_INVALID_KEYSHARE`]) — which reveal nothing about the secret key. A malformed
 //!   local expanded ML-KEM decapsulation key is an opaque [`Q_PERIAPT_ERR_INTERNAL`] failure and is
 //!   never confused with peer behavior.
-//! - Every entry point is wrapped in `catch_unwind`; a panic becomes
+//! - Every fallible operation body is wrapped in `catch_unwind`; a panic becomes
 //!   [`Q_PERIAPT_ERR_PANIC`] instead of unwinding across the ABI (which is UB).
 //! - **No aliasing (checked):** within a single call, the input `(ptr, len)` buffers and the
 //!   output `(ptr, len)` buffers must not overlap — writing an output while the inputs are
@@ -59,6 +59,9 @@ use q_periapt_kem::{
 use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
 use std::ffi::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+
+mod sdk;
+pub use sdk::*;
 
 /// C ABI version for this header/library contract.
 pub const Q_PERIAPT_ABI_VERSION: u32 = 2;
@@ -178,6 +181,22 @@ pub extern "C" fn q_periapt_status_name(code: i32) -> *const c_char {
         Q_PERIAPT_ERR_INVALID_KEYSHARE => b"ERR_INVALID_KEYSHARE\0",
         Q_PERIAPT_ERR_ALIASING => b"ERR_ALIASING\0",
         Q_PERIAPT_ERR_ENTROPY => b"ERR_ENTROPY\0",
+        Q_PERIAPT_ERR_CLOSED => b"ERR_CLOSED\0",
+        Q_PERIAPT_ERR_PURPOSE => b"ERR_PURPOSE\0",
+        Q_PERIAPT_ERR_INVALID_PRIVATE_KEY => b"ERR_INVALID_PRIVATE_KEY\0",
+        Q_PERIAPT_ERR_RESOURCE_LIMIT => b"ERR_RESOURCE_LIMIT\0",
+        Q_PERIAPT_ERR_LIMITS => b"ERR_LIMITS\0",
+        Q_PERIAPT_ERR_TLS => b"ERR_TLS\0",
+        Q_PERIAPT_ERR_TIMEOUT => b"ERR_TIMEOUT\0",
+        Q_PERIAPT_ERR_PROTOCOL => b"ERR_PROTOCOL\0",
+        Q_PERIAPT_ERR_NOT_READY => b"ERR_NOT_READY\0",
+        Q_PERIAPT_ERR_IO => b"ERR_IO\0",
+        Q_PERIAPT_ERR_STORAGE => b"ERR_STORAGE\0",
+        Q_PERIAPT_ERR_STORE_BUSY => b"ERR_STORE_BUSY\0",
+        Q_PERIAPT_ERR_COMMIT_UNCERTAIN => b"ERR_COMMIT_UNCERTAIN\0",
+        Q_PERIAPT_ERR_STORE_COMMITTED => b"ERR_STORE_COMMITTED\0",
+        Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM => b"ERR_UNSUPPORTED_PLATFORM\0",
+        Q_PERIAPT_ERR_STORAGE_REQUIRED => b"ERR_STORAGE_REQUIRED\0",
         _ => b"UNKNOWN_STATUS\0",
     };
     name.as_ptr().cast()

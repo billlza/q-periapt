@@ -28,6 +28,7 @@ from evidence_io import (
 SCHEMA_VERSION = 1
 KIND = "qperiapt.third_party_rust_licenses"
 ROOT_PACKAGE = "q-periapt-ffi"
+ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer")
 INVENTORY_RELATIVE = pathlib.PurePosixPath("THIRD_PARTY/rust/INVENTORY.json")
 MAX_METADATA_BYTES = 64 * 1024 * 1024
 MAX_LICENSE_BYTES = 4 * 1024 * 1024
@@ -143,7 +144,8 @@ def _cargo_metadata(root: pathlib.Path, target: str) -> dict[str, Any]:
     return value
 
 
-def _production_dependency_ids(metadata: dict[str, Any]) -> tuple[set[str], dict[str, dict[str, Any]]]:
+def _production_dependency_ids(metadata: dict[str, Any], root_package: str = ROOT_PACKAGE) -> tuple[set[str], dict[str, dict[str, Any]]]:
+    require(root_package in ROOT_PACKAGES, f"unsupported license root package: {root_package}")
     raw_packages = metadata.get("packages")
     resolve = metadata.get("resolve")
     require(isinstance(raw_packages, list), "cargo metadata packages are missing")
@@ -168,9 +170,9 @@ def _production_dependency_ids(metadata: dict[str, Any]) -> tuple[set[str], dict
     roots = [
         package_id
         for package_id, package in packages.items()
-        if package.get("name") == ROOT_PACKAGE and package.get("source") is None
+        if package.get("name") == root_package and package.get("source") is None
     ]
-    require(len(roots) == 1, f"cargo metadata must contain exactly one workspace {ROOT_PACKAGE} package")
+    require(len(roots) == 1, f"cargo metadata must contain exactly one workspace {root_package} package")
     pending = [roots[0]]
     seen = {roots[0]}
     while pending:
@@ -311,18 +313,23 @@ def _license_candidates(
     return tuple(sorted(files, key=lambda item: item.name.encode("utf-8")))
 
 
-def collect(root: pathlib.Path, package_root: pathlib.Path, target: str) -> dict[str, Any]:
+def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root_package: str = ROOT_PACKAGE,
+            resolved_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     output_root = _regular_directory(package_root, "binary package root")
     rust_root = output_root / "THIRD_PARTY" / "rust"
     require(not rust_root.exists() and not rust_root.is_symlink(), f"third-party Rust license output already exists: {rust_root}")
 
-    metadata = _cargo_metadata(repository, target)
-    dependency_ids, packages = _production_dependency_ids(metadata)
+    require(TARGET_RE.fullmatch(target) is not None, f"invalid Rust target triple: {target!r}")
+    # Installed consumers already captured bounded, offline metadata with their
+    # exact compiler/cache environment. Reuse that resolution without selecting
+    # a different global Cargo; lock checksums and license verification remain.
+    metadata = _cargo_metadata(repository, target) if resolved_metadata is None else resolved_metadata
+    dependency_ids, packages = _production_dependency_ids(metadata, root_package)
     checksums = _lock_checksums(repository)
     external = [packages[package_id] for package_id in dependency_ids if packages[package_id].get("source") is not None]
     external.sort(key=lambda package: (str(package.get("name")), str(package.get("version")), str(package.get("source"))))
-    require(external, "q-periapt-ffi production dependency closure has no external packages")
+    require(external, f"{root_package} production dependency closure has no external packages")
     require(len(external) <= MAX_LICENSE_FILES, "third-party package count exceeds limit")
 
     inventory_packages: list[dict[str, Any]] = []
@@ -385,7 +392,7 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str) -> dict
     inventory = {
         "schema_version": SCHEMA_VERSION,
         "kind": KIND,
-        "root_package": ROOT_PACKAGE,
+        "root_package": root_package,
         "target": target,
         "packages": inventory_packages,
     }
@@ -414,7 +421,7 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str) -> dict
         os.chmod(staging_inventory, 0o644)
         staging_root.replace(rust_root)
         published = True
-        verify(output_root, expected_target=target)
+        verify(output_root, expected_target=target, root_package=root_package)
     except Exception:
         cleanup_root = rust_root if published else staging_root
         if cleanup_root.exists() and not cleanup_root.is_symlink():
@@ -423,7 +430,8 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str) -> dict
     return inventory
 
 
-def verify(package_root: pathlib.Path, *, expected_target: str | None = None) -> dict[str, Any]:
+def verify(package_root: pathlib.Path, *, expected_target: str | None = None, root_package: str = ROOT_PACKAGE) -> dict[str, Any]:
+    require(root_package in ROOT_PACKAGES, f"unsupported license root package: {root_package}")
     root = _regular_directory(package_root, "binary package root")
     inventory_path = root.joinpath(*INVENTORY_RELATIVE.parts)
     try:
@@ -437,7 +445,7 @@ def verify(package_root: pathlib.Path, *, expected_target: str | None = None) ->
     inventory = snapshot.value
     require(set(inventory) == {"schema_version", "kind", "root_package", "target", "packages"}, "third-party Rust license inventory fields differ")
     require(inventory["schema_version"] == SCHEMA_VERSION and inventory["kind"] == KIND, "third-party Rust license inventory schema differs")
-    require(inventory["root_package"] == ROOT_PACKAGE, "third-party Rust license root package differs")
+    require(inventory["root_package"] == root_package, "third-party Rust license root package differs")
     target = inventory["target"]
     require(isinstance(target, str) and TARGET_RE.fullmatch(target) is not None, "third-party Rust license target is invalid")
     if expected_target is not None:

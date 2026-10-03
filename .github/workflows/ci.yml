@@ -20,7 +20,8 @@ env:
 jobs:
   # Format + lint + unit tests on the host.
   check:
-    runs-on: ubuntu-latest
+    # This job also produces the C SDK, whose GLIBC floor is 2.35.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -39,15 +40,29 @@ jobs:
             echo "checked-out HEAD $actual_commit does not match GitHub commit $EXPECTED_COMMIT" >&2
             exit 1
           fi
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - name: Set up canonical artifact Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          toolchain: 1.96.1
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
+        with:
+          toolchain: 1.98.1
           components: rustfmt, clippy, llvm-tools
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      - name: Verify current SDK ABI 2 header and retained 0.1.5 contract
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh artifact/c_abi_contract.py
+          sh artifact/python-run.sh artifact/c_abi_contract.py --contract crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json --header crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h
+          sh artifact/python-run.sh artifact/sdk_policy_fixtures.py
       # Discover every artifact/test_*.py module so newly added fail-closed
       # verifiers cannot silently remain local-only because an explicit list drifted.
       # setup-java selects JAVA_HOME and prepends the same JDK's bin to PATH.
@@ -63,26 +78,27 @@ jobs:
           java -version
           javac -version
       - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
-      - name: Exact source-transition or installed proof-to-byte gate
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+      - name: Exact SDK source and historical evidence boundary
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)
           source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \
-            ci-source-gate \
+            ci-source-gate --profile sdk-020 \
             "$results_sha256" "$QPERIAPT_EXPECTED_GIT_COMMIT")
-          initial_gate="SOURCE_TRANSITION_READINESS_PASS mode=initial commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249 declared_delta=59"
-          installed_gate="SOURCE_CI_GATE_MODE mode=installed commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 proof_inputs=249"
-          if [ "$source_gate" = "$initial_gate" ]; then
+          expected_gate="SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
+          if [ "$source_gate" = "$expected_gate" ]; then
             printf '%s\n' "$source_gate"
-          elif [ "$source_gate" = "$installed_gate" ]; then
-            printf '%s\n' "$source_gate"
-            QPERIAPT_SKIP_SMOKE=1 /bin/sh artifact/proof-to-byte.sh
           else
             printf 'unexpected source CI gate result\n' >&2
             exit 2
           fi
       - name: Paired performance harness schema (shared-runner, no numeric claim)
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           cargo run --release --locked -p q-periapt-backends --example paired_profile_perf -- \
             --samples 200 --warmup-ms 100 --raw-out target/performance/ci-paired-profile.jsonl
@@ -90,14 +106,17 @@ jobs:
             --raw target/performance/ci-paired-profile.jsonl
       # C-ABI link smoke test on Linux (gcc/clang links a C consumer against the cdylib).
       - run: sh bindings/c/build-and-run.sh
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
       # C-ABI distribution smoke: archive, extract, pkg-config consumer, and CMake consumer.
-      - run: sh artifact/c-package.sh
+      - run: sh artifact/c-package.sh --profile sdk-020
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
 
   # Crates.io pre-publication contract. This is not an upload step: it checks the
-  # explicit publish allow/deny list, package file lists, patched
-  # registry-bound `cargo package` plus rebuilt-archive verification for every
-  # publishable crate, and an isolated scan
-  # of Cargo's normalized backend package from a clean checkout.
+  # explicit alpha cohort, file lists, Cargo's registry-bound workspace package
+  # reconstruction, and a real Rust consumer of the archives outside the checkout.
+  # Uses a private Cargo home and audits the resolved consumer lock; no upload.
   rust-publish-contract:
     runs-on: ubuntu-latest
     steps:
@@ -108,17 +127,57 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
-      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
-      - run: sh artifact/rust-publish-contract.sh
+          toolchain: 1.98.1
+          components: clippy
+      - run: cargo +1.98.1 install cargo-audit --version 0.22.2 --locked
+      - run: sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # explicit minimum
+        with:
+          toolchain: 1.90.0
+      - name: Exercise the same SDK archives on the declared minimum compiler
+        run: |
+          report=target/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(sha256sum "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/rust_sdk_msrv.py \
+            --output target/sdk-rust-msrv --report "$report" --report-sha256 "$report_sha256" \
+            --cargo-home target/sdk-rust-package/cargo-home \
+            --toolchain-root "$(rustc +1.90.0 --print sysroot)"
+      - name: Materialize the exact twelve-crate SDK uploader without uploading
+        run: |
+          report=target/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(sha256sum "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
+            "$report" \
+            --profile sdk-020 --input-sha256 "$report_sha256" --cargo-version 1.98.1
+          sh artifact/python-run.sh artifact/rust_sdk_publication.py dry-run \
+            --report "$report" --report-sha256 "$report_sha256" \
+            --source-commit "$(git rev-parse HEAD)" \
+            > target/sdk-rust-package/publication-dry-run.json
+      - name: Retain Rust SDK archives and verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-sdk-package
+          path: |
+            target/sdk-rust-package/crates/*.crate
+            target/sdk-rust-package/*.json
+            target/sdk-rust-package/*.stdout
+            target/sdk-rust-package/*.stderr
+            target/sdk-rust-package/consumer-Cargo.lock
+            target/qperiapt-crates-io-uploaders/sdk-020/*/qperiapt-crates-io-uploader
+            target/sdk-rust-msrv/*.json
+            target/sdk-rust-msrv/*.stdout
+            target/sdk-rust-msrv/*.stderr
+            target/sdk-rust-msrv/consumer-Cargo.lock
 
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs,
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
   # (compiled via cc/cl.exe) and the optional pure-Rust SLH-DSA backend.
   windows:
     runs-on: windows-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -127,13 +186,13 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # Windows release 1.97.0
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # Windows release 1.98.1
         with:
-          toolchain: 1.97.0
+          toolchain: 1.98.1
           components: llvm-tools
-      - run: cargo +1.97.0 install cbindgen --version 0.29.4 --locked
-      - run: cargo +1.97.0 test --workspace --locked
-      - run: cargo +1.97.0 test -p q-periapt-backends --features slh-dsa --locked
+      - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.98.1 test --workspace --locked
+      - run: cargo +1.98.1 test -p q-periapt-backends --features slh-dsa --locked
       - name: Test Windows packaging trust boundary
         shell: pwsh
         working-directory: artifact
@@ -142,28 +201,29 @@ jobs:
           python -I -S -c "import sys; raise SystemExit(0 if sys.implementation.name == 'cpython' and sys.version_info >= (3, 11) else 2)"
           python -I -S -B -W error python_bootstrap.py -m unittest -v `
             test_evidence_io test_c_abi_contract test_deterministic_archive `
-            test_release_binary_scan test_third_party_licenses test_windows_package
+            test_release_binary_scan test_third_party_licenses test_windows_package test_windows_sdk_profile
           ./windows-toolchain-tests.ps1
+          ./windows-sdk-profile-tests.ps1 -Python (Get-Command python).Source
       # ABI2 C link smoke: cl.exe links a C consumer against q_periapt_ffi_abi2.dll.
       - name: Build and verify the Windows ABI2 C library
         shell: cmd
         run: bindings\c\build-and-run.bat
       - name: Build, archive, extract, and consume the Windows ABI2 SDK
         shell: pwsh
-        run: artifact/windows-package.ps1
+        run: artifact/windows-package.ps1 -Profile sdk-020
       - name: Reconsume only the Windows candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
-          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
           $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
           foreach ($path in @(
-            "target/qperiapt-windows-dynamic",
-            "target/qperiapt-windows-static",
+            "target/qperiapt-windows-sdk-020/native-dynamic",
+            "target/qperiapt-windows-sdk-020/native-static",
             $packageRoot
           )) {
             if (Test-Path -LiteralPath $path) {
@@ -179,7 +239,7 @@ jobs:
           )) {
             $rejected = $false
             try {
-              artifact/windows-package.ps1 -Mode VerifyArchive `
+              artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
                 -Archive $archive `
                 -ExpectedSha256 $wrongArguments[0] `
                 -ExpectedManifestSha256 $wrongArguments[1] `
@@ -191,7 +251,7 @@ jobs:
             }
             if (-not $rejected) { throw "Windows archive verifier accepted an incorrect trusted digest" }
           }
-          artifact/windows-package.ps1 -Mode VerifyArchive `
+          artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
             -Archive $archive `
             -ExpectedSha256 $archiveSha256 `
             -ExpectedManifestSha256 $manifestSha256 `
@@ -201,7 +261,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-windows-x86_64-msvc
-          path: target/qperiapt-windows-package/q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc.zip
+          path: target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip
           if-no-files-found: error
 
   # Pre-tag package gate on the same Windows generation used by the immutable
@@ -209,6 +269,7 @@ jobs:
   # windows-latest job preserves both explicit toolchain identities.
   abi2-windows-package-2022:
     runs-on: windows-2022
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -220,9 +281,9 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.97.0
+          toolchain: 1.98.1
           components: llvm-tools
-      - run: cargo +1.97.0 install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - name: Verify exact Windows 2022 source and toolchain
         shell: pwsh
         env:
@@ -230,11 +291,11 @@ jobs:
         run: |
           if ((git rev-parse --verify 'HEAD^{commit}') -ne $env:EXPECTED_COMMIT) { throw "checkout commit differs" }
           if (git status --porcelain=v1 --untracked-files=all) { throw "checkout is dirty" }
-          $rustcVersion = rustc +1.97.0 --version
-          if ($rustcVersion -cne "rustc 1.97.0 (2d8144b78 2026-07-07)") { throw "unexpected rustc: $rustcVersion" }
-          $cargoVersion = cargo +1.97.0 --version
-          if ($cargoVersion -cne "cargo 1.97.0 (c980f4866 2026-06-30)") { throw "unexpected cargo: $cargoVersion" }
-          $hostLines = @(rustc +1.97.0 -vV | Where-Object { $_ -clike "host: *" })
+          $rustcVersion = rustc +1.98.1 --version
+          if ($rustcVersion -cne "rustc 1.98.1 (48a229cea 2026-09-01)") { throw "unexpected rustc: $rustcVersion" }
+          $cargoVersion = cargo +1.98.1 --version
+          if ($cargoVersion -cne "cargo 1.98.1 (797e8a9bc 2026-08-05)") { throw "unexpected cargo: $cargoVersion" }
+          $hostLines = @(rustc +1.98.1 -vV | Where-Object { $_ -clike "host: *" })
           if ($hostLines.Count -ne 1 -or $hostLines[0] -cne "host: x86_64-pc-windows-msvc") { throw "unexpected Rust host: $hostLines" }
       - name: Test Windows 2022 package trust boundary
         shell: pwsh
@@ -242,33 +303,34 @@ jobs:
         run: |
           python -I -S -B -W error python_bootstrap.py -m unittest -v `
             test_evidence_io test_c_abi_contract test_deterministic_archive `
-            test_release_binary_scan test_third_party_licenses test_windows_package
+            test_release_binary_scan test_third_party_licenses test_windows_package test_windows_sdk_profile
           ./windows-toolchain-tests.ps1
+          ./windows-sdk-profile-tests.ps1 -Python (Get-Command python).Source
       - name: Build, archive, extract, and consume the Windows 2022 SDK
         shell: pwsh
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}
-        run: artifact/windows-package.ps1
+        run: artifact/windows-package.ps1 -Profile sdk-020
       - name: Reconsume only the Windows 2022 candidate archive
         shell: pwsh
         run: |
-          $archive = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc.zip"
-          $packageRoot = "target/qperiapt-windows-package/q-periapt-c-abi2-0.1.5-x86_64-pc-windows-msvc"
+          $archive = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip"
+          $packageRoot = "target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc"
           $archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifestSha256 = (Get-FileHash -LiteralPath "$packageRoot/MANIFEST.json" -Algorithm SHA256).Hash.ToLowerInvariant()
-          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $contractSha256 = (Get-FileHash -LiteralPath "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json" -Algorithm SHA256).Hash.ToLowerInvariant()
           $gitCommit = (git rev-parse --verify 'HEAD^{commit}').Trim()
           $gitTree = (git rev-parse --verify 'HEAD^{tree}').Trim()
           foreach ($path in @(
-            "target/qperiapt-windows-dynamic",
-            "target/qperiapt-windows-static",
+            "target/qperiapt-windows-sdk-020/native-dynamic",
+            "target/qperiapt-windows-sdk-020/native-static",
             $packageRoot
           )) {
             if (Test-Path -LiteralPath $path) {
               Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
             }
           }
-          artifact/windows-package.ps1 -Mode VerifyArchive `
+          artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive `
             -Archive $archive `
             -ExpectedSha256 $archiveSha256 `
             -ExpectedManifestSha256 $manifestSha256 `
@@ -302,7 +364,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -310,10 +372,10 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           components: llvm-tools
       - name: Verify native runner and checkout provenance
         env:
@@ -322,53 +384,56 @@ jobs:
         run: |
           test "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"
           test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"
-          test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-          test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
+          test "$(rustc --version)" = "rustc 1.98.1 (48a229cea 2026-09-01)"
+          test "$(cargo --version)" = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
       - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
-      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - name: Build, archive, extract, and consume the native Linux ABI2 SDK
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/c-package.sh
+        run: sh artifact/c-package.sh --profile sdk-020
       - name: Verify the archive through the isolated public-consumer path
         env:
           EXPECTED_TARGET: ${{ matrix.target }}
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          package="q-periapt-c-abi2-0.1.5-$EXPECTED_TARGET"
+          package="q-periapt-c-abi2-0.2.0-$EXPECTED_TARGET"
           archive="$GITHUB_WORKSPACE/target/qperiapt-c-abi2/$package.tar.gz"
           archive_sha256=$(sha256sum "$archive" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "target/qperiapt-c-abi2/$package/MANIFEST.json" | cut -d' ' -f1)
-          contract_sha256=$(sha256sum crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json | cut -d' ' -f1)
+          contract_sha256=$(sha256sum crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json | cut -d' ' -f1)
           case "$EXPECTED_TARGET" in
             x86_64-unknown-linux-gnu) wrong_target=aarch64-unknown-linux-gnu ;;
             aarch64-unknown-linux-gnu) wrong_target=x86_64-unknown-linux-gnu ;;
             *) exit 2 ;;
           esac
           wrong_sha256=0000000000000000000000000000000000000000000000000000000000000000
+          verify_attempt=0
           verify_archive() {
+            verify_attempt=$((verify_attempt + 1))
+            QPERIAPT_C_PACKAGE_OUT_DIR="$GITHUB_WORKSPACE/target/sdk-c-public-verify-$verify_attempt" \
             QPERIAPT_C_PACKAGE_VERIFY_ARCHIVE="$archive" \
             QPERIAPT_C_PACKAGE_EXPECTED_SHA256="$1" \
             QPERIAPT_C_PACKAGE_EXPECTED_TARGET="$2" \
             QPERIAPT_C_PACKAGE_EXPECTED_VERSION="$3" \
             QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256="$4" \
             QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$5" \
-              sh artifact/c-package.sh
+              sh artifact/c-package.sh --profile sdk-020
           }
-          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.1.5" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$wrong_target" "0.1.5" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$wrong_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$wrong_target" "0.2.0" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
           if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.5" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
-          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.5" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$wrong_sha256" "$contract_sha256"; then exit 1; fi
+          if verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$wrong_sha256"; then exit 1; fi
           rm -rf \
-            target/release \
+            "target/$EXPECTED_TARGET/release" \
             "target/qperiapt-c-abi2/$package" \
             "target/qperiapt-c-abi2/verify-$package"
-          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.1.5" "$manifest_sha256" "$contract_sha256"
+          verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$contract_sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: abi2-linux-${{ matrix.target }}
-          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.5-${{ matrix.target }}.tar.gz
+          path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.2.0-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
   # no_std build of the auditable core for an embedded target (must not pull std).
@@ -382,9 +447,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           targets: thumbv7em-none-eabihf
       - run: cargo build --locked -p q-periapt-core --target thumbv7em-none-eabihf
 
@@ -408,9 +473,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           targets: ${{ matrix.target }}
       - name: Install AArch64 C cross-toolchain
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -443,9 +508,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           targets: riscv64gc-unknown-linux-gnu
       - run: sudo apt-get update && sudo apt-get install -y qemu-user-static gcc-riscv64-linux-gnu
       - name: Run the byte-identity KATs on riscv64 under qemu-user
@@ -472,12 +537,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: ${{ matrix.toolchain }}
-      # `+${{ matrix.toolchain }}` is REQUIRED: the root rust-toolchain.toml pins 1.96.1 and
-      # would otherwise shadow the action's default, silently running every lane on 1.96.1.
+      # `+${{ matrix.toolchain }}` is REQUIRED: the root rust-toolchain.toml pins 1.98.1 and
+      # would otherwise shadow the action's default, silently running every lane on 1.98.1.
       - run: cargo +${{ matrix.toolchain }} test --workspace --locked
 
-  # Enforce the declared MSRV against the committed lock. `+1.85` selects it explicitly so the
-  # root rust-toolchain.toml (1.96.1) can't shadow it.
+  # Enforce the declared MSRV against the committed lock. `+1.90.0` selects it explicitly so the
+  # root rust-toolchain.toml (1.98.1) can't shadow it.
   msrv:
     runs-on: ubuntu-latest
     steps:
@@ -488,8 +553,10 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@b39830659426cc462634adb474604619960ae92d # 1.85
-      - run: cargo +1.85 build --workspace --locked
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # explicit minimum
+        with:
+          toolchain: 1.90.0
+      - run: cargo +1.90.0 build --workspace --locked
 
   # Side-channel gate: failure-path indistinguishability. Empirical dudect timing
   # is intentionally not run on noisy shared CI; use the documented local command
@@ -504,9 +571,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
       - name: Failure-path indistinguishability (hard gate)
         run: cargo test -p q-periapt-ctstats --locked
   # Dataflow constant-time HARD GATE (Valgrind/Memcheck TIMECOP). Secrets are marked
@@ -541,9 +608,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
       - name: Verify the fixed CT architecture identity
         env:
           EXPECTED_GATE_IDENTITY: ${{ matrix.gate_identity }}
@@ -605,6 +672,47 @@ jobs:
             echo "ML-KEM-$parameter shipped-provider CT probe passed on ${{ matrix.runner }}"
           done
 
+  # Candidate evidence is independent of the default portable x86-64 release lane.
+  x86-avx2-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - name: Verify native Linux x86-64 and source identity
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          test "$(uname -m)" = x86_64
+          test "$(rustc -vV | sed -n 's/^host: //p')" = x86_64-unknown-linux-gnu
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+      - name: Candidate Clippy, KAT, differential, rejection and SDK checks
+        run: |
+          cargo clippy --locked -p q-periapt-mlkem-native-sys -p q-periapt-backends -p q-periapt-sdk -p q-periapt-ffi \
+            --features q-periapt-ffi/linux-x86_64-avx2 --all-targets -- -D warnings
+          cargo test --locked --release -p q-periapt-mlkem-native-sys -p q-periapt-backends -p q-periapt-sdk -p q-periapt-ffi \
+            --features q-periapt-ffi/linux-x86_64-avx2
+      - name: Install Memcheck and build the candidate binary probes
+        run: |
+          sudo apt-get update && sudo apt-get install -y valgrind
+          cargo build --locked --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind,linux-x86_64-avx2
+      - name: Require actual AVX2 under Memcheck and preserve controls
+        run: sh artifact/x86-avx2-ct.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: x86-avx2-candidate-ct
+          path: target/x86-avx2-ct.*
+          if-no-files-found: error
+
   # Transport: real loopback PQ/T hybrid handshake + P99 harness (report).
   transport:
     runs-on: ubuntu-latest
@@ -616,9 +724,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
       - name: Loopback handshake (both profiles)
         run: cargo test -p q-periapt-tls-demo --locked
       - name: RFC 10024 standard baseline contract
@@ -627,6 +735,45 @@ jobs:
           cargo test -p q-periapt-rustls --features bench-baseline --locked
       - name: P99 harness (informational)
         run: cargo run --locked --release -p q-periapt-tls-demo --bin p99_bench -- bound 2000
+
+  standard-tls-interop:
+    # 26.04 provides OpenSSL 3.5; the harness still requires actual group support.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - name: Standard TLS and additive TLS 1.2 dependency features
+        run: |
+          cargo clippy --locked -p q-periapt-rustls --all-targets --features standard-tls,bench-baseline,rustls/tls12 -- -D warnings
+          cargo test --locked -p q-periapt-rustls --features standard-tls,bench-baseline,rustls/tls12
+          cargo build --locked -p q-periapt-rustls --example standard_peer --features standard-tls
+      - name: Independent OpenSSL client and server, including denied peers
+        run: sh artifact/python-run.sh artifact/standard_tls_interop.py --output target/standard-tls-interop
+      - name: Reference listener readiness and deadlines
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo test --locked -p q-periapt-rustls --example connection_peer --features reference-connection
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: standard-tls-interop
+          # Include the sealed executable and logs, never generated test private keys.
+          path: |
+            target/standard-tls-interop/*.stdout
+            target/standard-tls-interop/*.stderr
+            target/standard-tls-interop/manifest.json
+            target/standard-tls-interop/bin/standard_peer
+          if-no-files-found: error
 
   # Cross-platform bindings: each binding decapsulates the shared reference vector
   # (bindings/shared-test-vectors.json) and must reproduce the secret byte-for-byte.
@@ -642,13 +789,13 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           targets: wasm32-unknown-unknown
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
+          node-version: "26.10.0"
       - name: Install and verify the pinned WebAssembly C compiler
         run: |
           sudo apt-get update
@@ -657,12 +804,47 @@ jobs:
           /usr/bin/clang-18 --version
           /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
           echo 'CC_wasm32_unknown_unknown=/usr/bin/clang-18' >> "$GITHUB_ENV"
-      - run: cargo +1.96.1 install wasm-pack --version 0.15.0 --locked
+      - run: cargo +1.98.1 install wasm-pack --version 0.15.0 --locked
       # Runs the shared-vector consistency test on a real wasm runtime (Node).
       - name: Test lean WebAssembly face on Node
         run: wasm-pack test --node crates/q-periapt-wasm
       - name: Test signed-policy WebAssembly face on Node
         run: wasm-pack test --node crates/q-periapt-wasm --features signed-policy
+      - name: Install pinned SDK npm producer in a private tool directory
+        run: |
+          npm install --prefix "$RUNNER_TEMP/qperiapt-npm" --ignore-scripts --no-fund npm@12.1.0
+          echo "$RUNNER_TEMP/qperiapt-npm/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Prepare pinned SDK TypeScript consumer compiler
+        run: npm exec --yes --ignore-scripts --package typescript@7.0.2 -- tsc --version
+      - name: Build and install product WASM package outside the checkout
+        run: sh artifact/python-run.sh artifact/wasm_sdk_package.py --output target/sdk-wasm-package
+      - name: Select the exact minimum Node runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.0.0"
+      - name: Consume the same WASM archive on Node 24.0.0
+        shell: bash
+        run: |
+          digests=$(sh artifact/python-run.sh -c 'from pathlib import Path; from evidence_io import load_json_object_snapshot; import re; record=load_json_object_snapshot(Path("target/sdk-wasm-package/INSTALLED_CONSUMER.json"), label="WASM producer receipt").value; values=[record["sha256"],record["manifest_sha256"]]; assert all(isinstance(value,str) and re.fullmatch(r"[0-9a-f]{64}",value) for value in values); print(" ".join(values))')
+          read -r archive_sha manifest_sha <<< "$digests"
+          sh artifact/python-run.sh artifact/wasm_sdk_package.py \
+            --archive target/sdk-wasm-package/q-periapt-sdk-wasm-0.2.0.tgz \
+            --archive-sha256 "$archive_sha" --manifest-sha256 "$manifest_sha" \
+            --node "$(command -v node)" --npm-cli "$(readlink -f "$(command -v npm)")" \
+            --expected-node-version v24.0.0 --output target/sdk-wasm-node24-minimum
+      - name: Retain installed WASM candidate and consumer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wasm-sdk-package
+          path: |
+            target/sdk-wasm-package/*.json
+            target/sdk-wasm-package/*.stdout
+            target/sdk-wasm-package/*.stderr
+            target/sdk-wasm-package/*.tgz
+            target/sdk-wasm-node24-minimum/*.json
+            target/sdk-wasm-node24-minimum/*.stdout
+            target/sdk-wasm-node24-minimum/*.stderr
 
   # Robustness fuzzing (nightly + libFuzzer). The fuzz crate is detached from the
   # workspace; this compiles every target. (Time-boxed runs are done locally.)
@@ -695,7 +877,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -703,20 +885,20 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
       - name: Test Darwin release transaction adapters
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: sh artifact/python-run.sh -m unittest -v artifact/test_release_index.py artifact/test_android_bounded_command.py
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           # The release gate inspects Rust-produced archives with the matching
           # Rust LLVM version; Xcode llvm-nm may reject newer Rust bitcode.
-          components: llvm-tools
+          components: clippy, llvm-tools
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - run: cargo build --locked -p q-periapt-ffi --release
-      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - name: Generated C/Swift header freshness
         run: |
           mkdir -p target
@@ -725,23 +907,151 @@ jobs:
             --output target/qperiapt-ci-header.h
           cmp target/qperiapt-ci-header.h crates/q-periapt-ffi/include/q_periapt.h
           cmp crates/q-periapt-ffi/include/q_periapt.h bindings/swift/Sources/CQPeriapt/q_periapt.h
-      - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
+      - run: swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+      - name: Execute SDK device workload on macOS and link iOS runner
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/apple-sdk-device-check.sh
+      - name: Retain SDK device-workload build and host logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-sdk-device-host-and-compile
+          path: target/apple-sdk-device-check/*.log
+          if-no-files-found: warn
+      - name: Actual Swift and Rust connection boundary
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+          RUSTFLAGS: "-D warnings"
+        run: |
+          cargo test --locked -p q-periapt-rustls --example connection_peer --features reference-connection
+          cargo build --locked -p q-periapt-rustls --examples --features reference-connection
+          swift build --package-path bindings/swift --product QPeriaptConnectionProbe \
+            -Xlinker -L${{ github.workspace }}/target/release \
+            -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+          probe_bin="$(swift build --package-path bindings/swift --show-bin-path)"
+          sh artifact/python-run.sh artifact/sdk_connection_interop.py \
+            --swift "$probe_bin/QPeriaptConnectionProbe" --output target/sdk-connection-interop
+      - name: Retain connection boundary observations without test keys
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: swift-rust-connection-boundary
+          path: |
+            target/sdk-connection-interop/*.stdout
+            target/sdk-connection-interop/*.stderr
+            target/sdk-connection-interop/manifest.json
+            target/sdk-connection-interop/bin/*
+          if-no-files-found: warn
+      - name: Real C and Swift SDK timing diagnostic (no numeric release claim)
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh artifact/sdk_path_performance.py --output target/sdk-path-performance --samples 200
+      - name: Retain SDK timing samples and failed attempts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-path-performance-diagnostic
+          path: |
+            target/sdk-path-performance/*.stdout
+            target/sdk-path-performance/*.stderr
+            target/sdk-path-performance/manifest.json
+          if-no-files-found: warn
+      - name: Full Swift and Rust connection timing diagnostic
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+          RUSTFLAGS: "-D warnings"
+          CARGO_NET_OFFLINE: "true"
+        run: sh artifact/python-run.sh artifact/sdk_connection_performance.py --output target/sdk-connection-performance --reconnects 200
+      - name: Retain connection timing and acceptance logs without test keys
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-connection-performance-diagnostic
+          path: |
+            target/sdk-connection-performance/*.stdout
+            target/sdk-connection-performance/*.stderr
+            target/sdk-connection-performance/manifest.json
+            target/sdk-connection-performance/boundary/*.stdout
+            target/sdk-connection-performance/boundary/*.stderr
+            target/sdk-connection-performance/boundary/manifest.json
+          if-no-files-found: warn
       - name: Build deterministic Apple XCFramework
         run: |
           unset RUSTFLAGS CARGO_INCREMENTAL
-          sh artifact/swift-xcframework.sh
+          sh artifact/swift-xcframework.sh --profile sdk-020
+      - name: Retain Apple SDK packages and failed-attempt diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-sdk-020
+          path: |
+            target/qperiapt-swift-xcframework/*.log
+            target/qperiapt-swift-xcframework/SOURCE_INPUTS.*.json
+            target/qperiapt-swift-xcframework/q-periapt-swift-*/*.zip
+            target/qperiapt-swift-xcframework/q-periapt-swift-*/MANIFEST.json
+            target/qperiapt-swift-xcframework/q-periapt-swift-*/SHA256SUMS
+            target/qperiapt-swift-xcframework/apple-consumer-evidence/*.log
+            target/qperiapt-swift-xcframework/apple-consumer-evidence/SCHEMES.json
+            target/qperiapt-swift-xcframework/apple-consumer-evidence/*.linkmap
+            target/qperiapt-swift-xcframework/sdk-layout/*.log
+            target/qperiapt-swift-xcframework/sdk-layout/*.json
+            target/qperiapt-swift-xcframework/sdk-layout/installed-consumer-evidence/*.log
+          if-no-files-found: warn
+      - name: Install locked audit tooling for the packaged connection
+        run: cargo +1.98.1 install cargo-audit --version 0.22.2 --locked
+      - name: Build the Rust SDK archives for the packaged connection
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-connection-rust-package
+      - name: Actual installed Swift and Rust package connection
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          unset RUSTFLAGS CARGO_INCREMENTAL
+          sdk_dir=target/qperiapt-swift-xcframework/q-periapt-swift-0.2.0
+          report=target/sdk-connection-rust-package/RUST_SDK_PACKAGE.json
+          swift_sha256=$(shasum -a 256 "$sdk_dir/QPeriapt-Swift-SDK-0.2.0.zip" | cut -d' ' -f1)
+          native_sha256=$(shasum -a 256 "$sdk_dir/CQPeriapt.xcframework.zip" | cut -d' ' -f1)
+          report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/sdk_installed_connection.py \
+            --output target/sdk-installed-connection \
+            --swift-zip "$sdk_dir/QPeriapt-Swift-SDK-0.2.0.zip" --swift-sha256 "$swift_sha256" \
+            --swift-native-zip "$sdk_dir/CQPeriapt.xcframework.zip" --swift-native-sha256 "$native_sha256" \
+            --rust-report "$report" --rust-report-sha256 "$report_sha256" \
+            --cargo-home target/sdk-connection-rust-package/cargo-home
+      - name: Retain installed package connection evidence without test keys
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installed-swift-rust-sdk-connection
+          path: |
+            target/sdk-connection-rust-package/crates/*.crate
+            target/sdk-connection-rust-package/*.json
+            target/sdk-connection-rust-package/*.stdout
+            target/sdk-connection-rust-package/*.stderr
+            target/sdk-installed-connection/*.json
+            target/sdk-installed-connection/*.stdout
+            target/sdk-installed-connection/*.stderr
+            target/sdk-installed-connection/*.map
+            target/sdk-installed-connection/boundary/*.stdout
+            target/sdk-installed-connection/boundary/*.stderr
+            target/sdk-installed-connection/boundary/manifest.json
+            target/sdk-installed-connection/boundary/bin/*
+          if-no-files-found: warn
       # This is CI's only macOS runner, and the policy agent's launchd
       # activation, run-directory ACL and filesystem-ACL cases are all
       # #[cfg(target_os = "macos")]: `check`'s cargo test --workspace runs on
       # ubuntu, so those cases were compiled and executed nowhere. Same pinned
-      # 1.96.1 toolchain as the rest of this job, and placed last so the header
+      # 1.98.1 toolchain as the rest of this job, and placed last so the header
       # freshness, swift test and XCFramework gates this job exists for still
       # report before it.
       - name: Policy-agent tests, including the macOS-only cases
-        run: cargo +1.96.1 test --locked -p q-periapt-policy-agent
+        run: cargo +1.98.1 test --locked -p q-periapt-policy-agent
 
   bindings-kotlin:
-    runs-on: ubuntu-latest
+    # The native library must keep the same GLIBC 2.35 floor as the Linux SDK.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -750,9 +1060,17 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - name: Provision hardened package Python
+        id: jvm_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          toolchain: 1.96.1
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
+        with:
+          toolchain: 1.98.1
+          components: llvm-tools
       - name: Set up Java 25 LTS
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
@@ -766,14 +1084,69 @@ jobs:
           javac -version
       - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
-          gradle-version: "9.2.1"
-      - name: Verify Gradle JVM
-        run: gradle --version
+          gradle-version: "9.8.0"
+      - name: Restore and verify selected Java after Gradle setup
+        run: |
+          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          printf '%s\n' "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+          command -v java
+          command -v javac
+          java -version
+          javac -version
+          gradle --version
       - run: cargo build --locked -p q-periapt-ffi --release
       - run: gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail
+      - name: Execute Android JNI owner API in the host JVM
+        run: sh artifact/sdk-jni-host-smoke.sh
+      - name: Execute ABI 2 owner API in an independent C consumer
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+            -Icrates/q-periapt-ffi/include -Ibindings/c bindings/c/sdk_smoke.c \
+            -Ltarget/release -lq_periapt_ffi_abi2 \
+            -Wl,-rpath,${{ github.workspace }}/target/release -o target/sdk-abi2-c-smoke
+          ./target/sdk-abi2-c-smoke
+      - name: Install pinned C header generator
+        run: cargo +1.98.1 install --locked --version 0.29.4 cbindgen
+      - name: Build the matching ABI 2 SDK candidate
+        env:
+          QPERIAPT_PYTHON: ${{ steps.jvm_python.outputs.python-path }}
+          QPERIAPT_C_PACKAGE_OUT_DIR: ${{ github.workspace }}/target/sdk-jvm-native
+        run: sh artifact/c-package.sh --profile sdk-020
+      - name: Install Maven candidate in an independent JVM project
+        env:
+          QPERIAPT_PYTHON: ${{ steps.jvm_python.outputs.python-path }}
+        run: |
+          native_target=$(rustc -vV | sed -n 's/^host: //p')
+          native_name="q-periapt-c-abi2-0.2.0-$native_target"
+          native_archive="target/sdk-jvm-native/$native_name.tar.gz"
+          native_manifest="target/sdk-jvm-native/$native_name/MANIFEST.json"
+          native_sha256=$(shasum -a 256 "$native_archive" | cut -d ' ' -f 1)
+          native_manifest_sha256=$(shasum -a 256 "$native_manifest" | cut -d ' ' -f 1)
+          sh artifact/python-run.sh artifact/jvm_sdk_package.py \
+            --output target/sdk-jvm-package --native-archive "$native_archive" \
+            --native-sha256 "$native_sha256" --native-manifest-sha256 "$native_manifest_sha256"
+      - name: Preserve JVM package and installation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-jvm-package
+          path: |
+            target/sdk-jvm-package/*.tar.gz
+            target/sdk-jvm-package/*.json
+            target/sdk-jvm-package/*.stdout
+            target/sdk-jvm-package/*.stderr
+            target/sdk-jvm-package/source-test-results/
+            target/sdk-jvm-native/INSTALLED_CONSUMER.json
+          if-no-files-found: error
 
   bindings-android-aar:
     runs-on: ubuntu-latest
+    outputs:
+      aar_sha256: ${{ steps.sdk_aar_identity.outputs.aar_sha256 }}
+      manifest_sha256: ${{ steps.sdk_aar_identity.outputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -786,7 +1159,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -794,10 +1167,10 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi,i686-linux-android
       - name: Set up Java 21 LTS
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -811,16 +1184,18 @@ jobs:
           java -version
           javac -version
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - name: Verify exact canonical Rust toolchain
         run: |
           test "$(rustc -vV | sed -n 's/^host: //p')" = "x86_64-unknown-linux-gnu"
-          test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-          test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
+          test "$(rustc --version)" = "rustc 1.98.1 (48a229cea 2026-09-01)"
+          test "$(cargo --version)" = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
           installed_targets=$(rustup target list --installed)
           for target in aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android; do
             printf '%s\n' "$installed_targets" | grep -Fx "$target" >/dev/null
           done
-      - run: cargo +1.96.1 install cbindgen --version 0.29.4 --locked
+      - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - name: Install pinned Android SDK/NDK inputs
         run: |
           license_answers=$(printf 'y\n%.0s' {1..64})
@@ -834,24 +1209,51 @@ jobs:
           QPERIAPT_ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" \
           QPERIAPT_ANDROID_PLATFORM="$ANDROID_HOME/platforms/android-35" \
           QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
-          sh artifact/android-aar.sh
+          sh artifact/android-aar.sh --profile sdk-020
+      - name: Bind downstream runtime replay to this AAR build
+        id: sdk_aar_identity
+        run: |
+          package_dir=target/qperiapt-android-aar/q-periapt-android-0.2.0
+          aar_sha256=$(sha256sum "$package_dir/q-periapt-android-0.2.0.aar" | cut -d' ' -f1)
+          manifest_sha256=$(sha256sum "$package_dir/MANIFEST.json" | cut -d' ' -f1)
+          printf 'aar_sha256=%s\nmanifest_sha256=%s\n' "$aar_sha256" "$manifest_sha256" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-aar
+          name: abi2-android-sdk-020-aar
           path: |
-            target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar
-            target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json
-            target/qperiapt-android-aar/q-periapt-android-0.1.5/SHA256SUMS
+            target/qperiapt-android-aar/q-periapt-android-0.2.0/q-periapt-android-0.2.0.aar
+            target/qperiapt-android-aar/q-periapt-android-0.2.0/MANIFEST.json
+            target/qperiapt-android-aar/q-periapt-android-0.2.0/SHA256SUMS
           if-no-files-found: error
 
-  # Execute the exact four-ABI AAR produced above on a real Android 15/API 35
-  # 16 KiB-page ART runtime. GitHub's Linux host is x86_64, so this is an
-  # independent x86_64 package-face gate; the release transaction separately
-  # requires the arm64-v8a canonical AVD proof selected by results.json.
+  # Execute the same four-ABI AAR at the API 23 floor and on API 35 / 16 KiB.
+  # Both targets run full and minimal minified AGP consumers on x86_64 ART.
+  # The canonical arm64 runtime and physical-device gates remain separate.
   bindings-android-runtime-16k:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: bindings-android-runtime-16k
+            profile: api35-16k
+            sdk: "35"
+            page_size: "16384"
+            image: system-images;android-35;google_apis_ps16k;x86_64
+            avd: QPeriapt_Release_16K_API_35_CI_V1
+          - name: bindings-android-runtime-minimum
+            profile: api23-4k
+            sdk: "23"
+            page_size: "4096"
+            image: system-images;android-23;google_apis;x86_64
+            avd: QPeriapt_SDK_4K_API_23_CI_V1
+    env:
+      QPERIAPT_ANDROID_RUNTIME_PROFILE: ${{ matrix.profile }}
+      ANDROID_RUNTIME_IMAGE: ${{ matrix.image }}
+      ANDROID_RUNTIME_AVD: ${{ matrix.avd }}
     needs: bindings-android-aar
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -871,7 +1273,7 @@ jobs:
         id: proof_python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13.14"
+          python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify hardened proof Python
@@ -879,15 +1281,15 @@ jobs:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) exit 2 ;; esac
-          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 13, 14) else 2)'
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
       - name: Verify exact canonical Rust toolchain
         run: |
           test "$(rustc -vV | sed -n 's/^host: //p')" = "x86_64-unknown-linux-gnu"
-          test "$(rustc --version)" = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-          test "$(cargo --version)" = "cargo 1.96.1 (356927216 2026-06-26)"
+          test "$(rustc --version)" = "rustc 1.98.1 (48a229cea 2026-09-01)"
+          test "$(cargo --version)" = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
       - name: Set up Java 21 LTS
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
@@ -900,19 +1302,22 @@ jobs:
           java -version
           javac -version
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: abi2-android-aar
+          name: abi2-android-sdk-020-aar
           path: target/workflow-artifact/raw
           skip-decompress: true
           digest-mismatch: error
       - name: Strictly extract the same-run Android AAR artifact
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
-        run: sh artifact/python-run.sh artifact/workflow_artifact.py android-aar
-      - name: Install the API 35 16 KiB emulator runtime
+        run: sh artifact/python-run.sh artifact/workflow_artifact.py android-sdk-020-aar
+      - name: Install the selected Android emulator runtime
         run: |
           command -v setfacl
+          command -v getfacl
           command -v lsof
           license_answers=$(printf 'y\n%.0s' {1..64})
           sdkmanager --licenses <<< "$license_answers" >/dev/null
@@ -923,11 +1328,26 @@ jobs:
             "platforms;android-35" \
             "build-tools;36.0.0" \
             "ndk;29.0.14206865" \
-            "system-images;android-35;google_apis_ps16k;x86_64"
+            "$ANDROID_RUNTIME_IMAGE"
           test -c /dev/kvm
-          sudo setfacl -m "u:$USER:rw" /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
-      - name: Create private Android identities and the cold 16 KiB AVD
+      - name: Qualify the installed Maven SDK and prepare the offline AGP toolchain
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          canonical_java_home=$(realpath -e "$JAVA_HOME")
+          export JAVA_HOME="$canonical_java_home"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/q-periapt-android-0.2.0.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/MANIFEST.json"
+          wrapper="$GITHUB_WORKSPACE/artifact/android-agp-consumer/gradlew"
+          "$wrapper" --version
+          sh artifact/python-run.sh artifact/android_sdk_package.py \
+            --aar "$aar" --manifest "$manifest" \
+            --aar-sha256 "$(sha256sum "$aar" | cut -d' ' -f1)" \
+            --manifest-sha256 "$(sha256sum "$manifest" | cut -d' ' -f1)" \
+            --sdk "$ANDROID_HOME" --gradle "$wrapper" \
+            --output "$GITHUB_WORKSPACE/target/sdk-android-package"
+      - name: Create private Android identities and the selected cold AVD
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
@@ -955,27 +1375,89 @@ jobs:
           chmod 700 "$avd_home"
           export ANDROID_AVD_HOME="$avd_home"
           avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py \
-            runtime-avd-name --adb-profile linux-system --device-abi x86_64)
-          test "$avd_name" = QPeriapt_Release_16K_API_35_CI_V1
+            runtime-avd-name --adb-profile linux-system --device-abi x86_64 \
+            --runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE")
+          test "$avd_name" = "$ANDROID_RUNTIME_AVD"
           test ! -e "$ANDROID_AVD_HOME/$avd_name.avd"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
           test ! -e "$ANDROID_AVD_HOME/$avd_name.ini"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
           avdmanager create avd \
             --name "$avd_name" \
-            --package "system-images;android-35;google_apis_ps16k;x86_64" \
+            --package "$ANDROID_RUNTIME_IMAGE" \
             --device pixel_6 <<< 'no'
           test -d "$ANDROID_AVD_HOME/$avd_name.avd"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"
           test -f "$ANDROID_AVD_HOME/$avd_name.ini"
           test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"
+          if [ "$QPERIAPT_ANDROID_RUNTIME_PROFILE" = api23-4k ]; then
+            # This image materializes userdata.img during creation. Restrict only
+            # that new leaf before the unchanged private-tree admission check.
+            sh artifact/python-run.sh - "$ANDROID_AVD_HOME/$avd_name.avd/userdata.img" <<'PY'
+          import os
+          import pathlib
+          import stat
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          if path.name != "userdata.img" or path.parent.resolve(strict=True) != path.parent:
+              raise SystemExit("created AVD image path is not canonical")
+          descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+          try:
+              before = os.fstat(descriptor)
+              named = path.lstat()
+              def content_identity(metadata):
+                  return (metadata.st_dev, metadata.st_ino, metadata.st_uid, metadata.st_gid,
+                          metadata.st_nlink, metadata.st_size, metadata.st_mtime_ns)
+              print(f"CREATED_AVD_IMAGE mode={stat.S_IMODE(before.st_mode):04o} "
+                    f"links={before.st_nlink} bytes={before.st_size} owned={before.st_uid == os.geteuid()}")
+              if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
+                      or before.st_nlink != 1 or before.st_size <= 0
+                      or stat.S_IMODE(before.st_mode) not in {0o600, 0o644}
+                      or content_identity(before) != content_identity(named)
+                      or before.st_mode != named.st_mode):
+                  raise SystemExit("created AVD image identity or mode differs")
+              os.fchmod(descriptor, 0o600)
+              after = os.fstat(descriptor)
+              named = path.lstat()
+              if (content_identity(before) != content_identity(after)
+                      or content_identity(after) != content_identity(named)
+                      or after.st_mode != named.st_mode
+                      or stat.S_IMODE(after.st_mode) != 0o600):
+                  raise SystemExit("created AVD image changed during private-mode preparation")
+              print("CREATED_AVD_IMAGE_PRIVATE_PASS")
+          finally:
+              os.close(descriptor)
+          PY
+          fi
           sh artifact/python-run.sh artifact/android_device_proof.py \
             verify-avd-home \
             --avd-home "$ANDROID_AVD_HOME" \
             --adb-profile linux-system \
-            --device-abi x86_64
+            --device-abi x86_64 \
+            --runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE"
           unset ANDROID_AVD_HOME avd_home avd_name
-      - name: Execute the hash-bound AAR on API 35 16 KiB ART
+      - name: Inspect the selected 16-KiB SDK image without guest privilege changes
+        if: matrix.profile == 'api35-16k'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          tools_dir="$GITHUB_WORKSPACE/target/android-image-tools"
+          test ! -e "$tools_dir" && test ! -L "$tools_dir"
+          mkdir -m 700 "$tools_dir"
+          curl --fail --location --max-time 60 --max-filesize 2097152 \
+            https://github.com/ip7z/7zip/releases/download/26.03/7z2603-linux-x64.tar.xz \
+            --output "$tools_dir/7zip.tar.xz"
+          printf '%s  %s\n' \
+            dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695 \
+            "$tools_dir/7zip.tar.xz" | sha256sum --check --strict -
+          tar -xJf "$tools_dir/7zip.tar.xz" -C "$tools_dir" 7zz License.txt
+          avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
+          sh artifact/python-run.sh artifact/android_system_image_runtime.py \
+            --sdk "$ANDROID_HOME" --abi x86_64 --tool "$tools_dir/7zz" \
+            --avd-config "$avd_home/$ANDROID_RUNTIME_AVD.avd/config.ini" \
+            --output "$GITHUB_WORKSPACE/target/android-system-image-runtime"
+      - name: Execute both SDK consumers against the hash-bound AAR on the selected ART runtime
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
           QPERIAPT_ANDROID_ADB_PROFILE: linux-system
@@ -983,27 +1465,65 @@ jobs:
           QPERIAPT_ANDROID_BOOT_AVD: "1"
           QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator
           QPERIAPT_ANDROID_EXPECT_ABI: x86_64
-          QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: "16384"
-          QPERIAPT_ANDROID_EXPECT_SDK: "35"
+          QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: ${{ matrix.page_size }}
+          QPERIAPT_ANDROID_EXPECT_SDK: ${{ matrix.sdk }}
         run: |
-          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar"
-          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
+          canonical_java_home=$(realpath -e "$JAVA_HOME")
+          export JAVA_HOME="$canonical_java_home"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          aar="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/q-periapt-android-0.2.0.aar"
+          manifest="$GITHUB_WORKSPACE/target/qperiapt-android-aar/q-periapt-android-0.2.0/MANIFEST.json"
           test -f "$aar" && test -f "$manifest"
           aar_sha256=$(sha256sum "$aar" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "$manifest" | cut -d' ' -f1)
-          QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
-          QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest" \
-          QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256" \
-          QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256" \
-          QPERIAPT_ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" \
-          QPERIAPT_ANDROID_PLATFORM="$ANDROID_HOME/platforms/android-35" \
-          QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
-            sh artifact/android-device-smoke.sh
+          runner_user=$(id -un)
+          for profile in agp_sdk_full_release agp_sdk_minimal_release; do
+            # Reassert the existing runner-only grant before each cold boot.
+            # Record the prior state: a second-launch KVM denial must remain
+            # distinguishable from an application or emulator workload failure.
+            printf 'ANDROID_KVM_PREPARE profile=%s\n' "$profile"
+            test -c /dev/kvm && test ! -L /dev/kvm
+            stat -c 'device=%t:%T inode=%i mode=%a owner=%u:%g' /dev/kvm
+            getfacl --absolute-names --omit-header /dev/kvm
+            sudo setfacl -m "u:$runner_user:rw" /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+            getfacl --absolute-names --omit-header /dev/kvm
+            timeout 15s "$ANDROID_HOME/emulator/emulator" -accel-check
+            QPERIAPT_ANDROID_CONSUMER_PROFILE="$profile" \
+            QPERIAPT_ANDROID_EXISTING_AAR="$aar" \
+            QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest" \
+            QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256" \
+            QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256" \
+            QPERIAPT_ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" \
+            QPERIAPT_ANDROID_PLATFORM="$ANDROID_HOME/platforms/android-35" \
+            QPERIAPT_ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
+              sh artifact/android-device-smoke.sh
+          done
+      - name: Stage and verify both exact public runtime closures
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+          EXPECTED_AAR_SHA256: ${{ needs.bindings-android-aar.outputs.aar_sha256 }}
+          EXPECTED_MANIFEST_SHA256: ${{ needs.bindings-android-aar.outputs.manifest_sha256 }}
+        run: |
+          canonical_java_home=$(realpath -e "$JAVA_HOME")
+          export JAVA_HOME="$canonical_java_home"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          sh artifact/python-run.sh artifact/android_sdk_runtime_replay.py stage \
+            --runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE" --sdk "$ANDROID_HOME" \
+            --expected-source-commit "$GITHUB_SHA" \
+            --expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+            --expected-aar-manifest-sha256 "$EXPECTED_MANIFEST_SHA256"
+      - name: Upload the verified pair for independent Linux replay
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-android-sdk-020-export-${{ matrix.profile }}-x86_64
+          path: target/android-sdk-runtime-export-${{ matrix.profile }}/*
+          if-no-files-found: error
       - name: Upload bounded Android package diagnostics after failure
         if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-runtime-api35-16k-x86_64-failure-diagnostics
+          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log
@@ -1011,6 +1531,20 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/emulator.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-server-start-handshake.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.err
+            target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-recovery-logcat.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.stdout
+            target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.err
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.err
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err
@@ -1021,13 +1555,118 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.txt
             target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.err
           if-no-files-found: error
-      - name: Upload Android runtime proof
+      - name: Retain Android SDK package and runtime evidence
+        if: always() && (hashFiles('target/sdk-android-package/*.stdout') != '' || hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/proof.json') != '' || hashFiles('target/android-system-image-runtime/REPORT.json') != '')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: abi2-android-runtime-api35-16k-x86_64
+          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64
           path: |
+            target/android-sdk-runtime-stage-${{ matrix.profile }}/REPORT.json
+            target/android-system-image-runtime/REPORT.json
+            target/android-system-image-runtime/source.properties
+            target/android-system-image-runtime/build.prop
+            target/android-system-image-runtime/lmkd.elf
+            target/android-system-image-runtime/gpt.txt
+            target/android-system-image-runtime/lp.txt
+            target/android-system-image-runtime/ext.txt
+            target/android-system-image-runtime/*.stderr
+            target/android-system-image-runtime/7zz
+            target/android-system-image-runtime/7zip-LICENSE.txt
             target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-proof.json
-            target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-runtime-evidence-v2.zip
+            target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.err
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.err
+            target/sdk-android-package/INSTALLED_CONSUMERS.json
+            target/sdk-android-package/q-periapt-android-sdk-0.2.0.tar.gz
+            target/sdk-android-package/*.stdout
+            target/sdk-android-package/*.stderr
+            target/sdk-android-package/*.json
+            target/sdk-android-package/*-unsigned.apk
+          if-no-files-found: error
+
+  # Fresh runners replay exported APKs with the exact recorded Linux SDK tools.
+  # Neither the original run tree nor its AAR installation is available here.
+  bindings-android-runtime-replay:
+    name: bindings-android-runtime-replay-${{ matrix.profile }}
+    needs: [bindings-android-aar, bindings-android-runtime-16k]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [api23-4k, api35-16k]
+    env:
+      ANDROID_REPLAY_PROFILE: ${{ matrix.profile }}
+      EXPECTED_AAR_SHA256: ${{ needs.bindings-android-aar.outputs.aar_sha256 }}
+      EXPECTED_MANIFEST_SHA256: ${{ needs.bindings-android-aar.outputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify checkout provenance
+        run: test "$(git rev-parse --verify 'HEAD^{commit}')" = "$GITHUB_SHA"
+      - name: Provision hardened proof Python
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Verify hardened proof Python
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          case "$QPERIAPT_PYTHON" in /*) ;; *) exit 2 ;; esac
+          "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
+      - name: Set up Java 21 LTS
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: build-tools;36.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: abi2-android-sdk-020-export-${{ matrix.profile }}-x86_64
+          path: target/workflow-artifact/raw
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Extract the fixed public runtime pair and independently replay both APKs
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          canonical_java_home=$(realpath -e "$JAVA_HOME")
+          export JAVA_HOME="$canonical_java_home"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          java -version
+          javac -version
+          sh artifact/python-run.sh artifact/workflow_artifact.py "android-sdk-020-runtime-$ANDROID_REPLAY_PROFILE"
+          sh artifact/python-run.sh artifact/android_sdk_runtime_replay.py verify \
+            --runtime-profile "$ANDROID_REPLAY_PROFILE" --sdk "$ANDROID_HOME" \
+            --expected-source-commit "$GITHUB_SHA" \
+            --expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+            --expected-aar-manifest-sha256 "$EXPECTED_MANIFEST_SHA256"
+      - name: Retain independent replay results
+        if: always() && hashFiles(format('target/android-sdk-runtime-verify-{0}/REPORT.json', matrix.profile)) != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: abi2-android-sdk-020-replay-${{ matrix.profile }}-x86_64
+          path: target/android-sdk-runtime-verify-${{ matrix.profile }}/REPORT.json
           if-no-files-found: error
 
   # Auditability artifacts: emit the CycloneDX CBOM + SBOM (and prove the CLI runs).
@@ -1041,9 +1680,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
       - name: Generate byte-identical CycloneDX BOM output modes
         run: |
           cbom_stdout=$(mktemp "$RUNNER_TEMP/qperiapt-cbom-stdout.XXXXXXXX")
@@ -1062,10 +1701,25 @@ jobs:
             cbom.cdx.json
             sbom.cdx.json
           if-no-files-found: error
+      - name: Native SDK CBOM producer and distinct closed package profile
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake pkg-config
+          cargo test --locked -p q-periapt-cli --features sdk-cbom
+          mkdir -p target/sdk-bom-profile/share/q-periapt/bom
+          cargo run --locked -p q-periapt-cli --features sdk-cbom -- cbom --native-sdk \
+            --out target/sdk-bom-profile/share/q-periapt/bom/cbom.cdx.json
+          cp sbom.cdx.json target/sdk-bom-profile/share/q-periapt/bom/sbom.cdx.json
+          sh artifact/python-run.sh -c 'from pathlib import Path; from package_bom import verify, BomProfile; print(verify(Path("target/sdk-bom-profile"), cargo_lock=Path("Cargo.lock"), profile=BomProfile.NATIVE_SDK_020))'
+      - name: Retain native SDK inventory
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-sdk-boms
+          path: target/sdk-bom-profile/share/q-periapt/bom/*.json
+          if-no-files-found: error
       - name: Install fixed dependency-audit tool
         run: |
           export PATH="$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin:$PATH"
-          cargo +1.96.1 install cargo-audit --version 0.22.2 --locked \
+          cargo +1.98.1 install cargo-audit --version 0.22.2 --locked \
             --root target/qperiapt-audit-tool
       # Unconditional release gates over the shipping workspace and detached
       # fuzz-harness lockfiles. The shared verifier isolates Cargo/RustSec state,
@@ -1075,6 +1729,10 @@ jobs:
         run: |
           sh artifact/python-run.sh artifact/rust_publish_contract.py \
             verify-workspace-dependency-audit
+      - name: Verify separate Continuity dependency lock
+        run: |
+          "$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin/cargo-audit" audit \
+            --file research/continuity-identity-candidate/Cargo.lock --deny warnings
 
   # Optional SLH-DSA backend (FIPS 205 via fips205).
   pq-optional-backends:
@@ -1087,9 +1745,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           components: clippy
       - run: cargo clippy -p q-periapt-backends --features slh-dsa --all-targets --locked -- -D warnings
       - run: cargo test -p q-periapt-backends --features slh-dsa --locked
@@ -1106,13 +1764,434 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           components: clippy
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf,aarch64-unknown-linux-gnu,x86_64-pc-windows-gnu
-      - run: cargo +1.96.1 install cargo-audit --version 0.22.2 --locked
+      - run: cargo +1.98.1 install cargo-audit --version 0.22.2 --locked
       - run: bash research/hqc-fips207-candidate/scripts/verify.sh
+
+  # Pinned third-party reference; no SDK crate links this comparison executable.
+  continuity-spqr-reference:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-spqr-reference-build
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy,rustfmt
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: reference_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Install reference protobuf compiler on Linux runner
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+      - name: Select reference protobuf compiler on macOS runner
+        if: runner.os == 'macOS'
+        run: |
+          if ! command -v protoc; then brew install protobuf; fi
+          protoc --version
+      - name: Check and replay pinned reference corpus
+        env:
+          QPERIAPT_PYTHON: ${{ steps.reference_python.outputs.python-path }}
+        run: |
+          set -eu
+          mkdir -p target/continuity-spqr-evidence
+          manifest=research/continuity-spqr-reference/Cargo.toml
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo clippy --manifest-path "$manifest" --locked --all-targets -- -D warnings
+          cargo test --manifest-path "$manifest" --locked > target/continuity-spqr-evidence/driver-tests.log 2>&1
+          upstream_manifest=$(sh artifact/python-run.sh -c 'from artifact.spqr_reference import upstream_manifest; print(upstream_manifest())')
+          cargo test --manifest-path "$upstream_manifest" --locked > target/continuity-spqr-evidence/upstream-tests.log 2>&1
+          cargo run --manifest-path "$manifest" --locked --release -- target/continuity-spqr-evidence/first
+          cargo run --manifest-path "$manifest" --locked --release -- target/continuity-spqr-evidence/repeated
+          sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_spqr_reference"],warnings="error")'
+          sh artifact/python-run.sh artifact/spqr_reference.py target/continuity-spqr-evidence/first \
+            --compare target/continuity-spqr-evidence/repeated \
+            --binary "$CARGO_TARGET_DIR/release/q-periapt-spqr-reference" > target/continuity-spqr-evidence/verification.json
+      - name: Compare isolated 64-byte experiment
+        env:
+          QPERIAPT_PYTHON: ${{ steps.reference_python.outputs.python-path }}
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-spqr-chunk64-build
+        run: |
+          set -eu
+          evidence=target/continuity-spqr-evidence
+          source="$evidence/chunk64-source"
+          sh artifact/python-run.sh artifact/spqr_chunk64.py prepare "$source" > "$evidence/chunk64-preparation.json"
+          cargo test --manifest-path "$source/upstream/Cargo.toml" --locked > "$evidence/chunk64-upstream-tests.log" 2>&1
+          cargo clippy --manifest-path "$source/driver/Cargo.toml" --locked --all-targets -- -D warnings
+          cargo test --manifest-path "$source/driver/Cargo.toml" --locked > "$evidence/chunk64-driver-tests.log" 2>&1
+          mkdir "$evidence/chunk64-regenerated-fixtures"
+          cargo run --manifest-path "$source/upstream/Cargo.toml" --locked --features test-utils \
+            --example chunk64_regression_fixture -- "$evidence/chunk64-regenerated-fixtures"
+          cargo run --manifest-path "$source/driver/Cargo.toml" --locked --release -- "$evidence/chunk64-first"
+          cargo run --manifest-path "$source/driver/Cargo.toml" --locked --release -- "$evidence/chunk64-repeated"
+          sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_spqr_chunk64"],warnings="error")'
+          sh artifact/python-run.sh artifact/spqr_chunk64.py verify --directory "$source" \
+            --first "$evidence/chunk64-first" --repeated "$evidence/chunk64-repeated" \
+            --baseline "$evidence/first" --binary "$CARGO_TARGET_DIR/release/q-periapt-spqr-reference" \
+            --fixtures "$evidence/chunk64-regenerated-fixtures" > "$evidence/chunk64-verification.json"
+      - name: Replay authenticated whole-KEM periodic controls
+        env:
+          QPERIAPT_PYTHON: ${{ steps.reference_python.outputs.python-path }}
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-whole-kem-build
+        run: |
+          set -eu
+          manifest=research/continuity-whole-kem-reference/Cargo.toml
+          evidence=target/continuity-spqr-evidence
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo clippy --manifest-path "$manifest" --locked --all-targets -- -D warnings
+          QPERIAPT_WHOLE_KEM_ACTIVE_REPORT="$GITHUB_WORKSPACE/$evidence/whole-kem-active-fork.json" \
+            cargo test --manifest-path "$manifest" --locked > "$evidence/whole-kem-tests.log" 2>&1
+          QPERIAPT_WHOLE_KEM_ACTIVE_REPORT="$GITHUB_WORKSPACE/$evidence/whole-kem-active-fork-repeated.json" \
+            cargo test --manifest-path "$manifest" --locked --release \
+            confirmed_fresh_epochs_do_not_end_continuous_active_session_impersonation \
+            -- --nocapture > "$evidence/whole-kem-active-repeat.log" 2>&1
+          sh artifact/python-run.sh artifact/whole_kem_reference.py \
+            "$evidence/whole-kem-active-fork.json" --active-fork \
+            --compare "$evidence/whole-kem-active-fork-repeated.json" \
+            > "$evidence/whole-kem-active-verification.json"
+          cargo run --manifest-path "$manifest" --locked --release -- "$evidence/whole-kem-first"
+          cargo run --manifest-path "$manifest" --locked --release -- "$evidence/whole-kem-repeated"
+          sh artifact/python-run.sh -c 'import unittest; unittest.main(module=None,argv=["unittest","artifact.test_whole_kem_reference"],warnings="error")'
+          sh artifact/python-run.sh artifact/whole_kem_reference.py "$evidence/whole-kem-first" \
+            --compare "$evidence/whole-kem-repeated" \
+            --baseline "$evidence/first" --chunk64 "$evidence/chunk64-first" \
+            --binary "$CARGO_TARGET_DIR/release/q-periapt-whole-kem-reference" > "$evidence/whole-kem-verification.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: continuity-spqr-reference-${{ matrix.os }}
+          path: target/continuity-spqr-evidence
+          if-no-files-found: error
+
+  # Install the same-run SDK archives and the separate unpublished candidate.
+  continuity-installed-rust:
+    needs: rust-publish-contract
+    # OpenSSL >= 3.5 is required by the independent PQ TLS witness peer.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: continuity_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          path: target/continuity-sdk-input
+      - name: Execute installed Rust and C Continuity connections and recovery
+        env:
+          QPERIAPT_PYTHON: ${{ steps.continuity_python.outputs.python-path }}
+        run: |
+          report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(sha256sum "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/continuity_package.py \
+            --report "$report" --report-sha256 "$report_sha256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --with-c-consumer --witness-openssl-prefix /usr \
+            --output target/continuity-installed-rust
+      - name: Retain package and public execution evidence without private test state
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-installed-rust
+          path: |
+            target/continuity-installed-rust/*.crate
+            target/continuity-installed-rust/*.json
+            target/continuity-installed-rust/*.stdout
+            target/continuity-installed-rust/*.stderr
+            target/continuity-installed-rust/*.events
+            target/continuity-installed-rust/c-opening-public/**
+            target/continuity-installed-rust/c-witness-public/**
+            target/continuity-installed-rust/c-witness-tls-public/**
+            target/continuity-installed-rust/c-witness-openssl-public/**
+            target/continuity-installed-rust/c-sync-fault-public/**
+            target/continuity-installed-rust/c-restore-public/**
+            target/continuity-installed-rust/c-restore-opening-public/**
+            target/continuity-installed-rust/c-device-public/**
+            target/continuity-installed-rust/c-device-witness-public/**
+            target/continuity-installed-rust/c-account-public/**
+            target/continuity-installed-rust/c-account-cleanup/**
+            target/continuity-installed-rust/kotlin-account-cleanup/**
+            target/continuity-installed-rust/c-account-witness-public/**
+            target/continuity-installed-rust/c-account-tls-public/**
+            target/continuity-installed-rust/c-account-tls-loss-public/**
+            target/continuity-installed-rust/c-own-account-tls-loss-public/**
+            target/continuity-installed-rust/c-account-delivery-public/**
+            target/continuity-installed-rust/c-own-account-delivery-public/**
+            target/continuity-installed-rust/c-setup-local-public/**
+            target/continuity-installed-rust/c-setup-witness-public/**
+            target/continuity-installed-rust/c-setup-fault-public/**
+            target/continuity-installed-rust/kotlin-setup-fault-public/**
+            target/continuity-installed-rust/c-setup-io-public/**
+            target/continuity-installed-rust/kotlin-setup-io-public/**
+            target/continuity-installed-rust/c-setup-witness-fault-public/**
+            target/continuity-installed-rust/kotlin-setup-witness-fault-public/**
+            target/continuity-installed-rust/kotlin-account-witness-public/**
+            target/continuity-installed-rust/kotlin-account-tls-public/**
+            target/continuity-installed-rust/kotlin-account-tls-loss-public/**
+            target/continuity-installed-rust/kotlin-own-account-tls-loss-public/**
+            target/continuity-installed-rust/kotlin-account-delivery-public/**
+            target/continuity-installed-rust/kotlin-own-account-delivery-public/**
+            target/continuity-installed-rust/consumer-Cargo.lock
+            target/continuity-installed-rust/c-consumer-Cargo.lock
+          if-no-files-found: error
+
+  continuity-installed-swift:
+    needs: rust-publish-contract
+    runs-on: macos-15
+    # Complete Rust/C/Swift/Kotlin runtime and fault workloads exceed 45 minutes.
+    # Keep the native call/transport and individual command deadlines unchanged.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: continuity_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          path: target/continuity-sdk-input
+      - name: Set up Java 25 for installed Continuity consumers
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          gradle-version: "9.8.0"
+          cache-disabled: true
+      - name: Execute installed Swift and Kotlin owners against native Rust peers
+        env:
+          QPERIAPT_PYTHON: ${{ steps.continuity_python.outputs.python-path }}
+        run: |
+          report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
+          gradle_home=$(sh artifact/python-run.sh -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve(strict=True).parent.parent)' "$(command -v gradle)")
+          sh artifact/python-run.sh artifact/continuity_package.py \
+            --report "$report" --report-sha256 "$report_sha256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --with-c-consumer --with-swift-consumer --with-kotlin-consumer \
+            --kotlin-java-home "$JAVA_HOME" --kotlin-gradle-home "$gradle_home" \
+            --witness-openssl-prefix "$(brew --prefix openssl@3)" \
+            --output target/continuity-installed-swift
+      - name: Retain native packages and selected public execution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-installed-swift
+          path: |
+            target/continuity-installed-swift/*.crate
+            target/continuity-installed-swift/*.zip
+            target/continuity-installed-swift/*.json
+            target/continuity-installed-swift/*.stdout
+            target/continuity-installed-swift/*.stderr
+            target/continuity-installed-swift/*.events
+            target/continuity-installed-swift/kotlin-owner-tests*.xml
+            target/continuity-installed-swift/c-opening-public/**
+            target/continuity-installed-swift/c-witness-public/**
+            target/continuity-installed-swift/c-witness-tls-public/**
+            target/continuity-installed-swift/c-witness-openssl-public/**
+            target/continuity-installed-swift/c-sync-fault-public/**
+            target/continuity-installed-swift/c-restore-public/**
+            target/continuity-installed-swift/c-restore-opening-public/**
+            target/continuity-installed-swift/c-device-public/**
+            target/continuity-installed-swift/c-device-witness-public/**
+            target/continuity-installed-swift/c-account-public/**
+            target/continuity-installed-swift/c-account-cleanup/**
+            target/continuity-installed-swift/swift-account-cleanup/**
+            target/continuity-installed-swift/kotlin-account-cleanup/**
+            target/continuity-installed-swift/c-account-witness-public/**
+            target/continuity-installed-swift/c-account-tls-public/**
+            target/continuity-installed-swift/c-account-tls-loss-public/**
+            target/continuity-installed-swift/c-own-account-tls-loss-public/**
+            target/continuity-installed-swift/c-account-delivery-public/**
+            target/continuity-installed-swift/c-own-account-delivery-public/**
+            target/continuity-installed-swift/c-setup-local-public/**
+            target/continuity-installed-swift/c-setup-witness-public/**
+            target/continuity-installed-swift/swift-setup-local-public/**
+            target/continuity-installed-swift/swift-setup-witness-public/**
+            target/continuity-installed-swift/kotlin-setup-local-public/**
+            target/continuity-installed-swift/kotlin-setup-witness-public/**
+            target/continuity-installed-swift/c-setup-fault-public/**
+            target/continuity-installed-swift/swift-setup-fault-public/**
+            target/continuity-installed-swift/kotlin-setup-fault-public/**
+            target/continuity-installed-swift/c-setup-io-public/**
+            target/continuity-installed-swift/swift-setup-io-public/**
+            target/continuity-installed-swift/kotlin-setup-io-public/**
+            target/continuity-installed-swift/c-setup-witness-fault-public/**
+            target/continuity-installed-swift/swift-setup-witness-fault-public/**
+            target/continuity-installed-swift/kotlin-setup-witness-fault-public/**
+            target/continuity-installed-swift/swift-account-witness-public/**
+            target/continuity-installed-swift/swift-account-tls-public/**
+            target/continuity-installed-swift/swift-account-tls-loss-public/**
+            target/continuity-installed-swift/swift-own-account-tls-loss-public/**
+            target/continuity-installed-swift/swift-account-delivery-public/**
+            target/continuity-installed-swift/swift-own-account-delivery-public/**
+            target/continuity-installed-swift/kotlin-account-witness-public/**
+            target/continuity-installed-swift/kotlin-account-tls-public/**
+            target/continuity-installed-swift/kotlin-account-tls-loss-public/**
+            target/continuity-installed-swift/kotlin-own-account-tls-loss-public/**
+            target/continuity-installed-swift/kotlin-account-delivery-public/**
+            target/continuity-installed-swift/kotlin-own-account-delivery-public/**
+            target/continuity-installed-swift/swift-public/**
+            target/continuity-installed-swift/kotlin-public/**
+            target/continuity-installed-swift/kotlin-inflight-compilation/**
+            target/continuity-installed-swift/consumer-Cargo.lock
+            target/continuity-installed-swift/c-consumer-Cargo.lock
+          if-no-files-found: error
+
+  # Actual-signature Continuity candidate, isolated from the SDK publication graph.
+  continuity-identity-candidate:
+    runs-on: ${{ matrix.os }}
+    # At e00281e the canonical Linux Debug suite took 2,059.56 s for 281 tests;
+    # both MSRV jobs and one canonical job reached the 40-minute deadline.
+    # Budget the complete Debug/Release, compiler, SDK and documentation checks.
+    timeout-minutes: 90
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+          - os: macos-15
+            toolchain: 1.98.1
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        if: matrix.toolchain == '1.98.1'
+        with:
+          toolchain: 1.98.1
+          components: clippy,rustfmt
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+        if: matrix.toolchain == '1.90.0'
+        with:
+          toolchain: 1.90.0
+          components: clippy,rustfmt
+      - name: Check and exercise candidate with the selected compiler
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          candidate_manifest=research/continuity-identity-candidate/Cargo.toml
+          cargo +"$CANDIDATE_TOOLCHAIN" check --manifest-path "$candidate_manifest" --all-targets --locked --no-default-features
+          cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --all-features --locked -- -D warnings
+          for candidate_feature in control-tls connection-tls; do
+            cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --no-default-features --features "$candidate_feature" --locked -- -D warnings
+          done
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture
+      - name: Verify sealed SDK operations with the selected compiler
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          cargo +"$CANDIDATE_TOOLCHAIN" clippy --locked -p q-periapt-sdk --features sealed-operations --all-targets -- -D warnings
+          cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations
+          cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations
+      - name: Check canonical formatting and documentation
+        if: matrix.toolchain == '1.98.1'
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: |
+          cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check
+          cargo +1.98.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --all-features --locked --no-deps
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        if: matrix.os == 'macos-15'
+        id: candidate_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Verify public bytes and both signatures independently
+        if: matrix.os == 'macos-15'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.candidate_python.outputs.python-path }}
+        run: |
+          mkdir -p target
+          candidate_openssl="$(brew --prefix openssl@3)/bin/openssl"
+          test -x "$candidate_openssl"
+          cargo +1.98.1 build --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --all-features --example contract_report
+          sh artifact/python-run.sh artifact/continuity_contract.py \
+            --consumer "$CARGO_TARGET_DIR/debug/examples/contract_report" \
+            --output target/continuity-wire-contract
+          cargo +1.98.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-anchor --with-rekey
+          sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py \
+            --fixtures target/continuity-public-vectors --output target/continuity-public-verification \
+            --openssl "$candidate_openssl" --with-rekey
+          sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_anchor_vectors.py \
+            --fixtures target/continuity-public-vectors --output target/continuity-anchor-verification \
+            --openssl "$candidate_openssl"
+          cargo +1.98.1 build --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --release --all-features --example import_bootstrap_bundle
+          sh artifact/python-run.sh research/continuity-identity-candidate/scripts/exercise_bootstrap_bundle.py \
+            --fixtures target/continuity-public-vectors --consumer "$CARGO_TARGET_DIR/release/examples/import_bootstrap_bundle" \
+            --output target/continuity-bootstrap-bundle-verification
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always() && matrix.os == 'macos-15'
+        with:
+          name: continuity-public-vectors-${{ github.sha }}
+          path: |
+            target/continuity-public-vectors
+            target/continuity-public-verification
+            target/continuity-anchor-verification
+            target/continuity-bootstrap-bundle-verification
+            target/continuity-wire-contract
+          if-no-files-found: error
+          retention-days: 14
 
   # Cross-target feature fence for the shipping WASM face and dependency-free core.
   feature-fence:
@@ -1125,9 +2204,9 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.96.1
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
       - name: Install and verify the pinned WebAssembly C compiler
         run: |

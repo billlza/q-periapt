@@ -2,8 +2,9 @@
 /*
  * No aliasing (checked): within a single call, input (ptr,len) buffers and output (ptr,len)
  * buffers must not overlap (concurrent read/write of the same memory is undefined behavior).
- * The multi-buffer entry points CHECK the ranges and return Q_PERIAPT_ERR_ALIASING (-7) before
- * any access, so an overlap is a defined error, not UB. Pass distinct buffers regardless.
+ * The multi-buffer entry points check byte ranges before constructing input slices or writing
+ * outputs. Runtime options metadata is copied first to inspect its pointer/length fields.
+ * Overlap returns Q_PERIAPT_ERR_ALIASING (-7). Pass distinct buffers regardless.
  */
 
 #ifndef Q_PERIAPT_ABI2_H
@@ -149,6 +150,379 @@
  * Combined shared-secret length, bytes.
  */
 #define Q_PERIAPT_SECRET_LEN 32
+
+/**
+ * Closed, stale, nonexistent or wrong-type owner handle.
+ */
+#define Q_PERIAPT_ERR_CLOSED -9
+
+/**
+ * An explicit object or operation budget is exhausted; no crypto fallback occurs.
+ */
+#define Q_PERIAPT_ERR_RESOURCE_LIMIT -10
+
+/**
+ * Runtime limits or extension options are invalid.
+ */
+#define Q_PERIAPT_ERR_LIMITS -11
+
+/**
+ * Unknown key purpose or invalid printable-ASCII protocol label.
+ */
+#define Q_PERIAPT_ERR_PURPOSE -12
+
+/**
+ * Invalid private-key format, integrity or pairwise consistency.
+ */
+#define Q_PERIAPT_ERR_INVALID_PRIVATE_KEY -13
+
+/**
+ * Owned SDK extension contract revision within C ABI major 2.
+ */
+#define Q_PERIAPT_SDK_EXTENSION_VERSION 1
+
+/**
+ * Process-wide maximum of live and pending owner handles in this library instance.
+ */
+#define Q_PERIAPT_SDK_MAX_HANDLES 1024
+
+/**
+ * Process-wide maximum concurrent SDK calls; disposal and prepared policy
+ * activation are exempt so exhaustion cannot block revocation.
+ */
+#define Q_PERIAPT_SDK_MAX_CALLS 64
+
+/**
+ * Canonical public key: ML-KEM-768 public key followed by X25519 public key.
+ */
+#define Q_PERIAPT_SDK_PUBLIC_KEY_LEN 1216
+
+/**
+ * Canonical ciphertext: ML-KEM-768 ciphertext followed by X25519 share.
+ */
+#define Q_PERIAPT_SDK_CIPHERTEXT_LEN 1120
+
+/**
+ * Explicit expert transfer: eight-byte QPK header, 2400-byte PQ key, 32-byte scalar.
+ */
+#define Q_PERIAPT_SDK_EXPANDED_KEY_LEN 2440
+
+/**
+ * Previous and next trusted policy states, each 36 canonical bytes.
+ */
+#define Q_PERIAPT_SDK_POLICY_UPDATE_STATES_LEN 72
+
+/**
+ * Maximum protocol/algorithm label length; bytes must be ASCII 0x21..=0x7e.
+ */
+#define Q_PERIAPT_SDK_MAX_PROTOCOL_LABEL_BYTES 255
+
+/**
+ * Application traffic from initiator to responder.
+ */
+#define Q_PERIAPT_PURPOSE_INITIATOR_TRAFFIC 1
+
+/**
+ * Application traffic from responder to initiator.
+ */
+#define Q_PERIAPT_PURPOSE_RESPONDER_TRAFFIC 2
+
+/**
+ * Initiator key confirmation (the protocol supplies the exchange).
+ */
+#define Q_PERIAPT_PURPOSE_INITIATOR_CONFIRMATION 3
+
+/**
+ * Responder key confirmation (the protocol supplies the exchange).
+ */
+#define Q_PERIAPT_PURPOSE_RESPONDER_CONFIRMATION 4
+
+/**
+ * Application exporter; protocol labels distinguish individual uses.
+ */
+#define Q_PERIAPT_PURPOSE_EXPORTER 5
+
+/**
+ * TLS certificate/key/handshake authentication failure.
+ */
+#define Q_PERIAPT_ERR_TLS -14
+
+/**
+ * Absolute connection phase deadline elapsed.
+ */
+#define Q_PERIAPT_ERR_TIMEOUT -15
+
+/**
+ * Invalid ALPN, application confirmation, frame or sequence.
+ */
+#define Q_PERIAPT_ERR_PROTOCOL -16
+
+/**
+ * Operation is not valid yet; a live connection is retained.
+ */
+#define Q_PERIAPT_ERR_NOT_READY -17
+
+/**
+ * TLS input EOF/truncation or underlying I/O error.
+ */
+#define Q_PERIAPT_ERR_IO -18
+
+/**
+ * Maximum application request/response bytes.
+ */
+#define Q_PERIAPT_CONNECTION_MAX_PAYLOAD_BYTES 65536
+
+/**
+ * Maximum encrypted input/output bytes per synchronous call.
+ */
+#define Q_PERIAPT_CONNECTION_MAX_TLS_IO_BYTES 16384
+
+/**
+ * TLS authentication in progress.
+ */
+#define Q_PERIAPT_CONNECTION_HANDSHAKING 1
+
+/**
+ * TLS complete; application policy confirmation still pending.
+ */
+#define Q_PERIAPT_CONNECTION_CONFIRMING 2
+
+/**
+ * Confirmed and ready for one request.
+ */
+#define Q_PERIAPT_CONNECTION_READY 3
+
+/**
+ * Client waits for its response.
+ */
+#define Q_PERIAPT_CONNECTION_REQUEST_PENDING 4
+
+/**
+ * Server has a request available.
+ */
+#define Q_PERIAPT_CONNECTION_REQUEST_READY 5
+
+/**
+ * Server application is handling the request.
+ */
+#define Q_PERIAPT_CONNECTION_HANDLING_REQUEST 6
+
+/**
+ * Client has a response available.
+ */
+#define Q_PERIAPT_CONNECTION_RESPONSE_READY 7
+
+/**
+ * Drain an orderly local TLS close before releasing the transport.
+ */
+#define Q_PERIAPT_CONNECTION_CLOSING 8
+
+/**
+ * Protected storage is missing, insecure, corrupt, or failed an I/O operation.
+ */
+#define Q_PERIAPT_ERR_STORAGE -19
+
+/**
+ * Another process/owner holds the store's exclusive lifetime lease.
+ */
+#define Q_PERIAPT_ERR_STORE_BUSY -20
+
+/**
+ * Commit outcome is uncertain. Reconcile the configured policy before use.
+ */
+#define Q_PERIAPT_ERR_COMMIT_UNCERTAIN -21
+
+/**
+ * Policy committed but no new runtime was returned; reopen with that policy.
+ */
+#define Q_PERIAPT_ERR_STORE_COMMITTED -22
+
+/**
+ * This host has no reviewed persistent-store implementation.
+ */
+#define Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM -23
+
+/**
+ * Use the persistent update entry point; manual activation would bypass storage.
+ */
+#define Q_PERIAPT_ERR_STORAGE_REQUIRED -24
+
+/**
+ * Maximum UTF-8 absolute store path bytes, excluding any NUL terminator.
+ */
+#define Q_PERIAPT_STORE_MAX_PATH_BYTES 4096
+
+/**
+ * Borrowed input bytes. Null is allowed only when length is zero.
+ */
+typedef struct {
+    /**
+     * Readable bytes, stable for the entire call.
+     */
+    const uint8_t *data;
+    /**
+     * Byte length.
+     */
+    uintptr_t len;
+} QPeriaptInput;
+
+/**
+ * Caller-owned output bytes. Storage may initially be uninitialized.
+ */
+typedef struct {
+    /**
+     * Writable storage disjoint from all inputs and other outputs.
+     */
+    uint8_t *data;
+    /**
+     * Fixed output size or bounded capacity, as specified by each function.
+     */
+    uintptr_t len;
+} QPeriaptOutput;
+
+/**
+ * Runtime construction options. Initialize every field; `struct_size` equals
+ * `sizeof(QPeriaptRuntimeOptions)`, and extension version equals the header value.
+ */
+typedef struct {
+    /**
+     * Complete structure size, for mismatched-header rejection.
+     */
+    uint32_t struct_size;
+    /**
+     * SDK extension revision; ABI major remains 2.
+     */
+    uint32_t extension_version;
+    /**
+     * Exact signed policy document, at most 64 KiB.
+     */
+    QPeriaptInput policy;
+    /**
+     * Detached ML-DSA-65 policy signature, 3309 bytes.
+     */
+    QPeriaptInput signature;
+    /**
+     * Host-pinned ML-DSA-65 root, 1952 bytes.
+     */
+    QPeriaptInput trust_root;
+    /**
+     * Empty for first installation, otherwise 36 trusted persistent bytes.
+     */
+    QPeriaptInput previous_state;
+    /**
+     * Maximum retained keys for this runtime, 1..=1024.
+     */
+    uint32_t max_live_keys;
+    /**
+     * Maximum active KEM operations for this runtime, 1..=64.
+     */
+    uint32_t max_in_flight;
+} QPeriaptRuntimeOptions;
+
+/**
+ * Explicit TLS identity/pin and bounded connection settings. This chooses
+ * standard TLS; the referenced SDK policy is confirmed as application metadata.
+ */
+typedef struct {
+    /**
+     * Exact sizeof this initialized structure.
+     */
+    uint32_t struct_size;
+    /**
+     * Must equal Q_PERIAPT_SDK_EXTENSION_VERSION.
+     */
+    uint32_t extension_version;
+    /**
+     * Local leaf certificate in DER, 1..=65536 bytes.
+     */
+    QPeriaptInput certificate;
+    /**
+     * Local private key in DER, 1..=16384 bytes; caller protects/erases its copy.
+     */
+    QPeriaptInput private_key;
+    /**
+     * Exact trusted peer leaf certificate in DER, 1..=65536 bytes. No TOFU.
+     */
+    QPeriaptInput peer_certificate;
+    /**
+     * Application association bytes, at most 65536; peer must match the commitment.
+     */
+    QPeriaptInput application_context;
+    /**
+     * Live connections for this endpoint, 1..=64.
+     */
+    uint32_t max_connections;
+    /**
+     * Entire handshake and confirmation budget, 1..=120000 ms.
+     */
+    uint32_t handshake_ms;
+    /**
+     * Outstanding request/response budget, 1..=120000 ms.
+     */
+    uint32_t request_ms;
+    /**
+     * Idle budget, 1..=300000 ms.
+     */
+    uint32_t idle_ms;
+} QPeriaptConnectionOptions;
+
+/**
+ * Progress is descriptive, never authorization or a lease across close.
+ */
+typedef struct {
+    /**
+     * One of Q_PERIAPT_CONNECTION_* phase codes.
+     */
+    uint32_t phase;
+    /**
+     * Exactly 0 or 1; drain pending encrypted bytes before waiting for input.
+     */
+    uint32_t wants_write;
+    /**
+     * Adapter must wake and recheck by this many milliseconds, even without I/O.
+     */
+    uint32_t remaining_ms;
+} QPeriaptConnectionProgress;
+
+/**
+ * Host-owned persistent runtime configuration. Every open supplies the desired
+ * signed policy, which is reconciled against the recovered floor before use.
+ */
+typedef struct {
+    /**
+     * Exact initialized structure size.
+     */
+    uint32_t struct_size;
+    /**
+     * Q_PERIAPT_SDK_EXTENSION_VERSION; C ABI major remains 2.
+     */
+    uint32_t extension_version;
+    /**
+     * UTF-8 absolute path, 1..=4096 bytes, with no NUL or symlink components.
+     * Parent must already be private and owned by the effective user.
+     */
+    QPeriaptInput path;
+    /**
+     * Desired exact signed document, 1..=65536 bytes.
+     */
+    QPeriaptInput policy;
+    /**
+     * Detached ML-DSA-65 signature, exactly 3309 bytes.
+     */
+    QPeriaptInput signature;
+    /**
+     * Independently pinned root, exactly 1952 bytes.
+     */
+    QPeriaptInput trust_root;
+    /**
+     * Per-runtime key quota, 1..=1024.
+     */
+    uint32_t max_live_keys;
+    /**
+     * Per-runtime operation quota, 1..=64.
+     */
+    uint32_t max_in_flight;
+} QPeriaptStoreOptions;
 
 /**
  * Return the C ABI version implemented by this library. Consumers should compare this against
@@ -306,5 +680,314 @@ int32_t q_periapt_decapsulate(const uint8_t *decision,
                               uintptr_t application_context_len,
                               uint8_t *out_secret,
                               uintptr_t out_secret_len);
+
+/**
+ * Return the additive SDK contract revision, without changing C ABI major 2.
+ */
+uint32_t q_periapt_sdk_extension_version(void);
+
+/**
+ * Explicit expert import of the expanded ContextBound format. Uses fresh
+ * platform coins for pairwise validation and derives the paired public keys.
+ * # Safety
+ * `encoded` is readable/immutable for 2440 bytes; `out_key` is writable for eight
+ * bytes and disjoint. The caller owns and must protect/erase the input copy.
+ */
+int32_t q_periapt_sdk_expert_key_import(uint64_t handle, QPeriaptInput encoded, uint64_t *out_key);
+
+/**
+ * Explicit plaintext export for professional key transfer. This is not a
+ * default getter, encrypted storage, an authorization token or a seed key.
+ * # Safety
+ * `output` is writable for exactly 2440 bytes; the caller owns its erasure.
+ */
+int32_t q_periapt_sdk_expert_key_export(uint64_t handle, QPeriaptOutput output);
+
+/**
+ * Prepare a strictly newer signed policy using the runtime's pinned root.
+ * No new-policy key operation is possible before explicit activation.
+ * # Safety
+ * Policy/signature are readable and immutable, `out_update` is writable for
+ * eight bytes and disjoint from inputs. Policy <=64 KiB, signature 3309 bytes.
+ */
+int32_t q_periapt_sdk_runtime_prepare_update(uint64_t handle,
+                                             QPeriaptInput policy,
+                                             QPeriaptInput signature,
+                                             uint64_t *out_update);
+
+/**
+ * Return previous || next trusted states (36 bytes each) for the host's atomic
+ * compare-and-persist operation. These public bytes are not an authority token.
+ * # Safety
+ * `output` is writable for exactly 72 bytes for the entire call.
+ */
+int32_t q_periapt_sdk_policy_update_states(uint64_t handle, QPeriaptOutput output);
+
+/**
+ * Activate only after host compare-and-persist succeeds. Consumes the update
+ * handle, returns a different runtime handle and revokes/drains old children.
+ * Activation/disposal are exempt from the call budget and need no new slot.
+ * On failure after persistence, stop old-runtime use and recover from the
+ * signed policy plus persisted state; the SDK cannot inspect external storage.
+ * # Safety
+ * `out_runtime` is writable for eight bytes throughout the call.
+ */
+int32_t q_periapt_sdk_policy_update_activate(uint64_t handle, uint64_t *out_runtime);
+
+/**
+ * Construct a verified immutable runtime; no serialized decision is accepted.
+ * Persist its trusted state atomically before use. A valid policy excluding the
+ * fixed suite/profile creates a disabled runtime; query runtime_enabled. Its
+ * key operations return POLICY, while future signed updates remain possible.
+ *
+ * # Safety
+ * `options` points to a fully initialized complete options structure. Every
+ * input buffer is readable and immutable for its length throughout the call;
+ * `out_runtime` is writable for eight bytes. No input/output regions may overlap.
+ */
+int32_t q_periapt_sdk_runtime_new(const QPeriaptRuntimeOptions *options, uint64_t *out_runtime);
+
+/**
+ * Read the authenticated persistent state (36 bytes).
+ * # Safety
+ * `output` is a valid writable region of exactly 36 bytes for this call.
+ */
+int32_t q_periapt_sdk_runtime_state(uint64_t handle, QPeriaptOutput output);
+
+/**
+ * Return whether this runtime's authenticated policy permits the fixed suite:
+ * one means enabled, zero means disabled. This is not a lease across close.
+ * # Safety
+ * `out_enabled` is writable for four bytes throughout the call.
+ */
+int32_t q_periapt_sdk_runtime_enabled(uint64_t handle, uint32_t *out_enabled);
+
+/**
+ * Generate a hybrid key using platform randomness. Private bytes remain owned.
+ * # Safety
+ * `out_key` is writable for eight bytes for this call.
+ */
+int32_t q_periapt_sdk_key_generate(uint64_t handle, uint64_t *out_key);
+
+/**
+ * Export only the key's canonical public bytes (1216 bytes).
+ * # Safety
+ * `output` is a valid writable region of exactly the published public-key size.
+ */
+int32_t q_periapt_sdk_key_public(uint64_t handle, QPeriaptOutput output);
+
+/**
+ * Encapsulate with fresh platform randomness, returning ciphertext and a secret owner.
+ * # Safety
+ * Input regions are readable/immutable for the call. Outputs are writable for
+ * their stated lengths and disjoint from all inputs and each other.
+ */
+int32_t q_periapt_sdk_encapsulate(uint64_t handle,
+                                  QPeriaptInput peer,
+                                  QPeriaptInput context,
+                                  QPeriaptOutput ciphertext,
+                                  uint64_t *out_secret);
+
+/**
+ * Decapsulate with the owner's paired keys and verified runtime. Correct-length
+ * invalid PQ ciphertexts still succeed with an implicit-rejection secret.
+ * # Safety
+ * Inputs are readable/immutable for the call; `out_secret` is writable for
+ * eight bytes and disjoint from inputs.
+ */
+int32_t q_periapt_sdk_decapsulate(uint64_t handle,
+                                  QPeriaptInput ciphertext,
+                                  QPeriaptInput context,
+                                  uint64_t *out_secret);
+
+/**
+ * Explicitly copy a combined secret for an external protocol/KDF. The caller
+ * owns this exported copy; this is not a private-key export or key confirmation.
+ * # Safety
+ * `output` is a valid writable region of exactly 32 bytes for the call.
+ */
+int32_t q_periapt_sdk_secret_export(uint64_t handle, QPeriaptOutput output);
+
+/**
+ * Derive an owned 256-bit application key using version-1 HKDF-SHA-256. Binds
+ * runtime policy/root, fixed suite/profile, purpose, protocol label and context.
+ * This is not a TLS key schedule, peer authentication or key confirmation.
+ * # Safety
+ * Inputs are readable/immutable for the call; `out_key` is writable for eight
+ * bytes and disjoint from inputs. Label is 1..=255 bytes; context is <=64 KiB.
+ */
+int32_t q_periapt_sdk_secret_derive(uint64_t handle,
+                                    uint32_t purpose,
+                                    QPeriaptInput protocol_label,
+                                    QPeriaptInput context,
+                                    uint64_t *out_key);
+
+/**
+ * Explicitly copy one derived application key. A KEM-secret handle is rejected.
+ * The caller owns and must erase the exported copy.
+ * # Safety
+ * `output` is writable for exactly 32 bytes for the entire call.
+ */
+int32_t q_periapt_sdk_derived_key_export(uint64_t handle, QPeriaptOutput output);
+
+/**
+ * Revoke an owner handle. Runtime close also revokes all child handles and
+ * disposes those still registered. Operations retain memory until their lease
+ * ends; no new child can publish after runtime revocation. A concurrent closer
+ * may already own disposal of a child. Repeated close returns ERR_CLOSED.
+ */
+int32_t q_periapt_sdk_close(uint64_t handle);
+
+/**
+ * Construct an explicitly standard-TLS client endpoint under a verified runtime.
+ * # Safety
+ * Options and all inputs are readable/immutable for their specified extents;
+ * out_endpoint is writable for eight bytes and disjoint from all inputs.
+ */
+int32_t q_periapt_sdk_connection_client_new(uint64_t handle,
+                                            const QPeriaptConnectionOptions *options,
+                                            uint64_t *out_endpoint);
+
+/**
+ * Construct a server endpoint requiring the explicit client certificate pin.
+ * # Safety
+ * Same complete, disjoint input/output validity contract as connection_client_new.
+ */
+int32_t q_periapt_sdk_connection_server_new(uint64_t handle,
+                                            const QPeriaptConnectionOptions *options,
+                                            uint64_t *out_endpoint);
+
+/**
+ * Start a fresh client TLS engine; server_name is UTF-8 (1..=253 bytes). No socket I/O.
+ * # Safety
+ * server_name is readable/immutable; out_connection is writable for eight disjoint bytes.
+ */
+int32_t q_periapt_sdk_connection_connect(uint64_t handle,
+                                         QPeriaptInput server_name,
+                                         uint64_t *out_connection);
+
+/**
+ * Start a fresh server TLS engine; socket accept/read belongs to the adapter.
+ * # Safety
+ * out_connection is writable for eight bytes.
+ */
+int32_t q_periapt_sdk_connection_accept(uint64_t handle, uint64_t *out_connection);
+
+/**
+ * Read progress and enforce deadline/revocation. Fatal sessions release their handle.
+ * # Safety
+ * output is writable for the complete QPeriaptConnectionProgress structure.
+ */
+int32_t q_periapt_sdk_connection_progress(uint64_t handle, QPeriaptConnectionProgress *output);
+
+/**
+ * Feed 1..=16384 encrypted bytes; reoffer only an unconsumed suffix on success.
+ * # Safety
+ * Input is readable/immutable and out_consumed is writable for four disjoint bytes.
+ */
+int32_t q_periapt_sdk_connection_feed(uint64_t handle,
+                                      QPeriaptInput ciphertext,
+                                      uint32_t *out_consumed);
+
+/**
+ * Drain encrypted bytes into capacity 1..=16384. Unused output bytes are zeroed.
+ * # Safety
+ * Output and out_written (four bytes) are writable and disjoint for the call.
+ */
+int32_t q_periapt_sdk_connection_drain(uint64_t handle,
+                                       QPeriaptOutput output,
+                                       uint32_t *out_written);
+
+/**
+ * Report transport EOF. Truncation is an error; no empty successful response is fabricated.
+ */
+int32_t q_periapt_sdk_connection_end_input(uint64_t handle);
+
+/**
+ * Queue one request (0..=65536 bytes); no retry/durable-execution guarantee.
+ * # Safety
+ * Payload is readable/immutable; out_request_id is writable for eight disjoint bytes.
+ */
+int32_t q_periapt_sdk_connection_send_request(uint64_t handle,
+                                              QPeriaptInput payload,
+                                              uint64_t *out_request_id);
+
+/**
+ * Query a pending request/response size. This snapshot does not consume it.
+ * # Safety
+ * out_length is writable for four bytes.
+ */
+int32_t q_periapt_sdk_connection_message_size(uint64_t handle, uint32_t *out_length);
+
+/**
+ * Take a server request into capacity 1..=65536. Too-small capacity retains the message.
+ * # Safety
+ * Output, out_length (four bytes), out_request_id (eight bytes) are writable/disjoint.
+ */
+int32_t q_periapt_sdk_connection_take_request(uint64_t handle,
+                                              QPeriaptOutput output,
+                                              uint32_t *out_length,
+                                              uint64_t *out_request_id);
+
+/**
+ * Take a matching client response; capacity must be at least max(1, message_size).
+ * # Safety
+ * Output, out_length (four bytes), out_request_id (eight bytes) are writable/disjoint.
+ */
+int32_t q_periapt_sdk_connection_take_response(uint64_t handle,
+                                               QPeriaptOutput output,
+                                               uint32_t *out_length,
+                                               uint64_t *out_request_id);
+
+/**
+ * Respond to the single server request using its exact connection-local ID.
+ * # Safety
+ * Payload is readable and immutable for 0..=65536 bytes throughout the call.
+ */
+int32_t q_periapt_sdk_connection_send_response(uint64_t handle,
+                                               uint64_t request_id,
+                                               QPeriaptInput payload);
+
+/**
+ * Queue orderly TLS close after a completed exchange. Drain until Closed, then
+ * close the socket. Immediate cancellation instead uses q_periapt_sdk_close.
+ */
+int32_t q_periapt_sdk_connection_shutdown(uint64_t handle);
+
+/**
+ * Explicitly provision a new macOS/Linux store; never overwrite an existing path.
+ * This call can block on filesystem synchronization. Only public policy/state
+ * are persisted, not private KEM/TLS keys. The returned runtime owns its lease.
+ * # Safety
+ * Options/inputs are complete, readable and immutable for the call. out_runtime
+ * is writable for eight bytes, disjoint from every input and the options object.
+ */
+int32_t q_periapt_sdk_runtime_provision_store(const QPeriaptStoreOptions *options,
+                                              uint64_t *out_runtime);
+
+/**
+ * Open an existing macOS/Linux store and reconcile the configured signed policy.
+ * Missing/corrupt storage and rollback fail; they never become first installation.
+ * A newer valid revocation persists a disabled runtime. Disk work can block.
+ * # Safety
+ * Same complete disjoint input/output contract as runtime_provision_store.
+ */
+int32_t q_periapt_sdk_runtime_open_store(const QPeriaptStoreOptions *options,
+                                         uint64_t *out_runtime);
+
+/**
+ * Atomically persist a strictly newer policy and return a new runtime handle.
+ * Revokes the old handle/children, reuses its slot, and never reuses its ID.
+ * This call can block on disk. Cancellation/close cannot undo a committed policy.
+ * COMMIT_UNCERTAIN or STORE_COMMITTED requires reopening/reconciling that policy.
+ * No output handle is usable on failure. Requires a persistent runtime root.
+ * # Safety
+ * policy/signature are readable and immutable, 1..=65536 and 3309 bytes;
+ * out_runtime is writable for eight disjoint bytes throughout the call.
+ */
+int32_t q_periapt_sdk_runtime_update_store(uint64_t handle,
+                                           QPeriaptInput policy,
+                                           QPeriaptInput signature,
+                                           uint64_t *out_runtime);
 
 #endif  /* Q_PERIAPT_ABI2_H */
