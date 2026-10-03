@@ -169,7 +169,7 @@ impl Credential {
     }
 }
 
-fn account_id(root: &PublicKey) -> [u8; 32] {
+pub(crate) fn account_id(root: &PublicKey) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1", &root.encode())
 }
 fn certificate_digest(body: &[u8]) -> [u8; 32] {

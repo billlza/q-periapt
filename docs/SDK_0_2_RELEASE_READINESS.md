@@ -77,6 +77,19 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+A subsequent native enrollment increment adds `DeviceEnrollment` before
+credential-dependent installation. The original signing ID/request, accepted
+credential/roster/policy and future journal ID are retained across restart; explicit
+Activating/Active phases reconcile the two durable records. Actual SDK prekey work,
+required-witness admission, returned sync errors and process cuts exercise this
+path. Independent review found a live-policy closure window across the final
+new commit; a concurrent-close regression fails before the release-fence repair
+and passes afterward. Source-bound commands and limitations are retained in
+[the enrollment record](../research/sdk-alpha1/evidence/20261003-enrollment-c28cc7d5/RESULTS.json).
+This increment is not covered by the preceding installed-package receipt. External
+public-consumer enrollment, foreign adapters, authority transport, atomic initial
+key publication and credential replacement remain required before lifecycle admission.
+
 The archive consumer now requires public-API witness roster refresh and original
 installation recovery before its existing connection workload can pass. Current
 Rust 1.98.1 and minimum Rust 1.90 execute all three public consumer tests, including

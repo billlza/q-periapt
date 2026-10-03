@@ -38,6 +38,7 @@ pub(crate) enum Purpose {
     RekeyFinal = 11,
     RekeyReceipt = 12,
     RekeyRequest = 13,
+    EnrollmentRequest = 14,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

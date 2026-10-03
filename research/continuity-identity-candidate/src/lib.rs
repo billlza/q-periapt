@@ -20,6 +20,7 @@ pub mod contract;
 pub mod control_transport;
 mod crypto;
 mod durable;
+mod enrollment;
 mod identity;
 mod installation;
 mod manifest;
@@ -32,6 +33,10 @@ mod session_policy;
 #[cfg(feature = "anchor-tls")]
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
+pub use enrollment::{
+    DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths, EnrollmentStatus,
+    VerifiedEnrollmentRequest,
+};
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
     InstallationRecovery, InstallationStatus, InstalledAccountRecovery, InstalledSessionRecovery,

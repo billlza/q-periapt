@@ -196,6 +196,19 @@ dispatch cannot authorize a replacement aggregate ID or exclude a required devic
 
 ## Provisioning is an explicit authority
 
+The native [`DeviceEnrollment`](../../research/continuity-identity-candidate/ENROLLMENT.md)
+now owns the pre-credential transaction: independently approved intent, durable
+signing-owner identity, exact dual-signed request, current credential/roster/policy
+admission and one future journal identity. It delegates child creation and service
+activation to the existing installation engine. A committed Activating phase makes
+an unknown cross-record activation result resumable without choosing a new lineage.
+A final live-policy check follows the enrollment commit before releasing owners.
+This is native source work; the foreign setup loaders below still use their existing
+protected configuration and have not been switched to this enrollment transaction.
+Wrapping-key creation, trusted account authorization/transport and current response
+checkpoint acquisition remain explicit host inputs. Partial initial files are
+retained/refused; this does not close the complete enrollment/replacement lifecycle.
+
 The native [initialization contract](../../research/continuity-identity-candidate/INSTALLATION.md)
 already distinguishes Creating from Active. A foreign setup owner must expose
 that same distinction and retain the original public identities before any

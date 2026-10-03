@@ -38,28 +38,17 @@ impl InstallationPaths {
         journal: &Path,
         archives: &Path,
     ) -> Result<Self, DurableError> {
-        for path in [configuration, journal, archives] {
-            if !path.is_absolute()
-                || path.to_str().is_none_or(|s| s.len() > 4096)
-                || path.file_name().is_none()
-                || path.components().collect::<PathBuf>().as_os_str() != path.as_os_str()
-                || path
-                    .components()
-                    .any(|c| !matches!(c, Component::RootDir | Component::Normal(_)))
-            {
-                return Err(DurableError::PrivateFile);
-            }
-        }
-        if configuration == journal || configuration == archives || journal == archives {
-            return Err(DurableError::Conflict);
-        }
+        validate_paths(&[configuration, journal, archives])?;
         Ok(Self {
             configuration: configuration.into(),
             journal: journal.into(),
             archives: archives.into(),
         })
     }
-    fn binding(&self) -> Result<[u8; 32], DurableError> {
+    pub(crate) fn files(&self) -> [&Path; 3] {
+        [&self.configuration, &self.journal, &self.archives]
+    }
+    pub(crate) fn binding(&self) -> Result<[u8; 32], DurableError> {
         let mut bytes = Vec::new();
         for path in [&self.configuration, &self.journal, &self.archives] {
             let text = path.to_str().ok_or(DurableError::PrivateFile)?.as_bytes();
@@ -71,6 +60,29 @@ impl InstallationPaths {
             &bytes,
         ))
     }
+}
+
+pub(crate) fn validate_paths(paths: &[&Path]) -> Result<(), DurableError> {
+    for path in paths {
+        if !path.is_absolute()
+            || path.to_str().is_none_or(|s| s.len() > 4096)
+            || path.file_name().is_none()
+            || path.components().collect::<PathBuf>().as_os_str() != path.as_os_str()
+            || path
+                .components()
+                .any(|c| !matches!(c, Component::RootDir | Component::Normal(_)))
+        {
+            return Err(DurableError::PrivateFile);
+        }
+    }
+    if paths
+        .iter()
+        .enumerate()
+        .any(|(i, path)| paths.iter().skip(i + 1).any(|other| path == other))
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
 }
 
 /// Persisted release boundary. Neither state authorizes replacement of configuration.
@@ -98,7 +110,7 @@ pub enum InstallationPreparation {
     RequiresEnrollment(AnchorGenesis),
 }
 
-fn admit(
+pub(crate) fn admit(
     device: &VerifiedDevice,
     policy: &VerifiedSessionPolicy,
     now: u64,
@@ -178,7 +190,7 @@ fn read(db: &Database) -> Result<(JournalIdentity, Vec<u8>, InstallationStatus),
     };
     Ok((id, binding.to_vec(), status))
 }
-fn missing(path: &Path) -> Result<bool, DurableError> {
+pub(crate) fn missing(path: &Path) -> Result<bool, DurableError> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(false),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(true),
@@ -206,11 +218,34 @@ impl DeviceInstallation {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<Self, DurableError> {
+        Self::provision_inner(paths, key, device, policy, now, None)
+    }
+    pub(crate) fn provision_with_identity(
+        paths: InstallationPaths,
+        key: &JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        identity: JournalIdentity,
+    ) -> Result<Self, DurableError> {
+        Self::provision_inner(paths, key, device, policy, now, Some(identity))
+    }
+    fn provision_inner(
+        paths: InstallationPaths,
+        key: &JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        retained_identity: Option<JournalIdentity>,
+    ) -> Result<Self, DurableError> {
         admit(device, policy, now)?;
         if !missing(&paths.journal)? || !missing(&paths.archives)? {
             return Err(DurableError::Conflict);
         }
-        let identity = JournalIdentity::generate()?;
+        let identity = match retained_identity {
+            Some(identity) => identity,
+            None => JournalIdentity::generate()?,
+        };
         let key_binding = key.installation_binding();
         let scope = scope(&paths, identity, key_binding, device, policy)?;
         let db = provision_private_database(&paths.configuration, |db| {
