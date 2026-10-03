@@ -36,7 +36,6 @@ private func setupIOPhase(_ phase: Int) throws {
 }
 
 func setupIOActivate(_ path: String, witness: WitnessCarrier) throws {
-    guard case .local = witness else { throw ProbeFailure.contract("setup I/O observation requires local original state") }
     let setup = try ContinuitySetup.prepareResume(path: path, witness: witness)
     var successor: ContinuityDevice?
     do {

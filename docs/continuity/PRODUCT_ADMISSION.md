@@ -61,7 +61,7 @@ own-account traces do not qualify the complete multi-device lifecycle.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate`; C setup owner and Swift/Kotlin reference transfer delegate Creating/Active transitions with original configured inputs | Public key enrollment and independent trust-input contract, activation-commit recovery and final product provisioning |
+| Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate`; C setup owner and Swift/Kotlin reference transfer delegate Creating/Active transitions with original configured inputs | Public key enrollment and independent trust-input contract, initial-intent/child creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
@@ -238,9 +238,21 @@ opening, activation or close using consumer phase receipts. Opening failure (204
 and uncertain activation commit (207) consume operational eligibility; only original
 resume resolves the persisted phase. Close-phase metadata sync errors follow a
 successful activation commit and cannot be used to relabel an activation error.
-Complete source-bound archives, witnessed activation commit cuts, initial
-intent/child preparation faults and each supported device
-remain separate qualifications. Process interruption is not physical power loss.
+The required-witness workload keeps the original authenticated witness alive
+across those same process cuts and returned errors. A native controller enrolls
+the original prepared genesis and observes the original anchored journal before
+the call, after the fault and after reconciliation. The foreign call and recovery
+explicitly select signed TCP or mutual TLS; missing witness configuration still
+refuses 216. TLS phase counters must show encrypted admissions and no plaintext
+fallback during foreign operations. Independent public replay binds the original
+subject, genesis image, complete signed-query transcript, native observations,
+phase receipts and exact client/controller exits. Native endpoints authenticate
+the exchanges; replay is not a second signature implementation. Only selected
+public pins, certificates and logs are exported, never TLS private keys.
+
+Complete source-bound archives, initial intent/child preparation faults, witness
+process crashes and each supported device remain separate qualifications.
+Process interruption and returned EIO are not physical power loss.
 
 An open error must never select provisioning. Existing, partial or conflicting
 key/configuration/child files remain errors. Creating may resume only the original

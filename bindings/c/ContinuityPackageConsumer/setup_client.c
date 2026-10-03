@@ -31,9 +31,9 @@ static void setup_io_phase(unsigned phase) {
     }
     if (close(fd)) fail("setup I/O phase close");
 }
-static int setup_io_activate(int argc, char **argv, const qpc_witness_v1 *witness) {
-    if (argc!=3 || witness) fail("setup I/O observation requires local original state");
-    qpc_open_options_v1 options={3,0,0,NULL};qpc_error_v1 error;uint64_t handle=0;
+static int setup_io_activate(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {
+    if (argc!=3) fail("setup I/O observation arguments");
+    qpc_open_options_v1 options={3,0,witness ? (tls ? 2U : 1U) : 0U,witness};qpc_error_v1 error;uint64_t handle=0;
     require(qpc_setup_v1_prepare_resume((const uint8_t *)argv[2],strlen(argv[2]),&options,&handle,&error),&error);
     if (!handle) fail("setup I/O omitted handle");
     setup_io_phase(1);
@@ -62,7 +62,7 @@ static int setup_io_activate(int argc, char **argv, const qpc_witness_v1 *witnes
 
 static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {
     if (argc < 3 || argc > 4) fail("setup arguments");
-    if (!strcmp(argv[1],"setup-io-activate")) return setup_io_activate(argc,argv,witness);
+    if (!strcmp(argv[1],"setup-io-activate")) return setup_io_activate(argc,argv,witness,tls);
     int create = !strcmp(argv[1],"setup-create");
     int prepare = !strcmp(argv[1],"setup-storage");
     int activate = !strcmp(argv[1],"setup-activate");

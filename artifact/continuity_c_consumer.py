@@ -47,7 +47,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -494,6 +494,13 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_setup_io import qualify as qualify_setup_io
         result["execution"][profile]["setup_io"] = qualify_setup_io(
             outside, output, profile, runtime, executable, setup_fault_helper, probe, smoke,
+            expected_library=installed / filename)
+        from continuity_setup_witness_faults import qualify_all as qualify_setup_witness_faults
+        setup_witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "setup_witness_fault", "--no-run",
+                                   "--message-format=json", "-j", "2", *extra], "setup-witness-fault-build-" + profile)
+        setup_witness_helper = built_artifact(setup_witness_build, consumer, build, library=False, test_name="setup_witness_fault")
+        result["execution"][profile]["setup_witness_faults"] = qualify_setup_witness_faults(
+            outside, output, profile, runtime, executable, setup_witness_helper, probe, smoke,
             expected_library=installed / filename)
         witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "witness", "--no-run",
                              "--message-format=json", "-j", "2", *extra], "witness-build-" + profile)

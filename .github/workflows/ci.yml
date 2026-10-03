@@ -1958,6 +1958,8 @@ jobs:
             target/continuity-installed-rust/kotlin-setup-fault-public/**
             target/continuity-installed-rust/c-setup-io-public/**
             target/continuity-installed-rust/kotlin-setup-io-public/**
+            target/continuity-installed-rust/c-setup-witness-fault-public/**
+            target/continuity-installed-rust/kotlin-setup-witness-fault-public/**
             target/continuity-installed-rust/kotlin-account-witness-public/**
             target/continuity-installed-rust/kotlin-account-tls-public/**
             target/continuity-installed-rust/kotlin-account-tls-loss-public/**
@@ -2063,6 +2065,9 @@ jobs:
             target/continuity-installed-swift/c-setup-io-public/**
             target/continuity-installed-swift/swift-setup-io-public/**
             target/continuity-installed-swift/kotlin-setup-io-public/**
+            target/continuity-installed-swift/c-setup-witness-fault-public/**
+            target/continuity-installed-swift/swift-setup-witness-fault-public/**
+            target/continuity-installed-swift/kotlin-setup-witness-fault-public/**
             target/continuity-installed-swift/swift-account-witness-public/**
             target/continuity-installed-swift/swift-account-tls-public/**
             target/continuity-installed-swift/swift-account-tls-loss-public/**

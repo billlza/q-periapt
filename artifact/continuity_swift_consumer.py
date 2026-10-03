@@ -15,6 +15,7 @@ import continuity_c_account_witness as account_witness
 import continuity_c_setup as setup
 import continuity_setup_faults as setup_faults
 import continuity_setup_io as setup_io
+import continuity_setup_witness_faults as setup_witness_faults
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
@@ -270,6 +271,9 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             io_setup = setup_io.qualify(outside, output, profile, runtime, binary,
                 Path(setup_fault_helper["path"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
                 language="Swift", expected_library=native_dir / LIBRARY)
+            witnessed_setup = setup_witness_faults.qualify_all(outside, output, profile, runtime, binary,
+                setup_witness_faults.installed_helper(row["setup_witness_faults"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
+                language="Swift", expected_library=native_dir / LIBRARY)
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -281,6 +285,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "execution": checked, "public_files": public_files,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned, "setup": configured, "setup_faults": interrupted_setup, "setup_io": io_setup,
+                "setup_witness_faults": witnessed_setup,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
                 "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "server_execution": server_checked, "server_public_files": server_files,

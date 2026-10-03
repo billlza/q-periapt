@@ -3,9 +3,9 @@
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 pub(crate) mod fixture;
 #[path = "common/witness.rs"]
-mod witness;
+pub(crate) mod witness;
 #[path = "common/witness_tls.rs"]
-mod witness_tls;
+pub(crate) mod witness_tls;
 use q_periapt_continuity_identity_candidate as p;
 use std::{
     ffi::OsString,

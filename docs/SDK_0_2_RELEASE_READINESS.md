@@ -77,6 +77,48 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The required-witness installation fault increment adds mandatory signed-TCP and
+mutual-TLS workloads to the C/Swift/Kotlin installed collectors. A native controller
+keeps the original witness alive across process interruption or returned EIO,
+enrolls the original prepared genesis and reads the original anchored state before
+activation, after the fault and after recovery. Each foreign recovery must use its
+explicit original carrier; omitting the witness refuses 216. TLS phase admissions
+and unchanged plaintext counters rule out fallback during those foreign calls.
+Public replay binds original subject/genesis, signed queries, native observations,
+the selected sync phase and exact client/controller exits. Authentication occurs
+at the native endpoints; replay is not another cryptographic implementation.
+
+Current Debug/current Release/minimum-Rust Release packages pass **540 cases**
+across 36 matrices: three languages, three native profiles, two carriers and two
+fault actions. They retain **7,326 client/probe/marker commands** and **540 live
+controller executions**, with original Creating/Active recovery, missing-witness
+refusal and no replacement journal/account state. Each carrier/action matrix
+exports 888/918/933/963 selected public/log files respectively; TLS private keys
+are excluded. The shared local observer also passes 30 process/EIO regression
+cases. The focused 62 artifact contracts and 13 mutations of actual public evidence
+pass. C uses strict compilation warnings, Swift's 18 owner tests pass in all three
+package builds, and the unchanged actual Maven SDK retains its previous 15-test
+publication. A first Kotlin development build compiled but failed runtime closure
+validation because its reused cache was outside this run; the retained v2 build
+uses an isolated cache and the original strict validator. Two new native fixture
+sources bring the tracked Rust inventory to 277. Complete current source-bound
+archives/CI, initial intent/child creation faults, witness-process crashes, arbitrary
+storage faults, supported devices and the broader release scope remain open.
+
+The preceding **`ecc1eb03`** full Rust/C/Swift/Kotlin installed cohort completed in
+**3980.760 seconds**, independently replaying **286 committed source inputs**,
+actual packages/binaries and the mandatory local process/EIO workloads. Both C
+profiles retain nine admission tests and exactly 55 exports. The seal contains
+**43,695 files / 650,000,236 bytes**, inventory
+`6c008164fd87931e16abe1b1219797b06faef3a1449051bd61089fe9881d29e7`.
+It predates required-witness fault qualification. Its hosted installed-Swift job
+was cancelled at the 45-minute job limit, while both local complete cohorts took
+over 66 minutes. **`621d15da`** changes only that outer CI job budget to 120 minutes;
+native/transport/child/test deadlines remain unchanged. That commit's CodeQL
+workflow passed; CI was still in progress at the last recorded observation.
+Neither workflow status nor these finite same-host traces establish power-loss
+safety, independent-engine interoperability or a continuous-PQ security proof.
+
 The returned-I/O increment adds a separate mandatory `setup_io` workload to the
 installed C/Swift/Kotlin collectors. The test-only sync probe returns EIO before
 or after the selected real sync; consumer phase receipts bind opening, activation

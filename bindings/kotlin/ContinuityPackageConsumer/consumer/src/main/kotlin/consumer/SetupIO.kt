@@ -33,7 +33,6 @@ private fun setupIOPhase(phase: Int) {
 }
 
 internal fun setupIOActivate(path: String, witness: WitnessCarrier): String {
-    require(witness == WitnessCarrier.Local) { "setup I/O observation requires local original state" }
     val setup = ContinuitySetup.prepareResume(path, witness)
     var successor: ContinuityDevice? = null
     try {
