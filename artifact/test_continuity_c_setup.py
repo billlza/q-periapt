@@ -7,10 +7,10 @@ import continuity_c_setup as setup
 
 
 class ContinuityCSetupTests(unittest.TestCase):
-    def fixture(self, directory):
+    def fixture(self, directory, language="C"):
         journal, batch = b"j" * 32, b"b" * 32
         data = {"setup-original-journal": journal,
-            "setup-local-result.json": json.dumps(dict(schema_version=1, language="C", completed=True,
+            "setup-local-result.json": json.dumps(dict(schema_version=1, language=language, completed=True,
                 pre_cancel_absent=True, same_genesis=True, active_prepare_refused=True, release_claim_eligible=False)).encode()}
         prepared = b"setup-prepared:1\n"+journal.hex().encode()+b"\n"+b"0"*192+b"\n"+b"0"*64+b"\n"
         commands = dict(create=b"setup-status:1\n"+journal.hex().encode()+b"\n",
@@ -21,6 +21,8 @@ class ContinuityCSetupTests(unittest.TestCase):
             activate=b"setup-activated\n"+batch.hex().encode()+b"\n",
             reactivate=b"setup-activated\n"+batch.hex().encode()+b"\n")
         for label, output in commands.items():
+            if language != "C" and label in {"activate", "reactivate"}:
+                output += b"setup-transfer:closed-alias-released-device-live\n"
             data["setup-"+label+".stdout"] = output
             data["setup-"+label+".stderr"] = b""
         for name, value in data.items(): (directory/name).write_bytes(value)
@@ -66,3 +68,17 @@ class ContinuityCSetupTests(unittest.TestCase):
         setup.helper_inventory(inventory)
         with self.assertRaises(ValueError): setup.helper_inventory(inventory.replace((names[0]+": test\n").encode(),b""))
         with self.assertRaises(ValueError): setup.helper_inventory(inventory.replace(b"5 tests",b"4 tests"))
+
+    def test_typed_setup_requires_selected_language_and_successor_lifetime(self):
+        for language in ("C", "Swift", "Kotlin"):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                stdout = self.fixture(root, language)
+                self.assertEqual(setup.verify_execution(stdout,root,scenario="local",language=language)["language"],language)
+                for other in {"C","Swift","Kotlin","Unknown"} - {language}:
+                    with self.assertRaises(ValueError): setup.verify_execution(stdout,root,scenario="local",language=other)
+                receipt = root/"setup-activate.stdout"
+                original = receipt.read_bytes()
+                marker = b"setup-transfer:closed-alias-released-device-live\n"
+                receipt.write_bytes(original + marker if language == "C" else original.removesuffix(marker))
+                with self.assertRaises(ValueError): setup.verify_execution(stdout,root,scenario="local",language=language)

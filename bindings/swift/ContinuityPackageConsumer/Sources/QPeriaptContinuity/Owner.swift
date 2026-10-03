@@ -2,7 +2,8 @@
 import CQPCOwner
 import Foundation
 
-/// A native failure retains its exact code, UTF-8 diagnostic and truncation flag.
+/// Native failures retain their exact code, UTF-8 diagnostic and truncation flag.
+/// Setup reference lifetime checks also use Closed/Busy with wrapper diagnostics.
 /// No code implies that a mutation was absent or that a new operation may replace it.
 public struct ContinuityFailure: Error, Sendable, Equatable, CustomStringConvertible {
     public let code: Int32
@@ -115,7 +116,8 @@ final class NativeOwner: Sendable {
     /// Snapshot configuration without installation I/O. Call finishOpen before
     /// operations. A cancelled or failed activation never gains operational authority.
     static func prepare(path: String, kind: UInt32, quality: UInt32,
-                        witness: WitnessCarrier, session: SessionID? = nil) throws -> NativeOwner {
+                        witness: WitnessCarrier, session: SessionID? = nil,
+                        setup: SetupIntent? = nil) throws -> NativeOwner {
         let pathBytes = try textBytes(path, maximum: 4096)
         var handle: UInt64 = 0
         var error = qpc_error_v1()
@@ -123,6 +125,14 @@ final class NativeOwner: Sendable {
             var options = qpc_open_options_v1(kind: kind, quality: quality,
                                              carrier: carrier, witness: witness)
             let code = pathBytes.withUnsafeBufferPointer { path in
+                if let setup {
+                    switch setup {
+                    case .create:
+                        return qpc_setup_v1_prepare_create(path.baseAddress, path.count, &options, &handle, &error)
+                    case .resume:
+                        return qpc_setup_v1_prepare_resume(path.baseAddress, path.count, &options, &handle, &error)
+                    }
+                }
                 if let session {
                     return session.bytes.withUnsafeBufferPointer {
                         qpc_owner_v1_prepare_reopen(path.baseAddress, path.count, &options,

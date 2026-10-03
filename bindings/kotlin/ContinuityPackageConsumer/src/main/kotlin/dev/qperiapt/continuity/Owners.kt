@@ -56,8 +56,9 @@ internal class NativeOwner private constructor(private val handle: Long, parent:
     companion object {
         private val cleaner = Cleaner.create()
         private val logger = Logger.getLogger("dev.qperiapt.continuity")
-        @JvmSynthetic internal fun <T> prepare(path: String, kind: Int, quality: Int, witness: WitnessCarrier, wrap: (NativeOwner) -> T, session: SessionID? = null): T {
-            val handle = ContinuityNative.prepare(path, kind, quality, witness, session)
+        @JvmSynthetic internal fun <T> prepare(path: String, kind: Int, quality: Int, witness: WitnessCarrier, wrap: (NativeOwner) -> T,
+                                              session: SessionID? = null, setup: SetupIntent? = null): T {
+            val handle = ContinuityNative.prepare(path, kind, quality, witness, session, setup)
             return try { wrap(NativeOwner(handle)) } catch (failure: Throwable) {
                 try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
                 throw failure

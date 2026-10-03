@@ -129,6 +129,11 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command.hasPrefix("setup-") {
+            try require(existing == nil, "setup cannot select a session")
+            try await setupCommand(args, witness: witness)
+            return
+        }
         if command.hasPrefix("account-") {
             try require(existing == nil, "account command selects its own peers")
             try await account(args, witness: witness)

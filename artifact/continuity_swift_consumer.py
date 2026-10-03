@@ -12,6 +12,7 @@ import continuity_c_witness_tls as witness_tls
 import continuity_c_faults as faults
 import continuity_c_account_cleanup as account_cleanup
 import continuity_c_account_witness as account_witness
+import continuity_c_setup as setup
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
@@ -53,11 +54,14 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "AccountRecoveryTests.testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner",
              "DeviceTests.testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority",
              "DeviceTests.testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates",
-             "DeviceTests.testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes"}
+             "DeviceTests.testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes",
+             "SetupTests.testPendingSetupSharesCapacityAndCannotActivateAfterCancellation",
+             "SetupTests.testInstallationStatusRejectsUnknownPhaseAndZeroJournal",
+             "SetupTests.testOriginalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
-                and "Executed 15 tests, with 0 failures" in text,
+                and "Executed 18 tests, with 0 failures" in text,
                 "Swift owner tests did not all execute")
 
 
@@ -248,6 +252,13 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 Path(witness_helper["path"]), native_dir / LIBRARY, scenario="own-tls-delivery", language="Swift")
             own_cleanup = account_witness.qualify(outside, output, profile, runtime, binary,
                 Path(witness_helper["path"]), native_dir / LIBRARY, scenario="own-tls-loss", language="Swift")
+            setup_helper = row["setup"]["local"]["binaries"]["native_helper"]
+            sdk.require(setup_helper == row["setup"]["witness"]["binaries"]["native_helper"]
+                        and sdk.snapshot(Path(setup_helper["path"]), maximum=c.MAX_BINARY).sha256 == setup_helper["sha256"],
+                        "native setup helper changed before Swift execution")
+            configured = {scenario: setup.qualify(outside, output, profile, runtime, binary,
+                Path(setup_helper["path"]), native_dir / LIBRARY, scenario=scenario, language="Swift")
+                for scenario in ("local", "witness")}
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -258,7 +269,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
-                "account_cleanup": cleaned,
+                "account_cleanup": cleaned, "setup": configured,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
                 "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "server_execution": server_checked, "server_public_files": server_files,

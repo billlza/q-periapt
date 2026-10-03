@@ -88,6 +88,7 @@ func accountDelivery(_ result: inout qpc_account_delivered_v1, session: SessionI
 public final class ContinuityDevice: Sendable {
     private let native: NativeOwner
     private init(native: NativeOwner) { self.native = native }
+    static func activated(_ native: NativeOwner) -> ContinuityDevice { ContinuityDevice(native: native) }
     public static func prepare(path: String, witness: WitnessCarrier = .local) throws -> ContinuityDevice {
         try ContinuityDevice(native: NativeOwner.prepare(path: path, kind: 3, quality: 0, witness: witness))
     }

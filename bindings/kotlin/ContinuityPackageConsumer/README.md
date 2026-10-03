@@ -3,8 +3,8 @@
 This separate, unpublished `dev.qperiapt:q-periapt-continuity-kotlin:0.0.0`
 module calls the existing `qpc-owner/1` C/Rust engine. It is not product ABI 2,
 an Android JNI implementation, or an admitted 0.2.0 release artifact. The current
-configuration opens the original private qualification installation; it does
-not provision, replace trust, repair a journal or enroll a witness.
+ordinary configuration opens the original private qualification installation.
+Explicit setup below reuses independently prepared original trust inputs.
 
 The source targets Kotlin 2.4.20 and non-preview, 64-bit JDK 25. Select the exact
 installed native library with `-Dqperiapt.continuity.lib=/absolute/library/path`.
@@ -21,6 +21,30 @@ failed preparations explicitly, retaining a disposal failure as a suppressed
 cause. No method exposes a raw handle or converts recovery authority into an
 operational owner. IDs and public byte records own immutable copies. `Counter64`
 represents the entire native unsigned range without signed truncation.
+
+`ContinuitySetup.prepareCreate/prepareResume` explicitly selects creation or
+original-intent restart. `finishOpen` acquires setup authority; `status` retains
+Creating/Active and the original `JournalID`. `prepareStorage` returns local
+protection or original public witness genesis for independent enrollment. It
+does not generate keys, issue credentials, repair stores or authorize enrollment.
+`activate` moves the existing `NativeOwner` reference into a `ContinuityDevice`,
+preserving its one Cleaner registration. No raw handle is copied or exposed.
+Successful transfer makes old setup `close` harmless, so `setup.use { it.activate() }`
+does not close the returned device. Other old-setup methods return Closed. During
+transfer, status/storage/finish, close and repeated activation return Busy; cancel
+remains available. Short monitor sections only change references; native work and
+releases occur outside, and reachability fences protect active snapshots.
+Cancellation admitted before/during handoff may affect the successor. Join it
+before treating a racing result as usable. Failed activation may follow durable
+commit: close and resume the original configuration rather than create another
+installation. Wrapper lifetime checks produce Closed/Busy diagnostics; native
+records retain their exact code, text and truncation flag.
+
+The setup consumer checks closed aliases, observes collection of the old setup
+within 32 test-only GC rounds, and then uses the successor. Its native fixture
+checks original state through local and witnessed restart, bad signatures,
+held-reply cancellation, and explicit signed TCP/mutual-TLS activation. This is
+bounded runtime evidence; it does not establish every JVM or mobile lifecycle.
 
 `ContinuityOwner.prepareReopen(path, quality, session, witness)` copies an
 explicit existing `SessionID` and returns the same kind of pending operational

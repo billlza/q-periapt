@@ -61,7 +61,7 @@ own-account traces do not qualify the complete multi-device lifecycle.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate`; C setup owner delegates explicit Creating/Active transitions with original configured inputs | Public key enrollment and independent trust-input contract, Swift/Kotlin setup owners, activation-commit recovery and final product provisioning |
+| Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate`; C setup owner and Swift/Kotlin reference transfer delegate Creating/Active transitions with original configured inputs | Public key enrollment and independent trust-input contract, activation-commit recovery and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
@@ -211,8 +211,23 @@ processes, cancellation while a signed reply is held, error cleanup and original
 TCP/TLS activation. Its public subject/genesis outputs authorize no witness
 enrollment by themselves. Current inputs are still the independently prepared
 protected configuration described above; this is not yet a public key enrollment
-or credential-issuance interface. Swift/Kotlin ownership transfer, broader commit
-faults and current archive qualification remain separate required work.
+or credential-issuance interface.
+
+Swift/Kotlin now expose the same explicit setup operations and typed original
+journal/phase/genesis values. Successful activation moves the existing native
+owning reference into a device wrapper; it creates no second native destructor or
+Cleaner. Closing the old setup is harmless after transfer, including Kotlin `use`;
+other old-setup methods refuse Closed. Reference cells refuse concurrent transfer
+or close while activation runs and permit cancellation without holding a monitor
+across native work. A cancellation already admitted may race completion and affect
+the successor, so it must be joined. Failed activation retains only the original
+setup reference for cleanup and cannot justify new provisioning.
+
+Actual extracted Swift and Maven consumers exercise local and required-witness
+setup. They release/collect the old setup, use the successor, retain original
+creation identity across restart, and check held-reply cancellation and TCP/TLS
+activation. Broader activation-commit faults, complete current archive cohorts and
+each supported device remain separate qualifications.
 
 An open error must never select provisioning. Existing, partial or conflicting
 key/configuration/child files remain errors. Creating may resume only the original

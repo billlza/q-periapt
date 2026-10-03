@@ -17,6 +17,7 @@ import continuity_c_witness_tls as witness_tls
 import continuity_c_account as account
 import continuity_c_account_cleanup as account_cleanup
 import continuity_c_account_witness as account_witness
+import continuity_c_setup as setup
 from continuity_c_witness import export_selected
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
@@ -41,6 +42,9 @@ TEST_NAMES = frozenset({
     "aggregateStatusPreservesReportsAndRejectsMalformedOutput",
     "accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes",
     "accountCleanupCannotAcquireAuthorityFromPendingCancelledOrClosedOwner",
+    "pendingSetupSharesCapacityAndCannotActivateAfterCancellation",
+    "installationStatusRejectsUnknownPhaseAndZeroJournal",
+    "originalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata",
 })
 
 
@@ -72,7 +76,8 @@ def maven_contract() -> jvm.MavenContract:
     return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
         "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
-        ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "AccountTarget", "AccountOperationID",
+        ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
+         "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "SessionID", "MessageID", "Counter64"), FIXTURE)
 
 
@@ -510,6 +515,13 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 Path(witness_helper["path"]), library_path, scenario="own-tls-delivery", language="Kotlin", jvm_runtime=jvm_runtime)
             own_cleanup = account_witness.qualify(outside, output, profile, runtime, launcher,
                 Path(witness_helper["path"]), library_path, scenario="own-tls-loss", language="Kotlin", jvm_runtime=jvm_runtime)
+            setup_helper = row["setup"]["local"]["binaries"]["native_helper"]
+            sdk.require(setup_helper == row["setup"]["witness"]["binaries"]["native_helper"]
+                        and sdk.snapshot(Path(setup_helper["path"]), maximum=c.MAX_BINARY).sha256 == setup_helper["sha256"],
+                        "native setup helper changed before Kotlin execution")
+            configured = {scenario: setup.qualify(outside, output, profile, runtime, launcher,
+                Path(setup_helper["path"]), library_path, scenario=scenario, language="Kotlin", jvm_runtime=jvm_runtime)
+                for scenario in ("local", "witness")}
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -547,6 +559,13 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityDevice(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityDevice")
             sdk.require(not (installed / "negative-device-classes/RawDeviceProbe.class").exists(),
                         "raw-device negative control produced an executable class")
+            raw_setup = installed / "RawSetupProbe.java"
+            sdk.copy(consumer / "negative/RawSetupProbe.java.txt", raw_setup)
+            run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                 "-d", str(installed / "negative-setup-classes"), str(raw_setup)], "negative-raw-setup-" + profile,
+                rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuitySetup(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuitySetup")
+            sdk.require(not (installed / "negative-setup-classes/RawSetupProbe.class").exists(),
+                        "raw-setup negative control produced an executable class")
             raw_native = installed / "RawNativeOwnerProbe.java"
             sdk.copy(consumer / "negative/RawNativeOwnerProbe.java.txt", raw_native)
             run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
@@ -563,7 +582,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed during execution")
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
-            result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned,
+            result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
                 "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
@@ -577,7 +596,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,
-                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-native-owner-construction"]}
+                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-setup-construction", "raw-native-owner-construction"]}
         sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
                     "Kotlin sources or tool installation changed during qualification")
         result["completed"] = True

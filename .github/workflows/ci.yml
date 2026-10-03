@@ -2047,6 +2047,10 @@ jobs:
             target/continuity-installed-swift/c-own-account-delivery-public/**
             target/continuity-installed-swift/c-setup-local-public/**
             target/continuity-installed-swift/c-setup-witness-public/**
+            target/continuity-installed-swift/swift-setup-local-public/**
+            target/continuity-installed-swift/swift-setup-witness-public/**
+            target/continuity-installed-swift/kotlin-setup-local-public/**
+            target/continuity-installed-swift/kotlin-setup-witness-public/**
             target/continuity-installed-swift/swift-account-witness-public/**
             target/continuity-installed-swift/swift-account-tls-public/**
             target/continuity-installed-swift/swift-account-tls-loss-public/**

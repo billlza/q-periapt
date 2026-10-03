@@ -77,6 +77,41 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The typed setup increment adds Swift/Kotlin `ContinuitySetup`, original
+Creating/Active status and journal/genesis values, and activation into the existing
+device owner. The transfer moves one native owning reference without registering
+another destructor or Cleaner. Closed old-setup aliases cannot close the successor;
+other operations refuse Closed. During activation, repeated transfer and ordinary
+calls refuse Busy, while cancellation remains available outside wrapper locks.
+Cancellation already admitted may affect the successor and must be joined.
+
+Actual extracted Swift packages pass **18 tests** in Debug, Release and Release
+with the minimum-Rust native library. The actual Maven SDK passes **15 tests**,
+and Java compilation against that JAR rejects raw setup construction. Development
+runtime replay covers **20 local/witness configurations** across C/Swift/Kotlin,
+current Debug/Release and Rust 1.90 Release native libraries; Kotlin explicitly
+uses both Serial and G1 for the two Release libraries. Swift release and bounded
+Kotlin GC observations check old-setup disposal followed by successor use. Each
+configuration retains 20 local or 36 witnessed public files, original identity,
+required-witness refusal, cancellation and original TCP/mutual-TLS admission.
+All six Swift/Kotlin original client, server and complete-account regressions pass,
+as do 47 focused artifact contracts. The first Swift build's C-enum/Int32 type
+error and the first JVM driver's overbroad Maven staging inventory failure remain
+retained; neither failure is recorded as a successful qualification. The full
+source-bound archive cohort for this increment is still separate from these
+development results. Activation-commit faults, public enrollment/renewal, mobile
+owners and the remaining release requirements are still open.
+
+The preceding **`bddfae14`** C setup checkpoint completes its full installed
+Rust/C/Swift/Kotlin producer in **3417.696 seconds**. Independent readback binds
+275 committed inputs, both C profiles' nine admission tests and 55 exports, Swift
+15 tests, Kotlin 12, and every existing required runtime/fault trace. Its seal
+contains **25,986 files / 606,531,031 bytes**, inventory
+`857234d520ec9dda2a419a30c4e245c2fb77ebf4ccef3a68fe32972cf93de8af`.
+Both C profiles also pass the original setup trace; this full cohort predates the
+typed setup increment above. Its push CI and CodeQL workflow completed successfully;
+open security findings and current-candidate release admission remain separate.
+
 The C installation setup increment adds explicit create/resume, original phase
 and identity queries, Creating-only storage preparation and activation into the
 same device handle. It reuses native transactions and the device authority loader;
@@ -96,9 +131,10 @@ traces pass against the new **55-export** C candidate. The source census becomes
 **274**. An initial regression driver incorrectly supplied an explicit C language
 marker to a harness whose C path uses the absent default; it failed before runtime.
 The corrected driver preserves that failure. Earlier compile/driver failures are
-also retained. New C setup APIs are implemented, but current archive, Release/MSRV
-execution, activation-commit cuts, Swift/Kotlin setup owners and complete public
-enrollment/provisioning are not yet qualified.
+also retained. Those initial C development results did not establish a current
+archive, Release/MSRV execution or typed setup ownership; the newer checkpoints
+above record the subsequent work. Activation-commit cuts and complete public
+enrollment/provisioning still remain required.
 
 At `0c84a7c2`, the complete Rust/C/Swift/Kotlin archive producer succeeds in
 **3368.858 seconds**. Independent replay checks 271 committed inputs, actual

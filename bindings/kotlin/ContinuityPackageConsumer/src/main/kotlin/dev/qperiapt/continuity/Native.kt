@@ -42,6 +42,9 @@ internal object ContinuityNative {
     private val witnessLayout = struct("address" to ADDRESS, "length" to JAVA_LONG, "timeout" to JAVA_INT)
     private val optionsLayout = struct("kind" to JAVA_INT, "quality" to JAVA_INT,
         "carrier" to JAVA_INT, "witness" to ADDRESS)
+    private val setupStatusLayout = struct("phase" to JAVA_INT, "journal" to array(32))
+    private val setupPreparationLayout = struct("protection" to JAVA_INT, "journal" to array(32),
+        "subject" to array(96), "image_digest" to array(32))
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -85,9 +88,14 @@ internal object ContinuityNative {
         linker.downcallHandle(lookup.findOrThrow(name), FunctionDescriptor.of(JAVA_INT, *parameters))
     private val prepare = function("qpc_owner_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val prepareReopen = function("qpc_owner_v1_prepare_reopen", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
+    private val prepareCreateSetup = function("qpc_setup_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val prepareResumeSetup = function("qpc_setup_v1_prepare_resume", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
+        "setup_status" to function("qpc_setup_v1_status", JAVA_LONG, ADDRESS, ADDRESS),
+        "setup_storage" to function("qpc_setup_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
+        "setup_activate" to function("qpc_setup_v1_activate", JAVA_LONG, ADDRESS),
         "next_account" to function("qpc_device_v1_next_account", JAVA_LONG, ADDRESS, ADDRESS),
         "account_status" to function("qpc_device_v1_account_status", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "send_account_member" to function("qpc_device_v1_send_account_member", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_LONG,
@@ -174,7 +182,9 @@ internal object ContinuityNative {
     private fun exchanges(value: Short): Int = java.lang.Short.toUnsignedInt(value).also {
         if (it !in 1..8) malformed("native exchange count differs")
     }
-    @JvmSynthetic internal fun prepare(path: String, kind: Int, quality: Int, carrier: WitnessCarrier, session: SessionID? = null): Long {
+    @JvmSynthetic internal fun prepare(path: String, kind: Int, quality: Int, carrier: WitnessCarrier,
+                                       session: SessionID? = null, setup: SetupIntent? = null): Long {
+        require(setup == null || session == null) { "setup cannot select a session" }
         val encoded = text(path, 4096)
         return Arena.ofConfined().use { arena ->
             val options = arena.allocate(optionsLayout)
@@ -203,17 +213,60 @@ internal object ContinuityNative {
             options.set(ADDRESS, offset(optionsLayout, "witness"), witness)
             val output = arena.allocate(JAVA_LONG)
             val error = arena.allocate(errorLayout)
-            val code = if (session == null) {
+            val operation = when (setup) {
+                SetupIntent.CREATE -> "setup_prepare_create"
+                SetupIntent.RESUME -> "setup_prepare_resume"
+                null -> if (session == null) "prepare_open" else "prepare_reopen"
+            }
+            val code = if (setup != null) {
+                val selected = if (setup == SetupIntent.CREATE) prepareCreateSetup else prepareResumeSetup
+                selected.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options, output, error) as Int
+            } else if (session == null) {
                 prepare.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options, output, error) as Int
             } else {
                 prepareReopen.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options,
                     arena.bytes(session.encoded()), output, error) as Int
             }
-            checked(if (session == null) "prepare_open" else "prepare_reopen", code, error)?.let { throw it }
+            checked(operation, code, error)?.let { throw it }
             output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native preparation returned a zero handle") }
         }
     }
     @JvmSynthetic internal fun simple(handle: Long, operation: String) = Arena.ofConfined().use { invoke(it, operation, handle) }
+    @JvmSynthetic internal fun decodeSetupStatus(phase: Int, journal: ByteArray): InstallationStatus {
+        if (journal.size != 32 || journal.all { it == 0.toByte() }) malformed("native installation journal differs")
+        val selected = when (phase) {
+            1 -> InstallationPhase.CREATING
+            2 -> InstallationPhase.ACTIVE
+            else -> malformed("native installation phase differs")
+        }
+        return InstallationStatus(selected, JournalID(journal))
+    }
+    @JvmSynthetic internal fun decodeSetupPreparation(protection: Int, journal: ByteArray,
+                                                     subject: ByteArray, digest: ByteArray): InstallationPreparation {
+        if (journal.size != 32 || journal.all { it == 0.toByte() } || subject.size != 96 || digest.size != 32) {
+            malformed("native installation genesis shape differs")
+        }
+        val id = JournalID(journal)
+        return when (protection) {
+            1 -> {
+                if (subject.any { it != 0.toByte() } || digest.any { it != 0.toByte() }) malformed("local installation has witness metadata")
+                InstallationPreparation.Local(id)
+            }
+            2 -> {
+                if (!subject.copyOfRange(0, 32).contentEquals(journal) ||
+                    subject.sliceArray(32..63).all { it == 0.toByte() } || subject.sliceArray(64..95).all { it == 0.toByte() } ||
+                    digest.all { it == 0.toByte() }) malformed("native witnessed installation genesis differs")
+                InstallationPreparation.RequiresEnrollment(WitnessGenesis(id, PublicBytes(subject), PublicBytes(digest)))
+            }
+            else -> malformed("native installation protection differs")
+        }
+    }
+    @JvmSynthetic internal fun setupStatus(handle: Long): InstallationStatus = record(handle, "setup_status", setupStatusLayout) {
+        decodeSetupStatus(it.integer("phase"), it.bytes("journal", 32))
+    }
+    @JvmSynthetic internal fun setupStorage(handle: Long): InstallationPreparation = record(handle, "setup_storage", setupPreparationLayout) {
+        decodeSetupPreparation(it.integer("protection"), it.bytes("journal", 32), it.bytes("subject", 96), it.bytes("image_digest", 32))
+    }
     @JvmSynthetic internal fun preparePeer(parent: Long, path: String, quality: PrekeyQuality,
                                            role: BootstrapRole, session: SessionID?): Long {
         val encoded = text(path, 4096)
@@ -586,6 +639,7 @@ internal object ContinuityNative {
         }
     @JvmSynthetic internal fun layouts(): Map<String, Pair<Long, Long>> = mapOf(
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
+        "setup_status" to setupStatusLayout, "setup_preparation" to setupPreparationLayout,
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,
         "delivery" to deliveryLayout, "status" to statusLayout,

@@ -38,6 +38,7 @@ class OwnerTests {
     @Test fun structuresMatchThe64BitNativeContract() {
         assertEquals(mapOf(
             "error" to (524L to 4L), "witness" to (24L to 8L), "options" to (24L to 8L),
+            "setup_status" to (36L to 4L), "setup_preparation" to (164L to 4L),
             "served" to (72L to 4L), "header" to (200L to 8L), "epoch" to (104L to 8L),
             "reserved" to (48L to 8L), "unconfirmed" to (64L to 1L),
             "delivery" to (48L to 8L), "status" to (36L to 4L),
@@ -64,6 +65,69 @@ class OwnerTests {
         fails(1) {
             ContinuityOwner.prepareReopen("/absent-continuity-jvm-probe", PrekeyQuality.ONE_TIME_BOTH, SessionID(ByteArray(32)))
         }
+    }
+    @Test fun pendingSetupSharesCapacityAndCannotActivateAfterCancellation() {
+        repeat(128) { ContinuitySetup.prepareCreate("/unused").use { it.cancel() } }
+        val owners = mutableListOf<ContinuitySetup>()
+        try {
+            repeat(64) { owners.add(if (it % 2 == 0) ContinuitySetup.prepareCreate("/unused") else ContinuitySetup.prepareResume("/unused")) }
+            fails(4) { ContinuityDevice.prepare("/unused") }
+            while (owners.isNotEmpty()) {
+                val owner = owners.removeAt(0)
+                owner.use {
+                    fails(6) { it.status() }
+                    fails(6) { it.prepareStorage() }
+                    fails(6) { it.activate() }
+                    it.cancel()
+                    fails(302) { it.finishOpen() }
+                    fails(2) { it.activate() }
+                }
+                fails(2) { owner.status() }
+                fails(2) { owner.close() }
+            }
+            ContinuityDevice.prepare("/unused").use { it.cancel() }
+        } finally {
+            var failure: Throwable? = null
+            for (owner in owners) try { owner.close() } catch (error: Throwable) {
+                if (failure == null) failure = error else failure.addSuppressed(error)
+            }
+            failure?.let { throw it }
+        }
+    }
+    @Test fun installationStatusRejectsUnknownPhaseAndZeroJournal() {
+        val journal = ByteArray(32) { 1 }
+        for ((code, phase) in listOf(1 to InstallationPhase.CREATING, 2 to InstallationPhase.ACTIVE)) {
+            assertEquals(InstallationStatus(phase, JournalID(journal)), ContinuityNative.decodeSetupStatus(code, journal))
+        }
+        for (phase in listOf(0, 3, 256, -1)) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeSetupStatus(phase, journal) }
+        }
+        for (invalid in listOf(ByteArray(32), ByteArray(31) { 1 })) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeSetupStatus(1, invalid) }
+        }
+    }
+    @Test fun originalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata() {
+        val journal = ByteArray(32) { 7 }
+        val subject = journal + ByteArray(32) { 8 } + ByteArray(32) { 9 }
+        val digest = ByteArray(32) { 10 }
+        assertEquals(InstallationPreparation.Local(JournalID(journal)),
+            ContinuityNative.decodeSetupPreparation(1, journal, ByteArray(96), ByteArray(32)))
+        val expected = InstallationPreparation.RequiresEnrollment(WitnessGenesis(JournalID(journal), PublicBytes(subject), PublicBytes(digest)))
+        val decoded = ContinuityNative.decodeSetupPreparation(2, journal, subject, digest)
+        assertEquals(expected, decoded)
+        for (offset in listOf(0, 32, 64)) {
+            val malformed = subject.clone().also { it.fill(0, offset, offset + 32) }
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeSetupPreparation(2, journal, malformed, digest) }
+        }
+        for (protection in listOf(0, 1, 3, 258, -1)) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeSetupPreparation(protection, journal, subject, digest) }
+        }
+        for ((j, s, d) in listOf(Triple(ByteArray(32), subject, digest), Triple(journal, ByteArray(95), digest),
+                                Triple(journal, subject, ByteArray(31)), Triple(journal, subject, ByteArray(32)))) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeSetupPreparation(2, j, s, d) }
+        }
+        journal.fill(0); subject.fill(0); digest.fill(0)
+        assertEquals(expected, decoded)
     }
     @Test fun failedOpenReleasesTheOriginalOwnerSlot() {
         repeat(128) {

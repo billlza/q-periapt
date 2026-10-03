@@ -79,6 +79,10 @@ private fun run(arguments: List<String>): String {
         return serveUnrooted(args[1], args[2], args.getOrNull(3), witness)
     }
     if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening, existing)
+    if (args[0].startsWith("setup-")) {
+        require(existing == null)
+        return setup(args, witness)
+    }
     if (args[0].startsWith("recover-")) return recover(args, witness)
     if (args[0].startsWith("account-")) {
         require(existing == null)

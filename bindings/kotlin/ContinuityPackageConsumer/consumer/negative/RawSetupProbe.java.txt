@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+import dev.qperiapt.continuity.ContinuitySetup;
+final class RawSetupProbe {
+    static Object forge() { return new ContinuitySetup(null); }
+}

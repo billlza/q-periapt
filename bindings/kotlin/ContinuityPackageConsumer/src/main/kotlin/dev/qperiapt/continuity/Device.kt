@@ -35,6 +35,7 @@ data class AccountDelivery(val device: PublicBytes, val session: SessionID, val 
  */
 class ContinuityDevice private constructor(private val native: NativeOwner) : AutoCloseable {
     companion object {
+        @JvmSynthetic internal fun activated(native: NativeOwner): ContinuityDevice = ContinuityDevice(native)
         fun prepare(path: String, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityDevice =
             NativeOwner.prepare(path, 3, 0, witness, ::ContinuityDevice)
         fun open(path: String, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityDevice {

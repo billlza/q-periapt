@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Actual C setup calls over native independently provisioned enrollment inputs.
+//! Installed-language setup calls over native independently provisioned enrollment inputs.
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "common/witness.rs"]
@@ -18,6 +18,16 @@ use std::{
     sync::{atomic::Ordering, Arc},
 };
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+fn language() -> Result<&'static str> {
+    match std::env::var("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") {
+        Err(std::env::VarError::NotPresent) => Ok("C"),
+        Ok(value) if value == "C" => Ok("C"),
+        Ok(value) if value == "Swift" => Ok("Swift"),
+        Ok(value) if value == "Kotlin" => Ok("Kotlin"),
+        _ => Err("unsupported installed setup language".into()),
+    }
+}
 
 fn run(
     path: &Path,
@@ -176,6 +186,7 @@ fn native_phase(root: &Path, expected: [u8; 32], phase: p::InstallationStatus) -
 
 #[test]
 fn c_setup_preserves_original_creation_and_active_identity() -> Result<()> {
+    let language = language()?;
     let (setup, _) = fixture::setup_devices(None, None, None, false, false, false)?;
     let root = &setup.initiator;
     for name in ["installation.redb", "journal.redb", "archives.redb"] {
@@ -212,12 +223,13 @@ fn c_setup_preserves_original_creation_and_active_identity() -> Result<()> {
     run(root, "active-refuses-prepare", "storage", Some(211), None)?;
     assert_eq!(activated, run(root, "reactivate", "activate", None, None)?);
     fixture::store(root, "setup-original-journal", &id)?;
-    fixture::store(root, "setup-local-result.json", b"{\"schema_version\":1,\"language\":\"C\",\"completed\":true,\"pre_cancel_absent\":true,\"same_genesis\":true,\"active_prepare_refused\":true,\"release_claim_eligible\":false}\n")?;
+    fixture::store(root, "setup-local-result.json", format!("{{\"schema_version\":1,\"language\":\"{language}\",\"completed\":true,\"pre_cancel_absent\":true,\"same_genesis\":true,\"active_prepare_refused\":true,\"release_claim_eligible\":false}}\n").as_bytes())?;
     Ok(())
 }
 
 #[test]
 fn c_setup_requires_independent_original_witness_enrollment() -> Result<()> {
+    let language = language()?;
     let mut witness = witness::Witness::start()?;
     let (setup, _) =
         fixture::setup_devices(Some(&witness.configured), None, None, false, false, false)?;
@@ -344,6 +356,6 @@ fn c_setup_requires_independent_original_witness_enrollment() -> Result<()> {
         &genesis.subject().to_bytes(),
     )?;
     fixture::store(root, "setup-original-image", &genesis.image_digest())?;
-    fixture::store(root, "setup-witness-result.json", b"{\"schema_version\":1,\"language\":\"C\",\"completed\":true,\"independent_enrollment\":true,\"missing_witness_refused\":true,\"same_genesis\":true,\"release_claim_eligible\":false}\n")?;
+    fixture::store(root, "setup-witness-result.json", format!("{{\"schema_version\":1,\"language\":\"{language}\",\"completed\":true,\"independent_enrollment\":true,\"missing_witness_refused\":true,\"same_genesis\":true,\"release_claim_eligible\":false}}\n").as_bytes())?;
     Ok(())
 }

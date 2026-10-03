@@ -1,4 +1,4 @@
-"""Actual C installation setup over independently prepared original enrollment inputs."""
+"""Installed setup over independently prepared original enrollment inputs."""
 from pathlib import Path
 import re
 
@@ -28,8 +28,8 @@ def identifier(data: bytes) -> bytes:
     return bytes.fromhex(data.decode())
 
 
-def verify_execution(stdout: bytes, directory: Path, *, scenario: str) -> dict:
-    sdk.require(scenario in TESTS, "unsupported setup scenario")
+def verify_execution(stdout: bytes, directory: Path, *, scenario: str, language: str = "C") -> dict:
+    sdk.require(scenario in TESTS and language in {"C", "Swift", "Kotlin"}, "unsupported setup scenario or language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TESTS[scenario]]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE),
@@ -48,7 +48,7 @@ def verify_execution(stdout: bytes, directory: Path, *, scenario: str) -> dict:
              {"independent_enrollment", "missing_witness_refused", "same_genesis"})
     report = parse_strict_json_bytes(read("setup-"+scenario+"-result.json"), label="setup result")
     sdk.require(isinstance(report, dict) and set(report) == flags | {"schema_version", "language", "completed", "release_claim_eligible"}
-                and type(report["schema_version"]) is int and report["schema_version"] == 1 and report["language"] == "C"
+                and type(report["schema_version"]) is int and report["schema_version"] == 1 and report["language"] == language
                 and all(report[field] is True for field in flags | {"completed"}) and report["release_claim_eligible"] is False,
                 "setup report scope differs")
     journal = read("setup-original-journal", 32)
@@ -56,7 +56,8 @@ def verify_execution(stdout: bytes, directory: Path, *, scenario: str) -> dict:
     command("create", b"setup-status:1\n"+journal.hex().encode()+b"\n")
     command("active", b"setup-status:2\n"+journal.hex().encode()+b"\n")
     activated = command("activate")
-    match = re.fullmatch(rb"setup-activated\n([0-9a-f]{64})\n", activated)
+    transfer = b"setup-transfer:closed-alias-released-device-live\n" if language != "C" else b""
+    match = re.fullmatch(rb"setup-activated\n([0-9a-f]{64})\n" + transfer, activated)
     sdk.require(match is not None, "setup activation framing differs")
     batch = identifier(match[1])
     command("reactivate", activated)
@@ -102,29 +103,38 @@ def verify_execution(stdout: bytes, directory: Path, *, scenario: str) -> dict:
     prepared = b"setup-prepared:"+protection+b"\n"+journal.hex().encode()+b"\n"+subject.hex().encode()+b"\n"+digest.hex().encode()+b"\n"
     command("prepare",prepared)
     command("prepare-repeat",prepared)
-    return dict(report, scope=SCOPE, scenario=scenario, journal=journal.hex(), next_account=batch.hex(), **detail,
+    return dict(report, scope=SCOPE.replace("installed C", "installed " + language), scenario=scenario,
+        journal=journal.hex(), next_account=batch.hex(), **detail,
         public_readbacks={name:sha for name,sha in public.items() if not name.endswith((".stdout",".stderr"))},
         command_logs={name:sha for name,sha in public.items() if name.endswith((".stdout",".stderr"))})
 
 
-def qualify(outside: Path, output: Path, profile: str, environment: dict, client: Path, helper: Path, library: Path, *, scenario: str) -> dict:
-    sdk.require(scenario in TESTS, "unsupported setup qualification scenario")
+def qualify(outside: Path, output: Path, profile: str, environment: dict, client: Path, helper: Path, library: Path, *,
+            scenario: str, language: str = "C", jvm_runtime: dict | None = None) -> dict:
+    sdk.require(scenario in TESTS and language in {"C", "Swift", "Kotlin"}, "unsupported setup qualification scenario or language")
+    sdk.require((language == "Kotlin") == (jvm_runtime is not None), "setup JVM runtime selection differs")
+    if jvm_runtime is not None:
+        sdk.require(set(jvm_runtime) == {"jvm_executable", "jvm_sdk", "jvm_consumer", "jvm_stdlib", "jvm_annotations"},
+                    "setup JVM runtime inventory differs")
     binaries = {}
-    for role,path in dict(client=client,native_helper=helper,installed_library=library).items():
+    for role,path in (dict(client=client,native_helper=helper,installed_library=library) | (jvm_runtime or {})).items():
         item = sdk.snapshot(path,maximum=256*1024**2)
         binaries[role] = dict(path=str(path),sha256=item.sha256,bytes=item.size)
-    result = dict(completed=False,scope=SCOPE,scenario=scenario,binaries=binaries,release_claim_eligible=False)
-    prefix = "c-setup-"+scenario+"-"
+    scope = SCOPE.replace("installed C", "installed " + language)
+    result = dict(completed=False,scope=scope,scenario=scenario,binaries=binaries,release_claim_eligible=False)
+    prefix = language.lower()+"-setup-"+scenario+"-"
     evidence = outside/(prefix+profile+"-runtime")
-    runtime = {k:v for k,v in environment.items() if not k.startswith(("DYLD_","LD_","QPERIAPT_","QPC_"))}
-    runtime.update(QPERIAPT_C_OWNER_CLIENT=str(client),QPERIAPT_EXPECTED_CONTINUITY_LIBRARY=str(library),QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+    runtime = {k:v for k,v in environment.items() if not k.startswith(("DYLD_","LD_","QPERIAPT_","QPC_","JAVA_","JDK_","GRADLE_","KOTLIN_"))
+               and k not in {"_JAVA_OPTIONS", "CLASSPATH"}}
+    runtime.update(QPERIAPT_C_OWNER_CLIENT=str(client),QPERIAPT_EXPECTED_CONTINUITY_LIBRARY=str(library),
+        QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence),QPERIAPT_INSTALLED_CLIENT_LANGUAGE=language)
     try:
         helper_inventory(sdk.command([str(helper),"--list"],output/(prefix+"inventory-"+profile),outside,environment=runtime))
         stdout = sdk.command([str(helper),"--exact",TESTS[scenario],"--nocapture"],output/(prefix+"trace-"+profile),outside,environment=runtime)
         selected = evidence/"initiator"
-        checked = verify_execution(stdout,selected,scenario=scenario)
-        public = witness.export_selected(checked,selected,output/(prefix+"public")/profile,SCOPE,
-            replay=lambda path: verify_execution(stdout,path,scenario=scenario))
+        checked = verify_execution(stdout,selected,scenario=scenario,language=language)
+        public = witness.export_selected(checked,selected,output/(prefix+"public")/profile,scope,
+            replay=lambda path: verify_execution(stdout,path,scenario=scenario,language=language))
         sdk.require(all(sdk.snapshot(Path(row["path"]),maximum=256*1024**2).sha256 == row["sha256"] for row in binaries.values()),
                     "setup binary changed during execution")
         result.update(completed=True,execution=checked,public_files=public)

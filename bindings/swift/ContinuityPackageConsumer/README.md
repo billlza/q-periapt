@@ -15,6 +15,28 @@ downgrades a required witness. Carrier choice is explicit and never falls back.
 The directory still follows the native candidate qualification layout; production
 provisioning and migration remain separate unfinished interfaces.
 
+`ContinuitySetup.prepareCreate/prepareResume` explicitly selects new creation or
+original-intent restart. `finishOpen` opens the setup authority; `status` preserves
+Creating/Active and the original `JournalID`. `prepareStorage` returns either local
+protection or original public witness genesis that must be enrolled independently.
+These methods reuse configured controlled keys, credentials, policy and trust;
+they do not issue new credentials or grant witness enrollment permission.
+`activate` returns a `ContinuityDevice` by moving the same native owning reference.
+Closing or releasing the old setup after successful transfer cannot close its
+successor; other calls on that old setup return Closed. During transfer, ordinary
+setup calls, close and another activation return Busy, while cancel remains
+available. Native calls and disposal run outside the reference lock. Cancellation
+admitted before or during transfer may affect the returned device: join that work
+before using a racing result. Activation failure can follow durable commit;
+close the setup and resume the original configuration to reconcile. There is no
+automatic new installation or retry. Wrapper lifetime refusals use Closed/Busy
+with wrapper diagnostics; native failures retain their original error record.
+
+The setup CLI checks that closed setup aliases grant no authority, their wrapper
+is released, and the transferred device remains usable. Both local and required
+witness workloads retain original IDs through restart; the witness workload also
+checks bad signatures, held-reply cancellation and explicit TCP/mutual TLS.
+
 `ContinuityDevice.prepare/open` opens one already Active original device. Its
 `preparePeer/openPeer` and `preparePeerReopen/reopenPeer` methods return the same
 operational `ContinuityOwner` interface for a separately configured peer, with an
