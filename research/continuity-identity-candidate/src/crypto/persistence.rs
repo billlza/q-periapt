@@ -6,12 +6,8 @@ use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use q_periapt_core::ZeroizingBytes;
 #[cfg(unix)]
 use q_periapt_host_store::filesystem::open_private_parent;
-use q_periapt_host_store::filesystem::provision_private_file;
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-};
+use q_periapt_host_store::filesystem::publish_private_bytes;
+use std::{fs::File, io::Read, path::Path};
 use zeroize::Zeroizing;
 
 const HEADER: usize = 8 + 1 + 32 + 24;
@@ -141,26 +137,15 @@ pub(super) fn provision(
     identity: SigningKeyId,
     role: u8,
 ) -> Result<Material, DurableError> {
-    provision_private_file(
-        path,
-        |_| DurableError::PrivateFile,
-        |mut file| {
-            check_file(&file, 0)?;
-            let seed = SigningSeed::generate()?;
-            let material = seed.materialize()?;
-            let sealed = seal(wrapping, identity, role, &seed, &material.public)?;
-            #[cfg(all(test, unix))]
-            tests::at_boundary("generated", &material.public);
-            file.write_all(&sealed)?;
-            #[cfg(all(test, unix))]
-            tests::at_boundary("written", &material.public);
-            check_file(&file, FILE_BYTES)?;
-            file.sync_all()?;
-            #[cfg(all(test, unix))]
-            tests::at_boundary("synced", &material.public);
-            Ok(material)
-        },
-    )
+    let seed = SigningSeed::generate()?;
+    let material = seed.materialize()?;
+    let sealed = seal(wrapping, identity, role, &seed, &material.public)?;
+    #[cfg(all(test, unix))]
+    tests::at_boundary("generated", &material.public);
+    publish_private_bytes(path, &sealed)?;
+    #[cfg(all(test, unix))]
+    tests::at_boundary("published", &material.public);
+    Ok(material)
 }
 
 #[cfg(unix)]

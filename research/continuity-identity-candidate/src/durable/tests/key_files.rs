@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 use crate::{DeviceSigningKey, SigningKeyId};
+use std::io::Write;
 
-pub(in crate::durable) fn after_key_write() -> Result<(), DurableError> {
-    at_checkpoint(Checkpoint::Written)?;
+pub(in crate::durable) fn after_key_publication() -> Result<(), DurableError> {
+    at_checkpoint(Checkpoint::Published)?;
     let Some(path) = std::env::var_os("QPERIAPT_KEY_CREATE_FAILURE_DIR") else {
         return Ok(());
     };
@@ -92,7 +93,7 @@ fn wrapping_key_creator_failure_preserves_a_key_already_used_by_a_concurrent_ope
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::durable) enum Barrier {
-    ProvisionFile,
+    ProvisionPublication,
     OpenFile,
     OpenDirectory,
 }
@@ -166,8 +167,7 @@ impl Drop for ProbeGuard {
 pub(in crate::durable) enum Checkpoint {
     Reserved,
     Header,
-    Written,
-    ProvisionFileSynced,
+    Published,
     OpenRead,
     OpenFileSynced,
     OpenDirectorySynced,
@@ -221,14 +221,14 @@ fn dependent_signer(path: &Path, wrapping: &JournalKey) -> crate::PublicKey {
 #[test]
 fn wrapping_key_sync_failures_withhold_the_owner_and_preserve_exact_recovery() {
     for barrier in [
-        Barrier::ProvisionFile,
+        Barrier::ProvisionPublication,
         Barrier::OpenFile,
         Barrier::OpenDirectory,
     ] {
         for after in [false, true] {
             let dir = directory();
             let path = dir.path().canonicalize().expect("path");
-            let public = if barrier != Barrier::ProvisionFile {
+            let public = if barrier != Barrier::ProvisionPublication {
                 let key = JournalKey::provision(&path.join("wrapping")).expect("key");
                 Some(dependent_signer(&path, &key))
             } else {
@@ -236,7 +236,7 @@ fn wrapping_key_sync_failures_withhold_the_owner_and_preserve_exact_recovery() {
             };
             let point = SyncPoint { barrier, after };
             let probe = ProbeGuard::arm(point);
-            let result = if barrier == Barrier::ProvisionFile {
+            let result = if barrier == Barrier::ProvisionPublication {
                 JournalKey::provision(&path.join("wrapping"))
             } else {
                 JournalKey::open(&path.join("wrapping"))
@@ -249,13 +249,21 @@ fn wrapping_key_sync_failures_withhold_the_owner_and_preserve_exact_recovery() {
             assert_eq!(
                 observed.len(),
                 match (barrier, after) {
-                    (Barrier::ProvisionFile | Barrier::OpenFile, false) => 1,
-                    (Barrier::ProvisionFile | Barrier::OpenFile, true) => 2,
+                    (Barrier::ProvisionPublication | Barrier::OpenFile, false) => 1,
+                    (Barrier::ProvisionPublication | Barrier::OpenFile, true) => 2,
                     (Barrier::OpenDirectory, false) => 3,
                     (Barrier::OpenDirectory, true) => 4,
                 }
             );
             drop(probe);
+            if barrier == Barrier::ProvisionPublication && !after {
+                assert!(!path.join("wrapping").exists());
+                let key = JournalKey::provision(&path.join("wrapping"))
+                    .expect("explicit first-use retry");
+                let public = dependent_signer(&path, &key);
+                assert_dependent_signer(&path, &key, &public);
+                continue;
+            }
             assert_eq!(
                 fs::metadata(path.join("wrapping"))
                     .expect("retained file")
@@ -341,12 +349,11 @@ fn wrapping_key_crash_child() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn wrapping_key_process_cuts_preserve_partial_refusal_and_exact_dependent_owners() {
+fn wrapping_key_process_cuts_keep_unpublished_absent_and_recover_exact_published_owners() {
     for point in [
         Checkpoint::Reserved,
         Checkpoint::Header,
-        Checkpoint::Written,
-        Checkpoint::ProvisionFileSynced,
+        Checkpoint::Published,
         Checkpoint::OpenRead,
         Checkpoint::OpenFileSynced,
         Checkpoint::OpenDirectorySynced,
@@ -415,8 +422,8 @@ fn wrapping_key_process_cuts_preserve_partial_refusal_and_exact_dependent_owners
         }
         child.0.kill().expect("kill exact boundary child");
         assert!(!child.0.wait().expect("reap").success());
-        assert!(JournalKey::provision(&path.join("wrapping")).is_err());
         if let Some(public) = public {
+            assert!(JournalKey::provision(&path.join("wrapping")).is_err());
             let key = JournalKey::open(&path.join("wrapping"))
                 .expect("same immutable key after process loss");
             assert_dependent_signer(&path, &key, &public);
@@ -425,17 +432,51 @@ fn wrapping_key_process_cuts_preserve_partial_refusal_and_exact_dependent_owners
                 JournalKey::open(&path.join("wrapping")),
                 Err(DurableError::PrivateFile)
             ));
-            assert_eq!(
-                fs::metadata(path.join("wrapping"))
-                    .expect("retained partial")
-                    .len(),
-                if matches!(point, Checkpoint::Reserved) {
-                    0
-                } else {
-                    8
-                }
-            );
+            assert!(!path.join("wrapping").exists());
+            let key =
+                JournalKey::provision(&path.join("wrapping")).expect("explicit first-use retry");
+            let public = dependent_signer(&path, &key);
+            assert_dependent_signer(&path, &key, &public);
         }
         eprintln!("WRAPPING_KEY_PROCESS_CUT stage={point:?} complete={complete} original_owner_returned=false");
     }
+}
+
+#[test]
+fn first_key_interrupted_header_does_not_publish_a_partial_identity() {
+    let dir = directory();
+    let path = dir.path().canonicalize().expect("path");
+    let mut child = ChildGuard(
+        Command::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "durable::tests::key_files::wrapping_key_crash_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_KEY_CRASH_DIR", &path)
+            .env("QPERIAPT_KEY_CRASH_STAGE", "Header")
+            .env("QPERIAPT_KEY_CRASH_OPERATION", "provision")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("child"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !path.join("ready").exists() {
+        assert!(child.0.try_wait().expect("status").is_none() && Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    child.0.kill().expect("kill");
+    assert!(!child.0.wait().expect("reap").success());
+    assert!(
+        !path.join("wrapping").exists(),
+        "initial incomplete key became the formal identity"
+    );
+    let key = JournalKey::provision(&path.join("wrapping")).expect("explicit first-use retry");
+    let public = dependent_signer(&path, &key);
+    assert_dependent_signer(
+        &path,
+        &JournalKey::open(&path.join("wrapping")).expect("recover"),
+        &public,
+    );
 }

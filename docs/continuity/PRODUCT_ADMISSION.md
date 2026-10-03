@@ -343,3 +343,13 @@ Protocol/domain and durable-format freeze, explicit candidate-state disposition,
 package/version/export tables, installer failure behavior and maintenance policy
 must move together. Renaming a candidate package or retaining a successful pairwise
 test report cannot supply the missing product contracts above.
+
+
+Native first-key publication now stages complete wrapping/signing images and uses
+non-replacing rename plus file/parent sync before owner release. This closes the
+newly-created partial *formal key* path; old partial files are still refused.
+Enrollment signer interruptions now resume the retained original intent and reuse
+any published original signer. Shared-host source changes invalidate reuse of the
+older SDK archive cohort for this candidate. Atomic initial database creation,
+unpublished-staging maintenance, foreign adapters and new archive/device evidence
+remain required; this increment is not full lifecycle or release admission.

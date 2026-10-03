@@ -4645,3 +4645,24 @@ language integration, construction-specific recovery analysis, controlled
 performance and final release coordination remain open. The candidate remains
 `0.0.0 / publish=false`, outside product ABI 2. No merge, publication, external
 audit, full TLS fault coverage or formal security proof is claimed.
+
+### Immutable first-key publication (native source candidate, 2026-10-03)
+
+Wrapping and all four signing-owner files now use complete private staging images,
+file sync, descriptor-relative NOREPLACE rename, published-inode checks and pinned
+parent sync before returning an owner. A killed initial header write no longer
+leaves a partial formal key. Existing partial destinations remain refused. A
+concurrent opener may reconcile a published image before its creator receives a
+result; later creator errors never delete the published identity.
+
+Failed attempts retain staging names instead of using check-then-unlink cleanup.
+The original error and attempted staging name remain observable; the name is not
+deletion authority. Private unpublished orphans, bounded first-use retry/maintenance,
+initial redb configuration recovery, and physical erasure remain open. The original
+Preparing enrollment can resume signer creation with its retained SigningKeyId and
+must reuse an already-published key. Requested/active identities cannot be reset.
+
+This changes the shared host-store SDK source inputs. The earlier packaged SDK and
+Continuity archive receipts do **not** qualify this new source. The retained local
+verification is native macOS source testing, not a new archive, Linux/device run,
+physical power-loss claim, independent implementation or full lifecycle release.

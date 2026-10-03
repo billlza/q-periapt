@@ -701,6 +701,94 @@ fn enrollment_process_cut_child() {
 }
 
 #[test]
+fn signer_publication_cuts_resume_the_original_preparing_enrollment() {
+    use crate::durable::tests::ChildGuard;
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+    for stage in ["generated", "published"] {
+        let c = case();
+        let root = c.paths.configuration.parent().expect("root");
+        let mut owner = create(&c);
+        let identity = owner.identity().expect("committed original identity");
+        owner.close();
+        fs::write(root.join("trusted-root"), c.intent.root.encode()).expect("independent root");
+        let log = fs::File::create_new(root.join("signer-child.log")).expect("log");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "enrollment::tests::enrollment_process_cut_child",
+                    "--nocapture",
+                ])
+                .env("QPERIAPT_ENROLLMENT_CUT_ROOT", root)
+                .env("QPERIAPT_ENROLLMENT_CUT_PHASE", "1")
+                .env("QPERIAPT_SIGNING_CRASH_DIR", root)
+                .env("QPERIAPT_SIGNING_CRASH_STAGE", stage)
+                .stdout(Stdio::from(log.try_clone().expect("log clone")))
+                .stderr(Stdio::from(log))
+                .spawn()
+                .expect("request process"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !root.join("ready").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "signer cut {stage} missing: {}",
+                fs::read_to_string(root.join("signer-child.log")).expect("log")
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(
+            fs::read_to_string(root.join("ready")).expect("marker"),
+            stage
+        );
+        child.0.kill().expect("kill original requester");
+        assert!(!child.0.wait().expect("reap").success());
+        assert_eq!(c.paths.signer.exists(), stage == "published");
+        let prior_public = fs::read(root.join("computed-public")).expect("diagnostic only");
+        let mut resumed = open(&c);
+        assert_eq!(
+            resumed.status().expect("phase"),
+            EnrollmentStatus::Preparing
+        );
+        assert_eq!(resumed.identity().expect("identity"), identity);
+        let wire = resumed.request(150).expect("resume committed intent");
+        let request = VerifiedEnrollmentRequest::verify(&wire, &c.intent, 150).expect("proof");
+        assert_eq!(request.identity(), identity);
+        assert_eq!(
+            request.public_key().encode() == prior_public,
+            stage == "published"
+        );
+        assert_eq!(resumed.request(150).expect("exact released retry"), wire);
+        let (certificate, roster, pin) = response(&c, &wire);
+        let journal = resumed
+            .accept(&certificate, roster.as_bytes(), &pin, &c.policy, 150)
+            .expect("authorized response");
+        resumed
+            .prepare(&c.policy, 150)
+            .expect("original installation");
+        let mut enrolled = resumed
+            .activate(&c.policy, 150, None)
+            .expect("active original enrollment");
+        assert_eq!(
+            enrolled
+                .parts()
+                .expect("parts")
+                .0
+                .stores()
+                .expect("stores")
+                .0
+                .identity()
+                .expect("journal"),
+            journal
+        );
+        eprintln!("ENROLLMENT_SIGNER_PUBLICATION_CUT stage={stage} retained_identity=true published_key_reused={}", stage == "published");
+    }
+}
+
+#[test]
 fn process_cuts_after_each_enrollment_commit_resume_the_original_operation() {
     use crate::durable::tests::ChildGuard;
     use std::{

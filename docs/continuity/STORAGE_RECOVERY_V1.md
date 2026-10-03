@@ -35,8 +35,13 @@ fresh inode/extent admission; a previously cached file/image cannot replace the
 authoritative state under the acquired lease. These checks do not isolate mutually
 hostile code running as the same user.
 
-An initializer failure preserves the newly created file: its data may already have
+A mutable database initializer failure preserves the newly created file: its data may already have
 been committed or admitted by another opener. A partial file is subsequently refused.
+Immutable wrapping and signing files instead publish complete synced staging
+inodes with NOREPLACE rename and parent sync. Existing formal names are never
+removed on error. A pre-publication crash can leave private staging orphans; they
+are not recovery inputs and no later attempt sweeps them. Explicit first-use retry
+must not be confused with replacement of a lost active key.
 A complete wrapping-key file is admitted only after exact shape/link checks and
 file/parent synchronization. No `open_or_create` recovery path exists. The retained
 [creation regression](../../research/continuity-identity-candidate/DURABILITY.md)

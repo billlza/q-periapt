@@ -258,7 +258,7 @@ fn signing_provision_crash_child() {
 
 #[test]
 fn provisioning_process_loss_never_releases_an_owner_before_file_commit() {
-    for stage in ["generated", "written", "synced"] {
+    for stage in ["generated", "published"] {
         let dir = directory();
         let path = dir.path().canonicalize().expect("path");
         let wrapping = JournalKey::provision(&path.join("wrapping")).expect("wrapping");
@@ -297,15 +297,17 @@ fn provisioning_process_loss_never_releases_an_owner_before_file_commit() {
                 DeviceSigningKey::open(&path.join("device"), &wrapping, id),
                 Err(DurableError::PrivateFile)
             ));
-            assert!(matches!(
-                DeviceSigningKey::provision(&path.join("device"), &wrapping, id),
-                Err(DurableError::PrivateFile)
-            ));
+            assert!(!path.join("device").exists());
+            let owner = DeviceSigningKey::provision(&path.join("device"), &wrapping, id)
+                .expect("explicit initial retry with independently retained ID");
+            let original =
+                fs::read(path.join("computed-public")).expect("unpublished diagnostic key");
+            assert_ne!(owner.public_key().expect("public").encode(), original);
+            let restored = DeviceSigningKey::open(&path.join("device"), &wrapping, id)
+                .expect("restore published retry");
             assert_eq!(
-                fs::metadata(path.join("device"))
-                    .expect("partial file retained")
-                    .len(),
-                0
+                owner.public_key().expect("public"),
+                restored.public_key().expect("public")
             );
         } else {
             let owner = DeviceSigningKey::open(&path.join("device"), &wrapping, id)

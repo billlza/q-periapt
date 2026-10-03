@@ -17,13 +17,24 @@ backups. All key generation uses the platform CSPRNG and the existing fixed
 ML-DSA-65 plus P-256 composition. P-256 scalar rejection sampling is bounded at
 eight attempts; failures return no owner.
 
-`provision` exclusively creates a new private file through the shared host-store
-filesystem adapter. It never replaces an existing file. The parent entry is synced
-before initialization, and the complete encrypted file is synced before the
-signing owner is returned. Before that return, neither its public enrollment key
-nor an operation capable of signing is available to the caller. A normal failed
-initialization uses the helper's exact-parent cleanup; no enrollment or signature
-has been released. A process killed during initialization may leave a partial file.
+`provision` prepares the complete sealed image in memory, writes it into a fresh
+private staging inode, syncs that inode, and publishes it through descriptor-relative
+NOREPLACE rename. It authenticates the published inode and syncs the pinned parent
+before returning the signing owner. Existing destinations, including old partial
+files, are never replaced. Unsupported rename operations fail without a fallback.
+Before success, neither a public enrollment key nor a signing owner is released.
+
+On returned errors, no file is deleted. Checking inode identity and then unlinking
+a name is not an atomic conditional deletion. The original error retains the
+attempted staging name as diagnostic data, not deletion authority.
+The destination is never removed, even when directory sync or result delivery
+fails: another opener may already have reconciled it and used the identity.
+A crash before rename can leave a private `.private-publication-*` orphan. These
+files are not recovery authority and are never selected or automatically swept.
+Only an explicit original first-use intent with an absent destination may retry
+with fresh unpublished material. A previously active missing key is data loss.
+Orphan cleanup/physical erasure and crash-safe initial database creation remain
+separate lifecycle work; applications must bound explicit first-use retries.
 
 `open` requires an existing exact-size private file, the independently expected
 ID, the same role and the protected wrapping key. It authenticates the full image,
@@ -37,7 +48,7 @@ failed provisioning rather than an implicit new identity.
 The shared adapter admits private descriptor-relative paths with no symlink
 traversal and exact owner/mode/ACL checks. The signing provider additionally
 requires a single hard link. Parent-directory sync rechecks private ownership and
-mode on the pinned descriptor. The current private-file adapter supports Unix;
+mode on the pinned descriptor. The reviewed private-file publication adapter supports macOS/Linux;
 other platforms fail admission. Same-UID host control is trusted. Files are
 immutable after initialization, so opening another owner does not mutate or rotate
 the key. `close` affects that in-memory owner, not every independently opened copy.
@@ -77,9 +88,11 @@ persistence does not change bootstrap network or ABI bytes.
 
 Tests cover all four roles, owner close/reopen, role/identity/wrapping-key
 substitution, every byte of the sealed file, length and scalar/public mismatch,
-unsafe filesystem shapes, and exact saved-signature replay. Three process cuts
-cover generated-but-unwritten, complete-but-unsynced and synced-before-return
-provisioning. Two more cuts interrupt a real responder before and after its
+unsafe filesystem shapes, and exact saved-signature replay. Native process cuts
+cover generated-but-unpublished and durably-published-before-return owners. The
+shared publication suite additionally kills children with partial staging contents,
+complete staging contents, synced staging contents, after rename and after parent
+sync; no partial image becomes the destination. Two more cuts interrupt a real responder before and after its
 reserved signature computation. The original owner dies with the process; the
 surviving actual initiator verifies the reopened owner's response and final MAC.
 The post-computation case also compares the exact recovered signature bytes.

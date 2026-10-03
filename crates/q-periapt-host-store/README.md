@@ -4,7 +4,7 @@ Unpublished Rust host persistence for the owned SDK. `PolicyStore` verifies and
 durably stores an exact signed policy/state before exposing its runtime, holds
 an exclusive lifetime file lock, and closes retained runtime aliases on failure
 or disposal. Its private filesystem implementation is shared with the existing
-policy agent. The reviewed host boundary is macOS/Linux. Creation errors retain
+policy agent. The reviewed host boundary is macOS/Linux. Mutable database creation errors retain
 both the file and original error, including admission or synchronization failures
 before initialization. A mutable filename may already identify another writer's
 replacement; failure cleanup never unlinks it. An incomplete or zero-length leaf
@@ -16,3 +16,11 @@ This is neither a cross-process authorization service nor a hardware rollback
 counter. Additive C ABI 2 functions and Swift's `QPeriaptPersistentRuntime` now
 share this implementation. Installed packages and Linux runtime qualification
 remain release gates.
+
+`filesystem::publish_private_bytes` publishes complete immutable key images on
+macOS/Linux: private staging write, file sync, NOREPLACE rename, published-inode
+validation, parent sync. Existing destinations are never replaced or deleted on
+failure. Errors retain the original operation and attempted staging name. Failed attempts
+and process crashes can leave unpublished private staging orphans; automatic selection,
+sweeping and physical erasure are not provided. This additive primitive does not
+change mutable database provisioning or enable Windows storage admission.

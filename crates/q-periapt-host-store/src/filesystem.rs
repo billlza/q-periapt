@@ -6,6 +6,9 @@ use std::ops::Bound;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod publication;
+pub use publication::{publish_private_bytes, PrivatePublicationError};
+
 /// A file backend whose exclusive whole-file lock precedes all content checks.
 ///
 /// redb 4.3 takes locks when opening the database rather than constructing its

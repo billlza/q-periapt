@@ -85,10 +85,15 @@ private-file backend and immediate transaction durability.
 
 The enrollment record is trusted local configuration, kept independently of journal
 backups. Its MAC detects unauthenticated edits; it is not an anti-rollback witness.
-Initial partial wrapping, signer or configuration files are retained and refused.
-This version cannot reconstruct a signing seed that never reached complete durable
-storage, and does not delete the partial file or generate a replacement identity.
-Hardware key storage, atomic first-key publication, independent authority transport,
+Existing partial wrapping, signer or configuration destinations remain refused.
+New immutable wrapping/signing files use complete staged publication, so a crash
+before rename cannot expose a partial formal key. In Preparing, the enrollment's
+committed original intent may retry an absent unpublished signer with the retained
+SigningKeyId; once Requested, it must recover the exact original signer. Private
+staging orphans are never selected as keys or swept automatically. This does not
+make initial redb configuration creation atomic or authorize replacing a lost active
+identity. See [signing-owner recovery](SIGNING_OWNERS.md).
+Hardware key storage, orphan maintenance, independent authority transport,
 foreign bindings, current device runs and complete replacement/upgrade remain open.
 
 The regression suite covers actual signature/policy checks, real SDK prekey work,

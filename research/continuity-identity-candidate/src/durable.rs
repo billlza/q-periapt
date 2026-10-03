@@ -12,16 +12,19 @@ use q_periapt_host_store::filesystem::open_private_file;
 #[cfg(unix)]
 use q_periapt_host_store::filesystem::open_private_parent;
 use q_periapt_host_store::filesystem::{
-    open_private_database, provision_private_database, provision_private_file, PrivateDatabaseError,
+    open_private_database, provision_private_database, publish_private_bytes, PrivateDatabaseError,
+    PrivatePublicationError,
 };
 use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use redb::{
     Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
 };
+#[cfg(test)]
+use std::io::Write;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
-    io::{self, Read, Write},
+    io::{self, Read},
     path::Path,
     sync::Arc,
 };
@@ -176,6 +179,23 @@ impl From<PrivateDatabaseError> for DurableError {
         Self::Database(e)
     }
 }
+impl From<PrivatePublicationError> for DurableError {
+    fn from(error: PrivatePublicationError) -> Self {
+        let kind = error.operation().kind();
+        if error.staging_name().is_none()
+            && matches!(
+                kind,
+                io::ErrorKind::AlreadyExists
+                    | io::ErrorKind::PermissionDenied
+                    | io::ErrorKind::Unsupported
+            )
+        {
+            Self::PrivateFile
+        } else {
+            Self::Io(io::Error::new(kind, error))
+        }
+    }
+}
 pub(crate) fn storage(e: impl Into<redb::Error>) -> DurableError {
     DurableError::Storage(Box::new(e.into()))
 }
@@ -235,30 +255,20 @@ impl JournalKey {
     pub fn provision(path: &Path) -> Result<Self, DurableError> {
         let mut key = Box::new(ZeroizingBytes::zeroed());
         getrandom::fill(key.as_mut_bytes()).map_err(|_| Error::Entropy)?;
-        provision_private_file(
-            path,
-            |_| DurableError::PrivateFile,
-            |mut file| {
-                Self::check_file(&file, 0)?;
-                #[cfg(all(test, unix))]
-                tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Reserved)?;
-                file.write_all(b"QPVKEY01")?;
-                #[cfg(all(test, unix))]
-                tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Header)?;
-                file.write_all(key.as_bytes())?;
-                #[cfg(all(test, unix))]
-                tests::key_files::after_key_write()?;
-                Self::check_file(&file, 40)?;
-                #[cfg(all(test, unix))]
-                tests::key_files::at_sync(tests::key_files::Barrier::ProvisionFile, false)?;
-                file.sync_all()?;
-                #[cfg(all(test, unix))]
-                tests::key_files::at_sync(tests::key_files::Barrier::ProvisionFile, true)?;
-                #[cfg(all(test, unix))]
-                tests::key_files::at_checkpoint(tests::key_files::Checkpoint::ProvisionFileSynced)?;
-                Ok(Self(key))
-            },
-        )
+        #[cfg(all(test, unix))]
+        tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Reserved)?;
+        let mut image = Zeroizing::new(b"QPVKEY01".to_vec());
+        #[cfg(all(test, unix))]
+        tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Header)?;
+        image.extend_from_slice(key.as_bytes());
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::ProvisionPublication, false)?;
+        publish_private_bytes(path, &image)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::ProvisionPublication, true)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::after_key_publication()?;
+        Ok(Self(key))
     }
     /// Reopen an existing immutable private key file and reconcile its durability
     /// before returning the owner. Partial files are refused, never replaced.

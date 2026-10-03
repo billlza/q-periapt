@@ -8,7 +8,9 @@ store, ratchet or recovery contract.
 ## Ownership and storage identity
 
 `JournalKey::provision` generates a fresh OS-random 256-bit wrapping key and writes
-`QPVKEY01[8] || key[32]` to a new private file without replacing an existing path.
+`QPVKEY01[8] || key[32]` to a private staging inode. It syncs the complete image,
+publishes it by NOREPLACE rename, validates the same inode, and syncs the pinned
+parent before returning. It never replaces an existing destination.
 `open` requires that exact existing file and never creates a replacement on error.
 It checks the exact 40-byte shape and single-link inode, reads through the admitted
 file descriptor, synchronizes that inode and its still-pinned private parent, and
@@ -28,21 +30,25 @@ credential/generation cannot silently reuse it. One authoritative journal per
 device lineage is a host configuration requirement; a new empty journal is not
 recovery.
 
-Once a private file reaches its initializer, the shared provider retains the file
-on any callback error. An initializer error is not evidence that its output was
-never admitted by another opener or committed by the database. The actual race
-regression admits a complete wrapping key in a second process, persists a dependent
-signer, then makes the creator fail before its own sync: the old callback cleanup
-removed that key and made the signer unrecoverable. The shared correction preserves
-the file; the opener synchronizes it before exposing the key. This also applies to
-signing owners, journal/witness/index genesis, and the SDK's signed policy store.
-Original errors still propagate; partial creation never becomes implicit success.
+Mutable database initialization still retains its formal file on any initializer
+error: an error does not establish that a commit never occurred. Immutable key
+publication instead keeps incomplete bytes under an unpublished staging name.
+Once the complete key is published, any later error retains the destination.
+The real concurrent-opener regression uses the published wrapping key to create a
+dependent signer, then makes the original creator fail before owner return; both
+original files remain recoverable. The shared boundary also tests a creator failing
+before its parent sync while another opener reconciles the key and a losing creator
+receives AlreadyExists. Neither failure is permission to delete the published key.
 
-Key tests terminate real child processes at seven creation/open boundaries and
-inject failures before/after the key-data sync and both reopen syncs. No interrupted
-owner returns. Complete files recover the same dependent signing key, while partial
-files remain refused and cannot be overwritten by provisioning. These are bounded
-process-loss and I/O-fault tests, not hardware power-loss qualification.
+Native key tests kill children at two in-memory preparation cuts, after publication,
+and at three reopen boundaries. Publication/reopen boundary faults withhold owners.
+The shared host-store tests additionally inject before/after file and directory
+sync, test non-replacing concurrent creators, and kill processes at five actual
+staging/publication cuts. Complete files recover the same dependent signing key;
+old partial destinations remain refused. Pre-publication process loss can retain
+private staging orphans; they are never picked as recovery candidates or deleted by
+later attempts. Only a retained explicit first-use intent may retry absent unpublished
+state. These are bounded process-loss/I/O tests, not physical power-loss qualification.
 
 The candidate reuses `q-periapt-host-store::filesystem` private path admission,
 exclusive provisioning and lifetime database locking. Path traversal is descriptor
