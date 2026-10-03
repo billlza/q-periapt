@@ -6,10 +6,14 @@ mod common;
 mod fixture;
 #[path = "account_witness/tls.rs"]
 mod tls;
+#[path = "account_witness/tls_loss.rs"]
+mod tls_loss;
 #[path = "common/witness.rs"]
 mod witness;
 #[path = "common/witness_tls.rs"]
 mod witness_tls;
+#[path = "common/witness_tls_faults.rs"]
+mod witness_tls_faults;
 use q_periapt_continuity_identity_candidate as p;
 use std::{
     ffi::OsString,
@@ -120,6 +124,31 @@ fn lost_advance(
     assert_eq!(record.reply.get(204), Some(&2));
     stages.push_str(&format!("{label} {start} {} {at}\n", records.len()));
     Ok(output)
+}
+
+fn retain_tls_authorities(setup: &fixture::Setup, second: &Path) -> Result<()> {
+    let root = &setup.initiator;
+    fixture::store(
+        root,
+        "account-tls-server-cert",
+        &fixture::read(root, "witness-tls-peer", 8192)?,
+    )?;
+    for (index, path) in [root.as_path(), setup.responder.as_path(), second]
+        .into_iter()
+        .enumerate()
+    {
+        fixture::store(
+            root,
+            &format!("account-tls-client-cert-{index}"),
+            &fixture::read(path, "witness-tls-cert", 8192)?,
+        )?;
+        fixture::store(
+            root,
+            &format!("account-tls-subject-{index}"),
+            &fixture::read(path, "witness-subject", 96)?,
+        )?;
+    }
+    Ok(())
 }
 
 fn connect(setup: &fixture::Setup, second: &Path, endpoint: Carrier) -> Result<Vec<[u8; 32]>> {

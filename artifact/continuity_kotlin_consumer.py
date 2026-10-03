@@ -501,7 +501,9 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             witnessed_account = account_witness.qualify(outside, output, profile, runtime, launcher,
                 Path(witness_helper["path"]), library_path, language="Kotlin", jvm_runtime=jvm_runtime)
             tls_account = account_witness.qualify(outside, output, profile, runtime, launcher,
-                Path(witness_helper["path"]), library_path, mutual_tls=True, language="Kotlin", jvm_runtime=jvm_runtime)
+                Path(witness_helper["path"]), library_path, scenario="mutual-tls", language="Kotlin", jvm_runtime=jvm_runtime)
+            tls_loss_account = account_witness.qualify(outside, output, profile, runtime, launcher,
+                Path(witness_helper["path"]), library_path, scenario="mutual-tls-loss", language="Kotlin", jvm_runtime=jvm_runtime)
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -556,7 +558,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned,
-                "account_witness": witnessed_account, "account_tls": tls_account,
+                "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account,
                 "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,

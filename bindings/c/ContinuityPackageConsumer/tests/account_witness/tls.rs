@@ -241,26 +241,7 @@ fn account_cleanup_keeps_original_authority_over_mutual_tls() -> Result<()> {
         && retry.request.get(140..172) == lost.request.get(140..172)
         && retry.request.get(172..204) != lost.request.get(172..204)));
     fixture::store(root, "account-tls-phases", phases.as_bytes())?;
-    fixture::store(
-        root,
-        "account-tls-server-cert",
-        &fixture::read(root, "witness-tls-peer", 8192)?,
-    )?;
-    for (index, path) in [root.as_path(), setup.responder.as_path(), second.as_path()]
-        .into_iter()
-        .enumerate()
-    {
-        fixture::store(
-            root,
-            &format!("account-tls-client-cert-{index}"),
-            &fixture::read(path, "witness-tls-cert", 8192)?,
-        )?;
-        fixture::store(
-            root,
-            &format!("account-tls-subject-{index}"),
-            &fixture::read(path, "witness-subject", 96)?,
-        )?;
-    }
+    retain_tls_authorities(&setup, &second)?;
     let result = format!("{{\"schema_version\":1,\"language\":\"{}\",\"completed\":true,\"batch\":\"{batch}\",\"report\":\"{report}\",\"carrier\":\"q-periapt-anchor/1\",\"reservation_carrier\":\"signed-tcp\",\"witness_exchanges\":{},\"rejected_connections\":2,\"release_claim_eligible\":false}}\n", language()?, tls.admitted.load(Ordering::Acquire));
     fixture::store(root, "account-tls-result.json", result.as_bytes())?;
     Ok(())

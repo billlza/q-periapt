@@ -9,6 +9,7 @@ from evidence_io import parse_strict_json_bytes
 
 TEST = "account_cleanup_requires_original_witness_and_reconciles_lost_advances"
 TLS_TEST = "tls::account_cleanup_keeps_original_authority_over_mutual_tls"
+TLS_LOSS_TEST = "tls_loss::account_cleanup_reconciles_four_committed_tls_reply_losses"
 SCOPE = ("installed C required-witness complete-account cleanup after SDK revocation; "
          "three original installations over native signed TCP; four lost committed witness responses; "
          "same host and shared engine; no TLS, own-account, power-loss or independent-engine qualification")
@@ -23,9 +24,9 @@ def scope(language: str) -> str:
 def helper_inventory(data: bytes) -> None:
     from continuity_package import TESTS
     names = re.findall(r"^([a-z_:]+): test$", data.decode(), re.MULTILINE)
-    expected = {TEST, TLS_TEST} | {"fixture::" + name for name in TESTS}
+    expected = {TEST, TLS_TEST, TLS_LOSS_TEST} | {"fixture::" + name for name in TESTS}
     sdk.require(len(names) == len(expected) and set(names) == expected
-                and re.search(r"^5 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
+                and re.search(r"^6 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
                 "account witness helper inventory differs")
 
 
@@ -56,7 +57,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     selected_scope = scope(language)
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;",
                               text, re.MULTILINE), "account witness trace did not execute completely")
     public = {}
     def read(name, maximum=1048576):
@@ -116,15 +117,18 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
 
 def qualify(outside: Path, output: Path, profile: str, environment: dict, client: Path,
             helper: Path, library: Path, *, language: str = "C", jvm_runtime: dict[str, Path] | None = None,
-            mutual_tls: bool = False) -> dict:
+            scenario: str = "signed-tcp") -> dict:
     from continuity_c_faults import jvm_command
     sdk.require((language == "Kotlin") == (jvm_runtime is not None), "account witness JVM closure differs")
-    sdk.require(type(mutual_tls) is bool, "account witness carrier selection differs")
-    if mutual_tls:
+    sdk.require(scenario in {"signed-tcp", "mutual-tls", "mutual-tls-loss"}, "unknown account witness scenario")
+    if scenario == "mutual-tls":
         import continuity_c_account_tls as tls
-        selected_scope, selected_test, verify = tls.scope(language), TLS_TEST, tls.verify_execution
+        selected_scope, selected_test, verify, suffix = tls.scope(language), TLS_TEST, tls.verify_execution, "account-tls"
+    elif scenario == "mutual-tls-loss":
+        import continuity_c_account_tls_loss as tls_loss
+        selected_scope, selected_test, verify, suffix = tls_loss.scope(language), TLS_LOSS_TEST, tls_loss.verify_execution, "account-tls-loss"
     else:
-        selected_scope, selected_test, verify = scope(language), TEST, verify_execution
+        selected_scope, selected_test, verify, suffix = scope(language), TEST, verify_execution, "account-witness"
     if jvm_runtime is not None:
         jvm_command(jvm_runtime, library)
     paths = dict(client=client, native_helper=helper, installed_library=library, **(jvm_runtime or {}))
@@ -133,7 +137,7 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
         item = sdk.snapshot(path, maximum=256 * 1024**2)
         identities[role] = dict(path=str(path), sha256=item.sha256, bytes=item.size)
     result = dict(completed=False, scope=selected_scope, language=language, binaries=identities, release_claim_eligible=False)
-    prefix = language.lower() + ("-account-tls-" if mutual_tls else "-account-witness-")
+    prefix = language.lower() + "-" + suffix + "-"
     evidence = outside / (prefix + profile + "-runtime")
     runtime = {k: v for k, v in environment.items()
                if not k.startswith(("DYLD_", "LD_", "QPERIAPT_", "QPC_", "JAVA_", "JDK_", "GRADLE_", "KOTLIN_"))

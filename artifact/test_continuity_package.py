@@ -62,6 +62,18 @@ STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
 
 
 class ContinuityPackageTests(unittest.TestCase):
+    def test_every_account_witness_reader_is_bound_to_package_source(self):
+        import continuity_c_account_witness as signed
+        import continuity_c_account_tls as tls
+        import continuity_c_account_tls_loss as loss
+        sources = package.source_inputs()['files']
+        for module in (signed, tls, loss):
+            path = Path(module.__file__).resolve()
+            relative = path.relative_to(package.ROOT).as_posix()
+            with self.subTest(reader=relative):
+                self.assertIn(relative, sources)
+                self.assertEqual(sources[relative], sdk.snapshot(path).sha256)
+
     def test_candidate_archive_version_does_not_relax_sdk_default(self):
         data = archive(name=package.NAME)
         with self.assertRaisesRegex(ValueError, "root differs"):

@@ -35,24 +35,28 @@ witness profiles. The C account adapter now retains the exact parent and every
 selected peer through one native `send_account_member` invocation. A separate
 three-installation workload covers two distinct recipient devices, complete-set
 refusal, original-message crash/retry, unary replay refusal, reordered targets and
-aggregate cancellation/close behavior. Fresh packages, required-witness account
-delivery, own-account C fanout and foreign-language wrappers retain separate gates.
+aggregate cancellation/close behavior. Swift and Kotlin retain the same parent
+and complete peer set through their typed owners. Required-witness account
+delivery, own-account foreign fanout and final product admission retain separate gates.
 
 The [`C header`](../../bindings/c/ContinuityPackageConsumer/qpc_owner.h) exposes
 pairwise operations, device/peer preparation, complete-account member delivery and restricted original-session
 recovery. Swift and Kotlin now add `ContinuityDevice`, native parent retention,
 typed account targets/status/results and complete-account member calls. Their
 current installed-package and lifecycle evidence must bind the changed source.
-Whole-account abandonment/report traversal is still a
-native-only interface. Actual package execution, witness
-admission, callback lifetime and crash/retry evidence for these operations are
-necessary, but cannot demonstrate APIs that the adapter does not expose.
+Whole-account abandonment/report traversal, exact acknowledgement and retirement
+now reuse the native transaction through all three bindings. Installed cohorts
+exercise complete reports after SDK revocation and original-ID recovery under
+local, signed-TCP and mutual-TLS witness profiles. The
+[qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
+binds each result to its source and carrier. Android/WASM Continuity adapters,
+own-account foreign lifecycle and the broader failure matrix remain required.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
 | Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate` | Controlled enrollment/provisioning owners, independent retained identities, typed setup results and original-operation recovery |
-| Device-scoped protocol service | Native shared service and C device-parent/peer registry retain one journal and archive index under one installation lease; C account calls pin the complete peer set | Language-level parent/child owners and current installed-package lifetime qualification |
-| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes | Complete-roster input admission and typed aggregate results through installed C/Swift/Kotlin/Android/WASM packages |
+| Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
+| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission and cleanup | Required-witness delivery, own-account foreign lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
@@ -86,7 +90,8 @@ contexts, refuse an omitted recipient without partial mutation, execute the
 existing complete-roster transaction and replay its exact ciphertext after
 original-installation restart. This is the native existing-session prerequisite;
 the separate native fresh-admission entry is described next. C parent/child
-handles now reuse both entries; language-level owners remain unimplemented.
+handles and Swift/Kotlin parent/child owners now reuse both entries. Android/WASM
+integration remains unimplemented.
 
 `DeviceService::admit_peer` now admits a freshly and independently verified peer
 context against the same active installation. It rechecks current advertisements,
@@ -97,8 +102,8 @@ roster with its operation reservation. `BootstrapPeer` owns public context and
 role, without a session or durable grant. Both roles, later revocation, full roster
 capacity, unchanged stores and policy/runtime closure during authenticated witness
 queries are tested on current and minimum Rust. This supplies the native fresh
-boundary. C registration now delegates to it; enrollment and language-level
-parent/child lifetimes remain separate obligations.
+boundary. C registration and Swift/Kotlin owners now delegate to it; enrollment
+and the remaining platform lifetimes retain separate obligations.
 
 ## Required owner and input separation
 

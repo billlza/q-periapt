@@ -20,7 +20,7 @@ pub(crate) struct Capture {
     pub(crate) delivered: bool,
 }
 pub(crate) struct Witness {
-    _directory: tempfile::TempDir,
+    pub(crate) _directory: tempfile::TempDir,
     pub(crate) configured: fixture::WitnessFixture,
     stop: Arc<AtomicBool>,
     pub(crate) fault: Arc<AtomicU8>,

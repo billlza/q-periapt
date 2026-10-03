@@ -77,6 +77,63 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The new encrypted unknown-outcome workload covers reservation, freeze,
+acknowledgement and retirement through actual C/Swift/Kotlin owners. A test-only
+relay withholds ciphertext after the unchanged native witness has committed and
+produced its TLS reply. Each foreign process reconciles through the original TLS
+authority before native report readback. Current Debug/Release and minimum-Rust
+Release libraries pass all nine configurations: **178/184/183** exchanges,
+**36** native advances, four retained loss positions and **72/72/73** public files
+for C/Swift/Kotlin. The reports preserve two reservations, two older unknown sends,
+five unconsumed deliveries, two skipped positions and the original batch/report IDs.
+
+Both controls fail as required: disabling the armed loss returns an unexpected
+available result; losing a read-only query stops admission before the intended
+commit. The relay has bounded wire/image memory and one deadline, joins its workers,
+zeroizes private database snapshots and exports only public receipts. It does not
+decrypt TLS or export a plaintext command/challenge transcript. Native endpoints
+enforce original-command reconciliation; public replay checks the exact workload
+census, command outcomes and loss accounting. The same helper still passes all
+three original signed-TCP traces and encrypted baseline traces (67/67/68 files).
+Strict current Clippy and minimum Rust 1.90 all-target checks pass without warnings.
+The Rust source census is now **271**. The Debug helper drives every configuration;
+these are correctness observations, not a compiler-performance comparison.
+
+Retained initial failures exposed a redundant socket shutdown after a peer had
+already closed, and then an omitted public-certificate export. Dropping the final
+socket after joining the request reader fixes the fixture lifecycle; the shared
+certificate exporter supplies the required evidence. No protocol, ABI, assertion,
+deadline or foreign implementation was relaxed. A separate regression also exposed
+that the package's before/after source inventory omitted both account-TLS Python
+readers. They are now explicitly included, and the new test fails on the previous
+inventory. Historical receipts retain their original selected-input scope.
+
+The complete `91644585` archive-produced Rust/C/Swift/Kotlin cohort finishes in
+**3118.402 seconds**; independent replay checks 265 selected source inputs, archives,
+actual binaries, all account reports, 9 C / 15 Swift / 12 Kotlin owner tests and the
+50-export C candidate. Its sealed evidence has **23,714 files / 582,500,256 bytes**,
+inventory `cb53507c0964742510fa6859ec58635b33871f70ef1462c7a0fcf12be0241849`.
+It includes the encrypted baseline below, but predates the four encrypted losses
+and source-inventory correction above. Its 46-job push CI passes; the PR CI and
+unresolved security findings remain separately tracked. CodeQL workflow success
+does not mean findings have been resolved. Complete current-source archive
+production, hosted CI, current/minimum physical devices, own-account lifecycle,
+required-witness account delivery, broader failure/concurrency coverage and all
+remaining product/recovery-analysis gates remain open. No release is claimed.
+
+The earlier full `b7551db7` cohort completes in **3132.813 seconds** with independent
+source/package/runtime replay. Its seal retains **23,260 files / 581,408,951 bytes**,
+inventory `78e70cf1138d71608bfc79738565c1252562e7a0c605bce8fd1869f6a435bd95`.
+The downloaded Linux x86_64 public artifact also replays both C profiles and their
+original signed-witness account evidence. Hosted executable bytes were not
+uploaded, and that run includes Rust/C only; it is not Linux Swift/Kotlin execution
+or a macOS-to-Linux connection. The separate PR Android 16-KiB minimal-consumer
+attempt installed successfully but lost ADB transport before instrumentation.
+Bounded recovery and cleanup failed; the full-consumer instrumentation had passed.
+The cause remains unproven and the failed run is preserved. Later passing runs do
+not erase this stability counterexample.
+
+At `91644585`,
 The complete-account encrypted path now runs through C, Swift and Kotlin using
 the existing native mutual TLS witness. Three exact certificate/subject bindings
 cover the original installations. Current Debug/Release and minimum-Rust-library

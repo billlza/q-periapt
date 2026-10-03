@@ -77,8 +77,8 @@ The account workload uses three independent installations and two distinct devic
 in one recipient account. It exercises incomplete/duplicate/cancelled/closed/wrong-
 parent refusal, receiver exit after application commit, original message retry,
 unary replay refusal, reordered retained targets and cancellation of an unselected
-member during TLS. Required-witness account transactions, own-account C fanout,
-provisioning and language-level parent/child owners retain their separate gates;
+member during TLS. Required-witness account delivery, own-account foreign fanout,
+provisioning and Android/WASM integration retain their separate gates;
 the native own-account and witness tests cannot substitute for foreign execution.
 
 ## Scope and original configuration
@@ -103,8 +103,8 @@ rejects cross-device credential use before durable handling. Original witness
 signing pins and signatures are still mandatory. Classical TLS certificate
 authentication is not PQ identity authentication. The native TLS installed-package
 path has Debug/Release qualification on Rust 1.98.1 and 1.90 at source `1c1d7c80`.
-Independent service deployment, other language surfaces and product dependency/ABI
-admission remain unfinished for the TLS extension.
+Swift/Kotlin installed owners now reuse the explicit TLS carrier. Independent
+service deployment, Android/WASM and product dependency/ABI admission remain unfinished.
 
 The consumer configuration is the same private fixture layout used by the
 archive's public Rust workload: original installation/journal/archive/SDK policy
@@ -343,7 +343,7 @@ observed calibration is Committed without interruption, Absent at the first two
 pre-sync cuts and Reserved at cut three. This is finite process-interruption
 coverage, not all sync sites or physical power loss. The separate required-witness
 trace below covers lost committed responses through all three foreign adapters.
-Own-account cleanup, encrypted witness account paths, broader fault coverage and
+Own-account cleanup, broader fault coverage and
 final product admission remain separate. Earlier 39-export installed cohorts do
 not qualify this extension; the complete `63b0e824` archive-produced cohort includes
 the 50-export C cleanup path.
@@ -365,8 +365,9 @@ bootstrap receiver. It retains 67 C/Swift or 68 Kotlin files, including Kotlin's
 parent-lifetime receipt. Native endpoints verify signatures; the public transcript
 reader is a metadata/commitment oracle, not a second signature engine. Current
 Debug/Release and minimum-Rust Release engine configurations pass this development
-path. It uses explicit signed TCP, whose metadata is unencrypted; TLS, own-account,
-physical power loss and independent-engine qualifications remain separate.
+path. It uses explicit signed TCP, whose metadata is unencrypted; the separate
+encrypted traces are described below. Own-account, physical power loss and
+independent-engine qualifications remain open.
 
 ## Qualification path
 
@@ -436,7 +437,7 @@ omit credentials and journals. The reference peer is outside the product C ABI
 and does not add OpenSSL to its runtime dependencies.
 
 It first executes the original archive-shipped Rust trace. The C phase then builds
-both Debug/Release libraries and native C executables, checks the exact 31
+both Debug/Release libraries and native C executables, checks the exact 50
 exports and installed sibling-library lookup, and runs the shared archive's Rust
 peer fixture. C controls the actual owner open/close, TLS bootstrap, message IDs,
 delivery and rekey calls. The client trace covers:
@@ -553,3 +554,27 @@ in its separate account-TLS public export. The original signed-TCP four-loss tra
 remains mandatory. No raw owner handle, new native export or alternate TLS engine
 is added. Current/native-minimum development runs remain separate from a complete
 archive-produced cohort and final distribution admission.
+
+The additional `account_tls_loss` workload withholds an encrypted reply after a
+real native witness commit at reservation, freeze, acknowledgement and retirement.
+A bounded socket relay retains ciphertext while the unchanged native TLS server
+admits and handles the request. It observes the owned witness database before
+handling and after successful serving: the native store persists only `Advanced`,
+while queries and exact retries leave it unchanged. Private image copies are
+bounded and zeroized; no TLS traffic secret, journal image or plaintext witness
+transcript is exported. Each connection has one three-second deadline, 256 KiB
+per-direction wire limits and joined worker threads.
+
+Every lost outcome is reconciled by the actual foreign owner over the original
+TLS carrier before native report readback. The separate signed-TCP witness must
+observe no request during each measured foreign action. C/Swift/Kotlin current
+Debug/Release and minimum-Rust Release libraries retain 178/184/183 exchanges,
+36 native advances, four exact loss positions and 72/72/73 public files. The
+public reader checks this census, command outcomes, original report and all loss
+fields. Unlike the signed-TCP trace, it cannot independently inspect encrypted
+command IDs or challenges. Native endpoints retain those checks.
+
+Two isolated one-line controls fail when no loss is armed or a query is dropped
+instead of an advance. Both originals and failures are retained. These finite
+same-host traces do not qualify an independent witness engine, physical power
+loss, all TLS failure sites or a completed required-witness account delivery.
