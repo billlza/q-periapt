@@ -75,9 +75,13 @@ and inputs after failure; the wrapper does not retry, generate replacement IDs
 or fall back to unary sends. The separate
 [required-TLS-witness delivery trace](../../c/ContinuityPackageConsumer/README.md#complete-account-delivery-with-a-required-tls-witness)
 now verifies receiver exit after application commit, original-ID replay and both
-member confirmations through actual Kotlin processes. Provisioning/renewal,
-own-account foreign delivery and broader fault/concurrency coverage retain
-separate qualification requirements.
+member confirmations through actual Kotlin processes in own-account and
+peer-account layouts. The
+[own-account trace](../../c/ContinuityPackageConsumer/README.md#own-account-delivery-and-cleanup)
+also requires complete-recipient refusal and original-roster public readback,
+and reconciles four committed TLS witness reply losses during cleanup.
+Provisioning/renewal and broader fault/concurrency coverage retain separate
+qualification requirements.
 
 The complete-account consumer additionally observes collection of the public
 device before prepared peer activation, races two explicit peer closes, and keeps

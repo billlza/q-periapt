@@ -39,7 +39,7 @@ pub(super) fn encrypted<T>(
 #[test]
 fn account_cleanup_keeps_original_authority_over_mutual_tls() -> Result<()> {
     let mut plain = witness::Witness::start()?;
-    let (setup, second) = fixture::setup_devices(Some(&plain.configured), None, None, true)?;
+    let (setup, second) = fixture::setup_devices(Some(&plain.configured), None, None, true, false)?;
     let second = second.ok_or("second original TLS member")?;
     let root = &setup.initiator;
     let mut tls = witness_tls::TlsWitness::start(

@@ -1479,7 +1479,7 @@ fn installed_owner_restores_expired_advertisement_and_reconciles_original_messag
 #[test]
 fn c_account_owner_requires_all_devices_and_reconciles_original_members() -> Result<()> {
     let language = installed_language()?;
-    let (setup, extra) = fixture::setup_devices(None, None, None, true)?;
+    let (setup, extra) = fixture::setup_devices(None, None, None, true, false)?;
     let right2 = extra.ok_or("second recipient missing")?;
     let left = &setup.initiator;
     let line_id = |text: &str| id(&format!("{text}\n"));

@@ -3,20 +3,24 @@ from pathlib import Path
 import re
 
 import continuity_c_account_tls as tls
-from continuity_c_account_witness import DELIVERY_TEST as TEST
+from continuity_c_account_witness import DELIVERY_TEST as TEST, OWN_DELIVERY_TEST, account_identities
 from evidence_io import parse_strict_json_bytes
 import rust_sdk_profile as sdk
 
 SCOPE = ("installed C complete-account delivery through the original native mutual-TLS witness; "
          "three installations, two recipient devices; application commit then receiver exit, original-ID retry and retained consumption; "
          "same host and shared engine; no own-account, independent witness engine, power-loss or complete fault-matrix qualification")
-PHASES = dict.fromkeys(("bootstrap", "batch", "unknown", "status", "delivery0", "retained0", "delivery1", "retained1"), True)
+PHASES = dict.fromkeys(("bootstrap", "batch", "refusal", "unknown", "status", "delivery0", "retained0", "delivery1", "retained1"), True)
 PAYLOAD = b"persisted before process exit"
 
 
-def scope(language: str) -> str:
+def scope(language: str, *, same_account: bool = False) -> str:
     sdk.require(language in ("C", "Swift", "Kotlin"), "unqualified account delivery language")
-    return SCOPE.replace("installed C ", "installed " + language + " ")
+    sdk.require(type(same_account) is bool, "account delivery layout selection differs")
+    text = SCOPE.replace("installed C ", "installed " + language + " ")
+    if same_account:
+        text = text.replace("complete-account delivery", "own-account delivery").replace("three installations, two recipient devices", "three devices in one original signed roster, two recipients").replace("no own-account,", "no enrollment/renewal,")
+    return text
 
 
 def identifier(data: bytes, length: int = 32) -> bytes:
@@ -45,17 +49,18 @@ def delivered(data: bytes, session: bytes, device: bytes) -> bytes:
 def phase_workload(data: bytes, language: str) -> dict:
     scope(language)
     observed = tls.phases(data, expected_phases=PHASES)
-    counts = dict(zip(PHASES, ({"C": 121, "Swift": 127, "Kotlin": 126}[language], 5, 48, 4, 33, 10, 35, 10), strict=True))
+    counts = dict(zip(PHASES, ({"C": 121, "Swift": 127, "Kotlin": 126}[language], 5, 17, 48, 4, 33, 10, 35, 10), strict=True))
     sdk.require({name: row["after_last_admission"] - row["first_admission"] for name, row in observed.items()} == counts,
                 "account delivery phase workload differs")
     return observed
 
 
-def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
-    selected_scope = scope(language)
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", same_account: bool = False) -> dict:
+    selected_scope = scope(language, same_account=same_account)
+    selected_test = OWN_DELIVERY_TEST if same_account else TEST
     text = stdout.decode()
-    sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+    sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [selected_test]
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
                 "account delivery trace did not execute completely")
     public = {}
     def read(name, maximum=65536):
@@ -70,11 +75,12 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
 
     report = parse_strict_json_bytes(read("initiator/account-delivery-result.json"), label="account delivery result")
     sdk.require(isinstance(report, dict) and set(report) == {"schema_version", "language", "completed", "carrier",
-        "witness_admissions", "batch", "release_claim_eligible"}
-        and type(report["schema_version"]) is int and report["schema_version"] == 1
+        "witness_admissions", "batch", "account_layout", "release_claim_eligible"}
+        and type(report["schema_version"]) is int and report["schema_version"] == 2
+        and report["account_layout"] == ("own" if same_account else "peer")
         and report["language"] == language and report["completed"] is True and report["release_claim_eligible"] is False
         and report["carrier"] == "q-periapt-anchor/1" and type(report["witness_admissions"]) is int
-        and report["witness_admissions"] == {"C": 266, "Swift": 272, "Kotlin": 271}[language],
+        and report["witness_admissions"] == {"C": 283, "Swift": 289, "Kotlin": 288}[language],
         "account delivery scope or census differs")
     sdk.require(type(report["batch"]) is str, "account delivery batch type differs")
     batch = identifier(report["batch"].encode())
@@ -82,18 +88,19 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(phases["retained1"]["after_last_admission"] == report["witness_admissions"],
                 "account delivery phase census differs")
     roots = ["initiator", "responder", "responder-2"]
-    accounts = [read(p + "/local-account", 32) for p in roots]
-    devices = [read(p + "/local-device", 16) for p in roots]
-    sdk.require(all(len(a) == 32 and a != bytes(32) for a in accounts) and accounts[0] != accounts[1] == accounts[2],
-                "account delivery recipient accounts differ")
-    sdk.require(len(set(devices)) == 3 and all(len(d) == 16 and d != bytes(16) for d in devices),
-                "account delivery device identities differ")
+    identities = account_identities(lambda name, maximum: read("initiator/" + name, maximum), same_account=same_account)
+    devices = [bytes.fromhex(value) for value in identities["devices"]]
     connected = command("initiator/cleanup-connect")
     lines = connected.splitlines()
     sdk.require(len(lines) == 2 and connected == b"\n".join(lines) + b"\n", "account delivery bootstrap framing differs")
     sessions = [identifier(line) for line in lines]
     sdk.require(sessions[0] != sessions[1], "account delivery sessions were aliased")
     command("initiator/cleanup-delivery-next", batch.hex().encode() + b"\n")
+    command("initiator/cleanup-delivery-omit", b"account-refused:106\n")
+    command("initiator/cleanup-delivery-absent", b"account-status:0\n" + b"0" * 64 + b"\n")
+    command("initiator/cleanup-delivery-still-next", batch.hex().encode() + b"\n")
+    sdk.require(read("initiator/account-delivery-refusal-network", 32) == b"not-connected\n",
+                "incomplete account reached the application listener")
     command("initiator/cleanup-delivery-unknown", b"account-refused:311\n")
     command("initiator/cleanup-delivery-unknown-status", b"account-status:2\n" + b"0" * 64 + b"\n")
     sdk.require(listening(command("responder/cleanup-delivery-crash")) == []
@@ -127,10 +134,14 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     subjects = [read(f"initiator/account-tls-subject-{i}", 96) for i in range(3)]
     sdk.require(len(set(certificates)) == 4 and all(certificates) and len(set(subjects)) == 3 and all(len(s) == 96 for s in subjects),
                 "account delivery TLS authority census differs")
-    result = dict(report, scope=selected_scope, phases=phases, original_message=original.hex(), application_readbacks=application)
+    result = dict(report, scope=selected_scope, phases=phases, identities=identities, original_message=original.hex(), application_readbacks=application)
     if language == "Kotlin":
         from continuity_kotlin_consumer import account_parent_lifetime
         result["parent_lifetime"] = account_parent_lifetime(read("initiator/kotlin-account-parent-lifetime", 256))
     result["public_readbacks"] = {name: value for name, value in public.items() if not name.endswith((".stdout", ".stderr"))}
     result["command_logs"] = {name: value for name, value in public.items() if name.endswith((".stdout", ".stderr"))}
     return result
+
+
+def verify_own_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    return verify_execution(stdout, directory, language=language, same_account=True)

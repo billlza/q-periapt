@@ -48,10 +48,26 @@ fn phase(
 
 #[test]
 fn account_cleanup_reconciles_four_committed_tls_reply_losses() -> Result<()> {
+    execute(false)
+}
+
+#[test]
+fn own_account_cleanup_reconciles_four_committed_tls_reply_losses() -> Result<()> {
+    execute(true)
+}
+
+fn execute(same_account: bool) -> Result<()> {
     let mut original = witness::Witness::start()?;
-    let (setup, second) = fixture::setup_devices(Some(&original.configured), None, None, true)?;
+    let (setup, second) =
+        fixture::setup_devices(Some(&original.configured), None, None, true, same_account)?;
     let second = second.ok_or("second TLS account member")?;
     let root = &setup.initiator;
+    let account = fixture::array::<32>(&setup.responder, "local-account")?;
+    assert_eq!(account, fixture::array::<32>(&second, "local-account")?);
+    assert_eq!(
+        account == fixture::array::<32>(root, "local-account")?,
+        same_account
+    );
     let mut tls = FaultWitness::start(
         Arc::clone(&original.configured.store),
         [root.as_path(), setup.responder.as_path(), second.as_path()],
@@ -257,7 +273,9 @@ fn account_cleanup_reconciles_four_committed_tls_reply_losses() -> Result<()> {
     fixture::store(root, "account-tls-loss-exchanges", ledger.as_bytes())?;
     fixture::store(root, "account-tls-loss-stages", stages.as_bytes())?;
     retain_tls_authorities(&setup, &second)?;
-    let result=format!("{{\"schema_version\":1,\"language\":\"{}\",\"completed\":true,\"batch\":\"{batch}\",\"report\":\"{report}\",\"carrier\":\"q-periapt-anchor/1\",\"lost_advances\":4,\"witness_exchanges\":{},\"release_claim_eligible\":false}}\n",language()?,records.len());
+    retain_account_identities(&setup, &second)?;
+    let layout = if same_account { "own" } else { "peer" };
+    let result=format!("{{\"schema_version\":2,\"language\":\"{}\",\"account_layout\":\"{layout}\",\"completed\":true,\"batch\":\"{batch}\",\"report\":\"{report}\",\"carrier\":\"q-periapt-anchor/1\",\"lost_advances\":4,\"witness_exchanges\":{},\"release_claim_eligible\":false}}\n",language()?,records.len());
     fixture::store(root, "account-tls-loss-result.json", result.as_bytes())?;
     Ok(())
 }

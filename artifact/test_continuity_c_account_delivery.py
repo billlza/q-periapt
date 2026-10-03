@@ -32,35 +32,35 @@ class AccountDeliveryTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 delivery.identifier(value)
 
-    def test_all_eight_foreign_phases_require_only_encrypted_admissions(self):
+    def test_all_nine_foreign_phases_require_only_encrypted_admissions(self):
         # This is parser-only metadata, not an executed witness transcript.
         data = ''.join(f'{name} {index} {index + 1} 0\n' for index, name in enumerate(delivery.PHASES)).encode()
-        self.assertEqual(len(delivery.tls.phases(data, expected_phases=delivery.PHASES)), 8)
+        self.assertEqual(len(delivery.tls.phases(data, expected_phases=delivery.PHASES)), 9)
         for value in (data[:-1], data.replace(b'batch 1 2 0', b'batch 1 2 1'), data.replace(b'batch 1 2 0', b'batch 1 1 0'),
                       data.replace(b'batch 1 2 0', b'batch 2 3 0'), data.split(b'\n', 1)[1]):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 delivery.tls.phases(value, expected_phases=delivery.PHASES)
 
     def test_wrong_target_missing_or_ignored_execution_is_rejected(self):
-        stdout = (f'test {delivery.TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n').encode()
+        stdout = (f'test {delivery.TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
         with tempfile.TemporaryDirectory() as folder:
-            for value in (b'', stdout + stdout, stdout.replace(b'6 filtered', b'5 filtered'), stdout.replace(b'0 ignored', b'1 ignored'),
+            for value in (b'', stdout + stdout, stdout.replace(b'8 filtered', b'5 filtered'), stdout.replace(b'0 ignored', b'1 ignored'),
                           stdout.replace(delivery.TEST.encode(), witness.TEST.encode())):
                 with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'completely'):
                     delivery.verify_execution(value, Path(folder))
 
     def test_same_total_cannot_hide_work_moved_across_original_phases(self):
-        # Synthetic metadata only. Keep 266 total while moving one admission
+        # Synthetic metadata only. Keep 283 total while moving one admission
         # from bootstrap to batch: the generic monotonic parser still accepts it.
-        data = (b'bootstrap 0 120 0\nbatch 120 126 0\nunknown 126 174 0\nstatus 174 178 0\n'
-                b'delivery0 178 211 0\nretained0 211 221 0\ndelivery1 221 256 0\nretained1 256 266 0\n')
-        self.assertEqual(delivery.tls.phases(data, expected_phases=delivery.PHASES)['retained1']['after_last_admission'], 266)
+        data = (b'bootstrap 0 120 0\nbatch 120 126 0\nrefusal 126 143 0\nunknown 143 191 0\nstatus 191 195 0\n'
+                b'delivery0 195 228 0\nretained0 228 238 0\ndelivery1 238 273 0\nretained1 273 283 0\n')
+        self.assertEqual(delivery.tls.phases(data, expected_phases=delivery.PHASES)['retained1']['after_last_admission'], 283)
         with self.assertRaisesRegex(ValueError, 'phase workload differs'):
             delivery.phase_workload(data, 'C')
 
     def test_carrier_language_census_and_completion_cannot_be_relabelled(self):
-        stdout = (f'test {delivery.TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n').encode()
-        base = dict(schema_version=1, language='C', completed=True, carrier='q-periapt-anchor/1', witness_admissions=266,
+        stdout = (f'test {delivery.TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
+        base = dict(schema_version=2, account_layout='peer', language='C', completed=True, carrier='q-periapt-anchor/1', witness_admissions=283,
                     batch='11' * 32, release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); (root/'initiator').mkdir()
@@ -70,3 +70,14 @@ class AccountDeliveryTests(unittest.TestCase):
                 (root/'initiator/account-delivery-result.json').write_text(json.dumps(row))
                 with self.subTest(row=row, language=language), self.assertRaisesRegex(ValueError, 'scope or census'):
                     delivery.verify_execution(stdout, root, language=language)
+
+    def test_own_account_requires_its_own_executed_target_and_report_scope(self):
+        stdout = (f'test {delivery.OWN_DELIVERY_TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
+        peer = dict(schema_version=2, account_layout='peer', language='C', completed=True, carrier='q-periapt-anchor/1',
+                    witness_admissions=283, batch='11' * 32, release_claim_eligible=False)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); (root/'initiator').mkdir(); (root/'initiator/account-delivery-result.json').write_text(json.dumps(peer))
+            with self.assertRaisesRegex(ValueError, 'scope or census'):
+                delivery.verify_own_execution(stdout, root)
+            with self.assertRaisesRegex(ValueError, 'completely'):
+                delivery.verify_execution(stdout, root)

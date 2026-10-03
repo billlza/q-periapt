@@ -39,8 +39,11 @@ aggregate cancellation/close behavior. Swift and Kotlin retain the same parent
 and complete peer set through their typed owners. A separate native mutual-TLS
 witness workload now completes both member deliveries after the first receiver
 exits following application persistence, preserving the original batch/message
-and idempotent readback. Broader delivery faults, own-account foreign fanout and
-final product admission retain separate gates.
+and idempotent readback. The same foreign endpoints now execute this trace and
+four committed-witness-reply losses with three distinct devices in one original
+signed roster. Both own-account and peer-account delivery refuse an incomplete
+recipient set before reservation or application-network access. Broader delivery
+faults, authority lifecycle and final product admission retain separate gates.
 
 The [`C header`](../../bindings/c/ContinuityPackageConsumer/qpc_owner.h) exposes
 pairwise operations, device/peer preparation, complete-account member delivery and restricted original-session
@@ -53,13 +56,14 @@ exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
 binds each result to its source and carrier. Android/WASM Continuity adapters,
-own-account foreign lifecycle and the broader failure matrix remain required.
+enrollment/renewal and the broader failure matrix remain required. These finite
+own-account traces do not qualify the complete multi-device lifecycle.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
 | Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate` | Controlled enrollment/provisioning owners, independent retained identities, typed setup results and original-operation recovery |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
-| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness member delivery and cleanup | Broader delivery faults/concurrency, own-account foreign lifecycle and Android/WASM integration |
+| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks and original installation/policy/witness bindings | Product enrollment, credential/policy/witness renewal, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 

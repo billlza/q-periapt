@@ -11,6 +11,8 @@ TEST = "account_cleanup_requires_original_witness_and_reconciles_lost_advances"
 TLS_TEST = "tls::account_cleanup_keeps_original_authority_over_mutual_tls"
 TLS_LOSS_TEST = "tls_loss::account_cleanup_reconciles_four_committed_tls_reply_losses"
 DELIVERY_TEST = "delivery::account_delivery_reconciles_original_members_with_tls_witness"
+OWN_DELIVERY_TEST = "delivery::own_account_delivery_reconciles_original_members_with_tls_witness"
+OWN_TLS_LOSS_TEST = "tls_loss::own_account_cleanup_reconciles_four_committed_tls_reply_losses"
 SCOPE = ("installed C required-witness complete-account cleanup after SDK revocation; "
          "three original installations over native signed TCP; four lost committed witness responses; "
          "same host and shared engine; no TLS, own-account, power-loss or independent-engine qualification")
@@ -25,10 +27,48 @@ def scope(language: str) -> str:
 def helper_inventory(data: bytes) -> None:
     from continuity_package import TESTS
     names = re.findall(r"^([a-z_:]+): test$", data.decode(), re.MULTILINE)
-    expected = {TEST, TLS_TEST, TLS_LOSS_TEST, DELIVERY_TEST} | {"fixture::" + name for name in TESTS}
+    expected = {TEST, TLS_TEST, TLS_LOSS_TEST, DELIVERY_TEST, OWN_DELIVERY_TEST, OWN_TLS_LOSS_TEST} | {"fixture::" + name for name in TESTS}
     sdk.require(len(names) == len(expected) and set(names) == expected
-                and re.search(r"^7 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
+                and re.search(r"^9 tests, 0 benchmarks$", data.decode(), re.MULTILINE),
                 "account witness helper inventory differs")
+
+
+def account_identities(read, *, same_account: bool) -> dict:
+    """Read public pins and canonical roster commitments; native endpoints verify signatures."""
+    sdk.require(type(same_account) is bool, "account layout selection differs")
+    accounts, devices, rosters, bodies, digests = [], [], [], [], []
+    for index in range(3):
+        prefix = f"account-identity-{index}-"
+        account, device, root = read(prefix + "account", 32), read(prefix + "device", 16), read(prefix + "root", 1985)
+        version, digest = read(prefix + "roster-version", 8), read(prefix + "roster-digest", 32)
+        roster = read(prefix + "roster", 8192)
+        sdk.require(len(account) == 32 and len(device) == 16 and any(device)
+                    and len(root) == 1985 and root[1952] in (2, 3)
+                    and account == witness.commit(b"Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1", root),
+                    "account root commitment or device identity differs")
+        length = int.from_bytes(roster[:4], "big")
+        sdk.require(len(roster) == 4 + length + 3373 and 66 <= length <= 66 + 32 * 56,
+                    "account roster envelope differs")
+        body = roster[4:4 + length]
+        sdk.require(body[:8] == b"QPROST01" and body[8:40] == account and version == (1).to_bytes(8, "big")
+                    and body[40:48] == version and int.from_bytes(body[48:56], "big") < int.from_bytes(body[56:64], "big")
+                    and len(digest) == 32 and digest == witness.commit(b"Q-PERIAPT-CONTINUITY-ROSTER-CANDIDATE/v1", body),
+                    "account roster pin or canonical body differs")
+        accounts.append(account); devices.append(device); rosters.append(roster); bodies.append(body); digests.append(digest)
+    sdk.require(len(set(devices)) == 3 and accounts[1] == accounts[2]
+                and (accounts[0] == accounts[1]) == same_account
+                and rosters[1] == rosters[2] and (not same_account or rosters[0] == rosters[1]),
+                "account layout or original roster identity differs")
+    for index, body in enumerate(bodies):
+        expected = sorted(devices if same_account else (devices[:1] if index == 0 else devices[1:]))
+        count = int.from_bytes(body[64:66], "big")
+        sdk.require(count == len(expected) and len(body) == 66 + count * 56, "account roster member census differs")
+        rows = [body[offset:offset + 56] for offset in range(66, len(body), 56)]
+        sdk.require([row[:16] for row in rows] == expected and len({row[24:] for row in rows}) == count
+                    and all(row[16:24] == (1).to_bytes(8, "big") and any(row[24:]) for row in rows),
+                    "account roster omitted, aliased or replaced an original device")
+    return dict(accounts=[v.hex() for v in accounts], devices=[v.hex() for v in devices],
+                roster_digests=[v.hex() for v in digests], account_count=len(set(accounts)))
 
 
 def stages(data: bytes, transcript: bytes) -> dict:
@@ -58,7 +98,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     selected_scope = scope(language)
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;",
                               text, re.MULTILINE), "account witness trace did not execute completely")
     public = {}
     def read(name, maximum=1048576):
@@ -121,7 +161,7 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
             scenario: str = "signed-tcp") -> dict:
     from continuity_c_faults import jvm_command
     sdk.require((language == "Kotlin") == (jvm_runtime is not None), "account witness JVM closure differs")
-    sdk.require(scenario in {"signed-tcp", "mutual-tls", "mutual-tls-loss", "mutual-tls-delivery"}, "unknown account witness scenario")
+    sdk.require(scenario in {"signed-tcp", "mutual-tls", "mutual-tls-loss", "mutual-tls-delivery", "own-tls-loss", "own-tls-delivery"}, "unknown account witness scenario")
     if scenario == "mutual-tls":
         import continuity_c_account_tls as tls
         selected_scope, selected_test, verify, suffix = tls.scope(language), TLS_TEST, tls.verify_execution, "account-tls"
@@ -131,6 +171,12 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
     elif scenario == "mutual-tls-delivery":
         import continuity_c_account_delivery as delivery
         selected_scope, selected_test, verify, suffix = delivery.scope(language), DELIVERY_TEST, delivery.verify_execution, "account-delivery"
+    elif scenario == "own-tls-loss":
+        import continuity_c_account_tls_loss as tls_loss
+        selected_scope, selected_test, verify, suffix = tls_loss.scope(language, same_account=True), OWN_TLS_LOSS_TEST, tls_loss.verify_own_execution, "own-account-tls-loss"
+    elif scenario == "own-tls-delivery":
+        import continuity_c_account_delivery as delivery
+        selected_scope, selected_test, verify, suffix = delivery.scope(language, same_account=True), OWN_DELIVERY_TEST, delivery.verify_own_execution, "own-account-delivery"
     else:
         selected_scope, selected_test, verify, suffix = scope(language), TEST, verify_execution, "account-witness"
     if jvm_runtime is not None:
@@ -152,7 +198,7 @@ def qualify(outside: Path, output: Path, profile: str, environment: dict, client
         helper_inventory(sdk.command([str(helper), "--list"], output / (prefix + "inventory-" + profile), outside, environment=runtime))
         stdout = sdk.command([str(helper), "--exact", selected_test, "--nocapture"], output / (prefix + "trace-" + profile), outside, environment=runtime)
         selected = evidence.with_name(evidence.name + "-account")
-        if scenario != "mutual-tls-delivery":
+        if scenario not in {"mutual-tls-delivery", "own-tls-delivery"}:
             selected = selected / "initiator"
         checked = verify(stdout, selected, language=language)
         public = witness.export_selected(checked, selected, output / (prefix + "public") / profile, selected_scope,

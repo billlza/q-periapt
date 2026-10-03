@@ -78,9 +78,9 @@ in one recipient account. It exercises incomplete/duplicate/cancelled/closed/wro
 parent refusal, receiver exit after application commit, original message retry,
 unary replay refusal, reordered retained targets and cancellation of an unselected
 member during TLS. The separate required-TLS-witness delivery trace below now
-covers original-message recovery and both recipients. Broader delivery faults,
-own-account foreign fanout, provisioning and Android/WASM retain separate gates;
-the native own-account and witness tests cannot substitute for foreign execution.
+covers original-message recovery and both recipients in separate own-account and
+peer-account layouts. Broader delivery faults, provisioning, authority lifecycle
+and Android/WASM retain separate gates.
 
 ## Scope and original configuration
 
@@ -570,7 +570,7 @@ Every lost outcome is reconciled by the actual foreign owner over the original
 TLS carrier before native report readback. The separate signed-TCP witness must
 observe no request during each measured foreign action. C/Swift/Kotlin current
 Debug/Release and minimum-Rust Release libraries retain 178/184/183 exchanges,
-36 native advances, four exact loss positions and 72/72/73 public files. The
+36 native advances, four exact loss positions and 90/90/91 public files. The
 public reader checks this census, command outcomes, original report and all loss
 fields. Unlike the signed-TCP trace, it cannot independently inspect encrypted
 command IDs or challenges. Native endpoints retain those checks.
@@ -597,9 +597,12 @@ Application persistence is distinct from native consumption: this recovery retur
 previously consumed message skips the callback with `duplicate=true`. The collector
 requires the actual receiver exit code, the application snapshot taken before
 restart, original IDs, exact post-restart bytes and both consumption receipts.
-Eight phase ranges and their exact admission counts are checked. Current
-Debug/Release and minimum-Rust Release libraries pass 266 C / 272 Swift / 271 Kotlin
-admissions, retaining 50/50/51 public files per configuration.
+Before reservation, an omitted-recipient attempt must return refusal, leave the
+batch absent and preserve the next operation ID. An owned nonblocking listener
+must observe no application connection. All nine phase ranges and their exact
+admission counts are checked. Current Debug/Release and minimum-Rust Release
+libraries pass 283 C / 289 Swift / 288 Kotlin admissions, retaining 69/69/70 public
+files per configuration.
 
 An isolated wrong-exit control fails on the actual 77 exit. A second control asks
 for a new batch instead of retrying the retained one; it creates another application
@@ -610,6 +613,29 @@ failure; the failed driver and both runtime attempts are retained.
 
 The workload shares the existing native TLS server, bounded process lifecycle and
 foreign owners. It adds no wire format, native export or alternate state engine.
-This is finite peer-account delivery qualification, with same-host endpoints. It
-does not qualify own-account lifecycle, the complete fault/concurrency matrix,
-independent witness deployment or final archive/platform/product admission.
+This is finite delivery qualification with same-host endpoints. It does not
+qualify the complete fault/concurrency matrix, independent witness deployment
+or final archive/platform/product admission.
+
+## Own-account delivery and cleanup
+
+The additional mandatory `own_account_delivery` and `own_account_tls_loss` traces
+reuse the same foreign owners and workloads with three distinct devices under one
+authentic account root and signed roster. The initiator is a roster member but is
+excluded from its two-device recipient set. The peer-account traces remain
+mandatory and retain separate account roots. Both layouts complete original-ID
+delivery and reconcile four committed TLS witness reply losses through revocation,
+complete-report acknowledgement and retirement. All 36 combinations of two
+layouts, two workloads, three languages and three library configurations pass in
+development; fresh current archive qualification remains separate.
+
+Public records retain all three original account/device/root/roster pins. The
+reader checks root-derived account IDs, canonical roster commitments, exact
+membership and generations, distinct credential digests and coherent account
+layout. Native endpoints verify signatures; public parsing is not another
+cryptographic implementation. Evidence schema 2 explicitly names the layout and
+the collector selects its expected scope independently. Two controls execute the
+peer layout successfully under the own-account test name: collection refuses the
+scope, and changing only the public label still fails original-root/roster checks.
+This does not qualify enrollment, credential renewal, device replacement or a
+complete multi-device lifecycle.

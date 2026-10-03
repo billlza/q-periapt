@@ -6,8 +6,18 @@ use tls::encrypted;
 
 #[test]
 fn account_delivery_reconciles_original_members_with_tls_witness() -> Result<()> {
+    execute(false)
+}
+
+#[test]
+fn own_account_delivery_reconciles_original_members_with_tls_witness() -> Result<()> {
+    execute(true)
+}
+
+fn execute(same_account: bool) -> Result<()> {
     let mut plain = witness::Witness::start()?;
-    let (setup, second) = fixture::setup_devices(Some(&plain.configured), None, None, true)?;
+    let (setup, second) =
+        fixture::setup_devices(Some(&plain.configured), None, None, true, same_account)?;
     let second = second.ok_or("second account recipient")?;
     let root = &setup.initiator;
     let mut tls = witness_tls::TlsWitness::start(
@@ -21,7 +31,10 @@ fn account_delivery_reconciles_original_members_with_tls_witness() -> Result<()>
     })?;
     let account = fixture::array::<32>(&setup.responder, "local-account")?;
     assert_eq!(account, fixture::array::<32>(&second, "local-account")?);
-    assert_ne!(account, fixture::array::<32>(root, "local-account")?);
+    assert_eq!(
+        account == fixture::array::<32>(root, "local-account")?,
+        same_account
+    );
     let batch = encrypted(&plain, &tls, &mut phases, "batch", true, || {
         run(root, "delivery-next", "account-next", &[], Some(endpoint))
     })?;
@@ -40,6 +53,48 @@ fn account_delivery_reconciles_original_members_with_tls_witness() -> Result<()>
             mode.into(),
         ])
     };
+    let refused_listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+    refused_listener.set_nonblocking(true)?;
+    encrypted(&plain, &tls, &mut phases, "refusal", true, || {
+        assert_eq!(
+            run(
+                root,
+                "delivery-omit",
+                "account-send",
+                &send(0, refused_listener.local_addr()?, "omit")?,
+                Some(endpoint)
+            )?,
+            "account-refused:106\n"
+        );
+        assert_eq!(
+            run(
+                root,
+                "delivery-absent",
+                "account-status",
+                &[batch.into()],
+                Some(endpoint)
+            )?,
+            format!("account-status:0\n{}\n", "0".repeat(64))
+        );
+        assert_eq!(
+            run(
+                root,
+                "delivery-still-next",
+                "account-next",
+                &[],
+                Some(endpoint)
+            )?,
+            format!("{batch}\n")
+        );
+        match refused_listener.accept() {
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(error) => return Err(error.into()),
+            Ok(_) => return Err("incomplete account reached the application listener".into()),
+        }
+        fixture::store(root, "account-delivery-refusal-network", b"not-connected\n")?;
+        Ok(())
+    })?;
+    drop(refused_listener);
     let (output, crashed, exit) = encrypted(&plain, &tls, &mut phases, "unknown", true, || {
         let (receiver, address) =
             server(&setup.responder, "delivery-crash", "crash-after", endpoint)?;
@@ -184,9 +239,11 @@ fn account_delivery_reconciles_original_members_with_tls_witness() -> Result<()>
     assert!(tls.finish()?.is_empty());
     plain.join()?;
     retain_tls_authorities(&setup, &second)?;
+    retain_account_identities(&setup, &second)?;
     fixture::store(root, "account-delivery-phases", phases.as_bytes())?;
     let admissions = tls.admitted.load(Ordering::Acquire);
-    let result = format!("{{\"schema_version\":1,\"language\":\"{}\",\"completed\":true,\"carrier\":\"q-periapt-anchor/1\",\"witness_admissions\":{admissions},\"batch\":\"{batch}\",\"release_claim_eligible\":false}}\n", language()?);
+    let layout = if same_account { "own" } else { "peer" };
+    let result = format!("{{\"schema_version\":2,\"language\":\"{}\",\"account_layout\":\"{layout}\",\"completed\":true,\"carrier\":\"q-periapt-anchor/1\",\"witness_admissions\":{admissions},\"batch\":\"{batch}\",\"release_claim_eligible\":false}}\n", language()?);
     fixture::store(root, "account-delivery-result.json", result.as_bytes())?;
     Ok(())
 }

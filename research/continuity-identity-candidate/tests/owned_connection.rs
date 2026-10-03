@@ -396,15 +396,16 @@ pub(crate) fn setup_with_time(
     advertisement_seconds: Option<u64>,
     at: Option<u64>,
 ) -> Result<Setup> {
-    Ok(setup_devices(witness, advertisement_seconds, at, false)?.0)
+    Ok(setup_devices(witness, advertisement_seconds, at, false, false)?.0)
 }
 
-/// Build the ordinary pair or two independently credentialed account recipients.
+/// Build a pair or three devices, with an explicit shared or separate account root.
 pub(crate) fn setup_devices(
     witness: Option<&WitnessFixture>,
     advertisement_seconds: Option<u64>,
     at: Option<u64>,
     multi: bool,
+    same_account: bool,
 ) -> Result<(Setup, Option<PathBuf>)> {
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
@@ -520,7 +521,10 @@ pub(crate) fn setup_devices(
     let mut devices = Vec::new();
     let mut credentials = Vec::new();
     let mut rosters = Vec::new();
-    for group in [0..1, 1..all_paths.len()] {
+    let first_account_end = if same_account { all_paths.len() } else { 1 };
+    let groups = std::iter::once(0..first_account_end)
+        .chain((!same_account).then_some(first_account_end..all_paths.len()));
+    for group in groups {
         let mut root = p::RootSigningKey::generate()?;
         let mut certificates = Vec::new();
         for ordinal in group.clone() {

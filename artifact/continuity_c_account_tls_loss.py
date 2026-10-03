@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 
 import continuity_c_account_cleanup as cleanup
-from continuity_c_account_witness import TLS_LOSS_TEST as TEST, PHASES
+from continuity_c_account_witness import TLS_LOSS_TEST as TEST, OWN_TLS_LOSS_TEST, PHASES, account_identities
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
@@ -13,9 +13,13 @@ SCOPE = ("installed C original-account reservation/freeze/acknowledgement/retire
          "no independent TLS/witness implementation, power-loss or complete encrypted fault matrix qualification")
 
 
-def scope(language: str) -> str:
+def scope(language: str, *, same_account: bool = False) -> str:
     sdk.require(language in ("C", "Swift", "Kotlin"), "unqualified TLS loss language")
-    return SCOPE.replace("installed C ", "installed " + language + " ")
+    sdk.require(type(same_account) is bool, "TLS loss account layout selection differs")
+    text = SCOPE.replace("installed C ", "installed " + language + " ")
+    if same_account:
+        text = text.replace("original-account", "original own-account").replace("same host and shared engine;", "three devices in one original signed roster; same host and shared engine;")
+    return text
 
 
 def exchanges(data: bytes, stage_bytes: bytes) -> dict:
@@ -59,11 +63,12 @@ def require_workload(observed: dict, language: str) -> None:
                 "TLS loss admitted exchange workload differs")
 
 
-def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
-    selected_scope = scope(language)
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", same_account: bool = False) -> dict:
+    selected_scope = scope(language, same_account=same_account)
+    selected_test = OWN_TLS_LOSS_TEST if same_account else TEST
     text = stdout.decode()
-    sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-        and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+    sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [selected_test]
+        and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
         "TLS loss trace did not execute completely")
     public = {}
     def read(name, maximum=1048576):
@@ -71,12 +76,14 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
         return item.data
     report = parse_strict_json_bytes(read("account-tls-loss-result.json"), label="TLS account loss result")
     sdk.require(isinstance(report, dict) and set(report) == {"schema_version", "language", "completed", "batch", "report",
-        "carrier", "lost_advances", "witness_exchanges", "release_claim_eligible"}
-        and type(report["schema_version"]) is int and report["schema_version"] == 1
+        "carrier", "lost_advances", "witness_exchanges", "account_layout", "release_claim_eligible"}
+        and type(report["schema_version"]) is int and report["schema_version"] == 2
+        and report["account_layout"] == ("own" if same_account else "peer")
         and report["language"] == language and report["completed"] is True and report["release_claim_eligible"] is False
         and report["carrier"] == "q-periapt-anchor/1" and type(report["lost_advances"]) is int and report["lost_advances"] == 4,
         "TLS account loss scope differs")
     accounting = cleanup.loss_report(directory); public.update(accounting["public_readbacks"])
+    identities = account_identities(read, same_account=same_account)
     sdk.require(report["batch"] == accounting["batch"] and report["report"] == accounting["report"],
                 "TLS loss changed original operation or loss report")
     observed = exchanges(read("account-tls-loss-exchanges", 128 * 1024), read("account-tls-loss-stages", 512))
@@ -103,7 +110,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
             and int(lines[0].split(":")[1]) <= 65535
             and lines[1:] == ["served:1:0:0:0", read(f"cleanup-session-{index}", 32).hex(), "0" * 64]
             and read(f"account-server-{index}.stderr") == b"", "TLS loss original bootstrap differs")
-    result = dict(report, scope=selected_scope, observations=observed,
+    result = dict(report, scope=selected_scope, observations=observed, identities=identities,
         loss_accounting={k: v for k, v in accounting.items() if k != "public_readbacks"})
     if language == "Kotlin":
         from continuity_kotlin_consumer import account_parent_lifetime
@@ -111,3 +118,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     result["public_readbacks"] = {name: value for name, value in public.items() if not name.endswith((".stdout", ".stderr"))}
     result["command_logs"] = {name: value for name, value in public.items() if name.endswith((".stdout", ".stderr"))}
     return result
+
+
+def verify_own_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+    return verify_execution(stdout, directory, language=language, same_account=True)

@@ -61,8 +61,11 @@ records the client language and uses independently owned receiver processes;
 the native protocol engine remains shared. A separate
 [required-TLS-witness account delivery trace](../../c/ContinuityPackageConsumer/README.md#complete-account-delivery-with-a-required-tls-witness)
 now verifies original-ID retry after receiver exit, idempotent application readback
-and both member confirmations. Broader delivery faults, own-account fanout, credential lifecycle and
-platform-specific execution remain
+and both member confirmations in own-account and peer-account layouts. The
+[own-account trace](../../c/ContinuityPackageConsumer/README.md#own-account-delivery-and-cleanup)
+also requires complete-recipient refusal and original-roster public readback,
+and reconciles four committed TLS witness reply losses during cleanup. Broader
+delivery faults, credential lifecycle and platform-specific execution remain
 separate qualifications.
 
 `ContinuityOwner.prepareReopen(path:quality:session:witness:)` copies an explicit

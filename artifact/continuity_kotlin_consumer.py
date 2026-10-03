@@ -506,6 +506,10 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 Path(witness_helper["path"]), library_path, scenario="mutual-tls-loss", language="Kotlin", jvm_runtime=jvm_runtime)
             delivered_account = account_witness.qualify(outside, output, profile, runtime, launcher,
                 Path(witness_helper["path"]), library_path, scenario="mutual-tls-delivery", language="Kotlin", jvm_runtime=jvm_runtime)
+            own_delivery = account_witness.qualify(outside, output, profile, runtime, launcher,
+                Path(witness_helper["path"]), library_path, scenario="own-tls-delivery", language="Kotlin", jvm_runtime=jvm_runtime)
+            own_cleanup = account_witness.qualify(outside, output, profile, runtime, launcher,
+                Path(witness_helper["path"]), library_path, scenario="own-tls-loss", language="Kotlin", jvm_runtime=jvm_runtime)
             sdk_jar = installed / "maven" / contract.path / (contract.prefix + ".jar")
             module_path = os.pathsep.join([str(sdk_jar), *(value["installed"] for name, value in sorted(resolved.items()) if name != contract.coordinate)])
             java_args = [str(java), "--illegal-native-access=deny", "--module-path", module_path,
@@ -561,6 +565,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
+                "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,

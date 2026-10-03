@@ -77,6 +77,60 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The current own-account increment executes actual C/Swift/Kotlin owners with three
+distinct devices in one original signed roster, alongside the existing two-account
+layout. Both delivery layouts refuse an omitted recipient before reservation,
+preserve the next operation ID and make no application connection. They then
+recover the original message after receiver application commit/exit and complete
+both members. The cleanup workload reconciles four encrypted witness replies lost
+after native commitment, preserving the complete original loss report through SDK
+revocation, acknowledgement and retirement.
+
+All **36** development combinations pass: own/peer layout, delivery/four-loss
+cleanup, C/Swift/Kotlin and current Debug/Release/minimum-Rust Release libraries.
+Delivery checks nine phases, **283/289/288** TLS admissions and **69/69/70** public
+files; cleanup checks **178/184/183** exchanges, 36 advances, four exact losses and
+**90/90/91** public files. Schema 2 retains original public account roots and signed
+rosters. Independent parsing checks account commitments, canonical roster pins,
+exact membership, generations and credential-digest uniqueness; native endpoints
+verify signatures. Two controls execute the peer layout successfully under an
+own-account test name: the collector refuses the layout, and changing the public
+label still fails original-root/roster checks.
+
+The nine original signed-TCP, mutual-TLS-baseline and local-cleanup regressions
+pass. Three native public-connection tests and independent readback also pass.
+Their first driver failed only when its exclusive final JSON writer tried to
+overwrite the preliminary receipt; that failure is retained, and a separately
+named readback records the successful runtime without relabeling the driver.
+Strict current Clippy and minimum-Rust checking pass without warnings. Product
+library/ABI/wire and foreign implementation are unchanged; the Rust source census
+remains **272**. Fresh archive production, platform/device execution, enrollment,
+authority renewal, broader faults/concurrency and final product/recovery-analysis
+admission remain separate requirements.
+
+The complete `d8d66253` archive-produced Rust/C/Swift/Kotlin cohort finishes in
+**3293.782 seconds**. Independent replay checks 271 selected inputs, archives,
+actual binaries, account reports, 9 C / 15 Swift / 12 Kotlin owner tests and the
+50-export candidate. Its seal has **24,553 files / 584,298,469 bytes**, inventory
+`aea15bf2e6b0fc46db669252f8c50091d1fa3393007e13a1e08993bce6814680`.
+It predates the own-account and complete-recipient additions above. Its push and
+PR CI runs (`37085335094`, `37085338977`) both fail the Android 16-KiB runtime
+step; dependent runtime replay is skipped. Other jobs succeed. No complete CI or
+resolved-security-findings claim follows from the separate CodeQL workflow.
+
+The earlier complete `03cac3a2` cohort finishes in **3242.230 seconds**, with 269
+selected inputs and **24,201 files / 583,594,784 bytes**, inventory
+`6ae714865bde6d7241580f6ae52a1e9c2384311fa00d05e4f6970b950c80a6c5`.
+Both 46-job CI runs pass. Its downloaded native Linux x86_64 Rust/C artifact
+`11259510377` matches SHA-256
+`ab2f45299935f2933c20e0d84263f230976e9be07c28d1c08826842553f8c5ce`.
+Frozen-source public replay passes both C profiles, including four encrypted
+losses. The separate Linux seal has **7,697 files / 43,530,073 bytes**, inventory
+`1ffaee1b374234729c242f4f709b13247a52fc198256da384d41ca0de46fa803`.
+Hosted executables/private stores were not uploaded; this is public-artifact
+replay, not a local binary rerun, Linux Swift/Kotlin or macOS-to-Linux connection.
+
+At `d8d66253`,
 Complete peer-account delivery now runs through all three foreign owners with the
 original required mutual-TLS witness. The first receiver persists application
 bytes then exits 77 before native consumption. Original batch/message retry

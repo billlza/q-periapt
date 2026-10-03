@@ -158,6 +158,29 @@ fn retain_tls_authorities(setup: &fixture::Setup, second: &Path) -> Result<()> {
     Ok(())
 }
 
+fn retain_account_identities(setup: &fixture::Setup, second: &Path) -> Result<()> {
+    for (index, path) in [setup.initiator.as_path(), setup.responder.as_path(), second]
+        .into_iter()
+        .enumerate()
+    {
+        for (name, maximum) in [
+            ("account", 32),
+            ("device", 16),
+            ("root", p::PUBLIC_KEY_BYTES),
+            ("roster-version", 8),
+            ("roster-digest", 32),
+            ("roster", 8192),
+        ] {
+            fixture::store(
+                &setup.initiator,
+                &format!("account-identity-{index}-{name}"),
+                &fixture::read(path, &format!("local-{name}"), maximum)?,
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn connect(setup: &fixture::Setup, second: &Path, endpoint: Carrier) -> Result<Vec<[u8; 32]>> {
     let root = &setup.initiator;
     let (server0, address0) = server(&setup.responder, "account-server", "bootstrap", endpoint)?;
@@ -212,7 +235,8 @@ fn connect(setup: &fixture::Setup, second: &Path, endpoint: Carrier) -> Result<V
 fn account_cleanup_requires_original_witness_and_reconciles_lost_advances() -> Result<()> {
     let mut witness = witness::Witness::start()?;
     let endpoint = Carrier::Signed(witness.configured.address);
-    let (setup, second) = fixture::setup_devices(Some(&witness.configured), None, None, true)?;
+    let (setup, second) =
+        fixture::setup_devices(Some(&witness.configured), None, None, true, false)?;
     let second = second.ok_or("second original member")?;
     let root = &setup.initiator;
     let sessions = connect(&setup, &second, endpoint)?;

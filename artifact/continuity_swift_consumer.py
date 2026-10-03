@@ -244,6 +244,10 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 Path(witness_helper["path"]), native_dir / LIBRARY, scenario="mutual-tls-loss", language="Swift")
             delivered_account = account_witness.qualify(outside, output, profile, runtime, binary,
                 Path(witness_helper["path"]), native_dir / LIBRARY, scenario="mutual-tls-delivery", language="Swift")
+            own_delivery = account_witness.qualify(outside, output, profile, runtime, binary,
+                Path(witness_helper["path"]), native_dir / LIBRARY, scenario="own-tls-delivery", language="Swift")
+            own_cleanup = account_witness.qualify(outside, output, profile, runtime, binary,
+                Path(witness_helper["path"]), native_dir / LIBRARY, scenario="own-tls-loss", language="Swift")
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -256,6 +260,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,
+                "own_account_delivery": own_delivery, "own_account_tls_loss": own_cleanup,
                 "server_execution": server_checked, "server_public_files": server_files,
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
                 "witnessed": witnessed, "restoration": {"execution": restored, "public_files": restored_files},

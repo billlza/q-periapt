@@ -17,7 +17,7 @@ fn selected() -> Result<PathBuf> {
 
 #[test]
 fn prepare_account_cleanup_case() -> Result<()> {
-    let (setup, second) = fixture::setup_devices(None, None, None, true)?;
+    let (setup, second) = fixture::setup_devices(None, None, None, true, false)?;
     let second = second.ok_or("second account member")?;
     let root = &setup.initiator;
     let peer_paths = [root.join("peer-0"), root.join("peer-1")];
