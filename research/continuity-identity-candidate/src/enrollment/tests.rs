@@ -950,3 +950,72 @@ fn required_witness_enrollment_uses_original_genesis_and_never_falls_back() {
         );
     }
 }
+
+#[test]
+fn authenticated_enrollment_rejects_wrong_scope_key_and_modified_state_without_reset() {
+    let c = case();
+    let (mut owner, request, id) = accepted(&c);
+    owner.close();
+    let root = c.paths.configuration.parent().expect("root");
+    let mut wrong = c.intent.clone();
+    wrong.description.id = [8; 16];
+    assert!(matches!(
+        DeviceEnrollment::open(c.paths.clone(), wrong),
+        Err(DurableError::Conflict)
+    ));
+    let shifted = EnrollmentPaths::new(
+        &c.paths.wrapping,
+        &c.paths.signer,
+        &c.paths.configuration,
+        InstallationPaths::new(
+            &root.join("other-installation.redb"),
+            &root.join("journal.redb"),
+            &root.join("archives.redb"),
+        )
+        .expect("other paths"),
+    )
+    .expect("paths");
+    assert!(matches!(
+        DeviceEnrollment::open(shifted, c.intent.clone()),
+        Err(DurableError::Conflict)
+    ));
+    assert!(!root.join("other-installation.redb").exists());
+    let other = root.join("other-wrap.key");
+    drop(JournalKey::provision(&other).expect("unrelated key"));
+    let wrong_key = EnrollmentPaths::new(
+        &other,
+        &c.paths.signer,
+        &c.paths.configuration,
+        c.paths.installation.clone(),
+    )
+    .expect("other wrapping path");
+    assert!(matches!(
+        DeviceEnrollment::open(wrong_key, c.intent.clone()),
+        Err(DurableError::Authentication)
+    ));
+    let db = open_private_database(&c.paths.configuration).expect("original test state");
+    let original = {
+        let tx = db.begin_read().expect("read");
+        let table = tx.open_table(TABLE).expect("table");
+        let row = table.get("enrollment").expect("read").expect("row");
+        row.value().to_vec()
+    };
+    let mut corrupt = original.clone();
+    *corrupt.last_mut().expect("MAC") ^= 1;
+    write(&db, &corrupt).expect("inject persisted MAC corruption");
+    drop(db);
+    assert!(matches!(
+        DeviceEnrollment::open(c.paths.clone(), c.intent.clone()),
+        Err(DurableError::Authentication)
+    ));
+    assert!(DeviceEnrollment::provision(c.paths.clone(), c.intent.clone()).is_err());
+    let db = open_private_database(&c.paths.configuration).expect("test repair only");
+    write(&db, &original).expect("restore exact original test bytes");
+    drop(db);
+    let mut recovered = open(&c);
+    assert_eq!(
+        recovered.status().expect("same accepted state"),
+        EnrollmentStatus::Accepted(id)
+    );
+    assert_eq!(recovered.request(150).expect("same request"), request);
+}
