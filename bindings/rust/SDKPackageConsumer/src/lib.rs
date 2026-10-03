@@ -6,7 +6,7 @@ mod tests {
     use q_periapt_host_store::{PolicyStore, StoreError};
     use q_periapt_rustls::connection::{self, Connection, Credentials, Endpoint, Phase};
     use q_periapt_sdk::{expert, Error, KeyPurpose, Limits, Runtime};
-    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use std::sync::Arc;
 
     type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -110,21 +110,62 @@ mod tests {
             "OS file-size limit did not produce an explicit storage failure"
         );
         assert!(
-            path.is_file(),
-            "storage failure erased the reserved state file"
+            !path.exists(),
+            "failed initial write published a formal policy store"
         );
-        let retained = std::fs::read(&path)?;
+        let retained = unpublished_staging(&path)?;
+        assert_eq!(
+            retained.len(),
+            1,
+            "exactly this failed attempt's private staging remains"
+        );
         assert!(matches!(
-            PolicyStore::provision(&path, POLICY, SIGNATURE, ROOT, Limits::default()),
+            PolicyStore::open_configured(&path, POLICY, SIGNATURE, ROOT, Limits::default()),
             Err(StoreError::PrivateFile)
         ));
-        assert_eq!(std::fs::read(&path)?, retained);
-        assert!(
-            PolicyStore::open_configured(&path, POLICY, SIGNATURE, ROOT, Limits::default())
-                .is_err()
-        );
-        println!("RUST_SDK_STORAGE_FAILURE_RETAINED");
+        assert!(!path.exists(), "open must never infer first use");
+        assert_eq!(unpublished_staging(&path)?, retained);
+        println!("RUST_SDK_STORAGE_FAILURE_UNPUBLISHED");
         Ok(true)
+    }
+    // Inspection of this test-owned private directory is evidence only. The SDK
+    // never uses staging names or partial contents to select a recovery candidate.
+    #[derive(Debug, Eq, PartialEq)]
+    struct StagingSnapshot {
+        path: std::path::PathBuf,
+        device: u64,
+        inode: u64,
+        bytes: Vec<u8>,
+    }
+    fn unpublished_staging(path: &std::path::Path) -> Result<Vec<StagingSnapshot>> {
+        let mut snapshots = Vec::new();
+        for entry in std::fs::read_dir(path.parent().ok_or("policy parent")?)? {
+            let entry = entry?;
+            if !entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".private-publication-")
+            {
+                continue;
+            }
+            assert!(!entry.file_type()?.is_symlink());
+            let metadata = entry.metadata()?;
+            assert!(metadata.is_file());
+            assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
+            assert_eq!(metadata.nlink(), 1);
+            assert!(
+                metadata.len() <= 1024,
+                "fixture staging exceeds OS write limit"
+            );
+            snapshots.push(StagingSnapshot {
+                path: entry.path(),
+                device: metadata.dev(),
+                inode: metadata.ino(),
+                bytes: std::fs::read(entry.path())?,
+            });
+        }
+        snapshots.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(snapshots)
     }
     struct OwnedChild(Option<std::process::Child>);
     impl OwnedChild {
@@ -196,7 +237,26 @@ mod tests {
         );
         assert!(String::from_utf8_lossy(&result.stdout)
             .lines()
-            .any(|line| line.ends_with("RUST_SDK_STORAGE_FAILURE_RETAINED")));
+            .any(|line| line.ends_with("RUST_SDK_STORAGE_FAILURE_UNPUBLISHED")));
+        let retained = unpublished_staging(path)?;
+        assert_eq!(retained.len(), 1);
+        assert!(!path.exists());
+        // This isolated child never received an owner. The parent retains the
+        // original first-use path/root/policy and has no OS write-size limit.
+        let mut first = PolicyStore::provision(path, POLICY, SIGNATURE, ROOT, Limits::default())?;
+        let key = first.runtime()?.generate_key()?;
+        assert_eq!(key.public_key()?.to_bytes().len(), 1216);
+        first.close();
+        assert!(matches!(key.public_key(), Err(Error::Closed)));
+        let mut resumed =
+            PolicyStore::open_configured(path, POLICY, SIGNATURE, ROOT, Limits::default())?;
+        assert!(resumed.runtime()?.is_enabled()?);
+        resumed.close();
+        assert_eq!(
+            unpublished_staging(path)?,
+            retained,
+            "first-use retry must not choose or sweep old staging"
+        );
         Ok(())
     }
 
