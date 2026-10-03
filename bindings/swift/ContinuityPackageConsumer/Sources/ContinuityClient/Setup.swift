@@ -43,6 +43,11 @@ private func transferSetup(_ path: String, _ witness: WitnessCarrier) throws -> 
 func setupCommand(_ args: [String], witness: WitnessCarrier) async throws {
     try require((2...3).contains(args.count), "setup arguments")
     let mode = args[0], path = args[1]
+    if mode == "setup-io-activate" {
+        try require(args.count == 2, "setup I/O arguments")
+        try setupIOActivate(path, witness: witness)
+        return
+    }
     let cancelled = mode == "setup-cancel", preCancelled = mode == "setup-pre-cancel"
     try require(["setup-create", "setup-status", "setup-storage", "setup-activate", "setup-device", "setup-pre-cancel", "setup-cancel"].contains(mode), "setup selection")
     var expected: Int32?

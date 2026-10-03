@@ -11,8 +11,58 @@ static void *setup_activation(void *opaque) {
     return NULL;
 }
 
+/* Qualification-only phase receipts in the harness-owned probe log. */
+static void setup_io_phase(unsigned phase) {
+    const char *action=getenv("QPC_TEST_SYNC_ACTION"), *path=getenv("QPC_TEST_SYNC_LOG");
+    if (!action || strcmp(action,"io") || !path || path[0]!='/' || phase<1 || phase>4)
+        fail("setup I/O phase requires its owned probe");
+    int fd=open(path,O_WRONLY|O_APPEND|O_CLOEXEC|O_NOFOLLOW);
+    struct stat st;
+    if (fd<0 || fstat(fd,&st) || !S_ISREG(st.st_mode) || st.st_uid!=geteuid() ||
+        (st.st_mode&0777)!=0600 || st.st_nlink!=1) fail("setup I/O phase receipt shape");
+    char line[32]; int length=snprintf(line,sizeof(line),"phase %u 0\n",phase);
+    if (length<=0 || (size_t)length>=sizeof(line)) fail("setup I/O phase encoding");
+    size_t used=0;
+    while (used<(size_t)length) {
+        ssize_t count=write(fd,line+used,(size_t)length-used);
+        if (count<0 && errno==EINTR) continue;
+        if (count<=0) fail("setup I/O phase write");
+        used+=(size_t)count;
+    }
+    if (close(fd)) fail("setup I/O phase close");
+}
+static int setup_io_activate(int argc, char **argv, const qpc_witness_v1 *witness) {
+    if (argc!=3 || witness) fail("setup I/O observation requires local original state");
+    qpc_open_options_v1 options={3,0,0,NULL};qpc_error_v1 error;uint64_t handle=0;
+    require(qpc_setup_v1_prepare_resume((const uint8_t *)argv[2],strlen(argv[2]),&options,&handle,&error),&error);
+    if (!handle) fail("setup I/O omitted handle");
+    setup_io_phase(1);
+    int32_t code=qpc_owner_v1_finish_open(handle,&error);record(code,&error);
+    if (code && code!=QPC_DATABASE) fail("setup I/O opening error differs");
+    uint8_t batch[32];
+    if (!code) {
+        setup_io_phase(2);
+        code=qpc_setup_v1_activate(handle,&error);record(code,&error);
+        if (code && code!=QPC_COMMIT_UNCERTAIN) fail("setup I/O activation error differs");
+    }
+    qpc_setup_status_v1 status;
+    int32_t remaining=qpc_setup_v1_status(handle,&status,&error);record(remaining,&error);
+    if (remaining!=(code ? QPC_CLOSED : QPC_OWNER_KIND)) fail("setup I/O retained wrong owner");
+    if (!code) require(qpc_device_v1_next_account(handle,batch,&error),&error);
+    setup_io_phase(3);
+    require(qpc_owner_v1_close(handle,&error),&error);
+    remaining=qpc_setup_v1_status(handle,&status,&error);record(remaining,&error);
+    if (remaining!=QPC_CLOSED) fail("setup I/O disposal retained authority");
+    setup_io_phase(4);
+    printf("setup-io:%d\n",code);
+    if (!code) encode(batch);
+    if (fflush(stdout)) fail("setup I/O output failed");
+    return 0;
+}
+
 static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {
     if (argc < 3 || argc > 4) fail("setup arguments");
+    if (!strcmp(argv[1],"setup-io-activate")) return setup_io_activate(argc,argv,witness);
     int create = !strcmp(argv[1],"setup-create");
     int prepare = !strcmp(argv[1],"setup-storage");
     int activate = !strcmp(argv[1],"setup-activate");

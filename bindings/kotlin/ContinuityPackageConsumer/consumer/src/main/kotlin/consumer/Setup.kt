@@ -27,6 +27,10 @@ private fun transferSetup(path: String, witness: WitnessCarrier, queue: Referenc
 internal fun setup(args: List<String>, witness: WitnessCarrier): String {
     require(args.size in 2..3) { "setup arguments" }
     val mode = args[0]
+    if (mode == "setup-io-activate") {
+        require(args.size == 2) { "setup I/O arguments" }
+        return setupIOActivate(args[1], witness)
+    }
     val cancelled = mode == "setup-cancel"
     val preCancelled = mode == "setup-pre-cancel"
     require(mode in setOf("setup-create", "setup-status", "setup-storage", "setup-activate", "setup-device", "setup-pre-cancel", "setup-cancel"))

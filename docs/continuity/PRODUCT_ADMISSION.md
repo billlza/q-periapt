@@ -233,8 +233,13 @@ from unknown results, and requires unknown results to cover both Creating and
 Active. Independent native readback preserves original journal identity, the next
 account position, absent account state and empty archives. Creating rejects ordinary
 device access; original resume reconciles either phase and Active cannot recreate
-children. Complete source-bound archives, returned I/O errors, witnessed activation
-commit cuts, initial intent/child preparation faults and each supported device
+children. The additional returned-EIO workload binds each real sync error to
+opening, activation or close using consumer phase receipts. Opening failure (204)
+and uncertain activation commit (207) consume operational eligibility; only original
+resume resolves the persisted phase. Close-phase metadata sync errors follow a
+successful activation commit and cannot be used to relabel an activation error.
+Complete source-bound archives, witnessed activation commit cuts, initial
+intent/child preparation faults and each supported device
 remain separate qualifications. Process interruption is not physical power loss.
 
 An open error must never select provisioning. Existing, partial or conflicting

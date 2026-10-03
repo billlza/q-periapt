@@ -77,6 +77,28 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The returned-I/O increment adds a separate mandatory `setup_io` workload to the
+installed C/Swift/Kotlin collectors. The test-only sync probe returns EIO before
+or after the selected real sync; consumer phase receipts bind opening, activation
+and close. Nine current Debug/current Release/minimum-Rust Release configurations
+pass **135 cases / 1,989 commands**, including 9 baselines and 126 injected errors.
+The errors comprise **18 opening failures (204)**, **36 uncertain activation
+commits (207; 18 Creating and 18 already Active)** and **72 post-commit close-sync
+errors**. Each configuration exports **783 public/log files**. Error owners must
+refuse further work and remain disposable; no successor is released on failure.
+Original resume preserves the journal, account position, absent operation and
+empty archives. Close is resource disposal, not another durability receipt for
+redb shutdown metadata. A commit error cannot be relabeled as a close error.
+
+Ten mutations of actual exported evidence are rejected. The original process-exit
+mode remains mandatory alongside EIO, with its own calibration and controls.
+Development discovery first assumed all errors would be 207, which was wrong for
+opening and prevented later close injections. That failed assumption is retained;
+phase-bound qualification now records actual boundaries. The SDK library, wire
+and exports are unchanged. Complete current archive production, witnessed commit
+cuts, initial intent/child preparation failures, arbitrary storage faults and
+physical power loss remain separate requirements. All broader 0.2.0 scope remains.
+
 The installation activation/close fault increment adds a calibrated, test-process
 sync probe workload over the actual installed C/Swift/Kotlin entry points. In each
 current Debug/current Release/minimum-Rust Release configuration it observes seven

@@ -53,6 +53,15 @@ or Active state. Ordinary device access follows that persisted phase, and resume
 must preserve the original journal/account position. This finite local workload
 does not qualify power loss, returned I/O errors or required-witness commit cuts.
 
+The separate `setup_io` workload returns actual EIO directly inside the verified
+JVM/native-library process. Phase receipts distinguish opening (204), activation
+commit (207) and post-commit close syncs. Failure releases no successor and leaves
+the setup closed to work but still disposable. Unknown commits must resume the
+original installation, which may already be Active. Close releases ownership; it
+is not another durability receipt for recoverable redb shutdown metadata. The
+reader binds actual response codes to their sync phase, original identity and
+account position. Required-witness commits and physical power loss remain separate.
+
 `ContinuityOwner.prepareReopen(path, quality, session, witness)` copies an
 explicit existing `SessionID` and returns the same kind of pending operational
 owner. `finishOpen` performs native historical-snapshot and Active-installation

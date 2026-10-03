@@ -56,8 +56,24 @@ mutual TLS both reopen the original Active installation. Public replay retains
 20 local or 36 witness records, 14 signed queries with one interrupted reply and
 zero advances, and five TLS admissions without plaintext fallback. These finite
 same-host development results do not complete key enrollment, credential lifecycle,
-activation-commit interruption, power-loss or fresh full-archive qualification.
-Swift/Kotlin setup owners remain to be integrated.
+power-loss or fresh full-archive qualification. Swift/Kotlin expose the same setup
+contract through typed owning wrappers.
+
+The separate `setup_io` collector returns a real EIO before/after each calibrated
+installation sync, using the test-process probe only. Consumers append phase
+receipts around opening, activation and close. An opening sync failure must return
+204; an activation commit sync failure must return 207 with no operational owner.
+Both failure handles refuse further work and remain disposable. A 207 result can
+leave either Creating or Active, so the collector resumes the original installation
+and checks identity, account position and empty children. No error permits create.
+
+Close-phase sync errors occur after the activation commit succeeded. The current
+redb destructor treats shutdown metadata as recoverable housekeeping; owner close
+is resource disposal, not another commit receipt for that metadata. The collector
+requires the original Active state after reopen. It rejects an activation error
+relabeled as a close error or successful activation. The existing exit-interruption
+probe mode and all its controls remain required. Neither mode qualifies physical
+power loss, arbitrary storage failures or required-witness activation commit cuts.
 
 `qpc_peer_v1_prepare` and `qpc_peer_v1_prepare_reopen` retain that device control
 owner and copy a separate trusted peer-configuration path, explicit quality and

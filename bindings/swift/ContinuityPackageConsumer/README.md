@@ -43,6 +43,15 @@ readback before reconciliation. Creating cannot open an ordinary device; neither
 phase permits replacement provisioning. This finite local process-cut workload
 does not qualify power loss, returned I/O errors or required-witness commit cuts.
 
+Returned EIO is exercised separately by `setup_io` through the actual installed
+wrapper. Phase receipts distinguish opening (204), activation commit (207) and
+post-commit close syncs. Native failure must leave setup Closed to work and release
+no successor; explicit disposal still succeeds. A 207 result may already be Active,
+so only original-state resume determines its outcome. Close releases the owner;
+it is not an additional durability receipt for recoverable redb shutdown metadata.
+The workload preserves original journal/account identity and Creating/Active
+admission. Required-witness commits and physical power loss remain separate.
+
 `ContinuityDevice.prepare/open` opens one already Active original device. Its
 `preparePeer/openPeer` and `preparePeerReopen/reopenPeer` methods return the same
 operational `ContinuityOwner` interface for a separately configured peer, with an

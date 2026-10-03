@@ -6,6 +6,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stdint.h>
@@ -18,7 +19,7 @@
 static dev_t target_device;
 static ino_t target_inode;
 static unsigned selected;
-static int after, log_fd=-1;
+static int after, io_error, log_fd=-1;
 static _Atomic unsigned sequence;
 static _Atomic int armed;
 static _Noreturn void stop_probe_at(int line_number) {
@@ -51,14 +52,20 @@ static unsigned before_sync(int fd) {
     unsigned number=atomic_fetch_add(&sequence,1)+1;
     if (number>64) stop_probe();
     int old=errno; event("before",number,0); errno=old;
-    if (selected==number && !after) _exit(86);
+    if (selected==number && !after) {
+        if (!io_error) _exit(86);
+        event("injected-before",number,EIO); errno=EIO; return UINT_MAX;
+    }
     return number;
 }
 static int after_sync(unsigned number,int rc,int saved_errno) {
     if (number) {
         event("after",number,rc);
         if (rc) stop_probe();
-        if (selected==number && after) _exit(86);
+        if (selected==number && after) {
+            if (!io_error) _exit(86);
+            event("injected-after",number,EIO); errno=EIO; return -1;
+        }
     }
     errno=saved_errno; return rc;
 }
@@ -67,6 +74,11 @@ __attribute__((constructor)) static void initialize_probe(void) {
     const char *log=getenv("QPC_TEST_SYNC_LOG");
     const char *cut=getenv("QPC_TEST_SYNC_CUT");
     const char *side=getenv("QPC_TEST_SYNC_SIDE");
+    const char *action=getenv("QPC_TEST_SYNC_ACTION");
+    if (action) {
+        if (strcmp(action,"io")) stop_probe();
+        io_error=1;
+    }
     if (!path || path[0]!='/' || !log || log[0]!='/' || !cut || !*cut || !side) stop_probe();
     for (const char *p=cut;*p;++p) {
         if (*p<'0' || *p>'9' || selected>64) stop_probe();
@@ -80,9 +92,9 @@ __attribute__((constructor)) static void initialize_probe(void) {
         (st.st_mode&0777)!=0600 || st.st_nlink!=1) stop_probe();
     target_device=st.st_dev; target_inode=st.st_ino;
     if (close(fd)) stop_probe();
-    log_fd=open(log,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);
+    log_fd=open(log,O_WRONLY|O_APPEND|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);
     if (log_fd<0) stop_probe();
-    event("armed",selected,after);
+    event(io_error ? "armed-io" : "armed",selected,after);
     atomic_store(&armed,1);
 }
 __attribute__((destructor)) static void finish_probe(void) {
@@ -106,6 +118,7 @@ static int probe_fcntl(int fd,int command,...) {
     Fcntl original=original_fcntl();
     if (command==F_FULLFSYNC || command==F_BARRIERFSYNC) {
         unsigned number=before_sync(fd);
+        if (number==UINT_MAX) return -1;
         int rc=original(fd,command), saved=errno;
         return after_sync(number,rc,saved);
     }
@@ -143,6 +156,7 @@ static int sync_call(const char *name,int fd) {
     if (!symbol) stop_probe();
     memcpy(&original,&symbol,sizeof(original));
     unsigned number=before_sync(fd);
+    if (number==UINT_MAX) return -1;
     int rc=original(fd), saved=errno;
     return after_sync(number,rc,saved);
 }
