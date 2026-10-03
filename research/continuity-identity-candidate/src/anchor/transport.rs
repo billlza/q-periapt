@@ -145,6 +145,9 @@ pub enum AnchorClientError {
     Verification(Error),
     /// The authenticated witness head/command conflicts with the local state.
     Conflict,
+    /// A verified reply refuses the exact requested current enrollment authority.
+    /// Head queries and local roster updates cannot replace this confirmation.
+    AuthorityDenied,
 }
 impl std::fmt::Display for AnchorClientError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -152,6 +155,7 @@ impl std::fmt::Display for AnchorClientError {
             Self::Transport(_) => "witness outcome unavailable; reconcile exact command",
             Self::Verification(_) => "witness response verification failed",
             Self::Conflict => "witness state or writer fence differs",
+            Self::AuthorityDenied => "witness enrollment authority is not current or valid",
         })
     }
 }
@@ -160,7 +164,7 @@ impl std::error::Error for AnchorClientError {
         match self {
             Self::Transport(error) => Some(error),
             Self::Verification(error) => Some(error),
-            Self::Conflict => None,
+            Self::Conflict | Self::AuthorityDenied => None,
         }
     }
 }

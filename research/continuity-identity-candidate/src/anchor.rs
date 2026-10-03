@@ -170,6 +170,7 @@ impl AnchorHead {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Command {
     Query,
+    AdmitAuthority([u8; 32]),
     Advance(AnchorHead, AnchorHead),
     Fence(AnchorHead, AnchorHead),
 }
@@ -194,6 +195,14 @@ impl AnchorOperation {
     /// Query one enrolled subject without advancing or creating it.
     pub fn query() -> Self {
         Self(Command::Query)
+    }
+    /// Read-only confirmation of an independently expected device authority.
+    /// Use the binding from a current independently verified device. Unlike an
+    /// ordinary head query, this requires the witness's exact current authority
+    /// and live enrollment validity. It never updates or enrolls that authority.
+    pub fn admit_authority(expected: [u8; 32]) -> Result<Self, Error> {
+        nonzero(&expected)?;
+        Ok(Self(Command::AdmitAuthority(expected)))
     }
     /// Advance exactly one journal revision under the current writer fence.
     pub fn advance(expected: AnchorHead, next_digest: [u8; 32]) -> Result<Self, Error> {
@@ -225,6 +234,11 @@ impl AnchorOperation {
                 out.push(1);
                 out.extend_from_slice(&[0; 96]);
             }
+            Command::AdmitAuthority(expected) => {
+                out.push(4);
+                out.extend_from_slice(&expected);
+                out.extend_from_slice(&[0; 64]);
+            }
             Command::Advance(before, after) | Command::Fence(before, after) => {
                 out.push(if matches!(self.0, Command::Advance(..)) {
                     2
@@ -244,6 +258,13 @@ impl AnchorOperation {
             }
             return Ok(Self::query());
         }
+        if kind == 4 {
+            let expected = d.array()?;
+            if d.take(64)?.iter().any(|byte| *byte != 0) {
+                return Err(Error::Encoding);
+            }
+            return Self::admit_authority(expected);
+        }
         let before = AnchorHead::decode(d)?;
         let after = AnchorHead::decode(d)?;
         let operation = match kind {
@@ -258,7 +279,7 @@ impl AnchorOperation {
     }
     fn next(self) -> Option<AnchorHead> {
         match self.0 {
-            Command::Query => None,
+            Command::Query | Command::AdmitAuthority(_) => None,
             Command::Advance(_, next) | Command::Fence(_, next) => Some(next),
         }
     }
@@ -326,6 +347,8 @@ impl AnchorPin {
             2 => AnchorOutcome::Advanced,
             3 => AnchorOutcome::AlreadyAppliedExact,
             4 => AnchorOutcome::Conflict,
+            5 => AnchorOutcome::AuthorityCurrent,
+            6 => AnchorOutcome::AuthorityDenied,
             _ => return Err(Error::Encoding),
         };
         let head = AnchorHead::decode(&mut d)?;
@@ -333,6 +356,10 @@ impl AnchorPin {
         d.finish()?;
         match (request.operation.0, outcome) {
             (Command::Query, AnchorOutcome::Current) => {}
+            (
+                Command::AdmitAuthority(_),
+                AnchorOutcome::AuthorityCurrent | AnchorOutcome::AuthorityDenied,
+            ) => {}
             (
                 Command::Advance(_, next) | Command::Fence(_, next),
                 AnchorOutcome::Advanced | AnchorOutcome::AlreadyAppliedExact,
@@ -466,6 +493,12 @@ pub enum AnchorOutcome {
     AlreadyAppliedExact = 3,
     /// The authoritative head/fence differs from the requested advance.
     Conflict = 4,
+    /// Exact requested authority is current and valid at this fresh witness check.
+    /// This is a read-only snapshot, not a future lease or mutation acknowledgement.
+    AuthorityCurrent = 5,
+    /// Authenticated refusal: the requested authority is not current or not valid.
+    /// This never authorizes traffic or an unanchored fallback.
+    AuthorityDenied = 6,
 }
 /// A reply authenticated against the caller's fresh attempt and pinned witness.
 pub struct AnchorReply {

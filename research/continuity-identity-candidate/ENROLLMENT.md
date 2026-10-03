@@ -48,7 +48,8 @@ original acceptance; they do not replace its stored bytes or journal ID.
 | Requested | Resend the exact request or admit the independently authenticated response. No installation exists yet. |
 | Accepted | Call `prepare` to create/reconcile the original empty installation. Retain any required witness genesis and enroll it through the independent authority. |
 | Activating | Retry `activate` with the original policy and required witness. Activation may already have committed in the installation. Do not recreate or reprepare children. |
-| Active | Reopen/activate the original installation. Missing configuration, journal or archive storage remains an error. |
+| Active | Reopen/activate the original installation and recheck current local and required-witness authority. This persisted phase is not a live authorization receipt. Missing children remain errors. |
+| Refreshing | A same-credential roster target and expected predecessor are durable. Reopen and `activate` the original installation; reconcile its original pending journal command, CAS the resulting roster, install the exact target, then complete Active. No replacement lineage or different pending target is allowed. |
 
 `prepare` delegates child creation and genesis reconciliation to `DeviceInstallation`.
 `anchor_client` constructs the client from the original controlled signer, an
@@ -59,8 +60,11 @@ or interrupted creation cannot choose another ID. Required witness configuration
 cannot become local-only on failure.
 
 Before invoking installation activation, the enrollment owner commits Activating.
-After installation activation commits, it commits Active and rechecks the live
-policy before returning `EnrolledDevice`. Any failure releases no operational
+After installation activation commits, it commits Active and rechecks the current
+journal roster, live policy and exact required-witness authority before returning
+`EnrolledDevice`. All anchored enrollment activations, including first use and
+ordinary reopening, require the signed authority-admission operation documented in
+[the witness contract](ANCHOR_WITNESS.md); a head query is insufficient. Any failure releases no operational
 owner. The enrollment can therefore be Active even when its caller received an
 error; reopen the original record and retry the original activation.
 `EnrolledDevice::parts` borrows the existing `DeviceService`, signer and verified
@@ -108,6 +112,65 @@ The archive-shipped ordinary TLS connection now uses this owner from registratio
 through activation, original-state restart, bidirectional traffic and signed rekey.
 The package gate binds public registration materials to the actual connection and
 independent database-lease probes; see [installed connection](PACKAGE_CONSUMER.md).
-The separate roster-refresh and expired-bootstrap restoration traces still use
-the preconfigured installation API. Enrollment reopening verifies its original
-accepted authority and does not yet accept renewed credentials, roots or policies.
+The separate signed-TCP roster-refresh trace still uses the preconfigured
+installation API. Expired-bootstrap restoration now retains the enrollment owner
+and refreshes its original journal's current roster before reopening the session.
+Enrollment still fixes its original credential/root/policy and does not accept
+their replacement.
+
+## Continuing an original identity under a current roster
+
+`refresh_roster(previous, roster, pin, policy, now)` begins an explicit update of
+an already Active enrollment. The independently supplied current pin and roster
+must retain the exact original credential, root, device/generation, key and policy.
+The original credential and enrollment intent must still be valid now. An expired
+old roster is an expectation stored in authenticated configuration, not renewed
+authority; a fresh roster cannot extend an expired credential or replace a key.
+
+The method durably records `Refreshing { journal, previous, next }` before returning.
+This reports local progress, not permission to communicate. Exact pending retries
+retain the original signed target bytes. An already-current target can be read back;
+that observation does not prove which invocation applied it. Different pending
+targets, stale predecessors and same-version forks fail closed.
+
+`activate` retains the enrollment lease while opening the original installation.
+Opening an anchored journal first reconciles its exact original pending write.
+Only then may its resulting roster equal the expected predecessor or exact target.
+The existing `install_roster` operation preserves revocation/generation history,
+commits the target, and reuses an already-current target without another advance.
+After the final registration Active commit, a fresh signed witness check confirms
+this exact authority and journal head before any owner is released. An original
+pending revocation can therefore commit during recovery and subsequently cause the
+refresh CAS to fail. Failure does not imply that the recovered original operation
+had no effect. A newer journal head is not silently adopted or reset; conflicting
+control-plane updates require explicit resolution and cannot replace this intent.
+
+The witness operator must separately call `AnchorStore::update_roster_authority`
+for the original subject and independently verified current device. The SDK's new
+read-only check cannot perform that control-plane update. Even when the journal is
+already at the target, an old or expired witness grant returns authenticated
+`AuthorityDenied`, and no enrolled service is released. A lost confirmation may
+leave local Active committed; reopen and obtain a fresh confirmation, never treat
+the local phase or a Query reply as evidence of current witness authority.
+
+Refreshing uses phase byte 5 in `QPENST01`, with the usual target admission fields
+followed by `previous_version:u64be || previous_digest[32]`. The predecessor must
+be strictly older. Existing phase 0–4 encodings are unchanged. Older candidate
+readers reject phase 5; do not roll back readers while an update is pending.
+This unpublished schema extension is not a general supported-version migration.
+
+For an established session, authenticate its original public bundle with
+`request_reopen` and call `DeviceService::reopen_peer` on the service borrowed from
+`EnrolledDevice::parts`. This retains the enrollment owner while the existing
+journal/archive checks admit the original context against current rosters. Do not
+construct a new context to replace the original session or drop the enrollment
+lease to call a lower-level installation constructor. The public TLS restoration
+trace now exercises this route after both its initial roster and advertisement
+expire, including an application effect committed before a lost receipt.
+
+The selected regression cuts cover the registration intent, journal and final
+registration commits, typed before/after-sync failures, stale/revoked journal
+competition, a pending revocation recovered before CAS, expired/mismatched witness
+grants and a lost signed authority confirmation. They do not constitute physical
+power-loss qualification, foreign enrollment, credential/root/policy replacement,
+or a complete multi-device/upgrade lifecycle.

@@ -207,9 +207,11 @@ The ordinary archive-shipped native TLS connection now retains this enrollment
 owner through activation, original-state restart, traffic and rekey, with mandatory
 public identity/readback checks in the package gate. The foreign setup loaders below
 still use their existing protected configuration and have not been switched to this
-enrollment transaction. The separate roster-refresh and expired-bootstrap restoration
-profiles remain preconfigured installations; current-authority enrollment reopening
-and replacement are not qualified by those separate traces.
+enrollment transaction. The signed-TCP roster recovery profile remains a preconfigured installation.
+The registered session-restoration profile now continues the original enrollment
+through an explicit same-credential roster update and reopens its original session
+without releasing the enrollment lease. Credential/root/policy replacement remains
+outside those traces.
 Wrapping-key creation, trusted account authorization/transport and current response
 checkpoint acquisition remain explicit host inputs. Partial initial files are
 retained/refused; this does not close the complete enrollment/replacement lifecycle.

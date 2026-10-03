@@ -268,6 +268,18 @@ impl AnchorStore {
             .verify(Purpose::AnchorRequest, request.body, request.signature)?;
         let outcome = match request.operation.0 {
             Command::Query => AnchorOutcome::Current,
+            Command::AdmitAuthority(expected) => {
+                let live = match entry.validity.check(now) {
+                    Ok(()) => true,
+                    Err(Error::Validity) => false,
+                    Err(error) => return Err(error.into()),
+                };
+                if entry.authority == expected && live {
+                    AnchorOutcome::AuthorityCurrent
+                } else {
+                    AnchorOutcome::AuthorityDenied
+                }
+            }
             Command::Advance(expected, next) | Command::Fence(expected, next) => {
                 if entry.head == next && entry.last == Some(request.command) {
                     // Exact last-command confirmation is read-only after expiry too.

@@ -114,10 +114,15 @@ at fence/revision **1/1** with the actual genesis image digest.
 | Query (1) | Read one already enrolled subject; no mutation or implicit genesis |
 | Advance (2) | Require the full expected head, preserve fence, increment revision by one and require a different next image digest |
 | Fence (3) | Require the full expected head, increment fence by one and preserve revision/digest |
+| AdmitAuthority (4) | Read-only confirmation that the exact independently expected device authority is current and the witness enrollment is valid at this check; never enroll or update it |
 
-Command encoding is `kind:u8 || expected_head[48] || next_head[48]`, exactly
-97 bytes. Query's 96 head bytes must be zero; they are an explicit query encoding,
-not a default state. Mutations cannot alter unrelated fields or overflow counters.
+Every command is exactly 97 bytes. Commands 2/3 encode
+`kind:u8 || expected_head[48] || next_head[48]`; Query is `1 || zero[96]`.
+AdmitAuthority is `4 || expected_device_authority[32] || zero[64]`, with a nonzero
+expectation and strictly zero reserved bytes. Its expectation is the verified
+account/checkpoint-version/checkpoint-digest/family binding, separate from the
+witness-instance binding. Query's padding is an explicit encoding, not a default
+state. Mutations cannot alter unrelated fields or overflow counters.
 The immutable command ID uses domain `Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1` over
 `authority_binding[32] || subject[96] || command[97]`.
 
@@ -154,8 +159,15 @@ Reply body (282 bytes; envelope 3659):
 
 `QPANRS01[8] || authority_binding[32] || subject[96] || request_digest[32] || command_id[32] || outcome:u8 || observed_head[48] || has_last:u8 || last_command[32]`
 
-Outcomes are Current=1, Advanced=2, AlreadyAppliedExact=3 and Conflict=4. Query
-accepts only Current. Applied outcomes must match the exact next head and command
+Outcomes are Current=1, Advanced=2, AlreadyAppliedExact=3, Conflict=4,
+AuthorityCurrent=5 and AuthorityDenied=6. Query accepts only Current.
+AdmitAuthority accepts only 5/6, bound to its exact command and fresh request digest.
+The witness signs 5 only when the enrolled device authority equals the requested
+binding and its validity contains current witness time; otherwise it signs 6.
+Neither changes the head, last applied command or stored enrollment, and neither
+is accepted by `applied_head`. A correct head alone cannot substitute for 5.
+An ordinary Query remains available after expiry for original-intent reconciliation
+and cleanup. Applied outcomes must match the exact next head and command
 ID. The same next tuple reached through another command is a conflict. Conflict
 does not yield `applied_head`; an internally contradictory signed outcome fails.
 `has_last=0` requires zero last-command bytes and fence/revision 1/1. Later states
@@ -223,3 +235,20 @@ separate-host deployment or Byzantine consistency. Those deployment assumptions,
 global invocation bounds, account-level coordination and the wider 0.2.0 lifecycle
 remain required. Required-anchor journals retain their original writer fence;
 they reject externally changed fences rather than adopting a new writer authority.
+
+## Authority-admission compatibility
+
+This unpublished grammar extension retains the exact request/reply lengths
+3674/3659, signature purposes, command-ID domains and existing command 1–3 and
+outcome 1–4 encodings. New endpoints still support those existing operations.
+Older endpoints do not support command 4. Every anchored `DeviceEnrollment::activate`
+now requires command 4, including initial activation, ordinary restart and roster
+refresh; an unsupported or unavailable endpoint prevents owner release. There is
+no fallback to Query or local-only storage. Lower-level historical recovery and
+cleanup keep their existing Query semantics.
+
+AuthorityCurrent is a fresh signed observation, not proof that a particular update
+invocation committed and not a future authorization lease. Every later mutation
+still checks the witness's live grant and original head/fence. Independent operator
+admission, credential/policy/key replacement and protocol finalization remain
+separate obligations.

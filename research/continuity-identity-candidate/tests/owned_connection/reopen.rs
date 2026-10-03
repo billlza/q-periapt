@@ -3,11 +3,6 @@
 use super::*;
 
 fn open_existing(path: &Path, at: u64) -> Result<Peer> {
-    if array::<1>(path, "owner-mode")? != [1] {
-        return Err(
-            "session restoration requires the explicit preconfigured installation profile".into(),
-        );
-    }
     let policy_store = sdk(path)?;
     let policy = protocol_policy(path, &policy_store)?;
     let local_role = role(path)?;
@@ -15,19 +10,33 @@ fn open_existing(path: &Path, at: u64) -> Result<Peer> {
     let request = with_bundle(path, |bundle, requirements| {
         Ok(bundle.request_reopen(Arc::clone(&policy), requirements, local_role, session, at)?)
     })?;
-    let key = key(path)?;
-    let signer = p::DeviceSigningKey::open(
-        &path.join("signer.key"),
-        &key,
-        p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?,
-    )?;
-    let restored = p::DeviceInstallation::reopen_session(paths(path)?, key, request, at, None)?;
-    assert_eq!(restored.session_id(), session);
-    assert_eq!(restored.role(), local_role);
-    let (service, context) = restored.into_parts();
+    let (service, context) = match array::<1>(path, "owner-mode")? {
+        [1] => {
+            let key = key(path)?;
+            let signer = p::DeviceSigningKey::open(
+                &path.join("signer.key"),
+                &key,
+                p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?,
+            )?;
+            let restored =
+                p::DeviceInstallation::reopen_session(paths(path)?, key, request, at, None)?;
+            assert_eq!(restored.session_id(), session);
+            assert_eq!(restored.role(), local_role);
+            let (service, context) = restored.into_parts();
+            (enrollment::DeviceOwner::installed(service, signer), context)
+        }
+        [2] => {
+            let (mut owner, peer) = enrollment::restore(path, &policy, at, request)?;
+            assert_eq!(peer.session_id(), session);
+            assert_eq!(peer.role(), local_role);
+            enrollment::record_refreshed(path, &mut owner)?;
+            (owner, Arc::clone(peer.context()))
+        }
+        _ => return Err("unknown configured device owner".into()),
+    };
     assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
     Ok(Peer {
-        service: enrollment::DeviceOwner::installed(service, signer),
+        service,
         context,
         policy_store,
         certificate: read(path, "tls-cert", 8192)?,
@@ -74,7 +83,15 @@ fn serve_restored(
 fn public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls() -> Result<()> {
     // Advance only the injected protocol clock after a real bootstrap. TLS uses
     // its ordinary certificate clock. No wall-clock mutation or sleep races.
-    let s = setup_with_advertisement(None, Some(600))?;
+    let (s, _) = setup_devices_for(
+        None,
+        Some(600),
+        None,
+        false,
+        true,
+        true,
+        enrollment::SetupKind::Enrolled,
+    )?;
     let mut client = Peer::open(&s.initiator)?;
     let endpoint = ConnectionEndpoint::client(&client.context, client.credentials(), tls_limits())?;
     let (mut server, address) = spawn(&s.responder, 0, "bootstrap")?;
@@ -136,6 +153,19 @@ fn public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls() 
         Some(p::Error::Validity)
     ));
     drop(policy_store);
+    assert!(matches!(
+        open_existing(&s.initiator, at)
+            .err()
+            .and_then(|error| error.downcast::<p::DurableError>().ok())
+            .as_deref(),
+        Some(p::DurableError::Protocol(p::Error::Validity))
+    ));
+    for path in [&s.initiator, &s.responder] {
+        let mut store = sdk(path)?;
+        let policy = protocol_policy(path, &store)?;
+        enrollment::refresh_original_roster(path, &policy, at)?;
+        store.close();
+    }
     let mut client = open_existing(&s.initiator, at)?;
     assert_eq!(client.context.digest(), original_context);
     let context = Arc::clone(&client.context);
@@ -198,10 +228,10 @@ fn public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls() 
         p::MessageStatus::Acknowledged
     );
     let report = format!(
-        "{{\"session\":\"{}\",\"message\":\"{}\",\"context\":\"{}\",\"test_protocol_time\":{},\"original_context\":true,\"exact_outbox\":true,\"unknown_commit_reconciled\":true,\"fresh_bootstrap_refused\":true,\"independent_processes\":true,\"injected_protocol_clock\":true,\"application_readbacks\":2}}\n",
+        "{{\"session\":\"{}\",\"message\":\"{}\",\"context\":\"{}\",\"test_protocol_time\":{},\"original_context\":true,\"exact_outbox\":true,\"unknown_commit_reconciled\":true,\"fresh_bootstrap_refused\":true,\"independent_processes\":true,\"injected_protocol_clock\":true,\"application_readbacks\":2,\"enrollment_roster_refresh\":true}}\n",
         hex(&established.session), hex(id.as_bytes()), hex(&original_context), at,
     );
     store(public_root, "public-reopen-result.json", report.as_bytes())?;
-    eprintln!("PUBLIC_SESSION_REOPEN original_context=true exact_outbox=true unknown_commit_reconciled=true app_readbacks=2 independent_processes=true injected_protocol_clock=true");
+    eprintln!("PUBLIC_SESSION_REOPEN original_context=true exact_outbox=true unknown_commit_reconciled=true app_readbacks=2 independent_processes=true injected_protocol_clock=true enrollment_roster_refresh=true");
     Ok(())
 }

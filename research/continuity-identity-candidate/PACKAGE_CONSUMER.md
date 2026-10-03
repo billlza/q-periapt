@@ -93,9 +93,22 @@ Native public APIs verify signatures; the Python reader checks framing, commitme
 and cross-file identities and is not an independent protocol implementation.
 
 The C/Swift/Kotlin setup fixture continues to use the explicit preconfigured-input
-mode and leaves installation children absent before foreign setup. Roster renewal
-and expired-bootstrap restoration also retain their explicit installation profile.
-This trace does not add foreign enrollment, remote account authentication,
-credential/root replacement, or enrollment-level authority renewal. The original
-accepted roster/policy still governs enrollment reopening; replacing or expiring
-that authority requires further lifecycle work, not fallback activation.
+mode and leaves installation children absent before foreign setup. The separate signed-TCP roster-recovery trace retains its explicit installation
+profile. Expired-bootstrap restoration now uses two enrolled devices in the same
+account: after an application effect commits and its receipt is lost, the injected
+protocol clock expires both the initial roster and prekey advertisement. Fresh
+bootstrap and unrefreshed enrollment reopening fail. Both original registrations
+then retain independently pinned current rosters and restore the exact original
+session through their borrowed services, with unchanged context and outbox.
+
+The package reader additionally requires and exports 44 public files for this
+restoration, binding original requests/keys/credentials, expired and current roster
+checkpoints, journal identities and the original session. It compares the actual
+application effect and original ciphertext separately. Native APIs verify signatures;
+the reader is a structural readback, not an independent cryptographic implementation.
+
+These traces do not add foreign enrollment, remote account authentication,
+credential/root/policy replacement or a complete identity lifecycle. Required-witness
+registration activation now has a separate signed current-authority check; the
+ordinary TLS restoration profile is local-only and does not stand in for a deployed
+operator service or an independent witness implementation.

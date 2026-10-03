@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "roster_tests.rs"]
+mod roster;
 use crate::{
     durable::tests::{assert_sync_failure, directory, fault_database_path},
     tests::{interval, session_policy_fixture},
@@ -544,6 +546,10 @@ fn unpublished_initial_enrollment_configuration_resumes_explicit_first_use() {
         );
         eprintln!("ENROLLMENT_INITIAL_PUBLICATION_CUT cut={cut} unpublished_children_absent=true explicit_intent_resumed=true");
     }
+}
+
+pub(super) fn after_roster_journal_commit() {
+    roster::journal_boundary();
 }
 
 pub(super) fn after_commit(bytes: &[u8]) {

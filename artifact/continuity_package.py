@@ -150,7 +150,7 @@ def verify_reopen_execution(directory: Path) -> dict:
         sdk.require(isinstance(report.get(field), str) and re.fullmatch(r"[0-9a-f]{64}", report[field]),
                     "installed session restoration identity is invalid")
     for field in ("original_context", "exact_outbox", "unknown_commit_reconciled", "fresh_bootstrap_refused",
-                  "independent_processes", "injected_protocol_clock"):
+                  "independent_processes", "injected_protocol_clock", "enrollment_roster_refresh"):
         sdk.require(report.get(field) is True, f"installed session restoration did not qualify {field}")
     sdk.require(type(report.get("application_readbacks")) is int and report["application_readbacks"] == 2,
                 "installed session restoration readback count differs")
@@ -170,7 +170,9 @@ def verify_reopen_execution(directory: Path) -> dict:
                 "installed session restoration application readback differs")
     sdk.require(len(list((directory / "responder").glob("application-*"))) == 1,
                 "installed session restoration duplicated application effects")
-    return dict(report, original_outbox_sha256=original.sha256,
+    from continuity_enrollment import verify_reopen as verify_enrolled_reopen
+    enrolled = verify_enrolled_reopen(directory, report["test_protocol_time"], report["session"])
+    return dict(report, enrollment=enrolled, original_outbox_sha256=original.sha256,
                 restored_outbox_sha256=restored.sha256, application_file={leaf: received.sha256})
 
 
@@ -337,7 +339,12 @@ def qualify(args: argparse.Namespace) -> dict:
                          env=dict(runtime_environment, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence)))
             roster = evidence.with_name(evidence.name + "-roster-renewal") / "public"
             result["execution"][profile] = verify_execution(tested, evidence, evidence.with_name(evidence.name + "-session-reopen"), roster)
-            from continuity_enrollment import export as export_enrollment
+            from continuity_enrollment import export as export_enrollment, export_reopen
+            reopened = result["execution"][profile]["session_reopen"]
+            exported_reopen = export_reopen(evidence.with_name(evidence.name + "-session-reopen"),
+                                           output / (profile + "-enrollment-reopen-public"),
+                                           reopened["test_protocol_time"], reopened["session"])
+            sdk.require(exported_reopen == reopened["enrollment"], "enrolled restoration evidence changed before export")
             enrollment = export_enrollment(evidence / "enrollment-public", output / (profile + "-enrollment-public"))
             sdk.require(enrollment == result["execution"][profile]["enrollment"], "enrollment evidence changed before export")
             from continuity_roster_renewal import export as export_roster_renewal

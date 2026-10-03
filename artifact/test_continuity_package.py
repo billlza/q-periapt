@@ -9,7 +9,9 @@ import continuity_package as package
 import rust_sdk_profile as sdk
 from test_rust_sdk_profile import archive
 from test_continuity_roster_renewal import fixture as roster_evidence
-from test_continuity_enrollment import fixture as enrollment_evidence
+from test_continuity_enrollment import fixture as enrollment_evidence, wire as synthetic_wire
+from continuity_enrollment import REGISTRATION_FILES
+from continuity_c_witness import commit
 
 
 def metadata(root):
@@ -47,7 +49,7 @@ def evidence(root):
     reopened = {"session": "44" * 32, "message": "55" * 32, "context": "66" * 32,
                 "test_protocol_time": 170, "application_readbacks": 2,
                 **{k: True for k in ("original_context", "exact_outbox", "unknown_commit_reconciled",
-                   "fresh_bootstrap_refused", "independent_processes", "injected_protocol_clock")}}
+                   "fresh_bootstrap_refused", "independent_processes", "injected_protocol_clock", "enrollment_roster_refresh")}}
     (restored / "public-reopen-result.json").write_text(json.dumps(reopened))
     for role in ("initiator", "responder"):
         (restored / role / "reopen-test-time").write_bytes((170).to_bytes(8, "big"))
@@ -64,6 +66,27 @@ def evidence(root):
             (folder / leaf).write_bytes(bytes.fromhex(report[field]))
         for leaf, receiving, field in (("forward-effect", "responder", "forward_message"), ("reverse-effect", "initiator", "reverse_message")):
             (folder / leaf).write_bytes((root / receiving / ("application-" + report[field])).read_bytes())
+    for role in ("initiator", "responder"):
+        folder = restored / role
+        source = root / "enrollment-public" / role
+        for name in REGISTRATION_FILES:
+            (folder / name).write_bytes((source / name).read_bytes())
+        # Reader-only synthetic signatures. Real exported traces use native signing.
+        original_wire = (folder / "local-roster").read_bytes()
+        size = int.from_bytes(original_wire[:4], "big")
+        original = bytearray(original_wire[4:4 + size])
+        original[56:64] = (170).to_bytes(8, "big")
+        (folder / "local-roster").write_bytes(synthetic_wire(original))
+        (folder / "local-roster-digest").write_bytes(commit(b"Q-PERIAPT-CONTINUITY-ROSTER-CANDIDATE/v1", original))
+        target = bytearray(original)
+        target[40:48] = (2).to_bytes(8, "big")
+        target[56:64] = (300).to_bytes(8, "big")
+        digest = commit(b"Q-PERIAPT-CONTINUITY-ROSTER-CANDIDATE/v1", target)
+        (folder / "renewal-roster-2").write_bytes(synthetic_wire(target))
+        (folder / "renewal-digest-2").write_bytes(digest)
+        (folder / "refreshed-roster-checkpoint").write_bytes((2).to_bytes(8, "big") + digest)
+        (folder / "refreshed-journal").write_bytes((folder / "accepted-journal").read_bytes())
+        (folder / "session").write_bytes(bytes.fromhex(reopened["session"]))
     return report
 
 
@@ -209,6 +232,38 @@ class ContinuityPackageTests(unittest.TestCase):
 
 
 class SessionReopenEvidenceTests(unittest.TestCase):
+    def test_restoration_requires_original_enrollment_and_current_roster_readbacks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence(root)
+            for name in ("request", "reopened-request", "renewal-roster-2", "renewal-digest-2",
+                         "refreshed-roster-checkpoint", "refreshed-journal", "session"):
+                path = root / "reopen/initiator" / name
+                original = path.read_bytes()
+                path.write_bytes(bytes([original[0] ^ 1]) + original[1:])
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
+                path.write_bytes(original)
+            report_path = root / "reopen/public-reopen-result.json"
+            report = json.loads(report_path.read_text())
+            del report["enrollment_roster_refresh"]
+            report_path.write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "enrollment_roster_refresh"):
+                package.verify_execution(STDOUT, root, root / "reopen", root / "roster")
+
+    def test_enrolled_restoration_exports_only_the_verified_public_closure(self):
+        from continuity_enrollment import export_reopen, verify_reopen
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence(root)
+            destination = root / "enrollment-restored"
+            exported = export_reopen(root / "reopen", destination, 170, "44" * 32)
+            self.assertEqual(len(exported["public_readbacks"]), 44)
+            self.assertEqual(verify_reopen(destination, 170, "44" * 32, public_only=True), exported)
+            (destination / "initiator/wrap.key").write_bytes(b"not public")
+            with self.assertRaisesRegex(ValueError, "public file inventory"):
+                verify_reopen(destination, 170, "44" * 32, public_only=True)
+
     def test_restoration_receipt_does_not_replace_actual_ciphertext_and_application_readback(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

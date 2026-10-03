@@ -453,7 +453,7 @@ fn setup_devices_for(
 ) -> Result<(Setup, Option<PathBuf>)> {
     let roster_renewal = kind == enrollment::SetupKind::RosterRenewal;
     let enrolled = kind == enrollment::SetupKind::Enrolled;
-    if enrolled && (!operational || advertisement_seconds.is_some() || multi || roster_renewal) {
+    if enrolled && (!operational || multi || roster_renewal) {
         return Err("enrollment reference requires its explicit initial-connection profile".into());
     }
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
@@ -614,7 +614,23 @@ fn setup_devices_for(
             .iter()
             .map(|certificate| root.roster_entry(certificate))
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        let roster = root.issue_roster(1, validity, &entries)?;
+        let roster = root.issue_roster(
+            1,
+            if enrolled && advertisement_seconds.is_some() {
+                advertisement
+            } else {
+                validity
+            },
+            &entries,
+        )?;
+        if enrolled && advertisement_seconds.is_some() {
+            let next = root.issue_roster(2, validity, &entries)?;
+            for ordinal in group.clone() {
+                let path = all_paths.get(ordinal).ok_or("renewal path")?;
+                store(path, "renewal-roster-2", next.as_bytes())?;
+                store(path, "renewal-digest-2", &next.checkpoint().digest())?;
+            }
+        }
         // Qualification inputs are signed while the original account owner is
         // alive. The runtime never derives trust from a received witness reply.
         if roster_renewal {

@@ -95,6 +95,18 @@ loss of the active enrollment record is refused without installation fallback. F
 adapters, authority transport and credential/root/policy replacement remain required;
 archive and device qualification are source-bound gates, not implied by this code change.
 
+A subsequent native increment adds a durable same-credential roster-refresh
+intent to enrollment, followed by original-journal CAS and completion before service
+release. Registered session restoration now retains the original enrollment owner
+after roster/advertisement expiry and uses the original archived context/outbox.
+Required-witness enrollment activation additionally requires a fresh signed exact
+authority confirmation; an ordinary head query cannot establish this. Command 4
+and outcomes 5/6 extend the unpublished witness grammar without changing existing
+1–3 commands, 1–4 outcomes or frame sizes. Older witnesses cannot satisfy the new
+registered-activation requirement. Credential/root/policy replacement, conflicting
+control-plane resolution, foreign enrollment and supported-version upgrades remain
+separate open obligations; prior package receipts do not qualify this new source.
+
 The archive consumer now requires public-API witness roster refresh and original
 installation recovery before its existing connection workload can pass. Current
 Rust 1.98.1 and minimum Rust 1.90 execute all three public consumer tests, including

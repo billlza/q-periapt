@@ -177,6 +177,16 @@ pub enum EnrollmentStatus {
     Activating(JournalIdentity),
     /// An original service may have operated; missing children cannot be recreated.
     Active(JournalIdentity),
+    /// A current same-credential roster is retained, but its original journal
+    /// must still reconcile the exact update before any service can be released.
+    Refreshing {
+        /// Original journal; never replace it to finish this update.
+        journal: JournalIdentity,
+        /// Original expected journal roster before this update.
+        previous: RosterCheckpoint,
+        /// Exact independently admitted update target.
+        next: RosterCheckpoint,
+    },
 }
 struct Admission {
     certificate: Vec<u8>,
@@ -187,9 +197,10 @@ struct Admission {
 }
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum AdmissionPhase {
-    Accepted = 2,
-    Activating = 3,
-    Active = 4,
+    Accepted,
+    Activating,
+    Active,
+    Refreshing { previous: RosterCheckpoint },
 }
 enum Phase {
     Preparing,
@@ -285,6 +296,11 @@ impl DeviceEnrollment {
                 AdmissionPhase::Accepted => EnrollmentStatus::Accepted(admission.journal),
                 AdmissionPhase::Activating => EnrollmentStatus::Activating(admission.journal),
                 AdmissionPhase::Active => EnrollmentStatus::Active(admission.journal),
+                AdmissionPhase::Refreshing { previous } => EnrollmentStatus::Refreshing {
+                    journal: admission.journal,
+                    previous,
+                    next: admission.checkpoint,
+                },
             },
         })
     }
@@ -421,6 +437,76 @@ impl DeviceEnrollment {
             };
             self.save(&image)?;
             Ok(journal)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    /// Retain an independently authorized CURRENT roster for the same original
+    /// credential, key, root and policy. `previous` is an expected checkpoint,
+    /// never authority. The original credential/intent must still be valid.
+    ///
+    /// Success reports durable registration progress, not an operational service:
+    /// Refreshing requires `activate` to reconcile the original journal first.
+    /// An exact retry preserves the original target bytes; a different pending
+    /// target is refused. Errors close this owner. Reopen the original enrollment
+    /// after an unknown commit; never use `accept` or provisioning as a fallback.
+    pub fn refresh_roster(
+        &mut self,
+        previous: RosterCheckpoint,
+        roster: &[u8],
+        pin: &AccountPin,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<EnrollmentStatus, DurableError> {
+        let result = (|| {
+            let mut image = self.image()?;
+            let Phase::Accepted {
+                request,
+                admission,
+                stage,
+            } = &mut image.phase
+            else {
+                return Err(Error::State.into());
+            };
+            if !matches!(
+                *stage,
+                AdmissionPhase::Active | AdmissionPhase::Refreshing { .. }
+            ) {
+                return Err(Error::State.into());
+            }
+            if admission.policy != policy.checkpoint().digest() {
+                return Err(DurableError::Conflict);
+            }
+            // The old roster may be expired. The authenticated enrollment record
+            // supplies its expected identity, never a renewed authorization grant.
+            let device = pin.verify_device(&admission.certificate, roster, now)?;
+            self.intent.verify_device(&device)?;
+            let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
+            if original.identity != image.identity || original.public != device.key {
+                return Err(DurableError::Conflict);
+            }
+            self.signer(image.identity, false)?.check_device(&device)?;
+            admit(&device, policy, now)?;
+            let next = device.roster().checkpoint();
+            if next.version() <= previous.version() {
+                return Err(Error::Checkpoint.into());
+            }
+            match *stage {
+                AdmissionPhase::Refreshing { previous: expected }
+                    if expected == previous && admission.checkpoint == next => {}
+                AdmissionPhase::Active if admission.checkpoint == next => {}
+                AdmissionPhase::Active if admission.checkpoint == previous => {
+                    admission.roster = roster.to_vec();
+                    admission.checkpoint = next;
+                    *stage = AdmissionPhase::Refreshing { previous };
+                    self.save(&image)?;
+                }
+                _ => return Err(DurableError::Conflict),
+            }
+            admit(&device, policy, now)?;
+            self.status()
         })();
         if result.is_err() {
             self.close();
@@ -577,21 +663,47 @@ impl DeviceEnrollment {
             }
             *stage = AdmissionPhase::Activating;
             self.save(&image)?;
-        } else if *stage == AdmissionPhase::Active
-            && installation.status()? != crate::InstallationStatus::Active
+        } else if matches!(
+            *stage,
+            AdmissionPhase::Active | AdmissionPhase::Refreshing { .. }
+        ) && installation.status()? != crate::InstallationStatus::Active
         {
             return Err(DurableError::Conflict);
         }
-        let service = installation.activate(self.key()?, &device, policy, now, anchor)?;
-        let Phase::Accepted { stage, .. } = &mut image.phase else {
+        let mut service = installation.activate(self.key()?, &device, policy, now, anchor)?;
+        let Phase::Accepted {
+            stage, admission, ..
+        } = &mut image.phase
+        else {
             return Err(Error::State.into());
         };
+        // Opening an anchored journal first reconciles its ORIGINAL pending
+        // command. Compare the resulting checkpoint, not a pre-recovery snapshot.
+        let journal = service.stores()?.0;
+        let current = journal.roster_checkpoint(device.account_id())?;
+        if let AdmissionPhase::Refreshing { previous } = *stage {
+            if current != admission.checkpoint && current != previous {
+                return Err(DurableError::Conflict);
+            }
+            let installed = journal.install_roster(device.roster(), now)?;
+            if installed != admission.checkpoint {
+                return Err(DurableError::Conflict);
+            }
+            #[cfg(all(test, unix))]
+            tests::after_roster_journal_commit();
+        } else if current != admission.checkpoint {
+            return Err(DurableError::Conflict);
+        }
         if *stage != AdmissionPhase::Active {
             *stage = AdmissionPhase::Active;
             self.save(&image)?;
         }
         // Enrollment adds a durability boundary after installation activation.
-        // Recheck live authority at this layer's actual owner-release boundary.
+        // Recheck local and independently witnessed authority at actual release.
+        service
+            .stores()?
+            .0
+            .check_enrollment_authority(&device, policy, now)?;
         admit(&device, policy, now)?;
         Ok(EnrolledDevice {
             active: Some(EnrolledOwners {
@@ -675,7 +787,12 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
             admission,
             stage,
         } => {
-            bytes.push(*stage as u8);
+            bytes.push(match stage {
+                AdmissionPhase::Accepted => 2,
+                AdmissionPhase::Activating => 3,
+                AdmissionPhase::Active => 4,
+                AdmissionPhase::Refreshing { .. } => 5,
+            });
             field(&mut bytes, request)?;
             field(&mut bytes, &admission.certificate)?;
             field(&mut bytes, &admission.roster)?;
@@ -683,6 +800,10 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
             bytes.extend_from_slice(&admission.checkpoint.digest());
             bytes.extend_from_slice(&admission.policy);
             bytes.extend_from_slice(admission.journal.as_bytes());
+            if let AdmissionPhase::Refreshing { previous } = stage {
+                bytes.extend_from_slice(&previous.version().to_be_bytes());
+                bytes.extend_from_slice(&previous.digest());
+            }
         }
     }
     let mut mac = auth(key)?;
@@ -727,7 +848,7 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     let phase = match d.array::<1>()? {
         [0] => Phase::Preparing,
         [1] => Phase::Requested(take(&mut d)?),
-        [phase @ 2..=4] => {
+        [phase @ 2..=5] => {
             let request = take(&mut d)?;
             let certificate = take(&mut d)?;
             let roster = take(&mut d)?;
@@ -748,6 +869,13 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
                     2 => AdmissionPhase::Accepted,
                     3 => AdmissionPhase::Activating,
                     4 => AdmissionPhase::Active,
+                    5 => {
+                        let previous = RosterCheckpoint::from_trusted_state(d.u64()?, d.array()?)?;
+                        if previous.version() >= checkpoint.version() {
+                            return Err(DurableError::Corrupt);
+                        }
+                        AdmissionPhase::Refreshing { previous }
+                    }
                     _ => return Err(DurableError::Corrupt),
                 },
             }

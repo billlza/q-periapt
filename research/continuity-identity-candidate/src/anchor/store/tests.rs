@@ -1262,3 +1262,95 @@ fn roster_authority_refresh_never_becomes_credential_key_or_policy_replacement()
         before
     );
 }
+
+#[test]
+fn current_authority_observation_is_fresh_scoped_and_never_a_mutation_receipt() {
+    let mut c = case();
+    let (_, device, _) = c.peer.responder.inventory_inputs();
+    let operation = AnchorOperation::admit_authority(device.authority_binding())
+        .expect("independent authority expectation");
+    let expected = initial(&c);
+    assert_eq!(operation.to_bytes().len(), 97);
+    assert_eq!(operation.to_bytes().first(), Some(&4));
+    assert_eq!(
+        AnchorOperation::from_trusted_state(&operation.to_bytes()).expect("canonical operation"),
+        operation
+    );
+    assert!(AnchorOperation::admit_authority([0; 32]).is_err());
+    let mut malformed = operation.to_bytes();
+    *malformed.get_mut(33).expect("reserved padding") = 1;
+    assert!(AnchorOperation::from_trusted_state(&malformed).is_err());
+
+    let ordinary = request(&c, AnchorOperation::query());
+    let query_wire = c
+        .store
+        .handle(ordinary.as_bytes(), 150)
+        .expect("ordinary head query");
+    let admitted = request(&c, operation);
+    assert!(matches!(
+        c.pin.verify_reply(&admitted, &query_wire),
+        Err(Error::Scope)
+    ));
+    let wire = c
+        .store
+        .handle(admitted.as_bytes(), 150)
+        .expect("fresh authority confirmation");
+    let observation = c
+        .pin
+        .verify_reply(&admitted, &wire)
+        .expect("exact signed admission");
+    assert_eq!(observation.outcome(), AnchorOutcome::AuthorityCurrent);
+    assert_eq!(observation.observed_head(), expected);
+    assert_eq!(observation.last_command_id(), None);
+    assert!(observation.applied_head().is_err());
+    let fresh = request(&c, operation);
+    assert!(
+        matches!(c.pin.verify_reply(&fresh, &wire), Err(Error::Scope)),
+        "old challenge cannot confirm a new admission attempt"
+    );
+
+    // Even a correctly signed, correctly attempt-bound Query disposition cannot
+    // be relabeled as admission. Likewise 5/6 cannot authorize an old operation.
+    for (op, outcome) in [
+        (operation, AnchorOutcome::Current),
+        (AnchorOperation::query(), AnchorOutcome::AuthorityCurrent),
+        (AnchorOperation::query(), AnchorOutcome::AuthorityDenied),
+    ] {
+        let rq = request(&c, op);
+        let incoming = incoming(&c.pin, rq.as_bytes()).expect("signed request grammar");
+        let active = c.store.active.as_ref().expect("owned signing authority");
+        let wrong = reply(&c.pin, &active.signer, &incoming, outcome, expected, None)
+            .expect("signed wrong disposition");
+        assert!(matches!(c.pin.verify_reply(&rq, &wrong), Err(Error::State)));
+    }
+    for (op, at) in [
+        (operation, 200),
+        (operation, 99),
+        (
+            AnchorOperation::admit_authority([91; 32]).expect("different expected grant"),
+            150,
+        ),
+    ] {
+        let rq = request(&c, op);
+        let wire = c
+            .store
+            .handle(rq.as_bytes(), at)
+            .expect("authenticated denial");
+        let observed = c.pin.verify_reply(&rq, &wire).expect("denial verifies");
+        assert_eq!(observed.outcome(), AnchorOutcome::AuthorityDenied);
+        assert_eq!(observed.observed_head(), expected);
+        assert_eq!(observed.last_command_id(), None);
+        assert!(observed.applied_head().is_err());
+    }
+    let query = request(&c, AnchorOperation::query());
+    let wire = c
+        .store
+        .handle(query.as_bytes(), 200)
+        .expect("expiry does not erase original head");
+    let observed = c
+        .pin
+        .verify_reply(&query, &wire)
+        .expect("historical readback remains available");
+    assert_eq!(observed.outcome(), AnchorOutcome::Current);
+    assert_eq!(observed.observed_head(), expected);
+}

@@ -316,6 +316,52 @@ impl DeviceJournal {
         }
         result
     }
+    // Enrollment release requires more than a head query: an exact signed
+    // observation that the witness has independently adopted this current roster.
+    // Cleanup and historical intent reconciliation retain their separate queries.
+    pub(crate) fn check_enrollment_authority(
+        &mut self,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        let result = (|| {
+            self.check_policy(policy)?;
+            policy.check_device(device, now)?;
+            let image = self.image()?;
+            rosters::authorize_device(&image, device, now)?;
+            if rosters::current(&image, &device.account_id())?.checkpoint()
+                != device.roster().checkpoint()
+            {
+                return Err(DurableError::Conflict);
+            }
+            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+            if active.protection != Protection::Local {
+                let expected = active.protection.head(image.revision, image.digest)?;
+                let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
+                let reply = anchor.client.exchange(
+                    anchor.subject,
+                    AnchorOperation::admit_authority(device.authority_binding())?,
+                )?;
+                if reply.observed_head() != expected {
+                    return Err(AnchorClientError::Conflict.into());
+                }
+                match reply.outcome() {
+                    AnchorOutcome::AuthorityCurrent => {}
+                    AnchorOutcome::AuthorityDenied => {
+                        return Err(AnchorClientError::AuthorityDenied.into())
+                    }
+                    _ => return Err(Error::State.into()),
+                }
+            }
+            policy.check_device(device, now)?;
+            Ok(())
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     /// Reconcile only the saved command against the independently pinned witness.
     /// A different head or writer fence never authorizes local recovery or output.
     pub fn open_anchored(
