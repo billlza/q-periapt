@@ -77,6 +77,28 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+The shared host-store admission correction removes filename-based deletion after
+an initial file validation or sync error. A pinned parent directory does not pin
+the leaf's name: another writer can replace that name while the failing operation
+still holds the original descriptor. An isolated reproducer uses the actual
+installed C setup client, moves the just-created empty inode, installs a distinct
+replacement, and returns EIO from the original file's first sync. The old library
+returns 204 but deletes the replacement. The corrected component library returns
+the same 204 and preserves both inodes and the unrelated control file. No journal
+or archive child is released. Client and fault-probe bytes are unchanged between
+the two runs; native endpoints and transaction checks are not bypassed.
+
+All **19 host-store tests** pass under current Rust 1.98.1 and minimum Rust 1.90.0,
+including a regression for both original-empty and replaced-leaf failures; current
+all-target Clippy passes with warnings denied. This is component red/green evidence:
+the corrected library was rebuilt from retained dependencies with the selected
+host-store source changed. A fresh SDK archive cohort and all affected installed
+consumers remain required. Admission errors now preserve an incomplete empty leaf,
+which stays refused on reopen and exclusive create. Safe explicit reconciliation
+of incomplete first-install state and the complete initial-creation fault matrix
+remain open. The running full `7342f4a0` cohort predates this correction and cannot
+qualify its changed SDK source.
+
 The required-witness installation fault increment adds mandatory signed-TCP and
 mutual-TLS workloads to the C/Swift/Kotlin installed collectors. A native controller
 keeps the original witness alive across process interruption or returned EIO,

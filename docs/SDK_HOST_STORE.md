@@ -24,8 +24,11 @@ process. A later `provision` still refuses the existing path. Reconcile with the
 same independently retained root and configured signed policy; a partial or
 malformed store remains an explicit error and must be preserved for diagnosis.
 No error path silently resets it or starts a new lineage. Admission failures before
-initialization retain the existing cleanup of a newly created empty file; no owner
-can be opened from that empty file.
+initialization also retain the newly created file. The basename may now refer to
+another writer's replacement, so failure cleanup cannot safely unlink it. A
+zero-length or partial file remains refused by reopen and exclusive create; no
+owner can be opened from it. Safe explicit reconciliation of incomplete
+first-install state remains a separate release requirement.
 
 `open_configured(path, policy, signature, root, limits)` also reconciles the
 host's configured policy before exposing the runtime: the same exact state is

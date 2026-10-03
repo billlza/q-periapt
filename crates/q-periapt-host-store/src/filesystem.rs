@@ -385,16 +385,27 @@ pub fn open_private_file(path: &Path, create: bool) -> Result<File, PrivateFileE
 
 /// Open (or atomically create) one leaf beneath an already-pinned parent.
 ///
-/// Every filesystem action -- the `openat`, the validation, and the failure
-/// unlink -- goes through `parent`'s descriptor, so nothing here ever
-/// re-resolves the path by name. Splitting this out of [`open_private_file`]
-/// lets [`provision_private_file`] retain the same authenticated parent throughout
-/// initialization. Initialization errors never unlink an admitted state file.
+/// Admission stays beneath `parent`'s descriptor. A failed admission retains its
+/// created file: even a descriptor-relative unlink would resolve a mutable name
+/// and could remove another writer's replacement instead of our open inode.
 #[cfg(unix)]
 fn open_private_leaf(
     parent: &OwnedPrivateDirectory,
     filename: &std::ffi::OsStr,
     create: bool,
+) -> Result<File, PrivateFileError> {
+    open_private_leaf_with(parent, filename, create, |file| {
+        file.sync_all().map_err(|_| PrivateFileError)?;
+        rustix::fs::fsync(&parent.descriptor).map_err(|_| PrivateFileError)
+    })
+}
+
+#[cfg(unix)]
+fn open_private_leaf_with(
+    parent: &OwnedPrivateDirectory,
+    filename: &std::ffi::OsStr,
+    create: bool,
+    sync_created: impl FnOnce(&File) -> Result<(), PrivateFileError>,
 ) -> Result<File, PrivateFileError> {
     use rustix::fs::{fstat, openat, FileType, Mode, OFlags};
     use rustix::process::geteuid;
@@ -406,45 +417,21 @@ fn open_private_leaf(
     let descriptor = openat(&parent.descriptor, filename, flags, Mode::RUSR | Mode::WUSR)
         .map_err(|_| PrivateFileError)?;
 
-    let opened = (|| -> Result<File, PrivateFileError> {
-        let status = fstat(&descriptor).map_err(|_| PrivateFileError)?;
-        if !FileType::from_raw_mode(status.st_mode).is_file()
-            || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
-            || status.st_uid != geteuid().as_raw()
-            || (!create && status.st_size == 0)
-        {
-            return Err(PrivateFileError);
-        }
-        require_no_extended_acl(&descriptor)?;
-
-        let file = File::from(descriptor);
-        if create {
-            file.sync_all().map_err(|_| PrivateFileError)?;
-            rustix::fs::fsync(&parent.descriptor).map_err(|_| PrivateFileError)?;
-        }
-        Ok(file)
-    })();
-
-    match opened {
-        Ok(file) => Ok(file),
-        Err(error) => {
-            if create {
-                // O_CREAT|O_EXCL already made the leaf, so a failure after this
-                // point must not leave it behind: the next attempt would get
-                // EEXIST, and the `create = false` path rejects the zero-length
-                // leftover, so one transient failure (a restrictive umask
-                // yielding the wrong mode, ENOSPC or EIO on the syncs) would
-                // brick provisioning permanently. Best-effort by design -- the
-                // original error is what the caller needs to see.
-                let _ = rustix::fs::unlinkat(
-                    &parent.descriptor,
-                    filename,
-                    rustix::fs::AtFlags::empty(),
-                );
-            }
-            Err(error)
-        }
+    let status = fstat(&descriptor).map_err(|_| PrivateFileError)?;
+    if !FileType::from_raw_mode(status.st_mode).is_file()
+        || Mode::from_raw_mode(status.st_mode) != (Mode::RUSR | Mode::WUSR)
+        || status.st_uid != geteuid().as_raw()
+        || (!create && status.st_size == 0)
+    {
+        return Err(PrivateFileError);
     }
+    require_no_extended_acl(&descriptor)?;
+
+    let file = File::from(descriptor);
+    if create {
+        sync_created(&file)?;
+    }
+    Ok(file)
 }
 
 /// Refuse a redb store file that was left unclean by a writer other than this
@@ -820,8 +807,8 @@ pub fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileError> {
 /// Reconcile the same file using independently retained expectations. Partial or
 /// malformed state must fail closed; neither another provisioning attempt nor a
 /// missing-file fallback may silently replace it. Failures during private-file
-/// admission, before the initializer receives the empty file, retain the existing
-/// admission cleanup behavior.
+/// admission, before the initializer receives the empty file, also retain that
+/// file and never authorize deletion or a replacement provisioning attempt.
 ///
 /// Creation is descriptor-relative to one authenticated pinned parent and uses
 /// `O_CREAT|O_EXCL`. The callback receives that exact file; this function performs
@@ -860,13 +847,72 @@ pub fn provision_private_file<T, E>(
 mod cleanup_boundary {
     use super::*;
     use std::io::{self, Read, Seek, Write};
-    use std::os::unix::fs::{symlink, DirBuilderExt, MetadataExt, PermissionsExt};
+    use std::os::unix::fs::{symlink, DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 
     fn scratch_directory() -> Result<tempfile::TempDir, io::Error> {
         tempfile::Builder::new()
             .prefix("private-scratch-")
             .permissions(std::fs::Permissions::from_mode(0o700))
             .tempdir()
+    }
+
+    #[test]
+    fn failed_admission_sync_preserves_created_and_replacement_inodes() -> Result<(), io::Error> {
+        for replace in [false, true] {
+            let temporary = scratch_directory()?;
+            let root = temporary.path().canonicalize()?;
+            let directory = OwnedPrivateDirectory::open(&root)
+                .map_err(|_| io::Error::other("private directory open failed"))?;
+            let path = root.join("state.redb");
+            let retained = root.join("original.redb");
+            let mut injected = false;
+            let mut original = None;
+            let result = open_private_leaf_with(
+                &directory,
+                std::ffi::OsStr::new("state.redb"),
+                true,
+                |file| {
+                    let metadata = file.metadata().map_err(|_| PrivateFileError)?;
+                    original = Some((metadata.dev(), metadata.ino()));
+                    if replace {
+                        std::fs::rename(&path, &retained).map_err(|_| PrivateFileError)?;
+                        let mut replacement = std::fs::OpenOptions::new()
+                            .write(true)
+                            .create_new(true)
+                            .mode(0o600)
+                            .open(&path)
+                            .map_err(|_| PrivateFileError)?;
+                        replacement
+                            .write_all(b"independent replacement")
+                            .map_err(|_| PrivateFileError)?;
+                    }
+                    injected = true;
+                    Err(PrivateFileError)
+                },
+            );
+            assert!(
+                injected,
+                "fixture must reach the selected admission barrier"
+            );
+            assert!(matches!(result, Err(PrivateFileError)));
+            let metadata = std::fs::metadata(if replace { &retained } else { &path })?;
+            assert_eq!(Some((metadata.dev(), metadata.ino())), original);
+            assert_eq!(metadata.len(), 0);
+            if replace {
+                let replacement = std::fs::metadata(&path)?;
+                assert_ne!(Some((replacement.dev(), replacement.ino())), original);
+                assert_eq!(std::fs::read(&path)?, b"independent replacement");
+            } else {
+                assert!(
+                    open_private_leaf(&directory, std::ffi::OsStr::new("state.redb"), false)
+                        .is_err()
+                );
+            }
+            assert!(
+                open_private_leaf(&directory, std::ffi::OsStr::new("state.redb"), true).is_err()
+            );
+        }
+        Ok(())
     }
 
     #[test]
