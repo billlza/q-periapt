@@ -24,7 +24,9 @@ def fixture(path):
     subject = b'j' * 32 + owner + b'p' * 32
     for name, data in {'local-root': key, 'local-account': account, 'local-certificate': wire(cert),
                        'witness-subject': subject, 'original-journal': b'j' * 32, 'recovered-journal': b'j' * 32,
-                       'original-outbox': b'original bootstrap ciphertext', 'restored-outbox': b'original bootstrap ciphertext',
+                       'original-outbox': wire(b'QPBSI001' + b'z' * 32 + bytes(2400)),
+                       'restored-outbox': wire(b'QPBSI001' + b'z' * 32 + bytes(2400)),
+                       'original-context': b'z' * 32, 'recovered-context': b'z' * 32,
                        'witness-id': b'w' * 32, 'witness-public': key}.items():
         write(name, data)
     for version in (2, 3, 4):
@@ -48,8 +50,8 @@ def fixture(path):
         write(name, before + b'l' * 32)
     for name in ('recovered-head', 'retried-head'):
         write(name, after + command)
-    for index in range(5):
-        query = index in (0, 4)
+    for index in range(7):
+        query = index in (0, 3, 4, 6)
         op = b'\x01' + bytes(96) if query else operation
         cmd = commit(b'Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1', authority + subject + op)
         rq = b'QPANRQ01' + authority + subject + cmd + bytes([index + 1]) * 32 + op
@@ -60,12 +62,13 @@ def fixture(path):
             write(prefix + '.rejection', b'Rejected(Validity)')
         else:
             rs = b'QPANRS01' + authority + subject + commit(b'Q-PERIAPT-CONTINUITY-ANCHOR-REQUEST/v1', rq) + cmd
-            rs += bytes([1 if query else 2]) + (before if index == 0 else after) + b'\x01' + (b'l' * 32 if index == 0 else command)
+            rs += bytes([1 if query else 2]) + (before if index < 5 else after) + b'\x01' + (b'l' * 32 if index < 5 else command)
             write(prefix + '.reply', wire(rs))
     for index, mode in enumerate(('expired', 'recover', 'revoke')):
         write(mode + '-pid', u(200 + index))
         write(mode + '-process.stdout', b'test service_peer_process ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out;\n')
-    report = dict(schema=1, parent_pid=100, initial_time=150, expired_time=210, trace_count=5,
+    write('trace-phases', u(4) + u(5) + u(7))
+    report = dict(schema=1, parent_pid=100, initial_time=150, expired_time=210, trace_count=7,
                   device_exit_codes=[0, 0, 0], carrier='signed-tcp', clock='injected-protocol-time')
     write('public-roster-result.json', json.dumps(report).encode())
     return report
@@ -99,6 +102,31 @@ class RosterRenewalEvidenceTests(unittest.TestCase):
                     renewal.verify(root)
                 (root / name).write_bytes(original)
 
+    def test_equal_invalid_outboxes_and_removed_queries_cannot_pass(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'public'
+            report = fixture(root)
+            original = (root / 'original-outbox').read_bytes()
+            for replacement in (b'x', original[:12] + b'y' * 32 + original[44:]):
+                for name in ('original-outbox', 'restored-outbox'):
+                    (root / name).write_bytes(replacement)
+                with self.subTest(replacement_size=len(replacement)), self.assertRaises(ValueError):
+                    renewal.verify(root)
+            for name in ('original-outbox', 'restored-outbox'):
+                (root / name).write_bytes(original)
+            records = [{suffix: (root / f'trace-{index:03}.{suffix}').read_bytes()
+                        for suffix in ('request', 'time', 'rejection' if index in (1, 2) else 'reply')}
+                       for index in (1, 2, 5)]
+            for path in root.glob('trace-*.*'):
+                path.unlink()
+            for index, row in enumerate(records):
+                for suffix, data in row.items():
+                    (root / f'trace-{index:03}.{suffix}').write_bytes(data)
+            report['trace_count'] = 3
+            (root / 'public-roster-result.json').write_text(json.dumps(report))
+            with self.assertRaises(ValueError):
+                renewal.verify(root)
+
     def test_missing_extra_and_duplicate_dispositions_fail(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / 'public'
@@ -108,7 +136,7 @@ class RosterRenewalEvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 renewal.verify(root)
             (root / 'trace-001.rejection').write_bytes(original)
-            for name in ('wrap.key', 'trace-001.reply', 'trace-005.request'):
+            for name in ('wrap.key', 'trace-001.reply', 'trace-007.request'):
                 (root / name).write_bytes(b'unexpected')
                 with self.subTest(name=name), self.assertRaises(ValueError):
                     renewal.verify(root)

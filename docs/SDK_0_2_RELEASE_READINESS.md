@@ -88,7 +88,12 @@ closure. The source-level runs and package qualification have separate receipts 
 [the roster package record](../research/sdk-alpha1/evidence/20261003-roster-package-c28cc7d5/RESULTS.json).
 A development run exposed inherited nonblocking mode on an accepted test-server
 socket; the final fixture explicitly selects blocking I/O with three-second
-read/write timeouts. The original failed run is retained. These are same-host
+read/write timeouts. The original failed run is retained. Independent reader review also demonstrated
+that equality alone admitted two identically malformed outboxes, and that an
+operation-only trace could omit query observations. The final collector requires
+the canonical bootstrap envelope, retained context and signed queries at explicit
+expiry/refresh/recovery phase boundaries. Both counterexamples are retained and
+covered by refusal tests. These are same-host
 native Rust checks with injected protocol time, not credential replacement,
 foreign-package requalification, deployed operator transport or release readiness.
 

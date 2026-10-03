@@ -90,7 +90,8 @@ original installation for expiry refusal, exact recovery, and durable revocation
 the witness runs in the parent process. The package collector checks the public
 request/response commitments, two refused attempts of one immutable command, one
 subsequent advance, unchanged journal identity/fence/bootstrap outbox, signed
-roster checkpoints, and child completion. Only that checked public closure is
+roster checkpoints, bootstrap envelope/context, signed phase query readbacks,
+and child completion. Only that checked public closure is
 exported and re-read; private keys and databases are excluded. Protocol time is
 injected. This path does not establish application-message restoration after
 credential replacement or an independent witness implementation.

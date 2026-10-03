@@ -230,6 +230,7 @@ pub(super) fn device_process(path: &Path, mode: &str) -> Result<()> {
         );
         store(path, "recovered-journal", journal.identity()?.as_bytes())?;
         store(path, "recovered-checkpoint", &checkpoint(path, 3)?.digest())?;
+        store(path, "recovered-context", &context.digest())?;
         let outbox = journal.resume_initial(context, request_id()?, at)?;
         store(path, "restored-outbox", &outbox)?;
         let before = observe(path, address)?;
@@ -317,6 +318,7 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
     store(&public, "original-journal", journal.identity()?.as_bytes())?;
     let initial = journal.initiate(Arc::clone(&context), request_id()?, &peer.signer, at)?;
     store(&public, "original-outbox", &initial)?;
+    store(&public, "original-context", &context.digest())?;
     let before = observe(path, address)?;
     store(&public, "before-head", &before)?;
     let start = witness
@@ -342,6 +344,11 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
     assert!(wait(&mut blocked)?.success());
     assert_eq!(observe(path, address)?, before);
     store(&public, "expired-head", &before)?;
+    let expired_end = witness
+        .captures
+        .lock()
+        .map_err(|_| "capture poisoned")?
+        .len();
     // The independently admitted new roster changes authority metadata only.
     let mut policy_store = sdk(path)?;
     let policy = protocol_policy(path, &policy_store)?;
@@ -361,6 +368,11 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
     store(&public, "admitted-checkpoint", &admitted.digest())?;
     assert_eq!(observe(path, address)?, before);
     store(&public, "refreshed-head", &before)?;
+    let refreshed_end = witness
+        .captures
+        .lock()
+        .map_err(|_| "capture poisoned")?
+        .len();
     policy.close();
     policy_store.close();
     let mut recovered = child(path, 82, "roster-renewal-recover")?;
@@ -378,6 +390,13 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
         .lock()
         .map_err(|_| "capture poisoned")?
         .len();
+    let mut phases = Vec::new();
+    for boundary in [expired_end, refreshed_end, end] {
+        phases.extend_from_slice(
+            &u64::try_from(boundary.checked_sub(start).ok_or("capture boundary")?)?.to_be_bytes(),
+        );
+    }
+    store(&public, "trace-phases", &phases)?;
     let mut revoked = child(path, 83, "roster-renewal-revoke")?;
     assert!(wait(&mut revoked)?.success());
     witness.join()?;
@@ -403,6 +422,7 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
         "renewal-digest-4",
         "recovered-journal",
         "recovered-checkpoint",
+        "recovered-context",
         "restored-outbox",
         "retried-head",
         "revoked-checkpoint",

@@ -56,7 +56,13 @@ def verify(directory: Path) -> dict:
                 and len(original_id) == 32 and original_id == recovered_id == subject[:32],
                 'roster renewal replaced the original journal or subject')
     original, restored = read('original-outbox'), read('restored-outbox')
-    sdk.require(len(original) > 0 and original == restored, 'roster renewal changed the original outbox')
+    # Fixed candidate hybrid profile: tag/context/nonce + 1216-byte public key
+    # + 1120-byte ciphertext + 32-byte confirmation MAC, followed by signature.
+    initial = envelope(original, b'QPBSI001', 2440)
+    context = read('original-context', 32)
+    sdk.require(len(context) == 32 and any(context) and initial[8:40] == context
+                and context == read('recovered-context', 32) and original == restored,
+                'roster renewal changed the original bootstrap outbox or context')
     account, root = read('local-account', 32), read('local-root', 1985)
     sdk.require(len(root) == 1985 and root[1952] in (2, 3)
                 and account == commit(b'Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1', root),
@@ -95,6 +101,11 @@ def verify(directory: Path) -> dict:
     operation = b'\x02' + before[:48] + after[:48]
     command = commit(b'Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1', authority + subject + operation)
     sdk.require(after[48:] == command, 'roster renewal recovered another command')
+    phase_bytes = read('trace-phases', 24)
+    sdk.require(len(phase_bytes) == 24, 'roster renewal phase framing differs')
+    expired_end, refreshed_end, end = (int.from_bytes(phase_bytes[n:n + 8], 'big') for n in (0, 8, 16))
+    sdk.require(2 < expired_end and refreshed_end == expired_end + 1
+                and refreshed_end < end == report['trace_count'], 'roster renewal phase boundaries differ')
     state, rejected, applied, challenges = before, 0, 0, set()
     for index in range(report['trace_count']):
         prefix = f'trace-{index:03}'
@@ -110,7 +121,8 @@ def verify(directory: Path) -> dict:
         challenges.add(challenge)
         if (directory / (prefix + '.rejection')).exists():
             sdk.require(read(prefix + '.rejection', 32) == b'Rejected(Validity)'
-                        and op == operation and cmd == command and state == before and applied == 0,
+                        and op == operation and cmd == command and state == before and applied == 0
+                        and index < expired_end - 1,
                         'roster renewal expiry did not refuse the original pending command')
             rejected += 1
             continue
@@ -122,10 +134,14 @@ def verify(directory: Path) -> dict:
             sdk.require(op == b'\x01' + bytes(96) and rs[200] == 1, 'roster renewal query mutated state')
         else:
             sdk.require(op == operation and cmd == command and state == before and rejected == 2
-                        and rs[200] == 2 and applied == 0, 'roster renewal replaced or repeated the pending advance')
+                        and rs[200] == 2 and applied == 0 and index >= refreshed_end,
+                        'roster renewal replaced or repeated the pending advance')
             state = after
             applied += 1
         sdk.require(rs[201:249] + rs[250:282] == state, 'roster renewal reply lost head, fence or last command')
+        if index in (expired_end - 1, refreshed_end - 1, end - 1):
+            sdk.require(op[0] == 1 and state == (after if index == end - 1 else before),
+                        'roster renewal omitted a signed phase query readback')
     sdk.require(rejected == 2 and applied == 1 and state == after, 'roster renewal recovery trace incomplete')
     actual = set()
     for path in directory.iterdir():
