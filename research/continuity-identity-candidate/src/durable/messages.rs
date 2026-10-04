@@ -436,12 +436,12 @@ impl DeviceJournal {
         let op = self.initiation_query(&context, request)?;
         let mut image = self.image()?;
         require_live_source(&image, &op)?;
-        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         initiator::check_request(record, &context, request)?;
         if record.phase == DurableStatus::Messages {
             return self.existing_messages(&image, &op, &context, now);
         }
+        rosters::authorize_context(&image, &context, now)?;
         if record.phase != DurableStatus::FinalCommitted {
             return Err(DurableError::Suspended);
         }
@@ -465,12 +465,12 @@ impl DeviceJournal {
         let op = self.query_id(&context, initial)?;
         let mut image = self.image()?;
         require_live_source(&image, &op)?;
-        rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         record.check_request(&context, initial)?;
         if record.phase == DurableStatus::Messages {
             return self.existing_messages(&image, &op, &context, now);
         }
+        rosters::authorize_context(&image, &context, now)?;
         if record.phase != DurableStatus::Complete {
             return Err(DurableError::Suspended);
         }
@@ -496,8 +496,9 @@ impl DeviceJournal {
         {
             let state = State::decode(&record.payload)?;
             if state.source == *op {
+                self.message_state(image, context, &state.session, now)?;
                 context.check_session_identity(now)?;
-                self.check_context_release(image, context, now)?;
+                self.check_session_context_release(image, context, now)?;
                 return Ok(state.session);
             }
         }
@@ -510,6 +511,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         now: u64,
     ) -> Result<[u8; 32], DurableError> {
+        context.require_fresh_identity(now)?;
         if image.operation_count() >= MAX_RECORDS {
             return Err(DurableError::Capacity);
         }
@@ -534,7 +536,7 @@ impl DeviceJournal {
         #[cfg(all(test, unix))]
         tests::after_stage("activation");
         context.check_session_identity(now)?;
-        self.check_context_release(image, context, now)?;
+        self.check_session_context_release(image, context, now)?;
         Ok(state.session)
     }
     fn message_state(
@@ -544,8 +546,29 @@ impl DeviceJournal {
         session: &[u8; 32],
         now: u64,
     ) -> Result<State, DurableError> {
-        rosters::authorize_context(image, context, now)?;
+        rosters::authorize_session_context(image, context, now)?;
+        let state = self.bound_message_state(image, context, session)?;
+        state.send_progress(context.policy().application_send_budget())?;
+        Ok(state)
+    }
+    fn bound_message_state(
+        &self,
+        image: &Image,
+        context: &BootstrapContext,
+        session: &[u8; 32],
+    ) -> Result<State, DurableError> {
+        let state = self.live_message_state(image, context, session)?;
+        check_message_owner(image, context, state.role)?;
+        Ok(state)
+    }
+    fn live_message_state(
+        &self,
+        image: &Image,
+        context: &BootstrapContext,
+        session: &[u8; 32],
+    ) -> Result<State, DurableError> {
         self.check_policy(context.policy())?;
+        check_view_scope(image, context, session, None)?;
         let record = image
             .records
             .get(&record_id(session))
@@ -567,16 +590,35 @@ impl DeviceJournal {
             _ => return Err(DurableError::Corrupt),
         }
         let state = State::decode(&record.payload)?;
-        let owner = if state.role == 1 {
-            context.initiator_storage_owner()
-        } else {
-            context.storage_owner()
-        };
-        if owner != image.owner {
+        if state.session != *session {
+            return Err(DurableError::Corrupt);
+        }
+        check_view_scope(image, context, session, Some(state.role))?;
+        Ok(state)
+    }
+    // Historical context bytes become usable only through this exact original
+    // established record. Archive and installation ownership are service duties.
+    pub(crate) fn prepare_reopened_context(
+        &mut self,
+        context: Arc<BootstrapContext>,
+        session: [u8; 32],
+        role: crate::BootstrapRole,
+        now: u64,
+    ) -> Result<Arc<BootstrapContext>, DurableError> {
+        let image = self.image()?;
+        let state = self.live_message_state(&image, &context, &session)?;
+        if state.role != role_byte(role) {
             return Err(DurableError::Conflict);
         }
-        state.send_progress(context.policy().application_send_budget())?;
-        Ok(state)
+        let identities = rosters::resolve_session_identities(&image, &context, now)?;
+        let context = if identities.iter().any(Option::is_some) {
+            Arc::new(context.with_session_authority(image.id, session, role, identities)?)
+        } else {
+            context
+        };
+        self.message_state(&image, &context, &session, now)?;
+        self.check_session_context_release(&image, &context, now)?;
+        Ok(context)
     }
     pub(crate) fn check_reopened_session(
         &mut self,
@@ -595,7 +637,7 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         context.check_session_identity(now)?;
-        self.check_context_release(&image, context, now)
+        self.check_session_context_release(&image, context, now)
     }
     /// Read the current send slot before submitting input. Retain this ID across
     /// retries. Concurrent readers may see the same slot; differing inputs conflict.
@@ -622,7 +664,7 @@ impl DeviceJournal {
         )?;
         fanout::require_individual(&image, session, id)?;
         context.check_session_identity(now)?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(id)
     }
     /// Commit the next chain state and exact ciphertext outbox together before
@@ -705,7 +747,7 @@ impl DeviceJournal {
             tests::after_stage("sent");
         }
         context.check_session_identity(now)?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
     /// Inspect an authenticated outgoing record without executing or releasing it.
@@ -755,6 +797,7 @@ impl DeviceJournal {
         session: [u8; 32],
     ) -> Result<&'a Record, DurableError> {
         self.check_policy(context.policy())?;
+        check_view_scope(image, context, &session, None)?;
         let record = image
             .records
             .get(&record_id(&session))
@@ -765,6 +808,12 @@ impl DeviceJournal {
         {
             return Err(DurableError::Conflict);
         }
+        check_view_scope(
+            image,
+            context,
+            &session,
+            Some(closure::record_role(record)?),
+        )?;
         Ok(record)
     }
     fn message_state_for_status(
@@ -805,7 +854,7 @@ impl DeviceJournal {
         }
         if let Some(saved) = traffic.outgoing.get(&id) {
             context.check_session_identity(now)?;
-            self.check_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)?;
             return Ok(saved.wire.clone());
         }
         let plan = traffic
@@ -851,9 +900,70 @@ impl DeviceJournal {
             tests::after_stage("received");
         }
         context.check_session_identity(now)?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(plaintext)
     }
+}
+
+fn role_byte(role: crate::BootstrapRole) -> u8 {
+    match role {
+        crate::BootstrapRole::Initiator => 1,
+        crate::BootstrapRole::Responder => 2,
+    }
+}
+fn check_view_scope(
+    image: &Image,
+    context: &BootstrapContext,
+    session: &[u8; 32],
+    role: Option<u8>,
+) -> Result<(), DurableError> {
+    context.check_storage_binding(
+        image.id,
+        image.owner,
+        role.map(|role| {
+            if role == 1 {
+                crate::BootstrapRole::Initiator
+            } else {
+                crate::BootstrapRole::Responder
+            }
+        }),
+    )?;
+    if let Some((journal, bound_session, bound_role)) = context.retained_binding() {
+        if journal != image.id
+            || bound_session != *session
+            || role.is_some_and(|role| role != role_byte(bound_role))
+        {
+            return Err(DurableError::Conflict);
+        }
+    }
+    Ok(())
+}
+pub(super) fn check_retained_binding(
+    image: &Image,
+    context: &BootstrapContext,
+) -> Result<(), DurableError> {
+    let Some((_, session, role)) = context.retained_binding() else {
+        return Ok(());
+    };
+    check_view_scope(image, context, &session, Some(role_byte(role)))?;
+    let record = image
+        .records
+        .get(&record_id(&session))
+        .ok_or(DurableError::Absent)?;
+    if record.kind != RecordKind::Messages
+        || record.context != context.digest()
+        || record.authorities != rosters::context_accounts(context)
+    {
+        return Err(DurableError::Conflict);
+    }
+    if record.phase != DurableStatus::Messages {
+        return Err(DurableError::Suspended);
+    }
+    let state = State::decode(&record.payload)?;
+    if state.session != session || state.role != role_byte(role) {
+        return Err(DurableError::Conflict);
+    }
+    check_message_owner(image, context, state.role)
 }
 
 fn check_message_owner(

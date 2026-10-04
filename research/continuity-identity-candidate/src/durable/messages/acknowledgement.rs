@@ -138,7 +138,7 @@ impl DeviceJournal {
             super::tests::after_stage("consumed");
         }
         context.check_session_identity(now)?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(state.traffic(epoch)?.receive_floor)
     }
     /// Return a MAC of the currently committed contiguous application-consumed
@@ -152,7 +152,7 @@ impl DeviceJournal {
         let image = self.image()?;
         let state = self.message_state(&image, context, &session, now)?;
         let wire = state.traffic(state.receive_epoch)?.acknowledgement()?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
     /// Recompute the exact epoch's committed consumption acknowledgement. Old
@@ -170,7 +170,7 @@ impl DeviceJournal {
             return Err(DurableError::Suspended);
         }
         let wire = state.traffic(epoch)?.acknowledgement()?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
     /// Verify the peer's cumulative application-consumption acknowledgement and
@@ -200,7 +200,7 @@ impl DeviceJournal {
             super::tests::after_stage("acknowledged");
         }
         context.check_session_identity(now)?;
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(state.traffic(epoch)?.send_floor)
     }
 }

@@ -325,7 +325,7 @@ impl DeviceJournal {
         if state.traffic(epoch)?.resolution.acknowledged() {
             return Err(Error::Retired.into());
         }
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(state.traffic(epoch)?.resolution_report()?)
     }
 
@@ -367,7 +367,7 @@ impl DeviceJournal {
                 super::tests::after_stage("epoch-resolution-acknowledged");
             }
         }
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(())
     }
 

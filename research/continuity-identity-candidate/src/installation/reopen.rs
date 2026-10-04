@@ -52,12 +52,22 @@ impl ServiceOwners {
         context: &BootstrapContext,
         role: BootstrapRole,
     ) -> Result<(), DurableError> {
+        context.check_storage_binding(
+            *self.installation.identity.as_bytes(),
+            self.authority.owner,
+            Some(role),
+        )?;
         if self.installation.status()? != InstallationStatus::Active
-            || scope(
+            || self.local_identity
+                != (
+                    context.device(role).account_id(),
+                    context.device(role).device_id(),
+                )
+            || scope_for_owner(
                 &self.installation.paths,
                 self.installation.identity,
                 self.installation.key_binding,
-                context.device(role),
+                context.role_storage_owner(role),
                 context.policy(),
             )? != self.installation.scope
         {
@@ -68,6 +78,34 @@ impl ServiceOwners {
 }
 
 impl DeviceService {
+    /// Atomically admit an independently verified peer credential renewal under
+    /// this installation's exact policy. The original operation must be retained
+    /// by the caller. The same target is only an exact original-operation readback;
+    /// another current head, observed revocation or conflicting operation fails.
+    /// This cannot renew the local device or change its installation policy.
+    /// It does not by itself produce a continued peer or release application data.
+    pub fn admit_peer_credential_renewal(
+        &mut self,
+        renewal: &crate::VerifiedCredentialRenewal,
+        operation: crate::CredentialRenewalId,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::RosterCheckpoint, DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        let successor = renewal.successor_device();
+        if owners.installation.status()? != InstallationStatus::Active
+            || owners.local_identity == (successor.account_id(), successor.device_id())
+        {
+            return Err(DurableError::Conflict);
+        }
+        owners.journal.install_peer_credential_renewal(
+            &owners.authority,
+            renewal,
+            operation,
+            policy,
+            now,
+        )
+    }
     /// Admit a freshly verified public context under this original active service.
     /// The caller verifies its bundle against independently retained pins first.
     /// Current advertisement, credential, policy/runtime and installed roster
@@ -82,11 +120,30 @@ impl DeviceService {
         now: u64,
     ) -> Result<BootstrapPeer, DurableError> {
         let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
-        context.check(now)?;
+        let context = owners
+            .journal
+            .prepare_bootstrap_context(context, role, now)?;
         owners.check_peer_binding(&context, role)?;
-        owners.journal.check_bootstrap_peer(&context, role, now)?;
         context.check(now)?;
         Ok(BootstrapPeer { context, role })
+    }
+
+    /// Authenticate an original public bundle and restore only its exact existing
+    /// session through this active service. Expired historical credentials require
+    /// a current root renewal grant already committed in the original journal.
+    /// Original independent pins, policy owner, local installation and archive
+    /// remain mandatory. A returned context cannot bootstrap another session.
+    pub fn reopen_peer_bundle(
+        &mut self,
+        bundle: &crate::BootstrapBundle,
+        policy: Arc<crate::VerifiedSessionPolicy>,
+        required: crate::BootstrapRequirements<'_>,
+        role: BootstrapRole,
+        session: [u8; 32],
+        now: u64,
+    ) -> Result<ReopenedPeer, DurableError> {
+        let request = bundle.historical_reopen(policy, required, role, session, now)?;
+        self.reopen_peer(request, now)
     }
 
     /// Restore another existing peer under this service's original installation,
@@ -106,7 +163,9 @@ impl DeviceService {
             role,
             session,
         } = request;
-        context.check_session_identity(now)?;
+        let context = owners
+            .journal
+            .prepare_reopened_context(context, session, role, now)?;
         owners.check_peer_binding(&context, role)?;
         owners
             .archives
@@ -172,6 +231,10 @@ impl DeviceInstallation {
         let (journal, archives) = installation.open_children(key, device, policy, anchor)?;
         let mut service = DeviceService {
             active: Some(ServiceOwners {
+                local_identity: (device.account_id(), device.device_id()),
+                authority: crate::RetainedInstallationAuthority::active_installation(
+                    device, policy,
+                ),
                 journal,
                 archives,
                 installation,

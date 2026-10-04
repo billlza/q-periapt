@@ -145,7 +145,7 @@ struct Binding {
     peer_device: [u8; 16],
     peer_generation: u64,
 }
-fn record_role(record: &Record) -> Result<u8, DurableError> {
+pub(super) fn record_role(record: &Record) -> Result<u8, DurableError> {
     match record.phase {
         DurableStatus::Messages
         | DurableStatus::MessagesClosing
@@ -230,6 +230,7 @@ impl DeviceJournal {
         } else {
             return Err(DurableError::Conflict);
         };
+        check_view_scope(image, context, &session, Some(role))?;
         if image.local_account != local.account_id() {
             return Err(DurableError::Conflict);
         }

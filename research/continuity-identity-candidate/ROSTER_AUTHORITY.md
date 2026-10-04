@@ -41,8 +41,10 @@ admission for an existing operation.
 Each account retains the highest observed generation and credential digest for
 every observed device ID, including removed devices. A removed generation cannot
 reappear in a higher-version roster; a live generation cannot silently change its
-credential. A replacement requires a higher generation and a distinct journal
-owner. Limits are 64 account heads and 256 historical device IDs per account, in
+credential. The explicit [same-key renewal](CREDENTIAL_RENEWAL.md) grants the bounded
+exception: exact predecessor, same full identity/key and strictly extended validity,
+with the original storage owner retained. Key/generation replacement still requires
+a higher generation and a distinct journal owner. Limits are 64 account heads and 256 historical device IDs per account, in
 addition to the existing 32 active devices per roster and 2 MiB image bound.
 Capacity exhaustion fails explicitly without dropping history.
 
@@ -55,8 +57,10 @@ lifetime, while credential and policy expiry remain binding. Explicit renewal ma
 retain a still-enrolled credential. Witness enrollment validity and its later
 renewal remain a separate authority transition.
 
-The unreleased journal schema is v19: `continuity_device_candidate_v19`,
-`QPVLT019`, `QPVIMG19`. It rejects earlier journal schemas without reset or implicit
+The current unreleased outer journal schema is v21: `continuity_device_candidate_v21`,
+`QPVLT021`, `QPVIMG21`. The roster authority fields originated in v19; the current
+roster payload admits the bounded QPRHST02/03 renewal extensions described in
+[CREDENTIAL_RENEWAL.md](CREDENTIAL_RENEWAL.md#encoding-and-compatibility). It rejects earlier journal schemas without reset or implicit
 migration. Network bootstrap/message bytes and SDK ABI major 2 are unchanged.
 The image contains `local_account[32]`; each record adds a one-byte authority count
 and zero to two sorted account IDs. Roster records use kind 5/phase 20 and

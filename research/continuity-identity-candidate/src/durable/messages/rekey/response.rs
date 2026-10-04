@@ -189,7 +189,7 @@ impl DeviceJournal {
         if let Some(last) = &state.control.last {
             if last.offer == offer && state.role == 3 - proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)?;
                 return Ok(last.response.clone());
             }
         }
@@ -203,7 +203,7 @@ impl DeviceJournal {
             if saved_offer != offer {
                 return Err(DurableError::Conflict);
             }
-            self.check_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)?;
             return Ok(saved_response.to_vec());
         }
         if let Some(super::Plan::Response(saved)) = &state.control.plan {
@@ -220,7 +220,7 @@ impl DeviceJournal {
                     self.close();
                     return Err(DurableError::InvalidCheckpoint(error));
                 }
-                self.check_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)?;
                 return Ok(wire.clone());
             }
         }
@@ -265,7 +265,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-response-kem-reserved");
         }
-        rosters::authorize_context(&image, context, now)?;
+        rosters::authorize_session_context(&image, context, now)?;
         let Some(super::Plan::Response(plan)) = &mut state.control.plan else {
             return Err(DurableError::Corrupt);
         };
@@ -324,7 +324,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-response-signature-reserved");
         }
-        rosters::authorize_context(&image, context, now)?;
+        rosters::authorize_session_context(&image, context, now)?;
         let Some(super::Plan::Response(plan)) = &mut state.control.plan else {
             return Err(DurableError::Corrupt);
         };
@@ -359,7 +359,7 @@ impl DeviceJournal {
         self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-response-committed");
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
     pub(super) fn rekey_recovery_key(&self) -> Result<RecoveryKey, DurableError> {

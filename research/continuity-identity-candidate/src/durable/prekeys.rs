@@ -222,16 +222,27 @@ fn public_component(key: &HybridKey, kind: LeafKind) -> Result<Vec<u8>, Error> {
 impl DeviceJournal {
     fn inventory_owner(
         &self,
+        image: &Image,
         policy: &VerifiedSessionPolicy,
         device: &VerifiedDevice,
     ) -> Result<(), DurableError> {
         self.check_policy(policy)?;
-        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        if active.owner != bootstrap::storage_owner(device)
-            || policy.family() != device.description.family
-        {
-            return Err(DurableError::Conflict);
-        }
+        rosters::check_local_device_scope(image, device, policy)
+    }
+    fn check_prekey_release(
+        &mut self,
+        image: &Image,
+        policy: &VerifiedSessionPolicy,
+        device: &VerifiedDevice,
+        kind: LeafKind,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        self.check_policy(policy)?;
+        admission(policy, device, kind, now)?;
+        rosters::authorize_local_device(image, device, policy, now)?;
+        self.check_release(image)?;
+        // Persistence and witness admission may block while the policy closes.
+        admission(policy, device, kind, now)?;
         Ok(())
     }
     fn inventory_entry(
@@ -269,12 +280,20 @@ impl DeviceJournal {
         device: &VerifiedDevice,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        self.inventory_owner(policy, device)?;
         let image = self.image()?;
+        self.inventory_owner(&image, policy, device)?;
+        self.inventory_status(&image, policy, request)
+    }
+    fn inventory_status(
+        &self,
+        image: &Image,
+        policy: &VerifiedSessionPolicy,
+        request: PrekeyId,
+    ) -> Result<PrekeyStatus, DurableError> {
         if !image.records.contains_key(&id(request)) {
             return Ok(PrekeyStatus::Absent);
         }
-        self.inventory_entry(&image, policy, request)?;
+        self.inventory_entry(image, policy, request)?;
         phase_status(
             image
                 .records
@@ -295,7 +314,6 @@ impl DeviceJournal {
         validity: Validity,
         now: u64,
     ) -> Result<PrekeyLeaf, DurableError> {
-        self.inventory_owner(policy, device)?;
         admission(policy, device, kind, now)?;
         validity.check(now)?;
         if !policy.validity().contains(validity)
@@ -305,7 +323,8 @@ impl DeviceJournal {
             return Err(Error::Validity.into());
         }
         let mut image = self.image()?;
-        rosters::authorize_device(&image, device, now)?;
+        self.inventory_owner(&image, policy, device)?;
+        rosters::authorize_local_device(&image, device, policy, now)?;
         let op = id(request);
         let recovery = self.inventory_recovery_key()?;
         let mut entry = if image.records.contains_key(&op) {
@@ -348,7 +367,7 @@ impl DeviceJournal {
         };
         match image.records.get(&op).ok_or(DurableError::Absent)?.phase {
             DurableStatus::PrekeyAvailable => {
-                self.check_device_release(&image, device, now)?;
+                self.check_prekey_release(&image, policy, device, entry.kind, now)?;
                 return entry.leaf();
             }
             DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned => {
@@ -386,7 +405,9 @@ impl DeviceJournal {
         record.phase = DurableStatus::PrekeyAvailable;
         record.payload = entry.encode();
         self.persist(&mut image)?;
-        self.check_device_release(&image, device, now)?;
+        #[cfg(all(test, unix))]
+        tests::after_publication();
+        self.check_prekey_release(&image, policy, device, entry.kind, now)?;
         Ok(leaf)
     }
     /// Retrieve only a currently usable committed public leaf. Reserved, consumed
@@ -398,8 +419,8 @@ impl DeviceJournal {
         request: PrekeyId,
         now: u64,
     ) -> Result<PrekeyLeaf, DurableError> {
-        self.inventory_owner(policy, device)?;
         let image = self.image()?;
+        self.inventory_owner(&image, policy, device)?;
         rosters::authorize_device(&image, device, now)?;
         let entry = self.inventory_entry(&image, policy, request)?;
         admission(policy, device, entry.kind, now)?;
@@ -411,7 +432,7 @@ impl DeviceJournal {
             .phase
         {
             DurableStatus::PrekeyAvailable => {
-                self.check_device_release(&image, device, now)?;
+                self.check_prekey_release(&image, policy, device, entry.kind, now)?;
                 entry.leaf()
             }
             DurableStatus::PrekeyReserved => Err(DurableError::Suspended),
@@ -431,8 +452,16 @@ impl DeviceJournal {
         device: &VerifiedDevice,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        self.inventory_owner(policy, device)?;
-        let mut image = self.image()?;
+        let image = self.image()?;
+        self.inventory_owner(&image, policy, device)?;
+        self.retire_inventory_entry(image, policy, request)
+    }
+    fn retire_inventory_entry(
+        &mut self,
+        mut image: Image,
+        policy: &VerifiedSessionPolicy,
+        request: PrekeyId,
+    ) -> Result<PrekeyStatus, DurableError> {
         let mut entry = self.inventory_entry(&image, policy, request)?;
         let op = id(request);
         let status = phase_status(image.records.get(&op).ok_or(DurableError::Absent)?.phase)?;
@@ -460,6 +489,43 @@ impl DeviceJournal {
         record.payload = entry.encode();
         self.persist(&mut image)?;
         Ok(PrekeyStatus::Retired)
+    }
+    fn installation_inventory(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        policy: &VerifiedSessionPolicy,
+    ) -> Result<Image, DurableError> {
+        self.check_policy(policy)?;
+        let image = self.image()?;
+        authority.check(
+            image.owner,
+            policy
+                .anchor_requirement()
+                .binding()
+                .map(|w| (policy.checkpoint().digest(), w)),
+        )?;
+        if authority.policy != policy.checkpoint().digest() {
+            return Err(DurableError::Conflict);
+        }
+        Ok(image)
+    }
+    pub(crate) fn installation_prekey_status(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        policy: &VerifiedSessionPolicy,
+        request: PrekeyId,
+    ) -> Result<PrekeyStatus, DurableError> {
+        let image = self.installation_inventory(authority, policy)?;
+        self.inventory_status(&image, policy, request)
+    }
+    pub(crate) fn retire_installation_prekey(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        policy: &VerifiedSessionPolicy,
+        request: PrekeyId,
+    ) -> Result<PrekeyStatus, DurableError> {
+        let image = self.installation_inventory(authority, policy)?;
+        self.retire_inventory_entry(image, policy, request)
     }
     fn restore_inventory_key(
         &mut self,
@@ -520,7 +586,7 @@ impl DeviceJournal {
         }
         crate::bootstrap::response_staged::ResponsePlan::check_signer(&context, signer)?;
         let (policy, device, selection) = context.inventory_inputs();
-        self.inventory_owner(policy, device)?;
+        self.inventory_owner(&image, policy, device)?;
         let refs = [
             find(&image, policy, selection.post_quantum())?,
             find(&image, policy, selection.classical())?,

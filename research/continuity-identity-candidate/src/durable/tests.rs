@@ -1213,3 +1213,23 @@ impl Drop for ChildGuard {
         }
     }
 }
+
+// Snapshot only public authenticated metadata for owning-service regression tests.
+pub(crate) use super::rosters::tests::{renewal::grant, update as renewal_roster};
+pub(crate) struct JournalSnapshot {
+    pub(crate) id: [u8; 32],
+    pub(crate) owner: [u8; 32],
+    pub(crate) revision: u64,
+    pub(crate) digest: [u8; 32],
+}
+impl DeviceJournal {
+    pub(crate) fn test_snapshot(&mut self) -> JournalSnapshot {
+        let image = self.image().expect("authenticated test image");
+        JournalSnapshot {
+            id: image.id,
+            owner: image.owner,
+            revision: image.revision,
+            digest: image.digest,
+        }
+    }
+}

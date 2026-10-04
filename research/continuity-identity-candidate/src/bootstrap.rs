@@ -28,6 +28,7 @@ const REPLY_CORE: usize = REPLY_PREFIX + CIPHERTEXT_LEN;
 const FINAL_PREFIX: usize = 8 + 32 + 32 + 32;
 
 pub(crate) mod response_staged;
+mod retained;
 pub(crate) mod staged;
 
 pub(crate) fn hash(label: &[u8], bytes: &[u8]) -> [u8; 32] {
@@ -56,6 +57,8 @@ pub struct BootstrapContext {
     selection: Arc<AuthenticatedPrekeySelection>,
     peer: PublicKey,
     digest: [u8; 32],
+    retained: Option<retained::SessionAuthority>,
+    storage: Option<retained::StorageBinding>,
 }
 impl BootstrapContext {
     /// Bind both identities, exact policies, selection and independent directory expectation.
@@ -109,6 +112,8 @@ impl BootstrapContext {
             initiator,
             responder,
             selection,
+            retained: None,
+            storage: None,
         })
     }
 
@@ -118,6 +123,7 @@ impl BootstrapContext {
     }
 
     pub(crate) fn check(&self, now: u64) -> Result<(), Error> {
+        self.require_fresh_identity(now)?;
         self.policy.check_mode(self.selection.quality(), now)?;
         self.selection.check_time(now)?;
         self.policy.check_device(&self.initiator, now)?;
@@ -127,8 +133,11 @@ impl BootstrapContext {
         // Admitted sessions retain their selected prekey identity, but prekey
         // advertisement expiry must not become their application lifetime.
         self.policy.check_mode(self.selection.quality(), now)?;
-        self.policy.check_device_identity(&self.initiator, now)?;
-        self.policy.check_device_identity(&self.responder, now)
+        for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
+            self.policy
+                .check_device_identity(self.session_device(role), now)?;
+        }
+        Ok(())
     }
     pub(crate) fn devices(&self) -> [&VerifiedDevice; 2] {
         [self.initiator.as_ref(), self.responder.as_ref()]
@@ -150,10 +159,10 @@ impl BootstrapContext {
     }
 
     pub(crate) fn storage_owner(&self) -> [u8; 32] {
-        storage_owner(&self.responder)
+        self.role_storage_owner(BootstrapRole::Responder)
     }
     pub(crate) fn initiator_storage_owner(&self) -> [u8; 32] {
-        storage_owner(&self.initiator)
+        self.role_storage_owner(BootstrapRole::Initiator)
     }
     pub(crate) fn inventory_inputs(
         &self,
@@ -216,10 +225,23 @@ impl BootstrapContext {
 }
 
 pub(crate) fn storage_owner(device: &VerifiedDevice) -> [u8; 32] {
-    let mut bytes = device.account_id().to_vec();
-    bytes.extend_from_slice(&device.device_id());
-    bytes.extend_from_slice(&device.generation().to_be_bytes());
-    bytes.extend_from_slice(&device.credential_digest());
+    credential_storage_owner(
+        device.account_id(),
+        device.device_id(),
+        device.generation(),
+        device.credential_digest(),
+    )
+}
+pub(crate) fn credential_storage_owner(
+    account: [u8; 32],
+    device: [u8; 16],
+    generation: u64,
+    credential: [u8; 32],
+) -> [u8; 32] {
+    let mut bytes = account.to_vec();
+    bytes.extend_from_slice(&device);
+    bytes.extend_from_slice(&generation.to_be_bytes());
+    bytes.extend_from_slice(&credential);
     hash(b"storage-owner", &bytes)
 }
 
@@ -1150,7 +1172,25 @@ pub(crate) mod tests {
             None,
             AnchorRequirement::local_only(),
             ApplicationSendBudget::new(1024).expect("fixture budget"),
-            Some((roster, prekey, credential)),
+            Some((roster, prekey, [credential; 2])),
+        )
+    }
+    pub(crate) fn fixture_with_credential_lifetimes(
+        quality: PrekeyQuality,
+        credentials: [Validity; 2],
+    ) -> Fixture {
+        fixture_with_options(
+            quality,
+            None,
+            q_periapt_sdk::Limits::default(),
+            None,
+            AnchorRequirement::local_only(),
+            ApplicationSendBudget::new(1024).expect("fixture budget"),
+            Some((
+                interval(),
+                Validity::new(100, 155).expect("prekey interval"),
+                credentials,
+            )),
         )
     }
     fn fixture_with_options(
@@ -1163,10 +1203,10 @@ pub(crate) mod tests {
         signers: Option<(DeviceSigningKey, DeviceSigningKey)>,
         anchor: AnchorRequirement,
         budget: ApplicationSendBudget,
-        public_validity: Option<(Validity, Validity, Validity)>,
+        public_validity: Option<(Validity, Validity, [Validity; 2])>,
     ) -> Fixture {
         let (roster_validity, prekey_validity, credential_validity) =
-            public_validity.unwrap_or((interval(), interval(), interval()));
+            public_validity.unwrap_or((interval(), interval(), [interval(); 2]));
         let (_, issued, pin, runtime_r) =
             session_policy_fixture_with_budget(&[quality], anchor, budget);
         let runtime_i = sdk_runtime_with_limits(limits);
@@ -1193,7 +1233,7 @@ pub(crate) mod tests {
             policy_r.family(),
             signer_i,
             roster_validity,
-            credential_validity,
+            credential_validity[0],
         );
         let Enrollment {
             signer: signer_r,
@@ -1206,7 +1246,7 @@ pub(crate) mod tests {
             policy_r.family(),
             signer_r,
             roster_validity,
-            credential_validity,
+            credential_validity[1],
         );
         let reusable = runtime_r.generate_key().expect("reusable");
         let once = runtime_r.generate_key().expect("one time");

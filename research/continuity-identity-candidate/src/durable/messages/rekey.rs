@@ -334,7 +334,7 @@ impl DeviceJournal {
                 self.close();
                 return Err(DurableError::InvalidCheckpoint(error));
             }
-            self.check_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)?;
             return Ok(wire.clone());
         }
         if signer.public_key()? != device(context, state.role)?.key {
@@ -364,7 +364,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-key-reserved");
         }
-        rosters::authorize_context(&image, context, now)?;
+        rosters::authorize_session_context(&image, context, now)?;
         let key = match recovery.generate_key(
             &context.policy().runtime,
             &key_scope,
@@ -408,7 +408,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-signature-reserved");
         }
-        rosters::authorize_context(&image, context, now)?;
+        rosters::authorize_session_context(&image, context, now)?;
         let Some(Plan::Signing {
             body: saved,
             signing,
@@ -442,7 +442,7 @@ impl DeviceJournal {
         self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::tests::after_stage("rekey-offer-committed");
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
     /// Inspect the authenticated offer phase after failure or revocation. This

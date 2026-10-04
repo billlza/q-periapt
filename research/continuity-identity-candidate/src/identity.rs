@@ -6,6 +6,12 @@ use crate::{
 };
 use std::sync::Arc;
 
+pub(crate) mod renewal;
+pub use renewal::{
+    CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
+    IssuedCredentialRenewal, VerifiedCredentialRenewal, MAX_CREDENTIAL_RENEWAL_BYTES,
+};
+
 /// Maximum active device generations in one candidate roster.
 pub const MAX_DEVICES: usize = 32;
 const CERTIFICATE_TAG: &[u8; 8] = b"QPCERT01";
@@ -410,6 +416,11 @@ pub struct VerifiedRoster {
     wire: Vec<u8>,
 }
 impl VerifiedRoster {
+    // Reconstruct a historical expectation under this already authenticated
+    // account root. This does not select a new current head or grant traffic.
+    pub(crate) fn historical_pin(&self, checkpoint: RosterCheckpoint) -> Result<AccountPin, Error> {
+        AccountPin::new(self.account, self.root.clone(), checkpoint, self.family)
+    }
     pub(crate) fn members(&self) -> impl Iterator<Item = ([u8; 16], u64, [u8; 32])> + '_ {
         self.entries
             .iter()

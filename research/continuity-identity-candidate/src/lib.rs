@@ -34,8 +34,8 @@ mod session_policy;
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use enrollment::{
-    DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths, EnrollmentStatus,
-    VerifiedEnrollmentRequest,
+    CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths,
+    EnrollmentStatus, VerifiedEnrollmentRequest,
 };
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
@@ -52,6 +52,13 @@ pub(crate) struct RetainedInstallationAuthority {
     witness: Option<[u8; 32]>,
 }
 impl RetainedInstallationAuthority {
+    fn active_installation(device: &VerifiedDevice, policy: &VerifiedSessionPolicy) -> Self {
+        Self {
+            owner: bootstrap::storage_owner(device),
+            policy: policy.checkpoint().digest(),
+            witness: policy.anchor_requirement().binding(),
+        }
+    }
     fn check(
         &self,
         owner: [u8; 32],
@@ -105,8 +112,10 @@ pub use durable::{
     UnconsumedDelivery,
 };
 pub use identity::{
-    AccountPin, DeviceDescription, IssuedRoster, RosterCheckpoint, RosterEntry, Validity,
-    VerifiedDevice, VerifiedRoster, MAX_DEVICES,
+    AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
+    DeviceDescription, IssuedCredentialRenewal, IssuedRoster, RosterCheckpoint, RosterEntry,
+    Validity, VerifiedCredentialRenewal, VerifiedDevice, VerifiedRoster,
+    MAX_CREDENTIAL_RENEWAL_BYTES, MAX_DEVICES,
 };
 pub use manifest::{
     AuthenticatedLeaf, IssuedManifest, LeafKind, LeafProof, ManifestContext, PrekeyLeaf,

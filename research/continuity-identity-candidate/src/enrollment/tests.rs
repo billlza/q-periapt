@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "renewal_tests.rs"]
+pub(super) mod renewal;
 #[path = "roster_tests.rs"]
 mod roster;
 use crate::{

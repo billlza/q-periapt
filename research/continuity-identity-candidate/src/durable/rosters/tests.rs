@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "renewal_tests.rs"]
+pub(crate) mod renewal;
 use crate::{
     bootstrap::tests::fixture,
     durable::tests::{
@@ -87,7 +89,11 @@ fn bootstrap_peer_preview_preserves_capacity_and_known_authority_without_writing
     authorize_bootstrap_peer(&before, f.initiator_device(), 150)
         .expect("known authority at capacity");
     assert!(matches!(
-        journal.check_bootstrap_peer(&f.initiator, crate::BootstrapRole::Initiator, 150),
+        journal.prepare_bootstrap_context(
+            Arc::clone(&f.initiator),
+            crate::BootstrapRole::Initiator,
+            150
+        ),
         Err(DurableError::Capacity)
     ));
     let after = journal.image().expect("same head");

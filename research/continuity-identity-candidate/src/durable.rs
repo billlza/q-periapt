@@ -49,6 +49,7 @@ mod messages;
 mod prekeys;
 mod responder;
 mod rosters;
+pub(crate) use rosters::{LocalRenewalCommit, LocalRenewalResolution};
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
@@ -587,7 +588,7 @@ impl DeviceJournal {
             revision: 1,
             digest: [0; 32],
             protection,
-            records: rosters::genesis(device),
+            records: rosters::genesis(device)?,
         };
         let sealed = seal(&key, &image)?;
         let db = provision_private_database(path, |db| {
@@ -743,6 +744,7 @@ impl DeviceJournal {
     ) -> Result<[u8; 32], DurableError> {
         self.check_policy(context.policy())?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        context.check_journal_role(active.id, active.owner, crate::BootstrapRole::Responder)?;
         if context.storage_owner() != active.owner {
             return Err(DurableError::Conflict);
         }
@@ -757,6 +759,11 @@ impl DeviceJournal {
     ) -> Result<DurableStatus, DurableError> {
         // Read-only reconciliation remains possible after policy close/expiry.
         // This reports no permission to execute, dispatch or release a secret.
+        // A retained view is scoped to one established message session. Its
+        // bootstrap source is not an unrestricted status-query capability.
+        if context.retained_binding().is_some() {
+            return Err(Error::Scope.into());
+        }
         let id = self.query_id(context, initial)?;
         let image = self.image()?;
         if let Some(record) = image.records.get(&id) {

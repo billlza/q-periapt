@@ -85,7 +85,9 @@ bounded request/credential/roster fields, exact roster and policy commitments an
 the original journal ID. The image is authenticated with a distinct HKDF-derived
 HMAC key under the wrapping owner. Each variable field is capped at 8192 bytes;
 the whole image is capped at 24 KiB. Database access uses the shared exclusive
-private-file backend and immediate transaction durability.
+private-file backend and immediate transaction durability. The optional QPENST02/03
+renewal extensions preserve QPENST01 bytes when absent and have their own 128 KiB
+bound; see [renewal formats](CREDENTIAL_RENEWAL.md#encoding-and-compatibility).
 
 The enrollment record is trusted local configuration, kept independently of journal
 backups. Its MAC detects unauthenticated edits; it is not an anti-rollback witness.
@@ -116,8 +118,10 @@ independent database-lease probes; see [installed connection](PACKAGE_CONSUMER.m
 The separate signed-TCP roster-refresh trace still uses the preconfigured
 installation API. Expired-bootstrap restoration now retains the enrollment owner
 and refreshes its original journal's current roster before reopening the session.
-Enrollment still fixes its original credential/root/policy and does not accept
-their replacement.
+Enrollment retains its original scope. The explicit
+[same-key credential renewal](CREDENTIAL_RENEWAL.md) transaction can extend validity
+and reconcile an expired pending target; root/key/generation/policy replacement
+remains separate. Required-witness local renewal is not yet enabled.
 
 ## Continuing an original identity under a current roster
 

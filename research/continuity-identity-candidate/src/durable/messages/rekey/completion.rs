@@ -764,7 +764,7 @@ impl DeviceJournal {
         if let Some(last) = &state.control.last {
             if last.response == reply && state.role == proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)?;
                 return Ok(last.final_wire.clone());
             }
         }
@@ -778,7 +778,7 @@ impl DeviceJournal {
             }
             if let Step::FinalReady { wire } = &plan.step {
                 self.check_cached_wire(context, target, RekeyFlight::Final, wire)?;
-                self.check_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)?;
                 return Ok(wire.clone());
             }
         }
@@ -878,7 +878,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-final-reserved");
         }
-        rosters::authorize_context(&image, context, now)?;
+        rosters::authorize_session_context(&image, context, now)?;
         let Some(super::Plan::Completing(plan)) = &state.control.plan else {
             return Err(DurableError::Suspended);
         };
@@ -923,7 +923,7 @@ impl DeviceJournal {
         self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-final-committed");
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
 
@@ -942,7 +942,7 @@ impl DeviceJournal {
         if let Some(last) = &state.control.last {
             if last.final_wire == final_wire && state.role == 3 - proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)?;
                 return Ok(last.receipt.clone());
             }
         }
@@ -1014,7 +1014,7 @@ impl DeviceJournal {
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-receipt-reserved");
         }
-        rosters::authorize_context(&image, context, now)?;
+        rosters::authorize_session_context(&image, context, now)?;
         let Some(super::Plan::Completing(plan)) = &state.control.plan else {
             return Err(DurableError::Suspended);
         };
@@ -1076,7 +1076,7 @@ impl DeviceJournal {
         self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-receipt-committed");
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire)
     }
 
@@ -1094,7 +1094,7 @@ impl DeviceJournal {
         if let Some(last) = &state.control.last {
             if last.receipt == receipt && state.role == proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)?;
                 return Ok(state.control.epoch);
             }
         }
@@ -1138,7 +1138,7 @@ impl DeviceJournal {
         self.store_message_state(&mut image, &state)?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-receipt-accepted");
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(target)
     }
 
@@ -1201,7 +1201,7 @@ impl DeviceJournal {
             self.close();
             return Err(DurableError::InvalidCheckpoint(error));
         }
-        self.check_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)?;
         Ok(wire.to_vec())
     }
 }

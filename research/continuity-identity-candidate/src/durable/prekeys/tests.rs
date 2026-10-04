@@ -962,3 +962,174 @@ fn authenticated_image_rejects_consumption_disagreement_with_outbox() {
         Err(DurableError::Corrupt)
     ));
 }
+
+thread_local! {
+    static CLOSE_AFTER_PUBLICATION: std::cell::RefCell<Option<Arc<VerifiedSessionPolicy>>> = const { std::cell::RefCell::new(None) };
+}
+pub(super) fn after_publication() {
+    CLOSE_AFTER_PUBLICATION.with(|pending| {
+        if let Some(policy) = pending.borrow_mut().take() {
+            policy.close();
+        }
+    });
+}
+#[test]
+fn policy_closed_after_publication_withholds_leaf_and_preserves_original_available_entry() {
+    let f = fixture(PrekeyQuality::OneTimeBoth);
+    let folder = directory();
+    let path = folder.path().canonicalize().expect("path");
+    let mut store = new_store(&path, f.local_device());
+    let policy = f.policy_owner(crate::BootstrapRole::Responder);
+    let request = PrekeyId::from_trusted_state([247; 32]).expect("request");
+    CLOSE_AFTER_PUBLICATION.with(|pending| *pending.borrow_mut() = Some(Arc::clone(&policy)));
+    assert!(
+        store
+            .generate_prekey(
+                &policy,
+                f.local_device(),
+                request,
+                LeafKind::OneTimePq,
+                interval(),
+                150
+            )
+            .is_err(),
+        "a policy closed during persistence must withhold the committed leaf"
+    );
+    assert!(policy.check_mode(PrekeyQuality::OneTimeBoth, 150).is_err());
+    assert_eq!(
+        store
+            .prekey_status(&policy, f.local_device(), request)
+            .expect("committed fact"),
+        PrekeyStatus::Available
+    );
+    assert!(store
+        .prekey_leaf(&policy, f.local_device(), request, 150)
+        .is_err());
+    assert_eq!(
+        store
+            .retire_prekey(&policy, f.local_device(), request)
+            .expect("cleanup"),
+        PrekeyStatus::Retired
+    );
+}
+
+#[test]
+fn current_successor_replays_original_reserved_material_across_process_loss() {
+    for (phase, effect) in [
+        (DurableStatus::PrekeyReserved, false),
+        (DurableStatus::PrekeyReserved, true),
+        (DurableStatus::PrekeyAvailable, false),
+    ] {
+        let dir = directory();
+        let path = dir.path().canonicalize().expect("path");
+        let mut child = spawn_child(
+            &path,
+            "durable::prekeys::tests::inventory_generation_crash_child",
+            phase,
+            effect,
+        );
+        wait_for(&path, "ready", &mut child);
+        assert!(!path.join("returned-leaf").exists());
+        child.0.kill().expect("kill owned generator");
+        assert!(!child.0.wait().expect("reap").success());
+        let f = fixture(PrekeyQuality::OneTimeBoth);
+        let (policy, original, _) = f.responder.inventory_inputs();
+        let mut store = reopen(&path, original);
+        let request = PrekeyId::from_trusted_state([71; 32]).expect("original request");
+        let before = store.image().expect("original image");
+        let entry_before = store
+            .inventory_entry(&before, policy, request)
+            .expect("original sealed material");
+        let root =
+            crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("original authority");
+        let certificate = root
+            .issue_device(original.description.clone(), original.key.clone())
+            .expect("original body");
+        let grant = crate::durable::rosters::tests::renewal::grant(
+            &root,
+            &certificate,
+            original,
+            300,
+            2,
+            [238; 32],
+            policy.checkpoint().digest(),
+        );
+        let authority = crate::RetainedInstallationAuthority::active_installation(original, policy);
+        store
+            .commit_local_credential_renewal(&authority, &grant, grant.operation(), policy, 150)
+            .expect("root-authorized successor");
+        let after = store.image().expect("renewed image");
+        let entry_after = store
+            .inventory_entry(&after, policy, request)
+            .expect("same original material");
+        assert_eq!(before.id, after.id);
+        assert_eq!(before.owner, after.owner);
+        assert_eq!(entry_before.intent(), entry_after.intent());
+        assert_eq!(entry_before.scope(&before), entry_after.scope(&after));
+        assert_eq!(
+            entry_before.data, entry_after.data,
+            "renewal cannot replace retained randomness"
+        );
+        let current = grant.successor_device();
+        assert_eq!(
+            store
+                .prekey_status(policy, current, request)
+                .expect("original phase"),
+            if phase == DurableStatus::PrekeyReserved {
+                PrekeyStatus::Reserved
+            } else {
+                PrekeyStatus::Available
+            }
+        );
+        let leaf = store
+            .generate_prekey(
+                policy,
+                current,
+                request,
+                LeafKind::OneTimePq,
+                interval(),
+                150,
+            )
+            .expect("reconcile same original operation");
+        if effect {
+            assert_eq!(
+                leaf.public_key(),
+                fs::read(path.join("computed-public")).expect("pre-crash actual key")
+            );
+        }
+        if phase == DurableStatus::PrekeyAvailable {
+            assert_eq!(leaf.public_key(), entry_before.public);
+        }
+        assert_eq!(
+            store
+                .generate_prekey(
+                    policy,
+                    current,
+                    request,
+                    LeafKind::OneTimePq,
+                    interval(),
+                    150
+                )
+                .expect("exact retry")
+                .public_key(),
+            leaf.public_key()
+        );
+        assert_eq!(
+            store
+                .retire_prekey(policy, current, request)
+                .expect("retire"),
+            PrekeyStatus::Retired
+        );
+        assert!(matches!(
+            store.generate_prekey(
+                policy,
+                current,
+                request,
+                LeafKind::OneTimePq,
+                interval(),
+                150
+            ),
+            Err(DurableError::KeyRetired)
+        ));
+    }
+}

@@ -135,10 +135,25 @@ fn scope(
     device: &VerifiedDevice,
     policy: &VerifiedSessionPolicy,
 ) -> Result<Vec<u8>, DurableError> {
+    scope_for_owner(
+        paths,
+        id,
+        key_binding,
+        bootstrap::storage_owner(device),
+        policy,
+    )
+}
+fn scope_for_owner(
+    paths: &InstallationPaths,
+    id: JournalIdentity,
+    key_binding: [u8; 32],
+    owner: [u8; 32],
+    policy: &VerifiedSessionPolicy,
+) -> Result<Vec<u8>, DurableError> {
     let mut bytes = TAG.to_vec();
     for value in [
         *id.as_bytes(),
-        bootstrap::storage_owner(device),
+        owner,
         policy.checkpoint().digest(),
         key_binding,
         paths.binding()?,
@@ -461,9 +476,46 @@ impl DeviceInstallation {
         admit(device, policy, now)?;
         Ok(DeviceService {
             active: Some(ServiceOwners {
+                local_identity: (device.account_id(), device.device_id()),
+                authority: crate::RetainedInstallationAuthority::active_installation(
+                    device, policy,
+                ),
                 journal,
                 archives,
                 installation: self,
+            }),
+        })
+    }
+    pub(crate) fn reconcile_original_enrollment(
+        paths: InstallationPaths,
+        key: JournalKey,
+        original: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        anchor: Option<AnchorClient>,
+    ) -> Result<DeviceService, DurableError> {
+        // Required-witness credential adoption has its own independent command.
+        // Until that command is integrated, never reopen this path locally.
+        if policy.anchor_requirement().binding().is_some() {
+            return Err(DurableError::AnchorRequired);
+        }
+        if anchor.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        let mut installation = Self::open_bound(paths, &key, original, policy)?;
+        if installation.status()? != InstallationStatus::Active {
+            return Err(DurableError::Conflict);
+        }
+        let (mut journal, archives) = installation.open_children(key, original, policy, None)?;
+        journal.check_installation_state(original, policy, false)?;
+        Ok(DeviceService {
+            active: Some(ServiceOwners {
+                local_identity: (original.account_id(), original.device_id()),
+                authority: crate::RetainedInstallationAuthority::active_installation(
+                    original, policy,
+                ),
+                journal,
+                archives,
+                installation,
             }),
         })
     }
@@ -498,6 +550,8 @@ impl DeviceInstallation {
 }
 
 struct ServiceOwners {
+    local_identity: ([u8; 32], [u8; 16]),
+    authority: crate::RetainedInstallationAuthority,
     journal: DeviceJournal,
     archives: SessionArchiveStore,
     installation: DeviceInstallation,
@@ -520,6 +574,37 @@ impl DeviceService {
             .as_ref()
             .ok_or(DurableError::Closed)?;
         Ok((&mut owners.journal, &mut owners.archives))
+    }
+    /// Read the original inventory operation through this installation, even if
+    /// the current credential was revoked or its renewal grant was superseded.
+    /// This metadata operation grants no fresh key or traffic authority.
+    pub fn prekey_status(
+        &mut self,
+        policy: &VerifiedSessionPolicy,
+        request: crate::PrekeyId,
+    ) -> Result<crate::PrekeyStatus, DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        if owners.installation.status()? != InstallationStatus::Active {
+            return Err(DurableError::Conflict);
+        }
+        owners
+            .journal
+            .installation_prekey_status(&owners.authority, policy, request)
+    }
+    /// Retire an original inventory operation without restoring permission or
+    /// clearing a one-time consumption tombstone. Pending responses still block.
+    pub fn retire_prekey(
+        &mut self,
+        policy: &VerifiedSessionPolicy,
+        request: crate::PrekeyId,
+    ) -> Result<crate::PrekeyStatus, DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        if owners.installation.status()? != InstallationStatus::Active {
+            return Err(DurableError::Conflict);
+        }
+        owners
+            .journal
+            .retire_installation_prekey(&owners.authority, policy, request)
     }
     /// Shut down this service owner and retain its Active initialization record.
     pub fn close(&mut self) {

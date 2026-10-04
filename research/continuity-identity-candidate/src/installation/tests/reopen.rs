@@ -5,6 +5,8 @@ use crate::{
     ReopenedSession, RootSigningKey, SessionReopenRequest, Validity, VerifiedRoster,
 };
 
+mod renewal;
+
 struct Local {
     _directory: tempfile::TempDir,
     root: PathBuf,
@@ -31,6 +33,9 @@ impl Local {
             },
             short,
         );
+        Self::with_fixture(f, role)
+    }
+    fn with_fixture(f: Fixture, role: BootstrapRole) -> Self {
         let dir = directory();
         let root = dir.path().canonicalize().expect("path");
         drop(JournalKey::provision(&root.join("key")).expect("key"));

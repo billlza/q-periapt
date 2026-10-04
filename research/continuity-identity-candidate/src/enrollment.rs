@@ -22,6 +22,10 @@ use std::{
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_enrollment_v1");
 const REQUEST_BODY: usize = 8 + 32 + 32 + 16 + 8 + 16 + 32 + PUBLIC_KEY_BYTES;
 const MAX_IMAGE: usize = 24 * 1024;
+const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
+mod renewal;
+pub use renewal::CredentialRenewalStatus;
+use renewal::LocalRenewal;
 
 #[cfg(all(test, unix))]
 mod tests;
@@ -214,6 +218,7 @@ enum Phase {
 struct Image {
     identity: SigningKeyId,
     phase: Phase,
+    renewal: Option<LocalRenewal>,
 }
 struct Active {
     database: Database,
@@ -247,6 +252,7 @@ impl DeviceEnrollment {
         let image = Image {
             identity: SigningKeyId::generate()?,
             phase: Phase::Preparing,
+            renewal: None,
         };
         let bytes = encode(&key, binding, &image)?;
         let database = provision_private_database(&paths.configuration, |database| {
@@ -399,6 +405,9 @@ impl DeviceEnrollment {
     ) -> Result<JournalIdentity, DurableError> {
         let result = (|| {
             let mut image = self.image()?;
+            if image.renewal.is_some() {
+                return Err(DurableError::Conflict);
+            }
             let request = match &image.phase {
                 Phase::Preparing => return Err(Error::State.into()),
                 Phase::Requested(wire) | Phase::Accepted { request: wire, .. } => wire,
@@ -462,6 +471,9 @@ impl DeviceEnrollment {
     ) -> Result<EnrollmentStatus, DurableError> {
         let result = (|| {
             let mut image = self.image()?;
+            if image.renewal.is_some() {
+                return self.refresh_renewed_roster(image, previous, roster, pin, policy, now);
+            }
             let Phase::Accepted {
                 request,
                 admission,
@@ -519,6 +531,9 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<VerifiedDevice, DurableError> {
+        if image.renewal.is_some() {
+            return self.admitted_renewed(image, policy, now);
+        }
         let Phase::Accepted {
             request, admission, ..
         } = &image.phase
@@ -646,6 +661,9 @@ impl DeviceEnrollment {
         anchor: Option<AnchorClient>,
     ) -> Result<EnrolledDevice, DurableError> {
         let mut image = self.image()?;
+        if image.renewal.is_some() {
+            return self.activate_renewed(image, policy, now, anchor);
+        }
         let device = self.admitted(&image, policy, now)?;
         let signer = self.signer(image.identity, false)?;
         let mut installation = self.installation(&image, &device, policy, now, false)?;
@@ -773,7 +791,14 @@ fn take(d: &mut Decoder<'_>) -> Result<Vec<u8>, DurableError> {
     Ok(d.take(length)?.to_vec())
 }
 fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut bytes = b"QPENST01".to_vec();
+    let mut bytes = if image.renewal.as_ref().is_some_and(LocalRenewal::extended) {
+        b"QPENST03"
+    } else if image.renewal.is_some() {
+        b"QPENST02"
+    } else {
+        b"QPENST01"
+    }
+    .to_vec();
     bytes.extend_from_slice(&binding);
     bytes.extend_from_slice(image.identity.as_bytes());
     match &image.phase {
@@ -806,10 +831,18 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
             }
         }
     }
+    if let Some(renewal) = &image.renewal {
+        renewal.encode(&mut bytes)?;
+    }
     let mut mac = auth(key)?;
     mac.update(&bytes);
     bytes.extend_from_slice(&mac.finalize().into_bytes());
-    if bytes.len() > MAX_IMAGE {
+    let limit = if image.renewal.is_some() {
+        MAX_RENEWAL_IMAGE
+    } else {
+        MAX_IMAGE
+    };
+    if bytes.len() > limit {
         return Err(DurableError::Capacity);
     }
     Ok(bytes)
@@ -832,7 +865,7 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(storage)?
         .ok_or(DurableError::Corrupt)?;
     let wire = saved.value();
-    if wire.len() < 105 || wire.len() > MAX_IMAGE {
+    if wire.len() < 105 || wire.len() > MAX_RENEWAL_IMAGE {
         return Err(DurableError::Corrupt);
     }
     let (body, tag) = wire.split_at(wire.len() - 32);
@@ -841,7 +874,11 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     mac.verify_slice(tag)
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
-    if d.array::<8>()? != *b"QPENST01" || d.array::<32>()? != binding {
+    let tag = d.array::<8>()?;
+    if (tag != *b"QPENST01" && tag != *b"QPENST02" && tag != *b"QPENST03")
+        || d.array::<32>()? != binding
+        || (tag == *b"QPENST01" && wire.len() > MAX_IMAGE)
+    {
         return Err(DurableError::Conflict);
     }
     let identity = SigningKeyId::from_trusted_state(d.array()?)?;
@@ -882,8 +919,26 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         }
         _ => return Err(DurableError::Corrupt),
     };
+    let renewal = if tag == *b"QPENST02" || tag == *b"QPENST03" {
+        if !matches!(
+            phase,
+            Phase::Accepted {
+                stage: AdmissionPhase::Active | AdmissionPhase::Refreshing { .. },
+                ..
+            }
+        ) {
+            return Err(DurableError::Corrupt);
+        }
+        Some(LocalRenewal::decode(&mut d, tag == *b"QPENST03")?)
+    } else {
+        None
+    };
     d.finish()?;
-    Ok(Image { identity, phase })
+    Ok(Image {
+        identity,
+        phase,
+        renewal,
+    })
 }
 fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
     let tx = transaction(database)?;

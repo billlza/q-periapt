@@ -132,7 +132,7 @@ impl DeviceJournal {
         if target == state.control.epoch {
             let last = state.control.last.as_ref().ok_or(Error::State)?;
             self.check_completed(context, last)?;
-            self.check_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)?;
             return Ok(RekeyControlStep::LocallyConfirmed(target));
         }
         if target != state.control.target()? {

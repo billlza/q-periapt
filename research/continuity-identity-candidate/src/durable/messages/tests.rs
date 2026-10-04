@@ -15,6 +15,7 @@ mod control_progress;
 mod control_tls;
 mod epoch_resolution;
 mod fanout;
+mod renewal;
 mod reservation_disclosure;
 mod send_budget;
 #[cfg(any(feature = "connection-tls", feature = "control-tls"))]

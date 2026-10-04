@@ -63,7 +63,7 @@ impl DeviceJournal {
             false
         };
         if consumed {
-            self.check_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)?;
             return Ok(Delivery::PreviouslyConsumed(header.id));
         }
         drop(state);

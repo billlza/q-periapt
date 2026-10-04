@@ -236,6 +236,7 @@ impl DeviceJournal {
             } else {
                 devices[0]
             };
+            check_view_scope(image, target.context, &member.session, Some(member.role))?;
             if !seen.insert(target.session)
                 || owner != image.owner
                 || member.context != target.context.digest()

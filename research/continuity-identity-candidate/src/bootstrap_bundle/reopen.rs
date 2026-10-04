@@ -27,6 +27,18 @@ impl BootstrapBundle {
         session: [u8; 32],
         now: u64,
     ) -> Result<SessionReopenRequest, Error> {
+        let request = self.historical_reopen(policy, required, role, session, now)?;
+        request.context.check_session_identity(now)?;
+        Ok(request)
+    }
+    pub(crate) fn historical_reopen(
+        &self,
+        policy: Arc<VerifiedSessionPolicy>,
+        required: BootstrapRequirements<'_>,
+        role: BootstrapRole,
+        session: [u8; 32],
+        now: u64,
+    ) -> Result<SessionReopenRequest, Error> {
         crate::codec::nonzero(&session)?;
         let (quality, m) = codec::decode(&self.wire)?;
         if quality != required.quality {
@@ -67,7 +79,6 @@ impl BootstrapBundle {
         // authenticates every input and checks every interval at this instant;
         // untrusted hints cannot skip a signature, pin, membership or time check.
         let context = Arc::new(self.verify(policy, required, start)?);
-        context.check_session_identity(now)?;
         Ok(SessionReopenRequest {
             context,
             role,

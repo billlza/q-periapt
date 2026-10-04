@@ -109,7 +109,10 @@ This reconstructs the original context commitment; reissuing a bundle against a
 new roster would change that commitment and cannot substitute for restoration.
 Subsequent operations still perform their current admission checks. In particular,
 a restored context with expired advertisement cannot start a fresh bootstrap.
-Credential/policy renewal and cross-installation migration remain separate work.
+For root-authorized same-key credential renewal, the already owned service has the
+[explicit original-bundle path](CREDENTIAL_RENEWAL.md#peer-renewal-fresh-operations-and-old-sessions).
+Policy replacement, witness-subject renewal and cross-installation migration remain
+separate work.
 `InstallationRecovery` retains its distinct cleanup-only authority.
 
 The native regression includes expiry, durable roster updates/revocation, both

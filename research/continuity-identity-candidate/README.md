@@ -52,6 +52,10 @@ Retained objects do not discover later revocation. The journal's installed
 private work and output release. Updates preserve observed generation history
 and fence old contexts after restart. The host must explicitly supply independently
 authenticated updates; these snapshots do not establish global newest-head agreement.
+The explicit [same-key credential renewal](CREDENTIAL_RENEWAL.md) transaction retains
+original storage and established transcripts while admitting current root-authorized
+credentials. It also reconciles expired pending intents without inventing NoCommit.
+
 
 Exact public-byte fingerprints exclude role, epoch and expiry, allowing the
 issuer to reject repeated public bytes within a manifest. They do not establish
@@ -185,7 +189,9 @@ Let `C = ASCII("Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1")`.
 Both algorithms sign `C || purpose:u8 || body_length:u32 || body`.
 ML-DSA additionally uses `C` as its external context, with the ordinary ML-DSA
 message encoding. Purposes are credential=1, roster=2, manifest=3,
-session policy=4, bootstrap initiator=5 and bootstrap responder=6.
+session policy=4, bootstrap initiator=5, bootstrap responder=6, witness request=7,
+witness reply=8, rekey offer/response/final/receipt/request=9/10/11/12/13,
+enrollment request=14 and credential renewal=15.
 The envelope is `body_length:u32 || body || signature[3373]` and admits at most
 16,384 body bytes. ECDSA and ML-DSA are both required; neither is a fallback.
 

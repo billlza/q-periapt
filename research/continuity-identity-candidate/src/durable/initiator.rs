@@ -135,6 +135,7 @@ impl DeviceJournal {
     ) -> Result<[u8; 32], DurableError> {
         self.check_policy(context.policy())?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        context.check_journal_role(active.id, active.owner, crate::BootstrapRole::Initiator)?;
         if context.initiator_storage_owner() != active.owner {
             return Err(DurableError::Conflict);
         }
@@ -146,6 +147,11 @@ impl DeviceJournal {
         context: &BootstrapContext,
         request: InitiationId,
     ) -> Result<DurableStatus, DurableError> {
+        // A retained view is scoped to one established message session. Its
+        // bootstrap source is not an unrestricted status-query capability.
+        if context.retained_binding().is_some() {
+            return Err(Error::Scope.into());
+        }
         let id = self.initiation_query(context, request)?;
         let image = self.image()?;
         match image.records.get(&id) {
