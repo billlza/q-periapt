@@ -4872,3 +4872,19 @@ The [persistent-authority experiment](../research/sdk-alpha1/evidence/20261004-w
 records those limits. A future policy authorization must keep its own exact
 scope and validity across credential-only updates; whichever transaction last
 ran cannot silently replace that policy authorization.
+
+The exact-authority prototype was then checked against actual legacy state from
+an independently compiled old-runtime binary at source `7368c34a`. The old
+binary writes `QPANC003` after completed/ACKed C1 renewal and real SDK prekey
+generation; the new binary opens the same original files. Three profiles pass:
+live C1 refuses specifically on missing witness authorization before new C2
+approval; expired C1 recovers through current independent C2 approval; and a
+lost C2 Commit reply followed by C2 expiry reconciles original history without
+releasing the expired owner, then requires independent C3 approval. Original
+keys, journal/storage identity, grant/proposal bytes and inventory remain bound;
+new SDK work succeeds under current authority. Each operation has one Commit
+and ACK. Strict all-target Clippy passes on the exact consumer source.
+[Upgrade evidence](../research/sdk-alpha1/evidence/20261005-witness-legacy-upgrade-7368c34a/QUALIFICATION.json)
+records both binary identities and the three synthetic-clock fixture profiles.
+P0 remains current; this does not qualify joint policy renewal, installed foreign
+archives, independent-host transport or the full 0.2.0 upgrade/release contract.
