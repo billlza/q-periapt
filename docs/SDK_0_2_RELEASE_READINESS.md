@@ -4857,3 +4857,18 @@ and [sealed observations](../research/sdk-alpha1/evidence/20261004-joint-lifecyc
 record the threat-model distinctions, original failed exploratory attempts and
 remaining persistent-state, crash, concurrency and foreign-consumer obligations.
 Device/root replacement, witness handoff and the full 0.2.0 objective remain open.
+
+An isolated follow-on from `af55fbf7` persists exact Applied authorization across
+ACK, later Closed/ACK, ordinary writes/fences and roster updates. Its experimental
+single-observation admission checks current account, exact statement, validity
+and head together. A second variant connects this to real native owner release
+and denies old account-only admission once adopted; the real A/B encrypted-target
+case distinguishes A from B at the same head before and after ACK. The same
+modified-source hashes passed 46 witness tests, 22 enrollment/witness tests and
+strict all-target Clippy. The patches remain isolated: they use credential
+renewal to validate the mechanism, do not implement joint policy continuation,
+and do not complete legacy-format migration or installed-consumer qualification.
+The [persistent-authority experiment](../research/sdk-alpha1/evidence/20261004-witness-authorization-prototype-af55fbf7/QUALIFICATION.json)
+records those limits. A future policy authorization must keep its own exact
+scope and validity across credential-only updates; whichever transaction last
+ran cannot silently replace that policy authorization.

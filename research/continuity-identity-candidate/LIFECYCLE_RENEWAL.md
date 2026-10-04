@@ -144,3 +144,66 @@ refusal, competing updates, crash/unknown-commit recovery, double expiry,
 old-config reopen, cleanup after target expiry, and installed foreign consumers.
 Local-only success cannot qualify the independently witnessed profile. Existing
 ordinary bootstrap and direct policy substitution must remain refused.
+
+## Persistent exact-authority experiment
+
+A follow-on isolated source copy implements a candidate persistence mechanism;
+none of these runtime changes is yet admitted to the product source. It keeps
+the ordinary account authority unchanged and adds an optional exact Applied
+renewal statement to the independent witness entry. An experimental schema
+`QPANC005` persists that field after ACK. A new experimental opcode 9 checks
+account authority, statement and live validity together and signs the head from
+that same store observation. An opcode or schema number in this experiment is
+not an allocated compatibility promise.
+
+The initial query-only variant passed 46 witness tests, including two new
+mechanism/wire tests. Its native owner-release variant also derives the expected
+statement from the authenticated journal's local credential grant. Once the
+witness has adopted the exact mode, old account-only opcode 4 refuses instead of
+providing a downgrade path. Original owners with no adopted renewal retain their
+original admission path. The actual A/B sealed-target regression checks that A
+is Current and B Denied at exactly the same head, both before and after ACK; full
+B recovery remains Suspended with unchanged pending bytes.
+
+The experiment observes these distinct properties:
+
+- Discarding a Commit reply and reopening the original store preserves the
+  Applied statement; it does not depend on a successful client return.
+- ACK, later Closed/ACK, ordinary Advance/Fence and a same-credential roster
+  refresh preserve that statement. Only another Applied transition replaces it.
+- A roster change with an unchanged head denies the old account binding even
+  when the statement still matches; a wrong statement under the new account is
+  also denied.
+- Second Apply replaces the old statement atomically; expiry refuses current
+  use without erasing historical identity. The legacy authority-only mutation
+  remains prohibited once the joint-renewal floor exists.
+- Canonical command width is still 97 bytes. All 97 shorter prefixes, trailing
+  bytes, nonzero padding and zero fields refuse; an old-opcode reply or a reply
+  from a different fresh attempt cannot satisfy the new command.
+
+The owner-release variant passed 46 witness tests, the 22 real native
+enrollment/witness recovery and cancellation tests, and strict all-target Clippy.
+These include the actual
+sealed-target A/B case, repeated renewal, persistence faults, real child-process
+loss and cleanup after expiry. They do not establish installed-package behavior
+or complete policy continuation.
+
+Two limitations prevent treating this mechanism as the final construction.
+First, its statement is the **credential-renewal** statement: a future policy
+continuation must preserve its own exact scope, predecessor and validity bound
+across a credential-only renewal. Replacing it with whichever transaction last
+ran would lose policy authorization. Second, legacy witness formats can lack
+the exact statement after ACK. Decoding them as absent is explicit; neither
+floor nor ACK can reconstruct the missing grant. Refusing a resumed owner whose
+exact witness binding is unavailable is safe failure, not a completed upgrade
+path. Independent renewed authorization and original-state recovery still need
+an actual old-to-new execution test before admission.
+
+The prototype does not renew P0, extend any policy lifetime, change a session
+transcript, or migrate legacy stores. The next durable construction must carry
+the jointly signed policy continuation itself, serialize its exact predecessor,
+preserve separate account updates, and connect those semantics to the same
+single-observation release boundary.
+
+[Sealed prototype evidence](../sdk-alpha1/evidence/20261004-witness-authorization-prototype-af55fbf7/QUALIFICATION.json)
+contains the exact patches, source hashes, commands and results for both variants.
