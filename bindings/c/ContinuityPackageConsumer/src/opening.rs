@@ -17,6 +17,10 @@ enum Kind {
     Setup {
         create: bool,
     },
+    Enrollment {
+        create: bool,
+        approved: Box<enrollment::Approved>,
+    },
     Peer {
         parent: Arc<device::Shared>,
         admission: owner::Admission,
@@ -103,6 +107,9 @@ impl Request {
         let cancel = entry.cancel.clone();
         let invocation = entry.invocation.clone();
         let owner = match self.kind {
+            Kind::Enrollment { create, approved } => Owned::Enrollment(Box::new(
+                enrollment::Owner::open(path, create, *approved, self.witness, &cancel, deadline)?,
+            )),
             Kind::Setup { create } => Owned::Setup(Box::new(setup::Owner::open(
                 path,
                 create,
@@ -143,6 +150,72 @@ impl Request {
         check(&entry.cancel, deadline)?;
         Ok(owner)
     }
+}
+
+unsafe fn prepare_enrollment(
+    path: *const u8,
+    length: usize,
+    intent: *const enrollment::Intent,
+    options: *const Options,
+    create: bool,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(handle)?;
+        // SAFETY: separate aligned writable output; every input is copied now.
+        unsafe { put(handle, 0) };
+        // SAFETY: forwarded immutable bounded path/options/approved intent contract.
+        let mut request = unsafe { Request::read(path, length, options) }?;
+        if !matches!(request.kind, Kind::Device) {
+            return Err(Failure::argument());
+        }
+        // SAFETY: original approved root and metadata remain readable for this call.
+        let approved = unsafe { enrollment::Approved::read(intent) }?;
+        request.kind = Kind::Enrollment {
+            create,
+            approved: Box::new(approved),
+        };
+        let reservation = Reservation::new()?;
+        let id = reservation.publish(Owned::Opening(Box::new(request)), deadline)?;
+        // SAFETY: same exclusive validated handle output.
+        unsafe { put(handle, id) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Copy explicit first-use registration inputs; finish_open commits the original intent.
+/// # Safety
+/// Inputs and outputs satisfy the header's readable/writable, lifetime and nonoverlap rules.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_prepare_create(
+    path: *const u8,
+    length: usize,
+    intent: *const enrollment::Intent,
+    options: *const Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forwarded original-registration preparation contract.
+    unsafe { prepare_enrollment(path, length, intent, options, true, handle, error) }
+}
+
+/// Copy original approved registration inputs; finish_open never provisions after an error.
+/// # Safety
+/// Inputs and outputs satisfy the header's readable/writable, lifetime and nonoverlap rules.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_prepare_resume(
+    path: *const u8,
+    length: usize,
+    intent: *const enrollment::Intent,
+    options: *const Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forwarded original-registration restoration contract.
+    unsafe { prepare_enrollment(path, length, intent, options, false, handle, error) }
 }
 
 unsafe fn prepare_setup(

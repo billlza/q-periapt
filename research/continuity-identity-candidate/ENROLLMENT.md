@@ -101,7 +101,8 @@ explicit first-use intent, before any released request or active identity. A
 published configuration is always reopened; an active missing identity is never
 replaced. Unpublished staging may survive either an error or process interruption. See [signing-owner recovery](SIGNING_OWNERS.md).
 Hardware key storage, orphan maintenance, independent authority transport,
-foreign bindings, current device runs and complete replacement/upgrade remain open.
+Swift/Kotlin registration, Android/WASM persistence, current device runs and
+complete replacement/upgrade remain open.
 
 The regression suite covers actual signature/policy checks, real SDK prekey work,
 exact restart, exclusive leases, request/acceptance/activation sync faults, process
@@ -172,5 +173,21 @@ The selected regression cuts cover the registration intent, journal and final
 registration commits, typed before/after-sync failures, stale/revoked journal
 competition, a pending revocation recovered before CAS, expired/mismatched witness
 grants and a lost signed authority confirmation. They do not constitute physical
-power-loss qualification, foreign enrollment, credential/root/policy replacement,
+power-loss qualification, all-language enrollment, credential/root/policy replacement,
 or a complete multi-device/upgrade lifecycle.
+
+## C ownership bridge
+
+The unpublished C registration owner delegates this same transaction, from an
+approved intent and explicit wrapping-key provision through request, acceptance,
+storage preparation, activation and same-credential roster continuation. Successful
+activation moves the entire `EnrolledDevice` into the existing device parent;
+peer calls borrow its service/signer while its registration lease remains held.
+It does not extract those parts into a lower-level installation owner. Missing
+registration cannot select a legacy constructor or recreate a key. Failed native
+transitions expose their original error and consume the C registration owner;
+the caller disposes its handle and resumes the original state, including possibly
+committed Active. SDK policy/store, application TLS configuration and independent
+authority transport remain application integration inputs. See
+[the C entry sequence](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device)
+and its header for input lifetimes, exact disposal and cancellation behavior.

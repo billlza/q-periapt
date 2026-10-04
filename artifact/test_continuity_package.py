@@ -103,8 +103,9 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_c_setup as setup
         import continuity_roster_renewal as renewal
         import continuity_enrollment as enrollment
+        import continuity_c_enrollment as c_enrollment
         sources = package.source_inputs()['files']
-        for module in (signed, tls, loss, delivery, setup, renewal, enrollment):
+        for module in (signed, tls, loss, delivery, setup, renewal, enrollment, c_enrollment):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):

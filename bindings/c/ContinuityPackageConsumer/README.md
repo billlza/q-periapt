@@ -13,6 +13,67 @@ shared engine. It exposes no raw private-key/root getter and implements no secon
 ratchet, KDF or state machine. Independently retained account, device, policy and
 directory pins remain separate from untrusted public bundle bytes.
 
+## Registering an original device
+
+The registration route has nine `qpc_enrollment_v1_*` exports, bringing this
+unpublished C interface to 64 exports. It retains the whole native
+`EnrolledDevice`, including its exclusive enrollment lease, inside the existing
+device parent. It does not reopen a preconfigured installation to bypass that
+owner. Product ABI 2 and the legacy constructors remain separate.
+
+1. Create an admitted private configuration directory and explicitly call
+   `provision_wrapping_key` once. Existing registration, signer or installation
+   children refuse creation. Keep this wrapping file outside journal backups.
+2. Supply an independently trusted account root and approved device ID,
+   generation, policy family and validity in `QpcEnrollmentIntent`. Call
+   `prepare_create`, then `qpc_owner_v1_finish_open`. Restart uses only
+   `prepare_resume` and the same original intent; failure never selects creation.
+3. Call `request` and send its exact public bytes to the account authority. Retries
+   return the committed original request. The authority must independently
+   authenticate the account action and verify this proof against its own approved
+   intent before issuing a credential and complete roster.
+4. Call `accept` with the signed response and a separately obtained
+   `QpcEnrollmentPin`. Do not derive that pin from the response. Then call
+   `prepare_storage`. Required-witness preparation returns the original public
+   subject/genesis for independent operator authorization; it cannot enroll itself.
+5. Call `activate`. Success changes the same handle into a device parent; create
+   or restore peer children through `qpc_peer_v1_*`. Required-witness activation
+   obtains fresh signed confirmation of the exact current authority before
+   releasing the parent.
+
+Opening, status and request need no credential, SDK policy database or TLS key.
+Acceptance and later transitions require the independently provisioned SDK policy
+store and verified protocol policy; activation also loads application TLS
+credentials. Witness pins/carrier settings and peer trust remain independent
+configuration. These application inputs and the authority transport are still
+integration obligations; this route is not a complete account login service.
+
+`status` reports durable progress, not live authority. An accepted native
+transition that fails consumes the registration owner and releases its leases;
+the handle then permits cancellation/disposal only. Dispose it and resume the
+original record. Local Active may already be durable after denial or a lost reply.
+Preflight shape errors preserve the owner; a pre-cancelled live owner remains
+owned until close. Busy calls do not take it. See the header for the exact contract.
+Never repair a missing active enrollment or key by creating another identity.
+
+For same-credential continuation, resume registration and call `refresh_roster`
+with the original predecessor and independently pinned target. The native durable
+Refreshing transition reconciles the original journal before its roster CAS.
+The witness operator must separately authorize the target. Activate the original
+parent, then restore the original peer/session and operation ID. This cannot
+replace a credential, policy, root or signer and is not a supported-version
+storage migration.
+
+The `--enrollment-parent LOCAL_PATH ROLE` consumer selector follows this route.
+Mandatory package workloads check original request/identity retention, separate
+process lease exclusion, child/parent disposal, real TLS delivery with a lost
+application receipt, same-session roster continuation, signed-TCP cancellation
+and current-authority denial over both TCP and mutual TLS. Public readback is
+structural; native endpoints verify signatures. Swift/Kotlin registration,
+Android/WASM persistence and complete replacement/upgrade remain open.
+
+## Preconfigured installation and peer owners
+
 The additive device-parent path uses `qpc_owner_v1_prepare_open` with kind 3 and
 quality 0, followed by `finish_open`. It requires an already Active installation;
 it cannot provision or finish a Creating intent. The protected local configuration

@@ -30,14 +30,21 @@ def head(data: bytes) -> tuple[int, int, bytes]:
 
 
 def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2,
-               expected_lost_queries: int = 0, expected_subjects: int = 2) -> dict:
+               expected_lost_queries: int = 0, expected_subjects: int = 2,
+               authority_observations: list[tuple[bytes, int]] | None = None) -> dict:
     sdk.require(type(expected_subjects) is int and expected_subjects in (1, 2, 3),
                 "unqualified witness subject census")
     sdk.require(all(type(value) is int and 0 <= value <= 4096
                     for value in (expected_lost_advances, expected_lost_queries)), "invalid expected witness loss census")
     sdk.require(len(authority) == 32 and data and len(data) % RECORD_BYTES == 0
                 and len(data) <= RECORD_BYTES * 4096, "witness transcript framing differs")
+    sdk.require(authority_observations is None or (type(authority_observations) is list
+                and 0 < len(authority_observations) <= 4096
+                and all(type(item) is tuple and len(item) == 2 and type(item[0]) is bytes
+                        and len(item[0]) == 32 and any(item[0]) and type(item[1]) is int and item[1] in (5, 6)
+                        for item in authority_observations)), "invalid expected authority observations")
     states, challenges, lost, recovered = {}, set(), {}, set()
+    observed_authorities = []
     advanced, lost_queries = 0, 0
     for index in range(len(data) // RECORD_BYTES):
         row = data[index * RECORD_BYTES:(index + 1) * RECORD_BYTES]
@@ -69,6 +76,14 @@ def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2
                 states[subject] = (observed, last_id)
             else:
                 sdk.require(prior == (observed, last_id), "witness query changed its current head")
+        elif kind == 4:
+            sdk.require(authority_observations is not None and prior is not None
+                        and len(observed_authorities) < len(authority_observations), "unexpected witness authority observation")
+            expected, wanted = authority_observations[len(observed_authorities)]
+            sdk.require(operation[1:33] == expected and operation[33:] == bytes(64) and outcome == wanted
+                        and prior == (observed, last_id) and delivered == 1,
+                        "witness authority observation changed scope, outcome or state")
+            observed_authorities.append((expected, wanted))
         else:
             sdk.require(kind == 2 and prior is not None, "unexpected witness operation in installed trace")
             before, target = head(operation[1:49]), head(operation[49:97])
@@ -94,8 +109,13 @@ def transcript(data: bytes, authority: bytes, *, expected_lost_advances: int = 2
             recovered.add(command)
     sdk.require(len(states) == expected_subjects and len(lost) == expected_lost_advances
                 and lost_queries == expected_lost_queries and recovered == lost.keys(), "witness original lost advances were not reconciled")
-    return {"exchanges": len(data) // RECORD_BYTES, "subjects": len(states), "logical_advances": advanced,
+    sdk.require(authority_observations is None or observed_authorities == authority_observations,
+                "witness current authority observations incomplete")
+    result = {"exchanges": len(data) // RECORD_BYTES, "subjects": len(states), "logical_advances": advanced,
             "lost_commands": sorted(value.hex() for value in lost), "fresh_challenges": len(challenges)}
+    if authority_observations is not None:
+        result["authority_observations"] = [dict(authority=value.hex(), outcome=outcome) for value,outcome in observed_authorities]
+    return result
 
 
 def cancelled_reply_prefix(prefix: bytes, data: bytes) -> None:

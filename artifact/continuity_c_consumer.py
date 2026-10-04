@@ -38,6 +38,9 @@ EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
 EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen"}
 EXPORTS |= {"qpc_setup_v1_" + name for name in
             ("prepare_create", "prepare_resume", "status", "prepare_storage", "activate")}
+EXPORTS |= {"qpc_enrollment_v1_" + name for name in
+            ("provision_wrapping_key", "prepare_create", "prepare_resume", "status", "request", "accept",
+             "prepare_storage", "refresh_roster", "activate")}
 EXPORTS |= {"qpc_device_v1_next_account", "qpc_device_v1_account_status",
             "qpc_device_v1_send_account_member"}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_begin", "account_status",
@@ -47,7 +50,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -400,6 +403,40 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        from continuity_c_enrollment import TEST as enrollment_test, export as export_enrollment
+        enrollment_build = run([*cargo, "test", "--locked", "--offline", "--test", "enrollment", "--no-run",
+                                "--message-format=json", "-j", "2", *extra], "enrollment-build-" + profile)
+        enrollment_binary = built_artifact(enrollment_build, consumer, build, library=False, test_name="enrollment")
+        enrollment_identity = sdk.snapshot(enrollment_binary, maximum=MAX_BINARY)
+        enrollment_evidence = outside / ("c-" + profile + "-enrollment-runtime")
+        enrollment_runtime = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(enrollment_evidence))
+        enrollment_stdout = run([str(enrollment_binary), "--exact", enrollment_test, "--nocapture"],
+                                "enrollment-trace-" + profile, runtime=enrollment_runtime)
+        registration = export_enrollment(enrollment_stdout, enrollment_evidence,
+                                         output / "c-enrollment-public" / profile)
+        sdk.require(sdk.snapshot(enrollment_binary, maximum=MAX_BINARY).sha256 == enrollment_identity.sha256,
+                    "C enrollment test binary changed")
+        registration["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
+        sdk.write_json(output / ("C_ENROLLMENT_" + profile.upper() + ".json"), registration)
+        result["execution"][profile]["enrollment"] = registration
+        from continuity_c_enrollment import WITNESS_TESTS as enrollment_witness_tests, export_witness as export_enrollment_witness
+        enrollment_witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "enrollment_witness", "--no-run",
+                                       "--message-format=json", "-j", "2", *extra], "enrollment-witness-build-" + profile)
+        enrollment_witness_binary = built_artifact(enrollment_witness_build, consumer, build, library=False, test_name="enrollment_witness")
+        enrollment_witness_identity = sdk.snapshot(enrollment_witness_binary, maximum=MAX_BINARY)
+        result["execution"][profile]["enrollment_witness"] = {}
+        for carrier, test in enrollment_witness_tests.items():
+            witness_evidence = outside / ("c-" + profile + "-enrollment-" + carrier + "-runtime")
+            witness_runtime = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(witness_evidence))
+            witness_stdout = run([str(enrollment_witness_binary), "--exact", test, "--nocapture"],
+                                  "enrollment-" + carrier + "-trace-" + profile, runtime=witness_runtime)
+            witnessed = export_enrollment_witness(witness_stdout, witness_evidence,
+                                                  output / "c-enrollment-witness-public" / profile / carrier, carrier)
+            witnessed["binary"] = dict(sha256=enrollment_witness_identity.sha256, bytes=enrollment_witness_identity.size)
+            sdk.write_json(output / ("C_ENROLLMENT_" + carrier.replace("-", "_").upper() + "_" + profile.upper() + ".json"), witnessed)
+            result["execution"][profile]["enrollment_witness"][carrier] = witnessed
+        sdk.require(sdk.snapshot(enrollment_witness_binary, maximum=MAX_BINARY).sha256 == enrollment_witness_identity.sha256,
+                    "C witnessed enrollment test binary changed")
         device_evidence = outside / ("c-" + profile + "-device-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
         tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)

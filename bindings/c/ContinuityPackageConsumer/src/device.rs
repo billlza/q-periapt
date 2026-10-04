@@ -9,26 +9,31 @@ use zeroize::Zeroizing;
 pub(crate) struct Authority {
     pub(crate) identity: p::VerifiedDevice,
     signer: p::DeviceSigningKey,
-    pub(crate) policy: Arc<p::VerifiedSessionPolicy>,
-    policy_store: PolicyStore,
-    family: [u8; 32],
+    pub(crate) environment: Environment,
+}
+pub(crate) struct Environment {
+    pub(crate) authority: PolicyAuthority,
     certificate: Vec<u8>,
     tls_key: Zeroizing<Vec<u8>>,
 }
-impl Drop for Authority {
+pub(crate) struct PolicyAuthority {
+    pub(crate) policy: Arc<p::VerifiedSessionPolicy>,
+    policy_store: PolicyStore,
+    pub(crate) family: [u8; 32],
+}
+impl Drop for PolicyAuthority {
     fn drop(&mut self) {
-        self.signer.close();
         self.policy.close();
         self.policy_store.close();
     }
 }
 struct Device {
-    service: p::DeviceService,
-    authority: Authority,
+    native: native_owner::NativeOwner,
+    environment: Environment,
 }
 impl Drop for Device {
     fn drop(&mut self) {
-        self.service.close();
+        self.native.close();
     }
 }
 
@@ -48,9 +53,8 @@ impl Authority {
     ) -> Result<(Self, p::JournalKey)> {
         opening::check(cancel, deadline)?;
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-        let (policy_store, policy, family) =
-            owner::configured_policy(path, &directory, cancel, deadline)?;
-        let account = owner::account(&directory, "local", family)?;
+        let environment = Environment::load(path, cancel, deadline)?;
+        let account = owner::account(&directory, "local", environment.authority.family)?;
         let identity = account.verify_device(
             &read(&directory, "local-certificate", 8192)?,
             &read(&directory, "local-roster", 65_536)?,
@@ -72,14 +76,46 @@ impl Authority {
         let authority = Self {
             identity,
             signer,
-            policy,
-            policy_store,
-            family,
+            environment,
+        };
+        opening::check(cancel, deadline)?;
+        Ok((authority, key))
+    }
+}
+
+impl Environment {
+    pub(crate) fn load(path: &Path, cancel: &Cancellation, deadline: Instant) -> Result<Self> {
+        let authority = PolicyAuthority::load(path, cancel, deadline)?;
+        Self::from_policy(path, authority, cancel, deadline)
+    }
+    pub(crate) fn from_policy(
+        path: &Path,
+        authority: PolicyAuthority,
+        cancel: &Cancellation,
+        deadline: Instant,
+    ) -> Result<Self> {
+        opening::check(cancel, deadline)?;
+        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+        let value = Self {
+            authority,
             certificate: read(&directory, "tls-cert", 8192)?,
             tls_key: owner::private_bytes(&directory, "tls-key", 8192)?,
         };
         opening::check(cancel, deadline)?;
-        Ok((authority, key))
+        Ok(value)
+    }
+}
+impl PolicyAuthority {
+    pub(crate) fn load(path: &Path, cancel: &Cancellation, deadline: Instant) -> Result<Self> {
+        opening::check(cancel, deadline)?;
+        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+        let (policy_store, policy, family) =
+            owner::configured_policy(path, &directory, cancel, deadline)?;
+        Ok(Self {
+            policy_store,
+            policy,
+            family,
+        })
     }
 }
 
@@ -104,7 +140,7 @@ impl Shared {
             paths(path)?,
             &key,
             &authority.identity,
-            &authority.policy,
+            &authority.environment.authority.policy,
             now().map_err(Failure::configuration)?,
         )?;
         // Operational restart never creates children or activates a creation intent.
@@ -118,7 +154,7 @@ impl Shared {
         let service = installation.activate(
             key,
             &authority.identity,
-            &authority.policy,
+            &authority.environment.authority.policy,
             now().map_err(Failure::configuration)?,
             anchor,
         )?;
@@ -132,8 +168,39 @@ impl Shared {
         cancel: Cancellation,
         invocation: invocation::Scope,
     ) -> Arc<Self> {
+        Self::from_native(
+            native_owner::NativeOwner::installed(service, authority.signer),
+            authority.environment,
+            cancel,
+            invocation,
+        )
+    }
+
+    pub(crate) fn from_enrolled(
+        owner: p::EnrolledDevice,
+        environment: Environment,
+        cancel: Cancellation,
+        invocation: invocation::Scope,
+    ) -> Arc<Self> {
+        Self::from_native(
+            native_owner::NativeOwner::enrolled(owner),
+            environment,
+            cancel,
+            invocation,
+        )
+    }
+
+    fn from_native(
+        native: native_owner::NativeOwner,
+        environment: Environment,
+        cancel: Cancellation,
+        invocation: invocation::Scope,
+    ) -> Arc<Self> {
         Arc::new(Self {
-            device: Mutex::new(Some(Device { service, authority })),
+            device: Mutex::new(Some(Device {
+                native,
+                environment,
+            })),
             cancel,
             invocation,
             closed: AtomicBool::new(false),
@@ -190,7 +257,7 @@ impl Shared {
         action: impl FnOnce(&mut p::DeviceJournal) -> Result<T>,
     ) -> Result<T> {
         self.with_device(deadline, &self.cancel, |device| {
-            action(device.service.stores()?.0)
+            action(device.native.parts()?.0.stores()?.0)
         })
     }
 }
@@ -236,8 +303,10 @@ impl Peer {
     ) -> Result<Self> {
         parent.with_device(deadline, cancel, |device| {
             let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-            let initiator = owner::account(&directory, "initiator", device.authority.family)?;
-            let responder = owner::account(&directory, "responder", device.authority.family)?;
+            let initiator =
+                owner::account(&directory, "initiator", device.environment.authority.family)?;
+            let responder =
+                owner::account(&directory, "responder", device.environment.authority.family)?;
             let required = p::BootstrapRequirements {
                 initiator: p::ExpectedDevice::new(
                     &initiator,
@@ -265,21 +334,35 @@ impl Peer {
             let context = match admission {
                 owner::Admission::Bootstrap(_) => {
                     let context = Arc::new(bundle.verify(
-                        Arc::clone(&device.authority.policy),
+                        Arc::clone(&device.environment.authority.policy),
                         required,
                         time,
                     )?);
-                    Arc::clone(device.service.admit_peer(context, role, time)?.context())
+                    Arc::clone(
+                        device
+                            .native
+                            .parts()?
+                            .0
+                            .admit_peer(context, role, time)?
+                            .context(),
+                    )
                 }
                 owner::Admission::Existing { session, .. } => {
                     let request = bundle.request_reopen(
-                        Arc::clone(&device.authority.policy),
+                        Arc::clone(&device.environment.authority.policy),
                         required,
                         role,
                         session,
                         time,
                     )?;
-                    Arc::clone(device.service.reopen_peer(request, time)?.context())
+                    Arc::clone(
+                        device
+                            .native
+                            .parts()?
+                            .0
+                            .reopen_peer(request, time)?
+                            .context(),
+                    )
                 }
             };
             let mut peer = Self {
@@ -291,22 +374,23 @@ impl Peer {
                     .map_err(Failure::configuration)?,
             };
             // No child is published before exact TLS credentials and peer pin pass.
-            peer.operation(device).endpoint()?;
+            peer.operation(device)?.endpoint()?;
             Ok(peer)
         })
     }
 
-    fn operation<'a>(&'a mut self, device: &'a mut Device) -> owner::Operation<'a> {
-        owner::Operation {
+    fn operation<'a>(&'a mut self, device: &'a mut Device) -> Result<owner::Operation<'a>> {
+        let (service, signer) = device.native.parts()?;
+        Ok(owner::Operation {
             listener: &mut self.listener,
-            service: &mut device.service,
-            signer: &device.authority.signer,
+            service,
+            signer,
             context: &self.context,
-            certificate: &device.authority.certificate,
-            tls_key: &device.authority.tls_key,
+            certificate: &device.environment.certificate,
+            tls_key: &device.environment.tls_key,
             peer_certificate: &self.certificate,
             peer_name: &self.name,
-        }
+        })
     }
 
     pub(crate) fn with_operation<T>(
@@ -317,7 +401,7 @@ impl Peer {
     ) -> Result<T> {
         let parent = Arc::clone(&self.parent);
         parent.with_device(deadline, cancel, |device| {
-            action(&mut self.operation(device), cancel)
+            action(&mut self.operation(device)?, cancel)
         })
     }
 }

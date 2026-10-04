@@ -20,6 +20,20 @@ does not generate local enrollment material or provision an installation.
 bounded path, prekey mode and witness selection before activation; it does not
 change this trust or storage boundary.
 
+The separate C [`registration owner`](../../bindings/c/ContinuityPackageConsumer/src/enrollment.rs)
+now generates the original signing identity under a committed native enrollment
+intent. Its public request is admitted by an independently authorized authority;
+credential/roster acceptance takes a separately obtained trust pin. Activation
+moves the whole `EnrolledDevice` into the existing device parent, retaining its
+enrollment lease during peer communication. Explicit resume never falls back to
+the legacy installation constructor. Same-credential roster refresh and original
+session restoration preserve the original request, signer and journal. Required
+witness activation checks current signed authority; local Active alone cannot
+release an owner after denial or an unavailable reply. The C interface now has
+64 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
+authority transport and final provisioning remain independently supplied inputs;
+see [the C integration path](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device).
+
 The additive C [`device owner`](../../bindings/c/ContinuityPackageConsumer/src/device.rs)
 now opens an Active installation from independently retained local identity,
 policy and private-owner configuration. It checks the controlled signer against
@@ -55,16 +69,17 @@ now reuse the native transaction through all three bindings. Installed cohorts
 exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
-binds each result to its source and carrier. Android/WASM Continuity adapters,
-enrollment/renewal and the broader failure matrix remain required. These finite
+binds each result to its source and carrier. Swift/Kotlin enrollment,
+Android/WASM Continuity adapters, replacement/renewal beyond the same credential
+and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | `JournalKey::provision/open`, role-specific signing-owner persistence, `DeviceInstallation::provision/open/prepare/activate`; C setup owner and Swift/Kotlin reference transfer delegate Creating/Active transitions with original configured inputs | Public key enrollment and independent trust-input contract, initial-intent/child creation faults and final product provisioning |
+| Explicit new lineage and exact restart | Native `DeviceEnrollment` and C registration owner commit the original signer/request, accept independent trust inputs and retain the enrollment lease; legacy setup owners delegate Creating/Active transitions with original configured inputs | Swift/Kotlin enrollment, Android/WASM persistence, authority transport, broader creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
-| Authority lifecycle | Signed roster checks, original installation/policy/witness bindings and native same-credential witness roster-authority refresh | Product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |
+| Authority lifecycle | Signed roster checks, original installation/policy/witness bindings, native/C same-credential enrolled roster continuation and explicit witness authority refresh | Complete product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
 The native fanout methods are in

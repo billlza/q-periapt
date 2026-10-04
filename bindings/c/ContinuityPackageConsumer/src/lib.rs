@@ -4,7 +4,9 @@
 
 mod account;
 mod device;
+mod enrollment;
 mod invocation;
+mod native_owner;
 mod opening;
 mod owner;
 mod recovery;
@@ -213,6 +215,7 @@ enum Owned {
     Device(Arc<device::Shared>),
     Peer(Box<device::Peer>),
     Setup(Box<setup::Owner>),
+    Enrollment(Box<enrollment::Owner>),
 }
 struct Entry {
     cancel: Cancellation,
@@ -316,7 +319,7 @@ fn with<T>(
     action: impl FnOnce(&mut owner::Operation<'_>, &Cancellation) -> Result<T>,
 ) -> Result<T> {
     with_owned(id, deadline, |owner, cancel| match owner {
-        Owned::Operational(owner) => action(&mut owner.operation(), cancel),
+        Owned::Operational(owner) => action(&mut owner.operation()?, cancel),
         Owned::Peer(peer) => peer.with_operation(deadline, cancel, action),
         _ => Err(failure(6)),
     })

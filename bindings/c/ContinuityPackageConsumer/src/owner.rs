@@ -139,8 +139,7 @@ impl Admission {
 /// One original local installation, never a reconstructed policy permission.
 pub(crate) struct Owner {
     listener: Option<TcpListener>,
-    pub(crate) service: p::DeviceService,
-    pub(crate) signer: p::DeviceSigningKey,
+    native: crate::native_owner::NativeOwner,
     pub(crate) context: Arc<p::BootstrapContext>,
     policy_store: PolicyStore,
     certificate: Vec<u8>,
@@ -278,8 +277,7 @@ impl Owner {
         crate::opening::check(&cancel, deadline)?;
         let mut owner = Self {
             listener: None,
-            service,
-            signer,
+            native: crate::native_owner::NativeOwner::installed(service, signer),
             context,
             policy_store,
             certificate: read(&directory, "tls-cert", 8192)?,
@@ -289,26 +287,26 @@ impl Owner {
                 .map_err(Failure::configuration)?,
         };
         // Validate certificate/key/pin configuration before returning a handle.
-        owner.operation().endpoint()?;
+        owner.operation()?.endpoint()?;
         crate::opening::check(&cancel, deadline)?;
         Ok(owner)
     }
-    pub(crate) fn operation(&mut self) -> Operation<'_> {
-        Operation {
+    pub(crate) fn operation(&mut self) -> Result<Operation<'_>> {
+        let (service, signer) = self.native.parts()?;
+        Ok(Operation {
             listener: &mut self.listener,
-            service: &mut self.service,
-            signer: &self.signer,
+            service,
+            signer,
             context: &self.context,
             certificate: &self.certificate,
             tls_key: &self.tls_key,
             peer_certificate: &self.peer_certificate,
             peer_name: &self.peer_name,
-        }
+        })
     }
     pub(crate) fn close(&mut self) {
         self.listener.take();
-        self.service.close();
-        self.signer.close();
+        self.native.close();
         self.context.policy().close();
         self.policy_store.close();
     }

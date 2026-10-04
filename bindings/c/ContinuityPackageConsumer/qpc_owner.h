@@ -250,6 +250,108 @@ int32_t qpc_setup_v1_status(uint64_t handle, qpc_setup_status_v1 *status,
 int32_t qpc_setup_v1_prepare_storage(uint64_t handle, qpc_setup_preparation_v1 *preparation,
                                    qpc_error_v1 *error);
 int32_t qpc_setup_v1_activate(uint64_t handle, qpc_error_v1 *error);
+
+/* Original device registration through the native qperiapt-enrollment/1 owner.
+ * This unpublished candidate is separate from product ABI 2. The host supplies
+ * an independently approved root and complete device grant, authenticates the
+ * account action externally, and transports the returned public request to its
+ * authority. Possession of a key/request never grants account membership.
+ *
+ * Explicit first use: provision_wrapping_key creates only wrap.key and refuses
+ * any existing enrollment/signer/installation/journal/archive destination.
+ * Existing wrap.key is never replaced. This is not a missing-active-key repair.
+ * A failed first creation may have published the key; inspect/reconcile the
+ * original first-use operation, never delete it to retry. An already provisioned
+ * original key may be used directly by prepare_create/prepare_resume.
+ *
+ * Both preparations copy all inputs without I/O, require kind=3/quality=0, and
+ * retain the explicit carrier. finish_open creates or resumes enrollment.redb
+ * under the exact approved intent. Missing/corrupt state never selects create.
+ * No pre-generated signer, signer-id, local credential or roster is required.
+ * status/request need no SDK policy or TLS files. accept/prepare_storage/refresh
+ * require the configured SDK/protocol policy; activate also needs local TLS
+ * credentials, and explicit witness pins/credentials if protection requires it.
+ *
+ * request commits the original signer and exact signed bytes before output;
+ * length is the meaningful prefix of bytes, and the unused tail is zero.
+ * accept takes untrusted signed response bytes AND a separately trusted current
+ * pin. Never derive that pin from the response itself. It commits one original
+ * journal ID. prepare_storage returns the same qpc_setup_preparation_v1 contract
+ * for separate authorized witness enrollment. No function enrolls the witness.
+ *
+ * status phases: 1 Preparing, 2 Requested, 3 Accepted, 4 Activating, 5 Active,
+ * 6 Refreshing. signing_id is always original; journal is zero only in phases
+ * 1/2. previous/next are nonzero only in phase 6. These are durable observations,
+ * never live authorization receipts. refresh_roster preserves the credential,
+ * key/root/policy and original operation; it cannot renew an expired credential.
+ *
+ * activate consumes registration and converts this SAME handle to a device
+ * parent only after current native policy, roster and required-witness checks.
+ * The whole EnrolledDevice and enrollment lease remain owned until parent close.
+ * Use peer preparation/reopening on this parent, never legacy installation
+ * constructors to bypass original registration. Children borrow its same owners.
+ *
+ * Admitted registration operation failure closes this handle to all work except
+ * cancel/close, releases leases and may leave committed state. Resume the exact
+ * original intent; do not recreate keys or IDs. Invalid input shape, wrong owner
+ * kind and call-admission Busy/Capacity do not consume it. Cancellation is one-way.
+ * A call refused before taking the registration owner retains its lease until
+ * close; cancellation observed after admitted work releases it without output.
+ * Close cancelled handles and prepare_resume. All existing quotas/deadlines apply.
+ */
+typedef struct {
+    const uint8_t *root;
+    size_t root_length;
+    uint8_t device[16];
+    uint64_t generation;
+    uint8_t family[32];
+    uint64_t valid_from;
+    uint64_t valid_until;
+} qpc_enrollment_intent_v1;
+typedef struct {
+    uint64_t version;
+    uint8_t digest[32];
+} qpc_roster_checkpoint_v1;
+typedef struct {
+    uint8_t account[32];
+    const uint8_t *root;
+    size_t root_length;
+    uint8_t family[32];
+    qpc_roster_checkpoint_v1 checkpoint;
+} qpc_account_pin_v1;
+typedef struct {
+    uint32_t phase;
+    uint8_t signing_id[32];
+    uint8_t journal[32];
+    qpc_roster_checkpoint_v1 previous;
+    qpc_roster_checkpoint_v1 next;
+} qpc_enrollment_status_v1;
+typedef struct {
+    uint32_t length;
+    uint8_t bytes[8192];
+} qpc_enrollment_request_v1;
+int32_t qpc_enrollment_v1_provision_wrapping_key(const uint8_t *path, size_t length,
+                                               qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_prepare_create(const uint8_t *path, size_t length,
+    const qpc_enrollment_intent_v1 *intent, const qpc_open_options_v1 *options,
+    uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_prepare_resume(const uint8_t *path, size_t length,
+    const qpc_enrollment_intent_v1 *intent, const qpc_open_options_v1 *options,
+    uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_status(uint64_t handle, qpc_enrollment_status_v1 *status,
+                                qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_request(uint64_t handle, qpc_enrollment_request_v1 *request,
+                                 qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_accept(uint64_t handle,
+    const uint8_t *certificate, size_t certificate_length,
+    const uint8_t *roster, size_t roster_length, const qpc_account_pin_v1 *pin,
+    uint8_t journal[32], qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_prepare_storage(uint64_t handle,
+    qpc_setup_preparation_v1 *preparation, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_refresh_roster(uint64_t handle,
+    const qpc_roster_checkpoint_v1 *previous, const uint8_t *roster, size_t roster_length,
+    const qpc_account_pin_v1 *pin, qpc_enrollment_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_activate(uint64_t handle, qpc_error_v1 *error);
 /* A device parent opens only an already Active original installation using its
  * independently configured local-* identity, SDK/protocol policy and witness.
  * It does not read a bootstrap bundle, select a peer, provision, or activate a

@@ -79,6 +79,11 @@ pub(crate) struct Configuration {
     timeout: Duration,
     carrier: Carrier,
 }
+pub(crate) struct Parameters {
+    pub(crate) pin: p::AnchorPin,
+    pub(crate) transport: Box<dyn p::AnchorTransport>,
+    pub(crate) timeout: Duration,
+}
 impl Configuration {
     pub(crate) unsafe fn read(options: *const Options, carrier: Carrier) -> Result<Self> {
         if options.is_null() || !options.is_aligned() {
@@ -106,17 +111,32 @@ impl Configuration {
         cancel: Cancellation,
         invocation: invocation::Scope,
     ) -> Result<p::AnchorClient> {
+        let Parameters {
+            pin,
+            transport,
+            timeout,
+        } = self.parameters(path, cancel, invocation)?;
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-        let pin = p::AnchorPin::new(
-            p::AnchorIdentity::from_trusted_state(owner::array(&directory, "witness-id")?)?,
-            p::PublicKey::decode(&owner::read(&directory, "witness-public", 8192)?)?,
-        );
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
         let signer = p::DeviceSigningKey::open(
             &path.join("signer.key"),
             &key,
             p::SigningKeyId::from_trusted_state(owner::array(&directory, "signer-id")?)?,
         )?;
+        p::AnchorClient::new(pin, signer, transport, timeout)
+            .map_err(|error| p::DurableError::from(error).into())
+    }
+    pub(crate) fn parameters(
+        self,
+        path: &Path,
+        cancel: Cancellation,
+        invocation: invocation::Scope,
+    ) -> Result<Parameters> {
+        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+        let pin = p::AnchorPin::new(
+            p::AnchorIdentity::from_trusted_state(owner::array(&directory, "witness-id")?)?,
+            p::PublicKey::decode(&owner::read(&directory, "witness-public", 8192)?)?,
+        );
         let endpoint = match self.carrier {
             Carrier::SignedTcp => Endpoint::SignedTcp(self.address),
             Carrier::Tls => Endpoint::Tls(Box::new(self.tls(&directory)?)),
@@ -130,8 +150,11 @@ impl Configuration {
             endpoint,
             invocation,
         });
-        p::AnchorClient::new(pin, signer, transport, self.timeout)
-            .map_err(|error| p::DurableError::from(error).into())
+        Ok(Parameters {
+            pin,
+            transport,
+            timeout: self.timeout,
+        })
     }
     fn tls(self, directory: &OwnedPrivateDirectory) -> Result<TlsEndpoint> {
         // Original protected witness credentials are independent of application

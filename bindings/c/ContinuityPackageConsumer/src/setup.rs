@@ -16,6 +16,31 @@ pub struct Preparation {
     pub subject: [u8; 96],
     pub image_digest: [u8; 32],
 }
+impl Preparation {
+    pub(crate) fn from_native(
+        journal: [u8; 32],
+        prepared: p::InstallationPreparation,
+    ) -> Result<Self> {
+        Ok(match prepared {
+            p::InstallationPreparation::Local => Self {
+                protection: 1,
+                journal,
+                subject: [0; 96],
+                image_digest: [0; 32],
+            },
+            p::InstallationPreparation::RequiresEnrollment(genesis) => Self {
+                protection: 2,
+                journal,
+                subject: genesis
+                    .subject()
+                    .to_bytes()
+                    .try_into()
+                    .map_err(|_| failure(5))?,
+                image_digest: genesis.image_digest(),
+            },
+        })
+    }
+}
 
 pub(crate) struct Owner {
     path: PathBuf,
@@ -40,7 +65,7 @@ impl Owner {
                 device::paths(path)?,
                 &key,
                 &authority.identity,
-                &authority.policy,
+                &authority.environment.authority.policy,
                 time,
             )?
         } else {
@@ -48,7 +73,7 @@ impl Owner {
                 device::paths(path)?,
                 &key,
                 &authority.identity,
-                &authority.policy,
+                &authority.environment.authority.policy,
                 time,
             )?
         };
@@ -81,27 +106,10 @@ impl Owner {
         let prepared = self.installation.prepare(
             key,
             &self.authority.identity,
-            &self.authority.policy,
+            &self.authority.environment.authority.policy,
             owner::now().map_err(Failure::configuration)?,
         )?;
-        let result = match prepared {
-            p::InstallationPreparation::Local => Preparation {
-                protection: 1,
-                journal,
-                subject: [0; 96],
-                image_digest: [0; 32],
-            },
-            p::InstallationPreparation::RequiresEnrollment(genesis) => Preparation {
-                protection: 2,
-                journal,
-                subject: genesis
-                    .subject()
-                    .to_bytes()
-                    .try_into()
-                    .map_err(|_| failure(5))?,
-                image_digest: genesis.image_digest(),
-            },
-        };
+        let result = Preparation::from_native(journal, prepared)?;
         opening::check(cancel, deadline)?;
         Ok(result)
     }
@@ -119,7 +127,7 @@ impl Owner {
         let service = self.installation.activate(
             key,
             &self.authority.identity,
-            &self.authority.policy,
+            &self.authority.environment.authority.policy,
             owner::now().map_err(Failure::configuration)?,
             anchor,
         )?;

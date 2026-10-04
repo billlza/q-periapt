@@ -77,6 +77,21 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+A subsequent C integration exposes original native enrollment through nine
+additional exports (64 in the unpublished `qpc-owner/1` interface). It persists
+its own signer/request, accepts independently supplied trust, retains the whole
+enrollment owner through device/peer operations, and refreshes the same credential's
+roster before restoring the original session. Current development traces exercise
+real C-to-Rust TLS delivery after receiver exit, signed-TCP activation cancellation,
+and required-witness authority refusal over TCP and mutual TLS. A cancelled failed
+activation initially masked its consumed handle as Cancelled; checking the empty
+slot before cancellation now returns Closed in the same real TCP test. The package
+collector requires all three traces in debug and release. These development results
+do not themselves qualify the fresh archive; SDK policy/store, TLS configuration,
+authority transport, Swift/Kotlin registration and complete replacement/upgrade
+remain separate obligations. Product ABI 2 and legacy KAT behavior are unchanged
+by this C adapter increment.
+
 A subsequent native enrollment increment adds `DeviceEnrollment` before
 credential-dependent installation. The original signing ID/request, accepted
 credential/roster/policy and future journal ID are retained across restart; explicit

@@ -307,6 +307,7 @@ uint64_t device_open(const char *path, const qpc_witness_v1 *witness, int witnes
 uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, const uint8_t *existing);
 #include "account_client.c"
 #include "setup_client.c"
+#include "enrollment_client.c"
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -316,8 +317,9 @@ int main(int argc, char **argv) {
         options=(qpc_witness_v1){.address=(const uint8_t *)argv[2],.address_length=strlen(argv[2]),.timeout_ms=3000};
         witness=&options; argc-=2; argv+=2;
     }
-    const char *device_path=NULL; uint32_t device_role=0;
-    if (!strcmp(argv[1], "--device-parent")) {
+    const char *device_path=NULL; uint32_t device_role=0; int enrolled_parent=0;
+    if (!strcmp(argv[1], "--device-parent") || !strcmp(argv[1], "--enrollment-parent")) {
+        enrolled_parent=!strcmp(argv[1], "--enrollment-parent");
         if (argc < 7) fail("device parent arguments");
         device_path=argv[2];
         device_role=!strcmp(argv[3],"1") ? 1U : !strcmp(argv[3],"2") ? 2U : 0U;
@@ -332,6 +334,10 @@ int main(int argc, char **argv) {
             fail("existing session requires an operational command");
     }
     self_check();
+    if (!strncmp(argv[1],"enrollment-",11)) {
+        if(device_path || existing) fail("enrollment command owns its registration");
+        return enrollment_command(argc,argv,witness,witness_tls);
+    }
     if (!strncmp(argv[1],"setup-",6)) {
         if (device_path || existing) fail("setup command owns its explicit installation");
         return setup_command(argc,argv,witness,witness_tls);
@@ -363,7 +369,8 @@ int main(int argc, char **argv) {
         if (printf("rejected:%d\n", code) < 0 || fflush(stdout)) fail("output failed");
         return 0;
     }
-    uint64_t parent = device_path ? device_open(device_path,witness,witness_tls) : 0;
+    uint64_t parent = device_path ? (enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) :
+        device_open(device_path,witness,witness_tls)) : 0;
     uint64_t handle = parent ? device_peer_open(parent,argv[2],device_role,existing) :
         open_owner(argv[2],witness,witness_tls,existing);
     qpc_error_v1 error;

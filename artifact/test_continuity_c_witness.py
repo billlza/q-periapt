@@ -31,6 +31,37 @@ def fixture(subjects=2):
 
 
 class ContinuityCWitnessTests(unittest.TestCase):
+    def test_authority_observation_needs_exact_opt_in_and_cannot_change_head(self):
+        authority, baseline = fixture(1)
+        reply = baseline[-1][3679:3961]
+        subject, observed, last = reply[40:136], reply[201:249], reply[250:282]
+        expected = b"n" * 32
+
+        def observation(challenge, outcome, binding=expected, padding=bytes(64), state=observed, previous=last):
+            operation = b"\x04" + binding + padding
+            command = w.commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1", authority+subject+operation)
+            request = b"QPANRQ01" + authority + subject + command + bytes([challenge])*32 + operation
+            response = (b"QPANRS01" + authority + subject
+                        + w.commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-REQUEST/v1",request)
+                        + command + bytes([outcome]) + state + b"\x01" + previous)
+            return b"\x01" + len(request).to_bytes(4,"big") + request + bytes(3373) + len(response).to_bytes(4,"big") + response + bytes(3373)
+
+        denied, current = observation(101,6), observation(102,5)
+        data = b"".join([*baseline,denied,current])
+        options = dict(expected_lost_advances=1,expected_subjects=1)
+        with self.assertRaises(ValueError): w.transcript(data,authority,**options)
+        options['authority_observations'] = [(expected,6),(expected,5)]
+        result = w.transcript(data,authority,**options)
+        self.assertEqual(result['logical_advances'],1)
+        self.assertEqual([row['outcome'] for row in result['authority_observations']],[6,5])
+        for bad in [observation(102,1), observation(102,6), observation(102,5,binding=b"z"*32),
+                    observation(102,5,padding=b"x"*64), observation(102,5,state=observed[:16]+b"x"*32),
+                    observation(102,5,previous=b"x"*32)]:
+            with self.subTest(changed=bad[3879:3897]), self.assertRaises(ValueError):
+                w.transcript(b"".join([*baseline,denied,bad]),authority,**options)
+        with self.assertRaises(ValueError):
+            w.transcript(b"".join([*baseline,denied]),authority,**options)
+
     def test_account_subject_census_requires_explicit_three_device_scope(self):
         authority, rows = fixture(3)
         data = b"".join(rows)
