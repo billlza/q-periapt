@@ -52,6 +52,8 @@ release_git() {
 }
 
 APPLE_PACKAGE_PROFILE=legacy
+MACOS_SLICE=macos-arm64_x86_64
+MACOS_ARCHITECTURES="arm64 x86_64"
 if [ "$#" -ne 0 ]; then
 	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
 		APPLE_PACKAGE_PROFILE=sdk-020
@@ -67,6 +69,8 @@ ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
 EXPECTED_ABI_EXPORT_COUNT=9
 EXPECTED_CONSUMER_TESTS=3
 if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	MACOS_SLICE=macos-arm64
+	MACOS_ARCHITECTURES=arm64
 	EXPECTED_PRODUCT_VERSION="0.2.0"
 	ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 	EXPECTED_ABI_EXPORT_COUNT=43
@@ -306,6 +310,10 @@ if [ "$CARGO_VERSION" != "$EXPECTED_CARGO_VERSION" ]; then
 	printf 'error: Swift release requires the exact Cargo version: %s\n' "$CARGO_VERSION" >&2
 	exit 2
 fi
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ] && [ "$RUST_HOST" != "aarch64-apple-darwin" ]; then
+	printf 'error: SDK 0.2.0 macOS support requires Apple Silicon\n' >&2
+	exit 2
+fi
 case "$RUST_HOST" in
 	aarch64-apple-darwin | x86_64-apple-darwin) ;;
 	*)
@@ -443,6 +451,9 @@ APPLE_CONSUMER_EVIDENCE="$OUT_ROOT/apple-consumer-evidence"
 SIGNING_EVIDENCE="$WORK/apple-signing.json"
 APPLE_DISTRIBUTION="$DIST/APPLE_DISTRIBUTION.json"
 required_targets="aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios"
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	required_targets="aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios"
+fi
 mkdir -p "$ROOT/target"
 
 canonical_build_directory() {
@@ -604,7 +615,7 @@ validate_apple_static_archive_paths() {
 validate_apple_xcframework_zip_paths() {
 	if [ "$1" = "signed" ]; then
 		PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-			--artifact "$2" --require-signature \
+			--artifact "$2" --profile "$APPLE_PACKAGE_PROFILE" --require-signature \
 			--forbidden-build-prefix "$BUILD_HOME_LEXICAL" \
 			--forbidden-build-prefix "$BUILD_HOME" \
 			--forbidden-build-prefix "$CARGO_HOME_LEXICAL" \
@@ -623,7 +634,7 @@ validate_apple_xcframework_zip_paths() {
 			--forbidden-build-prefix "$TEMP_ROOT"
 	else
 		PYTHONPATH=artifact python3 artifact/apple_distribution.py validate-zip \
-			--artifact "$2" \
+			--artifact "$2" --profile "$APPLE_PACKAGE_PROFILE" \
 			--forbidden-build-prefix "$BUILD_HOME_LEXICAL" \
 			--forbidden-build-prefix "$BUILD_HOME" \
 			--forbidden-build-prefix "$CARGO_HOME_LEXICAL" \
@@ -817,19 +828,25 @@ module CQPeriapt {
 EOF
 
 printf '\n=== Assemble release slices ===\n'
-lipo -create \
-	"$SANITIZED_TARGET_ARCHIVES/aarch64-apple-darwin/libq_periapt_ffi_abi2.a" \
-	"$SANITIZED_TARGET_ARCHIVES/x86_64-apple-darwin/libq_periapt_ffi_abi2.a" \
-	-output "$LIBS/macos/libq_periapt_ffi_abi2.a"
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	cp "$SANITIZED_TARGET_ARCHIVES/aarch64-apple-darwin/libq_periapt_ffi_abi2.a" "$LIBS/macos/libq_periapt_ffi_abi2.a"
+else
+	lipo -create \
+		"$SANITIZED_TARGET_ARCHIVES/aarch64-apple-darwin/libq_periapt_ffi_abi2.a" \
+		"$SANITIZED_TARGET_ARCHIVES/x86_64-apple-darwin/libq_periapt_ffi_abi2.a" \
+		-output "$LIBS/macos/libq_periapt_ffi_abi2.a"
+fi
 cp "$SANITIZED_TARGET_ARCHIVES/aarch64-apple-ios/libq_periapt_ffi_abi2.a" "$LIBS/ios/libq_periapt_ffi_abi2.a"
 lipo -create \
 	"$SANITIZED_TARGET_ARCHIVES/aarch64-apple-ios-sim/libq_periapt_ffi_abi2.a" \
 	"$SANITIZED_TARGET_ARCHIVES/x86_64-apple-ios/libq_periapt_ffi_abi2.a" \
 	-output "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a"
 
-for architecture in arm64 x86_64; do
-	# Xcode 27's lipo accepts one -verify_arch argument per invocation.
+for architecture in $MACOS_ARCHITECTURES; do
 	lipo "$LIBS/macos/libq_periapt_ffi_abi2.a" -verify_arch "$architecture"
+done
+for architecture in arm64 x86_64; do
+	# Xcode 27 accepts one -verify_arch argument per invocation.
 	lipo "$LIBS/ios-simulator/libq_periapt_ffi_abi2.a" -verify_arch "$architecture"
 done
 lipo "$LIBS/ios/libq_periapt_ffi_abi2.a" -verify_arch arm64
@@ -850,7 +867,7 @@ test -d "$XCFRAMEWORK" || {
 	exit 1
 }
 
-python3 - "$XCFRAMEWORK" <<'PY'
+python3 - "$XCFRAMEWORK" "$APPLE_PACKAGE_PROFILE" <<'PY'
 import pathlib
 import plistlib
 import sys
@@ -875,7 +892,7 @@ with info_path.open("wb") as fh:
     plistlib.dump(info, fh, fmt=plistlib.FMT_XML, sort_keys=True)
 PY
 
-python3 - "$XCFRAMEWORK" <<'PY'
+python3 - "$XCFRAMEWORK" "$APPLE_PACKAGE_PROFILE" <<'PY'
 import pathlib
 import plistlib
 import sys
@@ -889,7 +906,7 @@ if not isinstance(libraries, list):
     raise SystemExit("error: XCFramework Info.plist missing AvailableLibraries")
 
 required = {
-    ("macos", None): {"arm64", "x86_64"},
+    ("macos", None): {"arm64"} if sys.argv[2] == "sdk-020" else {"arm64", "x86_64"},
     ("ios", None): {"arm64"},
     ("ios", "simulator"): {"arm64", "x86_64"},
 }
@@ -921,7 +938,7 @@ print("SWIFT_XCFRAMEWORK_INFO_PASS")
 PY
 
 for lib in \
-	"$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a" \
+	"$XCFRAMEWORK/$MACOS_SLICE/libq_periapt_ffi_abi2.a" \
 	"$XCFRAMEWORK/ios-arm64/libq_periapt_ffi_abi2.a" \
 	"$XCFRAMEWORK/ios-arm64_x86_64-simulator/libq_periapt_ffi_abi2.a"; do
 	validate_apple_static_archive_paths "$lib"
@@ -1158,6 +1175,9 @@ package_profile = sys.argv[20]
 contract_relative = sys.argv[21]
 expected_exports = int(sys.argv[22])
 expected_consumer_tests = int(sys.argv[23])
+macos_architectures = ["arm64"] if package_profile == "sdk-020" else ["arm64", "x86_64"]
+macos_gate = "MACOS_ARM64" if package_profile == "sdk-020" else "MACOS_UNIVERSAL"
+macos_link_key = "macos_link" if package_profile == "sdk-020" else "macos_universal_link"
 
 def sha(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -1276,19 +1296,13 @@ manifest = {
             "warning_or_error_diagnostics": 0,
             "log_sha256": sha(consumer_log),
         },
-        "macos_universal_link": {
+        macos_link_key: {
             "platform": "MACOS",
-            "architectures": ["arm64", "x86_64"],
+            "architectures": macos_architectures,
             "deployment_target": "13.0",
             "warning_or_error_diagnostics": 0,
-            "logs_sha256": {
-                "arm64": sha(
-                    apple_consumer_evidence / "MACOS_UNIVERSAL-arm64.log"
-                ),
-                "x86_64": sha(
-                    apple_consumer_evidence / "MACOS_UNIVERSAL-x86_64.log"
-                ),
-            },
+            "logs_sha256": {arch: sha(apple_consumer_evidence / f"{macos_gate}-{arch}.log")
+                            for arch in macos_architectures},
         },
         "ios_device_link": {
             "platform": "IOS",
@@ -1419,8 +1433,8 @@ if package_profile == "sdk-020":
     sdk_package = json.loads((dist.parent / "sdk-layout/SDK_PACKAGE.json").read_text())
     manifest["artifacts"]["swift_sdk_package"] = {k: v for k, v in sdk_package.items() if k != "installed_consumer"}
     manifest["consumer_verification"]["installed_swift_sdk"] = sdk_package["installed_consumer"]
-    manifest["consumer_verification"]["macos_universal_link"]["link_map_sha256"] = {
-        arch: sha(apple_consumer_evidence / f"MACOS_UNIVERSAL-{arch}.linkmap") for arch in ("arm64", "x86_64")
+    manifest["consumer_verification"][macos_link_key]["link_map_sha256"] = {
+        arch: sha(apple_consumer_evidence / f"{macos_gate}-{arch}.linkmap") for arch in macos_architectures
     }
     manifest["consumer_verification"]["ios_consumer_scheme_inventory_sha256"] = sha(apple_consumer_evidence / "SCHEMES.json")
     manifest["source_inputs"]["binary_consumer_link_probe_sha256"] = sha(root / FIXTURE / "Sources/QPeriaptLinkProbe/main.swift")

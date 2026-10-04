@@ -27,7 +27,7 @@ if [ "$expect_target" -ne 0 ]; then exit 2; fi
 unset MACOSX_DEPLOYMENT_TARGET IPHONEOS_DEPLOYMENT_TARGET
 case "$sdk_target" in
 	"") ;; # proc macros, build scripts and compiler queries run on the host
-	aarch64-apple-darwin|x86_64-apple-darwin)
+	aarch64-apple-darwin)
 		MACOSX_DEPLOYMENT_TARGET=13.0
 		export MACOSX_DEPLOYMENT_TARGET ;;
 	aarch64-apple-ios|aarch64-apple-ios-sim|x86_64-apple-ios)

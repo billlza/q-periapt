@@ -2252,8 +2252,10 @@ class ReleaseWorkflowSourceTests(unittest.TestCase):
             2,
         )
         final_archive_gate = self.builder.index(
-            '"$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"'
+            '"$XCFRAMEWORK/$MACOS_SLICE/libq_periapt_ffi_abi2.a"'
         )
+        self.assertIn("MACOS_SLICE=macos-arm64_x86_64", self.builder)
+        self.assertIn("MACOS_SLICE=macos-arm64\n", self.builder)
         self.assertLess(final_archive_gate, self.builder.index("codesign --timestamp"))
         self.assertGreaterEqual(
             self.builder.count('--forbidden-build-prefix "$BUILD_HOME"'), 3

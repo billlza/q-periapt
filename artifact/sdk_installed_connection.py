@@ -183,9 +183,9 @@ def qualify(args: argparse.Namespace) -> dict:
         require(binary_dir.is_relative_to(build_root), "installed Swift executable escaped its owned build tree")
         client = binary_dir / "QPeriaptConnectionProbe"
         library = binary_dir / "libq_periapt_ffi_abi2.a"
-        expected_library = package / "Binaries/CQPeriapt.xcframework/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"
+        expected_library = package / "Binaries/CQPeriapt.xcframework/macos-arm64/libq_periapt_ffi_abi2.a"
         require(snapshot(library).sha256 == snapshot(expected_library).sha256, "Swift selected a different static archive")
-        architecture = {"arm64": "arm64", "x86_64": "x86_64"}.get(os.uname().machine)
+        architecture = {"arm64": "arm64"}.get(os.uname().machine)
         require(architecture is not None, "unsupported Swift host architecture")
         linkage = StaticClientLinkage(library, snapshot(expected_library).sha256, link_map, architecture)
         result["link_map"] = apple.verify_link_map(link_map, library, client, architecture)

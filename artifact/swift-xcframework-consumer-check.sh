@@ -50,6 +50,10 @@ case "$REQUIRE_DUAL_MACOS_RUNTIME" in
 		exit 2
 		;;
 esac
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ] && [ "$REQUIRE_DUAL_MACOS_RUNTIME" = "1" ]; then
+	printf 'error: SDK 0.2.0 macOS support is Apple Silicon only; dual macOS runtime policy is legacy-only\n' >&2
+	exit 2
+fi
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -147,7 +151,13 @@ validate_probe() (
 
 run_macos_link_gate() (
 	gate=MACOS_UNIVERSAL
+	macos_architectures="arm64 x86_64"
 	expected="$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"
+	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+		gate=MACOS_ARM64
+		macos_architectures=arm64
+		expected="$XCFRAMEWORK/macos-arm64/libq_periapt_ffi_abi2.a"
+	fi
 	if [ ! -f "$expected" ]; then
 		printf 'error: macOS XCFramework slice is missing\n' >&2
 		exit 1
@@ -161,7 +171,7 @@ run_macos_link_gate() (
 		exit 1
 	fi
 
-	for arch in arm64 x86_64; do
+	for arch in $macos_architectures; do
 		triple="${arch}-apple-macosx13.0"
 		scratch="$EVIDENCE_DIR/$gate-$arch-build"
 		log="$EVIDENCE_DIR/$gate-$arch.log"
@@ -247,7 +257,7 @@ SWIFT_XCFRAMEWORK_MACOS_RUNTIME_PASS arch=x86_64'
 			exit 1
 		fi
 	fi
-	printf 'SWIFT_XCFRAMEWORK_MACOS_UNIVERSAL_LINK_PASS arches=arm64 x86_64\n'
+	printf 'SWIFT_XCFRAMEWORK_%s_LINK_PASS arches=%s\n' "$gate" "$macos_architectures"
 )
 
 run_ios_link_gate() (

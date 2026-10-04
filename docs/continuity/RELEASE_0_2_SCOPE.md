@@ -7,6 +7,12 @@ later release is superseded. The SDK ownership, ContextBound, native-backend,
 standard-TLS, binding, installation, device and performance requirements remain.
 ABI major remains **2**.
 
+The 2026-10-04 platform decision limits macOS support to **Apple Silicon
+(arm64)** for both the SDK and Continuity in 0.2.0. Intel macOS adaptation is
+out of scope. Linux/Windows x86_64 and the existing iOS simulator architecture
+matrix remain in scope. Historical universal macOS receipts retain their
+original source and version; they do not define the new candidate's matrix.
+
 This is a requirements and implementation-boundary record. It does not promote
 the existing public-commitment model into a working cryptographic protocol.
 

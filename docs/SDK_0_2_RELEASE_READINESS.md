@@ -5,6 +5,12 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+The 2026-10-04 platform decision makes 0.2.0 macOS **Apple Silicon (arm64)
+only**, including Continuity. Intel macOS is outside this release's support
+matrix. Linux/Windows x86_64 and the existing iOS simulator targets remain in
+scope. The `sdk-020` Apple package uses `macos-arm64`; the historical 0.1.5
+universal package and signing contract keep their own versioned requirements.
+
 The current release quality gates are internal review of cryptographic
 boundaries, ownership/error paths, code quality and maintainability, together
 with source-bound tests, platform execution and the release transaction.
@@ -76,6 +82,18 @@ are retained runtime failures; the version transition does not close them.
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+At `56ae4e099dca2ae5aaf5b868fb001b9307c3d8ad`, actual extracted Debug archive
+consumers exercise credential renewal through existing C, Swift and Kotlin
+owners. Three real-clock cases cover committed renewal after expiry, explicit
+expired-uncommitted reconciliation and same-session peer renewal with retained
+outbox identity. The installed Swift package passes 26 tests and all three
+cases; Kotlin passes 23 tests and runs all three under both Serial and G1.
+The C consumer also repeats original enrollment/TLS/unknown-delivery coverage.
+The [sealed package evidence](../research/sdk-alpha1/evidence/20261004-foreign-credential-renewal-4a9f8c46/)
+binds source, archive, library and executable hashes. These Debug macOS checks
+do not qualify Release packages, renewed application TLS, required-witness
+local renewal, physical devices or independent protocol implementations.
 
 A subsequent Swift/Kotlin integration adds typed original registration,
 independent trust inputs and same-credential roster continuation. It reuses the

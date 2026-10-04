@@ -3,7 +3,8 @@
 This package provides `QPeriaptSDK` (owned runtime, keys and standard hybrid TLS
 connections) and the retained byte-oriented `QPeriaptHybrid` compatibility API.
 The native ABI remains **2**. It contains static XCFramework slices for macOS
-13+ (arm64/x86_64) and iOS 16+ (arm64 device, arm64/x86_64 simulator).
+13+ on Apple Silicon (arm64) and iOS 16+ (arm64 device, arm64/x86_64 simulator).
+Intel macOS is outside the 0.2.0 support matrix.
 
 Add this unpacked folder as a local Swift package dependency and select the
 `QPeriaptSDK` product. It includes the binary target and Swift wrappers; it does

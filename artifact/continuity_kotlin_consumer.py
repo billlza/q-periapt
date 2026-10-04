@@ -306,7 +306,8 @@ def runtime_closure(data: bytes, distribution: Path, jar_sha256: str, outside: P
 
 def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                    java_home: Path, gradle_home: Path) -> dict:
-    sdk.require(native["completed"] and os.uname().sysname in {"Darwin", "Linux"},
+    sdk.require(native["completed"] and (os.uname().sysname == "Linux" or
+                (os.uname().sysname == "Darwin" and os.uname().machine == "arm64")),
                 "Kotlin qualification requires completed native C packages on a supported host")
     result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "profiles": {}}
     try:
@@ -358,7 +359,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
         maven = outside / "kotlin-maven"
         for path in (staged / contract.path).iterdir(): sdk.copy(path, maven / contract.path / path.name)
         result["maven"] = jvm.verify_maven(maven, contract=contract)
-        target = {("Darwin", "arm64"): "aarch64-apple-darwin", ("Darwin", "x86_64"): "x86_64-apple-darwin",
+        target = {("Darwin", "arm64"): "aarch64-apple-darwin",
                   ("Linux", "aarch64"): "aarch64-unknown-linux-gnu", ("Linux", "x86_64"): "x86_64-unknown-linux-gnu"}.get((os.uname().sysname, os.uname().machine))
         sdk.require(target is not None, "unsupported native Kotlin host")
         metadata = parse_strict_json_bytes(run([str(Path(environment["RUSTC"]).parent / "cargo"), "metadata", "--locked", "--offline",

@@ -538,8 +538,12 @@ def _openssl_certificate_metadata(certificate: bytes) -> dict[str, str]:
     return {key: metadata[key] for key in required}
 
 
-def _expected_archive_entries(require_signature: bool) -> frozenset[str]:
+def _expected_archive_entries(require_signature: bool, *, profile: str = "legacy") -> frozenset[str]:
+    if profile not in {"legacy", "sdk-020"} or (profile == "sdk-020" and require_signature):
+        _fail("unsupported XCFramework profile or SDK signing contract")
     entries = set(EXPECTED_XCFRAMEWORK_DIRECTORIES | EXPECTED_XCFRAMEWORK_FILES)
+    if profile == "sdk-020":
+        entries = {name.replace("macos-arm64_x86_64", "macos-arm64") for name in entries}
     if require_signature:
         entries.update(EXPECTED_SIGNATURE_DIRECTORIES)
         entries.update(EXPECTED_SIGNATURE_FILES)
@@ -1071,10 +1075,11 @@ def _validate_xcframework_zip_bytes(
     *,
     require_signature: bool,
     forbidden_build_prefixes: tuple[str, ...] = (),
+    profile: str = "legacy",
 ) -> None:
     if not data:
         _fail("XCFramework ZIP is empty")
-    expected = _expected_archive_entries(require_signature)
+    expected = _expected_archive_entries(require_signature, profile=profile)
     seen: set[str] = set()
     total_uncompressed = 0
     try:
@@ -1152,7 +1157,9 @@ def _validate_xcframework_zip_bytes(
                 )
             library_names = {
                 f"CQPeriapt.xcframework/{relative}"
-                for relative in EXPECTED_XCFRAMEWORK_LIBRARIES
+                for relative in (name.replace("macos-arm64_x86_64", "macos-arm64")
+                                 if profile == "sdk-020" else name
+                                 for name in EXPECTED_XCFRAMEWORK_LIBRARIES)
             }
             for name in sorted(seen):
                 if name.endswith("/"):
@@ -1182,6 +1189,7 @@ def validate_xcframework_zip(
     *,
     require_signature: bool,
     forbidden_build_prefixes: tuple[str, ...] = (),
+    profile: str = "legacy",
 ) -> None:
     """Validate one immutable snapshot before any extractor sees the archive."""
 
@@ -1192,6 +1200,7 @@ def validate_xcframework_zip(
         snapshot.data,
         require_signature=require_signature,
         forbidden_build_prefixes=forbidden_build_prefixes,
+        profile=profile,
     )
 
 
@@ -2512,6 +2521,7 @@ def _command_validate_zip(args: argparse.Namespace) -> None:
         args.artifact,
         require_signature=args.require_signature,
         forbidden_build_prefixes=tuple(args.forbidden_build_prefix),
+        profile=args.profile,
     )
     print("SWIFT_XCFRAMEWORK_STATIC_ZIP_PASS")
 
@@ -2565,6 +2575,7 @@ def _parser() -> argparse.ArgumentParser:
     validate = subparsers.add_parser("validate-zip")
     validate.add_argument("--artifact", type=pathlib.Path, required=True)
     validate.add_argument("--require-signature", action="store_true")
+    validate.add_argument("--profile", choices=("legacy", "sdk-020"), default="legacy")
     validate.add_argument("--forbidden-build-prefix", action="append", default=[])
     validate.set_defaults(handler=_command_validate_zip)
 

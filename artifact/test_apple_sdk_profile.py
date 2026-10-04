@@ -1,16 +1,77 @@
 """Alpha Swift packages cannot reuse legacy receipts or accept altered payloads."""
 import copy
+import io
 import json
 from pathlib import Path
 import os
+import stat
 import subprocess
 import tempfile
 import unittest
+import zipfile
 
+import apple_distribution
 import apple_sdk_profile as sdk
+from test_apple_distribution import archive_bytes, thin_archive, write_zip_entry
 
 
 class AppleSDKProfileTests(unittest.TestCase):
+    def test_platform_inventory_excludes_intel_macos_but_retains_ios_simulator(self):
+        self.assertEqual(sdk.HOST_TARGETS, ("aarch64-apple-darwin",))
+        self.assertEqual(sdk.TARGETS, ("aarch64-apple-darwin", "aarch64-apple-ios",
+                                      "aarch64-apple-ios-sim", "x86_64-apple-ios"))
+        self.assertEqual(sdk.SLICES, ("macos-arm64", "ios-arm64", "ios-arm64_x86_64-simulator"))
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            for host in ("x86_64-apple-darwin", "aarch64-apple-ios", "aarch64-apple-ios-sim", "x86_64-apple-ios"):
+                with self.subTest(host=host), self.assertRaisesRegex(ValueError, "explicit Apple host target"):
+                    sdk.prepare(parent / "unused.zip", parent, host)
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_sdk_and_legacy_archives_have_separate_closed_layouts(self):
+        legacy_entries = (apple_distribution.EXPECTED_XCFRAMEWORK_DIRECTORIES |
+                          apple_distribution.EXPECTED_XCFRAMEWORK_FILES)
+        for profile in ("legacy", "sdk-020"):
+            payload = io.BytesIO()
+            with zipfile.ZipFile(payload, "w") as archive:
+                for legacy_name in sorted(legacy_entries):
+                    name = (legacy_name.replace("macos-arm64_x86_64", "macos-arm64")
+                            if profile == "sdk-020" else legacy_name)
+                    if name.endswith("/"):
+                        data, mode = b"", stat.S_IFDIR | 0o755
+                    else:
+                        relative = legacy_name.removeprefix("CQPeriapt.xcframework/")
+                        data = (archive_bytes(relative) if relative in apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES
+                                else b"fixture")
+                        if profile == "sdk-020" and name.endswith("macos-arm64/libq_periapt_ffi_abi2.a"):
+                            data = thin_archive(b"arm64")
+                        mode = stat.S_IFREG | 0o644
+                    write_zip_entry(archive, name, data, mode=mode)
+            with self.subTest(profile=profile):
+                apple_distribution._validate_xcframework_zip_bytes(
+                    payload.getvalue(), require_signature=False, profile=profile)
+                other = "sdk-020" if profile == "legacy" else "legacy"
+                with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "exact static-only layout"):
+                    apple_distribution._validate_xcframework_zip_bytes(
+                        payload.getvalue(), require_signature=False, profile=other)
+                if profile == "legacy":
+                    apple_distribution._validate_xcframework_zip_bytes(payload.getvalue(), require_signature=False)
+        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "SDK signing contract"):
+            apple_distribution._expected_archive_entries(True, profile="sdk-020")
+        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "unsupported XCFramework profile"):
+            apple_distribution._expected_archive_entries(False, profile="unknown")
+
+    def test_sdk_rejects_legacy_dual_macos_runtime_policy_before_tools_or_payload(self):
+        environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        result = subprocess.run(
+            ["sh", str(sdk.ROOT / "artifact/swift-xcframework-consumer-check.sh"),
+             "/unused/package", "/unused/evidence", "/unused/framework", "--validate-only"],
+            env={**environment, "QPERIAPT_INTERNAL_APPLE_PACKAGE_PROFILE": "sdk-020",
+                 "QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME": "1"},
+            text=True, capture_output=True, timeout=30, check=False)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("dual macOS runtime policy is legacy-only", result.stderr)
+
     def test_xcode_scheme_requires_known_consumer_identity_and_target(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "schemes.json"
@@ -63,6 +124,7 @@ class AppleSDKProfileTests(unittest.TestCase):
                                        text=True, capture_output=True, timeout=10, check=False)
                     self.assertEqual((r.returncode, r.stdout, r.stderr), (0, expected, ""))
             for args in (["--target"], ["--target="], ["--target", "unknown"],
+                         ["--target", "x86_64-apple-darwin"], ["--target=x86_64-apple-darwin"],
                          ["--target=aarch64-apple-ios", "--target", "aarch64-apple-darwin"]):
                 with self.subTest(args=args):
                     r = subprocess.run(["sh", wrapper, str(compiler), *args], env=env,

@@ -130,8 +130,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
         for name in ("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md"):
             source["LICENSES/mlkem-native/" + name] = sdk.snapshot(
                 package.ROOT / "crates/q-periapt-mlkem-native-sys/vendor" / name).data
-        sdk.require(os.uname().machine in {"arm64", "x86_64"}, "unqualified Swift host architecture")
-        target = "aarch64-apple-darwin" if os.uname().machine == "arm64" else "x86_64-apple-darwin"
+        sdk.require(os.uname().machine == "arm64", "SDK 0.2.0 macOS support requires Apple Silicon")
+        target = "aarch64-apple-darwin"
         cargo = str(Path(environment["RUSTC"]).parent / "cargo")
         metadata = parse_strict_json_bytes(run([cargo, "metadata", "--locked", "--offline", "--format-version", "1",
             "--filter-platform", target], "license-metadata", outside / "c-consumer", runtime=environment), label="Swift native license graph")

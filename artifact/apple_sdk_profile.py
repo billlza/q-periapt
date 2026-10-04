@@ -37,9 +37,10 @@ SDK_FILES = (
     "QPeriaptPersistentRuntime.swift", "QPeriaptSDK.swift",
 )
 FIXTURE = "bindings/swift/SDKBinaryConsumerFixture"
-TARGETS = ("aarch64-apple-darwin", "x86_64-apple-darwin", "aarch64-apple-ios",
+HOST_TARGETS = ("aarch64-apple-darwin",)
+TARGETS = (*HOST_TARGETS, "aarch64-apple-ios",
            "aarch64-apple-ios-sim", "x86_64-apple-ios")
-SLICES = ("macos-arm64_x86_64", "ios-arm64", "ios-arm64_x86_64-simulator")
+SLICES = ("macos-arm64", "ios-arm64", "ios-arm64_x86_64-simulator")
 POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
 CONTENTS = "PACKAGE_CONTENTS.json"
 ARCHIVE_NAME = "QPeriapt-Swift-SDK-0.2.0.zip"
@@ -219,7 +220,7 @@ def prepare_consumer(consumer: Path) -> None:
 def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
     """Create the self-contained Swift package and its public-API consumer."""
     parent = parent.resolve(strict=True)
-    if host_target not in TARGETS[:2]:
+    if host_target not in HOST_TARGETS:
         raise ValueError("SDK BOM tool requires an explicit Apple host target")
     # Xcode 26 names the workspace after this directory; Xcode 27 uses the
     # package name. Keep both identities equal to the checked consumer name.
@@ -233,7 +234,7 @@ def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
     if contract.document["package"]["semver"] != VERSION or len(contract.export_names) != 43:
         raise ValueError("alpha SDK ABI contract differs")
     snapshot = read_regular_snapshot(xcframework_zip, maximum=MAX_ARTIFACT_BYTES, label="SDK XCFramework ZIP")
-    _validate_xcframework_zip_bytes(snapshot.data, require_signature=False)
+    _validate_xcframework_zip_bytes(snapshot.data, require_signature=False, profile=PROFILE)
     package.mkdir(mode=0o700)
     binaries = package / "Binaries"
     binaries.mkdir()
@@ -298,7 +299,7 @@ def verified_xcframework_files(path: Path, expected_sha256: str) -> dict[str, st
     snapshot = read_regular_snapshot(path, maximum=MAX_ARTIFACT_BYTES, label="verified SDK XCFramework ZIP")
     if snapshot.sha256 != expected_sha256:
         raise ValueError("SDK XCFramework ZIP changed after native verification")
-    _validate_xcframework_zip_bytes(snapshot.data, require_signature=False)
+    _validate_xcframework_zip_bytes(snapshot.data, require_signature=False, profile=PROFILE)
     with zipfile.ZipFile(io.BytesIO(snapshot.data)) as archive:
         return {"Binaries/" + entry.filename: hashlib.sha256(archive.read(entry)).hexdigest()
                 for entry in archive.infolist() if not entry.is_dir()}
@@ -387,7 +388,7 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
     run("link-probe", [str(probe), "--invalid-policy-rejection"])
     selected = read_regular_snapshot(output / "libq_periapt_ffi_abi2.a", maximum=LIMITS.maximum_member_bytes,
                                     label="SwiftPM selected SDK archive")
-    expected_library = package / "Binaries/CQPeriapt.xcframework/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"
+    expected_library = package / "Binaries/CQPeriapt.xcframework/macos-arm64/libq_periapt_ffi_abi2.a"
     if selected.sha256 != read_regular_snapshot(expected_library, maximum=LIMITS.maximum_member_bytes,
                                                label="installed SDK archive").sha256:
         raise ValueError("installed SwiftPM selection differs from the exact packaged macOS slice")
@@ -444,7 +445,7 @@ def main() -> None:
     prepare_parser = sub.add_parser("prepare")
     prepare_parser.add_argument("--xcframework-zip", type=Path, required=True)
     prepare_parser.add_argument("--parent", type=Path, required=True)
-    prepare_parser.add_argument("--host-target", choices=TARGETS[:2], required=True)
+    prepare_parser.add_argument("--host-target", choices=HOST_TARGETS, required=True)
     complete = sub.add_parser("finish")
     complete.add_argument("--parent", type=Path, required=True)
     complete.add_argument("--dist", type=Path, required=True)

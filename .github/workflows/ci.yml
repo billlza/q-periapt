@@ -896,7 +896,7 @@ jobs:
           # The release gate inspects Rust-produced archives with the matching
           # Rust LLVM version; Xcode llvm-nm may reject newer Rust bitcode.
           components: clippy, llvm-tools
-      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+      - run: test "$(uname -m)" = arm64 && rustup target add aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - run: cargo build --locked -p q-periapt-ffi --release
       - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - name: Generated C/Swift header freshness
