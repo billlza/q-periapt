@@ -28,6 +28,22 @@ pub(crate) struct Witness {
     pub(crate) captured: Arc<Mutex<Vec<Capture>>>,
     worker: Option<thread::JoinHandle<Result<()>>>,
 }
+
+/// Only used after intentionally withholding a processed reply. A killed peer
+/// can close with FIN or RST; neither delivered the complete signed response.
+/// Timeout, extra data and every other error remain failures of the experiment.
+pub(crate) fn require_held_peer_disconnect(observed: io::Result<usize>) -> io::Result<()> {
+    match observed {
+        Ok(0) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::ConnectionReset => Ok(()),
+        Ok(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "cancelled witness connection sent extra bytes",
+        )),
+        Err(error) => Err(error),
+    }
+}
+
 impl Witness {
     pub(crate) fn start() -> Result<Self> {
         let directory = tempfile::Builder::new()
@@ -128,9 +144,7 @@ impl Witness {
                     )?;
                     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
                     let mut byte = [0];
-                    if stream.read(&mut byte)? != 0 {
-                        return Err("cancelled witness connection sent extra bytes".into());
-                    }
+                    require_held_peer_disconnect(stream.read(&mut byte))?;
                     delivered = false;
                 } else if advanced
                     && pending

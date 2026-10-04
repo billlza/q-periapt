@@ -626,6 +626,27 @@ fn export(path: &Path, output: &Path) -> Result<()> {
 }
 #[test]
 fn grant_only_cancellation_recovers_original_foreign_owner_after_process_loss() -> Result<()> {
+    witness::require_held_peer_disconnect(Ok(0))?;
+    witness::require_held_peer_disconnect(Err(io::Error::from(io::ErrorKind::ConnectionReset)))?;
+    assert_eq!(
+        witness::require_held_peer_disconnect(Ok(1))
+            .err()
+            .map(|e| e.kind()),
+        Some(io::ErrorKind::InvalidData)
+    );
+    for kind in [
+        io::ErrorKind::TimedOut,
+        io::ErrorKind::WouldBlock,
+        io::ErrorKind::UnexpectedEof,
+        io::ErrorKind::PermissionDenied,
+    ] {
+        assert_eq!(
+            witness::require_held_peer_disconnect(Err(io::Error::from(kind)))
+                .err()
+                .map(|e| e.kind()),
+            Some(kind)
+        );
+    }
     let public = std::env::var_os("QPERIAPT_WITNESSED_CANCELLATION_EVIDENCE").map(PathBuf::from);
     if let Some(path) = &public {
         if !path.is_absolute() {
