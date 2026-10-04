@@ -173,7 +173,7 @@ if [ "$experiment" != file-integrity ]; then
     printf 'APK_TRANSPORT_TOOLS time=%s\n' "$(date -u +%s.%N)"
     sha256sum "$adb" "$emulator" "$sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless"
     "$adb" version
-    "$emulator" -version
+    "$emulator" -no-window -version
     cat "$sdk/platform-tools/source.properties" "$sdk/emulator/source.properties" \
         "$sdk/system-images/android-35/google_apis_ps16k/x86_64/source.properties"
     sha256sum "$sdk/system-images/android-35/google_apis_ps16k/x86_64/kernel-ranchu" \
