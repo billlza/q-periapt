@@ -1317,13 +1317,12 @@ class BoundVerifierWiringTests(unittest.TestCase):
             source,
         )
         self.assertIn(
-            "swift test --package-path bindings/swift -Xlinker "
+            "swift test --package-path bindings/swift --triple arm64-apple-macosx13.0 -Xlinker "
             "-L${{ github.workspace }}/target/release",
             source,
         )
-        # Kotlin builds the host library once; Swift builds both Apple
-        # architectures and merges a universal static archive so the CodeQL
-        # tracer links whichever slice its SwiftPM triple selects.
+        # Kotlin builds its host library; the 0.2.0 Swift tracer and static
+        # archive are both explicitly bound to Apple Silicon macOS.
         self.assertEqual(
             len(
                 re.findall(
@@ -1344,9 +1343,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 "cargo build --locked -p q-periapt-ffi --release "
                 "--target x86_64-apple-darwin"
             ),
-            1,
+            0,
         )
-        self.assertIn("lipo -create", source)
+        self.assertIn('test "$(uname -m)" = arm64', source)
+        self.assertNotIn("lipo -create", source)
+        self.assertIn(
+            "cp target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a "
+            "target/release/libq_periapt_ffi_abi2.a", source
+        )
         self.assertIn("lipo -info target/release/libq_periapt_ffi_abi2.a", source)
         self.assertIn("queries: security-extended", source)
         self.assertIn("threat-models: [local]", source)
