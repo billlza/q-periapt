@@ -4785,3 +4785,29 @@ an independent protocol implementation. Current hosted package/CodeQL checks,
 remaining lifecycle/concurrency boundaries, authority renewal, device/root
 replacement, upgrades, recovery analysis, controlled performance and external
 review remain open. The full 0.2.0 release objective is not complete.
+
+
+At `a55a8c76`, the Apple Silicon cancellation fixture retains typed native TLS
+errors and verifies the exact killed-owner admission before classifying them.
+Candidate `44c9ff79` CI run `37232506398` ended with 45 successful jobs and one
+failed installed Swift job: its C Debug live/expired TLS ACK cancellation cuts
+rejected `ConnectionAborted` with preserved OS error 22. CodeQL run
+`37232506434` passed. The original failure remains retained.
+An isolated actual-C experiment reproduced a positive 25 ms write-timeout setter
+failure in `close_notify`, after SIGKILL/reap and native ACK handling, by adding a
+bounded 10 ms reply/close scheduling interval. With identical native
+instrumentation, the old fixture failed three times and the typed fixture passed
+three times while retaining the same errno; all three no-kill controls passed.
+The original hosted failure has no syscall-stage trace, so its precise
+interleaving is not asserted. Generic `ConnectionAborted`, raw `InvalidInput`,
+text impersonation, a different OS cause, wrong/missing admission and multiple
+failures still fail; the native engine, library, timeouts and product ABI remain
+unchanged. The delay and instrumentation exist only in isolated diagnostic
+copies. Current C/Swift/Kotlin consumers passed all 24 ordinary TCP/TLS,
+live/expired Status/ACK cancellation cases; 1,632 public files were freshly
+verified, alongside strict all-target Clippy, nine C unit tests, four shared TLS
+regressions and 31 collector/source-cohort tests. Evidence is sealed under
+`research/sdk-alpha1/evidence/20261004-tls-cancellation-cut-a55a8c76/`.
+This closes a diagnosed fixture gap, not current-head hosted archive, platform,
+full lifecycle, security-analysis, performance, external-review or 0.2.0 release
+gates. macOS scope remains Apple Silicon only.

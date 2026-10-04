@@ -1,0 +1,87 @@
+{
+  "source_commit": "c82244fa1a2d61e2ee04266886c7907ddc7f5dd8",
+  "send_close_delay_ms": 10,
+  "scope": "Isolated instrumented native witness and actual unchanged C client; not release qualification",
+  "client_sha256": "6de25c1a14b77f3495fb784510aedaaab249618ff789774aa3c94f79a3bda5f5",
+  "library_sha256": "b3fd608402efc935b042b385e12a0372d3eb986c8c379a84086256172cbd0070",
+  "modified_sources": {
+    "candidate/src/anchor/tls/channel.rs": "98225315c8da84f8e07d710830146ced6f6a13955050a1fba5ef68769875efff",
+    "candidate/src/anchor/tls.rs": "e50f387bd6114b4964121b437d172bdbaa12a445c1eb7fc1230a6d8d9b92ce59",
+    "consumer/tests/common/witness_tls.rs": "1b30f522c5f3483a8a832e7e889a8ec8e7276e7f7dc12822f3295c2390cce0b0",
+    "consumer/tests/enrollment/witness_cancellation.rs": "9c7424b5e921c2a127326665b83f81ca739cf0e2a469c8f59b9575b6bd516376"
+  },
+  "records": [
+    {
+      "mode": "control",
+      "trial": 0,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--test",
+        "enrollment_witness",
+        "witness_cancellation::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 46.585916250012815,
+      "log_sha256": "cb3e71a74846ff77c64aa4aed1fe8bdca3c94534db7d253d919528391240771a"
+    },
+    {
+      "mode": "killed",
+      "trial": 1,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--test",
+        "enrollment_witness",
+        "witness_cancellation::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 4.93691658298485,
+      "log_sha256": "01fea5485203762c57ab9f4b1e11e571cc43e6acf1fbf0d541099aa9e7fcda69"
+    },
+    {
+      "mode": "killed",
+      "trial": 2,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--test",
+        "enrollment_witness",
+        "witness_cancellation::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 4.679442915949039,
+      "log_sha256": "a6ffb1960759d02df78556a859c288926e6744912608d1c4b67481c0e9063c7c"
+    },
+    {
+      "mode": "killed",
+      "trial": 3,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--test",
+        "enrollment_witness",
+        "witness_cancellation::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 4.989993374911137,
+      "log_sha256": "d4ba0a8b12aa23bad9a02df277460e9c80b378f2b416aeb4ac89aec7f84455e5"
+    }
+  ]
+}
