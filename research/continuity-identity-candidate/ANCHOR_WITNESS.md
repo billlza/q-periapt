@@ -152,6 +152,27 @@ control-plane `close_credential_renewal` can also close an original verified tar
 before preparation, including after expiry or local policy-instance closure.
 Neither close path can turn an Applied outcome into Closed.
 
+### Independent closure without a sealed target
+
+`close_unprepared_credential_renewal` takes independently authenticated grant and
+policy metadata with an exact `QPCRNC01` cancellation. Its canonical fields are
+`tag[8] || witness[32] || subject[96] || operation[32] || statement[32] || expected_head[48]`.
+Its binding uses `Q-PERIAPT-ANCHOR-CREDENTIAL-CANCELLATION/v1`. No target head is
+created. The successor version is derived from the root-signed grant, not an
+additional caller-selected integer.
+
+An empty slot admits cancellation only when the full predecessor identity,
+authority, validity and head match and its version exceeds the permanent floor.
+The transaction retains a Closed-only slot and floor together, without changing
+operational state. Exact cancellation retries return Closed. Any existing proposal
+or other cancellation conflicts; Applied is never relabelled Closed. After ACK,
+an old version remains Retired even though its old head might still match.
+Ordinary Advance/Fence and roster refresh remain excluded while any slot is held.
+`HistoricalCredentialRenewal` and `HistoricalSessionPolicy` permit this cleanup
+after expiry without current runtime permission. New Prepare still requires the
+current types and admission checks. Original-enrollment durable coordination and
+foreign-owner integration of grant-only cancellation are not yet implemented.
+
 Every terminal consumes its root-signed successor roster version as a permanent
 per-subject floor. After durably retaining the terminal locally, the client may
 acknowledge the exact proposal. The provider removes the full slot and retains
@@ -289,6 +310,12 @@ outcome. Older endpoints reject these new commands; there is no ordinary-Advance
 fallback. Acknowledged retires already-retained history; it is not an owner-release
 or NoCommit observation.
 
+Grant-only cancellation reuses commands 6/8 for exact Status/Acknowledge with its
+separate cancellation binding. Its typed reply accepts Closed only for the exact
+expected old head; Unavailable and Acknowledged cannot first establish Closed.
+Commit/Close commands carrying a cancellation binding are rejected. The ordinary
+query and full-proposal reply interpreters cannot substitute for this typed result.
+
 ## Persistent witness state
 
 The private, bounded host-store backend provides an exclusive database lease. The
@@ -317,6 +344,16 @@ uses an empty slot and zero floor without writing. A joint transition upgrades i
 atomically; terminal retirement preserves 003 and its nonzero floor. Older readers
 reject 003. Encoders and decoders reject inconsistent floor, slot, head, credential
 or last-command relationships. The redb file-format contract is unchanged.
+
+An image containing a grant-only Closed slot selects `QPANC004`. Its base and
+per-entry floor/ACK layout are the same as 003, with phase 4 adding
+`cancellation[248] || signed_successor_version:u64`. A slot is exactly one of the
+original proposal states or grant-only Closed; no entry can contain both. A 003
+reader rejects phase 4, and older readers reject the 004 tag. After every grant-only
+slot has been acknowledged, the remaining floor/ACK state has exactly the 003
+meaning and the next write uses 003. No floor or prior acknowledgement is reset.
+Opening never writes an upgrade or downgrade. The existing aggregate CAS, immediate
+persistence, authentication and unknown-commit behavior apply to both formats.
 
 There are at most 256 entries, a 1 MiB authenticated-image cap
 and the shared 64 MiB database cap. No eviction resets a head. The image contains

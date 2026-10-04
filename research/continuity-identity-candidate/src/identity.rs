@@ -9,7 +9,8 @@ use std::sync::Arc;
 pub(crate) mod renewal;
 pub use renewal::{
     CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
-    IssuedCredentialRenewal, VerifiedCredentialRenewal, MAX_CREDENTIAL_RENEWAL_BYTES,
+    HistoricalCredentialRenewal, IssuedCredentialRenewal, VerifiedCredentialRenewal,
+    MAX_CREDENTIAL_RENEWAL_BYTES,
 };
 
 /// Maximum active device generations in one candidate roster.

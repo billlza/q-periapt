@@ -564,3 +564,104 @@ fn a_future_predecessor_membership_is_not_historical_authority() {
     VerifiedCredentialRenewal::verify(later.as_bytes(), &pin, [10; 32], 240)
         .expect("current verified relation");
 }
+
+#[test]
+fn historical_grant_authenticates_expired_materials_without_current_target_authority() {
+    let c = Case::new();
+    let issued = c.issued();
+    assert!(matches!(
+        VerifiedCredentialRenewal::verify(
+            issued.as_bytes(),
+            &c.pin,
+            c.authorization.policy_digest,
+            300
+        ),
+        Err(Error::Validity)
+    ));
+    let historical = HistoricalCredentialRenewal::verify(
+        issued.as_bytes(),
+        &c.pin,
+        c.authorization.policy_digest,
+    )
+    .expect("original historical signatures and exact pin");
+    let current = c.verify(issued.as_bytes()).expect("live reference");
+    assert_eq!(historical.as_bytes(), issued.as_bytes());
+    assert_eq!(historical.operation(), current.operation());
+    assert_eq!(historical.statement_digest(), current.statement_digest());
+    assert_eq!(
+        historical.original_storage_owner(),
+        current.original_storage_owner()
+    );
+    assert_eq!(historical.successor_checkpoint(), c.new_roster.checkpoint());
+    assert!(historical
+        .successor_device()
+        .description
+        .validity
+        .check(300)
+        .is_err());
+    assert!(historical
+        .successor_device()
+        .roster_validity
+        .check(300)
+        .is_err());
+}
+
+#[test]
+fn historical_grant_still_requires_original_independent_pin_and_all_signed_fields() {
+    let c = Case::new();
+    let issued = c.issued();
+    let bytes = issued.as_bytes();
+    let mut decoder = Decoder::new(bytes);
+    assert_eq!(decoder.array::<8>().expect("tag"), *CONTAINER);
+    let mut offset = 10;
+    for _ in 0..6 {
+        let value = field(&mut decoder).expect("field");
+        let mut changed = bytes.to_vec();
+        *changed
+            .get_mut(offset + value.len() - 1)
+            .expect("signed field byte") ^= 1;
+        offset += value.len() + 2;
+        assert!(HistoricalCredentialRenewal::verify(
+            &changed,
+            &c.pin,
+            c.authorization.policy_digest
+        )
+        .is_err());
+    }
+    for changed in [
+        bytes
+            .get(..bytes.len() - 1)
+            .expect("truncated container")
+            .to_vec(),
+        [bytes, b"x"].concat(),
+    ] {
+        assert!(HistoricalCredentialRenewal::verify(
+            &changed,
+            &c.pin,
+            c.authorization.policy_digest
+        )
+        .is_err());
+    }
+    assert!(HistoricalCredentialRenewal::verify(bytes, &c.pin, [11; 32]).is_err());
+    let stale = AccountPin::new(
+        c.pin.account,
+        c.pin.root.clone(),
+        c.old_roster.checkpoint(),
+        c.pin.family,
+    )
+    .expect("independent stale pin");
+    assert!(
+        HistoricalCredentialRenewal::verify(bytes, &stale, c.authorization.policy_digest).is_err()
+    );
+    let wrong_root = RootSigningKey::generate().expect("different root");
+    let wrong = AccountPin::new(
+        wrong_root.account_id().expect("account"),
+        wrong_root.public_key().expect("root"),
+        c.new_roster.checkpoint(),
+        c.pin.family,
+    )
+    .expect("different independent pin");
+    assert!(
+        HistoricalCredentialRenewal::verify(bytes, &wrong, c.authorization.policy_digest).is_err()
+    );
+}

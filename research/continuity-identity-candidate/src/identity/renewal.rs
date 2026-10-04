@@ -307,10 +307,35 @@ impl RootSigningKey {
 /// Every use must still match the original local state, exact predecessor or
 /// original committed target, current policy/rosters, and required witness.
 pub struct VerifiedCredentialRenewal {
+    historical: HistoricalCredentialRenewal,
+}
+/// Authenticated historical root authorization for exact cleanup only.
+/// This snapshot grants no current membership, policy permission or new Commit.
+/// It exposes no operational device and cannot be converted to a current grant.
+///
+/// ```compile_fail
+/// use q_periapt_continuity_identity_candidate::{AnchorStore, AnchorCredentialRenewalProposal,
+///     HistoricalCredentialRenewal, VerifiedSessionPolicy};
+/// fn prepare(store: &mut AnchorStore, proposal: AnchorCredentialRenewalProposal,
+///            grant: &HistoricalCredentialRenewal, policy: &VerifiedSessionPolicy) {
+///     let _ = store.prepare_credential_renewal(proposal, grant, policy, 100);
+/// }
+/// ```
+pub struct HistoricalCredentialRenewal {
     statement: Statement,
     previous: VerifiedDevice,
     successor: Arc<VerifiedDevice>,
     wire: Vec<u8>,
+}
+impl AsRef<HistoricalCredentialRenewal> for VerifiedCredentialRenewal {
+    fn as_ref(&self) -> &HistoricalCredentialRenewal {
+        &self.historical
+    }
+}
+impl AsRef<HistoricalCredentialRenewal> for HistoricalCredentialRenewal {
+    fn as_ref(&self) -> &HistoricalCredentialRenewal {
+        self
+    }
 }
 // Public identity metadata only. This is not a durable or transferable grant.
 pub(crate) struct ResolvedSessionIdentity {
@@ -324,7 +349,7 @@ impl VerifiedCredentialRenewal {
         original: &VerifiedDevice,
         policy: [u8; 32],
     ) -> Result<ResolvedSessionIdentity, Error> {
-        let current = &self.successor;
+        let current = &self.historical.successor;
         // The root explicitly grants broad retained-established permission for
         // this full identity and exact policy, including intermediate credentials.
         // The journal must independently prove the original established record.
@@ -334,7 +359,7 @@ impl VerifiedCredentialRenewal {
             || original.authority_key != current.authority_key
             || original.key != current.key
             || original.description.family != current.description.family
-            || policy != self.statement.policy
+            || policy != self.historical.statement.policy
         {
             return Err(Error::Scope);
         }
@@ -381,49 +406,16 @@ impl VerifiedCredentialRenewal {
         policy: [u8; 32],
         now: u64,
     ) -> Result<Self, Error> {
-        if wire.len() > MAX_CREDENTIAL_RENEWAL_BYTES {
-            return Err(Error::Capacity);
-        }
-        nonzero(&policy)?;
-        let mut d = Decoder::new(wire);
-        if d.array::<8>()? != *CONTAINER {
-            return Err(Error::Encoding);
-        }
-        let signed = field(&mut d)?;
-        let materials = CredentialRenewalMaterials {
-            original_credential: field(&mut d)?,
-            previous_credential: field(&mut d)?,
-            successor_credential: field(&mut d)?,
-            previous_roster: field(&mut d)?,
-            successor_roster: field(&mut d)?,
-        };
-        d.finish()?;
-        let (body, signature) = open_envelope(signed)?;
-        pin.root
-            .verify(Purpose::CredentialRenewal, body, signature)?;
-        let statement = Statement::decode(body)?;
-        if statement.policy != policy {
-            return Err(Error::Scope);
-        }
-        let authorization = CredentialRenewalAuthorization {
-            operation: statement.operation,
-            previous: statement.previous_roster,
-            policy_digest: policy,
-        };
-        let (expected, previous, successor) =
-            check_materials(&materials, &authorization, pin, now)?;
-        if statement != expected {
-            return Err(Error::Scope);
-        }
         Ok(Self {
-            statement,
-            previous,
-            successor: Arc::new(successor),
-            wire: wire.to_vec(),
+            historical: HistoricalCredentialRenewal::verify_at(wire, pin, policy, now)?,
         })
     }
+    /// Borrow authenticated metadata for historical cleanup without runtime authority.
+    pub fn historical(&self) -> &HistoricalCredentialRenewal {
+        &self.historical
+    }
     pub(crate) fn successor_credential(&self) -> Result<&[u8], Error> {
-        let mut d = Decoder::new(&self.wire);
+        let mut d = Decoder::new(&self.historical.wire);
         if d.array::<8>()? != *CONTAINER {
             return Err(Error::Encoding);
         }
@@ -434,20 +426,102 @@ impl VerifiedCredentialRenewal {
     }
     /// Original public grant bytes, preserved even with randomized signatures.
     pub fn as_bytes(&self) -> &[u8] {
-        &self.wire
+        self.historical.as_bytes()
     }
     /// Original host-selected operation; compare it with protected local intent.
     pub fn operation(&self) -> CredentialRenewalId {
-        self.statement.operation
+        self.historical.operation()
     }
     /// Stable statement identity excluding randomized envelope signatures.
+    pub fn statement_digest(&self) -> [u8; 32] {
+        self.historical.statement_digest()
+    }
+    /// Expected immutable owner, which still must match authenticated local state.
+    pub fn original_storage_owner(&self) -> [u8; 32] {
+        self.historical.original_storage_owner()
+    }
+    /// Immutable original credential body commitment; compare with retained state.
+    pub fn original_credential_digest(&self) -> [u8; 32] {
+        self.historical.statement.original
+    }
+    /// Exact signed policy scope, which does not itself grant current policy use.
+    pub fn policy_digest(&self) -> [u8; 32] {
+        self.historical.policy_digest()
+    }
+    /// Historical authenticated predecessor. It need not currently be valid.
+    pub fn previous_device(&self) -> &VerifiedDevice {
+        &self.historical.previous
+    }
+    /// Target authenticated at verification time, not a continuing permission.
+    pub fn successor_device(&self) -> &VerifiedDevice {
+        &self.historical.successor
+    }
+}
+
+impl HistoricalCredentialRenewal {
+    /// Authenticate bounded original public bytes against an independently retained
+    /// exact target account/root/roster pin and policy digest. Signed membership is
+    /// checked at its historical interval; no caller-supplied clock can turn this
+    /// result into current authority. Untrusted container fields never select the pin.
+    pub fn verify(wire: &[u8], pin: &AccountPin, policy: [u8; 32]) -> Result<Self, Error> {
+        let (statement, materials) = authenticated_materials(wire, pin, policy)?;
+        let previous_pin = AccountPin::new(
+            pin.account,
+            pin.root.clone(),
+            statement.previous_roster,
+            pin.family,
+        )?;
+        let at = pin
+            .snapshot_start(materials.successor_credential, materials.successor_roster)?
+            .max(
+                previous_pin
+                    .snapshot_start(materials.previous_credential, materials.previous_roster)?,
+            );
+        Self::check(wire, pin, statement, materials, at)
+    }
+    fn verify_at(wire: &[u8], pin: &AccountPin, policy: [u8; 32], now: u64) -> Result<Self, Error> {
+        let (statement, materials) = authenticated_materials(wire, pin, policy)?;
+        Self::check(wire, pin, statement, materials, now)
+    }
+    fn check(
+        wire: &[u8],
+        pin: &AccountPin,
+        statement: Statement,
+        materials: CredentialRenewalMaterials<'_>,
+        at: u64,
+    ) -> Result<Self, Error> {
+        let authorization = CredentialRenewalAuthorization {
+            operation: statement.operation,
+            previous: statement.previous_roster,
+            policy_digest: statement.policy,
+        };
+        let (expected, previous, successor) = check_materials(&materials, &authorization, pin, at)?;
+        if statement != expected {
+            return Err(Error::Scope);
+        }
+        Ok(Self {
+            statement,
+            previous,
+            successor: Arc::new(successor),
+            wire: wire.to_vec(),
+        })
+    }
+    /// Exact original public bytes, without re-signing or changing their validity.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.wire
+    }
+    /// Independently authorized original operation identity.
+    pub fn operation(&self) -> CredentialRenewalId {
+        self.statement.operation
+    }
+    /// Complete root statement commitment, independent of randomized signatures.
     pub fn statement_digest(&self) -> [u8; 32] {
         digest(
             b"Q-PERIAPT-CREDENTIAL-RENEWAL-STATEMENT/v1",
             &self.statement.encode(),
         )
     }
-    /// Expected immutable owner, which still must match authenticated local state.
+    /// Original immutable journal owner expectation, not current state evidence.
     pub fn original_storage_owner(&self) -> [u8; 32] {
         crate::bootstrap::credential_storage_owner(
             self.statement.account,
@@ -456,22 +530,51 @@ impl VerifiedCredentialRenewal {
             self.statement.original,
         )
     }
-    /// Immutable original credential body commitment; compare with retained state.
-    pub fn original_credential_digest(&self) -> [u8; 32] {
-        self.statement.original
-    }
-    /// Exact signed policy scope, which does not itself grant current policy use.
+    /// Exact signed policy identity, not current policy permission.
     pub fn policy_digest(&self) -> [u8; 32] {
         self.statement.policy
     }
-    /// Historical authenticated predecessor. It need not currently be valid.
-    pub fn previous_device(&self) -> &VerifiedDevice {
+    /// Signed successor roster expectation; never a currentness claim.
+    pub fn successor_checkpoint(&self) -> RosterCheckpoint {
+        self.statement.successor_roster
+    }
+    pub(crate) fn previous_device(&self) -> &VerifiedDevice {
         &self.previous
     }
-    /// Target authenticated at verification time, not a continuing permission.
-    pub fn successor_device(&self) -> &VerifiedDevice {
+    pub(crate) fn successor_device(&self) -> &VerifiedDevice {
         &self.successor
     }
+}
+fn authenticated_materials<'a>(
+    wire: &'a [u8],
+    pin: &AccountPin,
+    policy: [u8; 32],
+) -> Result<(Statement, CredentialRenewalMaterials<'a>), Error> {
+    if wire.len() > MAX_CREDENTIAL_RENEWAL_BYTES {
+        return Err(Error::Capacity);
+    }
+    nonzero(&policy)?;
+    let mut d = Decoder::new(wire);
+    if d.array::<8>()? != *CONTAINER {
+        return Err(Error::Encoding);
+    }
+    let signed = field(&mut d)?;
+    let materials = CredentialRenewalMaterials {
+        original_credential: field(&mut d)?,
+        previous_credential: field(&mut d)?,
+        successor_credential: field(&mut d)?,
+        previous_roster: field(&mut d)?,
+        successor_roster: field(&mut d)?,
+    };
+    d.finish()?;
+    let (body, signature) = open_envelope(signed)?;
+    pin.root
+        .verify(Purpose::CredentialRenewal, body, signature)?;
+    let statement = Statement::decode(body)?;
+    if statement.policy != policy {
+        return Err(Error::Scope);
+    }
+    Ok((statement, materials))
 }
 
 #[cfg(test)]

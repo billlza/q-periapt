@@ -90,9 +90,37 @@ local proposal and repairs missing enrollment coordination after a configuration
 write fails. It sends no witness request and does not reseal or erase journal
 bytes. A retained coordination with a missing/mismatched intent is a conflict.
 When only the staged grant exists and no proposal was ever persisted, recovery
-returns `None` and leaves Pending intact. Closing that unprepared expired grant
-still requires a separate independent control-plane construction; neither this
-absence nor an unavailable witness establishes NoCommit.
+returns `None` and leaves Pending intact. The independent witness now has a grant-only cancellation transaction described
+below. Original enrollment coordination and foreign-owner integration of that
+transaction remain incomplete; the existing owner still leaves this case
+Pending/Suspended. Neither local absence nor an unavailable witness establishes
+NoCommit.
+
+`HistoricalCredentialRenewal::verify` authenticates original grant bytes against
+an independently retained exact account/root/target-roster pin and policy digest.
+It preserves all original signatures, identity, validity-extension and statement
+checks while classifying historical signed membership. It exposes metadata only;
+it cannot be passed to new preparation or operational admission. The independent
+full-proposal close accepts this snapshot and `HistoricalSessionPolicy`, so a
+control plane can reconstruct an expired grant without claiming it is current.
+
+For the no-proposal case, `AnchorCredentialRenewalCancellation` is a separate
+248-byte `QPCRNC01` description of the witness, original subject, operation, root
+statement and expected old head. It has no target image. The independent
+`AnchorStore::close_unprepared_credential_renewal` accepts it with authenticated
+historical grant/policy. It creates a Closed-only slot and advances the permanent
+signed successor-version floor atomically, preserving head, credential owner,
+authority, validity and last command. An existing full proposal conflicts and
+retains its exact Prepared/Applied/Closed result; this entry never overwrites a
+hidden proposal or reconstructs missing target bytes. A pruned old version is
+Retired, not Closed. Fresh device-signed Status/ACK use the separate cancellation
+binding; ordinary device requests cannot create the cancellation.
+
+The original enrollment must still gain durable cancellation-intent retention,
+exact old-image checks, terminal-before-ACK recovery and foreign APIs. Until that
+integration is implemented and validated, the witness primitive is not a complete
+user-facing recovery path. In particular, never construct a new expected head
+while retrying the same cancellation after an unknown result.
 
 The candidate C facade exposes preparation, Commit, Close and reconciliation on
 the original enrollment owner, with Swift and Kotlin wrappers. Preparation returns

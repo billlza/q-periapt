@@ -458,8 +458,9 @@ impl AnchorStore {
 
 fn enrollment_validity(
     device: &VerifiedDevice,
-    policy: &VerifiedSessionPolicy,
+    policy: &impl AsRef<crate::HistoricalSessionPolicy>,
 ) -> Result<Validity, DurableError> {
+    let policy = policy.as_ref();
     Ok(Validity::new(
         device
             .description
@@ -492,7 +493,15 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
         .entries
         .values()
         .any(|entry| entry.renewal_floor != 0 || entry.renewal.is_some());
-    let mut bytes = if joint {
+    let cancellation = image.entries.values().any(|entry| {
+        entry
+            .renewal
+            .as_ref()
+            .is_some_and(CredentialRenewalRecord::is_cancellation)
+    });
+    let mut bytes = if cancellation {
+        b"QPANC004".to_vec()
+    } else if joint {
         b"QPANC003".to_vec()
     } else {
         b"QPANC002".to_vec()
@@ -542,7 +551,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
         let version = d.array::<8>()?;
-        if ![*b"QPANC001", *b"QPANC002", *b"QPANC003"].contains(&version)
+        if ![*b"QPANC001", *b"QPANC002", *b"QPANC003", *b"QPANC004"].contains(&version)
             || d.array::<32>()? != pin.binding
         {
             return Err(DurableError::Conflict);
@@ -578,22 +587,27 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             nonzero(&genesis)?;
             let head = AnchorHead::decode(&mut d)?;
             let last = decode_last(&mut d, head)?;
-            let (renewal_floor, renewal_ack, renewal) = if version == *b"QPANC003" {
-                let floor = d.u64()?;
-                let [present] = d.array()?;
-                let binding = d.array()?;
-                let ack = match present {
-                    0 if binding == [0; 32] => None,
-                    1 => {
-                        nonzero(&binding)?;
-                        Some(binding)
-                    }
-                    _ => return Err(DurableError::Corrupt),
+            let (renewal_floor, renewal_ack, renewal) =
+                if version == *b"QPANC003" || version == *b"QPANC004" {
+                    let floor = d.u64()?;
+                    let [present] = d.array()?;
+                    let binding = d.array()?;
+                    let ack = match present {
+                        0 if binding == [0; 32] => None,
+                        1 => {
+                            nonzero(&binding)?;
+                            Some(binding)
+                        }
+                        _ => return Err(DurableError::Corrupt),
+                    };
+                    (
+                        floor,
+                        ack,
+                        CredentialRenewalRecord::decode(&mut d, version == *b"QPANC004")?,
+                    )
+                } else {
+                    (0, None, None)
                 };
-                (floor, ack, CredentialRenewalRecord::decode(&mut d)?)
-            } else {
-                (0, None, None)
-            };
             if id != subject.id(&pin.binding)
                 || device.shares_component(&pin.key)
                 || !owners.insert(subject.owner)

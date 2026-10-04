@@ -271,6 +271,80 @@ impl AnchorCredentialRenewalProposal {
     }
 }
 
+/// Exact independent cancellation request for a grant without a local proposal.
+/// No target image is invented or sealed. These public bytes are an expectation,
+/// not proof of absence, a witness receipt or permission to erase local state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AnchorCredentialRenewalCancellation {
+    witness: [u8; 32],
+    subject: AnchorSubject,
+    operation: crate::CredentialRenewalId,
+    statement: [u8; 32],
+    expected: AnchorHead,
+}
+impl AnchorCredentialRenewalCancellation {
+    /// Restore independently retained metadata, never a remote-selected authority.
+    /// The control plane must compare the exact authenticated grant and real slot.
+    pub fn from_trusted_state(bytes: &[u8]) -> Result<Self, Error> {
+        let mut d = Decoder::new(bytes);
+        if d.array::<8>()? != *b"QPCRNC01" {
+            return Err(Error::Encoding);
+        }
+        let witness = d.array()?;
+        nonzero(&witness)?;
+        let subject = AnchorSubject::decode(&mut d)?;
+        let operation = crate::CredentialRenewalId::from_trusted_state(d.array()?)?;
+        let statement = d.array()?;
+        nonzero(&statement)?;
+        let expected = AnchorHead::decode(&mut d)?;
+        d.finish()?;
+        Ok(Self {
+            witness,
+            subject,
+            operation,
+            statement,
+            expected,
+        })
+    }
+    /// Canonical 248-byte metadata with no target head or target image digest.
+    pub fn to_bytes(self) -> Vec<u8> {
+        let mut bytes = b"QPCRNC01".to_vec();
+        bytes.extend_from_slice(&self.witness);
+        self.subject.encode(&mut bytes);
+        bytes.extend_from_slice(self.operation.as_bytes());
+        bytes.extend_from_slice(&self.statement);
+        self.expected.encode(&mut bytes);
+        bytes
+    }
+    /// Independently pinned witness identity/key binding.
+    pub fn witness_binding(self) -> [u8; 32] {
+        self.witness
+    }
+    /// Original immutable journal/device/policy subject.
+    pub fn subject(self) -> AnchorSubject {
+        self.subject
+    }
+    /// Exact root-authorized operation being independently closed.
+    pub fn operation(self) -> crate::CredentialRenewalId {
+        self.operation
+    }
+    /// Root statement commitment, excluding randomized signatures.
+    pub fn statement(self) -> [u8; 32] {
+        self.statement
+    }
+    /// Original head expectation which the witness must compare atomically.
+    pub fn expected_head(self) -> AnchorHead {
+        self.expected
+    }
+    /// Separate commitment domain; never interchangeable with a sealed proposal.
+    pub fn binding(self) -> [u8; 32] {
+        digest(
+            b"Q-PERIAPT-ANCHOR-CREDENTIAL-CANCELLATION/v1",
+            &self.to_bytes(),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Command {
     Query,
@@ -329,6 +403,19 @@ impl AnchorOperation {
     /// The permanent floor still rejects old targets after the slot is removed.
     pub fn acknowledge_credential_renewal(proposal: &AnchorCredentialRenewalProposal) -> Self {
         Self(Command::CredentialAcknowledge(proposal.binding()))
+    }
+    /// Read the exact independently retained grant-only cancellation. A device
+    /// cannot create it through this request; Unavailable never proves Closed.
+    pub fn credential_cancellation_status(
+        cancellation: &AnchorCredentialRenewalCancellation,
+    ) -> Self {
+        Self(Command::CredentialStatus(cancellation.binding()))
+    }
+    /// Retire only after the original enrollment durably retains its Closed state.
+    pub fn acknowledge_credential_cancellation(
+        cancellation: &AnchorCredentialRenewalCancellation,
+    ) -> Self {
+        Self(Command::CredentialAcknowledge(cancellation.binding()))
     }
     fn credential_binding(self) -> Option<[u8; 32]> {
         match self.0 {
@@ -708,6 +795,16 @@ pub enum AnchorCredentialRenewalState {
     /// Absent, conflicting or retired exact history; not proof of non-commit.
     Unavailable,
 }
+/// Exact grant-only cancellation history; none of these grants runtime authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AnchorCredentialCancellationState {
+    /// Independent control plane closed the original unprepared grant durably.
+    Closed,
+    /// Its exact acknowledgement was observed; rely on the retained local terminal.
+    Acknowledged,
+    /// No exact retained cancellation; never infer non-commit from this result.
+    Unavailable,
+}
 /// A reply authenticated against the caller's fresh attempt and pinned witness.
 pub struct AnchorReply {
     authority: [u8; 32],
@@ -767,6 +864,36 @@ impl AnchorReply {
             }
             AnchorOutcome::CredentialAcknowledged => Ok(AnchorCredentialRenewalState::Acknowledged),
             AnchorOutcome::CredentialUnavailable => Ok(AnchorCredentialRenewalState::Unavailable),
+            _ => Err(Error::State),
+        }
+    }
+    /// Interpret a fresh signed response under the exact original cancellation.
+    /// Ordinary queries, another cancellation or a sealed proposal cannot replace it.
+    pub fn credential_cancellation_state(
+        &self,
+        cancellation: &AnchorCredentialRenewalCancellation,
+    ) -> Result<AnchorCredentialCancellationState, Error> {
+        if self.authority != cancellation.witness
+            || self.subject != cancellation.subject
+            || self.operation.credential_binding() != Some(cancellation.binding())
+        {
+            return Err(Error::Scope);
+        }
+        match (self.operation.0, self.outcome) {
+            (Command::CredentialStatus(_), AnchorOutcome::CredentialClosed)
+                if self.head == cancellation.expected =>
+            {
+                Ok(AnchorCredentialCancellationState::Closed)
+            }
+            (Command::CredentialStatus(_), AnchorOutcome::CredentialUnavailable) => {
+                Ok(AnchorCredentialCancellationState::Unavailable)
+            }
+            (Command::CredentialAcknowledge(_), AnchorOutcome::CredentialAcknowledged) => {
+                Ok(AnchorCredentialCancellationState::Acknowledged)
+            }
+            (Command::CredentialAcknowledge(_), AnchorOutcome::CredentialUnavailable) => {
+                Ok(AnchorCredentialCancellationState::Unavailable)
+            }
             _ => Err(Error::State),
         }
     }

@@ -82,10 +82,11 @@ impl RetainedInstallationAuthority {
 mod tests;
 
 pub use anchor::{
-    AnchorClient, AnchorClientError, AnchorCredentialRenewalProposal, AnchorCredentialRenewalState,
-    AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
-    AnchorPin, AnchorReply, AnchorRequest, AnchorStore, AnchorSubject, AnchorTcpTransport,
-    AnchorTransport,
+    AnchorClient, AnchorClientError, AnchorCredentialCancellationState,
+    AnchorCredentialRenewalCancellation, AnchorCredentialRenewalProposal,
+    AnchorCredentialRenewalState, AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity,
+    AnchorOperation, AnchorOutcome, AnchorPin, AnchorReply, AnchorRequest, AnchorStore,
+    AnchorSubject, AnchorTcpTransport, AnchorTransport,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
@@ -114,9 +115,9 @@ pub use durable::{
 };
 pub use identity::{
     AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
-    DeviceDescription, IssuedCredentialRenewal, IssuedRoster, RosterCheckpoint, RosterEntry,
-    Validity, VerifiedCredentialRenewal, VerifiedDevice, VerifiedRoster,
-    MAX_CREDENTIAL_RENEWAL_BYTES, MAX_DEVICES,
+    DeviceDescription, HistoricalCredentialRenewal, IssuedCredentialRenewal, IssuedRoster,
+    RosterCheckpoint, RosterEntry, Validity, VerifiedCredentialRenewal, VerifiedDevice,
+    VerifiedRoster, MAX_CREDENTIAL_RENEWAL_BYTES, MAX_DEVICES,
 };
 pub use manifest::{
     AuthenticatedLeaf, IssuedManifest, LeafKind, LeafProof, ManifestContext, PrekeyLeaf,

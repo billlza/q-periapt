@@ -873,3 +873,588 @@ fn independent_preparation_rejects_wrong_proposal_scope_and_noncurrent_predecess
         Err(DurableError::Conflict)
     ));
 }
+
+#[test]
+fn independently_reconstructed_expired_grant_and_policy_only_close_original_proposal() {
+    let mut c = credential_case();
+    let g = credential_grant_first(&c);
+    let p = proposal(&c, &g, 217);
+    let pin = g
+        .successor_device()
+        .roster()
+        .historical_pin(g.successor_device().roster().checkpoint())
+        .expect("independently retained exact target pin");
+    let wire = g.as_bytes().to_vec();
+    let policy = c.peer.responder.policy().historical().clone();
+    assert!(matches!(
+        crate::VerifiedCredentialRenewal::verify(&wire, &pin, policy.checkpoint().digest(), 250),
+        Err(Error::Validity)
+    ));
+    let historical =
+        crate::HistoricalCredentialRenewal::verify(&wire, &pin, policy.checkpoint().digest())
+            .expect("expired grant metadata");
+    c.peer.responder.policy().close();
+    let before = c
+        .store
+        .image()
+        .expect("before")
+        .entries
+        .remove(&p.subject().id(&c.pin.binding()))
+        .expect("entry");
+    assert_eq!(
+        c.store
+            .close_credential_renewal(p, &historical, &policy)
+            .expect("independent historical close"),
+        State::Closed
+    );
+    c.store.close();
+    c.store = reopen(&c.server);
+    assert_eq!(status(&mut c, &p, 250), State::Closed);
+    assert_eq!(
+        exchange(
+            &mut c,
+            &p,
+            AnchorOperation::commit_credential_renewal(&p),
+            250
+        ),
+        State::Closed
+    );
+    let after = c
+        .store
+        .image()
+        .expect("after")
+        .entries
+        .remove(&p.subject().id(&c.pin.binding()))
+        .expect("entry");
+    assert_eq!(
+        (
+            after.head,
+            after.credential_owner,
+            after.authority,
+            after.validity,
+            after.last
+        ),
+        (
+            before.head,
+            before.credential_owner,
+            before.authority,
+            before.validity,
+            before.last
+        )
+    );
+    assert_eq!(after.renewal_floor, 2);
+    assert_eq!(ack(&mut c, &p, 250), State::Acknowledged);
+    assert!(matches!(
+        c.store.close_credential_renewal(p, &historical, &policy),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+}
+
+fn cancellation(
+    c: &Case,
+    grant: &crate::VerifiedCredentialRenewal,
+) -> crate::AnchorCredentialRenewalCancellation {
+    let mut bytes = b"QPCRNC01".to_vec();
+    bytes.extend_from_slice(&c.pin.binding());
+    bytes.extend_from_slice(&c.genesis.subject().to_bytes());
+    bytes.extend_from_slice(grant.operation().as_bytes());
+    bytes.extend_from_slice(&grant.statement_digest());
+    initial(c).encode(&mut bytes);
+    assert_eq!(bytes.len(), 248);
+    crate::AnchorCredentialRenewalCancellation::from_trusted_state(&bytes)
+        .expect("original grant closure expectation")
+}
+fn cancellation_exchange(
+    c: &mut Case,
+    cancel: &crate::AnchorCredentialRenewalCancellation,
+    acknowledge: bool,
+    now: u64,
+) -> crate::AnchorCredentialCancellationState {
+    let op = if acknowledge {
+        AnchorOperation::acknowledge_credential_cancellation(cancel)
+    } else {
+        AnchorOperation::credential_cancellation_status(cancel)
+    };
+    let rq = request(c, op);
+    let wire = c
+        .store
+        .handle(rq.as_bytes(), now)
+        .expect("signed cancellation response");
+    let reply = c
+        .pin
+        .verify_reply(&rq, &wire)
+        .expect("fresh authenticated response");
+    assert!(reply.applied_head().is_err());
+    reply
+        .credential_cancellation_state(cancel)
+        .expect("exact independent cancellation")
+}
+
+#[test]
+fn grant_only_close_never_creates_target_or_current_authority_and_floor_survives_pruning() {
+    use crate::AnchorCredentialCancellationState as Cancel;
+    let mut c = credential_case();
+    let g = credential_grant_first(&c);
+    let cancel = cancellation(&c, &g);
+    let p = proposal(&c, &g, 218);
+    let pin = g
+        .successor_device()
+        .roster()
+        .historical_pin(g.successor_device().roster().checkpoint())
+        .expect("retained target pin");
+    let historical =
+        crate::HistoricalCredentialRenewal::verify(g.as_bytes(), &pin, g.policy_digest())
+            .expect("historical grant");
+    let policy = c.peer.responder.policy().historical().clone();
+    c.peer.responder.policy().close();
+    assert_eq!(
+        cancellation_exchange(&mut c, &cancel, false, 250),
+        Cancel::Unavailable
+    );
+    let before = c
+        .store
+        .image()
+        .expect("before")
+        .entries
+        .remove(&cancel.subject().id(&c.pin.binding()))
+        .expect("entry");
+    assert_eq!(
+        c.store
+            .close_unprepared_credential_renewal(cancel, &historical, &policy)
+            .expect("close grant"),
+        Cancel::Closed
+    );
+    assert_eq!(
+        c.store
+            .close_unprepared_credential_renewal(cancel, &historical, &policy)
+            .expect("exact retry"),
+        Cancel::Closed
+    );
+    let image = c.store.image().expect("image");
+    let active = c.store.active.as_ref().expect("active");
+    assert_eq!(
+        encode(&active.wrapping, &active.pin, &image)
+            .expect("new encoding")
+            .get(..8)
+            .expect("version tag"),
+        b"QPANC004"
+    );
+    let after = image
+        .entries
+        .get(&cancel.subject().id(&c.pin.binding()))
+        .expect("entry");
+    assert_eq!(
+        (
+            after.head,
+            after.credential_owner,
+            after.authority,
+            after.validity,
+            after.last
+        ),
+        (
+            before.head,
+            before.credential_owner,
+            before.authority,
+            before.validity,
+            before.last
+        )
+    );
+    c.store.close();
+    c.store = reopen(&c.server);
+    assert_eq!(
+        cancellation_exchange(&mut c, &cancel, false, 250),
+        Cancel::Closed
+    );
+    assert_eq!(status(&mut c, &p, 250), State::Unavailable);
+    for kind in [5, 7] {
+        let mut op = vec![kind];
+        op.extend_from_slice(&cancel.binding());
+        op.extend_from_slice(&[0; 64]);
+        let rq = request(
+            &c,
+            AnchorOperation::from_trusted_state(&op).expect("canonical command"),
+        );
+        assert!(matches!(
+            c.store.handle(rq.as_bytes(), 250),
+            Err(AnchorError::Rejected(Error::State))
+        ));
+    }
+    assert_eq!(
+        cancellation_exchange(&mut c, &cancel, true, 250),
+        Cancel::Acknowledged
+    );
+    assert_eq!(
+        cancellation_exchange(&mut c, &cancel, true, 250),
+        Cancel::Acknowledged
+    );
+    c.store.close();
+    c.store = reopen(&c.server);
+    assert_eq!(
+        cancellation_exchange(&mut c, &cancel, false, 250),
+        Cancel::Unavailable
+    );
+    assert!(matches!(
+        c.store
+            .close_unprepared_credential_renewal(cancel, &historical, &policy),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    assert!(matches!(
+        c.store
+            .prepare_credential_renewal(p, &g, c.peer.responder.policy(), 150),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+}
+
+#[test]
+fn grant_only_close_preserves_every_hidden_original_proposal_and_never_relabels_applied() {
+    for desired in [State::Prepared, State::Applied, State::Closed] {
+        let mut c = credential_case();
+        let g = credential_grant_first(&c);
+        let p = proposal(&c, &g, 219);
+        let cancel = cancellation(&c, &g);
+        assert_eq!(prepare(&mut c, p, &g, 150), State::Prepared);
+        if desired != State::Prepared {
+            let operation = if desired == State::Applied {
+                AnchorOperation::commit_credential_renewal(&p)
+            } else {
+                AnchorOperation::close_credential_renewal(&p)
+            };
+            assert_eq!(exchange(&mut c, &p, operation, 150), desired);
+        }
+        let before = c.store.image().expect("before").digest;
+        assert!(matches!(
+            c.store
+                .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy()),
+            Err(DurableError::Conflict)
+        ));
+        assert_eq!(c.store.image().expect("unchanged").digest, before);
+        c.store.close();
+        c.store = reopen(&c.server);
+        assert_eq!(status(&mut c, &p, 250), desired);
+        assert_eq!(
+            cancellation_exchange(&mut c, &cancel, false, 250),
+            crate::AnchorCredentialCancellationState::Unavailable
+        );
+        if desired != State::Prepared {
+            assert_eq!(ack(&mut c, &p, 250), State::Acknowledged);
+            assert!(matches!(
+                c.store
+                    .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy()),
+                Err(DurableError::Protocol(Error::Retired))
+            ));
+        }
+    }
+}
+
+#[test]
+fn grant_only_close_and_ordinary_transition_obey_exact_head_and_unacknowledged_slot_exclusion() {
+    use crate::AnchorCredentialCancellationState as Cancel;
+    for closure_first in [false, true] {
+        let mut c = credential_case();
+        let g = credential_grant_first(&c);
+        let cancel = cancellation(&c, &g);
+        let advance = request(
+            &c,
+            AnchorOperation::advance(initial(&c), [220; 32]).expect("advance"),
+        );
+        let fence = request(
+            &c,
+            AnchorOperation::fence_writer(initial(&c)).expect("fence"),
+        );
+        if closure_first {
+            assert_eq!(
+                c.store
+                    .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy())
+                    .expect("close first"),
+                Cancel::Closed
+            );
+            for rq in [&advance, &fence] {
+                assert!(matches!(
+                    c.store.handle(rq.as_bytes(), 150),
+                    Err(AnchorError::Rejected(Error::State))
+                ));
+            }
+            assert_eq!(
+                cancellation_exchange(&mut c, &cancel, false, 150),
+                Cancel::Closed
+            );
+            assert_eq!(
+                cancellation_exchange(&mut c, &cancel, true, 150),
+                Cancel::Acknowledged
+            );
+            let wire = c
+                .store
+                .handle(advance.as_bytes(), 150)
+                .expect("ordinary current authorization after ACK");
+            c.pin
+                .verify_reply(&advance, &wire)
+                .expect("advance")
+                .applied_head()
+                .expect("applied");
+        } else {
+            let wire = c
+                .store
+                .handle(advance.as_bytes(), 150)
+                .expect("advance first");
+            c.pin
+                .verify_reply(&advance, &wire)
+                .expect("advance")
+                .applied_head()
+                .expect("applied");
+            let before = c.store.image().expect("before").digest;
+            assert!(matches!(
+                c.store
+                    .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy()),
+                Err(DurableError::Conflict)
+            ));
+            assert_eq!(c.store.image().expect("after").digest, before);
+        }
+    }
+}
+
+#[test]
+fn cancellation_statement_identity_and_domain_survive_same_operation_alias_and_old_ack() {
+    use crate::AnchorCredentialCancellationState as Cancel;
+    let mut c = credential_case();
+    let first = credential_grant_first(&c);
+    let alias = credential_grant(&c, c.peer.responder.inventory_inputs().1, 2, 181);
+    assert_eq!(first.operation(), alias.operation());
+    assert_ne!(first.statement_digest(), alias.statement_digest());
+    let one = cancellation(&c, &first);
+    let other = cancellation(&c, &alias);
+    let p = proposal(&c, &first, 221);
+    assert_ne!(one.binding(), other.binding());
+    assert_ne!(one.binding(), p.binding());
+    assert!(matches!(
+        c.store
+            .close_unprepared_credential_renewal(other, &first, c.peer.responder.policy()),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert_eq!(
+        c.store
+            .close_unprepared_credential_renewal(one, &first, c.peer.responder.policy())
+            .expect("first close"),
+        Cancel::Closed
+    );
+    assert!(matches!(
+        c.store
+            .close_unprepared_credential_renewal(other, &alias, c.peer.responder.policy()),
+        Err(DurableError::Conflict)
+    ));
+    assert_eq!(
+        cancellation_exchange(&mut c, &one, true, 150),
+        Cancel::Acknowledged
+    );
+    assert!(matches!(
+        c.store
+            .close_unprepared_credential_renewal(other, &alias, c.peer.responder.policy()),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    let next = credential_grant(&c, c.peer.responder.inventory_inputs().1, 3, 190);
+    let next_cancel = cancellation(&c, &next);
+    assert_eq!(
+        c.store
+            .close_unprepared_credential_renewal(next_cancel, &next, c.peer.responder.policy())
+            .expect("new root grant"),
+        Cancel::Closed
+    );
+    assert_eq!(
+        cancellation_exchange(&mut c, &one, true, 150),
+        Cancel::Acknowledged
+    );
+    assert_eq!(
+        cancellation_exchange(&mut c, &next_cancel, false, 150),
+        Cancel::Closed
+    );
+}
+
+#[test]
+fn cancellation_scope_fresh_reply_and_authenticated_storage_shape_are_exact() {
+    use crate::{
+        AnchorCredentialCancellationState as Cancel,
+        AnchorCredentialRenewalCancellation as Cancellation,
+    };
+    let mut c = credential_case();
+    let g = credential_grant_first(&c);
+    let cancel = cancellation(&c, &g);
+    let before = c.store.image().expect("before").digest;
+    for range in [
+        8..40,
+        40..72,
+        72..104,
+        104..136,
+        136..168,
+        168..200,
+        200..208,
+        208..216,
+        216..248,
+    ] {
+        let mut bytes = cancel.to_bytes();
+        bytes.get_mut(range).expect("descriptor field").fill(226);
+        let changed =
+            Cancellation::from_trusted_state(&bytes).expect("well formed substituted expectation");
+        assert!(c
+            .store
+            .close_unprepared_credential_renewal(changed, &g, c.peer.responder.policy())
+            .is_err());
+        assert_eq!(c.store.image().expect("unchanged").digest, before);
+    }
+    for bytes in [
+        cancel
+            .to_bytes()
+            .get(..247)
+            .expect("truncated descriptor")
+            .to_vec(),
+        [cancel.to_bytes(), vec![0]].concat(),
+        proposal(&c, &g, 227).to_bytes(),
+    ] {
+        assert!(Cancellation::from_trusted_state(&bytes).is_err());
+    }
+    assert_eq!(
+        c.store
+            .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy())
+            .expect("close"),
+        Cancel::Closed
+    );
+    let request1 = request(&c, AnchorOperation::credential_cancellation_status(&cancel));
+    let request2 = request(&c, AnchorOperation::credential_cancellation_status(&cancel));
+    let wire = c.store.handle(request1.as_bytes(), 250).expect("reply");
+    assert!(c.pin.verify_reply(&request2, &wire).is_err());
+    let reply = c
+        .pin
+        .verify_reply(&request1, &wire)
+        .expect("original attempt");
+    let mut changed = cancel.to_bytes();
+    *changed.get_mut(168).expect("statement byte") ^= 1;
+    let changed = Cancellation::from_trusted_state(&changed).expect("other statement");
+    assert!(reply.credential_cancellation_state(&changed).is_err());
+    let query = request(&c, AnchorOperation::query());
+    let wire = c.store.handle(query.as_bytes(), 250).expect("query");
+    assert!(c
+        .pin
+        .verify_reply(&query, &wire)
+        .expect("signed query")
+        .credential_cancellation_state(&cancel)
+        .is_err());
+    let active = c.store.active.as_ref().expect("active");
+    let mut image = load(&active.db, &active.wrapping, &active.pin).expect("valid image");
+    let valid = encode(&active.wrapping, &active.pin, &image).expect("004 encoding");
+    for floor in [0, 1, 3, u64::MAX] {
+        image
+            .entries
+            .get_mut(&cancel.subject().id(&c.pin.binding()))
+            .expect("entry")
+            .renewal_floor = floor;
+        assert!(encode(&active.wrapping, &active.pin, &image).is_err());
+    }
+    let mut downgraded = valid
+        .get(..valid.len() - 32)
+        .expect("authenticated body")
+        .to_vec();
+    downgraded
+        .get_mut(..8)
+        .expect("version tag")
+        .copy_from_slice(b"QPANC003");
+    let mut auth = authenticator(&active.wrapping).expect("test authenticator");
+    auth.update(&downgraded);
+    downgraded.extend_from_slice(&auth.finalize().into_bytes());
+    assert!(matches!(
+        decode(&active.wrapping, &active.pin, &downgraded),
+        Err(DurableError::Corrupt)
+    ));
+}
+
+fn cancellation_transition(
+    c: &mut Case,
+    cancel: crate::AnchorCredentialRenewalCancellation,
+    grant: &crate::VerifiedCredentialRenewal,
+    acknowledge: bool,
+) -> Result<crate::AnchorCredentialCancellationState, DurableError> {
+    if !acknowledge {
+        return c.store.close_unprepared_credential_renewal(
+            cancel,
+            grant,
+            c.peer.responder.policy(),
+        );
+    }
+    let rq = request(
+        c,
+        AnchorOperation::acknowledge_credential_cancellation(&cancel),
+    );
+    let wire = c
+        .store
+        .handle(rq.as_bytes(), 250)
+        .map_err(|error| match error {
+            AnchorError::Storage(error) => error,
+            AnchorError::Rejected(error) | AnchorError::ReplyUnavailable(error) => error.into(),
+        })?;
+    Ok(c.pin
+        .verify_reply(&rq, &wire)?
+        .credential_cancellation_state(&cancel)?)
+}
+#[test]
+fn every_grant_cancellation_and_ack_sync_cut_preserves_original_head_and_exact_retirement() {
+    use crate::AnchorCredentialCancellationState as Cancel;
+    let mut faults = 0;
+    let mut expected_faults = 0;
+    for acknowledge in [false, true] {
+        let mut baseline = credential_case();
+        let g = credential_grant_first(&baseline);
+        let cancel = cancellation(&baseline, &g);
+        if acknowledge {
+            cancellation_transition(&mut baseline, cancel, &g, false).expect("setup close");
+        }
+        let (_, count) = with_fault_database(&mut baseline, false);
+        count.store(0, Ordering::SeqCst);
+        let target =
+            cancellation_transition(&mut baseline, cancel, &g, acknowledge).expect("baseline");
+        let barriers = count.load(Ordering::SeqCst);
+        assert!((2..=8).contains(&barriers));
+        expected_faults += 2 * barriers;
+        eprintln!("GRANT_CANCELLATION_MEASURED ack={acknowledge} barriers={barriers}");
+        for after in [false, true] {
+            for cut in 1..=barriers {
+                let mut c = credential_case();
+                let g = credential_grant_first(&c);
+                let cancel = cancellation(&c, &g);
+                if acknowledge {
+                    cancellation_transition(&mut c, cancel, &g, false).expect("setup close");
+                }
+                let revision = c.store.image().expect("original revision").revision;
+                let (remaining, _) = with_fault_database(&mut c, after);
+                remaining.store(cut, Ordering::SeqCst);
+                crate::durable::tests::assert_sync_failure(
+                    cancellation_transition(&mut c, cancel, &g, acknowledge),
+                    after,
+                );
+                assert!(c.store.active.is_none());
+                c.store = reopen(&c.server);
+                assert_eq!(
+                    cancellation_transition(&mut c, cancel, &g, acknowledge).expect("exact retry"),
+                    target
+                );
+                let image = c.store.image().expect("recovered once");
+                assert_eq!(image.revision, revision + 1);
+                let entry = image
+                    .entries
+                    .get(&cancel.subject().id(&c.pin.binding()))
+                    .expect("entry");
+                assert_eq!(entry.head, cancel.expected_head());
+                assert_eq!(entry.renewal_floor, 2);
+                assert_eq!(entry.credential_owner, storage_owner(g.previous_device()));
+                assert_eq!(
+                    cancellation_exchange(&mut c, &cancel, false, 250),
+                    if acknowledge {
+                        Cancel::Unavailable
+                    } else {
+                        Cancel::Closed
+                    }
+                );
+                faults += 1;
+            }
+        }
+    }
+    assert_eq!(faults, expected_faults);
+    assert!(faults >= 8);
+    eprintln!("GRANT_CANCELLATION_SYNC_FAULTS={faults}");
+}
