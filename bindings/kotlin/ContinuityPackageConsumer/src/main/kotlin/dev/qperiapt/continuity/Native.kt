@@ -418,7 +418,7 @@ internal object ContinuityNative {
         if (operation.size != 32 || statement.size != 32 || checkpoint.size != 40) {
             malformed("native credential renewal status width differs")
         }
-        if (phase !in 0..3) malformed("native credential renewal phase differs")
+        if (phase !in 0..4) malformed("native credential renewal phase differs")
         if (phase == 0) {
             if (operation.any { it != 0.toByte() } || statement.any { it != 0.toByte() } ||
                 checkpoint.any { it != 0.toByte() } || observedAt != Counter64.ZERO) {
@@ -437,8 +437,11 @@ internal object ContinuityNative {
             return CredentialRenewalStatus.Pending(id, signed)
         }
         val head = decodeRosterCheckpoint(checkpoint)
-        return if (phase == 2) CredentialRenewalStatus.Committed(id, signed, head)
-            else CredentialRenewalStatus.ExpiredUncommitted(id, signed, head, observedAt)
+        return when (phase) {
+            2 -> CredentialRenewalStatus.Committed(id, signed, head)
+            3 -> CredentialRenewalStatus.ExpiredUncommitted(id, signed, head, observedAt)
+            else -> CredentialRenewalStatus.Closed(id, signed, head)
+        }
     }
     private fun decodeCredentialRenewalStatus(fields: Fields): CredentialRenewalStatus = decodeCredentialRenewalStatus(
         fields.integer("phase"), fields.bytes("operation", 32), fields.bytes("statement", 32),

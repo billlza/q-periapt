@@ -15,7 +15,7 @@ fn local() -> (Case, Vec<u8>, VerifiedDevice, JournalIdentity) {
         .close();
     (c, request, original, id)
 }
-fn grant(
+pub(super) fn grant(
     c: &Case,
     original: &VerifiedDevice,
     previous: &VerifiedDevice,
@@ -36,13 +36,13 @@ fn grant(
         c.policy.checkpoint().digest(),
     )
 }
-fn pending(proof: &VerifiedCredentialRenewal) -> CredentialRenewalStatus {
+pub(super) fn pending(proof: &VerifiedCredentialRenewal) -> CredentialRenewalStatus {
     CredentialRenewalStatus::Pending {
         operation: proof.operation(),
         statement: proof.statement_digest(),
     }
 }
-fn committed(proof: &VerifiedCredentialRenewal) -> CredentialRenewalStatus {
+pub(super) fn committed(proof: &VerifiedCredentialRenewal) -> CredentialRenewalStatus {
     CredentialRenewalStatus::Committed {
         operation: proof.operation(),
         statement: proof.statement_digest(),
@@ -540,7 +540,8 @@ fn enrollment_intent_and_completion_io_errors_reconcile_original_operation_after
                         CredentialRenewalStatus::Absent => {
                             Err("completion error cannot remove durable intent")
                         }
-                        CredentialRenewalStatus::ExpiredUncommitted { .. } => {
+                        CredentialRenewalStatus::ExpiredUncommitted { .. }
+                        | CredentialRenewalStatus::Closed { .. } => {
                             Err("activation never abandons a renewal implicitly")
                         }
                     }

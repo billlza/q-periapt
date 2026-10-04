@@ -92,7 +92,7 @@ static void enrollment_status(uint64_t handle,qpc_enrollment_status_v1 *status) 
 }
 static void credential_status_print(const qpc_credential_renewal_status_v1 *status) {
     uint8_t zero[32]={0};
-    if(status->phase>3) fail("unknown credential renewal phase");
+    if(status->phase>4) fail("unknown credential renewal phase");
     if(status->phase==0 && (memcmp(status->operation,zero,32) || memcmp(status->statement,zero,32)))
         fail("absent renewal has an operation");
     if(status->phase!=0 && (!memcmp(status->operation,zero,32) || !memcmp(status->statement,zero,32)))

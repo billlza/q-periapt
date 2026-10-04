@@ -303,7 +303,7 @@ impl DeviceInstallation {
         admit(device, policy, now)?;
         Self::open_bound(paths, key, device, policy)
     }
-    fn open_bound(
+    pub(crate) fn open_bound(
         paths: InstallationPaths,
         key: &JournalKey,
         device: &VerifiedDevice,
@@ -493,19 +493,17 @@ impl DeviceInstallation {
         policy: &VerifiedSessionPolicy,
         anchor: Option<AnchorClient>,
     ) -> Result<DeviceService, DurableError> {
-        // Required-witness credential adoption has its own independent command.
-        // Until that command is integrated, never reopen this path locally.
-        if policy.anchor_requirement().binding().is_some() {
+        if policy.anchor_requirement().binding().is_some() && anchor.is_none() {
             return Err(DurableError::AnchorRequired);
         }
-        if anchor.is_some() {
+        if policy.anchor_requirement().binding().is_none() && anchor.is_some() {
             return Err(DurableError::Conflict);
         }
         let mut installation = Self::open_bound(paths, &key, original, policy)?;
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
-        let (mut journal, archives) = installation.open_children(key, original, policy, None)?;
+        let (mut journal, archives) = installation.open_children(key, original, policy, anchor)?;
         journal.check_installation_state(original, policy, false)?;
         Ok(DeviceService {
             active: Some(ServiceOwners {

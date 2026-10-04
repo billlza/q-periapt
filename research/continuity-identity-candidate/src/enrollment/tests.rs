@@ -4,6 +4,8 @@ use super::*;
 pub(super) mod renewal;
 #[path = "roster_tests.rs"]
 mod roster;
+#[path = "witness_renewal_tests.rs"]
+mod witness_renewal;
 use crate::{
     durable::tests::{assert_sync_failure, directory, fault_database_path},
     tests::{interval, session_policy_fixture},

@@ -44,35 +44,60 @@ request and journal/archive identities. Do not provision replacement files.
 4. Use the returned current credential and original signer for new public bundles.
    Admit them through `service.admit_peer` before ordinary protocol operations.
 
-The local renewal path currently supports the explicit local-only policy. A required
-witness policy returns `AnchorRequired`: although the native witness now has an
-explicit [credential-authority transaction](ANCHOR_WITNESS.md#explicit-same-key-credential-renewal),
-the original enrollment must integrate that independently adopted authority with its own
-credential/subject-adoption transaction before that path can be enabled. No failure
-selects a local fallback. Peer renewal preserves the owning service's existing
-policy/witness checks and cannot be used to renew its local device.
+The sequence above is for an explicit local-only policy. A required-witness
+policy uses the separate native coordinator below; no failure selects local
+fallback. The C/Swift/Kotlin facade still refuses required-witness staging before
+writing intent until it exposes the complete proposal/approval/coordinator path.
+Its historical status codecs include Closed without claiming that integration.
+Peer renewal cannot be used to renew the owning local device.
 
-### Required-witness integration gate
+### Required-witness original enrollment coordinator
 
-The witness control-plane transaction is not sufficient to enable the device
-path. Source inspection identifies this split-state trace: witness adopts
-`C0 -> C1`, the original device journal remains at `C0`, then `C1` expires.
-The local journal can prove that it never committed the target, but that fact
-does not prove that witness adoption was uncommitted. A later `C0 -> C2` grant
-conflicts with the witness's retained `C1`; `C1 -> C2` conflicts with the device's
-retained `C0`. The current `AnchorRequired` guards prevent this composition from
-being reached through required-witness enrollment. This is a source-derived
-integration counterexample, not a reproduced failure of an enabled public path.
+Authority-only adoption would permit the witness to adopt `C0 -> C1` while the
+original journal remains at C0. If C1 then expires, local NoCommit cannot prove
+remote NoCommit. The joint construction binds independent authority adoption to
+the original exact sealed head transition, with a permanent successor-version
+floor at the witness. Do not use the older authority-only transition to compose
+this device workflow.
 
-The preferred next construction couples authority adoption with the original
-journal head transition. The journal must reserve and authenticate-read-back the
-exact sealed target before exposing its digest. `seal` uses a random nonce;
-reopening must reuse the original target bytes rather than reseal them. A prepared
-witness transaction must bind original subject, root grant, operation/statement,
-strict predecessor authority, and exact expected/next head. Applying it must
-atomically change the witness head and authority. Only an already-applied exact
-transition may be recovered after target expiry, and historical recovery must
-still refuse an expired operational owner.
+1. Stage the verified grant through the original enrollment. Use
+   `credential_renewal_anchor_client` to retain its protected signer even after C0
+   expiry; that carrier grants no current traffic permission.
+2. `prepare_witnessed_credential_renewal` reserves the exact target and durably
+   reads back its complete proposal in the enrollment configuration. Retrying an
+   unknown preparation inspects the original intent; it never reseals the target.
+3. The independently trusted witness operator approves that proposal together
+   with the verified root grant through `AnchorStore::prepare_credential_renewal`.
+   Neither a device-supplied root nor an incoming proposal supplies this trust.
+4. Explicit `commit_witnessed_credential_renewal` requires a live target before
+   sending Commit. `close_witnessed_credential_renewal` sends exact Close;
+   a competing Applied result remains Committed. Reconciliation sends only Status.
+5. The coordinator installs only an observed Applied target, then persists and
+   reads back terminal configuration. Only then does it send the exact ACK,
+   remove/read back the exact local pending row, and retire coordination. Each
+   ambiguous result retains the original operation for reopening.
+6. Historical status returns no device owner. `activate` requires coordination
+   to be complete, live local admission and an exact fresh witness AdmitAuthority.
+
+Conditional QPENST04 retains the complete proposal while coordinating, Applied or
+Closed terminal disposition, bounded Closed history and the permanent signed
+successor-version floor. Existing local-only QPENST01/02/03 bytes are unchanged.
+Closed can precede credential expiry: it leaves the preceding C0/C1 admission
+unchanged and must not be reported as ExpiredUncommitted. The historical completed
+operation remains distinguishable from a later closed operation on exact retry.
+
+No extra durable ACK phase is required. Retained exact Terminal permits repeat
+ACK after expiry and after an unknown pending deletion. With such a Terminal, a
+fresh signed Unavailable can also complete pure local cleanup: under the existing
+independent monotonic-witness assumption, its terminal slot could only have been
+removed by ACK, and later approved work may have overwritten last-ACK. Without
+Terminal, Unavailable remains unresolved. Cleanup compares the exact terminal
+image AND the full pending proposal/wire, so an old configuration cannot erase a
+different pending target. It never changes the image or supplies current authority.
+
+The local completion receipt remains inside the exact target. The next original
+renewal compares it with authenticated enrollment completion and replaces it
+inside its own newly sealed target; cleanup does not create an extra Advance.
 
 The journal preparation stage now has a durable renewal-intent discriminator.
 `prepare_local_credential_renewal` authenticates and reserves one sealed target,
@@ -111,8 +136,8 @@ with Prepared or Closed is an explicit conflict. Unavailable never undoes a
 target or establishes NoCommit. This method sends no Commit, Close, ACK or ordinary
 Advance and returns no operational owner, even while credential/policy admission
 is live. After expiry or policy closure it can still reconcile historical Applied.
-Original enrollment must retain an authenticated exact terminal before the later
-witness ACK and local pending removal; that coordinator remains open.
+The original enrollment coordinator retains an authenticated exact terminal
+before witness ACK and local pending removal, as described above.
 
 Fresh, exact preparation and
 closure observations are also required: Query confirms only the journal head;
@@ -132,28 +157,33 @@ They check unchanged original image/authority, refusal without ordinary dispatch
 and byte-identical pending recovery. Database drop performs additional syncs after
 the durable reservation; the fault census above describes the reservation commit.
 
-Remaining native/process tests include lost witness preparation reply,
-original enrollment/config terminal commit before and after local apply,
-and cross-store races among closure, acknowledgement and renewal commit.
-Each must check original sealed bytes, command/head/authority identities and
-owner-release refusal, followed by installed C/Swift/Kotlin and real-carrier
-qualification. The native witness now implements exact prepare/apply/close/status,
-a permanent signed-successor-version floor, and bounded terminal acknowledgement;
-see [the joint witness contract](ANCHOR_WITNESS.md#joint-credential-renewal-and-bounded-terminal-retention).
-A real required journal's sealed target is bound through a committed-but-lost
-witness reply. Dedicated local apply now passes stale/lost reply, scope, all six
-before/after sync failures across three measured commit syncs, and actual process
-kill/reopen tests. Terminal/config coordination and original enrollment recovery
-remain unimplemented; enrollment's `AnchorRequired` guards remain in place.
+Original enrollment tests now exercise two successive Applied targets, early
+Closed preserving C0/C1, exact retry of T1 after T2 closes, lost Commit/Status/ACK
+replies, expired/policy-closed recovery, old-terminal/client rollback, and the
+last-ACK overwritten by later approved work. The configuration path measures four
+commit syncs for each terminal outcome (16 before/after fault cuts); exact pending
+retirement measures two syncs per outcome (eight cuts), and absent-pending retry
+performs no new commit. Eight actual process kills cover observation/local apply,
+terminal configuration, pending retirement and coordination retirement for both
+Applied and Closed. These are native candidate tests, not independent protocol
+implementation, installed foreign, physical-device or release qualification.
+
+The native witness implements exact prepare/apply/close/status, a permanent
+signed-successor-version floor and bounded terminal acknowledgement; see
+[the joint witness contract](ANCHOR_WITNESS.md#joint-credential-renewal-and-bounded-terminal-retention).
+Independent operator approval transport, installed foreign coordination, current
+and minimum physical platforms, and the full security/performance/release gates
+remain separate work.
 
 `credential_renewal_status` reports historical progress, never traffic permission:
 
 | Status | Meaning and next step |
 | --- | --- |
 | `Absent` | No renewal intent has been retained. |
-| `Pending` | Intent is durable; journal commit may already have happened. Retry original activation or explicit expired-intent reconciliation. |
+| `Pending` | Intent is durable; journal commit may already have happened. Use the original local activation/expiry path or the required-witness coordinator, according to the original policy. |
 | `Committed` | Exact journal completion was observed and enrollment completion persisted. Current expiry or revocation can still deny every operational owner. |
 | `ExpiredUncommitted` | The expired target was excluded by authenticated monotonic predecessor history and abandonment persisted. A separate root grant may now be staged from the actual current predecessor. |
+| `Closed` | The independent witness closed this exact target without applying it. The preceding credential may still be live; the rejected successor version is permanently retired. |
 
 An I/O error is not proof of non-commit. Reopen original configuration and use the
 same operation. A completion receipt survives later roster/generation updates until
@@ -163,9 +193,10 @@ never mistaken for T1.
 
 ## A target expires while Pending
 
-Call `reconcile_expired_credential_renewal(operation, statement, policy, now)` on the
+For local-only policy, call `reconcile_expired_credential_renewal(operation, statement, policy, now)` on the
 original enrollment. It holds the original configuration and journal leases through
 classification, config persistence and authenticated readback; it returns no service.
+Required-witness policy uses `reconcile_witnessed_credential_renewal` instead.
 
 An exact journal receipt is reconciled as `Committed`, including after expiry,
 revocation or generation advancement. Without that receipt, absence alone proves

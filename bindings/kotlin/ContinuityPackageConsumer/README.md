@@ -57,7 +57,7 @@ admission, without local fallback.
 
 `credentialRenewalStatus()` is passive and requires no live policy or TLS files.
 Its separate sealed `CredentialRenewalStatus` has `Absent`, `Pending`, `Committed`
-and `ExpiredUncommitted` cases. Pending does not prove the journal is uncommitted;
+`ExpiredUncommitted`, and `Closed` cases. Pending does not prove the journal is uncommitted;
 Committed reports the historical operation/statement/target and does not override
 current expiry or revocation. `reconcileExpiredCredentialRenewal(operation,
 statement)` reads the original retained intent without demanding fresh validation
@@ -436,3 +436,5 @@ in its separate account-TLS public export. The original signed-TCP four-loss tra
 remains mandatory. No raw owner handle, new native export or alternate TLS engine
 is added. Current/native-minimum development runs remain separate from a complete
 archive-produced cohort and final distribution admission.
+
+`Closed` is an exact historical witness refusal of the rejected target; the preceding credential may remain live. Required-witness renewal staging remains refused by this foreign facade until its complete proposal and coordinator operations are exposed.

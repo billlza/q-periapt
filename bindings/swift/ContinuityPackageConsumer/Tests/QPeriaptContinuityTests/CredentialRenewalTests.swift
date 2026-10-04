@@ -13,8 +13,9 @@ final class CredentialRenewalTests: XCTestCase {
         let head = try RosterCheckpoint(version: UInt64.max - 1, digest: [UInt8](repeating: 3, count: 32))
         let expected: [CredentialRenewalStatus] = [.absent, .pending(operation: id, statement: statement),
             .committed(operation: id, statement: statement, target: head),
-            .expiredUncommitted(operation: id, statement: statement, observedHead: head, observedAt: UInt64.max)]
-        for phase: UInt32 in 0...3 {
+            .expiredUncommitted(operation: id, statement: statement, observedHead: head, observedAt: UInt64.max),
+            .closed(operation: id, statement: statement, target: head)]
+        for phase: UInt32 in 0...4 {
             var raw = qpc_credential_renewal_status_v1(); raw.phase = phase
             if phase > 0 {
                 withUnsafeMutableBytes(of: &raw.operation) { $0.copyBytes(from: id.bytes) }
@@ -39,7 +40,7 @@ final class CredentialRenewalTests: XCTestCase {
             withUnsafeMutableBytes(of: &wrong.checkpoint.digest) { _ = $0.initializeMemory(as: UInt8.self, repeating: phase >= 2 ? 0 : 1) }
             XCTAssertThrowsError(try decodeCredentialRenewalStatus(&wrong))
         }
-        for phase: UInt32 in [4, 256, UInt32.max] {
+        for phase: UInt32 in [5, 256, UInt32.max] {
             var raw = qpc_credential_renewal_status_v1(); raw.phase = phase
             XCTAssertThrowsError(try decodeCredentialRenewalStatus(&raw))
         }

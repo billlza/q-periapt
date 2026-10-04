@@ -448,6 +448,120 @@ pub(super) fn recover_credential_renewal(
     Ok(observed)
 }
 
+impl DeviceJournal {
+    // Original enrollment calls this only after authenticated terminal readback.
+    // Terminal metadata is historical and never supplies current authority.
+    pub(crate) fn retire_witnessed_credential_intent(
+        path: &Path,
+        key: JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &crate::VerifiedSessionPolicy,
+        expected_id: JournalIdentity,
+        terminal: &crate::enrollment::PersistedRenewalTerminal,
+        client: &mut crate::AnchorClient,
+    ) -> Result<(), DurableError> {
+        let db = open_private_database(path)?;
+        Self::retire_witnessed_credential_intent_in_database(
+            &db,
+            &key,
+            original,
+            policy,
+            expected_id,
+            terminal,
+            client,
+        )
+    }
+    pub(crate) fn retire_witnessed_credential_intent_in_database(
+        db: &Database,
+        key: &JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &crate::VerifiedSessionPolicy,
+        expected_id: JournalIdentity,
+        terminal: &crate::enrollment::PersistedRenewalTerminal,
+        client: &mut crate::AnchorClient,
+    ) -> Result<(), DurableError> {
+        use crate::{AnchorCredentialRenewalState as State, AnchorOperation};
+        let (proposal, terminal) = terminal.parts();
+        let expected = match terminal {
+            State::Applied => proposal.target_head(),
+            State::Closed => proposal.expected_head(),
+            _ => return Err(DurableError::Conflict),
+        };
+        let owner = bootstrap::storage_owner(original);
+        let (image, pending) =
+            load_snapshot_as(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+        image.protection.check_policy(policy)?;
+        if image.id != expected_id.0
+            || image.local_account != original.account_id()
+            || proposal.subject()
+                != crate::AnchorSubject::for_device(expected_id, original, policy)?
+            || client.pin().binding() != proposal.witness_binding()
+            || policy.anchor_requirement().binding() != Some(proposal.witness_binding())
+            || image.protection.head(image.revision, image.digest)? != expected
+        {
+            return Err(DurableError::Conflict);
+        }
+        if let Some(pending) = &pending {
+            if pending.credential_proposal(&image)? != proposal {
+                return Err(DurableError::Conflict);
+            }
+        }
+        client.check_device(original)?;
+        policy.check_external_signer(client.pin().public_key())?;
+        if client
+            .pin()
+            .public_key()
+            .shares_component(&original.authority_key)
+        {
+            return Err(Error::Scope.into());
+        }
+        let reply = client.exchange(
+            proposal.subject(),
+            AnchorOperation::acknowledge_credential_renewal(&proposal),
+        )?;
+        match reply.credential_renewal_state(&proposal)? {
+            State::Acknowledged | State::Unavailable => {}
+            _ => return Err(DurableError::Conflict),
+        }
+        // Unavailable is accepted ONLY with the durable original Terminal: a
+        // monotonic witness cannot replace an unacknowledged terminal slot. Its
+        // bounded last-ACK may have been overwritten by later approved work.
+        // It never creates an Applied/Closed fact and never authorizes image edits.
+        let tx = transaction(db)?;
+        {
+            let mut table = tx.open_table(TABLE).map_err(storage)?;
+            let current = table
+                .get("image")
+                .map_err(storage)?
+                .ok_or(DurableError::Corrupt)?;
+            if image_hash(current.value()) != expected.digest() {
+                return Err(DurableError::Conflict);
+            }
+            drop(current);
+            let saved = table.get("pending").map_err(storage)?;
+            match (saved.as_ref(), pending.as_ref()) {
+                (None, None) if table.len().map_err(storage)? == 1 => return Ok(()),
+                (Some(saved), Some(pending))
+                    if saved.value() == pending.wire && table.len().map_err(storage)? == 2 => {}
+                _ => return Err(DurableError::Conflict),
+            }
+            drop(saved);
+            table.remove("pending").map_err(storage)?;
+        }
+        tx.commit().map_err(DurableError::CommitUncertain)?;
+        let (readback, retained) = load_snapshot(db, key, owner)?;
+        if retained.is_some()
+            || readback
+                .protection
+                .head(readback.revision, readback.digest)?
+                != expected
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(())
+    }
+}
+
 fn apply_credential_target(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
     if pending.renewal.is_none() {
         return Err(DurableError::Conflict);

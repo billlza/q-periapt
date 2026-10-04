@@ -320,6 +320,8 @@ typedef struct {
  *                   observed_at zero; current traffic authority may be denied.
  * phase 3=ExpiredUncommitted: operation/statement, observed journal checkpoint
  *                           and trusted observation time set.
+ * phase 4=Closed: exact witness-closed operation/statement and rejected target
+ *                 checkpoint set, observed_at zero; preceding authority may live.
  * Output is usable only after success; a nonzero return writes no success fact.
  */
 typedef struct {

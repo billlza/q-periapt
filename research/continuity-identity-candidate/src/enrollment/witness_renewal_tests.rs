@@ -1,0 +1,983 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+use super::*;
+use crate::{
+    AnchorCredentialRenewalProposal as Proposal, AnchorStore, CredentialRenewalStatus,
+    DeviceJournal, Validity,
+};
+use std::{
+    io,
+    sync::{atomic::AtomicU64, Mutex},
+    time::Instant,
+};
+const JOURNAL: TableDefinition<&str, &[u8]> =
+    TableDefinition::new("continuity_device_candidate_v21");
+#[derive(Clone)]
+struct Carrier {
+    store: Arc<Mutex<AnchorStore>>,
+    clock: Arc<AtomicU64>,
+    cut: Arc<Mutex<Option<(u8, bool)>>>,
+    requests: Arc<Mutex<Vec<u8>>>,
+}
+impl AnchorTransport for Carrier {
+    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
+        if Instant::now() >= deadline {
+            return Err(io::ErrorKind::TimedOut.into());
+        }
+        let opcode = *request
+            .get(4 + 8 + 32 + 96 + 32 + 32)
+            .ok_or(io::ErrorKind::InvalidData)?;
+        self.requests
+            .lock()
+            .map_err(|_| io::Error::other("request lock"))?
+            .push(opcode);
+        let cut = {
+            let mut cut = self.cut.lock().map_err(|_| io::Error::other("cut lock"))?;
+            if cut.is_some_and(|(op, _)| op == opcode) {
+                cut.take()
+            } else {
+                None
+            }
+        };
+        if cut == Some((opcode, false)) {
+            return Err(io::ErrorKind::ConnectionReset.into());
+        }
+        let reply = self
+            .store
+            .lock()
+            .map_err(|_| io::Error::other("store lock"))?
+            .handle(request, self.clock.load(Ordering::SeqCst))
+            .map_err(io::Error::other)?;
+        if cut == Some((opcode, true)) {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+        Ok(reply)
+    }
+}
+struct Fixture {
+    _witness_dir: tempfile::TempDir,
+    c: Case,
+    pin: AnchorPin,
+    carrier: Carrier,
+    original: VerifiedDevice,
+    id: JournalIdentity,
+}
+fn client(f: &Fixture, owner: &mut DeviceEnrollment, at: u64) -> AnchorClient {
+    owner
+        .credential_renewal_anchor_client(
+            &f.c.policy,
+            at,
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("historical original client")
+}
+fn fixture() -> Fixture {
+    let dir = directory();
+    let root = dir.path().canonicalize().expect("witness directory");
+    let store = AnchorStore::provision(
+        &root.join("witness.redb"),
+        JournalKey::provision(&root.join("witness.key")).expect("key"),
+        crate::AnchorSigningKey::deterministic([226; 32], [227; 32]).expect("test signer"),
+        crate::AnchorIdentity::generate().expect("id"),
+    )
+    .expect("store");
+    let pin = store.pin().expect("pin");
+    let carrier = Carrier {
+        store: Arc::new(Mutex::new(store)),
+        clock: Arc::new(AtomicU64::new(150)),
+        cut: Arc::new(Mutex::new(None)),
+        requests: Arc::new(Mutex::new(Vec::new())),
+    };
+    let mut c = case_with_anchor(crate::AnchorRequirement::required(&pin));
+    c.intent.description.validity = Validity::new(100, 160).expect("C0");
+    let (mut owner, _, id) = accepted(&c);
+    let image = owner.image().expect("image");
+    let original = owner.admitted(&image, &c.policy, 150).expect("original");
+    let genesis = match owner.prepare(&c.policy, 150).expect("prepare") {
+        InstallationPreparation::RequiresEnrollment(g) => Ok(g),
+        _ => Err("required witness"),
+    }
+    .expect("genesis");
+    carrier
+        .store
+        .lock()
+        .expect("store")
+        .enroll(&genesis, &original, &c.policy, 150)
+        .expect("independent admission");
+    let anchor = owner
+        .anchor_client(
+            &c.policy,
+            150,
+            pin.clone(),
+            Box::new(carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("client");
+    owner
+        .activate(&c.policy, 150, Some(anchor))
+        .expect("original active")
+        .close();
+    Fixture {
+        _witness_dir: dir,
+        c,
+        pin,
+        carrier,
+        original,
+        id,
+    }
+}
+fn grant(
+    f: &Fixture,
+    previous: &VerifiedDevice,
+    version: u64,
+    until: u64,
+) -> crate::VerifiedCredentialRenewal {
+    renewal::grant(&f.c, &f.original, previous, version, until)
+}
+fn prepare(f: &Fixture, proof: &crate::VerifiedCredentialRenewal, at: u64) -> Proposal {
+    f.carrier.clock.store(at, Ordering::SeqCst);
+    let mut owner = open(&f.c);
+    assert_eq!(
+        owner
+            .stage_credential_renewal(proof, proof.operation(), &f.c.policy, at)
+            .expect("stage"),
+        renewal::pending(proof)
+    );
+    let anchor = client(f, &mut owner, at);
+    let proposal = owner
+        .prepare_witnessed_credential_renewal(&f.c.policy, at, anchor)
+        .expect("exact preparation");
+    let anchor = client(f, &mut owner, at);
+    assert_eq!(
+        owner
+            .prepare_witnessed_credential_renewal(&f.c.policy, at, anchor)
+            .expect("retry exact"),
+        proposal
+    );
+    f.carrier
+        .store
+        .lock()
+        .expect("store")
+        .prepare_credential_renewal(proposal, proof, &f.c.policy, at)
+        .expect("independent approval");
+    proposal
+}
+fn disk(f: &Fixture) -> (Vec<u8>, Option<Vec<u8>>) {
+    let db = open_private_database(f.c.paths.installation.files()[1]).expect("journal");
+    let read = db.begin_read().expect("read");
+    let table = read.open_table(JOURNAL).expect("table");
+    let image = table
+        .get("image")
+        .expect("image")
+        .expect("present")
+        .value()
+        .to_vec();
+    let pending = table
+        .get("pending")
+        .expect("pending")
+        .map(|v| v.value().to_vec());
+    (image, pending)
+}
+fn activate(f: &Fixture, at: u64) -> Result<EnrolledDevice, DurableError> {
+    let mut owner = open(&f.c);
+    let anchor = client(f, &mut owner, at);
+    owner.activate(&f.c.policy, at, Some(anchor))
+}
+#[test]
+fn original_required_enrollment_commits_twice_without_resealing_a_completed_target() {
+    let f = fixture();
+    let signer = fs::read(&f.c.paths.signer).expect("original signer");
+    let first = grant(&f, &f.original, 2, 190);
+    let p = prepare(&f, &first, 170);
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 170);
+    assert_eq!(
+        owner
+            .commit_witnessed_credential_renewal(
+                first.operation(),
+                first.statement_digest(),
+                &f.c.policy,
+                170,
+                &mut anchor
+            )
+            .expect("commit"),
+        renewal::committed(&first)
+    );
+    owner.close();
+    assert_eq!(
+        DeviceJournal::inspect_credential_renewal_preparation(
+            f.c.paths.installation.files()[1],
+            JournalKey::open(&f.c.paths.wrapping).expect("key"),
+            &f.original,
+            &f.c.policy,
+            f.id
+        )
+        .expect("no pending"),
+        None
+    );
+    let state = disk(&f);
+    assert!(state.1.is_none());
+    assert_eq!(
+        crate::crypto::digest(b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v2", &state.0),
+        p.target_head().digest()
+    );
+    activate(&f, 170).expect("C1 current owner").close();
+    assert_eq!(
+        disk(&f),
+        state,
+        "activation must not erase the retained receipt by resealing"
+    );
+    let next = grant(&f, first.successor_device(), 3, 220);
+    let p2 = prepare(&f, &next, 180);
+    assert_eq!(p2.expected_head(), p.target_head());
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 180);
+    assert_eq!(
+        owner
+            .commit_witnessed_credential_renewal(
+                next.operation(),
+                next.statement_digest(),
+                &f.c.policy,
+                180,
+                &mut anchor
+            )
+            .expect("second commit"),
+        renewal::committed(&next)
+    );
+    owner.close();
+    activate(&f, 180).expect("C2 current owner").close();
+    assert_eq!(fs::read(&f.c.paths.signer).expect("same signer"), signer);
+}
+#[test]
+fn early_closed_target_preserves_live_predecessor_and_rejects_reused_version() {
+    for prior in [false, true] {
+        let f = fixture();
+        let first = grant(&f, &f.original, 2, 190);
+        let (previous, version, at) = if prior {
+            prepare(&f, &first, 170);
+            let mut owner = open(&f.c);
+            let mut anchor = client(&f, &mut owner, 170);
+            owner
+                .commit_witnessed_credential_renewal(
+                    first.operation(),
+                    first.statement_digest(),
+                    &f.c.policy,
+                    170,
+                    &mut anchor,
+                )
+                .expect("first");
+            (first.successor_device(), 3, 175)
+        } else {
+            (&f.original, 2, 150)
+        };
+        let proof = grant(&f, previous, version, 220);
+        let original_image = disk(&f).0;
+        prepare(&f, &proof, at);
+        let mut owner = open(&f.c);
+        let mut anchor = client(&f, &mut owner, at);
+        let closed = CredentialRenewalStatus::Closed {
+            operation: proof.operation(),
+            statement: proof.statement_digest(),
+            target: proof.successor_device().roster().checkpoint(),
+        };
+        assert_eq!(
+            owner
+                .close_witnessed_credential_renewal(
+                    proof.operation(),
+                    proof.statement_digest(),
+                    &f.c.policy,
+                    at,
+                    &mut anchor
+                )
+                .expect("closed"),
+            closed
+        );
+        owner.close();
+        assert_eq!(disk(&f), (original_image, None));
+        activate(&f, at).expect("still-live predecessor").close();
+        if prior {
+            let mut owner = open(&f.c);
+            let mut anchor = client(&f, &mut owner, at);
+            assert_eq!(
+                owner
+                    .stage_credential_renewal(&first, first.operation(), &f.c.policy, at)
+                    .expect("exact T1 stage retry"),
+                renewal::committed(&first)
+            );
+            assert_eq!(
+                owner
+                    .reconcile_witnessed_credential_renewal(
+                        first.operation(),
+                        first.statement_digest(),
+                        &f.c.policy,
+                        at,
+                        &mut anchor
+                    )
+                    .expect("exact T1 reconciliation"),
+                renewal::committed(&first)
+            );
+            assert_eq!(
+                owner
+                    .credential_renewal_status()
+                    .expect("latest remains T2"),
+                closed
+            );
+        }
+
+        assert!(open(&f.c)
+            .stage_credential_renewal(&proof, proof.operation(), &f.c.policy, at)
+            .is_err());
+        let next = grant(&f, previous, version + 1, 240);
+        prepare(&f, &next, at);
+        let mut owner = open(&f.c);
+        let mut anchor = client(&f, &mut owner, at);
+        owner
+            .commit_witnessed_credential_renewal(
+                next.operation(),
+                next.statement_digest(),
+                &f.c.policy,
+                at,
+                &mut anchor,
+            )
+            .expect("higher target");
+    }
+}
+#[test]
+fn lost_commit_status_and_ack_replies_recover_original_terminal_after_expiry() {
+    for opcode in [5, 6, 8] {
+        for after in [false, true] {
+            let f = fixture();
+            let proof = grant(&f, &f.original, 2, 190);
+            prepare(&f, &proof, 170);
+            *f.carrier.cut.lock().expect("cut") = Some((opcode, after));
+            let mut owner = open(&f.c);
+            let mut anchor = client(&f, &mut owner, 170);
+            assert!(owner
+                .commit_witnessed_credential_renewal(
+                    proof.operation(),
+                    proof.statement_digest(),
+                    &f.c.policy,
+                    170,
+                    &mut anchor
+                )
+                .is_err());
+            assert!(owner.active.is_none());
+            f.carrier.clock.store(250, Ordering::SeqCst);
+            f.c.policy.close();
+            let mut owner = open(&f.c);
+            let mut anchor = client(&f, &mut owner, 250);
+            let status = owner
+                .reconcile_witnessed_credential_renewal(
+                    proof.operation(),
+                    proof.statement_digest(),
+                    &f.c.policy,
+                    250,
+                    &mut anchor,
+                )
+                .expect("historical recovery");
+            if opcode == 5 && !after {
+                assert_eq!(status, renewal::pending(&proof));
+                assert!(disk(&f).1.is_some());
+                assert!(matches!(
+                    owner
+                        .close_witnessed_credential_renewal(
+                            proof.operation(),
+                            proof.statement_digest(),
+                            &f.c.policy,
+                            250,
+                            &mut anchor
+                        )
+                        .expect("close after expiry"),
+                    CredentialRenewalStatus::Closed { .. }
+                ));
+            } else {
+                assert_eq!(status, renewal::committed(&proof));
+            }
+            owner.close();
+            assert!(disk(&f).1.is_none());
+            assert!(activate(&f, 250).is_err());
+        }
+    }
+}
+
+#[test]
+fn every_terminal_and_retirement_configuration_sync_cut_retains_original_outcome() {
+    let mut injected = 0;
+    for closed in [false, true] {
+        let f = fixture();
+        let proof = grant(&f, &f.original, 2, 190);
+        prepare(&f, &proof, 150);
+        let (mut owner, _, count) = faulty(&f.c, false);
+        let mut anchor = client(&f, &mut owner, 150);
+        count.store(0, Ordering::SeqCst);
+        let run = |owner: &mut DeviceEnrollment,
+                   f: &Fixture,
+                   proof: &crate::VerifiedCredentialRenewal,
+                   anchor: &mut AnchorClient| {
+            if closed {
+                owner.close_witnessed_credential_renewal(
+                    proof.operation(),
+                    proof.statement_digest(),
+                    &f.c.policy,
+                    150,
+                    anchor,
+                )
+            } else {
+                owner.commit_witnessed_credential_renewal(
+                    proof.operation(),
+                    proof.statement_digest(),
+                    &f.c.policy,
+                    150,
+                    anchor,
+                )
+            }
+        };
+        run(&mut owner, &f, &proof, &mut anchor).expect("calibrate");
+        let syncs = count.load(Ordering::SeqCst);
+        owner.close();
+        assert!((2..=12).contains(&syncs));
+        for after in [false, true] {
+            for cut in 1..=syncs {
+                let f = fixture();
+                let proof = grant(&f, &f.original, 2, 190);
+                let proposal = prepare(&f, &proof, 150);
+                let (mut owner, remaining, _) = faulty(&f.c, after);
+                let mut anchor = client(&f, &mut owner, 150);
+                remaining.store(cut, Ordering::SeqCst);
+                assert_sync_failure(run(&mut owner, &f, &proof, &mut anchor), after);
+                assert_eq!(remaining.load(Ordering::SeqCst), 0);
+                assert!(owner.active.is_none());
+                f.carrier.clock.store(250, Ordering::SeqCst);
+                f.c.policy.close();
+                let mut owner = open(&f.c);
+                let mut anchor = client(&f, &mut owner, 250);
+                let actual = owner
+                    .reconcile_witnessed_credential_renewal(
+                        proof.operation(),
+                        proof.statement_digest(),
+                        &f.c.policy,
+                        250,
+                        &mut anchor,
+                    )
+                    .expect("original exact recovery");
+                let expected = if closed {
+                    CredentialRenewalStatus::Closed {
+                        operation: proof.operation(),
+                        statement: proof.statement_digest(),
+                        target: proof.successor_device().roster().checkpoint(),
+                    }
+                } else {
+                    renewal::committed(&proof)
+                };
+                assert_eq!(actual, expected);
+                owner.close();
+                let saved = disk(&f);
+                assert!(saved.1.is_none());
+                assert_eq!(
+                    crate::crypto::digest(
+                        b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v2",
+                        &saved.0
+                    ),
+                    if closed {
+                        proposal.expected_head().digest()
+                    } else {
+                        proposal.target_head().digest()
+                    }
+                );
+                assert!(activate(&f, 250).is_err());
+                injected += 1;
+            }
+        }
+        eprintln!("witness enrollment config closed={closed} measured syncs={syncs}");
+    }
+    eprintln!("witness enrollment config injected cuts={injected}");
+}
+
+#[test]
+fn enrollment_crash_child() -> Result<(), &'static str> {
+    let Some(root) = std::env::var_os("QPERIAPT_WITNESS_ENROLLMENT_CHILD") else {
+        return Ok(());
+    };
+    let root = Path::new(&root);
+    let f = fixture();
+    let proof = grant(&f, &f.original, 2, 190);
+    let proposal = prepare(&f, &proof, 150);
+    fs::write(
+        root.join("enrollment-path"),
+        f.c.paths
+            .configuration
+            .parent()
+            .expect("path")
+            .as_os_str()
+            .as_encoded_bytes(),
+    )
+    .expect("client path");
+    fs::write(
+        root.join("witness-path"),
+        f._witness_dir
+            .path()
+            .canonicalize()
+            .expect("path")
+            .as_os_str()
+            .as_encoded_bytes(),
+    )
+    .expect("witness path");
+    fs::write(root.join("witness-id"), f.pin.identity().as_bytes()).expect("witness identity");
+    fs::write(root.join("trusted-root"), f.c.intent.root.encode()).expect("account root");
+    fs::write(root.join("proposal"), proposal.to_bytes()).expect("proposal");
+    let checkpoint = proof.successor_device().roster().checkpoint();
+    let mut bytes = checkpoint.version().to_be_bytes().to_vec();
+    bytes.extend_from_slice(&checkpoint.digest());
+    fs::write(root.join("target-checkpoint"), bytes).expect("target");
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 150);
+    if std::env::var("QPERIAPT_WITNESS_ENROLLMENT_CLOSED").expect("mode") == "1" {
+        owner
+            .close_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                150,
+                &mut anchor,
+            )
+            .expect("close");
+    } else {
+        owner
+            .commit_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                150,
+                &mut anchor,
+            )
+            .expect("commit");
+    }
+    Err("requested process cut was not reached")
+}
+#[test]
+fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary() {
+    use crate::durable::tests::ChildGuard;
+    use std::process::{Command, Stdio};
+    let mut cuts = 0;
+    for closed in [false, true] {
+        for stage in [
+            "witness-observed",
+            "witness-terminal",
+            "witness-retired",
+            "witness-complete",
+        ] {
+            let folder = directory();
+            let root = folder.path().canonicalize().expect("owned root");
+            let log = fs::File::create(root.join("child.log")).expect("log");
+            let mut child = ChildGuard(
+                Command::new(std::env::current_exe().expect("binary"))
+                    .args([
+                        "--exact",
+                        "enrollment::tests::witness_renewal::enrollment_crash_child",
+                        "--nocapture",
+                    ])
+                    .env("TMPDIR", &root)
+                    .env("QPERIAPT_WITNESS_ENROLLMENT_CHILD", &root)
+                    .env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT", &root)
+                    .env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE", stage)
+                    .env(
+                        "QPERIAPT_WITNESS_ENROLLMENT_CLOSED",
+                        if closed { "1" } else { "0" },
+                    )
+                    .stdout(Stdio::from(log.try_clone().expect("log clone")))
+                    .stderr(Stdio::from(log))
+                    .spawn()
+                    .expect("child"),
+            );
+            let deadline = Instant::now() + Duration::from_secs(40);
+            while !root.join("renewal-ready").exists() {
+                assert!(
+                    child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                    "child did not reach {stage}: {}",
+                    fs::read_to_string(root.join("child.log")).expect("log")
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            child.0.kill().expect("actual kill");
+            assert!(!child.0.wait().expect("reap").success());
+            let client_path =
+                PathBuf::from(fs::read_to_string(root.join("enrollment-path")).expect("path"));
+            let witness_path =
+                PathBuf::from(fs::read_to_string(root.join("witness-path")).expect("path"));
+            assert!(client_path.starts_with(&root) && witness_path.starts_with(&root));
+            let identity = crate::AnchorIdentity::from_trusted_state(
+                fs::read(root.join("witness-id"))
+                    .expect("identity")
+                    .try_into()
+                    .expect("width"),
+            )
+            .expect("identity");
+            let store = AnchorStore::open(
+                &witness_path.join("witness.redb"),
+                JournalKey::open(&witness_path.join("witness.key")).expect("key"),
+                crate::AnchorSigningKey::deterministic([226; 32], [227; 32]).expect("same signer"),
+                identity,
+            )
+            .expect("same witness");
+            let pin = store.pin().expect("pin");
+            let (_, issued, policy_pin, runtime) = crate::tests::session_policy_fixture_with_anchor(
+                &[PrekeyQuality::OneTimeBoth],
+                crate::AnchorRequirement::required(&pin),
+            );
+            let policy = policy_pin
+                .verify(issued.as_bytes(), runtime, 150)
+                .expect("original policy");
+            let intent = EnrollmentIntent::new(
+                PublicKey::decode(&fs::read(root.join("trusted-root")).expect("root"))
+                    .expect("root"),
+                DeviceDescription::new(
+                    [7; 16],
+                    1,
+                    policy.family(),
+                    Validity::new(100, 160).expect("C0"),
+                )
+                .expect("intent"),
+            );
+            let transport = Carrier {
+                store: Arc::new(Mutex::new(store)),
+                clock: Arc::new(AtomicU64::new(250)),
+                cut: Arc::new(Mutex::new(None)),
+                requests: Arc::new(Mutex::new(Vec::new())),
+            };
+            let proposal =
+                Proposal::from_trusted_state(&fs::read(root.join("proposal")).expect("proposal"))
+                    .expect("proposal");
+            let bytes = fs::read(root.join("target-checkpoint")).expect("target");
+            let mut d = Decoder::new(&bytes);
+            let target = RosterCheckpoint::from_trusted_state(
+                d.u64().expect("version"),
+                d.array().expect("digest"),
+            )
+            .expect("target");
+            d.finish().expect("complete");
+            policy.close();
+            let mut owner =
+                DeviceEnrollment::open(paths(&client_path), intent).expect("original owner");
+            let mut anchor = owner
+                .credential_renewal_anchor_client(
+                    &policy,
+                    250,
+                    pin,
+                    Box::new(transport),
+                    Duration::from_secs(3),
+                )
+                .expect("historical client");
+            assert_eq!(
+                owner
+                    .reconcile_witnessed_credential_renewal(
+                        proposal.operation(),
+                        proposal.statement(),
+                        &policy,
+                        250,
+                        &mut anchor
+                    )
+                    .expect("terminal recovery"),
+                if closed {
+                    CredentialRenewalStatus::Closed {
+                        operation: proposal.operation(),
+                        statement: proposal.statement(),
+                        target,
+                    }
+                } else {
+                    CredentialRenewalStatus::Committed {
+                        operation: proposal.operation(),
+                        statement: proposal.statement(),
+                        target,
+                    }
+                }
+            );
+            assert!(owner.activate(&policy, 250, Some(anchor)).is_err());
+            cuts += 1;
+        }
+    }
+    assert_eq!(cuts, 8);
+    eprintln!("witness enrollment real process cuts={cuts}");
+}
+
+#[test]
+fn retired_terminal_unavailable_never_erases_a_different_pending_after_client_rollback() {
+    let f = fixture();
+    let first = grant(&f, &f.original, 2, 190);
+    let p1 = prepare(&f, &first, 150);
+    *f.carrier.cut.lock().expect("cut") = Some((8, false));
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 150);
+    assert!(owner
+        .close_witnessed_credential_renewal(
+            first.operation(),
+            first.statement_digest(),
+            &f.c.policy,
+            150,
+            &mut anchor
+        )
+        .is_err());
+    let terminal_config = fs::read(&f.c.paths.configuration).expect("durable Terminal backup");
+    let terminal_journal =
+        fs::read(f.c.paths.installation.files()[1]).expect("original pending backup");
+    let first_image = disk(&f).0;
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 150);
+    assert!(matches!(
+        owner
+            .reconcile_witnessed_credential_renewal(
+                first.operation(),
+                first.statement_digest(),
+                &f.c.policy,
+                150,
+                &mut anchor
+            )
+            .expect("finish T1"),
+        CredentialRenewalStatus::Closed { .. }
+    ));
+    owner.close();
+    let second = grant(&f, &f.original, 3, 200);
+    let p2 = prepare(&f, &second, 150);
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 150);
+    for operation in [
+        crate::AnchorOperation::close_credential_renewal(&p2),
+        crate::AnchorOperation::acknowledge_credential_renewal(&p2),
+    ] {
+        anchor
+            .exchange(p2.subject(), operation)
+            .expect("independent later control flow");
+    }
+    owner.close();
+    let t2 = disk(&f);
+    assert_eq!(t2.0, first_image);
+    fs::write(&f.c.paths.configuration, &terminal_config).expect("rollback original config");
+    let before = f.carrier.requests.lock().expect("requests").len();
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 150);
+    assert!(matches!(
+        owner.reconcile_witnessed_credential_renewal(
+            first.operation(),
+            first.statement_digest(),
+            &f.c.policy,
+            150,
+            &mut anchor
+        ),
+        Err(DurableError::Conflict)
+    ));
+    assert_eq!(
+        f.carrier.requests.lock().expect("requests").len(),
+        before,
+        "reject mismatched pending before ACK"
+    );
+    assert_eq!(disk(&f), t2, "never erase T2 under T1 Terminal");
+    fs::write(f.c.paths.installation.files()[1], &terminal_journal)
+        .expect("restore original exact T1 journal backup");
+    f.carrier.clock.store(250, Ordering::SeqCst);
+    f.c.policy.close();
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 250);
+    let reply = anchor
+        .exchange(
+            p1.subject(),
+            crate::AnchorOperation::credential_renewal_status(&p1),
+        )
+        .expect("fresh exact observation");
+    assert_eq!(
+        reply.credential_renewal_state(&p1).expect("typed"),
+        crate::AnchorCredentialRenewalState::Unavailable
+    );
+    assert!(matches!(
+        owner
+            .reconcile_witnessed_credential_renewal(
+                first.operation(),
+                first.statement_digest(),
+                &f.c.policy,
+                250,
+                &mut anchor
+            )
+            .expect("known terminal permits metadata finish"),
+        CredentialRenewalStatus::Closed { .. }
+    ));
+    owner.close();
+    assert_eq!(disk(&f), (first_image, None));
+    assert!(activate(&f, 250).is_err());
+}
+
+#[test]
+fn unavailable_without_durable_terminal_stays_pending_and_does_not_infer_no_commit() {
+    let f = fixture();
+    let proof = grant(&f, &f.original, 2, 190);
+    let p = prepare(&f, &proof, 150);
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 150);
+    for operation in [
+        crate::AnchorOperation::commit_credential_renewal(&p),
+        crate::AnchorOperation::acknowledge_credential_renewal(&p),
+    ] {
+        anchor
+            .exchange(p.subject(), operation)
+            .expect("external control flow");
+    }
+    let saved = disk(&f);
+    f.carrier.clock.store(250, Ordering::SeqCst);
+    f.c.policy.close();
+    assert_eq!(
+        owner
+            .reconcile_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                250,
+                &mut anchor
+            )
+            .expect("unknown observation"),
+        renewal::pending(&proof)
+    );
+    assert_eq!(disk(&f), saved);
+    assert!(owner.activate(&f.c.policy, 250, Some(anchor)).is_err());
+}
+
+#[test]
+fn every_pending_retirement_sync_cut_preserves_terminal_image_and_retries_without_an_advance() {
+    let setup = |closed: bool| {
+        let f = fixture();
+        let proof = grant(&f, &f.original, 2, 190);
+        let proposal = prepare(&f, &proof, 150);
+        *f.carrier.cut.lock().expect("cut") = Some((8, false));
+        let mut owner = open(&f.c);
+        let mut anchor = client(&f, &mut owner, 150);
+        let result = if closed {
+            owner.close_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                150,
+                &mut anchor,
+            )
+        } else {
+            owner.commit_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                150,
+                &mut anchor,
+            )
+        };
+        assert!(matches!(result, Err(DurableError::Anchor(_))));
+        (f, proof, proposal)
+    };
+    let mut injected = 0;
+    for closed in [false, true] {
+        let (f, _, proposal) = setup(closed);
+        let mut owner = open(&f.c);
+        let mut anchor = client(&f, &mut owner, 150);
+        let terminal = owner
+            .persisted_witness_terminal(&f.c.policy, 150, proposal)
+            .expect("authenticated terminal");
+        let key = JournalKey::open(&f.c.paths.wrapping).expect("key");
+        let (db, _, count, _) = fault_database_path(f.c.paths.installation.files()[1], false);
+        count.store(0, Ordering::SeqCst);
+        DeviceJournal::retire_witnessed_credential_intent_in_database(
+            &db,
+            &key,
+            &f.original,
+            &f.c.policy,
+            f.id,
+            &terminal,
+            &mut anchor,
+        )
+        .expect("calibration");
+        let syncs = count.load(Ordering::SeqCst);
+        assert!((1..=8).contains(&syncs));
+        count.store(0, Ordering::SeqCst);
+        DeviceJournal::retire_witnessed_credential_intent_in_database(
+            &db,
+            &key,
+            &f.original,
+            &f.c.policy,
+            f.id,
+            &terminal,
+            &mut anchor,
+        )
+        .expect("absent pending retry");
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            0,
+            "absent pending must not commit again"
+        );
+        drop(db);
+        owner.close();
+        for after in [false, true] {
+            for cut in 1..=syncs {
+                let (f, proof, proposal) = setup(closed);
+                let saved = disk(&f);
+                let mut owner = open(&f.c);
+                let mut anchor = client(&f, &mut owner, 150);
+                let terminal = owner
+                    .persisted_witness_terminal(&f.c.policy, 150, proposal)
+                    .expect("durable terminal");
+                let key = JournalKey::open(&f.c.paths.wrapping).expect("key");
+                let lease = DeviceInstallation::open_bound(
+                    f.c.paths.installation.clone(),
+                    &key,
+                    &f.original,
+                    &f.c.policy,
+                )
+                .expect("original lease");
+                let (db, remaining, _, _) =
+                    fault_database_path(f.c.paths.installation.files()[1], after);
+                remaining.store(cut, Ordering::SeqCst);
+                assert_sync_failure(
+                    DeviceJournal::retire_witnessed_credential_intent_in_database(
+                        &db,
+                        &key,
+                        &f.original,
+                        &f.c.policy,
+                        f.id,
+                        &terminal,
+                        &mut anchor,
+                    ),
+                    after,
+                );
+                assert_eq!(remaining.load(Ordering::SeqCst), 0);
+                drop(db);
+                drop(lease);
+                owner.close();
+                let after_fault = disk(&f);
+                assert_eq!(after_fault.0, saved.0);
+                assert!(after_fault.1.is_none() || after_fault.1 == saved.1);
+                f.carrier.clock.store(250, Ordering::SeqCst);
+                f.c.policy.close();
+                let mut owner = open(&f.c);
+                let mut anchor = client(&f, &mut owner, 250);
+                let status = owner
+                    .reconcile_witnessed_credential_renewal(
+                        proof.operation(),
+                        proof.statement_digest(),
+                        &f.c.policy,
+                        250,
+                        &mut anchor,
+                    )
+                    .expect("finish after uncertain deletion");
+                assert_eq!(
+                    status,
+                    if closed {
+                        CredentialRenewalStatus::Closed {
+                            operation: proof.operation(),
+                            statement: proof.statement_digest(),
+                            target: proof.successor_device().roster().checkpoint(),
+                        }
+                    } else {
+                        renewal::committed(&proof)
+                    }
+                );
+                owner.close();
+                assert_eq!(disk(&f), (saved.0, None));
+                injected += 1;
+            }
+        }
+        eprintln!("witness intent retirement closed={closed} measured syncs={syncs}");
+    }
+    eprintln!("witness intent retirement injected cuts={injected}");
+}

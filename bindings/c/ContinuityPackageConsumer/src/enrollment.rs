@@ -140,6 +140,17 @@ impl RenewalStatus {
                 checkpoint: Checkpoint::observed(target),
                 observed_at: 0,
             },
+            p::CredentialRenewalStatus::Closed {
+                operation,
+                statement,
+                target,
+            } => Self {
+                phase: 4,
+                operation: *operation.as_bytes(),
+                statement,
+                checkpoint: Checkpoint::observed(target),
+                observed_at: 0,
+            },
             p::CredentialRenewalStatus::ExpiredUncommitted {
                 operation,
                 statement,
@@ -598,6 +609,12 @@ pub unsafe extern "C" fn qpc_enrollment_v1_stage_credential_renewal(
         let result = with_owner(handle, deadline, |owner, cancel| {
             owner.ensure_policy(cancel, deadline)?;
             let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
+            // The foreign facade has not exposed independent proposal approval
+            // and the native terminal coordinator yet. Refuse before staging an
+            // intent that this facade cannot finish; never select local fallback.
+            if policy.anchor_requirement().binding().is_some() {
+                return Err(p::DurableError::AnchorRequired.into());
+            }
             let grant = p::VerifiedCredentialRenewal::verify(
                 &wire,
                 &pin,

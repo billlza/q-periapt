@@ -26,6 +26,9 @@ private fun renewalStatus(value: CredentialRenewalStatus): String {
         is CredentialRenewalStatus.Committed -> {
             phase = 2; operation = value.operation; statement = value.statement; checkpoint = value.target; observedAt = Counter64.ZERO
         }
+        is CredentialRenewalStatus.Closed -> {
+            phase = 4; operation = value.operation; statement = value.statement; checkpoint = value.target; observedAt = Counter64.ZERO
+        }
         is CredentialRenewalStatus.ExpiredUncommitted -> {
             phase = 3; operation = value.operation; statement = value.statement
             checkpoint = value.observedHead; observedAt = value.observedAt

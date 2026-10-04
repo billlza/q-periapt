@@ -26,6 +26,7 @@ const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
 mod renewal;
 pub use renewal::CredentialRenewalStatus;
 use renewal::LocalRenewal;
+pub(crate) use renewal::PersistedRenewalTerminal;
 
 #[cfg(all(test, unix))]
 mod tests;
@@ -791,7 +792,9 @@ fn take(d: &mut Decoder<'_>) -> Result<Vec<u8>, DurableError> {
     Ok(d.take(length)?.to_vec())
 }
 fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut bytes = if image.renewal.as_ref().is_some_and(LocalRenewal::extended) {
+    let mut bytes = if image.renewal.as_ref().is_some_and(LocalRenewal::witnessed) {
+        b"QPENST04"
+    } else if image.renewal.as_ref().is_some_and(LocalRenewal::extended) {
         b"QPENST03"
     } else if image.renewal.is_some() {
         b"QPENST02"
@@ -875,7 +878,7 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
-    if (tag != *b"QPENST01" && tag != *b"QPENST02" && tag != *b"QPENST03")
+    if (tag != *b"QPENST01" && tag != *b"QPENST02" && tag != *b"QPENST03" && tag != *b"QPENST04")
         || d.array::<32>()? != binding
         || (tag == *b"QPENST01" && wire.len() > MAX_IMAGE)
     {
@@ -919,7 +922,7 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         }
         _ => return Err(DurableError::Corrupt),
     };
-    let renewal = if tag == *b"QPENST02" || tag == *b"QPENST03" {
+    let renewal = if tag == *b"QPENST02" || tag == *b"QPENST03" || tag == *b"QPENST04" {
         if !matches!(
             phase,
             Phase::Accepted {
@@ -929,7 +932,11 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         ) {
             return Err(DurableError::Corrupt);
         }
-        Some(LocalRenewal::decode(&mut d, tag == *b"QPENST03")?)
+        Some(LocalRenewal::decode(
+            &mut d,
+            tag != *b"QPENST02",
+            tag == *b"QPENST04",
+        )?)
     } else {
         None
     };

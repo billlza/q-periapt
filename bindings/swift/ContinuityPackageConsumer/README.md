@@ -366,7 +366,7 @@ an independently obtained `AccountPin`, the bounded signed grant and its retaine
 original state. Do not create replacement keys, configuration or operation IDs.
 
 `credentialRenewalStatus` is passive history and needs no live policy/TLS inputs.
-Its explicit cases are Absent, Pending, Committed and ExpiredUncommitted. Committed
+Its explicit cases are Absent, Pending, Committed, ExpiredUncommitted and Closed. Committed
 remains a historical fact after expiry or revocation. For an expired pending target,
 `reconcileExpiredCredentialRenewal` uses the original operation and statement and
 returns no device. Only a separately authorized new grant can resume current use.
@@ -382,3 +382,5 @@ original registration identity, failed-owner disposal, historical peer reopening
 and rejection of a cached child after another grant. A native readback checks the
 unchanged original ciphertext. This does not establish post-renewal TLS delivery,
 physical-device qualification, independent protocol implementation or a stable ABI.
+
+`Closed` is an exact historical witness refusal of the rejected target; the preceding credential may remain live. Required-witness renewal staging remains refused by this foreign facade until its complete proposal and coordinator operations are exposed.

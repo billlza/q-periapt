@@ -44,6 +44,8 @@ class CredentialRenewalTests {
             ContinuityNative.decodeCredentialRenewalStatus(1, operation, statement, ByteArray(40), Counter64.ZERO))
         assertEquals(CredentialRenewalStatus.Committed(op, signed, target),
             ContinuityNative.decodeCredentialRenewalStatus(2, operation, statement, head, Counter64.ZERO))
+        assertEquals(CredentialRenewalStatus.Closed(op, signed, target),
+            ContinuityNative.decodeCredentialRenewalStatus(4, operation, statement, head, Counter64.ZERO))
         val expired = ContinuityNative.decodeCredentialRenewalStatus(3, operation, statement, head, maximum)
         operation.fill(0); statement.fill(0); head.fill(0)
         assertEquals(CredentialRenewalStatus.ExpiredUncommitted(op, signed, target, maximum), expired)
@@ -59,12 +61,12 @@ class CredentialRenewalTests {
                 ContinuityNative.decodeCredentialRenewalStatus(phase, operation, statement, head, at)
             }
         }
-        for (phase in listOf(-1, 4, Int.MAX_VALUE)) refused(phase, zero, zero, ByteArray(40), Counter64.ZERO)
+        for (phase in listOf(-1, 5, Int.MAX_VALUE)) refused(phase, zero, zero, ByteArray(40), Counter64.ZERO)
         refused(0, op, zero, ByteArray(40), Counter64.ZERO)
         refused(0, zero, signed, ByteArray(40), Counter64.ZERO)
         refused(0, zero, zero, checkpoint(), Counter64.ZERO)
         refused(0, zero, zero, ByteArray(40), Counter64.of(1))
-        for (phase in 1..3) {
+        for (phase in 1..4) {
             val head = if (phase == 1) ByteArray(40) else checkpoint()
             val at = if (phase == 3) Counter64.of(1) else Counter64.ZERO
             refused(phase, zero, signed, head, at)
@@ -77,8 +79,10 @@ class CredentialRenewalTests {
         refused(1, op, signed, ByteArray(40), Counter64.of(1))
         refused(2, op, signed, checkpoint(), Counter64.of(1))
         refused(3, op, signed, checkpoint(), Counter64.ZERO)
+        refused(4, op, signed, checkpoint(), Counter64.of(1))
         for (head in listOf(checkpoint(0), checkpoint(-1), checkpoint(1, zero))) {
             refused(2, op, signed, head, Counter64.ZERO)
+            refused(4, op, signed, head, Counter64.ZERO)
             refused(3, op, signed, head, Counter64.of(1))
         }
     }

@@ -186,9 +186,24 @@ works after credential expiry and policy-instance closure and returns no owner.
 Inspection recognizes either original or exact target image with the same intent;
 ordinary QPWINT01 recovery remains strict. Tests cover all six before/after cuts
 at three measured local commit syncs and an actual kill after commit before return.
-Close/ack coordination and original enrollment recovery are not yet integrated.
-The public enrollment `AnchorRequired` guards remain; these tests do not qualify
-an installed end-to-end required-witness renewal or an independent implementation.
+Original enrollment now coordinates its exact durable terminal, ACK, pending
+deletion/readback and coordination retirement. An opaque internal terminal token
+is created only from authenticated configuration readback; callers cannot supply
+an Applied/Closed disposition to the journal retirement entry point. An old
+Terminal paired with a different pending proposal is refused before ACK.
+After the witness has retired its bounded last-ACK receipt, fresh Unavailable can
+finish pure local cleanup only under that already-durable exact Terminal and the
+independent monotonic-witness assumption. It never creates a NoCommit fact.
+The preceding completion receipt remains inside the target until the next exact
+approved target replaces it in its own transaction. Operational release separately
+requires fresh head and AdmitAuthority checks.
+
+Original enrollment tests add 16 configuration sync fault cuts, eight pending
+retirement sync cuts and eight actual cross-store process kills across Applied
+and Closed. See [the native coordinator workflow](CREDENTIAL_RENEWAL.md#required-witness-original-enrollment-coordinator).
+The C/Swift/Kotlin facade retains its pre-staging required-witness refusal pending
+complete foreign coordinator integration. These native tests do not qualify an
+installed end-to-end required-witness renewal or an independent implementation.
 
 ## Heads, commands and attempts
 

@@ -26,6 +26,7 @@ public enum CredentialRenewalStatus: Sendable, Equatable {
     case absent
     case pending(operation: CredentialRenewalID, statement: CredentialRenewalStatementID)
     case committed(operation: CredentialRenewalID, statement: CredentialRenewalStatementID, target: RosterCheckpoint)
+    case closed(operation: CredentialRenewalID, statement: CredentialRenewalStatementID, target: RosterCheckpoint)
     case expiredUncommitted(operation: CredentialRenewalID, statement: CredentialRenewalStatementID,
                             observedHead: RosterCheckpoint, observedAt: UInt64)
 }
@@ -42,7 +43,7 @@ func decodeCredentialRenewalStatus(_ raw: inout qpc_credential_renewal_status_v1
     let operation = withUnsafeBytes(of: &raw.operation) { Array($0) }
     let statement = withUnsafeBytes(of: &raw.statement) { Array($0) }
     let digest = withUnsafeBytes(of: &raw.checkpoint.digest) { Array($0) }
-    guard raw.phase <= 3 else { throw ContinuityBoundaryError.malformedOutput }
+    guard raw.phase <= 4 else { throw ContinuityBoundaryError.malformedOutput }
     if raw.phase < 2 {
         guard raw.checkpoint.version == 0, digest.allSatisfy({ $0 == 0 }) else {
             throw ContinuityBoundaryError.malformedOutput
@@ -67,6 +68,7 @@ func decodeCredentialRenewalStatus(_ raw: inout qpc_credential_renewal_status_v1
     case 3:
         return .expiredUncommitted(operation: id, statement: identity,
             observedHead: try renewalCheckpoint(&raw.checkpoint), observedAt: raw.observed_at)
+    case 4: return .closed(operation: id, statement: identity, target: try renewalCheckpoint(&raw.checkpoint))
     default: throw ContinuityBoundaryError.malformedOutput
     }
 }

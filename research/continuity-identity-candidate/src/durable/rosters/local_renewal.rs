@@ -12,7 +12,7 @@ pub(crate) struct LocalRenewalCommit {
     pub(crate) credential: [u8; 32],
 }
 impl LocalRenewalCommit {
-    pub(super) fn for_grant(grant: &VerifiedCredentialRenewal) -> Self {
+    pub(crate) fn for_grant(grant: &VerifiedCredentialRenewal) -> Self {
         Self {
             operation: grant.operation(),
             statement: grant.statement_digest(),
@@ -69,15 +69,36 @@ impl DeviceJournal {
         policy: &crate::VerifiedSessionPolicy,
         now: u64,
     ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
+        if operation != grant.operation() {
+            self.close();
+            return Err(DurableError::Conflict);
+        }
+        self.prepare_enrollment_credential_renewal(original, grant, policy, now, None)
+    }
+    // The preceding receipt is authenticated by original enrollment. Replace it
+    // only INSIDE this new sealed target, without an extra ordinary Advance.
+    pub(crate) fn prepare_enrollment_credential_renewal(
+        &mut self,
+        original: &crate::VerifiedDevice,
+        grant: &VerifiedCredentialRenewal,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+        completed: Option<&LocalRenewalCommit>,
+    ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
         let result = (|| {
             if policy.anchor_requirement().binding().is_none() {
                 return Err(DurableError::AnchorRequired);
             }
             let authority =
                 crate::RetainedInstallationAuthority::active_installation(original, policy);
-            let (mut image, saved, receipt) =
-                self.local_renewal_state(&authority, grant, operation, policy)?;
-            if saved.local_commit.is_some() {
+            let (mut image, saved, receipt) = self.local_renewal_state_with_prior(
+                &authority,
+                grant,
+                grant.operation(),
+                policy,
+                completed,
+            )?;
+            if saved.local_commit.as_ref() != completed {
                 return Err(DurableError::Conflict);
             }
             self.check_release(&image)?;
@@ -94,7 +115,7 @@ impl DeviceJournal {
                 active,
                 &image,
                 &sealed,
-                operation,
+                grant.operation(),
                 grant.statement_digest(),
             )?;
             // Preserve the preparation if authority closes during persistence,
@@ -111,6 +132,16 @@ impl DeviceJournal {
         grant: &VerifiedCredentialRenewal,
         operation: CredentialRenewalId,
         policy: &crate::VerifiedSessionPolicy,
+    ) -> Result<(Image, Stored, LocalRenewalCommit), DurableError> {
+        self.local_renewal_state_with_prior(authority, grant, operation, policy, None)
+    }
+    fn local_renewal_state_with_prior(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        grant: &VerifiedCredentialRenewal,
+        operation: CredentialRenewalId,
+        policy: &crate::VerifiedSessionPolicy,
+        completed: Option<&LocalRenewalCommit>,
     ) -> Result<(Image, Stored, LocalRenewalCommit), DurableError> {
         self.check_policy(policy)?;
         let image = self.image()?;
@@ -134,7 +165,7 @@ impl DeviceJournal {
         if saved
             .local_commit
             .as_ref()
-            .is_some_and(|current| current != &receipt)
+            .is_some_and(|current| current != &receipt && Some(current) != completed)
         {
             return Err(DurableError::Conflict);
         }

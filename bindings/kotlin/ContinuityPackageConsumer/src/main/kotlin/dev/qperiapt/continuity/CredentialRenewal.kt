@@ -19,6 +19,8 @@ sealed interface CredentialRenewalStatus {
     data class Pending(val operation: CredentialRenewalID, val statement: CredentialRenewalStatementID) : CredentialRenewalStatus
     data class Committed(val operation: CredentialRenewalID, val statement: CredentialRenewalStatementID,
                          val target: RosterCheckpoint) : CredentialRenewalStatus
+    data class Closed(val operation: CredentialRenewalID, val statement: CredentialRenewalStatementID,
+                      val target: RosterCheckpoint) : CredentialRenewalStatus
     data class ExpiredUncommitted(val operation: CredentialRenewalID, val statement: CredentialRenewalStatementID,
                                   val observedHead: RosterCheckpoint, val observedAt: Counter64) : CredentialRenewalStatus {
         init { require(observedAt != Counter64.ZERO) { "expired renewal observation time must be nonzero" } }

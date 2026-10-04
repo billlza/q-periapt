@@ -343,6 +343,8 @@ private func renewalText(_ status: CredentialRenewalStatus) -> String {
         phase = 1; operation = id.bytes; statement = identity.bytes; checkpoint = nil; observedAt = 0
     case let .committed(id, identity, target):
         phase = 2; operation = id.bytes; statement = identity.bytes; checkpoint = target; observedAt = 0
+    case let .closed(id, identity, target):
+        phase = 4; operation = id.bytes; statement = identity.bytes; checkpoint = target; observedAt = 0
     case let .expiredUncommitted(id, identity, head, at):
         phase = 3; operation = id.bytes; statement = identity.bytes; checkpoint = head; observedAt = at
     }

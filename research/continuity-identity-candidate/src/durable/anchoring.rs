@@ -63,7 +63,7 @@ impl Protection {
             _ => Err(DurableError::Conflict),
         }
     }
-    fn head(self, revision: u64, digest: [u8; 32]) -> Result<AnchorHead, DurableError> {
+    pub(super) fn head(self, revision: u64, digest: [u8; 32]) -> Result<AnchorHead, DurableError> {
         let Self::Required { fence, .. } = self else {
             return Err(DurableError::AnchorRequired);
         };
