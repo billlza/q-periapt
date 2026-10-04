@@ -4834,3 +4834,26 @@ baseline: the captured system_server SIGSEGV preceded SDK installation. This
 framework failure and earlier copy/offline observations are not asserted to
 share a cause. Exact new-head hosted qualification and the full0.2.0 lifecycle,
 platform, security, performance and external-review gates remain open.
+
+
+At `2d7d05b1`, a real-journal/witness regression preserves exact renewal-receipt
+admission against an opaque-target counterexample. A and B have different
+operations/statements but the same current C1/R1. Independent preparation of A
+can name B's real sealed target; fresh account admission then reports Current
+with that exact head. Full honest B recovery nevertheless stays Suspended and
+preserves pending bytes before and after A's ACK. Neither head equality nor
+account authority is treated as B's receipt. The 22 related witness regressions
+passed; after correcting four new test-style Clippy diagnostics, the exact final
+test passed again and strict all-target Clippy and the source gate passed.
+
+An isolated joint-authorization construction also authenticated two targets
+after both C0 and P0 expired and rejected 27 invalid cases using actual candidate
+signatures. This is not a durable policy-renewal operation. A new policy
+checkpoint still cannot replace P0 directly. The construction must bind current
+account and policy approval together and retain a witness continuation binding
+after ACK, without resetting the original session or operation state.
+[Construction boundary](../research/continuity-identity-candidate/LIFECYCLE_RENEWAL.md)
+and [sealed observations](../research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/QUALIFICATION.json)
+record the threat-model distinctions, original failed exploratory attempts and
+remaining persistent-state, crash, concurrency and foreign-consumer obligations.
+Device/root replacement, witness handoff and the full 0.2.0 objective remain open.
