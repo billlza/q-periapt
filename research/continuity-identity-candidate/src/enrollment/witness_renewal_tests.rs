@@ -1261,3 +1261,155 @@ fn every_pending_retirement_sync_cut_preserves_terminal_image_and_retries_withou
 
 #[path = "witness_cancellation_tests.rs"]
 mod cancellation;
+
+#[test]
+fn opaque_witness_target_never_replaces_the_exact_renewal_receipt() {
+    use crate::{AnchorOperation, AnchorOutcome, AnchorRequest};
+    let f = fixture();
+    let b = grant(&f, &f.original, 2, 190);
+    let original_certificate =
+        f.c.root
+            .issue_device(f.original.description.clone(), f.original.key.clone())
+            .expect("same original certificate body");
+    let a = crate::durable::tests::grant(
+        &f.c.root,
+        &original_certificate,
+        &f.original,
+        190,
+        2,
+        [211; 32],
+        f.c.policy.checkpoint().digest(),
+    );
+    assert_ne!(a.operation(), b.operation());
+    assert_ne!(a.statement_digest(), b.statement_digest());
+    assert_eq!(
+        a.successor_device().credential_digest(),
+        b.successor_device().credential_digest()
+    );
+    assert_eq!(
+        a.successor_device().roster().checkpoint(),
+        b.successor_device().roster().checkpoint()
+    );
+    assert_eq!(
+        a.successor_device().authority_binding(),
+        b.successor_device().authority_binding()
+    );
+
+    // Honest journal code creates a real encrypted target containing grant B.
+    // Do not invoke the helper that would independently approve B at the witness.
+    let mut owner = open(&f.c);
+    owner
+        .stage_credential_renewal(&b, b.operation(), &f.c.policy, 170)
+        .expect("stage B");
+    f.carrier.clock.store(170, Ordering::SeqCst);
+    let anchor = client(&f, &mut owner, 170);
+    let proposal_b = owner
+        .prepare_witnessed_credential_renewal(&f.c.policy, 170, anchor)
+        .expect("real sealed target B");
+    let signer_id = owner.identity().expect("original signer identity");
+    owner.close();
+    let before = disk(&f);
+    assert!(
+        before.1.is_some(),
+        "original target B must remain durably pending"
+    );
+
+    // The public proposal decoder authenticates no target semantics. Model a
+    // holder of the original signing key choosing a target during approval.
+    let mut metadata = proposal_b.to_bytes();
+    metadata
+        .get_mut(136..168)
+        .expect("proposal operation field")
+        .copy_from_slice(a.operation().as_bytes());
+    metadata
+        .get_mut(168..200)
+        .expect("proposal statement field")
+        .copy_from_slice(&a.statement_digest());
+    let proposal_a = Proposal::from_trusted_state(&metadata).expect("canonical public proposal A");
+    assert_eq!(proposal_a.operation(), a.operation());
+    assert_eq!(proposal_a.statement(), a.statement_digest());
+    assert_eq!(proposal_a.expected_head(), proposal_b.expected_head());
+    assert_eq!(proposal_a.target_head(), proposal_b.target_head());
+    assert_ne!(proposal_a.binding(), proposal_b.binding());
+    let signer = DeviceSigningKey::open(
+        &f.c.paths.signer,
+        &JournalKey::open(&f.c.paths.wrapping).expect("original wrapping owner"),
+        signer_id,
+    )
+    .expect("original device signer");
+    let exchange = |operation| {
+        // All request construction and verification APIs below are public.
+        let request = AnchorRequest::new(&f.pin, proposal_a.subject(), operation, &signer)
+            .expect("fresh signed request");
+        let reply = f
+            .carrier
+            .store
+            .lock()
+            .expect("actual witness")
+            .handle(request.as_bytes(), 170)
+            .expect("durable witness result");
+        f.pin
+            .verify_reply(&request, &reply)
+            .expect("independent authenticated fresh reply")
+    };
+    assert_eq!(
+        exchange(AnchorOperation::commit_credential_renewal(&proposal_a)).outcome(),
+        AnchorOutcome::CredentialUnavailable,
+        "device signer alone cannot prepare A"
+    );
+    f.carrier
+        .store
+        .lock()
+        .expect("witness")
+        .prepare_credential_renewal(proposal_a, &a, &f.c.policy, 170)
+        .expect("trusted control plane explicitly approves A with opaque target B");
+    assert_eq!(
+        exchange(AnchorOperation::commit_credential_renewal(&proposal_b)).outcome(),
+        AnchorOutcome::CredentialUnavailable,
+        "B never independently approved"
+    );
+    let committed = exchange(AnchorOperation::commit_credential_renewal(&proposal_a));
+    assert_eq!(committed.outcome(), AnchorOutcome::CredentialApplied);
+    assert_eq!(committed.observed_head(), proposal_b.target_head());
+    assert_eq!(
+        exchange(AnchorOperation::credential_renewal_status(&proposal_b)).outcome(),
+        AnchorOutcome::CredentialUnavailable
+    );
+    let admitted = exchange(
+        AnchorOperation::admit_authority(b.successor_device().authority_binding())
+            .expect("authority"),
+    );
+    assert_eq!(admitted.outcome(), AnchorOutcome::AuthorityCurrent);
+    assert_eq!(admitted.observed_head(), proposal_b.target_head());
+
+    // Existing exact intent recovery does not equate that projection with B's
+    // own transaction receipt. Preserve this negative result in the experiment.
+    assert!(
+        matches!(activate(&f, 170), Err(DurableError::Suspended)),
+        "unapproved B released owner"
+    );
+    assert_eq!(
+        disk(&f),
+        before,
+        "rejected B recovery changed pending target bytes"
+    );
+    assert_eq!(
+        exchange(AnchorOperation::acknowledge_credential_renewal(&proposal_a)).outcome(),
+        AnchorOutcome::CredentialAcknowledged
+    );
+    let admitted = exchange(
+        AnchorOperation::admit_authority(b.successor_device().authority_binding())
+            .expect("authority"),
+    );
+    assert_eq!(admitted.outcome(), AnchorOutcome::AuthorityCurrent);
+    assert_eq!(admitted.observed_head(), proposal_b.target_head());
+    assert_eq!(
+        exchange(AnchorOperation::credential_renewal_status(&proposal_b)).outcome(),
+        AnchorOutcome::CredentialUnavailable
+    );
+    assert!(
+        matches!(activate(&f, 170), Err(DurableError::Suspended)),
+        "unapproved B released owner after A ACK"
+    );
+    assert_eq!(disk(&f), before);
+}
