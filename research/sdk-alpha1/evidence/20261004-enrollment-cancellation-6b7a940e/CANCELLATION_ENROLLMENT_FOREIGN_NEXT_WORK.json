@@ -1,0 +1,39 @@
+{
+  "source_commit": "59a0bfb46690de0d739423af6b0c0fa32a0f437e",
+  "status": "design for next component; not implemented",
+  "native_contract": "DeviceEnrollment::prepare_witnessed_credential_cancellation accepts historical policy and returns original 248-byte QPCRNC01 after QPWINT03 reservation and QPENST05 coordination readback. Existing reconciliation discovers either kind and only ACKs after durable Closed. No target image or current owner is created.",
+  "foreign_work": [
+    {
+      "area": "C candidate facade",
+      "files": [
+        "bindings/c/ContinuityPackageConsumer/src/enrollment.rs",
+        "bindings/c/ContinuityPackageConsumer/qpc_owner.h",
+        "artifact/continuity_c_consumer.py"
+      ],
+      "change": "Add a distinct 248-byte cancellation metadata value and one preparation entry point. Reuse with_owner, invocation-local output validation, original configured historical policy, checked now, and admitted-failure consume behavior. No current policy/runtime opening, no witness dispatch in preparation. Existing reconcile and close route to native typed intent; new Commit must remain forbidden for Cancellation."
+    },
+    {
+      "area": "Swift/Kotlin",
+      "files": [
+        "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/Enrollment.swift",
+        "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/CredentialRenewal.swift",
+        "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt",
+        "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt",
+        "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/CredentialRenewal.kt"
+      ],
+      "change": "Separate cancellation metadata from proposal; preserve unsigned counters, copied byte ownership, strict canonical width/tag checks, and controlled owner lifecycle. Add CLI commands for descriptor export and historical reconcile."
+    },
+    {
+      "area": "real consumer flow",
+      "change": "No fixture proposal: stage signed grant in actual foreign owner, reserve cancellation, independently authorize close at witness, lose Status/ACK or terminate owner at boundaries, then reopen original owner with signed historical policy. Verify exact original descriptor, unchanged sealed image and predecessor, durable Closed before ACK, no Commit or new authority, and both TCP/TLS C/Swift/Kotlin. Include actual wall-clock signed policy expiry and no SDK runtime."
+    },
+    {
+      "area": "scope/qualification",
+      "change": "C candidate export set will change from72 only when actual new FFI is added. Product ABI2 is separate and unchanged. Match source hashes, dynamic library, client binary/jars, recorded public transcripts, exported symbols, current and minimum toolchains. Native process cuts are not physical device or independent implementation proof."
+    }
+  ],
+  "parallel_unresolved": "Android API35 16KiB after-copy transport disconnect; see CI_29C4_ANDROID16K_DIAGNOSIS.json. Stable cleanup still unqualified despite same-head PR passing.",
+  "release_claim_eligible": false,
+  "macos_scope": "arm64 only; no Intel Mac adaptation",
+  "user_ci_authorized": true
+}

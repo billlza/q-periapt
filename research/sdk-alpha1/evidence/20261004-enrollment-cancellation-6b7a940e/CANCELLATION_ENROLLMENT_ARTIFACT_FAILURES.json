@@ -1,0 +1,60 @@
+{
+  "failure": "publication account home ancestry is not trusted",
+  "source_identical_to_previous_head": {
+    "artifact/crates_io_publication.py": {
+      "29c4df42": "a3b228257e2b19c706d7f91300686dcf954fb1abcc1871ead143d22474c7da67",
+      "59a0bfb4": "a3b228257e2b19c706d7f91300686dcf954fb1abcc1871ead143d22474c7da67"
+    },
+    "artifact/test_crates_io_publication.py": {
+      "29c4df42": "531b8f8db02c8f3da243d020eb467e01a1658cb8887905be89af68f80953f7a9",
+      "59a0bfb4": "531b8f8db02c8f3da243d020eb467e01a1658cb8887905be89af68f80953f7a9"
+    },
+    "artifact/test_rust_sdk_publication.py": {
+      "29c4df42": "1579af64e526f754d756b3c3a1bc274ff2d77efa93a7b795caa700719076baf3",
+      "6b7a940e": "1579af64e526f754d756b3c3a1bc274ff2d77efa93a7b795caa700719076baf3"
+    }
+  },
+  "observed_ancestry": [
+    {
+      "path": "/Users/bill",
+      "uid": 501,
+      "gid": 20,
+      "mode": "0o770",
+      "group_or_other_write": true
+    },
+    {
+      "path": "/Users",
+      "uid": 0,
+      "gid": 80,
+      "mode": "0o755",
+      "group_or_other_write": false
+    },
+    {
+      "path": "/",
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "group_or_other_write": false
+    }
+  ],
+  "diagnostic_log_sha256": "e1f517daf22ef8ec2c5e0c7102ca39424618df9bfc4a96f96d741e0a3980ac69",
+  "conclusion": "Current account home is group writable and is rejected by the unchanged production namespace guard. Test fixture homes are below the actual passwd home, so positive production-lock/uploader tests inherit the untrusted ancestor. Do not chmod user directories, mock the guard, skip tests or change production validation. CI on an independently trusted account root remains required.",
+  "codeql_count_change": {
+    "previous": 312,
+    "current_tracked": 314,
+    "new_paths": [
+      "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs",
+      "research/continuity-identity-candidate/src/enrollment/witness_cancellation_tests.rs"
+    ]
+  },
+  "release_claim_eligible": false,
+  "full_suite": {
+    "run": 2577,
+    "passed": 2570,
+    "failures": 1,
+    "errors": 6,
+    "codeql_inventory_corrected_by": "28c90931",
+    "guide_count_corrected_by": "6b7a940e",
+    "remaining_environment_refusals": 6
+  }
+}
