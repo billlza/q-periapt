@@ -8,6 +8,7 @@ on:
       - research/android-platform-probe/run.sh
       - artifact/android_apk_transport_probe.py
       - artifact/test_android_apk_transport_probe.py
+      - artifact/test_android_platform_probe.py
 
 permissions:
   contents: read
@@ -39,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [uninstalled-pipe-copy, uninstalled-file-copy, apk-file-copy]
+        mode: [uninstalled-pipe-copy, uninstalled-shell-copy]
         trial: [1, 2]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0

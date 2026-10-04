@@ -31,6 +31,7 @@ class PlatformProbeTests(unittest.TestCase):
                     return BoundedResult(0)
                 self.assertEqual(argv[0], "/bin/bash")
                 options["output_sink"](b"controlled driver failure\n")
+                self.assertEqual((destination / "commands.log").read_bytes(), b"controlled driver failure\n")
                 return BoundedResult(7)
             old_umask = os.umask(0o077)
             try:
@@ -105,6 +106,50 @@ class PlatformProbeTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "hosted Linux workflow"):
                     module.main()
             self.assertFalse(destination.exists())
+
+    def test_protocol_comparison_routes_only_to_blob_staging(self):
+        script = (PROBE / "run.sh").read_text()
+        start = script.index('    case "$experiment" in', script.index('APK_TRANSPORT_TOOLS'))
+        end = script.index('    esac', start) + len('    esac')
+        route = script[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            driver=Path(directory)/"route.sh"
+            driver.write_text("set -euo pipefail\nexperiment=$1\noutput=/probe\nadb=/owned/adb\nsocket=owned\nserial=emulator-5584\n"
+                "timeout() { printf 'CONTROL_COMMAND %s\\n' \"$*\"; }\n"
+                "confirm_no_sdk_package() { return 0; }\n"
+                "guest() { if [ \"$1\" = sha256sum ]; then printf '%s\\n' 'e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724  /data/local/tmp/qperiapt-transport-probe.bin'; fi; }\n"+route+"\n")
+            for mode in ("uninstalled-pipe-copy","uninstalled-shell-copy"):
+                result=capture_stdout(["/bin/bash",str(driver),mode],timeout_seconds=5,maximum_bytes=4096)
+                self.assertEqual(result.returncode,0,result.stdout)
+                self.assertIn(b"APK_TRANSPORT_BLOB_STAGE\n",result.stdout)
+                self.assertIn(b"push /probe/probe.apk /data/local/tmp/qperiapt-transport-probe.bin",result.stdout)
+                self.assertNotIn(b"INSTALL_ATTEMPT",result.stdout)
+
+    def test_protocol_log_bound_is_explicit_and_saturation_is_not_a_transport_failure(self):
+        spec=importlib.util.spec_from_file_location("android_protocol_bound",PROBE/"run.py")
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        for mode in module.PROTOCOL_MODES:
+            with tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                def command(argv,**options):
+                    if argv[-1]=="HEAD" and "rev-parse" in argv:return BoundedResult(0,b"a"*40+b"\n")
+                    if "diff" in argv:return BoundedResult(0)
+                    self.assertEqual(options["maximum_bytes"],16*1024*1024)
+                    self.assertEqual(options["timeout_seconds"],600)
+                    options["output_sink"](b"controlled output saturation\n")
+                    raise BoundedProcessError("output_limit","controlled log bound")
+                old_umask=os.umask(0o077)
+                try:
+                    with mock.patch.dict(os.environ,{"GITHUB_ACTIONS":"true","RUNNER_OS":"Linux","GITHUB_SHA":"a"*40,"JAVA_HOME":directory}), \
+                         mock.patch.object(module.sys,"platform","linux"),mock.patch.object(module,"ROOT",root), \
+                         mock.patch.object(module,"prepare_archive",return_value={"test_source_only":True}), \
+                         mock.patch.object(module,"capture_stdout",side_effect=command),self.assertRaises(BoundedProcessError):
+                        module.main(mode)
+                finally:os.umask(old_umask)
+                result=json.loads((root/"target/android-apk-transport-probe/observation.json").read_text())
+                self.assertEqual(result["status"],"supervisor_failed")
+                self.assertEqual(result["failure_kind"],"output_limit")
+                self.assertFalse(result["release_claim_eligible"])
 
     def test_actual_cleanup_reaps_children_and_preserves_driver_failure(self):
         script = (PROBE / "run.sh").read_text()

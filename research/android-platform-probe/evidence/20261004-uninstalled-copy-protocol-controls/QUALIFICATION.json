@@ -1,0 +1,88 @@
+{
+  "completed": false,
+  "release_claim_eligible": false,
+  "prior_run": 37233100970,
+  "prior_source": "e6f178c78b186004dc02dfeac5e3821ba8c8ff23",
+  "prior_arms": {
+    "android-apk-transport-uninstalled-pipe-copy-1": {
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "artifact_id": 11315030280,
+      "zip_sha256": "07deb922c261ca61bd10180211ba7d1addc80144e17e9ecbd5b7654e075538d3"
+    },
+    "android-apk-transport-uninstalled-pipe-copy-2": {
+      "completed_samples": 15,
+      "status": "observation_failed",
+      "artifact_id": 11314337845,
+      "zip_sha256": "9b054c3a60168fe6df203619485c99eecbf2fc8f0081b4f4065eb7e76cfc6992"
+    },
+    "android-apk-transport-apk-file-copy-1": {
+      "completed_samples": 10,
+      "status": "observation_failed",
+      "artifact_id": 11314304497,
+      "zip_sha256": "f02fa30a22d1fceada0bbf40568d6f3f4b04e3dee94ff4e5f5e9faf1a1957cfc"
+    },
+    "android-apk-transport-uninstalled-file-copy-2": {
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "artifact_id": 11314013373,
+      "zip_sha256": "a9bb389211ac16f67a9760761511c2cc5aaac3743abcfc1308b4fa4bf14865ce"
+    },
+    "android-apk-transport-uninstalled-file-copy-1": {
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "artifact_id": 11313683802,
+      "zip_sha256": "7e1878211101b01e1dcc82d4c8fec17607f115ceb37491102cda5c4d0530c69c"
+    },
+    "android-apk-transport-apk-file-copy-2": {
+      "completed_samples": 0,
+      "status": "observation_failed",
+      "artifact_id": 11313648928,
+      "zip_sha256": "194ccf5d4e505389be711980a85f3bb916be7ba8508c615ca861a576765c8230"
+    }
+  },
+  "scope": "Historical uninstalled-copy counterexample retained; next two-arm shell-v2 comparison has26local controls only at seal time. No production SDK transport, admission, timeout, retry, or recovery policy changes.",
+  "next_observation": "Both arms use identical pinned ordinary file and PIPEreceiver, private freshAVD,24samples\u00d72trials. Currentbinaryfeature/route andstdout/stderr/exit7 controls. Independently captured guestlogmarker required; finite16MiBcombinedlog bound, same600sowner/180sobservation/15scopy. No fallback after failedpreflight orsample.",
+  "upstream_source": {
+    "commit": "1cf2f017d312f73b3dc53bda85ef2610e35a80e9",
+    "commandline_url": "https://android.googlesource.com/platform/packages/modules/adb/+/1cf2f017d312f73b3dc53bda85ef2610e35a80e9/client/commandline.cpp",
+    "commandline_sha256": "b3d72ecd57b00fc65827136fc2bc37cb260d4df15be6cd786f08db1e8da973ff",
+    "adb_client_sha256": "48a931322850092e8b67ae1538fd799a169019e2e3c05d3af14ebaa6b111247e",
+    "installed_binary_source_revision_unproven": true
+  },
+  "local_controls": {
+    "completed": true,
+    "returncode": 0,
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_android_apk_transport_probe",
+      "test_android_platform_probe"
+    ],
+    "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+    "source_hashes": {
+      "artifact/android_apk_transport_probe.py": "eb376380379cd241f247a98491a2a5a0669eecbcc4137110f5def4ec6dd3c55c",
+      "artifact/test_android_apk_transport_probe.py": "a6014c1bc1e655f159ba3b9c8198d88d819ee56de8288351ff2a303d161d7873",
+      "artifact/test_android_platform_probe.py": "c4614779e6ebb19a949362351b74f2a47bc75e7f9aeb6c4eafcd5f5d4be4240b",
+      "research/android-platform-probe/run.py": "7b41c5decab7505fc39ac11045c35d749d7dee7e7fffbd1756f95fc5fe757a84",
+      "research/android-platform-probe/run.sh": "f76f47fd3d57ae361696012c0dc7b7be508a8ff2ad47dd1487861b68595c4aad",
+      ".github/workflows/android-apk-transport-probe.yml": "67d8f9e83990ed0c5b009bebdae80f26c456393615c2ae019763a188b86f8ad0",
+      "research/android-platform-probe/README.md": "b430076a2076dffeaf9e6784aa86d2e4db7e1984279b1ab37d3e6140609f1215"
+    },
+    "seconds": 51.37167599995155,
+    "log_sha256": "d083215fd71d43125e66d111aeef5ff4de8d316eff41bd5a8018c49d8568fdd8",
+    "summary": [
+      "Ran 26 tests in 50.899s"
+    ],
+    "scope": "Local real-process and synthetic route/parser/ownership controls. No Android execution or root-cause claim."
+  },
+  "uninstalled_counterexample": "Trial2sample16:6295040/13608912bytes,exit0,stderr0 thenoffline. NoSDKinstall/launch/instrumentation. Postfailurepackageabsenceunavailable, underlyingdisconnectunproven.",
+  "remaining": [
+    "Execute exactnewsourcehostedcomparison andvalidatepreflight/independentlog/cleanup",
+    "Explain underlyingADB/emulator/guestdisconnect andoriginalPackageManagerexception; no sharedcauseclaim",
+    "Currentandminimumphysicalplatform,fullSDKlifecycleand0.2releasegates"
+  ]
+}

@@ -89,7 +89,7 @@ policy; the earlier failed trials remain part of the evidence.
 
 ## Copying without package installation
 
-The current matrix compares `uninstalled-pipe-copy`, `uninstalled-file-copy`
+The preceding matrix compared `uninstalled-pipe-copy`, `uninstalled-file-copy`
 and the installed `apk-file-copy` reference, with two fresh boots per arm and
 24 samples per boot. The uninstalled arms push the exact same pinned bytes to
 `/data/local/tmp/qperiapt-transport-probe.bin`, verify the guest file hash, and
@@ -111,3 +111,46 @@ Guest logcat and host timestamps were not calibrated, so those records do not
 establish copy/crash ordering or a shared cause. Run `37231009374` retained three
 further short or empty exit-zero copies followed by offline, including both
 host output strategies. No SDK gate, automatic recovery or retry budget changes.
+
+
+## Raw stream versus shell-v2 completion
+
+Run `37233100970` reproduced the failure without installing or executing SDK
+code: uninstalled PIPE trial2 sample16 returned 6,295,040 of 13,608,912 bytes,
+exit zero and empty stderr, then went offline. Package absence was confirmed
+before copying; after-failure absence could not be read. This rejects package
+installation/execution as a necessary condition for this particular observation,
+without identifying the disconnect cause or equating all earlier failures.
+
+The current matrix uses `uninstalled-pipe-copy` (`exec-out cat`) and
+`uninstalled-shell-copy` (`shell -T -n cat`), with the same pinned ordinary blob,
+PIPE receiver, exact size/hash checks, per-command and total time limits, two
+fresh private boots per arm, and 24 samples per boot. Neither arm installs an
+APK, starts an activity, runs instrumentation, reconnects or retries a failure.
+Both first require the actual client/device `shell_v2` feature, trace tiny
+`true` commands to establish `exec:` and `shell,v2,raw:` routing, then require a
+real shell control to return exactly separated stdout/stderr and exit7. Missing
+protocol support or mismatched controls fails before copying, with no fallback.
+Copy observations include the actual argv and still refuse short exit-zero
+output or full exact bytes with a nonzero exit.
+
+AOSP ADB commit `1cf2f017d312f73b3dc53bda85ef2610e35a80e9`
+[`client/commandline.cpp`](https://android.googlesource.com/platform/packages/modules/adb/+/1cf2f017d312f73b3dc53bda85ef2610e35a80e9/client/commandline.cpp#297)
+returns zero after raw `exec-out` copying; its shell-v2 reader defaults to255
+until receiving an exit packet. This motivates the comparison. The observed
+installed binary `37.0.1-15733141` has not been mapped to this source revision;
+its behavior is measured, not inferred from that reference. A nonzero shell-v2
+exit after a short copy would improve diagnosis, not repair the disconnection.
+Finite passing samples cannot establish stability or justify changing SDK gates.
+
+The two arms also enable filtered emulator `-logcat` output alongside kernel
+output. A fixed guest log marker must appear as an actual logcat record in the
+outer supervisor's file before protocol controls or copying; merely echoing the
+ADB command does not satisfy it. This avoids depending only on an `adb logcat`
+query after transport failure. It does not guarantee all buffers or crash tails
+were captured. The protocol arms have an explicit16MiB combined log bound
+(previous arms retain2MiB); the600-second owner and15-second copy limits stay
+unchanged. Output saturation is a supervisor failure, never natural-disconnect
+or successful-transport evidence. No emulator file-size limit is added. Captured
+chunks are flushed so the live marker check can observe them. Guest and host
+clocks remain uncalibrated and cannot alone establish causal ordering.

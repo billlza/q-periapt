@@ -1,0 +1,593 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.android_uninstalled_transport_bounded_evidence_analysis",
+  "run_id": 37233100970,
+  "job_id": 111526956947,
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/37233100970/job/111526956947",
+  "arm": "uninstalled-pipe-copy-2",
+  "scope": "Read-only analysis of this single failure ZIP and its matching local result/hosted metadata. No CI rerun, product edit, or new emulator execution.",
+  "conclusion": {
+    "classification": "bounded_counterexample_to_sdk_installation_or_execution_as_necessary_condition",
+    "statement": "On this cold API35/16KiB emulator, the probe had confirmed no dev.qperiapt package, staged the historical APK only as an ordinary .bin file, and issued no SDK install, launch or instrumentation command. It nevertheless observed host ADB transport read failure and offline after a short zero-exit bulk copy. Therefore SDK installation or SDK execution is not necessary for this observed class of transport failure in this experiment.",
+    "not_claimed": [
+      "The underlying ADB, emulator, host or guest root cause is identified.",
+      "This failure and earlier installed-APK failures necessarily share one root cause.",
+      "PIPE, APK byte contents, emulator background activity, timing or the host environment are irrelevant.",
+      "SDK safety or release qualification is established.",
+      "Post-failure package absence or full original process continuity was successfully re-read."
+    ]
+  },
+  "inputs": {
+    "results": {
+      "path": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/ANDROID_APK_TRANSPORT_RESULTS_37233100970.json",
+      "sha256": "edfe3a3c8191ab69905c4344065e8ab1bededa83ac53c123349b592d7ad0b863"
+    },
+    "hosted": {
+      "path": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/ANDROID_APK_TRANSPORT_HOSTED_37233100970.json",
+      "sha256": "8620a51276fcd3b598c3702ef211a18d9b8b1a0cf249ef4bcca49c217d0b9907"
+    },
+    "zip": {
+      "path": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/11314337845-android-apk-transport-uninstalled-pipe-copy-2.zip",
+      "artifact_id": 11314337845,
+      "bytes": 218474,
+      "recorded_sha256": "9b054c3a60168fe6df203619485c99eecbf2fc8f0081b4f4065eb7e76cfc6992",
+      "actual_sha256": "9b054c3a60168fe6df203619485c99eecbf2fc8f0081b4f4065eb7e76cfc6992",
+      "match": true
+    },
+    "zip_members": [
+      {
+        "name": "observation.json",
+        "bytes": 1176,
+        "sha256": "2a6a6703d3189875e18e1e1bd545da1512496d759d4693ddb2214ec1e6c55e37"
+      },
+      {
+        "name": "commands.log",
+        "bytes": 843168,
+        "sha256": "f832471818862eecf97f1cc39ede3ce01bd0e87b22119dc8849d926a20812066"
+      },
+      {
+        "name": "samples.json",
+        "bytes": 46761,
+        "sha256": "e636b05cdabbe0ea3f341b38495de8fe51baa2f5c02647a9547fa04b4dc5c303"
+      },
+      {
+        "name": "syscalls.log",
+        "bytes": 1353172,
+        "sha256": "79669f061d8bad0c6791f961f64a30a71ac8b80ff8d72a575eed3d78d1ddd484"
+      }
+    ],
+    "zip_equals_aggregate_observation_and_samples": true,
+    "commands_sha256_matches_observation": true
+  },
+  "observer_and_apk_source": {
+    "source_commit": "e6f178c78b186004dc02dfeac5e3821ba8c8ff23",
+    "hosted_head_matches": true,
+    "job_status": "completed",
+    "job_conclusion": "failure",
+    "observation": {
+      "apk_source": {
+        "apk_bytes": 13608912,
+        "apk_sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+        "archive_sha256": "1cf08883b24b280288b5c964d3e05e9dcac47f62b455b97dc026bf7299851084",
+        "artifact_id": 11309464232,
+        "failed_push_apk_identity_proven": false,
+        "producer_checkout": "9830732a8bfdafe98b70fce7efce085d7085b1f1",
+        "producer_run": 37219996163
+      },
+      "commands_sha256": "f832471818862eecf97f1cc39ede3ce01bd0e87b22119dc8849d926a20812066",
+      "driver_exit_status": 1,
+      "experiment": "uninstalled-pipe-copy",
+      "kind": "qperiapt.android_platform_reproduction",
+      "output_limit_bytes": 2097152,
+      "release_claim_eligible": false,
+      "routing": "private_unix_adb_with_emulator_registration",
+      "schema_version": 1,
+      "scope": "fixed historical bytes on a cold API35/16KiB image; installed APK or uninstalled ordinary-file bulk copy; finite diagnostic, not SDK qualification",
+      "sdk_installation_attempted": false,
+      "sdk_installation_requested": false,
+      "source_commit": "e6f178c78b186004dc02dfeac5e3821ba8c8ff23",
+      "status": "observation_failed",
+      "timeout_seconds": 600,
+      "uninstalled_blob_staging_attempted": true
+    },
+    "source_snapshots": [
+      {
+        "path": "research/android-platform-probe/run.sh",
+        "git_commit": "e6f178c78b186004dc02dfeac5e3821ba8c8ff23",
+        "sha256": "b592a3924a1bfcd25649f479b0eb279dc86a01f5ed72a1691509230047b6b15d",
+        "relevant_lines": [
+          [
+            26,
+            48
+          ],
+          [
+            150,
+            158
+          ],
+          [
+            184,
+            205
+          ]
+        ]
+      },
+      {
+        "path": "artifact/android_apk_transport_probe.py",
+        "git_commit": "e6f178c78b186004dc02dfeac5e3821ba8c8ff23",
+        "sha256": "a2302c0ba3b1c8825a1cf2a08913e3bcf085ab7f4772df08dbca28e136d34d94",
+        "relevant_lines": [
+          [
+            149,
+            197
+          ],
+          [
+            199,
+            230
+          ],
+          [
+            232,
+            271
+          ]
+        ]
+      }
+    ],
+    "boundary": "Observer/source identity is tied by the hosted checkout and reported commit; this ZIP does not contain executable source or the staged/copied blob bytes for an independent re-hash of those runtime files."
+  },
+  "uninstalled_precondition": {
+    "sdk_installation_requested": false,
+    "sdk_installation_attempted": false,
+    "uninstalled_blob_staging_attempted": true,
+    "source_kind": "uninstalled_same_bytes",
+    "package_absence_before": {
+      "label": "package-absence-before",
+      "wall_time_ns": 1791146724843696252,
+      "monotonic_ns": 130138828076,
+      "elapsed_ns": 232310066,
+      "returncode": 0,
+      "stdout": "",
+      "output_bytes": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "wall_time_utc": "2026-10-04T20:45:24.843696252Z",
+      "commands_log_line": 3692
+    },
+    "guest_blob_path": "/data/local/tmp/qperiapt-transport-probe.bin",
+    "guest_blob_staging_evidence": [
+      {
+        "line": 3509,
+        "text": "APK_TRANSPORT_BLOB_STAGE"
+      },
+      {
+        "line": 3606,
+        "text": "/home/runner/work/q-periapt/q-periapt/target/android-apk-transport-probe/probe.apk: 1 file pushed, 0 skipped. 98.2 MB/s (13608912 bytes in 0.132s)"
+      },
+      {
+        "line": 3616,
+        "text": "10-04 20:45:23.565  3185  3185 D adb     : transport.cpp:627 emulator-5584: to remote: [OPEN] arg0=0x189 arg1=0 (len=68) 7368656c6c2c76322c7261773a736861 shell,v2,raw:sha [truncated]"
+      },
+      {
+        "line": 3620,
+        "text": "10-04 20:45:23.687  3185  3324 D adb     : transport.cpp:1211 emulator-5584: from remote: [WRTE] arg0=77 arg1=0x189 (len=116) 016f0000006532353438616330333433 .o...e2548ac0343 [truncated]"
+      },
+      {
+        "line": 3622,
+        "text": "10-04 20:45:23.687  3185  3324 D adb     : transport.cpp:1211 emulator-5584: from remote: [WRTE] arg0=77 arg1=0x189 (len=6) 030100000000 ......"
+      },
+      {
+        "line": 3627,
+        "text": "10-04 20:45:23.693  3185  3185 D adb     : transport.cpp:627 emulator-5584: to remote: [OPEN] arg0=0x18c arg1=0 (len=43) 7368656c6c2c76322c7261773a706d20 shell,v2,raw:pm  [truncated]"
+      },
+      {
+        "line": 3636,
+        "text": "10-04 20:45:23.754  3185  3324 D adb     : transport.cpp:1211 emulator-5584: from remote: [WRTE] arg0=78 arg1=0x18c (len=6) 030100000000 ......"
+      }
+    ],
+    "guest_blob_sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+    "hash_evidence_boundary": "run.sh:190-191 captures and compares the full guest SHA256 under set -e. Reaching the traced sample loop means that exact comparison succeeded; commands.log only retains the hash response prefix, not the entire captured output. Fifteen later exact copy hashes independently corroborate the byte identity at those reads.",
+    "command_evidence": {
+      "install_attempt_marker_count": 0,
+      "blob_stage_marker_count": 1,
+      "literal_am_start_count": 0,
+      "literal_am_instrument_count": 0,
+      "literal_install_option_count": 0,
+      "traced_forbidden_execve_count": 0,
+      "boundary": "These counts plus the executed source branch establish the probe did not install or launch SDK code. commands.log is not a universal guest execution audit; stock system boot/install services and emulator-generated broadcasts occur."
+    },
+    "package_absence_after": {
+      "label": "package-absence-after",
+      "wall_time_ns": 1791146750104651646,
+      "monotonic_ns": 155399783099,
+      "elapsed_ns": 22786707,
+      "returncode": 1,
+      "stdout": "adb: device 'emulator-5584' not found\n",
+      "output_bytes": 38,
+      "output_sha256": "305320492c38f250fbae2bb799271bcc325bcebd188a7c9ddcd99a470f0bb24f",
+      "wall_time_utc": "2026-10-04T20:45:50.104651646Z",
+      "commands_log_line": 6754
+    },
+    "after_absence_not_confirmed": true
+  },
+  "sample_accounting": {
+    "completed_samples": 15,
+    "requested_samples": 24,
+    "complete_result_events": 15,
+    "exact_copy_events": 15,
+    "expected_bytes": 13608912,
+    "expected_sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+    "last_complete": [
+      {
+        "label": "sample-15-before",
+        "wall_time_ns": 1791146738753491447,
+        "monotonic_ns": 144048622960,
+        "elapsed_ns": 225175691,
+        "returncode": 0,
+        "stdout": "13608912\n",
+        "output_bytes": 9,
+        "output_sha256": "b853ac1c4a4f6b5f4a412c1c16e370382a063e571f69f52777431d528f39aa19",
+        "wall_time_utc": "2026-10-04T20:45:38.753491447Z",
+        "commands_log_line": 6449
+      },
+      {
+        "label": "sample-15-copy",
+        "wall_time_ns": 1791146739256822804,
+        "monotonic_ns": 144551955019,
+        "elapsed_ns": 502837490,
+        "returncode": 0,
+        "bytes": 13608912,
+        "sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+        "exact": true,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_prefix": "",
+        "stderr_truncated": false,
+        "wall_time_utc": "2026-10-04T20:45:39.256822804Z",
+        "commands_log_line": 6556
+      },
+      {
+        "label": "sample-15-after",
+        "wall_time_ns": 1791146739296236502,
+        "monotonic_ns": 144591368276,
+        "elapsed_ns": 39181592,
+        "returncode": 0,
+        "stdout": "13608912\n",
+        "output_bytes": 9,
+        "output_sha256": "b853ac1c4a4f6b5f4a412c1c16e370382a063e571f69f52777431d528f39aa19",
+        "wall_time_utc": "2026-10-04T20:45:39.296236502Z",
+        "commands_log_line": 6569
+      },
+      {
+        "label": "sample-15-result",
+        "wall_time_ns": 1791146739296415418,
+        "monotonic_ns": 144591547052,
+        "path_unchanged": true,
+        "copy_exact": true,
+        "copy_returncode": 0,
+        "wall_time_utc": "2026-10-04T20:45:39.296415418Z",
+        "commands_log_line": 6570
+      }
+    ],
+    "failed_sample": [
+      {
+        "label": "sample-16-before",
+        "wall_time_ns": 1791146739571453740,
+        "monotonic_ns": 144866585314,
+        "elapsed_ns": 61166005,
+        "returncode": 0,
+        "stdout": "13608912\n",
+        "output_bytes": 9,
+        "output_sha256": "b853ac1c4a4f6b5f4a412c1c16e370382a063e571f69f52777431d528f39aa19",
+        "wall_time_utc": "2026-10-04T20:45:39.571453740Z",
+        "commands_log_line": 6622
+      },
+      {
+        "label": "sample-16-copy",
+        "wall_time_ns": 1791146740006635365,
+        "monotonic_ns": 145301766889,
+        "elapsed_ns": 434580385,
+        "returncode": 0,
+        "bytes": 6295040,
+        "sha256": "2c3853924173d465d75ff9e4a0d73d4f3352cc4cd310d66e83641be05ec066da",
+        "exact": false,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_prefix": "",
+        "stderr_truncated": false,
+        "wall_time_utc": "2026-10-04T20:45:40.006635365Z",
+        "commands_log_line": 6706
+      },
+      {
+        "label": "sample-16-after",
+        "wall_time_ns": 1791146740031274608,
+        "monotonic_ns": 145326406061,
+        "elapsed_ns": 24461759,
+        "returncode": 1,
+        "stdout": "adb: device offline\n",
+        "output_bytes": 20,
+        "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f",
+        "wall_time_utc": "2026-10-04T20:45:40.031274608Z",
+        "commands_log_line": 6707
+      },
+      {
+        "label": "experiment-failed",
+        "wall_time_ns": 1791146740031430360,
+        "monotonic_ns": 145326561864,
+        "failure_type": "RuntimeError",
+        "failure": "uninstalled blob identity unavailable or changed: sample-16-after",
+        "wall_time_utc": "2026-10-04T20:45:40.031430360Z",
+        "commands_log_line": 6708
+      }
+    ],
+    "stat_boundary": "The uninstalled before/after path check checks regular/non-symlink presence and stat size; it is not an inode identity or per-sample guest hash check. Sample16 after-stat failed, so neither its post-copy size nor identity is known.",
+    "shortfall_bytes": 7313872
+  },
+  "process_identity": {
+    "boot_id_unchanged_across_baseline_and_15_completed_samples": true,
+    "boot_identifier_omitted": true,
+    "original_processes": {
+      "adbd": {
+        "readbacks": 16,
+        "pid": 429,
+        "comm": "adbd",
+        "ppid": 1,
+        "starttime_ticks": 1138,
+        "identity_unchanged_before_failure": true,
+        "states_observed": [
+          "S"
+        ],
+        "last_event": "sample-15-identity-adbd-stat",
+        "last_wall_time_utc": "2026-10-04T20:45:39.464824107Z"
+      },
+      "system_server": {
+        "readbacks": 16,
+        "pid": 557,
+        "comm": "system_server",
+        "ppid": 349,
+        "starttime_ticks": 1408,
+        "identity_unchanged_before_failure": true,
+        "states_observed": [
+          "R",
+          "S"
+        ],
+        "last_event": "sample-15-identity-system_server-stat",
+        "last_wall_time_utc": "2026-10-04T20:45:39.510041022Z"
+      }
+    },
+    "last_identity_command_lines": [
+      6588,
+      6600,
+      6610
+    ],
+    "post_failure_identity_unavailable": true,
+    "boundary": "Before sample16, original PID, comm, parent, starttime and boot are unchanged. No sample16 identity observation exists; final-state is offline. Later kernel control activity names PID557 but does not establish its complete starttime identity after the disconnect."
+  },
+  "host_timeline": {
+    "disconnect": {
+      "utc": "2026-10-04T20:45:39.988Z",
+      "evidence": [
+        {
+          "line": 6701,
+          "text": "10-04 20:45:39.988  3185  3324 D adb     : transport.cpp:495 remote local: terminated (data)"
+        },
+        {
+          "line": 6702,
+          "text": "10-04 20:45:39.988  3185  3324 I adb     : transport.cpp:1222 emulator-5584: connection terminated: read failed"
+        },
+        {
+          "line": 6703,
+          "text": "10-04 20:45:39.989  3185  3185 D adb     : transport.cpp:627 emulator-5584: to remote: [CLSE] arg0=0x29c arg1=174 (len=0)  "
+        },
+        {
+          "line": 6704,
+          "text": "10-04 20:45:39.989  3185  3185 D adb     : transport.cpp:897 destroying transport emulator-5584"
+        },
+        {
+          "line": 6705,
+          "text": "10-04 20:45:39.989  3185  3185 D adb     : transport.cpp:901 transport: emulator-5584 destroy (attempting reconnection)"
+        }
+      ]
+    },
+    "copy_client": {
+      "pid": 4173,
+      "execve": [
+        {
+          "line": 11887,
+          "text": "4173  1791146739.580054 execve(\"/usr/local/lib/android/sdk/platform-tools/adb\", [\"/usr/local/lib/android/sdk/platf\"..., \"-L\", \"localfilesystem:/home/runner/wor\"..., \"-s\", \"emulator-5584\", \"exec-out\", \"cat\", \"/data/local/tmp/qperiapt-transpo\"...], 0x7f1ae845f290 /* 25 vars */ <unfinished ...>"
+        }
+      ],
+      "last_close": [
+        {
+          "line": 11908,
+          "text": "4173  1791146739.989428 close(3)        = 0"
+        }
+      ],
+      "exit": [
+        {
+          "line": 11909,
+          "text": "4173  1791146739.990605 exit_group(0)   = ?"
+        }
+      ],
+      "copy_observation": {
+        "label": "sample-16-copy",
+        "wall_time_ns": 1791146740006635365,
+        "monotonic_ns": 145301766889,
+        "elapsed_ns": 434580385,
+        "returncode": 0,
+        "bytes": 6295040,
+        "sha256": "2c3853924173d465d75ff9e4a0d73d4f3352cc4cd310d66e83641be05ec066da",
+        "exact": false,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_prefix": "",
+        "stderr_truncated": false,
+        "wall_time_utc": "2026-10-04T20:45:40.006635365Z",
+        "commands_log_line": 6706
+      }
+    },
+    "offline": {
+      "label": "sample-16-after",
+      "wall_time_ns": 1791146740031274608,
+      "monotonic_ns": 145326406061,
+      "elapsed_ns": 24461759,
+      "returncode": 1,
+      "stdout": "adb: device offline\n",
+      "output_bytes": 20,
+      "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f",
+      "wall_time_utc": "2026-10-04T20:45:40.031274608Z",
+      "commands_log_line": 6707
+    },
+    "captured_signals": [
+      {
+        "line": 12238,
+        "text": "3882  1791146745.063838 kill(-4180, SIGKILL) = 0"
+      },
+      {
+        "line": 12345,
+        "text": "3882  1791146750.077858 kill(-4191, SIGKILL) = 0"
+      }
+    ],
+    "signal_targets": {
+      "4180": "final-logcat adb client; execve syscalls.log:12215",
+      "4191": "final-crash adb client; execve syscalls.log:12322"
+    },
+    "first_captured_kill_seconds_after_disconnect": 5.075838,
+    "shutdown_syscall_count": 0,
+    "conclusion": "The only captured kill syscalls occurred about 5.076s and 10.090s after the host transport failure and targeted timed-out diagnostic groups, not copy PID4173. They cannot be the initiating kill for this disconnect. Copy PID4173 closed its descriptor and exited0 after the reported read failure.",
+    "trace_boundary": "strace covers the owned Python experiment and its descendants, not the independent ADB server/emulator, and omits read/write syscalls; it cannot establish the guest or complete transport causal mechanism."
+  },
+  "kernel_and_diagnostics": {
+    "diagnostics": {
+      "final-state": {
+        "returncode": 1
+      },
+      "final-logcat": {
+        "failure_type": "BoundedProcessError",
+        "failure": "command timed out after 5 seconds"
+      },
+      "final-crash": {
+        "failure_type": "BoundedProcessError",
+        "failure": "command timed out after 5 seconds"
+      },
+      "package-absence-after": {
+        "failure_type": "RuntimeError",
+        "failure": "uninstalled experiment final package absence unconfirmed"
+      }
+    },
+    "final_events": [
+      {
+        "label": "final-state",
+        "wall_time_ns": 1791146740054271124,
+        "monotonic_ns": 145349402608,
+        "elapsed_ns": 22717653,
+        "returncode": 1,
+        "stdout": "adb: device offline\n",
+        "output_bytes": 20,
+        "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f",
+        "wall_time_utc": "2026-10-04T20:45:40.054271124Z",
+        "commands_log_line": 6709
+      },
+      {
+        "label": "final-logcat",
+        "wall_time_ns": 1791146745065673220,
+        "monotonic_ns": 150360804754,
+        "elapsed_ns": 5011237366,
+        "failure_type": "BoundedProcessError",
+        "failure": "command timed out after 5 seconds",
+        "wall_time_utc": "2026-10-04T20:45:45.065673220Z",
+        "commands_log_line": 6738
+      },
+      {
+        "label": "final-crash",
+        "wall_time_ns": 1791146750081702303,
+        "monotonic_ns": 155376833766,
+        "elapsed_ns": 5015831241,
+        "failure_type": "BoundedProcessError",
+        "failure": "command timed out after 5 seconds",
+        "wall_time_utc": "2026-10-04T20:45:50.081702303Z",
+        "commands_log_line": 6753
+      }
+    ],
+    "selected_kernel_evidence": [
+      {
+        "line": 6714,
+        "text": "[   60.788269] binder_debug: 52 callbacks suppressed"
+      },
+      {
+        "line": 6715,
+        "text": "[   60.788273] binder: release 3300:3422 transaction 84038 out, still active"
+      },
+      {
+        "line": 6718,
+        "text": "[   61.125166] binder: undelivered transaction 84658, process died."
+      },
+      {
+        "line": 6720,
+        "text": "[   61.130017] binder: undelivered transaction 84722, process died."
+      },
+      {
+        "line": 6742,
+        "text": "[   65.249369] init: Sending signal 9 to service 'idmap2d' (pid 1188) process group..."
+      },
+      {
+        "line": 6744,
+        "text": "[   65.532307] init: Control message: Processed ctl.stop for 'idmap2d' from pid: 557 (system_server)"
+      },
+      {
+        "line": 6745,
+        "text": "[   65.534995] init: Service 'idmap2d' (pid 1188) received signal 9"
+      },
+      {
+        "line": 6750,
+        "text": "[   67.025593] binder: 3702:3652 reply target not found"
+      },
+      {
+        "line": 6751,
+        "text": "[   67.068467] binder: 3652:3702 transaction reply to 0:0 failed 102783/29189/0, size 112-0 line 3273"
+      },
+      {
+        "line": 6752,
+        "text": "[   67.070553] binder: send failed reply for transaction 77506, target dead"
+      },
+      {
+        "line": 6755,
+        "text": "[   68.468194] type=1400 audit(1791146749.452:22): avc:  granted  { read } for  comm=\"NetworkMonitor/\" name=\"psched\" dev=\"proc\" ino=4026532021 scontext=u:r:network_stack:s0 tcontext=u:object_r:proc_net:s0 tclass=file"
+      },
+      {
+        "line": 6784,
+        "text": "[   68.501986] type=1400 audit(1791146749.456:24): avc:  granted  { getattr } for  comm=\"NetworkMonitor/\" path=\"/proc/1063/net/psched\" dev=\"proc\" ino=4026532021 scontext=u:r:network_stack:s0 tcontext=u:object_r:proc_net:s0 tclass=file"
+      }
+    ],
+    "normal_cleanup_messages": [
+      {
+        "line": 6785,
+        "text": "INFO         | Wait for emulator (pid 3188) 20 seconds to shutdown gracefully before kill;you can set environment variable ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL(in seconds) to change the default value (20 seconds)"
+      },
+      {
+        "line": 6787,
+        "text": "WARNING      | Netsim Wifi ipv6:%5B::1%5D:38921 is gone due to CANCELLED"
+      },
+      {
+        "line": 6788,
+        "text": "USER_INFO    | Snapshots have been disabled by the user, save request is ignored."
+      },
+      {
+        "line": 6789,
+        "text": "INFO         | Saving snapshot 'default_boot' took 0 ms"
+      }
+    ],
+    "explicit_crash_oom_search": {
+      "Kernel panic": 0,
+      "Out of memory": 0,
+      "Killed process": 0,
+      "FATAL EXCEPTION": 0,
+      "Fatal signal": 0,
+      "oom-kill": 0
+    },
+    "conclusion": "The independently streamed kernel output continues after host ADB disconnect, including binder death/undelivered messages and later system_server PID557 control of idmap2d. No explicit kernel panic, OOM or fatal signal is present in the captured log. The two crash/logcat retrievals timed out; absence of their contents prevents excluding a guest process failure. No original adbd/system_server restart or whole-emulator crash is proven."
+  },
+  "verification_performed": [
+    "Computed ZIP and every member SHA256 from local ZIP bytes.",
+    "Compared observation.json and samples.json exactly with the aggregate results.",
+    "Matched hosted job/head to reported observer source commit.",
+    "Read relevant source from git show at that exact commit without executing the observer.",
+    "Counted completed/short copies, process-stat invariants and command/syscall evidence."
+  ],
+  "release_claim_eligible": false
+}

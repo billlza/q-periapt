@@ -1,0 +1,29 @@
+{
+  "completed": true,
+  "returncode": 0,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_android_apk_transport_probe",
+    "test_android_platform_probe"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+  "source_hashes": {
+    "artifact/android_apk_transport_probe.py": "eb376380379cd241f247a98491a2a5a0669eecbcc4137110f5def4ec6dd3c55c",
+    "artifact/test_android_apk_transport_probe.py": "a6014c1bc1e655f159ba3b9c8198d88d819ee56de8288351ff2a303d161d7873",
+    "artifact/test_android_platform_probe.py": "c4614779e6ebb19a949362351b74f2a47bc75e7f9aeb6c4eafcd5f5d4be4240b",
+    "research/android-platform-probe/run.py": "7b41c5decab7505fc39ac11045c35d749d7dee7e7fffbd1756f95fc5fe757a84",
+    "research/android-platform-probe/run.sh": "f76f47fd3d57ae361696012c0dc7b7be508a8ff2ad47dd1487861b68595c4aad",
+    ".github/workflows/android-apk-transport-probe.yml": "67d8f9e83990ed0c5b009bebdae80f26c456393615c2ae019763a188b86f8ad0",
+    "research/android-platform-probe/README.md": "b430076a2076dffeaf9e6784aa86d2e4db7e1984279b1ab37d3e6140609f1215"
+  },
+  "seconds": 51.37167599995155,
+  "log_sha256": "d083215fd71d43125e66d111aeef5ff4de8d316eff41bd5a8018c49d8568fdd8",
+  "summary": [
+    "Ran 26 tests in 50.899s"
+  ],
+  "scope": "Local real-process and synthetic route/parser/ownership controls. No Android execution or root-cause claim."
+}

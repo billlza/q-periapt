@@ -7,7 +7,7 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)
 experiment=${1:-file-integrity}
 case "$experiment" in
     file-integrity) output=$root/target/android-platform-probe ;;
-    apk-path-only|apk-pipe-copy|apk-file-copy|uninstalled-pipe-copy|uninstalled-file-copy) output=$root/target/android-apk-transport-probe ;;
+    apk-path-only|apk-pipe-copy|apk-file-copy|uninstalled-pipe-copy|uninstalled-file-copy|uninstalled-shell-copy) output=$root/target/android-apk-transport-probe ;;
     *) exit 2 ;;
 esac
 test -f "$output/commands.log"
@@ -113,6 +113,11 @@ test -S "$work/adb.sock"
 # the default ADB port; connect only this freshly launched loopback transport.
 kernel_observation=()
 if [ "$experiment" != file-integrity ]; then kernel_observation=(-show-kernel); fi
+case "$experiment" in
+    uninstalled-pipe-copy|uninstalled-shell-copy)
+        kernel_observation+=(-logcat 'QPeriaptProbe:I adbd:D adb:D AndroidRuntime:E libc:F DEBUG:F *:S')
+        ;;
+esac
 ANDROID_ADB_SERVER_PORT=5586 "$emulator" -avd PlatformProbe35 -port 5584 \
     -no-snapshot -read-only -no-window -no-audio -no-boot-anim \
     -no-direct-adb -adb-path "$adb" -gpu swiftshader "${kernel_observation[@]}" &
@@ -182,7 +187,7 @@ if [ "$experiment" != file-integrity ]; then
         "$sdk/system-images/android-35/google_apis_ps16k/x86_64/system.img"
     ps -o pid,ppid,pgid,etimes,args -p "$adb_pid,$emulator_pid"
     case "$experiment" in
-        uninstalled-pipe-copy|uninstalled-file-copy)
+        uninstalled-pipe-copy|uninstalled-file-copy|uninstalled-shell-copy)
             blob=/data/local/tmp/qperiapt-transport-probe.bin
             guest test ! -e "$blob"
             printf 'APK_TRANSPORT_BLOB_STAGE\n'

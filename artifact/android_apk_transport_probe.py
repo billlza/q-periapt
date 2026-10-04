@@ -15,7 +15,8 @@ import zipfile
 from bounded_process import capture_stdout, write_stdout_at
 
 ROOT = Path(__file__).resolve().parent.parent
-UNINSTALLED_MODES = ("uninstalled-pipe-copy", "uninstalled-file-copy")
+PROTOCOL_MODES = ("uninstalled-pipe-copy", "uninstalled-shell-copy")
+UNINSTALLED_MODES = (*PROTOCOL_MODES, "uninstalled-file-copy")
 MODES = ("apk-path-only", "apk-pipe-copy", "apk-file-copy", *UNINSTALLED_MODES)
 ARCHIVE_SHA256 = "1cf08883b24b280288b5c964d3e05e9dcac47f62b455b97dc026bf7299851084"
 APK_MEMBER = "agp_sdk_full_release--runtime--artifacts--qperiapt-android-smoke.apk"
@@ -24,6 +25,14 @@ APK_BYTES = 13608912
 APK_SOURCE_COMMIT = "9830732a8bfdafe98b70fce7efce085d7085b1f1"
 PACKAGE = "dev.qperiapt.androidsmoke"
 BLOB_PATH = "/data/local/tmp/qperiapt-transport-probe.bin"
+TRANSPORT_LOG_BYTES = 16 * 1024 * 1024
+LOG_MARKER = "QP_APK_TRANSPORT_MARKER_01"
+
+
+def independent_marker(data: bytes) -> bool:
+    """Match a guest logcat line, never a traced shell command mentioning it."""
+    return re.search(rb"(?m)^[^\r\n]*\bI(?:/QPeriaptProbe\(\s*\d+\)|\s+QPeriaptProbe)"
+                     rb"\s*:\s*QP_APK_TRANSPORT_MARKER_01\r?$", data) is not None
 
 
 def digest(path: Path) -> str:
@@ -133,11 +142,12 @@ class Experiment:
         self.events.append(event)
         print("APK_TRANSPORT " + json.dumps(event, sort_keys=True), flush=True)
 
-    def query(self, label, args, *, diagnostic=False):
+    def query(self, label, args, *, diagnostic=False, environment=None):
         start = time.monotonic_ns()
         try:
             result = capture_stdout(self.adb + args, timeout_seconds=5 if diagnostic else self.remaining(),
-                                    maximum_bytes=65536, stderr=subprocess.STDOUT, environment=self.environment)
+                                    maximum_bytes=65536, stderr=subprocess.STDOUT,
+                                    environment=self.environment if environment is None else environment)
         except BaseException as error:
             self.record(label, elapsed_ns=time.monotonic_ns()-start, failure_type=type(error).__name__, failure=str(error))
             raise
@@ -145,6 +155,56 @@ class Experiment:
                     stdout=result.stdout.decode("utf-8", errors="backslashreplace"),
                     output_bytes=len(result.stdout), output_sha256=hashlib.sha256(result.stdout).hexdigest())
         return result
+
+    def protocol_controls(self):
+        features = self.query("protocol-features", ["features"])
+        names = features.stdout.splitlines()
+        if (features.returncode or not names or b"shell_v2" not in names
+                or any(re.fullmatch(rb"[a-z0-9_]+", name) is None for name in names)):
+            raise RuntimeError("shell_v2 negotiation is unavailable or malformed; no fallback")
+        # Both comparison arms perform identical controls on the actual pinned
+        # client/image. Trace only these tiny commands, not copied APK contents.
+        traced = dict(self.environment, ADB_TRACE="adb")
+        for label, command, required in (
+            ("protocol-shell-route", ["shell", "-T", "-n", "true"],
+             (b"shell,v2,raw:true", b"use_shell_protocol=true shell_type_arg=raw")),
+            ("protocol-exec-route", ["exec-out", "true"], (b"exec:true",)),
+        ):
+            observed = self.query(label, command, environment=traced)
+            if observed.returncode or any(value not in observed.stdout for value in required):
+                raise RuntimeError("actual ADB service route unconfirmed: " + label)
+        errors = self.work / "protocol-control.err"
+        command = self.adb + ["shell", "-T", "-n", "sh", "-c",
+                              shlex.quote("printf 'QP_OUT\\n'; printf 'QP_ERR\\n' >&2; exit 7")]
+        with errors.open("xb") as diagnostic:
+            observed = capture_stdout(command, timeout_seconds=self.remaining(), maximum_bytes=65536,
+                                      stderr=diagnostic, environment=self.environment)
+        with errors.open("rb") as stream:
+            stderr = stream.read(65537)
+        self.record("protocol-separated-control", returncode=observed.returncode,
+                    stdout=observed.stdout.decode("utf-8", errors="backslashreplace"),
+                    stderr=stderr.decode("utf-8", errors="backslashreplace"), stderr_bytes=errors.stat().st_size)
+        if observed.returncode != 7 or observed.stdout != b"QP_OUT\n" or stderr != b"QP_ERR\n":
+            raise RuntimeError("shell_v2 stdout/stderr/exit control differs")
+
+    def confirm_independent_log(self):
+        result = self.query("guest-log-marker", ["shell", "log", "-p", "i", "-t", "QPeriaptProbe", LOG_MARKER])
+        if result.returncode or result.stdout:
+            raise RuntimeError("guest log marker command failed")
+        deadline = time.monotonic() + min(3, self.remaining())
+        # This file is written by the outer supervisor from emulator output.
+        # No adb logcat process supplies this pre-copy observation.
+        while True:
+            with (self.output / "commands.log").open("rb") as stream:
+                data = stream.read(TRANSPORT_LOG_BYTES + 1)
+            if len(data) > TRANSPORT_LOG_BYTES:
+                raise RuntimeError("independent emulator log exceeds its observation bound")
+            if independent_marker(data):
+                self.record("independent-log-ready", log_bytes=len(data), log_sha256=hashlib.sha256(data).hexdigest())
+                return
+            if time.monotonic() >= deadline:
+                raise RuntimeError("independent emulator log marker not observed")
+            time.sleep(0.05)
 
     def path(self, label):
         if self.mode in UNINSTALLED_MODES:
@@ -165,8 +225,9 @@ class Experiment:
         if self.mode != "apk-path-only":
             destination, errors = self.work / (prefix + ".apk"), self.work / (prefix + ".err")
             start = time.monotonic_ns()
-            command = self.adb + ["exec-out", "cat", before]
-            if self.mode in ("apk-pipe-copy", "uninstalled-pipe-copy"):
+            command = self.adb + (["shell", "-T", "-n", "cat", before]
+                                 if self.mode == "uninstalled-shell-copy" else ["exec-out", "cat", before])
+            if self.mode in ("apk-pipe-copy", *PROTOCOL_MODES):
                 descriptor = os.open(self.work, os.O_RDONLY | os.O_DIRECTORY)
                 try:
                     with errors.open("xb") as diagnostic:
@@ -184,7 +245,7 @@ class Experiment:
                 error_prefix = diagnostic.read(65536)
             # This observation deliberately precedes pm path, including zero-exit
             # short copies. The production failure lacked this byte evidence.
-            self.record(prefix + "-copy", elapsed_ns=time.monotonic_ns()-start, **outcome, **observed,
+            self.record(prefix + "-copy", elapsed_ns=time.monotonic_ns()-start, command=command, **outcome, **observed,
                         stderr_bytes=errors.stat().st_size, stderr_sha256=digest(errors),
                         stderr_prefix=error_prefix.decode("utf-8", errors="backslashreplace"),
                         stderr_truncated=errors.stat().st_size > len(error_prefix))
@@ -237,6 +298,9 @@ class Experiment:
                 absent = self.query("package-absence-before", ["shell", "pm", "list", "packages", "dev.qperiapt"])
                 if absent.returncode or absent.stdout != b"":
                     raise RuntimeError("uninstalled experiment package absence unconfirmed")
+            if self.mode in PROTOCOL_MODES:
+                self.confirm_independent_log()
+                self.protocol_controls()
             self.identity("baseline-identity")
             for number in range(1, 25):
                 self.sample(number)

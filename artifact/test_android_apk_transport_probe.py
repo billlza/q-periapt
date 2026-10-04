@@ -41,7 +41,7 @@ class ApkTransportProbeTests(unittest.TestCase):
             self.assertFalse((root / "probe.apk").exists())
 
     def test_short_zero_exit_copy_is_measured_before_after_query_and_fails(self):
-        for mode in ("apk-pipe-copy", "apk-file-copy"):
+        for mode in ("apk-pipe-copy", "apk-file-copy", *probe.PROTOCOL_MODES):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 experiment = self.experiment(temporary, mode)
                 experiment.adb = [sys.executable, "-I", "-S", "-c", "import sys; sys.stdout.buffer.write(b'xxx')"]
@@ -59,6 +59,87 @@ class ApkTransportProbeTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "copy or package identity"):
                         experiment.sample(1)
                 self.assertEqual(experiment.events[-1]["label"], "sample-01-result")
+
+    def test_full_copy_with_nonzero_exit_still_fails_in_both_protocol_arms(self):
+        for mode in probe.PROTOCOL_MODES:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                experiment = self.experiment(temporary, mode)
+                experiment.adb = [sys.executable, "-I", "-S", "-c", "import sys;sys.stdout.buffer.write(b'x'*64);sys.exit(7)"]
+                with mock.patch.object(probe, "APK_BYTES", 64), \
+                     mock.patch.object(probe, "APK_SHA256", hashlib.sha256(b"x"*64).hexdigest()), \
+                     mock.patch.object(experiment, "path", return_value=probe.BLOB_PATH), \
+                     mock.patch.object(experiment, "identity") as identity, contextlib.redirect_stdout(io.StringIO()):
+                    with self.assertRaisesRegex(RuntimeError, "copy or package identity"):
+                        experiment.sample(1)
+                self.assertTrue(experiment.events[-2]["exact"])
+                self.assertEqual(experiment.events[-2]["returncode"], 7)
+                suffix = ["shell", "-T", "-n", "cat", probe.BLOB_PATH] if mode == "uninstalled-shell-copy" else ["exec-out", "cat", probe.BLOB_PATH]
+                self.assertEqual(experiment.events[-2]["command"][-len(suffix):], suffix)
+                identity.assert_not_called()
+
+    def test_protocol_controls_require_actual_separate_streams_and_remote_status(self):
+        for payload, code, valid in (("import sys;print('QP_OUT');print('QP_ERR',file=sys.stderr)",7,True),
+                                    ("print('QP_OUT');print('QP_ERR')",7,False),
+                                    ("import sys;print('QP_OUT');print('QP_ERR',file=sys.stderr)",0,False)):
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment = self.experiment(temporary, "uninstalled-shell-copy")
+                experiment.adb = [sys.executable,"-I","-S","-c",payload+f";raise SystemExit({code})"]
+                routes = [BoundedResult(0,b"shell_v2\nabb_exec\n"),
+                          BoundedResult(0,b"_adb_connect: shell,v2,raw:true\nuse_shell_protocol=true shell_type_arg=raw\n"),
+                          BoundedResult(0,b"_adb_connect: exec:true\n")]
+                with mock.patch.object(experiment,"query",side_effect=routes) as query, contextlib.redirect_stdout(io.StringIO()):
+                    if valid: experiment.protocol_controls()
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,"stdout/stderr/exit"): experiment.protocol_controls()
+                self.assertEqual(query.call_args_list[1].kwargs["environment"]["ADB_TRACE"],"adb")
+
+    def test_missing_feature_or_wrong_service_route_never_falls_back(self):
+        good = [BoundedResult(0,b"shell_v2\n"),
+                BoundedResult(0,b"shell,v2,raw:true\nuse_shell_protocol=true shell_type_arg=raw\n"),
+                BoundedResult(0,b"exec:true\n")]
+        for index, bad in ((0,BoundedResult(0,b"abb_exec\n")),(0,BoundedResult(1,b"shell_v2\n")),
+                           (0,BoundedResult(0,b"error shell_v2\n")),(1,BoundedResult(0,b"shell,pty:true\n")),
+                           (1,BoundedResult(1,good[1].stdout)),(2,BoundedResult(0,b"shell,v2,raw:true\n"))):
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment=self.experiment(temporary,"uninstalled-shell-copy")
+                replies=good[:index]+[bad]
+                with mock.patch.object(experiment,"query",side_effect=replies) as query, \
+                     mock.patch.object(probe,"capture_stdout") as capture, self.assertRaises(RuntimeError):
+                    experiment.protocol_controls()
+                self.assertEqual(query.call_count,index+1)
+                capture.assert_not_called()
+
+    def test_independent_log_requires_a_logcat_record_not_a_command_echo(self):
+        marker=probe.LOG_MARKER.encode()
+        for data in (b"10-04 21:33:00.000 12 13 I QPeriaptProbe: "+marker+b"\n",
+                     b"I/QPeriaptProbe( 12): "+marker+b"\n"):
+            self.assertTrue(probe.independent_marker(data))
+        for data in (marker,b"_adb_connect: shell,v2,raw:log -p i -t QPeriaptProbe "+marker+b"\n",
+                     b"I OtherTag: "+marker+b"\n",b"I QPeriaptProbe: "+marker+b"_wrong\n"):
+            self.assertFalse(probe.independent_marker(data))
+        for payload, valid in ((b"I QPeriaptProbe: "+marker+b"\n",True),(b"command "+marker+b"\n",False)):
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment=self.experiment(temporary,"uninstalled-shell-copy");experiment.deadline=100
+                (Path(temporary)/"commands.log").write_bytes(payload)
+                with mock.patch.object(experiment,"query",return_value=BoundedResult(0,b"")), \
+                     mock.patch.object(probe.time,"monotonic",side_effect=[0,0,4]), contextlib.redirect_stdout(io.StringIO()):
+                    if valid:experiment.confirm_independent_log()
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,"marker not observed"):experiment.confirm_independent_log()
+
+    def test_failed_protocol_preflight_prevents_every_copy(self):
+        for mode in probe.PROTOCOL_MODES:
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment=self.experiment(temporary,mode)
+                with mock.patch.object(experiment,"query",return_value=BoundedResult(0,b"")), \
+                     mock.patch.object(experiment,"confirm_independent_log"), \
+                     mock.patch.object(experiment,"protocol_controls",side_effect=RuntimeError("protocol not established")), \
+                     mock.patch.object(experiment,"sample") as sample, contextlib.redirect_stdout(io.StringIO()):
+                    with self.assertRaisesRegex(RuntimeError,"protocol not established"):experiment.run()
+                sample.assert_not_called()
+                result=json.loads((Path(temporary)/"samples.json").read_text())
+                self.assertEqual(result["completed_samples"],0)
+                self.assertEqual(result["status"],"observation_failed")
 
     def test_both_copy_arms_read_full_output_and_path_only_claims_no_copy(self):
         for mode in probe.MODES:

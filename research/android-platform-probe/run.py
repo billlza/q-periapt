@@ -11,7 +11,7 @@ import sys
 import argparse
 
 from bounded_process import BoundedProcessError, capture_stdout
-from android_apk_transport_probe import MODES, UNINSTALLED_MODES, prepare_archive
+from android_apk_transport_probe import MODES, UNINSTALLED_MODES, PROTOCOL_MODES, TRANSPORT_LOG_BYTES, prepare_archive
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "target/android-platform-probe"
@@ -44,12 +44,13 @@ def main(experiment: str = "file-integrity") -> int:
     environment.update({"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "QPERIAPT_PYTHON": sys.executable,
                         "GITHUB_ACTIONS": "true"})
     timeout = 360 if experiment == "file-integrity" else 600
+    log_limit = TRANSPORT_LOG_BYTES if experiment in PROTOCOL_MODES else 2 * 1024 * 1024
     record = {"kind": "qperiapt.android_platform_reproduction", "schema_version": 1,
               "source_commit": commit, "sdk_installation_attempted": False,
               "routing": "private_unix_adb_with_emulator_registration",
               "status": "not_completed",
               "release_claim_eligible": False, "timeout_seconds": timeout,
-              "output_limit_bytes": 2 * 1024 * 1024,
+              "output_limit_bytes": log_limit,
               "scope": "one cold API 35 / 16 KiB boot and read-only file_integrity queries; no SDK qualification"}
     status = 1
     try:
@@ -58,10 +59,15 @@ def main(experiment: str = "file-integrity") -> int:
                 scope="fixed historical bytes on a cold API35/16KiB image; installed APK or uninstalled ordinary-file bulk copy; finite diagnostic, not SDK qualification",
                 apk_source=prepare_archive(ROOT / "target/android-apk-probe-intake", output / "probe.apk"))
         with (output / "commands.log").open("xb") as log:
+            def retain(chunk):
+                log.write(chunk)
+                # The running probe verifies its independent logcat marker in
+                # this file; buffering must not hide an already captured line.
+                log.flush()
             result = capture_stdout(
                 ["/bin/bash", str(ROOT / "research/android-platform-probe/run.sh"), experiment],
-                timeout_seconds=timeout, maximum_bytes=2 * 1024 * 1024,
-                stderr=subprocess.STDOUT, environment=environment, output_sink=log.write)
+                timeout_seconds=timeout, maximum_bytes=log_limit,
+                stderr=subprocess.STDOUT, environment=environment, output_sink=retain)
         if experiment in UNINSTALLED_MODES and b"APK_TRANSPORT_INSTALL_ATTEMPT\n" in (output / "commands.log").read_bytes():
             raise RuntimeError("uninstalled transport experiment attempted package installation")
         status = result.returncode
