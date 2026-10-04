@@ -4,7 +4,12 @@ set -euo pipefail
 umask 077
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)
-output=$root/target/android-platform-probe
+experiment=${1:-file-integrity}
+case "$experiment" in
+    file-integrity) output=$root/target/android-platform-probe ;;
+    apk-path-only|apk-pipe-copy|apk-file-copy) output=$root/target/android-apk-transport-probe ;;
+    *) exit 2 ;;
+esac
 test -f "$output/commands.log"
 test "$(uname -s)" = Linux
 # The hosted driver requires Bash's actual process ID, which differs from $$ in
@@ -89,7 +94,11 @@ cleanup() {
     exit "$primary"
 }
 trap cleanup EXIT
-"$adb" -L "$socket" nodaemon server &
+if [ "$experiment" = file-integrity ]; then
+    "$adb" -L "$socket" nodaemon server &
+else
+    ADB_TRACE=transport "$adb" -L "$socket" nodaemon server &
+fi
 adb_pid=$!
 for attempt in {1..50}; do
     if [ -S "$work/adb.sock" ]; then
@@ -157,6 +166,31 @@ capture_failure() {
         printf 'PLATFORM_FAILURE_LOG_UNAVAILABLE\n'
     fi
 }
+if [ "$experiment" != file-integrity ]; then
+    test -f "$output/probe.apk"
+    test -x /usr/bin/strace
+    test -x /usr/bin/prlimit
+    printf 'APK_TRANSPORT_TOOLS time=%s\n' "$(date -u +%s.%N)"
+    sha256sum "$adb" "$emulator" "$sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless"
+    "$adb" version
+    "$emulator" -version
+    cat "$sdk/platform-tools/source.properties" "$sdk/emulator/source.properties" \
+        "$sdk/system-images/android-35/google_apis_ps16k/x86_64/source.properties"
+    sha256sum "$sdk/system-images/android-35/google_apis_ps16k/x86_64/kernel-ranchu" \
+        "$sdk/system-images/android-35/google_apis_ps16k/x86_64/system.img"
+    ps -o pid,ppid,pgid,etimes,args -p "$adb_pid,$emulator_pid"
+    printf 'APK_TRANSPORT_INSTALL_ATTEMPT\n'
+    timeout --foreground 120 "$adb" -L "$socket" -s "$serial" install --no-incremental "$output/probe.apk"
+    # One bounded syscall log, no reads/writes or payload contents. The private
+    # server remains outside this trace; only the owned experiment's children
+    # are traced. The file limit also bounds direct-copy comparison output.
+    /usr/bin/prlimit --fsize=67108864 -- /usr/bin/strace -f -qq -ttt \
+        -e trace=process,signal,close,shutdown -o "$output/syscalls.log" \
+        /bin/sh "$root/artifact/python-run.sh" "$root/artifact/android_apk_transport_probe.py" \
+        "$experiment" "$work" "$socket" "$serial"
+    printf 'APK_TRANSPORT_OBSERVATIONS_COMPLETED mode=%s samples=24\n' "$experiment"
+    exit 0
+fi
 for sample in {1..60}; do
     # IFileIntegrityService's first AIDL method is isApkVeritySupported().
     # No APK is installed and no Q-Periapt classes/native libraries are loaded.

@@ -1,0 +1,94 @@
+name: Android APK transport reproduction
+
+on:
+  push:
+    paths:
+      - .github/workflows/android-apk-transport-probe.yml
+      - research/android-platform-probe/run.py
+      - research/android-platform-probe/run.sh
+      - artifact/android_apk_transport_probe.py
+      - artifact/test_android_apk_transport_probe.py
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  probe-controls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: proof_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Verify ownership, copy accounting and counterexamples
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest -v test_android_platform_probe test_android_apk_transport_probe
+
+  transport-comparison:
+    needs: probe-controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [apk-path-only, apk-pipe-copy, apk-file-copy]
+        trial: [1, 2]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: proof_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          packages: platform-tools emulator system-images;android-35;google_apis_ps16k;x86_64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: abi2-android-sdk-020-export-api35-16k-x86_64
+          run-id: "37219996163"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: target/android-apk-probe-intake
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Prepare this disposable runner's KVM and syscall tracing
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y strace
+          test -c /dev/kvm
+          test ! -L /dev/kvm
+          getfacl -p /dev/kvm
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+      - name: Observe the selected fixed-APK transport arm
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+          PROBE_MODE: ${{ matrix.mode }}
+        run: sh artifact/python-run.sh research/android-platform-probe/run.py --experiment "$PROBE_MODE"
+      - name: Retain bounded public diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android-apk-transport-${{ matrix.mode }}-${{ matrix.trial }}
+          path: |
+            target/android-apk-transport-probe/observation.json
+            target/android-apk-transport-probe/commands.log
+            target/android-apk-transport-probe/samples.json
+            target/android-apk-transport-probe/syscalls.log
+          if-no-files-found: error

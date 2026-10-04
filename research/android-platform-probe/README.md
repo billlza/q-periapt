@@ -33,3 +33,39 @@ An unconfirmed shutdown emits its original driver status and kills the entire
 owned group; successful queries cannot turn that cleanup failure into success.
 Only the observation JSON and bounded log are uploaded; keys and emulator state
 remain in the disposable runner. No existing package gate is changed.
+
+## APK copy and transport comparison
+
+The separate `Android APK transport reproduction` workflow investigates the
+`after-copy` offline observation from run `37219990138`, job `111489291014`.
+That observation proves `exec-out cat` returned zero without a bounded-writer
+error. Its size/hash check would have followed the failed `pm path`, so complete
+APK transfer has not been established for the failed attempt.
+
+Three arms use fresh private instances of the same API35/16KiB image: package
+path queries alone, the existing bounded PIPE writer, and the same copy command
+with stdout connected directly to a file. Each arm runs 24 samples in each of
+two hosted trials. Copy commands have the same 15-second maximum and APK size
+bound. Both copy arms record byte length and SHA-256 before the subsequent path
+query; incomplete zero-exit copies remain failures. The direct-file comparison
+uses an OS file-size limit and an owned child timeout. It does not replace the
+production writer or change package admission/recovery budgets.
+
+All arms install the same signed public APK, SHA-256
+`e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724`,
+from artifact `11309464232` of successful PR run `37219996163`. The entire ZIP
+and selected APK are pinned before use. This is the corresponding PR producer's
+APK (checkout `9830732a8bfdafe98b70fce7efce085d7085b1f1`); byte identity with the
+failed push's non-exported APK is not proven. No fresh signing key or rebuilt
+APK is substituted between comparison arms.
+
+The probe retains transport logs, tool/image hashes, per-command times and guest
+boot/adbd/system_server identities, and one bounded syscall trace of the probe's
+clients. The syscall selection excludes payload reads/writes and environment
+values. It includes process ownership, signals, close and shutdown to distinguish
+client cleanup from an independently failing transport. No automatic reconnect
+or retry occurs after a failed sample. The outer owner allows 600 seconds for
+boot, installation, observations and bounded cleanup. Completion describes only
+these finite samples; absence of a reproduced failure does not establish a root
+cause or qualify Android cleanup stability. Physical devices and installed SDK
+instrumentation remain separate from this transport experiment.
