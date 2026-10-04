@@ -44,6 +44,46 @@ through the returned device; no missing-state fallback or key replacement occurs
 Six-phase `EnrollmentStatus` distinguishes a missing pre-acceptance journal and a
 pending roster transition. Its Active phase is never a live authorization receipt.
 
+Same-key credential renewal uses four additional native exports. After closing
+and joining the device and its active calls, resume the original enrollment and
+call `stageCredentialRenewal(wire, independentPin, originalOperation)`, then the
+same consuming `activate()`. The grant is nonempty and bounded to 65,536 bytes;
+`CredentialRenewalID` and `CredentialRenewalStatementID` retain distinct, nonzero
+32-byte identities. The root, complete signing key, original installation and
+exact configured policy cannot be replaced through this operation. Do not update
+local credential files or create another registration after an unknown result.
+Required-witness local credential renewal remains explicitly refused by native
+admission, without local fallback.
+
+`credentialRenewalStatus()` is passive and requires no live policy or TLS files.
+Its separate sealed `CredentialRenewalStatus` has `Absent`, `Pending`, `Committed`
+and `ExpiredUncommitted` cases. Pending does not prove the journal is uncommitted;
+Committed reports the historical operation/statement/target and does not override
+current expiry or revocation. `reconcileExpiredCredentialRenewal(operation,
+statement)` reads the original retained intent without demanding fresh validation
+of its expired target. It returns no device. Only the native monotonic history
+check can produce ExpiredUncommitted, with its observed checkpoint and nonzero
+full-width unsigned time. No error is translated into an empty or successful state.
+
+`ContinuityDevice.admitPeerCredentialRenewal` admits an independent remote grant
+through the same owned service. It neither renews the local device nor replaces
+cached peer contexts. Explicitly reopen each existing session from its original
+bundle and pins; old children continue to undergo current-grant checks. The FFM
+bridge checks every conditional status field and the exact 120-byte native layout.
+All calls retain the existing one-owner transfer, cancellation, close and error
+propagation rules; no handle or storage-owner override is exposed.
+
+The independent consumer implements `enrollment-credential-status`, `-stage`,
+`-reject`, `-reconcile`, `-activate-refused`, and `credential-peer-check` with the
+same public record formats and command output as the C qualification client.
+It checks exact native refusal codes, readback, retained original registration,
+stale child refusal, unchanged next message slot, and persisted peer/outbox status.
+Raw C output-buffer sentinels and cross-kind handle probes remain C ABI checks;
+the Kotlin public API exposes neither failed outputs nor a registration-to-device
+cast. The new decoder/boundary tests and consumer paths require execution against
+the matching current native library; this source increment alone is not a new
+installed-package or independent-engine qualification.
+
 This registration increment requires its own installed-consumer, GC, cancellation
 and connection qualification; earlier setup/package receipts do not cover it.
 It is not Android integration or a complete credential/root/upgrade lifecycle.

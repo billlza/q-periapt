@@ -54,6 +54,8 @@ internal object ContinuityNative {
     private val enrollmentStatusLayout = struct("phase" to JAVA_INT, "signing" to array(32), "journal" to array(32),
         "previous" to checkpointLayout, "next" to checkpointLayout)
     private val enrollmentRequestLayout = struct("length" to JAVA_INT, "bytes" to array(8192))
+    private val credentialRenewalStatusLayout = struct("phase" to JAVA_INT, "operation" to array(32),
+        "statement" to array(32), "checkpoint" to checkpointLayout, "observed_at" to JAVA_LONG)
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -111,6 +113,13 @@ internal object ContinuityNative {
         "enrollment_storage" to function("qpc_enrollment_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
         "enrollment_refresh" to function("qpc_enrollment_v1_refresh_roster", JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "enrollment_activate" to function("qpc_enrollment_v1_activate", JAVA_LONG, ADDRESS),
+        "credential_renewal_status" to function("qpc_enrollment_v1_credential_renewal_status", JAVA_LONG, ADDRESS, ADDRESS),
+        "stage_credential_renewal" to function("qpc_enrollment_v1_stage_credential_renewal", JAVA_LONG, ADDRESS, JAVA_LONG,
+            ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "reconcile_expired_credential_renewal" to function("qpc_enrollment_v1_reconcile_expired_credential_renewal",
+            JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "admit_peer_credential_renewal" to function("qpc_device_v1_admit_peer_credential_renewal", JAVA_LONG, ADDRESS,
+            JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "setup_status" to function("qpc_setup_v1_status", JAVA_LONG, ADDRESS, ADDRESS),
         "setup_storage" to function("qpc_setup_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
         "setup_activate" to function("qpc_setup_v1_activate", JAVA_LONG, ADDRESS),
@@ -393,6 +402,75 @@ internal object ContinuityNative {
             invoke(arena, "enrollment_refresh", handle, encodeCheckpoint(arena, previous), arena.bytes(roster),
                    roster.size.toLong(), encodeAccountPin(arena, pin), output)
             decodeEnrollmentStatus(Fields(output, enrollmentStatusLayout))
+        }
+    }
+    private fun decodeRosterCheckpoint(bytes: ByteArray): RosterCheckpoint {
+        if (bytes.size != 40) malformed("native roster checkpoint width differs")
+        val version = Counter64.fromBits(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).long)
+        val digest = bytes.copyOfRange(8, 40)
+        if (version == Counter64.ZERO || version.bits() == -1L || digest.all { it == 0.toByte() }) {
+            malformed("native roster checkpoint differs")
+        }
+        return RosterCheckpoint(version, digest)
+    }
+    @JvmSynthetic internal fun decodeCredentialRenewalStatus(phase: Int, operation: ByteArray, statement: ByteArray,
+                                                            checkpoint: ByteArray, observedAt: Counter64): CredentialRenewalStatus {
+        if (operation.size != 32 || statement.size != 32 || checkpoint.size != 40) {
+            malformed("native credential renewal status width differs")
+        }
+        if (phase !in 0..3) malformed("native credential renewal phase differs")
+        if (phase == 0) {
+            if (operation.any { it != 0.toByte() } || statement.any { it != 0.toByte() } ||
+                checkpoint.any { it != 0.toByte() } || observedAt != Counter64.ZERO) {
+                malformed("absent native credential renewal has retained fields")
+            }
+            return CredentialRenewalStatus.Absent
+        }
+        if (operation.all { it == 0.toByte() } || statement.all { it == 0.toByte() }) {
+            malformed("native credential renewal is missing its original operation or statement")
+        }
+        if ((phase == 3) != (observedAt != Counter64.ZERO)) malformed("native renewal observation time differs")
+        val id = CredentialRenewalID(operation)
+        val signed = CredentialRenewalStatementID(statement)
+        if (phase == 1) {
+            if (checkpoint.any { it != 0.toByte() }) malformed("pending native renewal has a checkpoint")
+            return CredentialRenewalStatus.Pending(id, signed)
+        }
+        val head = decodeRosterCheckpoint(checkpoint)
+        return if (phase == 2) CredentialRenewalStatus.Committed(id, signed, head)
+            else CredentialRenewalStatus.ExpiredUncommitted(id, signed, head, observedAt)
+    }
+    private fun decodeCredentialRenewalStatus(fields: Fields): CredentialRenewalStatus = decodeCredentialRenewalStatus(
+        fields.integer("phase"), fields.bytes("operation", 32), fields.bytes("statement", 32),
+        fields.bytes("checkpoint", 40), fields.counter("observed_at"))
+    @JvmSynthetic internal fun credentialRenewalStatus(handle: Long): CredentialRenewalStatus =
+        record(handle, "credential_renewal_status", credentialRenewalStatusLayout, decode = ::decodeCredentialRenewalStatus)
+    @JvmSynthetic internal fun stageCredentialRenewal(handle: Long, wire: ByteArray, pin: AccountPin,
+                                                      operation: CredentialRenewalID): CredentialRenewalStatus {
+        require(wire.size in 1..65536) { "credential renewal grant must contain 1..65536 bytes" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(credentialRenewalStatusLayout)
+            invoke(arena, "stage_credential_renewal", handle, arena.bytes(wire), wire.size.toLong(),
+                encodeAccountPin(arena, pin), arena.bytes(operation.encoded()), output)
+            decodeCredentialRenewalStatus(Fields(output, credentialRenewalStatusLayout))
+        }
+    }
+    @JvmSynthetic internal fun reconcileExpiredCredentialRenewal(handle: Long, operation: CredentialRenewalID,
+                                                                 statement: CredentialRenewalStatementID): CredentialRenewalStatus =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(credentialRenewalStatusLayout)
+            invoke(arena, "reconcile_expired_credential_renewal", handle, arena.bytes(operation.encoded()),
+                arena.bytes(statement.encoded()), output)
+            decodeCredentialRenewalStatus(Fields(output, credentialRenewalStatusLayout))
+        }
+    @JvmSynthetic internal fun admitPeerCredentialRenewal(handle: Long, wire: ByteArray, pin: AccountPin,
+                                                          operation: CredentialRenewalID): RosterCheckpoint {
+        require(wire.size in 1..65536) { "credential renewal grant must contain 1..65536 bytes" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(checkpointLayout)
+            invoke(arena, "admit_peer_credential_renewal", handle, arena.bytes(wire), wire.size.toLong(),
+                encodeAccountPin(arena, pin), arena.bytes(operation.encoded()), output)
+            decodeRosterCheckpoint(output.toArray(JAVA_BYTE))
         }
     }
     @JvmSynthetic internal fun preparePeer(parent: Long, path: String, quality: PrekeyQuality,
@@ -769,6 +847,7 @@ internal object ContinuityNative {
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
         "enrollment_intent" to enrollmentIntentLayout, "checkpoint" to checkpointLayout, "enrollment_pin" to enrollmentPinLayout,
         "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,
+        "credential_renewal_status" to credentialRenewalStatusLayout,
         "setup_status" to setupStatusLayout, "setup_preparation" to setupPreparationLayout,
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,
@@ -776,4 +855,8 @@ internal object ContinuityNative {
         "account_target" to accountTargetLayout, "account_delivery" to accountDeliveryLayout,
         "account_cleanup_header" to accountCleanupHeaderLayout, "account_cleanup_member" to accountCleanupMemberLayout,
     ).mapValues { (_, layout) -> layout.byteSize() to layout.byteAlignment() }
+    @JvmSynthetic internal fun credentialRenewalOffsets(): Map<String, Long> =
+        listOf("phase", "operation", "statement", "checkpoint", "observed_at").associateWith {
+            offset(credentialRenewalStatusLayout, it)
+        }
 }

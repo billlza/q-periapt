@@ -27,8 +27,9 @@ RENEWAL_TESTS = {
 }
 
 
-def verify_renewal_execution(stdout: bytes) -> dict:
-    """Validate the selected real C workload; this is not signature verification."""
+def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
+    """Validate shared harness output; caller must bind the selected client binary."""
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported credential renewal language")
     text = stdout.decode()
     names = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(names) == 3 and set(names) == RENEWAL_TESTS
@@ -43,9 +44,9 @@ def verify_renewal_execution(stdout: bytes) -> dict:
     expiry = re.findall(r"^C_CREDENTIAL_EXPIRY actual_wall_clock=true target_until=([0-9]+) observed_at=([0-9]+) no_policy_status=true same_registration=true separate_root_operation=true$", text, re.MULTILINE)
     sdk.require(len(expiry) == 1 and 0 < int(expiry[0][0]) <= int(expiry[0][1]),
                 "C expiry observation precedes its real target lifetime")
-    return dict(completed=True, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
+    return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
-                scope="C ABI runtime assertions with original-registration and historical peer readbacks; same native engine; no renewed TLS delivery, required-witness local renewal or independent-engine claim",
+                scope=language + " owner runtime assertions with original-registration and historical peer readbacks; raw C output-buffer checks apply only to C; same native engine; no renewed TLS delivery, required-witness local renewal or independent-engine claim",
                 release_claim_eligible=False)
 
 
@@ -337,5 +338,22 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
         sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == identity,
                     "foreign registration native harness changed during execution")
         result[carrier] = dict(execution=checked, native_harness_sha256=identity)
+    binary, identity = binaries["enrollment"]
+    sdk.require(native["credential_renewal"]["binary"] == native["enrollment"]["binary"],
+                "foreign renewal must use the C-qualified original enrollment harness")
+    sdk.require(runtime.get("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") == language,
+                "foreign renewal language selection differs")
+    client = Path(runtime["QPERIAPT_C_OWNER_CLIENT"])
+    client_identity = sdk.snapshot(client, maximum=c.MAX_BINARY)
+    selected = dict(runtime)
+    selected.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
+    stdout = run([str(binary), "credential_renewal::", "--nocapture"],
+                 "credential-renewal-" + profile + variant, runtime=selected)
+    checked = verify_renewal_execution(stdout, language=language)
+    sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == identity
+                and sdk.snapshot(client, maximum=c.MAX_BINARY).sha256 == client_identity.sha256,
+                "foreign renewal harness or client changed during execution")
+    result["credential_renewal"] = dict(execution=checked, native_harness_sha256=identity,
+                                        foreign_client_sha256=client_identity.sha256)
     sdk.write_json(output / (language.upper() + "_ENROLLMENT_" + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result

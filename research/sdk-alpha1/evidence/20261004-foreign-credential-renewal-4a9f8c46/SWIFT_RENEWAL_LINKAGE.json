@@ -1,0 +1,13 @@
+{
+  "dependencies": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/swift-installed-debug/.build/out/Products/Debug/ContinuityClient:\n\t@rpath/libq_periapt_continuity_c_consumer.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 5027.0.69)\n\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n\t/usr/lib/swift/libswiftCore.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/swift/libswiftCoreFoundation.dylib (compatibility version 1.0.0, current version 120.100.0, weak)\n\t/usr/lib/swift/libswiftDarwin.dylib (compatibility version 1.0.0, current version 428.0.10)\n\t/usr/lib/swift/libswiftDispatch.dylib (compatibility version 1.0.0, current version 1605.0.2, weak)\n\t/usr/lib/swift/libswiftIOKit.dylib (compatibility version 1.0.0, current version 1.0.0, weak)\n\t/usr/lib/swift/libswiftObjectiveC.dylib (compatibility version 1.0.0, current version 973.1.0, weak)\n\t/usr/lib/swift/libswiftXPC.dylib (compatibility version 1.0.0, current version 167.0.2, weak)\n\t/usr/lib/swift/libswift_Concurrency.dylib (compatibility version 0.0.0, current version 0.0.0)\n",
+  "rpaths": [
+    "/usr/lib/swift",
+    "@loader_path",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/swift-installed-debug/.build/out/Products/Debug/PackageFrameworks",
+    "/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.s2xPSR/Metal.xctoolchain/usr/lib/swift-6.2/macosx",
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-6.2/macosx",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/swift-installed-debug/native/lib"
+  ],
+  "native_library": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/swift-installed-debug/native/lib/libq_periapt_continuity_c_consumer.dylib",
+  "client_sha256": "445ba1e01553328e0c39c9c66bd3132e2d7a7e4675f25ca318cc9ecf4e43843d"
+}

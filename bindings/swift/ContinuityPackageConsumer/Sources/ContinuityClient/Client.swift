@@ -144,6 +144,12 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command == "credential-peer-check" {
+            try require(existing == nil, "credential peer command owns its original session selection")
+            guard case .local = witness else { throw ProbeFailure.contract("credential peer workload is local-only") }
+            try credentialPeerCommand(args)
+            return
+        }
         if command.hasPrefix("enrollment-") {
             try require(existing == nil, "enrollment cannot select a session")
             try await enrollmentCommand(args, witness: witness)

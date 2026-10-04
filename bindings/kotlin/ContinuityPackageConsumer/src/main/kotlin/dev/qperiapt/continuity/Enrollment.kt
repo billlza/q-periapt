@@ -78,6 +78,21 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     fun prepareStorage(): InstallationPreparation = reference.call { owner -> owner.call { ContinuityNative.enrollmentStorage(it) } }
     fun refreshRoster(previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin): EnrollmentStatus =
         reference.call { owner -> owner.call { ContinuityNative.enrollmentRefresh(it, previous, roster, pin) } }
+    /** Passive original-operation progress; requires neither live policy nor TLS files. */
+    fun credentialRenewalStatus(): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.credentialRenewalStatus(it) } }
+    /** Persist a same-key target under the independently current pin and original
+     * configured policy. Close/join the device first, then resume this original
+     * enrollment. Required-witness local renewal is still refused natively.
+     */
+    fun stageCredentialRenewal(wire: ByteArray, pin: AccountPin, operation: CredentialRenewalID): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.stageCredentialRenewal(it, wire, pin, operation) } }
+    /** Reconcile retained intent, without revalidating an expired target as live
+     * authority. This publishes no device and never infers absence from failure.
+     */
+    fun reconcileExpiredCredentialRenewal(operation: CredentialRenewalID,
+                                         statement: CredentialRenewalStatementID): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.reconcileExpiredCredentialRenewal(it, operation, statement) } }
     /** Move the sole owning reference after native activation. On failure, close
      * this wrapper and resume the original state, which may already be Active.
      */

@@ -13,6 +13,30 @@ import test_continuity_c_account as account_tests
 
 
 class KotlinConsumerTests(unittest.TestCase):
+    def test_renewal_suite_is_required_and_cannot_be_replaced_by_owner_success(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            def report(name, names):
+                suite = ET.Element("testsuite", name="dev.qperiapt.continuity." + name,
+                    tests=str(len(names)), failures="0", errors="0", skipped="0")
+                for case in names:
+                    ET.SubElement(suite, "testcase", name=case + "()", classname=suite.get("name"))
+                return ET.tostring(suite)
+            owner = root / "TEST-dev.qperiapt.continuity.OwnerTests.xml"
+            renewal = root / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml"
+            owner.write_bytes(report("OwnerTests", kotlin.TEST_NAMES))
+            with self.assertRaisesRegex(ValueError, "report set differs"):
+                kotlin.verify_test_reports(root)
+            good = report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
+            renewal.write_bytes(good)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 23)
+            for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
+                            good.replace(b"CredentialRenewalTests", b"OwnerTests"),
+                            good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
+                renewal.write_bytes(invalid)
+                with self.assertRaisesRegex(ValueError, "all execute"):
+                    kotlin.verify_test_reports(root)
+
     def test_account_parent_collection_cannot_be_inferred_from_account_delivery_alone(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

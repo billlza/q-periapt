@@ -96,6 +96,10 @@ private fun run(arguments: List<String>): String {
         require(existing == null && enrolled == null)
         return enrollment(args, witness)
     }
+    if (args[0] == "credential-peer-check") {
+        require(existing == null && enrolled == null && witness == WitnessCarrier.Local)
+        return credentialPeerCheck(args)
+    }
     if (args[0].startsWith("setup-")) {
         require(existing == null)
         return setup(args, witness)

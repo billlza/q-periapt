@@ -356,3 +356,29 @@ in its separate account-TLS public export. The original signed-TCP four-loss tra
 remains mandatory. No raw owner handle, new native export or alternate TLS engine
 is added. Current/native-minimum development runs remain separate from a complete
 archive-produced cohort and final distribution admission.
+
+## Original-identity credential renewal
+
+Resume the original `ContinuityEnrollment` and call `stageCredentialRenewal` with
+an independently obtained `AccountPin`, the bounded signed grant and its retained
+`CredentialRenewalID`. Activation transfers the same native registration owner to
+`ContinuityDevice`; an error may follow a durable commit, so close and resume the
+original state. Do not create replacement keys, configuration or operation IDs.
+
+`credentialRenewalStatus` is passive history and needs no live policy/TLS inputs.
+Its explicit cases are Absent, Pending, Committed and ExpiredUncommitted. Committed
+remains a historical fact after expiry or revocation. For an expired pending target,
+`reconcileExpiredCredentialRenewal` uses the original operation and statement and
+returns no device. Only a separately authorized new grant can resume current use.
+
+`ContinuityDevice.admitPeerCredentialRenewal` installs a peer grant under the
+original service. Reopen the exact existing peer/session afterward; cached children
+are not silently upgraded to new authority. Fresh bootstrap still requires current
+public inputs. Required-witness local renewal and policy/root/key replacement remain
+separate, unsupported transitions in this candidate route.
+
+The renewal workload covers host-clock expiry, complete status-field readback,
+original registration identity, failed-owner disposal, historical peer reopening
+and rejection of a cached child after another grant. A native readback checks the
+unchanged original ciphertext. This does not establish post-renewal TLS delivery,
+physical-device qualification, independent protocol implementation or a stable ABI.

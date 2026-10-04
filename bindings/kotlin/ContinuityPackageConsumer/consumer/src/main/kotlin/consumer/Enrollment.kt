@@ -7,7 +7,7 @@ import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.file.Path
 
-private fun FixtureRecords.exact(name: String, count: Int): ByteArray = read(name).also {
+internal fun FixtureRecords.enrollmentExact(name: String, count: Int): ByteArray = read(name).also {
     check(it.size == count) { "enrollment public input width: $name" }
 }
 private fun counter(bytes: ByteArray): Counter64 {
@@ -15,16 +15,16 @@ private fun counter(bytes: ByteArray): Counter64 {
     return Counter64.parse(java.lang.Long.toUnsignedString(ByteBuffer.wrap(bytes).long))
 }
 private fun intent(records: FixtureRecords): EnrollmentIntent {
-    val bytes = records.exact("enrollment-intent", 72)
-    return EnrollmentIntent(records.exact("enrollment-root", 1985), bytes.copyOfRange(0, 16),
+    val bytes = records.enrollmentExact("enrollment-intent", 72)
+    return EnrollmentIntent(records.enrollmentExact("enrollment-root", 1985), bytes.copyOfRange(0, 16),
         counter(bytes.copyOfRange(16, 24)), bytes.copyOfRange(24, 56),
         counter(bytes.copyOfRange(56, 64)), counter(bytes.copyOfRange(64, 72)))
 }
-private fun pin(records: FixtureRecords, renewal: Boolean): AccountPin {
+internal fun enrollmentPin(records: FixtureRecords, renewal: Boolean): AccountPin {
     val original = intent(records)
-    return AccountPin(AccountID(records.exact("trusted-account", 32)), original.root.encoded(), original.family.encoded(),
-        RosterCheckpoint(counter(records.exact(if (renewal) "renewal-version" else "trusted-roster-version", 8)),
-            records.exact(if (renewal) "renewal-digest" else "trusted-roster-digest", 32)))
+    return AccountPin(AccountID(records.enrollmentExact("trusted-account", 32)), original.root.encoded(), original.family.encoded(),
+        RosterCheckpoint(counter(records.enrollmentExact(if (renewal) "renewal-version" else "trusted-roster-version", 8)),
+            records.enrollmentExact(if (renewal) "renewal-digest" else "trusted-roster-digest", 32)))
 }
 private fun status(value: EnrollmentStatus): String =
     "enrollment-phase:${value.phase.ordinal + 1}\n${hex(value.signing)}\n${value.journal?.let(::hex) ?: "0".repeat(64)}"
@@ -35,7 +35,7 @@ private fun refusal(code: Int, operation: () -> Unit): ContinuityFailure {
     }
     error("enrollment operation unexpectedly succeeded")
 }
-private fun shapeRefusal(operation: () -> Unit) {
+internal fun enrollmentShapeRefusal(operation: () -> Unit) {
     try { operation() } catch (_: IllegalArgumentException) { return }
     error("invalid enrollment shape was accepted")
 }
@@ -134,6 +134,10 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
         else ContinuityEnrollment.resume(path, intent(records), witness)
     return owner.use {
         val original = it.status()
+        if (mode.startsWith("enrollment-credential-")) {
+            require(args.size == 2) { "credential renewal arguments" }
+            return@use credentialEnrollment(it, records, mode, original)
+        }
         when (mode) {
             "enrollment-create" -> check(original.phase == EnrollmentPhase.PREPARING)
             "enrollment-request" -> {
@@ -148,9 +152,9 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
             }
             "enrollment-accept", "enrollment-reject-signature" -> {
                 val certificate = records.read("grant-certificate"); val roster = records.read("grant-roster")
-                val trusted = pin(records, false)
-                shapeRefusal { it.accept(ByteArray(0), roster, trusted) }
-                shapeRefusal { it.accept(certificate, ByteArray(0), trusted) }
+                val trusted = enrollmentPin(records, false)
+                enrollmentShapeRefusal { it.accept(ByteArray(0), roster, trusted) }
+                enrollmentShapeRefusal { it.accept(certificate, ByteArray(0), trusted) }
                 check(it.status() == original)
                 if (mode == "enrollment-reject-signature") {
                     certificate[certificate.lastIndex] = (certificate.last().toInt() xor 1).toByte()
@@ -174,8 +178,8 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
                 check(records.retain("enrollment-genesis-digest", digest, true))
             }
             "enrollment-refresh" -> {
-                val previous = pin(records, false).checkpoint; val next = pin(records, true)
-                shapeRefusal { it.refreshRoster(previous, ByteArray(0), next) }
+                val previous = enrollmentPin(records, false).checkpoint; val next = enrollmentPin(records, true)
+                enrollmentShapeRefusal { it.refreshRoster(previous, ByteArray(0), next) }
                 check(it.status() == original)
                 val updated = it.refreshRoster(previous, records.read("renewal-roster"), next)
                 check(updated.phase == EnrollmentPhase.REFRESHING && updated.refresh == RosterTransition(previous, next.checkpoint))

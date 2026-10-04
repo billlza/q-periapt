@@ -57,6 +57,12 @@ class ContinuityDevice private constructor(private val native: NativeOwner) : Au
         activate(preparePeer(path, quality, role))
     fun reopenPeer(path: String, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
         activate(preparePeerReopen(path, quality, role, session))
+    /** Admit a remote root grant through this original service and exact policy.
+     * This cannot renew the local identity or refresh existing peer views. Reopen
+     * each original session explicitly; failures retain the original operation.
+     */
+    fun admitPeerCredentialRenewal(wire: ByteArray, pin: AccountPin, operation: CredentialRenewalID): RosterCheckpoint =
+        native.call { ContinuityNative.admitPeerCredentialRenewal(it, wire, pin, operation) }
     private fun activate(peer: ContinuityOwner): ContinuityOwner {
         try { peer.finishOpen(); return peer } catch (failure: Throwable) {
             try { peer.close() } catch (disposal: Throwable) { failure.addSuppressed(disposal) }

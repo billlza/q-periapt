@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/enrollment-native-test",
+    "--exact",
+    "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+    "--nocapture"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer",
+  "exit": 0,
+  "seconds": 5.221219290979207
+}

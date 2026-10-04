@@ -260,6 +260,9 @@ func enrollmentCommand(_ args: [String], witness: WitnessCarrier) async throws {
         }
         try owner.finishOpen()
         let original = try owner.status()
+        if mode.hasPrefix("enrollment-credential-") {
+            return try credentialEnrollmentCommand(owner, inputs: inputs, mode: mode, original: original)
+        }
         switch mode {
         case "enrollment-create":
             try require(original.phase == .preparing, "new enrollment not Preparing")
@@ -326,4 +329,129 @@ func enrollmentCommand(_ args: [String], witness: WitnessCarrier) async throws {
         return "enrollment-phase:\(state.phase.rawValue)\n\(hex(state.signingID))\n\(state.journal.map(hex) ?? String(repeating: "0", count: 64))"
     }
     try output(text)
+}
+
+private func renewalHex(_ bytes: [UInt8]) -> String {
+    bytes.map { String(format: "%02x", $0) }.joined()
+}
+private func renewalText(_ status: CredentialRenewalStatus) -> String {
+    let phase: UInt32, operation: [UInt8], statement: [UInt8], checkpoint: RosterCheckpoint?, observedAt: UInt64
+    switch status {
+    case .absent:
+        phase = 0; operation = [UInt8](repeating: 0, count: 32); statement = operation; checkpoint = nil; observedAt = 0
+    case let .pending(id, identity):
+        phase = 1; operation = id.bytes; statement = identity.bytes; checkpoint = nil; observedAt = 0
+    case let .committed(id, identity, target):
+        phase = 2; operation = id.bytes; statement = identity.bytes; checkpoint = target; observedAt = 0
+    case let .expiredUncommitted(id, identity, head, at):
+        phase = 3; operation = id.bytes; statement = identity.bytes; checkpoint = head; observedAt = at
+    }
+    return "credential-phase:\(phase)\n\(renewalHex(operation))\n\(renewalHex(statement))\ncredential-head:\(checkpoint?.version ?? 0)\n\(checkpoint.map { renewalHex($0.digest) } ?? String(repeating: "0", count: 64))\ncredential-observed:\(observedAt)"
+}
+private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: EnrollmentInputs,
+    mode: String, original: EnrollmentStatus) throws -> String {
+    let status: CredentialRenewalStatus
+    switch mode {
+    case "enrollment-credential-status": status = try owner.credentialRenewalStatus()
+    case "enrollment-credential-activate-refused":
+        _ = try refusedEnrollmentActivation(owner, code: 104)
+        _ = try expectedEnrollmentFailure(2) { try owner.credentialRenewalStatus() }
+        return "credential-expired-activation-refused"
+    case "enrollment-credential-stage", "enrollment-credential-reject":
+        var grant = try inputs.read("credential-renewal", maximum: 65536)
+        try require(!grant.isEmpty, "empty credential grant")
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let pin = try inputs.pin(renewal: true)
+        try invalidEnrollmentLength { try owner.stageCredentialRenewal(grant: [], pin: pin, operation: operation) }
+        try require(owner.status() == original, "renewal shape refusal consumed registration")
+        if mode == "enrollment-credential-reject" {
+            grant[grant.count - 1] ^= 1
+            _ = try expectedEnrollmentFailure(102) { try owner.stageCredentialRenewal(grant: grant, pin: pin, operation: operation) }
+            _ = try expectedEnrollmentFailure(2) { try owner.credentialRenewalStatus() }
+            return "credential-signature-refused"
+        }
+        status = try owner.stageCredentialRenewal(grant: grant, pin: pin, operation: operation)
+        try require(status == owner.credentialRenewalStatus(), "renewal stage differs from authenticated readback")
+    case "enrollment-credential-reconcile":
+        status = try owner.reconcileExpiredCredentialRenewal(
+            operation: CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32)),
+            statement: CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32)))
+        try require(owner.status() == original, "reconciliation replaced the registration owner")
+    default: throw ProbeFailure.contract("unknown credential renewal command")
+    }
+    return renewalText(status)
+}
+
+private func refusedRenewalPeer(_ device: ContinuityDevice, path: String, role: BootstrapRole,
+    session: SessionID?, code: Int32) throws {
+    let peer = try session.map { try device.preparePeerReopen(path: path, quality: .oneTimeBoth, role: role, session: $0) }
+        ?? device.preparePeer(path: path, quality: .oneTimeBoth, role: role)
+    let result = Result {
+        _ = try expectedEnrollmentFailure(code) { try peer.finishOpen() }
+        _ = try expectedEnrollmentFailure(2) { try peer.finishOpen() }
+    }
+    do { try close(peer) }
+    catch { throw ProbeFailure.contract("refused peer disposal: \(error); operation: \(result)") }
+    try result.get()
+}
+private func admitRenewalPeer(_ device: ContinuityDevice, path: String, controls: Bool) throws {
+    let inputs = EnrollmentInputs(records: FixtureRecords(path: path))
+    let grant = try inputs.read("credential-renewal", maximum: 65536), pin = try inputs.pin(renewal: true)
+    let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+    if controls {
+        try invalidEnrollmentLength { try device.admitPeerCredentialRenewal(grant: [], pin: pin, operation: operation) }
+        var digest = pin.checkpoint.digest; digest[0] ^= 1
+        let wrong = try AccountPin(account: pin.account, root: pin.root, family: pin.family,
+            checkpoint: RosterCheckpoint(version: pin.checkpoint.version, digest: digest))
+        _ = try expectedEnrollmentFailure(105) { try device.admitPeerCredentialRenewal(grant: grant, pin: wrong, operation: operation) }
+        var bytes = operation.bytes; bytes[0] ^= 1
+        let wrongOperation = try CredentialRenewalID(bytes: bytes)
+        _ = try expectedEnrollmentFailure(211) { try device.admitPeerCredentialRenewal(grant: grant, pin: pin, operation: wrongOperation) }
+    }
+    try require(device.admitPeerCredentialRenewal(grant: grant, pin: pin, operation: operation) == pin.checkpoint,
+        "peer grant returned wrong target")
+    try require(device.admitPeerCredentialRenewal(grant: grant, pin: pin, operation: operation) == pin.checkpoint,
+        "peer grant retry changed target")
+}
+func credentialPeerCommand(_ args: [String]) throws {
+    try require(args.count == 6, "credential peer arguments")
+    let path = args[1], session: SessionID = try decode(args[4]), message: MessageID = try decode(args[5])
+    var bytes = session.bytes; bytes[0] ^= 1
+    let wrong = try SessionID(bytes: bytes)
+    let device = try ContinuityDevice.open(path: path)
+    try disposingEnrollmentDevice(device) {
+        try refusedRenewalPeer(device, path: path, role: .responder, session: session, code: 104)
+        try admitRenewalPeer(device, path: args[2], controls: true)
+        try refusedRenewalPeer(device, path: path, role: .responder, session: nil, code: 104)
+        try refusedRenewalPeer(device, path: path, role: .initiator, session: session, code: 211)
+        try refusedRenewalPeer(device, path: path, role: .responder, session: wrong, code: 201)
+        let first = try device.reopenPeer(path: path, quality: .oneTimeBoth, role: .responder, session: session)
+        let result = Result {
+            try require(first.status(session: session, message: message) == .committed, "first grant lost original outbox")
+            let next = try first.nextMessage(session: session)
+            try admitRenewalPeer(device, path: args[3], controls: false)
+            _ = try expectedEnrollmentFailure(211) { try first.nextMessage(session: session) }
+            return next
+        }
+        do { try close(first) }
+        catch { throw ProbeFailure.contract("stale child disposal: \(error); operation: \(result)") }
+        let next = try result.get()
+        let current = try device.reopenPeer(path: path, quality: .oneTimeBoth, role: .responder, session: session)
+        let checked = Result {
+            try require(current.status(session: session, message: message) == .committed, "next grant lost original outbox")
+            try require(current.nextMessage(session: session) == next, "stale refusal advanced message slot")
+        }
+        do { try close(current) }
+        catch { throw ProbeFailure.contract("current child disposal: \(error); operation: \(checked)") }
+        try checked.get()
+    }
+    let reopened = try ContinuityDevice.open(path: path)
+    try disposingEnrollmentDevice(reopened) {
+        let peer = try reopened.reopenPeer(path: path, quality: .oneTimeBoth, role: .responder, session: session)
+        let checked = Result { try require(peer.status(session: session, message: message) == .committed, "restart lost original outbox") }
+        do { try close(peer) }
+        catch { throw ProbeFailure.contract("reopened child disposal: \(error); operation: \(checked)") }
+        try checked.get()
+    }
+    try output("credential-peer-passed")
 }

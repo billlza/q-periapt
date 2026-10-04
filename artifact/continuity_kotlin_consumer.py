@@ -53,6 +53,12 @@ TEST_NAMES = frozenset({
     "pendingEnrollmentSharesCapacityAndCancellationConsumesOnlyAdmission",
     "originalEnrollmentRequestPersistsWithoutPolicyOrTlsConfiguration",
 })
+RENEWAL_TEST_NAMES = frozenset({
+    "renewalIdentitiesAreDistinctImmutableAndNonzero",
+    "historicalRenewalStatesRetainExactFieldsAndUnsignedTime",
+    "contradictoryRenewalFieldsNeverBecomeAnAbsentOrSuccessfulResult",
+    "grantLengthChecksPreserveOwnersAndInclusiveLimitReachesNativeAdmission",
+})
 
 
 def verify_opening_interruption(stdout: bytes, directory: Path) -> dict:
@@ -130,12 +136,16 @@ def tool_identity(root: Path) -> dict:
 
 
 def verify_tests(data: bytes) -> dict:
+    return _verify_test_suite(data, "OwnerTests", TEST_NAMES)
+
+
+def _verify_test_suite(data: bytes, name: str, names: frozenset[str]) -> dict:
     sdk.require(len(data) <= 1024**2 and b"<!DOCTYPE" not in data and b"<!ENTITY" not in data,
                 "JVM test report is oversized or contains external declarations")
     suite = ET.fromstring(data)
     cases = suite.findall("testcase")
-    expected = {name + "()" for name in TEST_NAMES}
-    sdk.require(suite.tag == "testsuite" and suite.get("name") == "dev.qperiapt.continuity.OwnerTests"
+    expected = {name + "()" for name in names}
+    sdk.require(suite.tag == "testsuite" and suite.get("name") == "dev.qperiapt.continuity." + name
                 and suite.get("tests") == str(len(expected))
                 and all(suite.get(key) == "0" for key in ("failures", "errors", "skipped"))
                 and len(cases) == len(expected) and {case.get("name") for case in cases} == expected
@@ -144,6 +154,17 @@ def verify_tests(data: bytes) -> dict:
     sdk.require(all((suite.findtext(tag) or "").strip() == "" for tag in ("system-out", "system-err")),
                 "JVM owner tests emitted unexpected diagnostics")
     return {"tests": len(expected), "report_sha256": hashlib.sha256(data).hexdigest()}
+
+
+def verify_test_reports(directory: Path) -> dict:
+    expected = {"OwnerTests": TEST_NAMES, "CredentialRenewalTests": RENEWAL_TEST_NAMES}
+    sdk.require({p.name for p in directory.glob("TEST-*.xml")} == {
+        "TEST-dev.qperiapt.continuity." + name + ".xml" for name in expected},
+        "JVM owner and renewal test report set differs")
+    suites = {name: _verify_test_suite(sdk.snapshot(directory / (
+        "TEST-dev.qperiapt.continuity." + name + ".xml")).data, name, names)
+        for name, names in expected.items()}
+    return {"tests": sum(row["tests"] for row in suites.values()), "suites": suites}
 
 
 def verify_execution(stdout: bytes, directory: Path) -> dict:
@@ -329,11 +350,10 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
         run([*flags, "--project-dir", str(builder), "test", "publishContinuityPublicationToCandidateRepository",
              "-Pqperiapt.continuity.lib=" + str(debug_lib)], "build-sdk")
         tests = builder / "build/test-results/test"
-        sdk.require({p.name for p in tests.glob("TEST-*.xml")} == {"TEST-dev.qperiapt.continuity.OwnerTests.xml"},
-                    "JVM owner test report set differs")
         tested = sdk.snapshot(tests / "TEST-dev.qperiapt.continuity.OwnerTests.xml").data
-        result["owner_tests"] = verify_tests(tested)
+        result["owner_tests"] = verify_test_reports(tests)
         with (output / "kotlin-owner-tests.xml").open("xb") as stream: stream.write(tested)
+        sdk.copy(tests / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml", output / "kotlin-credential-renewal-tests.xml")
         staged = builder / "build/candidate-maven"
         maven = outside / "kotlin-maven"
         for path in (staged / contract.path).iterdir(): sdk.copy(path, maven / contract.path / path.name)
@@ -378,8 +398,9 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             run([*flags, "--project-dir", str(builder), "--rerun-tasks", "test",
                  "-Pqperiapt.continuity.lib=" + str(library_path)], "owner-tests-" + profile)
             test_bytes = sdk.snapshot(tests / "TEST-dev.qperiapt.continuity.OwnerTests.xml").data
-            owner_tests = verify_tests(test_bytes)
+            owner_tests = verify_test_reports(tests)
             with (output / f"kotlin-owner-tests-{profile}.xml").open("xb") as stream: stream.write(test_bytes)
+            sdk.copy(tests / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml", output / f"kotlin-credential-renewal-tests-{profile}.xml")
             classpath = os.pathsep.join(str(distribution / "lib" / name) for name in sorted(jar_files))
             argv = [str(java), "--enable-native-access=ALL-UNNAMED", "--illegal-native-access=deny",
                     "-Dqperiapt.continuity.lib=" + str(library_path), "-cp", classpath, "consumer.ContinuityClientKt"]

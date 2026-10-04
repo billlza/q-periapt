@@ -183,6 +183,10 @@ final class EnrollmentTests: XCTestCase {
                 family: original.family, checkpoint: RosterCheckpoint(version: 1, digest: original.family))
             XCTAssertThrowsError(try owner.accept(certificate: [], roster: [1], pin: pin))
             XCTAssertThrowsError(try owner.refreshRoster(previous: pin.checkpoint, roster: [], pin: pin))
+            let operation = try CredentialRenewalID(bytes: original.family)
+            XCTAssertEqual(try owner.credentialRenewalStatus(), .absent)
+            XCTAssertThrowsError(try owner.stageCredentialRenewal(grant: [], pin: pin, operation: operation))
+            XCTAssertThrowsError(try owner.stageCredentialRenewal(grant: [UInt8](repeating: 1, count: 65537), pin: pin, operation: operation))
             XCTAssertEqual(try owner.status(), requested, "shape refusal consumed original registration")
             // This actual failure happens after transfer begins: configured_policy
             // reads the absent sdk-policy file before opening sdk.redb, so the C

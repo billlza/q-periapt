@@ -45,6 +45,7 @@ class OwnerTests {
             "setup_status" to (36L to 4L), "setup_preparation" to (164L to 4L),
             "enrollment_intent" to (88L to 8L), "checkpoint" to (40L to 8L), "enrollment_pin" to (120L to 8L),
             "enrollment_status" to (152L to 8L), "enrollment_request" to (8196L to 4L),
+            "credential_renewal_status" to (120L to 8L),
             "served" to (72L to 4L), "header" to (200L to 8L), "epoch" to (104L to 8L),
             "reserved" to (48L to 8L), "unconfirmed" to (64L to 1L),
             "delivery" to (48L to 8L), "status" to (36L to 4L),
@@ -148,6 +149,7 @@ class OwnerTests {
             lateinit var request: PublicBytes
             ContinuityEnrollment.create(path, intent).use { owner ->
                 assertEquals(EnrollmentPhase.PREPARING, owner.status().phase)
+                assertEquals(CredentialRenewalStatus.Absent, owner.credentialRenewalStatus())
                 request = owner.request()
                 val state = owner.status(); signing = state.signing
                 assertEquals(EnrollmentPhase.REQUESTED, state.phase)
@@ -162,6 +164,7 @@ class OwnerTests {
             ContinuityEnrollment.resume(path, intent).use { owner ->
                 assertEquals(signing, owner.status().signing)
                 assertEquals(request, owner.request())
+                assertEquals(CredentialRenewalStatus.Absent, owner.credentialRenewalStatus())
             }
             fails(211) { ContinuityEnrollment.provisionWrappingKey(path) }
             fails(211) { ContinuityEnrollment.create(path, intent) }

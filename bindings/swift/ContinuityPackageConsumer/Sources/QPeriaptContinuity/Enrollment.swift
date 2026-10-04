@@ -208,6 +208,55 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
+    /// Passive original-operation history; does not load SDK policy or TLS inputs.
+    public func credentialRenewalStatus() throws -> CredentialRenewalStatus {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_credential_renewal_status(handle, &raw, &error), &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
+    /// Retain the exact grant and original operation before activation. An admitted
+    /// native failure consumes this registration owner; close and resume its record.
+    public func stageCredentialRenewal(grant: [UInt8], pin: AccountPin,
+                                       operation: CredentialRenewalID) throws -> CredentialRenewalStatus {
+        guard (1...65536).contains(grant.count) else { throw ContinuityBoundaryError.inputLength }
+        return try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                let code = pin.withNative { pin in
+                    grant.withUnsafeBufferPointer { grant in
+                        operation.bytes.withUnsafeBufferPointer { operation in
+                            qpc_enrollment_v1_stage_credential_renewal(handle, grant.baseAddress, grant.count,
+                                pin, operation.baseAddress, &raw, &error)
+                        }
+                    }
+                }
+                try checked(code, &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
+    /// Reconcile an exact expired target under the original policy. A retained
+    /// commit remains Committed. This returns no device and never restages an intent.
+    public func reconcileExpiredCredentialRenewal(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID) throws -> CredentialRenewalStatus {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                let code = operation.bytes.withUnsafeBufferPointer { operation in
+                    statement.bytes.withUnsafeBufferPointer { statement in
+                        qpc_enrollment_v1_reconcile_expired_credential_renewal(handle, operation.baseAddress,
+                            statement.baseAddress, &raw, &error)
+                    }
+                }
+                try checked(code, &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
     /// Return owned public request bytes only after native persistence/readback.
     /// Retrying returns the original bytes; possession is not account approval.
     public func request() throws -> [UInt8] {
