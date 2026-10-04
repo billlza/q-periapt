@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Original signed policy expiry, with live SDK and live successor credentials.
-//! The Applied setup uses a native public coordinator and a withheld transport
-//! result. The selected foreign process performs the subsequent expired recovery.
+//! Applied originates in the selected foreign process, killed after the real
+//! witness commit and before result delivery; a fresh process recovers after expiry.
 use super::witness_credential_renewal::{
     expected, image_digest, pending_journal, provision_renewal, public_file,
 };
@@ -15,7 +15,13 @@ use rustls::{
 use sha3::{Digest, Sha3_256};
 use std::{
     io,
-    sync::Mutex,
+    net::TcpListener,
+    os::unix::process::ExitStatusExt,
+    process::{Child, Stdio},
+    sync::{
+        atomic::{AtomicBool, AtomicUsize},
+        Mutex,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -57,6 +63,7 @@ const MATERIALS: &[&str] = &[
     "expiry-withheld-reply",
     "expiry-setup-status-request",
     "expiry-setup-status-reply",
+    "expiry-commit-cut-observations",
     "enrollment-policy-refusal-before-recovery",
     "enrollment-policy-refusal",
 ];
@@ -80,6 +87,7 @@ const LABELS: &[&str] = &[
     "expiry-terminal-history",
     "expiry-activation-after",
     "expiry-final-status",
+    "expiry-commit-cut",
 ];
 
 fn transport(path: &Path, endpoint: Endpoint) -> Result<Box<dyn AnchorTransport>> {
@@ -144,127 +152,313 @@ fn commitment(domain: &[u8], value: &[u8]) -> io::Result<[u8; 32]> {
     h.update(value);
     Ok(h.finalize().into())
 }
-type Cut = Arc<Mutex<Option<(Vec<u8>, Vec<u8>)>>>;
-struct WithholdCommit {
-    inner: Box<dyn AnchorTransport>,
+fn validate_commit_exchange(
     proposal: p::AnchorCredentialRenewalProposal,
-    cut: Cut,
-}
-impl AnchorTransport for WithholdCommit {
-    fn constrain_deadline(&self, deadline: Instant) -> io::Result<Instant> {
-        self.inner.constrain_deadline(deadline)
+    request: &[u8],
+    reply: &[u8],
+) -> io::Result<()> {
+    let mut op = vec![5];
+    op.extend_from_slice(&proposal.binding());
+    op.extend_from_slice(&[0; 64]);
+    let mut command_scope = proposal.witness_binding().to_vec();
+    command_scope.extend_from_slice(&proposal.subject().to_bytes());
+    command_scope.extend_from_slice(&op);
+    let command = commitment(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1", &command_scope)?;
+    let body = request.get(4..301).ok_or(io::ErrorKind::InvalidData)?;
+    let attempt = commitment(b"Q-PERIAPT-CONTINUITY-ANCHOR-REQUEST/v1", body)?;
+    let target = proposal.target_head();
+    let mut head = target.fence().to_be_bytes().to_vec();
+    head.extend_from_slice(&target.revision().to_be_bytes());
+    head.extend_from_slice(&target.digest());
+    if request.len() != 3674
+        || reply.len() != 3659
+        || request.get(..4) != Some(297u32.to_be_bytes().as_slice())
+        || request.get(4..12) != Some(b"QPANRQ01")
+        || request.get(12..44) != Some(proposal.witness_binding().as_slice())
+        || request.get(44..140) != Some(proposal.subject().to_bytes().as_slice())
+        || request.get(140..172) != Some(command.as_slice())
+        || request.get(204..301) != Some(op.as_slice())
+        || reply.get(..4) != Some(282u32.to_be_bytes().as_slice())
+        || reply.get(4..12) != Some(b"QPANRS01")
+        || reply.get(12..140) != request.get(12..140)
+        || reply.get(140..172) != Some(attempt.as_slice())
+        || reply.get(172..204) != Some(command.as_slice())
+        || reply.get(204) != Some(&8)
+        || reply.get(205..253) != Some(head.as_slice())
+        || reply.get(253) != Some(&1)
+        || reply.get(254..286) != Some(command.as_slice())
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "unexpected original Commit cut",
+        ));
     }
-    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
-        let reply = self.inner.exchange(request, deadline)?;
-        if request.get(204) != Some(&5) {
-            return Ok(reply);
+    Ok(())
+}
+
+struct HeldCommit {
+    proposal: p::AnchorCredentialRenewalProposal,
+    marker: PathBuf,
+    released: Arc<AtomicBool>,
+}
+struct Release(Arc<AtomicBool>);
+impl Drop for Release {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+struct CommitTlsWitness {
+    address: SocketAddr,
+    admitted: Arc<AtomicUsize>,
+    records: Arc<Mutex<Vec<witness::Capture>>>,
+    hold: Arc<Mutex<Option<HeldCommit>>>,
+    stop: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<Result<()>>>,
+}
+impl CommitTlsWitness {
+    fn start(store: Arc<Mutex<p::AnchorStore>>, path: &Path) -> Result<Self> {
+        let configured = witness_tls::provision([path])?;
+        let server = configured.native;
+        drop((configured.certificate, configured.key));
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        listener.set_nonblocking(true)?;
+        let address = listener.local_addr()?;
+        let admitted = Arc::new(AtomicUsize::new(0));
+        let calls = Arc::clone(&admitted);
+        let records = Arc::new(Mutex::new(Vec::new()));
+        let captured = Arc::clone(&records);
+        let hold: Arc<Mutex<Option<HeldCommit>>> = Arc::new(Mutex::new(None));
+        let pending = Arc::clone(&hold);
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopping = Arc::clone(&stop);
+        let worker = thread::spawn(move || -> Result<()> {
+            while !stopping.load(Ordering::Acquire) {
+                let mut front = match listener.accept() {
+                    Ok((stream, _)) => stream,
+                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                        continue;
+                    }
+                    Err(e) => return Err(e.into()),
+                };
+                let deadline = Instant::now() + Duration::from_secs(3);
+                let (reply, record) = witness_tls_relay::receive_reply(
+                    &mut front,
+                    &server,
+                    &store,
+                    deadline,
+                    &mut || {
+                        calls.fetch_add(1, Ordering::AcqRel);
+                        fixture::now().map_err(io::Error::other)
+                    },
+                )?;
+                // The native endpoint has authenticated and durably handled the
+                // exact request. The relay has retained its encrypted reply.
+                let selected = if record.request().get(204) == Some(&5) {
+                    pending.lock().map_err(|_| "TLS hold lock")?.take()
+                } else {
+                    None
+                };
+                let delivered = selected.is_none();
+                if let Some(held) = selected {
+                    validate_commit_exchange(held.proposal, record.request(), record.reply())?;
+                    let path = held.marker.parent().ok_or("TLS marker parent")?;
+                    fixture::store(
+                        path,
+                        "expiry-encrypted-reply-bytes",
+                        &u64::try_from(reply.len())?.to_be_bytes(),
+                    )?;
+                    fixture::publish_marker(
+                        path,
+                        held.marker
+                            .file_name()
+                            .and_then(|s| s.to_str())
+                            .ok_or("TLS marker name")?,
+                    )?;
+                    // receive_reply joined and stopped its request reader. Only
+                    // the parent that has reaped SIGKILL may release this hold;
+                    // local read shutdown is not evidence of peer termination.
+                    let deadline = Instant::now() + Duration::from_secs(5);
+                    while !held.released.load(Ordering::Acquire) {
+                        if Instant::now() >= deadline {
+                            return Err("TLS Commit hold expired".into());
+                        }
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                }
+                {
+                    let mut rows = captured.lock().map_err(|_| "TLS capture lock")?;
+                    if rows.len() >= 4096 {
+                        return Err("TLS Commit capture capacity".into());
+                    }
+                    rows.push(witness::Capture {
+                        request: record.request().to_vec(),
+                        reply: record.reply().to_vec(),
+                        delivered,
+                    });
+                }
+                if delivered {
+                    witness_tls_relay::write(&mut front, &reply, deadline)?;
+                }
+            }
+            Ok(())
+        });
+        Ok(Self {
+            address,
+            admitted,
+            records,
+            hold,
+            stop,
+            worker: Some(worker),
+        })
+    }
+    fn arm(
+        &self,
+        proposal: p::AnchorCredentialRenewalProposal,
+        marker: PathBuf,
+    ) -> Result<Release> {
+        let mut saved = self.hold.lock().map_err(|_| "TLS hold lock")?;
+        if saved.is_some() {
+            return Err("unconsumed TLS Commit hold".into());
         }
-        // This locates one exact fault cut; it is not a signature oracle. The
-        // independent fresh signed Status below proves Applied before waiting.
-        let mut op = vec![5];
-        op.extend_from_slice(&self.proposal.binding());
-        op.extend_from_slice(&[0; 64]);
-        let mut command_scope = self.proposal.witness_binding().to_vec();
-        command_scope.extend_from_slice(&self.proposal.subject().to_bytes());
-        command_scope.extend_from_slice(&op);
-        let command = commitment(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1", &command_scope)?;
-        let body = request.get(4..301).ok_or(io::ErrorKind::InvalidData)?;
-        let attempt = commitment(b"Q-PERIAPT-CONTINUITY-ANCHOR-REQUEST/v1", body)?;
-        let target = self.proposal.target_head();
-        let mut head = target.fence().to_be_bytes().to_vec();
-        head.extend_from_slice(&target.revision().to_be_bytes());
-        head.extend_from_slice(&target.digest());
-        if request.len() != 3674
-            || reply.len() != 3659
-            || request.get(..4) != Some(297u32.to_be_bytes().as_slice())
-            || request.get(4..12) != Some(b"QPANRQ01")
-            || request.get(12..44) != Some(self.proposal.witness_binding().as_slice())
-            || request.get(44..140) != Some(self.proposal.subject().to_bytes().as_slice())
-            || request.get(140..172) != Some(command.as_slice())
-            || request.get(204..301) != Some(op.as_slice())
-            || reply.get(..4) != Some(282u32.to_be_bytes().as_slice())
-            || reply.get(4..12) != Some(b"QPANRS01")
-            || reply.get(12..140) != request.get(12..140)
-            || reply.get(140..172) != Some(attempt.as_slice())
-            || reply.get(172..204) != Some(command.as_slice())
-            || reply.get(204) != Some(&8)
-            || reply.get(205..253) != Some(head.as_slice())
-            || reply.get(253) != Some(&1)
-            || reply.get(254..286) != Some(command.as_slice())
+        let released = Arc::new(AtomicBool::new(false));
+        *saved = Some(HeldCommit {
+            proposal,
+            marker,
+            released: Arc::clone(&released),
+        });
+        Ok(Release(released))
+    }
+    fn finish(&mut self) -> Result<()> {
+        self.stop.store(true, Ordering::Release);
+        self.worker
+            .take()
+            .ok_or("missing TLS Commit worker")?
+            .join()
+            .map_err(|_| "TLS Commit worker panicked")??;
+        if self.hold.lock().map_err(|_| "TLS hold lock")?.is_some() {
+            return Err("unconsumed TLS Commit hold".into());
+        }
+        if self.records.lock().map_err(|_| "TLS capture lock")?.len()
+            != self.admitted.load(Ordering::Acquire)
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "unexpected original Commit cut",
-            ));
+            return Err("TLS Commit admission accounting differs".into());
         }
-        let mut cut = self
-            .cut
-            .lock()
-            .map_err(|_| io::Error::other("cut poisoned"))?;
-        if cut.is_some() {
-            return Err(io::Error::other("duplicate Commit cut"));
-        }
-        *cut = Some((request.to_vec(), reply));
-        Err(io::Error::new(
-            io::ErrorKind::ConnectionAborted,
-            "test withheld original Applied result",
-        ))
+        Ok(())
     }
 }
+impl Drop for CommitTlsWitness {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        if let Some(worker) = self.worker.take() {
+            match worker.join() {
+                Ok(Ok(())) => eprintln!("TLS Commit witness was not explicitly finished"),
+                Ok(Err(error)) => eprintln!("TLS Commit witness cleanup: {error}"),
+                Err(_) => eprintln!("TLS Commit witness cleanup panicked"),
+            }
+        }
+    }
+}
+struct ChildOwner(Child);
+impl Drop for ChildOwner {
+    fn drop(&mut self) {
+        match self.0.try_wait() {
+            Ok(Some(_)) => return,
+            Ok(None) => {}
+            Err(e) => eprintln!("Commit owner cleanup status: {e}"),
+        }
+        if let Err(e) = self.0.kill() {
+            eprintln!("Commit owner cleanup kill: {e}");
+        }
+        if let Err(e) = self.0.wait() {
+            eprintln!("Commit owner cleanup reap: {e}");
+        }
+    }
+}
+
 fn apply_without_local_recovery(
     registration: &Registration,
     endpoint: Endpoint,
     pin: &p::AnchorPin,
-    policy: &p::VerifiedSessionPolicy,
+    witness: &witness::Witness,
+    tls: Option<&CommitTlsWitness>,
     proposal: p::AnchorCredentialRenewalProposal,
 ) -> Result<()> {
     let path = &registration.path;
     let before = pending_journal(path)?;
-    let mut owner =
-        p::DeviceEnrollment::open(enrollment_paths(path)?, registration.intent.clone())?;
-    let id = owner.identity()?;
-    assert_eq!(id.as_bytes(), &registration.accepted.signer);
-    let cut: Cut = Arc::new(Mutex::new(None));
-    let mut client = owner.credential_renewal_anchor_client(
-        policy,
-        fixture::now()?,
-        pin.clone(),
-        Box::new(WithholdCommit {
-            inner: transport(path, endpoint)?,
-            proposal,
-            cut: Arc::clone(&cut),
-        }),
-        Duration::from_secs(3),
-    )?;
-    let error = owner
-        .commit_witnessed_credential_renewal(
-            proposal.operation(),
-            proposal.statement(),
-            policy,
-            fixture::now()?,
-            &mut client,
-        )
-        .err()
-        .ok_or("withheld Commit result escaped")?;
-    assert!(
-        matches!(error, p::DurableError::Anchor(ref e) if matches!(e.as_ref(), p::AnchorClientError::Transport(_)))
+    let marker = path.join("expiry-commit-ready");
+    let release = if let Some(server) = tls {
+        Some(server.arm(proposal, marker.clone())?)
+    } else {
+        let mut held = witness.hold_marker.lock().map_err(|_| "TCP hold lock")?;
+        if held.replace(marker.clone()).is_some() {
+            return Err("unconsumed TCP Commit hold".into());
+        }
+        drop(held);
+        witness.arm(5)?;
+        None
+    };
+    let stdout = fs::File::create(path.join("witness-enrollment-expiry-commit-cut.stdout"))?;
+    let stderr = fs::File::create(path.join("witness-enrollment-expiry-commit-cut.stderr"))?;
+    let mut child = ChildOwner(
+        Command::new(executable()?)
+            .args(arguments(path, "credential-witness-commit", Some(endpoint)))
+            .stdout(Stdio::from(stdout))
+            .stderr(Stdio::from(stderr))
+            .spawn()?,
     );
-    assert!(matches!(owner.status(), Err(p::DurableError::Closed)));
-    drop(client);
-    drop(owner);
-    let (request, reply) = cut
-        .lock()
-        .map_err(|_| "cut poisoned")?
-        .take()
-        .ok_or("exact Commit cut did not occur")?;
-    fixture::store(path, "expiry-withheld-request", &request)?;
-    fixture::store(path, "expiry-withheld-reply", &reply)?;
+    let deadline = Instant::now() + Duration::from_secs(40);
+    while !marker.is_file() {
+        if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
+            return Err(format!(
+                "foreign Commit missed barrier: {}",
+                String::from_utf8_lossy(&public_file(
+                    path,
+                    "witness-enrollment-expiry-commit-cut.stderr",
+                    65536
+                )?)
+            )
+            .into());
+        }
+        thread::sleep(Duration::from_millis(2));
+    }
+    child.0.kill()?;
+    let killed = child.0.wait()?;
+    assert_eq!(killed.signal(), Some(9));
+    for suffix in ["stdout", "stderr"] {
+        assert!(public_file(
+            path,
+            &format!("witness-enrollment-expiry-commit-cut.{suffix}"),
+            65536
+        )?
+        .is_empty());
+    }
+    drop(release);
+    let mut observed = b"QPCECK01".to_vec();
+    observed.extend_from_slice(&[u8::from(endpoint.tls), 9, 1, 0]);
+    observed.extend_from_slice(&fixture::now()?.to_be_bytes());
+    let encrypted = if endpoint.tls {
+        u64::from_be_bytes(fixture::array(path, "expiry-encrypted-reply-bytes")?)
+    } else {
+        0
+    };
+    assert_eq!(encrypted > 0, endpoint.tls);
+    observed.extend_from_slice(&encrypted.to_be_bytes());
+    fixture::store(path, "expiry-commit-cut-observations", &observed)?;
     assert_eq!(pending_journal(path)?, before);
     // Observe with the original protected signer, independently of the failed
     // owner. Enrollment reconciliation would install/clean the target here.
     let mut observer =
         p::DeviceEnrollment::open(enrollment_paths(path)?, registration.intent.clone())?;
-    assert_eq!(observer.identity()?.as_bytes(), id.as_bytes());
+    let id = observer.identity()?;
+    assert_eq!(id.as_bytes(), &registration.accepted.signer);
+    assert_eq!(
+        observer.credential_renewal_status()?,
+        p::CredentialRenewalStatus::Pending {
+            operation: proposal.operation(),
+            statement: proposal.statement(),
+        }
+    );
     let key = p::JournalKey::open(&path.join("wrap.key"))?;
     let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
     let request = p::AnchorRequest::new(
@@ -286,12 +480,31 @@ fn apply_without_local_recovery(
     drop(key);
     observer.close();
     assert_eq!(pending_journal(path)?, before);
+    let rows = if let Some(server) = tls {
+        server.records.lock().map_err(|_| "TLS cut records")?
+    } else {
+        witness.captured.lock().map_err(|_| "TCP cut records")?
+    };
+    let lost = rows.iter().filter(|r| !r.delivered).collect::<Vec<_>>();
+    assert_eq!(lost.len(), 1);
+    let cut = lost.first().ok_or("missing foreign Commit cut")?;
+    validate_commit_exchange(proposal, &cut.request, &cut.reply)?;
+    if !endpoint.tls {
+        let mut prefix = 3659u32.to_be_bytes().to_vec();
+        prefix.extend_from_slice(cut.reply.get(..1800).ok_or("Commit prefix")?);
+        assert_eq!(
+            fixture::read(path, "witness-cancelled-prefix", 8192)?,
+            prefix
+        );
+    }
+    fixture::store(path, "expiry-withheld-request", &cut.request)?;
+    fixture::store(path, "expiry-withheld-reply", &cut.reply)?;
     Ok(())
 }
 
 struct Trace<'a> {
     witness: &'a witness::Witness,
-    tls: Option<&'a witness_tls::TlsWitness>,
+    tls: Option<&'a CommitTlsWitness>,
     subject: p::AnchorSubject,
     started: Instant,
     points: Vec<(&'static str, u64, u64, u64)>,
@@ -421,9 +634,9 @@ fn exercise(tls: bool, applied: bool, public: Option<PathBuf>) -> Result<String>
     let registration = prepare_with_policy_lifetime(&setup, &witness, Some(TEST_POLICY_SECONDS))?;
     let path = &registration.path;
     let mut tls_witness = if tls {
-        Some(witness_tls::TlsWitness::start(
+        Some(CommitTlsWitness::start(
             Arc::clone(&witness.configured.store),
-            [path.as_path()],
+            path,
         )?)
     } else {
         None
@@ -502,20 +715,30 @@ fn exercise(tls: bool, applied: bool, public: Option<PathBuf>) -> Result<String>
         store.prepare_credential_renewal(proposal, &proof, &policy, fixture::now()?)?;
         store.pin()?
     };
+    policy.close();
+    sdk.close();
     if applied {
-        apply_without_local_recovery(&registration, endpoint, &witness_pin, &policy, proposal)?;
+        apply_without_local_recovery(
+            &registration,
+            endpoint,
+            &witness_pin,
+            &witness,
+            tls_witness.as_ref(),
+            proposal,
+        )?;
     } else {
         for name in [
             "expiry-withheld-request",
             "expiry-withheld-reply",
             "expiry-setup-status-request",
             "expiry-setup-status-reply",
+            "expiry-commit-cut-observations",
+            "witness-enrollment-expiry-commit-cut.stdout",
+            "witness-enrollment-expiry-commit-cut.stderr",
         ] {
             fixture::store(path, name, &[])?;
         }
     }
-    policy.close();
-    sdk.close();
     assert_eq!(pending_journal(path)?, pending);
     assert_eq!(
         run(
@@ -668,8 +891,7 @@ fn exercise(tls: bool, applied: bool, public: Option<PathBuf>) -> Result<String>
         .iter()
         .filter(|c| c.request.get(44..140) == Some(registration.subject.to_bytes().as_slice()))
     {
-        assert!(capture.delivered);
-        tcp_transcript.push(1);
+        tcp_transcript.push(u8::from(capture.delivered));
         tcp_transcript.extend_from_slice(&capture.request);
         tcp_transcript.extend_from_slice(&capture.reply);
     }
@@ -678,18 +900,18 @@ fn exercise(tls: bool, applied: bool, public: Option<PathBuf>) -> Result<String>
             tcp_transcript.is_empty(),
             "TLS recovery used plaintext fallback"
         );
-        assert!(server.finish()?.is_empty());
+        server.finish()?;
         let records = server.records.lock().map_err(|_| "TLS records poisoned")?;
         assert_eq!(records.len(), server.admitted.load(Ordering::Acquire));
         let mut bytes = Vec::new();
         for record in records.iter() {
             assert_eq!(
-                record.request().get(44..140),
+                record.request.as_slice().get(44..140),
                 Some(registration.subject.to_bytes().as_slice())
             );
-            bytes.push(1);
-            bytes.extend_from_slice(record.request());
-            bytes.extend_from_slice(record.reply());
+            bytes.push(u8::from(record.delivered));
+            bytes.extend_from_slice(record.request.as_slice());
+            bytes.extend_from_slice(record.reply.as_slice());
         }
         bytes
     } else {
@@ -719,7 +941,7 @@ fn exercise(tls: bool, applied: bool, public: Option<PathBuf>) -> Result<String>
     if let Some(public) = public {
         export(path, &public.join(&name))?;
     }
-    Ok(format!("WITNESSED_POLICY_EXPIRY case={name} policy_until={} observed={observed} credential_until={} sdk_present=true original_policy=true no_new_commit=true native_applied_setup={applied}", historical.validity().until(), credential_validity.until()))
+    Ok(format!("WITNESSED_POLICY_EXPIRY case={name} policy_until={} observed={observed} credential_until={} sdk_present=true original_policy=true no_new_commit=true foreign_commit_killed={applied}", historical.validity().until(), credential_validity.until()))
 }
 
 #[test]

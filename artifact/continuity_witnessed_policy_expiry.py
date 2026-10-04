@@ -10,26 +10,26 @@ import re
 
 import rust_sdk_profile as sdk
 import continuity_witnessed_renewal as renewal
-from continuity_c_witness import RECORD_BYTES
+from continuity_c_witness import commit, RECORD_BYTES
 
 TEST = "witness_policy_expiry::original_foreign_owner_recovers_after_real_signed_policy_expiry"
 CASES = renewal.CASES
 LABELS = ("key", "create", "request", "request-retry", "accept", "storage", "expiry-original-active",
           "expiry-original-status", "expiry-stage", "expiry-prepare", "expiry-pending-status",
           "expiry-prepare-reopened", "expiry-activation-before", "expiry-history", "expiry-transition",
-          "expiry-retry", "expiry-terminal-history", "expiry-activation-after", "expiry-final-status")
+          "expiry-retry", "expiry-terminal-history", "expiry-activation-after", "expiry-final-status", "expiry-commit-cut")
 CALLS = LABELS[11:18]
 MATERIALS = (renewal.MATERIALS - {"renewal-image-digests", "renewal-witness-transcript",
     "renewal-tls-transcript", "renewal-carrier-observations"}) | {
     "expiry-image-digests", "expiry-sdk-binding", "expiry-observations", "expiry-witness-transcript",
     "expiry-tcp-transcript", "expiry-withheld-request", "expiry-withheld-reply", "expiry-setup-status-request",
-    "expiry-setup-status-reply", "enrollment-policy-refusal-before-recovery", "enrollment-policy-refusal"}
+    "expiry-setup-status-reply", "expiry-commit-cut-observations", "enrollment-policy-refusal-before-recovery", "enrollment-policy-refusal"}
 FILES = MATERIALS | {f"witness-enrollment-{label}.{ext}" for label in LABELS for ext in ("stdout", "stderr")}
 SCOPE = ("real signed-policy wall-clock expiry with SDK and successor credential authority still live; "
-         "selected foreign owner recovers original Applied/Closed over TCP and mutual TLS; Applied setup "
-         "uses the native public coordinator with a withheld result and a fresh signed Status; public "
-         "framing/binding readback, not independent signature verification, foreign Commit fault injection, "
-         "physical-platform or release qualification")
+         "selected foreign owner recovers original Applied/Closed over TCP and mutual TLS; actual foreign Commit "
+         "is durably Applied before SIGKILL with its reply withheld, original local Pending retained and a fresh "
+         "native signed Status verified before expiry; public framing/binding readback, not independent signature "
+         "verification, transport-error return qualification, physical-platform or release qualification")
 
 
 @dataclass(frozen=True)
@@ -79,14 +79,20 @@ def signed_history(read, materials, points: list[Point], applied: bool, tls: boo
     trace = read("expiry-witness-transcript", RECORD_BYTES * 4096)
     tcp = read("expiry-tcp-transcript", RECORD_BYTES * 4096)
     sdk.require(tcp == (b"" if tls else trace), "expiry selected carrier used plaintext fallback or differs")
-    frames = list(renewal.exchange_frames(trace, materials.authority, materials.subject,
-                                         materials.binding, materials.expected, materials.target))
+    frames = list(renewal.bound_exchange_frames(trace, materials.authority, materials.subject))
+    commit_id = commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1",
+                       materials.authority + materials.subject + b"\x05" + materials.binding + bytes(64))
     before = points[1].count
     sdk.require(points[-1].count == len(frames) and 0 < before < len(frames), "expiry carrier accounting differs")
     terminal = acknowledged = False
     mutations, acknowledgements = [], []
     for index, frame in enumerate(frames):
         op, kind, outcome = frame.operation, frame.kind, frame.outcome
+        sdk.require(frame.wire[0] == (0 if applied and kind == 5 else 1),
+                    "expiry reply loss is not the exact foreign Commit")
+        sdk.require((frame.observed == materials.expected and frame.has_last == 0)
+                    or (frame.observed == materials.target and frame.has_last == 1 and frame.last == commit_id),
+                    "expiry head lacks exact original or committed history")
         if kind in (1, 4):
             sdk.require(index < before and not terminal and frame.observed == materials.expected,
                         "expiry admitted runtime or queried ordinary state after terminal/expiry")
@@ -127,16 +133,30 @@ def signed_history(read, materials, points: list[Point], applied: bool, tls: boo
     status_request, status_reply = read("expiry-setup-status-request"), read("expiry-setup-status-reply")
     if applied:
         index = mutations[0]
-        sdk.require(index + 2 == before and frames[index + 1].kind == 6 and frames[index + 1].outcome == 8
+        sdk.require(index >= 1 and (frames[index - 1].kind, frames[index - 1].outcome) == (6, 7)
+                    and index + 2 == before and frames[index + 1].kind == 6 and frames[index + 1].outcome == 8
                     and cut_request == frames[index].wire[1:3675] and cut_reply == frames[index].wire[3675:]
                     and status_request == frames[index + 1].wire[1:3675] and status_reply == frames[index + 1].wire[3675:],
-                    "Applied setup lacks exact withheld Commit and fresh pre-expiry Status")
+                    "Applied setup lacks foreign pre-reconcile, exact withheld Commit or fresh pre-expiry Status")
     else:
         sdk.require(cut_request == cut_reply == status_request == status_reply == b"",
                     "Closed expiry contains an unrelated Applied setup")
     return dict(transport="mutual-tls" if tls else "signed-tcp", requests=len(frames),
                 expiry_index=before, operations=[f.kind for f in frames], outcomes=[f.outcome for f in frames],
                 no_new_commit_after_expiry=True)
+
+
+def commit_cut(wire, materials, points, applied, tls):
+    if not applied:
+        sdk.require(wire == b"", "Closed expiry contains a foreign Commit cut")
+        return None
+    sdk.require(len(wire) == 28 and wire[:12] == b"QPCECK01" + bytes([tls, 9, 1, 0]),
+                "foreign Commit kill or original Pending observation differs")
+    at, encrypted = int.from_bytes(wire[12:20], "big"), int.from_bytes(wire[20:], "big")
+    sdk.require(int.from_bytes(materials.policy[48:56], "big") <= at <= points[0].time
+                and ((0 < encrypted <= 256 * 1024) if tls else encrypted == 0),
+                "foreign Commit cut clock or encrypted reply bound differs")
+    return dict(exit_signal=9, local_phase="Pending", time=at, withheld_encrypted_bytes=encrypted)
 
 
 def case_readback(read, case: str) -> dict:
@@ -171,12 +191,14 @@ def case_readback(read, case: str) -> dict:
     for label in ("expiry-retry", "expiry-terminal-history"): command(label, materials.status(2 if applied else 4))
     sdk.require(read("expiry-sdk-binding", 68) == materials.policy[96:164], "expiry live SDK binding differs from original policy")
     points = observations(read("expiry-observations"), materials, applied)
+    command("expiry-commit-cut", b"")
+    cut = commit_cut(read("expiry-commit-cut-observations", 28), materials, points, applied, tls)
     carrier = signed_history(read, materials, points, applied, tls)
     return dict(original=materials.original, operation=materials.operation.hex(), statement=materials.statement.hex(),
                 proposal=materials.binding.hex(), terminal="Committed" if applied else "Closed", carrier=carrier,
                 policy_until=int.from_bytes(materials.policy[56:64], "big"),
                 credential_until=materials.credential_validity[1], observed_expired=points[1].time,
-                observations=[vars(point) for point in points], native_applied_setup=applied)
+                observations=[vars(point) for point in points], foreign_commit_killed=applied, commit_cut=cut)
 
 
 def verify(stdout: bytes, directory: Path, *, language="C") -> dict:
@@ -202,12 +224,12 @@ def verify(stdout: bytes, directory: Path, *, language="C") -> dict:
             return snap.data
         checked = case_readback(read, case)
         match = re.fullmatch(r"WITNESSED_POLICY_EXPIRY case=" + case + r" policy_until=(\d+) observed=(\d+) credential_until=(\d+) "
-                             r"sdk_present=true original_policy=true no_new_commit=true native_applied_setup=(true|false)", line)
+                             r"sdk_present=true original_policy=true no_new_commit=true foreign_commit_killed=(true|false)", line)
         sdk.require(match is not None and int(match[1]) == checked["policy_until"]
                     and checked["policy_until"] <= int(match[2]) <= checked["observed_expired"]
                     and checked["observed_expired"] - int(match[2]) <= 1
                     and int(match[3]) == checked["credential_until"]
-                    and (match[4] == "true") == checked["native_applied_setup"], "expiry execution and public observations differ")
+                    and (match[4] == "true") == checked["foreign_commit_killed"], "expiry execution and public observations differ")
         cases[case] = checked
     sdk.require(len(public) == len(FILES) * 4, "expiry left public evidence unchecked")
     return dict(schema_version=1, completed=True, language=language, scope=SCOPE, cases=cases,

@@ -32,7 +32,9 @@ def fixture(directory):
             files[name] = b"candidate validity interval denied"
         source = original["renewal-tls-transcript" if tls else "renewal-witness-transcript"]
         rows = [source[n:n + RECORD_BYTES] for n in range(0, len(source), RECORD_BYTES)]
-        before = rows[:2] + (rows[4:6] if applied else [])
+        before = rows[:2] + ([rows[3], b"\0" + rows[4][1:], rows[5]] if applied else [])
+        files["expiry-commit-cut-observations"] = (b"QPCECK01" + bytes([tls,9,1,0]) + u64(109)
+            + u64(4000 if tls else 0)) if applied else b""
         if applied:
             rq = bytearray(envelope(rows[5][1:3675], b"QPANRQ01", 297)); rq[168:200] = b"N" * 32
             rs = bytearray(envelope(rows[5][3675:], b"QPANRS01", 282))
@@ -56,7 +58,9 @@ def fixture(directory):
                   "expiry-prepare-reopened":"renewal-prepare-reopened", "expiry-history":"renewal-terminal" if applied else "renewal-stage",
                   "expiry-retry":"renewal-terminal", "expiry-terminal-history":"renewal-terminal", "expiry-final-status":"renewal-final-status"}
         for label in expiry.LABELS:
-            if label in ("expiry-activation-before", "expiry-activation-after"):
+            if label == "expiry-commit-cut":
+                value = b""
+            elif label in ("expiry-activation-before", "expiry-activation-after"):
                 value = b"enrollment-activation-refused:104\n"
             elif label == "expiry-transition":
                 value = original["witness-enrollment-renewal-terminal.stdout"] if applied else b"credential-witness-commit-refused:104\n"
@@ -68,7 +72,7 @@ def fixture(directory):
         for path in folder.iterdir(): path.unlink()
         for name, value in files.items(): (folder / name).write_bytes(value)
         lines.append(f"WITNESSED_POLICY_EXPIRY case={case} policy_until=150 observed=150 credential_until=300 "
-                     f"sdk_present=true original_policy=true no_new_commit=true native_applied_setup={str(applied).lower()}")
+                     f"sdk_present=true original_policy=true no_new_commit=true foreign_commit_killed={str(applied).lower()}")
     return ("\n".join(lines) + "\ntest " + expiry.TEST + " ... ok\n"
             "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
 
@@ -79,7 +83,7 @@ class PolicyExpiryEvidenceTests(unittest.TestCase):
             root = Path(temporary); stdout = fixture(root / "runtime")
             for language in ("C", "Swift", "Kotlin"):
                 report = expiry.export(stdout, root / "runtime", root / language, language=language)
-                self.assertEqual(len(report["public_readbacks"]), 300)
+                self.assertEqual(len(report["public_readbacks"]), 312)
                 self.assertFalse(report["release_claim_eligible"])
                 self.assertEqual(report, expiry.verify(stdout, root / language, language=language))
             serial = stdout.replace(b"test " + expiry.TEST.encode() + b" ... ok\n", b"")
@@ -92,7 +96,7 @@ class PolicyExpiryEvidenceTests(unittest.TestCase):
             for name, offset in {"protocol-policy":60, "policy-digest":0, "policy-root":0, "witness-public":0,
                     "credential-renewal":12, "credential-proposal-original":295, "expiry-image-digests":95,
                     "expiry-sdk-binding":0, "expiry-withheld-request":168, "expiry-setup-status-reply":300,
-                    "enrollment-policy-refusal":0}.items():
+                    "enrollment-policy-refusal":0,"expiry-commit-cut-observations":9}.items():
                 path = root / "runtime/tcp-applied" / name; original = path.read_bytes()
                 value = bytearray(original); value[offset] ^= 1; path.write_bytes(value)
                 with self.subTest(name=name), self.assertRaises(ValueError): expiry.verify(stdout, root / "runtime")
@@ -102,14 +106,14 @@ class PolicyExpiryEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary); stdout = fixture(root / "runtime")
             path = root / "runtime/tcp-applied/expiry-observations"; original = path.read_bytes()
-            points = [("prepared",110,1000,4),("expired",150,41000,4)]
-            count = 4
+            points = [("prepared",110,1000,5),("expired",150,41000,5)]
+            count = 5
             for name, delta in zip(expiry.CALLS,[0,0,2,0,0,0,0],strict=True):
                 points.append((name,150,41000,count));count += delta;points.append((name,150,41000,count))
             changes = [(1,("expired",149,40000,4)), (1,("expired",300,191000,4)),
                        (0,("prepared",150,41000,4)),(1,("expired",150,1000,4)),
-                       (2,(expiry.CALLS[0],150,41000,5)),(7,(expiry.CALLS[2],150,41000,5)),
-                       (15,(expiry.CALLS[-1],150,41000,7))]
+                       (2,(expiry.CALLS[0],150,41000,6)),(7,(expiry.CALLS[2],150,41000,5)),
+                       (15,(expiry.CALLS[-1],150,41000,8))]
             for index, replacement in changes:
                 values = points.copy();values[index] = replacement;path.write_bytes(encode(values,applied=True))
                 with self.subTest(index=index,replacement=replacement), self.assertRaises(ValueError):
@@ -142,6 +146,26 @@ class PolicyExpiryEvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError): expiry.verify(stdout,root / "runtime")
             path.unlink()
             with self.assertRaises(ValueError): expiry.verify(stdout,root / "runtime")
+
+    def test_delivered_commit_missing_cut_or_unqualified_kill_refuse(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); stdout = fixture(root / "runtime")
+            for carrier in ("tcp", "tls"):
+                folder = root / "runtime" / (carrier + "-applied")
+                path = folder / "expiry-witness-transcript"; original = path.read_bytes()
+                changed = bytearray(original); changed[3 * RECORD_BYTES] = 1; path.write_bytes(changed)
+                if carrier == "tcp": (folder / "expiry-tcp-transcript").write_bytes(changed)
+                with self.assertRaises(ValueError): expiry.verify(stdout,root / "runtime")
+                path.write_bytes(original)
+                if carrier == "tcp": (folder / "expiry-tcp-transcript").write_bytes(original)
+                path = folder / "expiry-commit-cut-observations"; original = path.read_bytes()
+                for value in (b"", original[:-1], original + b"x", original[:9] + b"\0" + original[10:],
+                              original[:10] + b"\2" + original[11:], original[:12] + u64(151) + original[20:],
+                              original[:20] + u64(0 if carrier == "tls" else 1)):
+                    path.write_bytes(value)
+                    with self.subTest(carrier=carrier,value=value), self.assertRaises(ValueError):
+                        expiry.verify(stdout,root / "runtime")
+                path.write_bytes(original)
 
 
 if __name__ == "__main__": unittest.main()

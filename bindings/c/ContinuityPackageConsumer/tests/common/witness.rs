@@ -120,6 +120,11 @@ impl Witness {
                         && pending
                             .compare_exchange(8, 0, Ordering::AcqRel, Ordering::Acquire)
                             .is_ok())
+                    || (request.get(204) == Some(&5)
+                        && reply.get(204) == Some(&8)
+                        && pending
+                            .compare_exchange(5, 0, Ordering::AcqRel, Ordering::Acquire)
+                            .is_ok())
                 {
                     let marker = held
                         .lock()

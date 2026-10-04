@@ -1889,7 +1889,9 @@ jobs:
     needs: rust-publish-contract
     # OpenSSL >= 3.5 is required by the independent PQ TLS witness peer.
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    # Debug/Release Rust/C lifecycle workloads reached completion at the former
+    # 30-minute job limit. Preserve individual command and transport deadlines.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -1942,6 +1944,9 @@ jobs:
             target/continuity-installed-rust/release-enrollment-reopen-public/**
             target/continuity-installed-rust/c-enrollment-public/**
             target/continuity-installed-rust/c-enrollment-witness-public/**
+            target/continuity-installed-rust/c-witnessed-renewal-public/**
+            target/continuity-installed-rust/c-witnessed-policy-expiry-public/**
+            target/continuity-installed-rust/c-witnessed-cancellation-public/**
             target/continuity-installed-rust/c-opening-public/**
             target/continuity-installed-rust/c-witness-public/**
             target/continuity-installed-rust/c-witness-tls-public/**
@@ -2049,6 +2054,15 @@ jobs:
             target/continuity-installed-swift/release-enrollment-reopen-public/**
             target/continuity-installed-swift/c-enrollment-public/**
             target/continuity-installed-swift/c-enrollment-witness-public/**
+            target/continuity-installed-swift/c-witnessed-renewal-public/**
+            target/continuity-installed-swift/c-witnessed-policy-expiry-public/**
+            target/continuity-installed-swift/c-witnessed-cancellation-public/**
+            target/continuity-installed-swift/swift-witnessed-renewal-public/**
+            target/continuity-installed-swift/swift-witnessed-policy-expiry-public/**
+            target/continuity-installed-swift/swift-witnessed-cancellation-public/**
+            target/continuity-installed-swift/kotlin-witnessed-renewal-public/**
+            target/continuity-installed-swift/kotlin-witnessed-policy-expiry-public/**
+            target/continuity-installed-swift/kotlin-witnessed-cancellation-public/**
             target/continuity-installed-swift/swift-enrollment-public/**
             target/continuity-installed-swift/kotlin-enrollment-public/**
             target/continuity-installed-swift/kotlin-owner-tests*.xml

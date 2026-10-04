@@ -16,6 +16,8 @@ mod witness;
 mod witness_tls;
 #[path = "common/witness_tls_faults.rs"]
 mod witness_tls_faults;
+#[path = "common/witness_tls_relay.rs"]
+mod witness_tls_relay;
 use q_periapt_continuity_identity_candidate as p;
 use std::{
     ffi::OsString,
