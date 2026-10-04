@@ -145,6 +145,26 @@ impl PeerBinding {
     }
 }
 
+/// Public signed exchange retained after server-side TLS completion. The request
+/// passed certificate/subject authorization and both device signatures before the
+/// witness handled it. This is an audit record, not peer consumption or current
+/// operational permission. Hosts control retention of its linkable public metadata.
+#[derive(Debug)]
+pub struct AnchorTlsRecord {
+    request: Vec<u8>,
+    reply: Vec<u8>,
+}
+impl AnchorTlsRecord {
+    /// Exact authenticated signed request, without TLS framing or credentials.
+    pub fn request(&self) -> &[u8] {
+        &self.request
+    }
+    /// Exact signed witness response whose TLS send completed on the server.
+    pub fn reply(&self) -> &[u8] {
+        &self.reply
+    }
+}
+
 /// Reusable standard TLS configuration plus an immutable bounded access table.
 /// The host owns listening/concurrency and credential/enrollment lifecycle. Calls
 /// hold the witness mutex only for canonical admission and durable handling.
@@ -191,6 +211,22 @@ impl AnchorTlsServer {
         cancel: Cancellation,
         clock: &mut impl FnMut() -> io::Result<u64>,
     ) -> io::Result<()> {
+        self.serve_recorded(stream, store, deadline, cancel, clock)
+            .map(|_| ())
+    }
+
+    /// Serve using the same authentication, storage and absolute deadline path,
+    /// retaining its bounded public exchange on success. No record is returned on
+    /// error; that absence cannot prove non-commit. There is no additional observer
+    /// callback, alternate TLS engine or change to command admission.
+    pub fn serve_recorded(
+        &self,
+        stream: TcpStream,
+        store: &Mutex<AnchorStore>,
+        deadline: Instant,
+        cancel: Cancellation,
+        clock: &mut impl FnMut() -> io::Result<u64>,
+    ) -> io::Result<AnchorTlsRecord> {
         self.serve_observing_wait(stream, store, deadline, cancel, clock, &mut || {})
     }
 
@@ -204,7 +240,7 @@ impl AnchorTlsServer {
         cancel: Cancellation,
         clock: &mut impl FnMut() -> io::Result<u64>,
         waiting: &mut impl FnMut(),
-    ) -> io::Result<()> {
+    ) -> io::Result<AnchorTlsRecord> {
         attempt_budget(deadline, &cancel)?;
         let connection = self.config.accept().map_err(io::Error::other)?;
         let mut channel = Channel::new(
@@ -263,7 +299,8 @@ impl AnchorTlsServer {
             ));
         }
         channel.send_frame(&reply)?;
-        channel.close()
+        channel.close()?;
+        Ok(AnchorTlsRecord { request, reply })
     }
 }
 

@@ -62,6 +62,7 @@ pub(crate) struct TlsWitness {
     pub(crate) address: SocketAddr,
     stop: Arc<AtomicBool>,
     pub(crate) admitted: Arc<AtomicUsize>,
+    pub(crate) records: Arc<Mutex<Vec<p::anchor_tls::AnchorTlsRecord>>>,
     worker: Option<thread::JoinHandle<Result<Vec<String>>>>,
 }
 impl TlsWitness {
@@ -84,6 +85,8 @@ impl TlsWitness {
         let control = Arc::clone(&stop);
         let admitted = Arc::new(AtomicUsize::new(0));
         let calls = Arc::clone(&admitted);
+        let records = Arc::new(Mutex::new(Vec::new()));
+        let observed = Arc::clone(&records);
         let worker = thread::spawn(move || -> Result<Vec<String>> {
             let mut failures = Vec::new();
             while !control.load(Ordering::Acquire) {
@@ -99,18 +102,28 @@ impl TlsWitness {
                     calls.fetch_add(1, Ordering::AcqRel);
                     fixture::now().map_err(io::Error::other)
                 };
-                if let Err(error) = server.serve(
+                match server.serve_recorded(
                     stream,
                     &store,
                     Instant::now() + Duration::from_secs(3),
                     p::Cancellation::default(),
                     &mut clock,
                 ) {
-                    // Retain expected negative-control failures; assert their
-                    // exact count at normal completion instead of swallowing.
-                    failures.push(format!("{:?}: {error}", error.kind()));
-                    if failures.len() > 8 {
-                        return Err("unexpected TLS failure capacity".into());
+                    Ok(record) => {
+                        let mut records =
+                            observed.lock().map_err(|_| "TLS record lock poisoned")?;
+                        if records.len() >= 4096 {
+                            return Err("TLS public record capacity".into());
+                        }
+                        records.push(record);
+                    }
+                    Err(error) => {
+                        // Retain expected negative-control failures; assert their
+                        // exact count at normal completion instead of swallowing.
+                        failures.push(format!("{:?}: {error}", error.kind()));
+                        if failures.len() > 8 {
+                            return Err("unexpected TLS failure capacity".into());
+                        }
                     }
                 }
             }
@@ -120,16 +133,31 @@ impl TlsWitness {
             address,
             stop,
             admitted,
+            records,
             worker: Some(worker),
         })
     }
     pub(crate) fn finish(&mut self) -> Result<Vec<String>> {
         self.stop.store(true, Ordering::Release);
-        self.worker
+        let failures = self
+            .worker
             .take()
             .ok_or("missing TLS worker")?
             .join()
-            .map_err(|_| "TLS worker panicked")?
+            .map_err(|_| "TLS worker panicked")??;
+        // Some rejected connections never reach the clock, and an admitted
+        // connection may fail after commit. Only successful server completion
+        // produces a record, so it cannot outnumber admitted requests.
+        if self
+            .records
+            .lock()
+            .map_err(|_| "TLS record lock poisoned")?
+            .len()
+            > self.admitted.load(Ordering::Acquire)
+        {
+            return Err("TLS record without admitted request".into());
+        }
+        Ok(failures)
     }
 }
 impl Drop for TlsWitness {

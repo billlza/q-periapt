@@ -235,6 +235,25 @@ impl PolicyPin {
         runtime: Arc<Runtime>,
         trusted_time: u64,
     ) -> Result<VerifiedSessionPolicy, Error> {
+        let historical = self.verify_historical(wire)?;
+        historical.validity.check(trusted_time)?;
+        if historical.sdk != runtime.policy_binding()? {
+            return Err(Error::Scope);
+        }
+        if historical.modes.0 != 0 && !runtime.is_enabled()? {
+            return Err(Error::PolicyDenied);
+        }
+        Ok(VerifiedSessionPolicy {
+            runtime,
+            historical,
+            closed: AtomicBool::new(false),
+        })
+    }
+    /// Verify exact signed historical metadata under this independently retained
+    /// pin, without constructing an SDK runtime or making a current-time claim.
+    /// The original installation must separately authenticate the same policy
+    /// digest before recovery. This value cannot create work or activate a device.
+    pub fn verify_historical(&self, wire: &[u8]) -> Result<HistoricalSessionPolicy, Error> {
         let (body, signature) = open_envelope(wire)?;
         self.root.verify(Purpose::SessionPolicy, body, signature)?;
         let mut decoder = Decoder::new(body);
@@ -248,24 +267,18 @@ impl PolicyPin {
             return Err(Error::Checkpoint);
         }
         let validity = Validity::decode(&mut decoder)?;
-        validity.check(trusted_time)?;
         if decoder.array::<32>()? != bootstrap_suite_digest() {
             return Err(Error::Scope);
         }
         let sdk = decoder.array::<68>()?;
-        if sdk != runtime.policy_binding()? {
-            return Err(Error::Scope);
-        }
+        q_periapt_policy::TrustedPolicyState::decode(sdk.get(32..).ok_or(Error::Encoding)?)
+            .map_err(|_| Error::Scope)?;
         let [modes] = decoder.array()?;
         let modes = AllowedPrekeyModes::decode(modes)?;
         let anchor = AnchorRequirement::decode(&mut decoder)?;
         let budget = ApplicationSendBudget::new(decoder.u16()?)?;
         decoder.finish()?;
-        if modes.0 != 0 && !runtime.is_enabled()? {
-            return Err(Error::PolicyDenied);
-        }
-        Ok(VerifiedSessionPolicy {
-            runtime,
+        Ok(HistoricalSessionPolicy {
             family: self.family,
             checkpoint,
             validity,
@@ -273,15 +286,25 @@ impl PolicyPin {
             anchor,
             budget,
             sdk,
-            closed: AtomicBool::new(false),
             signer: self.root.clone(),
         })
     }
 }
 
-/// Actual authenticated protocol policy, bound to one verified runtime lifetime.
-pub struct VerifiedSessionPolicy {
-    pub(crate) runtime: Arc<Runtime>,
+/// Exact signature-verified protocol-policy metadata for historical recovery.
+/// It has no runtime, admission lease or operation-creation interface. Its signed
+/// SDK binding is a claim authenticated by the protocol issuer; recovery must
+/// also match the original durable installation's policy digest.
+///
+/// Historical metadata cannot be supplied to operational activation:
+/// ```compile_fail
+/// use q_periapt_continuity_identity_candidate::{DeviceEnrollment, HistoricalSessionPolicy};
+/// fn activate(enrollment: DeviceEnrollment, historical: &HistoricalSessionPolicy) {
+///     let _ = enrollment.activate(historical, 250, None);
+/// }
+/// ```
+#[derive(Clone)]
+pub struct HistoricalSessionPolicy {
     family: [u8; 32],
     checkpoint: PolicyCheckpoint,
     validity: Validity,
@@ -289,18 +312,31 @@ pub struct VerifiedSessionPolicy {
     anchor: AnchorRequirement,
     budget: ApplicationSendBudget,
     sdk: [u8; 68],
-    closed: AtomicBool,
     signer: PublicKey,
 }
+impl AsRef<HistoricalSessionPolicy> for HistoricalSessionPolicy {
+    fn as_ref(&self) -> &HistoricalSessionPolicy {
+        self
+    }
+}
+/// Actual authenticated protocol policy, bound to one verified runtime lifetime.
+pub struct VerifiedSessionPolicy {
+    pub(crate) runtime: Arc<Runtime>,
+    historical: HistoricalSessionPolicy,
+    closed: AtomicBool,
+}
+impl AsRef<HistoricalSessionPolicy> for VerifiedSessionPolicy {
+    fn as_ref(&self) -> &HistoricalSessionPolicy {
+        &self.historical
+    }
+}
 impl VerifiedSessionPolicy {
-    /// Authenticated immutable send bound; reading it grants no message permission.
-    pub fn application_send_budget(&self) -> ApplicationSendBudget {
-        self.budget
+    /// Borrow immutable authenticated metadata. This does not extend the runtime
+    /// lifetime or restore a closed/expired policy's permission.
+    pub fn historical(&self) -> &HistoricalSessionPolicy {
+        &self.historical
     }
-    /// Exact signed requirement. Reading it does not refresh policy authority or time.
-    pub fn anchor_requirement(&self) -> AnchorRequirement {
-        self.anchor
-    }
+
     pub(crate) fn check_device(&self, device: &VerifiedDevice, now: u64) -> Result<(), Error> {
         self.check_device_identity(device, now)?;
         device.roster_validity.check(now)
@@ -310,11 +346,79 @@ impl VerifiedSessionPolicy {
         device: &VerifiedDevice,
         now: u64,
     ) -> Result<(), Error> {
-        if device.description.family != self.family {
+        if device.description.family != self.historical.family {
             return Err(Error::Scope);
         }
         self.check_external_signer(&device.key)?;
         device.description.validity.check(now)
+    }
+
+    /// Close this protocol-policy instance without changing other SDK applications.
+    /// Durable policy replacement and other instances still require host coordination.
+    pub fn close(&self) {
+        self.closed.store(true, Ordering::Release);
+    }
+
+    /// Check mode, time and current runtime lifetime at an operation boundary.
+    /// The service must separately recheck durable policy/roster/directory authority.
+    pub fn check_mode(&self, quality: PrekeyQuality, trusted_time: u64) -> Result<(), Error> {
+        if self.closed.load(Ordering::Acquire) {
+            return Err(Error::Closed);
+        }
+        self.historical.validity.check(trusted_time)?;
+        if !self.historical.modes.permits(quality) || !self.runtime.is_enabled()? {
+            return Err(Error::PolicyDenied);
+        }
+        Ok(())
+    }
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn application_send_budget(&self) -> ApplicationSendBudget {
+        self.historical.application_send_budget()
+    }
+
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn anchor_requirement(&self) -> AnchorRequirement {
+        self.historical.anchor_requirement()
+    }
+
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn family(&self) -> [u8; 32] {
+        self.historical.family()
+    }
+
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn checkpoint(&self) -> PolicyCheckpoint {
+        self.historical.checkpoint()
+    }
+
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn validity(&self) -> Validity {
+        self.historical.validity()
+    }
+
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn sdk_binding(&self) -> [u8; 68] {
+        self.historical.sdk_binding()
+    }
+
+    /// Authenticated immutable metadata; current admission is checked separately.
+    pub fn allowed_modes(&self) -> AllowedPrekeyModes {
+        self.historical.allowed_modes()
+    }
+
+    pub(crate) fn check_external_signer(&self, key: &PublicKey) -> Result<(), Error> {
+        self.historical.check_external_signer(key)
+    }
+}
+
+impl HistoricalSessionPolicy {
+    /// Authenticated immutable send bound; reading it grants no message permission.
+    pub fn application_send_budget(&self) -> ApplicationSendBudget {
+        self.budget
+    }
+    /// Exact signed requirement. Reading it does not refresh policy authority or time.
+    pub fn anchor_requirement(&self) -> AnchorRequirement {
+        self.anchor
     }
     pub(crate) fn check_external_signer(&self, key: &PublicKey) -> Result<(), Error> {
         if key.shares_component(&self.signer) {
@@ -329,11 +433,6 @@ impl VerifiedSessionPolicy {
             return Err(Error::Scope);
         }
         Ok(())
-    }
-    /// Close this protocol-policy instance without changing other SDK applications.
-    /// Durable policy replacement and other instances still require host coordination.
-    pub fn close(&self) {
-        self.closed.store(true, Ordering::Release);
     }
     /// Account/device enrollment policy family.
     pub fn family(&self) -> [u8; 32] {
@@ -354,17 +453,5 @@ impl VerifiedSessionPolicy {
     /// Exact signed mode permissions. Reading them alone is not an admission lease.
     pub fn allowed_modes(&self) -> AllowedPrekeyModes {
         self.modes
-    }
-    /// Check mode, time and current runtime lifetime at an operation boundary.
-    /// The service must separately recheck durable policy/roster/directory authority.
-    pub fn check_mode(&self, quality: PrekeyQuality, trusted_time: u64) -> Result<(), Error> {
-        if self.closed.load(Ordering::Acquire) {
-            return Err(Error::Closed);
-        }
-        self.validity.check(trusted_time)?;
-        if !self.modes.permits(quality) || !self.runtime.is_enabled()? {
-            return Err(Error::PolicyDenied);
-        }
-        Ok(())
     }
 }

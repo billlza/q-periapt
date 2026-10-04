@@ -4,6 +4,8 @@
 mod fixture;
 #[path = "common/witness.rs"]
 mod witness;
+#[path = "enrollment/witness_credential_renewal.rs"]
+mod witness_credential_renewal;
 #[path = "common/witness_tls.rs"]
 mod witness_tls;
 
@@ -33,6 +35,8 @@ struct State {
     journal: [u8; 32],
 }
 struct Registration {
+    root: p::RootSigningKey,
+    validity: p::Validity,
     path: PathBuf,
     intent: p::EnrollmentIntent,
     original: p::VerifiedDevice,
@@ -170,7 +174,7 @@ fn prepare(s: &fixture::Setup, witness: &witness::Witness) -> Result<Registratio
         q_periapt_sdk::Limits::default(),
     )?;
     sdk.close();
-    let mut root = p::RootSigningKey::generate()?;
+    let root = p::RootSigningKey::generate()?;
     let at = fixture::now()?;
     let validity = p::Validity::new(
         at.saturating_sub(1),
@@ -248,7 +252,6 @@ fn prepare(s: &fixture::Setup, witness: &witness::Witness) -> Result<Registratio
     ] {
         fixture::store(&path, name, &bytes)?;
     }
-    root.close();
     let accepted = state(&run(&path, "accept", &arguments(&path, "accept", None))?)?;
     assert_eq!(accepted.phase, 3);
     assert_eq!(accepted.signer, requested.signer);
@@ -290,6 +293,8 @@ fn prepare(s: &fixture::Setup, witness: &witness::Witness) -> Result<Registratio
     policy.close();
     sdk.close();
     Ok(Registration {
+        root,
+        validity,
         path,
         intent,
         original,

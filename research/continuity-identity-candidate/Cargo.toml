@@ -15,6 +15,7 @@ resolver = "2"
 members = ["."]
 
 [dependencies]
+q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
 q-periapt-core = { version = "=0.2.0", path = "../../crates/q-periapt-core" }
 q-periapt-backends = { version = "=0.2.0", path = "../../crates/q-periapt-backends" }
 q-periapt-sdk = { version = "=0.2.0", path = "../../crates/q-periapt-sdk", features = ["sealed-operations"] }
@@ -42,7 +43,6 @@ anchor-tls = ["dep:q-periapt-rustls", "dep:rustls"]
 
 [dev-dependencies]
 socket2 = "=0.6.5"
-q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
 q-periapt-sig = { version = "=0.2.0", path = "../../crates/q-periapt-sig" }
 tempfile = "=3.27.0"
 rcgen = "=0.14.10"

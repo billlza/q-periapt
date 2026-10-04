@@ -1278,3 +1278,112 @@ fn authority_checkpoint_projection_preserves_v1_binding_bytes() {
         ]
     );
 }
+
+#[test]
+fn historical_policy_preserves_authenticated_scope_without_recreating_closed_runtime_authority() {
+    let (_, issued, pin, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let policy = pin
+        .verify(issued.as_bytes(), Arc::clone(&runtime), 150)
+        .expect("live policy");
+    let saved = policy.historical().clone();
+    policy.close();
+    runtime.close();
+    drop(policy);
+    let historical = pin
+        .verify_historical(issued.as_bytes())
+        .expect("signed historical metadata");
+    assert_eq!(historical.checkpoint(), saved.checkpoint());
+    assert_eq!(historical.family(), saved.family());
+    assert_eq!(historical.sdk_binding(), saved.sdk_binding());
+    assert_eq!(historical.validity(), saved.validity());
+    assert_eq!(historical.anchor_requirement(), saved.anchor_requirement());
+    assert_eq!(historical.allowed_modes(), saved.allowed_modes());
+    assert_eq!(
+        historical.application_send_budget(),
+        saved.application_send_budget()
+    );
+    assert!(matches!(
+        runtime.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    fail(
+        pin.verify(issued.as_bytes(), Arc::clone(&runtime), 250),
+        Error::Validity,
+    );
+    fail(
+        pin.verify(issued.as_bytes(), runtime, 150),
+        Error::Runtime(q_periapt_sdk::Error::Closed),
+    );
+}
+
+#[test]
+fn historical_policy_requires_both_signatures_exact_independent_pin_and_canonical_claims() {
+    let (signer, issued, pin, _) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let (body, signature) = open_envelope(issued.as_bytes()).expect("envelope");
+    for index in [0, signature.len() - 1] {
+        let mut bad = signature.to_vec();
+        *bad.get_mut(index).expect("signature byte") ^= 1;
+        assert!(pin
+            .verify_historical(&envelope(body, &bad).expect("bad signature envelope"))
+            .is_err());
+    }
+    let other = PolicySigningKey::generate().expect("other issuer");
+    let wrong = PolicyPin::new(
+        other.policy_family().expect("family"),
+        other.public_key().expect("key"),
+        issued.checkpoint(),
+    )
+    .expect("independent different pin");
+    assert!(wrong.verify_historical(issued.as_bytes()).is_err());
+    let checkpoint = PolicyCheckpoint::from_trusted_state(2, issued.checkpoint().digest())
+        .expect("wrong version");
+    let wrong = PolicyPin::new(
+        signer.policy_family().expect("family"),
+        signer.public_key().expect("key"),
+        checkpoint,
+    )
+    .expect("wrong checkpoint");
+    fail(
+        wrong.verify_historical(issued.as_bytes()),
+        Error::Checkpoint,
+    );
+    // Real issuer signatures and matching checkpoints cannot admit an invalid
+    // SDK trusted-state version, reserved mode, malformed anchor, or zero budget.
+    for (offset, bytes, expected) in [
+        (128, vec![0; 4], Error::Scope),
+        (164, vec![0x80], Error::Encoding),
+        (165, vec![2], Error::Encoding),
+        (198, vec![0; 2], Error::Encoding),
+    ] {
+        let mut changed = body.to_vec();
+        changed
+            .get_mut(offset..offset + bytes.len())
+            .expect("field")
+            .copy_from_slice(&bytes);
+        let checkpoint = PolicyCheckpoint::from_trusted_state(
+            1,
+            crate::crypto::digest(
+                b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1",
+                &changed,
+            ),
+        )
+        .expect("matching pin");
+        let exact = PolicyPin::new(
+            signer.policy_family().expect("family"),
+            signer.public_key().expect("key"),
+            checkpoint,
+        )
+        .expect("independent pin");
+        let wire = envelope(
+            &changed,
+            &signer
+                .sign(Purpose::SessionPolicy, &changed)
+                .expect("issuer signature"),
+        )
+        .expect("wire");
+        fail(exact.verify_historical(&wire), expected);
+    }
+    let mut trailing = issued.as_bytes().to_vec();
+    trailing.push(0);
+    assert!(pin.verify_historical(&trailing).is_err());
+}

@@ -354,6 +354,29 @@ private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: 
     mode: String, original: EnrollmentStatus) throws -> String {
     let status: CredentialRenewalStatus
     switch mode {
+    case "enrollment-credential-witness-commit-no-sdk":
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
+        _ = try expectedEnrollmentFailure(702) { try owner.commitWitnessedCredentialRenewal(operation: operation, statement: statement) }
+        _ = try expectedEnrollmentFailure(2) { try owner.credentialRenewalStatus() }
+        return "credential-witness-commit-refused:702"
+    case "enrollment-credential-witness-prepare":
+        let proposal = try owner.prepareWitnessedCredentialRenewal()
+        try require(proposal == owner.prepareWitnessedCredentialRenewal(), "witness preparation changed original target")
+        try inputs.publish("credential-proposal", proposal.bytes)
+        try require(owner.status() == original, "witness preparation replaced registration")
+        return "credential-witness-prepared"
+    case "enrollment-credential-witness-commit", "enrollment-credential-witness-close", "enrollment-credential-witness-reconcile":
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
+        switch mode {
+        case "enrollment-credential-witness-commit":
+            status = try owner.commitWitnessedCredentialRenewal(operation: operation, statement: statement)
+        case "enrollment-credential-witness-close":
+            status = try owner.closeWitnessedCredentialRenewal(operation: operation, statement: statement)
+        default: status = try owner.reconcileWitnessedCredentialRenewal(operation: operation, statement: statement)
+        }
+        try require(owner.status() == original, "witness reconciliation replaced registration")
     case "enrollment-credential-status": status = try owner.credentialRenewalStatus()
     case "enrollment-credential-activate-refused":
         _ = try refusedEnrollmentActivation(owner, code: 104)

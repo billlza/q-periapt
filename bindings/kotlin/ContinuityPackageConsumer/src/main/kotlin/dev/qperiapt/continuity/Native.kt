@@ -56,6 +56,7 @@ internal object ContinuityNative {
     private val enrollmentRequestLayout = struct("length" to JAVA_INT, "bytes" to array(8192))
     private val credentialRenewalStatusLayout = struct("phase" to JAVA_INT, "operation" to array(32),
         "statement" to array(32), "checkpoint" to checkpointLayout, "observed_at" to JAVA_LONG)
+    private val credentialRenewalProposalLayout = struct("bytes" to array(296))
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -117,6 +118,14 @@ internal object ContinuityNative {
         "stage_credential_renewal" to function("qpc_enrollment_v1_stage_credential_renewal", JAVA_LONG, ADDRESS, JAVA_LONG,
             ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "reconcile_expired_credential_renewal" to function("qpc_enrollment_v1_reconcile_expired_credential_renewal",
+            JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "prepare_witnessed_credential_renewal" to function("qpc_enrollment_v1_prepare_witnessed_credential_renewal",
+            JAVA_LONG, ADDRESS, ADDRESS),
+        "commit_witnessed_credential_renewal" to function("qpc_enrollment_v1_commit_witnessed_credential_renewal",
+            JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "close_witnessed_credential_renewal" to function("qpc_enrollment_v1_close_witnessed_credential_renewal",
+            JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "reconcile_witnessed_credential_renewal" to function("qpc_enrollment_v1_reconcile_witnessed_credential_renewal",
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "admit_peer_credential_renewal" to function("qpc_device_v1_admit_peer_credential_renewal", JAVA_LONG, ADDRESS,
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
@@ -464,6 +473,24 @@ internal object ContinuityNative {
             val output = arena.allocate(credentialRenewalStatusLayout)
             invoke(arena, "reconcile_expired_credential_renewal", handle, arena.bytes(operation.encoded()),
                 arena.bytes(statement.encoded()), output)
+            decodeCredentialRenewalStatus(Fields(output, credentialRenewalStatusLayout))
+        }
+    @JvmSynthetic internal fun prepareWitnessedCredentialRenewal(handle: Long): CredentialRenewalProposal =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(credentialRenewalProposalLayout)
+            invoke(arena, "prepare_witnessed_credential_renewal", handle, output)
+            CredentialRenewalProposal.decode(output.toArray(JAVA_BYTE))
+        }
+    internal enum class WitnessRenewalAction(val function: String) {
+        COMMIT("commit_witnessed_credential_renewal"), CLOSE("close_witnessed_credential_renewal"),
+        RECONCILE("reconcile_witnessed_credential_renewal"),
+    }
+    @JvmSynthetic internal fun witnessedCredentialRenewal(handle: Long, operation: CredentialRenewalID,
+                                                          statement: CredentialRenewalStatementID,
+                                                          action: WitnessRenewalAction): CredentialRenewalStatus =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(credentialRenewalStatusLayout)
+            invoke(arena, action.function, handle, arena.bytes(operation.encoded()), arena.bytes(statement.encoded()), output)
             decodeCredentialRenewalStatus(Fields(output, credentialRenewalStatusLayout))
         }
     @JvmSynthetic internal fun admitPeerCredentialRenewal(handle: Long, wire: ByteArray, pin: AccountPin,
@@ -851,6 +878,7 @@ internal object ContinuityNative {
         "enrollment_intent" to enrollmentIntentLayout, "checkpoint" to checkpointLayout, "enrollment_pin" to enrollmentPinLayout,
         "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,
         "credential_renewal_status" to credentialRenewalStatusLayout,
+        "credential_renewal_proposal" to credentialRenewalProposalLayout,
         "setup_status" to setupStatusLayout, "setup_preparation" to setupPreparationLayout,
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,

@@ -4,6 +4,39 @@ import XCTest
 import CQPCOwner
 
 final class CredentialRenewalTests: XCTestCase {
+    func testWitnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads() throws {
+        XCTAssertEqual(MemoryLayout<qpc_credential_renewal_proposal_v1>.size, 296)
+        XCTAssertEqual(MemoryLayout<qpc_credential_renewal_proposal_v1>.alignment, 1)
+        func number(_ value: UInt64, _ offset: Int, _ bytes: inout [UInt8]) {
+            bytes.replaceSubrange(offset..<(offset + 8), with: (0..<8).reversed().map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) })
+        }
+        var bytes = [UInt8](repeating: 1, count: 296)
+        bytes.replaceSubrange(0..<8, with: "QPCRNP01".utf8)
+        number(UInt64.max - 1, 200, &bytes); number(UInt64.max - 1, 248, &bytes)
+        number(UInt64.max - 2, 208, &bytes); number(UInt64.max - 1, 256, &bytes)
+        bytes[264] = 2
+        let original = bytes, proposal = try CredentialRenewalProposal(nativeBytes: bytes)
+        bytes[136] = 7
+        XCTAssertEqual(proposal.bytes, original)
+        XCTAssertEqual(proposal.operation.bytes, Array(original[136..<168]))
+        XCTAssertEqual(proposal.statement.bytes, Array(original[168..<200]))
+        var invalid = [Array(original.dropLast()), original + [0]]
+        for offset in [0, 8, 40, 72, 104, 136, 168, 216, 264] {
+            var wrong = original
+            wrong.replaceSubrange(offset..<(offset + (offset == 0 ? 8 : 32)), with: repeatElement(UInt8(0), count: offset == 0 ? 8 : 32))
+            invalid.append(wrong)
+        }
+        for (offset, value): (Int, UInt64) in [(200, 0), (200, UInt64.max), (248, 1), (208, 0),
+                                               (208, UInt64.max), (208, UInt64.max - 1), (256, UInt64.max), (256, 1)] {
+            var wrong = original; number(value, offset, &wrong); invalid.append(wrong)
+        }
+        var unchanged = original; unchanged.replaceSubrange(264..<296, with: original[216..<248]); invalid.append(unchanged)
+        for wrong in invalid {
+            XCTAssertThrowsError(try CredentialRenewalProposal(nativeBytes: wrong)) {
+                XCTAssertEqual($0 as? ContinuityBoundaryError, .malformedOutput)
+            }
+        }
+    }
     func testRenewalStatusPreservesHistoricalBindingAndRejectsMalformedCombinations() throws {
         XCTAssertEqual(MemoryLayout<qpc_credential_renewal_status_v1>.size, 120)
         XCTAssertEqual(MemoryLayout<qpc_credential_renewal_status_v1>.offset(of: \.checkpoint), 72)

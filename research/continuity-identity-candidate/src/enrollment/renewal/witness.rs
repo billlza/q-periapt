@@ -182,12 +182,13 @@ impl DeviceEnrollment {
     /// renewal operation separately binds the original policy, journal and intent.
     pub fn credential_renewal_anchor_client(
         &mut self,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         now: u64,
         pin: AnchorPin,
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
+        let policy = policy.as_ref();
         let result = (|| {
             let image = self.image()?;
             let original = self.original_device(&image, now)?;
@@ -223,9 +224,10 @@ impl DeviceEnrollment {
     fn witness_scope(
         &self,
         image: &Image,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         now: u64,
     ) -> Result<(VerifiedDevice, JournalIdentity), DurableError> {
+        let policy = policy.as_ref();
         let original = self.original_device(image, now)?;
         let Phase::Accepted {
             admission,
@@ -283,10 +285,11 @@ impl DeviceEnrollment {
     }
     pub(in crate::enrollment) fn persisted_witness_terminal(
         &mut self,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         now: u64,
         proposal: Proposal,
     ) -> Result<PersistedRenewalTerminal, DurableError> {
+        let policy = policy.as_ref();
         let image = self.image()?;
         self.witness_scope(&image, policy, now)?;
         let coord = image
@@ -306,9 +309,10 @@ impl DeviceEnrollment {
     fn witness_lease(
         &self,
         original: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         id: JournalIdentity,
     ) -> Result<DeviceInstallation, DurableError> {
+        let policy = policy.as_ref();
         let mut owner = DeviceInstallation::open_bound(
             self.paths.installation.clone(),
             &self.key()?,
@@ -323,8 +327,9 @@ impl DeviceEnrollment {
     fn pending_grant(
         image: &Image,
         original: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
     ) -> Result<VerifiedCredentialRenewal, DurableError> {
+        let policy = policy.as_ref();
         let pending = image
             .renewal
             .as_ref()
@@ -341,6 +346,96 @@ impl DeviceEnrollment {
         grant.resolve_established(original, policy.checkpoint().digest())?;
         Ok(grant)
     }
+    /// Recover an existing exact journal proposal into this original enrollment.
+    /// This never creates/reseals a target or sends a witness command. `None`
+    /// means no retained local proposal, never witness NoCommit. It remains usable
+    /// with independently verified historical policy after policy/runtime expiry.
+    pub fn recover_witnessed_credential_renewal_preparation(
+        &mut self,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+        now: u64,
+    ) -> Result<Option<Proposal>, DurableError> {
+        let policy = policy.as_ref();
+        let result = (|| {
+            let image = self.image()?;
+            let (original, id) = self.witness_scope(&image, policy, now)?;
+            let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
+            let coordination = renewal
+                .witness
+                .as_ref()
+                .ok_or(DurableError::Corrupt)?
+                .coordination;
+            if let Some(coord) = coordination.filter(|c| c.terminal.is_some()) {
+                return Ok(Some(coord.proposal)); // Historical retained metadata only.
+            }
+            if renewal.pending.is_none() {
+                return Ok(None);
+            }
+            let grant = Self::pending_grant(&image, &original, policy)?;
+            let _lease = self.witness_lease(&original, policy, id)?;
+            let proposal = DeviceJournal::inspect_credential_renewal_preparation(
+                self.paths.installation.files()[1],
+                self.key()?,
+                &original,
+                policy,
+                id,
+            )?;
+            let Some(proposal) = proposal else {
+                if coordination.is_some() {
+                    return Err(DurableError::Conflict);
+                }
+                return Ok(None);
+            };
+            if proposal.operation() != grant.operation()
+                || proposal.statement() != grant.statement_digest()
+            {
+                return Err(DurableError::Conflict);
+            }
+            Ok(Some(self.retain_witnessed_preparation(
+                image, policy, now, proposal,
+            )?))
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    fn retain_witnessed_preparation(
+        &mut self,
+        mut image: Image,
+        policy: &crate::HistoricalSessionPolicy,
+        now: u64,
+        proposal: Proposal,
+    ) -> Result<Proposal, DurableError> {
+        let witness = image
+            .renewal
+            .as_mut()
+            .and_then(|r| r.witness.as_mut())
+            .ok_or(DurableError::Corrupt)?;
+        match witness.coordination {
+            Some(c) if c.proposal == proposal && c.terminal.is_none() => {}
+            None => {
+                witness.coordination = Some(Coordination {
+                    proposal,
+                    terminal: None,
+                });
+                self.save(&image)?;
+            }
+            _ => return Err(DurableError::Conflict),
+        }
+        let readback = self.image()?;
+        self.witness_scope(&readback, policy, now)?;
+        let saved = readback
+            .renewal
+            .as_ref()
+            .and_then(|r| r.witness.as_ref())
+            .and_then(|w| w.coordination)
+            .ok_or(DurableError::Corrupt)?;
+        if saved.proposal != proposal || saved.terminal.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        Ok(proposal)
+    }
     /// Prepare the original staged renewal once and durably retain its exact
     /// proposal. The returned public proposal needs independent witness approval;
     /// it is not itself permission to commit. Unknown results preserve both files.
@@ -351,7 +446,7 @@ impl DeviceEnrollment {
         client: AnchorClient,
     ) -> Result<Proposal, DurableError> {
         let result = (|| {
-            let mut image = self.image()?;
+            let image = self.image()?;
             let (original, id) = self.witness_scope(&image, policy, now)?;
             let grant = Self::pending_grant(&image, &original, policy)?;
             client.check_device(&original)?;
@@ -399,33 +494,8 @@ impl DeviceEnrollment {
             {
                 return Err(DurableError::Conflict);
             }
-            let witness = image
-                .renewal
-                .as_mut()
-                .and_then(|r| r.witness.as_mut())
-                .ok_or(DurableError::Corrupt)?;
-            match witness.coordination {
-                Some(c) if c.proposal == proposal && c.terminal.is_none() => {}
-                None => {
-                    witness.coordination = Some(Coordination {
-                        proposal,
-                        terminal: None,
-                    });
-                    self.save(&image)?;
-                }
-                _ => return Err(DurableError::Conflict),
-            }
-            let readback = self.image()?;
-            self.witness_scope(&readback, policy, now)?;
-            let saved = readback
-                .renewal
-                .as_ref()
-                .and_then(|r| r.witness.as_ref())
-                .and_then(|w| w.coordination)
-                .ok_or(DurableError::Corrupt)?;
-            if saved.proposal != proposal || saved.terminal.is_some() {
-                return Err(DurableError::Conflict);
-            }
+            let proposal =
+                self.retain_witnessed_preparation(image, policy.historical(), now, proposal)?;
             drop(lease);
             Ok(proposal)
         })();
@@ -441,10 +511,11 @@ impl DeviceEnrollment {
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         now: u64,
         client: &mut AnchorClient,
     ) -> Result<CredentialRenewalStatus, DurableError> {
+        let policy = policy.as_ref();
         self.run_witnessed_renewal(
             operation,
             statement,
@@ -467,10 +538,10 @@ impl DeviceEnrollment {
         self.run_witnessed_renewal(
             operation,
             statement,
-            policy,
+            policy.historical(),
             now,
             client,
-            RenewalAction::Commit,
+            RenewalAction::Commit(policy),
         )
     }
     /// Explicitly close an independently prepared original proposal. A competing
@@ -479,10 +550,11 @@ impl DeviceEnrollment {
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         now: u64,
         client: &mut AnchorClient,
     ) -> Result<CredentialRenewalStatus, DurableError> {
+        let policy = policy.as_ref();
         self.run_witnessed_renewal(
             operation,
             statement,
@@ -496,10 +568,10 @@ impl DeviceEnrollment {
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
-        policy: &VerifiedSessionPolicy,
+        policy: &crate::HistoricalSessionPolicy,
         now: u64,
         client: &mut AnchorClient,
-        action: RenewalAction,
+        action: RenewalAction<'_>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
         let result =
             self.coordinate_witnessed_renewal(operation, statement, policy, now, client, action);
@@ -512,10 +584,10 @@ impl DeviceEnrollment {
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
-        policy: &VerifiedSessionPolicy,
+        policy: &crate::HistoricalSessionPolicy,
         now: u64,
         client: &mut AnchorClient,
-        action: RenewalAction,
+        action: RenewalAction<'_>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
         let mut image = self.image()?;
         let (original, id) = self.witness_scope(&image, policy, now)?;
@@ -523,9 +595,36 @@ impl DeviceEnrollment {
         if Some(client.pin().binding()) != policy.anchor_requirement().binding() {
             return Err(DurableError::Conflict);
         }
+        let prepared = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
+        if prepared
+            .witness
+            .as_ref()
+            .ok_or(DurableError::Corrupt)?
+            .coordination
+            .is_none()
+        {
+            if let Some(pending) = &prepared.pending {
+                if pending.operation != operation || pending.statement != statement {
+                    return Err(DurableError::Conflict);
+                }
+                self.recover_witnessed_credential_renewal_preparation(policy, now)?;
+                image = self.image()?;
+            }
+        }
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
         let witness = renewal.witness.as_ref().ok_or(DurableError::Corrupt)?;
         let Some(coord) = witness.coordination else {
+            if renewal
+                .pending
+                .as_ref()
+                .is_some_and(|p| p.operation == operation && p.statement == statement)
+            {
+                return if matches!(action, RenewalAction::Observe) {
+                    renewal.status()
+                } else {
+                    Err(DurableError::Suspended)
+                };
+            }
             if let Some(c) = renewal
                 .completed
                 .as_ref()
@@ -568,8 +667,8 @@ impl DeviceEnrollment {
             }
             let command = match action {
                 RenewalAction::Observe => None,
-                RenewalAction::Commit => {
-                    admit(grant.successor_device(), policy, now)?;
+                RenewalAction::Commit(current) => {
+                    admit(grant.successor_device(), current, now)?;
                     Some(AnchorOperation::commit_credential_renewal(&proposal))
                 }
                 RenewalAction::Close => Some(AnchorOperation::close_credential_renewal(&proposal)),
@@ -721,8 +820,8 @@ impl DeviceEnrollment {
     }
 }
 #[derive(Clone, Copy)]
-enum RenewalAction {
+enum RenewalAction<'a> {
     Observe,
-    Commit,
+    Commit(&'a VerifiedSessionPolicy),
     Close,
 }

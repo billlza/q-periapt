@@ -166,6 +166,12 @@ impl RenewalStatus {
         }
     }
 }
+/// Canonical public QPCRNP01 metadata, not a witness approval or terminal receipt.
+#[repr(C)]
+pub struct RenewalProposal {
+    pub bytes: [u8; 296],
+}
+
 #[repr(C)]
 pub struct RequestBytes {
     pub length: u32,
@@ -179,6 +185,7 @@ pub(crate) struct Owner {
     // Not loaded until an operation requires a live SDK/protocol policy.
     // Phase inspection and original request creation do not require TLS files.
     authority: Option<device::PolicyAuthority>,
+    historical: Option<p::HistoricalSessionPolicy>,
     witness: Option<witness::Configuration>,
 }
 impl Owner {
@@ -207,6 +214,7 @@ impl Owner {
             enrollment,
             family: approved.family,
             authority: None,
+            historical: None,
             witness,
         };
         opening::check(cancel, deadline)?;
@@ -221,6 +229,36 @@ impl Owner {
             self.authority = Some(authority);
         }
         Ok(())
+    }
+    fn historical_policy(
+        &mut self,
+        entry: &Entry,
+        deadline: Instant,
+    ) -> Result<p::HistoricalSessionPolicy> {
+        if self.historical.is_none() {
+            let policy = owner::configured_historical_policy(&self.path, &entry.cancel, deadline)?;
+            if policy.family() != self.family {
+                return Err(p::Error::Scope.into());
+            }
+            self.historical = Some(policy);
+        }
+        Ok(self.historical.as_ref().ok_or_else(|| failure(5))?.clone())
+    }
+    fn renewal_client(
+        &mut self,
+        policy: &p::HistoricalSessionPolicy,
+        entry: &Entry,
+    ) -> Result<p::AnchorClient> {
+        let configured = self.witness.ok_or(p::DurableError::AnchorRequired)?;
+        let parameters =
+            configured.parameters(&self.path, entry.cancel.clone(), entry.invocation.clone())?;
+        Ok(self.enrollment.credential_renewal_anchor_client(
+            policy,
+            owner::now().map_err(Failure::configuration)?,
+            parameters.pin,
+            parameters.transport,
+            parameters.timeout,
+        )?)
     }
     fn status(&mut self) -> Result<Status> {
         let status = self.enrollment.status()?;
@@ -313,13 +351,13 @@ fn take_owner(slot: &mut Option<Owned>, entry: &Entry, deadline: Instant) -> Res
 fn with_owner<T>(
     handle: u64,
     deadline: Instant,
-    action: impl FnOnce(&mut Owner, &Cancellation) -> Result<T>,
+    action: impl FnOnce(&mut Owner, &Entry) -> Result<T>,
 ) -> Result<T> {
     with_entry(handle, deadline, |slot, entry| {
         let mut owner = take_owner(slot, entry, deadline)?;
         // On any admitted failure the original transaction may have committed.
         // Drop every lease; only cancel/close remain until explicit resume.
-        let result = action(&mut owner, &entry.cancel)?;
+        let result = action(&mut owner, entry)?;
         opening::check(&entry.cancel, deadline)?;
         *slot = Some(Owned::Enrollment(owner));
         Ok(result)
@@ -441,7 +479,8 @@ pub unsafe extern "C" fn qpc_enrollment_v1_accept(
                 Pin::read(pin)?,
             )
         };
-        let id = with_owner(handle, deadline, |owner, cancel| {
+        let id = with_owner(handle, deadline, |owner, entry| {
+            let cancel = &entry.cancel;
             owner.ensure_policy(cancel, deadline)?;
             let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
             Ok(*owner
@@ -474,7 +513,8 @@ pub unsafe extern "C" fn qpc_enrollment_v1_prepare_storage(
 ) -> i32 {
     let action = |deadline| {
         output(preparation)?;
-        let result = with_owner(handle, deadline, |owner, cancel| {
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let cancel = &entry.cancel;
             owner.ensure_policy(cancel, deadline)?;
             let status = owner.status()?;
             let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
@@ -517,7 +557,8 @@ pub unsafe extern "C" fn qpc_enrollment_v1_refresh_roster(
                 Pin::read(pin)?,
             )
         };
-        let result = with_owner(handle, deadline, |owner, cancel| {
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let cancel = &entry.cancel;
             owner.ensure_policy(cancel, deadline)?;
             let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
             owner.enrollment.refresh_roster(
@@ -606,15 +647,10 @@ pub unsafe extern "C" fn qpc_enrollment_v1_stage_credential_renewal(
                 p::CredentialRenewalId::from_trusted_state(fixed(operation)?)?,
             )
         };
-        let result = with_owner(handle, deadline, |owner, cancel| {
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let cancel = &entry.cancel;
             owner.ensure_policy(cancel, deadline)?;
             let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
-            // The foreign facade has not exposed independent proposal approval
-            // and the native terminal coordinator yet. Refuse before staging an
-            // intent that this facade cannot finish; never select local fallback.
-            if policy.anchor_requirement().binding().is_some() {
-                return Err(p::DurableError::AnchorRequired.into());
-            }
             let grant = p::VerifiedCredentialRenewal::verify(
                 &wire,
                 &pin,
@@ -663,7 +699,8 @@ pub unsafe extern "C" fn qpc_enrollment_v1_reconcile_expired_credential_renewal(
         if statement == [0; 32] {
             return Err(Failure::argument());
         }
-        let result = with_owner(handle, deadline, |owner, cancel| {
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let cancel = &entry.cancel;
             owner.ensure_policy(cancel, deadline)?;
             let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
             // Native recovery authenticates the retained wire historically. Requiring
@@ -683,6 +720,208 @@ pub unsafe extern "C" fn qpc_enrollment_v1_reconcile_expired_credential_renewal(
     };
     // SAFETY: forwarded invocation-local diagnostic.
     unsafe { boundary(error, false, action) }
+}
+
+/// Read back an existing exact proposal, or prepare the original staged target
+/// under current policy. Returns public metadata for independent approval.
+/// # Safety
+/// Proposal/error are distinct aligned writable invocation-local records.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_prepare_witnessed_credential_renewal(
+    handle: u64,
+    proposal: *mut RenewalProposal,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(proposal)?;
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let historical = owner.historical_policy(entry, deadline)?;
+            let now = owner::now().map_err(Failure::configuration)?;
+            let retained = owner
+                .enrollment
+                .recover_witnessed_credential_renewal_preparation(&historical, now)?;
+            let value = match retained {
+                Some(value) => value,
+                None => {
+                    owner.ensure_policy(&entry.cancel, deadline)?;
+                    let policy =
+                        Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
+                    let client = owner.renewal_client(&historical, entry)?;
+                    owner.enrollment.prepare_witnessed_credential_renewal(
+                        &policy,
+                        owner::now().map_err(Failure::configuration)?,
+                        client,
+                    )?
+                }
+            };
+            Ok(RenewalProposal {
+                bytes: value.to_bytes().try_into().map_err(|_| failure(5))?,
+            })
+        })?;
+        // SAFETY: caller-owned exclusive output, published only after readback.
+        unsafe { put(proposal, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+#[derive(Clone, Copy)]
+enum WitnessRenewalAction {
+    Commit,
+    Close,
+    Reconcile,
+}
+// No branch converts an error/unknown result to a success fact. A Commit request
+// first reconciles original history; only a still-Pending target loads current
+// authority and reaches a new Commit. The same invocation deadline bounds both.
+unsafe fn witnessed_renewal(
+    handle: u64,
+    operation: *const u8,
+    statement: *const u8,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+    kind: WitnessRenewalAction,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        // SAFETY: exact public identities, copied before taking the owner.
+        let (operation, statement) = unsafe {
+            (
+                p::CredentialRenewalId::from_trusted_state(fixed(operation)?)?,
+                fixed(statement)?,
+            )
+        };
+        if statement == [0; 32] {
+            return Err(Failure::argument());
+        }
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let historical = owner.historical_policy(entry, deadline)?;
+            let mut client = owner.renewal_client(&historical, entry)?;
+            let now = owner::now().map_err(Failure::configuration)?;
+            let observed = match kind {
+                WitnessRenewalAction::Close => {
+                    owner.enrollment.close_witnessed_credential_renewal(
+                        operation,
+                        statement,
+                        &historical,
+                        now,
+                        &mut client,
+                    )?
+                }
+                WitnessRenewalAction::Reconcile | WitnessRenewalAction::Commit => {
+                    owner.enrollment.reconcile_witnessed_credential_renewal(
+                        operation,
+                        statement,
+                        &historical,
+                        now,
+                        &mut client,
+                    )?
+                }
+            };
+            let observed = if matches!(kind, WitnessRenewalAction::Commit) {
+                match observed {
+                    p::CredentialRenewalStatus::Pending { .. } => {
+                        owner.ensure_policy(&entry.cancel, deadline)?;
+                        let policy =
+                            Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
+                        owner.enrollment.commit_witnessed_credential_renewal(
+                            operation,
+                            statement,
+                            &policy,
+                            owner::now().map_err(Failure::configuration)?,
+                            &mut client,
+                        )?
+                    }
+                    p::CredentialRenewalStatus::Committed { .. }
+                    | p::CredentialRenewalStatus::Closed { .. } => observed,
+                    _ => return Err(p::DurableError::Conflict.into()),
+                }
+            } else {
+                observed
+            };
+            Ok(RenewalStatus::observed(observed))
+        })?;
+        // SAFETY: validated exclusive output; failed/unknown calls publish none.
+        unsafe { put(status, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+/// Commit an independently approved original target, or finish its exact retained
+/// terminal. Historical readback grants no current traffic permission.
+/// # Safety
+/// Operation/statement are 32 readable bytes; status/error are distinct aligned
+/// writable invocation-local records, disjoint from inputs.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_commit_witnessed_credential_renewal(
+    handle: u64,
+    operation: *const u8,
+    statement: *const u8,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forward this function's complete pointer contract unchanged.
+    unsafe {
+        witnessed_renewal(
+            handle,
+            operation,
+            statement,
+            status,
+            error,
+            WitnessRenewalAction::Commit,
+        )
+    }
+}
+/// Close an exact independently prepared target. A competing Applied outcome
+/// remains Committed. This operation never publishes a Device.
+/// # Safety
+/// Operation/statement are 32 readable bytes; status/error are distinct aligned
+/// writable invocation-local records, disjoint from inputs.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_close_witnessed_credential_renewal(
+    handle: u64,
+    operation: *const u8,
+    statement: *const u8,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forward this function's complete pointer contract unchanged.
+    unsafe {
+        witnessed_renewal(
+            handle,
+            operation,
+            statement,
+            status,
+            error,
+            WitnessRenewalAction::Close,
+        )
+    }
+}
+/// Reconcile only the original exact target, without Commit/Close or operational
+/// admission. Expired policy is authenticated as metadata, never reactivated.
+/// # Safety
+/// Operation/statement are 32 readable bytes; status/error are distinct aligned
+/// writable invocation-local records, disjoint from inputs.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_reconcile_witnessed_credential_renewal(
+    handle: u64,
+    operation: *const u8,
+    statement: *const u8,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+) -> i32 {
+    // SAFETY: forward this function's complete pointer contract unchanged.
+    unsafe {
+        witnessed_renewal(
+            handle,
+            operation,
+            statement,
+            status,
+            error,
+            WitnessRenewalAction::Reconcile,
+        )
+    }
 }
 
 /// Admit a peer's independent root grant through the original device parent.

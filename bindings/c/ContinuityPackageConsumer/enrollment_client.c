@@ -8,6 +8,8 @@ _Static_assert(sizeof(qpc_enrollment_request_v1)==8196,"request ABI");
 _Static_assert(sizeof(qpc_credential_renewal_status_v1)==120,"credential renewal status ABI");
 _Static_assert(offsetof(qpc_credential_renewal_status_v1,checkpoint)==72,"renewal checkpoint ABI");
 _Static_assert(offsetof(qpc_credential_renewal_status_v1,observed_at)==112,"renewal observation ABI");
+_Static_assert(sizeof(qpc_credential_renewal_proposal_v1)==296,"renewal proposal ABI");
+_Static_assert(_Alignof(qpc_credential_renewal_proposal_v1)==1,"renewal proposal alignment");
 static void enrollment_path(char out[4096],const char *path,const char *name) {
     int n=snprintf(out,4096,"%s/%s",path,name);
     if(n<=0 || n>=4096) fail("enrollment test path");
@@ -140,6 +142,41 @@ static int credential_command(uint64_t handle,const char *path,const char *opera
            memcmp(status.statement,again.statement,32) || status.checkpoint.version!=again.checkpoint.version ||
            memcmp(status.checkpoint.digest,again.checkpoint.digest,32) || status.observed_at!=again.observed_at)
             fail("renewal stage differs from authenticated readback");
+    } else if(!strcmp(operation,"enrollment-credential-witness-commit-no-sdk")) {
+        uint8_t id[32],statement[32];qpc_credential_renewal_status_v1 untouched;
+        enrollment_exact(path,"credential-operation",id,32);
+        enrollment_exact(path,"credential-statement",statement,32);
+        memset(&status,0xa5,sizeof(status));memcpy(&untouched,&status,sizeof(status));
+        int32_t code=qpc_enrollment_v1_commit_witnessed_credential_renewal(handle,id,statement,&status,&error);record(code,&error);
+        if(code!=702 || memcmp(&status,&untouched,sizeof(status))) fail("historical metadata authorized new commit or published failed output");
+        code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);
+        if(code!=QPC_CLOSED) fail("failed witnessed commit retained owner");
+        close_owner(handle);puts("credential-witness-commit-refused:702");return 0;
+    } else if(!strcmp(operation,"enrollment-credential-witness-prepare")) {
+        qpc_credential_renewal_proposal_v1 proposal,again;
+        require(qpc_enrollment_v1_prepare_witnessed_credential_renewal(handle,&proposal,&error),&error);
+        require(qpc_enrollment_v1_prepare_witnessed_credential_renewal(handle,&again,&error),&error);
+        if(memcmp(proposal.bytes,again.bytes,sizeof(proposal.bytes)) || memcmp(proposal.bytes,"QPCRNP01",8))
+            fail("witness renewal preparation changed or malformed");
+        enrollment_write(path,"credential-proposal",proposal.bytes,sizeof(proposal.bytes));
+        uint8_t batch[32];int32_t code=qpc_device_v1_next_account(handle,batch,&error);record(code,&error);
+        if(code!=QPC_OWNER_KIND) fail("witness preparation published a device");
+        close_owner(handle);puts("credential-witness-prepared");return 0;
+    } else if(!strcmp(operation,"enrollment-credential-witness-commit") ||
+              !strcmp(operation,"enrollment-credential-witness-close") ||
+              !strcmp(operation,"enrollment-credential-witness-reconcile")) {
+        uint8_t id[32],statement[32];
+        enrollment_exact(path,"credential-operation",id,32);
+        enrollment_exact(path,"credential-statement",statement,32);
+        int32_t code;
+        if(!strcmp(operation,"enrollment-credential-witness-commit"))
+            code=qpc_enrollment_v1_commit_witnessed_credential_renewal(handle,id,statement,&status,&error);
+        else if(!strcmp(operation,"enrollment-credential-witness-close"))
+            code=qpc_enrollment_v1_close_witnessed_credential_renewal(handle,id,statement,&status,&error);
+        else code=qpc_enrollment_v1_reconcile_witnessed_credential_renewal(handle,id,statement,&status,&error);
+        require(code,&error);
+        uint8_t batch[32];code=qpc_device_v1_next_account(handle,batch,&error);record(code,&error);
+        if(code!=QPC_OWNER_KIND) fail("witness terminal reconciliation published a device");
     } else if(!strcmp(operation,"enrollment-credential-reconcile")) {
         uint8_t id[32],statement[32];
         enrollment_exact(path,"credential-operation",id,32);
@@ -238,11 +275,17 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
         if(status.phase!=6 || status.previous.version!=old.checkpoint.version || status.next.version!=next.checkpoint.version)
             fail("refresh did not retain predecessor/target");
     } else if(!strcmp(argv[1],"enrollment-activate-error")) {
-        if(argc!=4 || (strcmp(argv[3],"216") && strcmp(argv[3],"218"))) fail("expected enrollment activation error");
-        int32_t wanted=!strcmp(argv[3],"216") ? QPC_ANCHOR_REQUIRED : QPC_ANCHOR;
+        if(argc!=4 || (strcmp(argv[3],"216") && strcmp(argv[3],"218") && strcmp(argv[3],"702")))
+            fail("expected enrollment activation error");
+        int32_t wanted=!strcmp(argv[3],"216") ? QPC_ANCHOR_REQUIRED :
+            (!strcmp(argv[3],"218") ? QPC_ANCHOR : 702);
         int32_t code=qpc_enrollment_v1_activate(handle,&error);record(code,&error);
-        if(code!=wanted) fail("required witness authority did not refuse activation");
-        enrollment_write(path,wanted==QPC_ANCHOR ? "enrollment-authority-refusal" : "enrollment-required-refusal",error.message,error.length);
+        if(code!=wanted) {
+            fprintf(stderr,"activation refusal expected=%d observed=%d\n",wanted,code);
+            fail("required activation boundary did not refuse as specified");
+        }
+        enrollment_write(path,wanted==QPC_ANCHOR ? "enrollment-authority-refusal" :
+            (wanted==QPC_ANCHOR_REQUIRED ? "enrollment-required-refusal" : "enrollment-activation-refusal"),error.message,error.length);
         code=qpc_enrollment_v1_status(handle,&status,&error);record(code,&error);
         if(code!=QPC_CLOSED) fail("refused activation kept registration owner");
         uint8_t batch[32];code=qpc_device_v1_next_account(handle,batch,&error);record(code,&error);

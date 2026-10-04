@@ -157,7 +157,7 @@ fn exchange(
     let store = Arc::clone(&case.store);
     let worker = thread::spawn(move || {
         let socket = accepted(&listener)?;
-        server.serve(
+        server.serve_recorded(
             socket,
             &store,
             Instant::now() + Duration::from_secs(5),
@@ -174,7 +174,21 @@ fn exchange(
     )
     .expect("transport");
     let outcome = client.exchange(request.as_bytes(), Instant::now() + Duration::from_secs(5));
-    (outcome, worker.join().expect("server thread"))
+    let served = worker.join().expect("server thread").map(|record| {
+        assert_eq!(
+            record.request(),
+            request.as_bytes(),
+            "server record changed authenticated request"
+        );
+        if let Ok(reply) = &outcome {
+            assert_eq!(
+                record.reply(),
+                reply,
+                "server record differs from authenticated transport reply"
+            );
+        }
+    });
+    (outcome, served)
 }
 
 #[test]

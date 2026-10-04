@@ -257,6 +257,52 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
+    /// Recover or prepare the exact original target for independent witness approval.
+    public func prepareWitnessedCredentialRenewal() throws -> CredentialRenewalProposal {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_proposal_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_prepare_witnessed_credential_renewal(handle, &raw, &error), &error)
+                return try CredentialRenewalProposal(nativeBytes: withUnsafeBytes(of: &raw.bytes) { Array($0) })
+            }
+        }
+    }
+    /// A new Commit requires current authority. A retained terminal is history only.
+    public func commitWitnessedCredentialRenewal(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID) throws -> CredentialRenewalStatus {
+        try witnessedCredentialRenewal(operation: operation, statement: statement,
+            invoke: qpc_enrollment_v1_commit_witnessed_credential_renewal)
+    }
+    /// Close the exact target. A competing Applied outcome remains Committed.
+    public func closeWitnessedCredentialRenewal(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID) throws -> CredentialRenewalStatus {
+        try witnessedCredentialRenewal(operation: operation, statement: statement,
+            invoke: qpc_enrollment_v1_close_witnessed_credential_renewal)
+    }
+    /// Historical recovery sends neither Commit nor Close and releases no device.
+    public func reconcileWitnessedCredentialRenewal(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID) throws -> CredentialRenewalStatus {
+        try witnessedCredentialRenewal(operation: operation, statement: statement,
+            invoke: qpc_enrollment_v1_reconcile_witnessed_credential_renewal)
+    }
+    private func witnessedCredentialRenewal(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID,
+        invoke: (UInt64, UnsafePointer<UInt8>?, UnsafePointer<UInt8>?,
+                 UnsafeMutablePointer<qpc_credential_renewal_status_v1>?, UnsafeMutablePointer<qpc_error_v1>?) -> Int32
+    ) throws -> CredentialRenewalStatus {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                let code = operation.bytes.withUnsafeBufferPointer { operation in
+                    statement.bytes.withUnsafeBufferPointer { statement in
+                        invoke(handle, operation.baseAddress, statement.baseAddress, &raw, &error)
+                    }
+                }
+                try checked(code, &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
     /// Return owned public request bytes only after native persistence/readback.
     /// Retrying returns the original bytes; possession is not account approval.
     public func request() throws -> [UInt8] {

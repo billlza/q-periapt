@@ -195,7 +195,7 @@ def verify_witness(stdout: bytes, directory: Path, carrier: str, *, language: st
     sdk.require(carrier in WITNESS_TESTS, "unsupported C enrollment witness carrier")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [WITNESS_TESTS[carrier]]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;", text, re.MULTILINE),
                 "C witnessed enrollment workload was not executed completely")
     prefix, public = "enrolled-witness", {}
 
@@ -355,5 +355,12 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
                 "foreign renewal harness or client changed during execution")
     result["credential_renewal"] = dict(execution=checked, native_harness_sha256=identity,
                                         foreign_client_sha256=client_identity.sha256)
+    from continuity_witnessed_renewal import qualify as qualify_witnessed_renewal
+    binary, identity = binaries["enrollment_witness"]
+    sdk.require("witnessed_credential_renewal" in native, "C cohort lacks witnessed credential renewal qualification")
+    sdk.require(native["witnessed_credential_renewal"]["binary"] == native["enrollment_witness"]["signed-tcp"]["binary"],
+                "foreign witnessed renewal must use the C-qualified original harness")
+    result["witnessed_credential_renewal"] = qualify_witnessed_renewal(
+        outside, output, profile, runtime, binary, run, language=language, variant=variant)
     sdk.write_json(output / (language.upper() + "_ENROLLMENT_" + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result

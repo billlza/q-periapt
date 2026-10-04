@@ -52,8 +52,8 @@ same consuming `activate()`. The grant is nonempty and bounded to 65,536 bytes;
 32-byte identities. The root, complete signing key, original installation and
 exact configured policy cannot be replaced through this operation. Do not update
 local credential files or create another registration after an unknown result.
-Required-witness local credential renewal remains explicitly refused by native
-admission, without local fallback.
+Required-witness renewal must use the additional witnessed operations described
+below before activation; there is no local fallback.
 
 `credentialRenewalStatus()` is passive and requires no live policy or TLS files.
 Its separate sealed `CredentialRenewalStatus` has `Absent`, `Pending`, `Committed`
@@ -437,4 +437,12 @@ remains mandatory. No raw owner handle, new native export or alternate TLS engin
 is added. Current/native-minimum development runs remain separate from a complete
 archive-produced cohort and final distribution admission.
 
-`Closed` is an exact historical witness refusal of the rejected target; the preceding credential may remain live. Required-witness renewal staging remains refused by this foreign facade until its complete proposal and coordinator operations are exposed.
+For required-witness renewal, call `prepareWitnessedCredentialRenewal` and retain
+the immutable 296-byte proposal for independent approval. Then call
+`commitWitnessedCredentialRenewal`, `closeWitnessedCredentialRenewal` or
+`reconcileWitnessedCredentialRenewal` with the original operation and statement.
+These borrow the enrollment owner and return no Device. New Commit requires current
+authority; terminal history can use the original pinned signed policy without an
+SDK runtime. `Closed` rejects the exact target while its predecessor may remain
+live. Source TCP/TLS Applied/Closed checks are separate from installed archives,
+the complete expiry/fault matrix and physical platforms.

@@ -27,6 +27,8 @@ rustls = { version = "=0.23.45", default-features = false, features = ["std"] }
 zeroize = "1"
 
 [dev-dependencies]
+redb = "=4.3.0"
+sha3 = { version = "=0.12.0", default-features = false }
 q-periapt-backends = "=0.2.0"
 q-periapt-policy = "=0.2.0"
 q-periapt-sig = "=0.2.0"

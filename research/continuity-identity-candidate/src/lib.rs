@@ -127,8 +127,8 @@ pub use selection::{
 };
 pub use session_policy::{
     bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget,
-    IssuedSessionPolicy, PolicyCheckpoint, PolicyPin, SessionPolicyParameters,
-    VerifiedSessionPolicy,
+    HistoricalSessionPolicy, IssuedSessionPolicy, PolicyCheckpoint, PolicyPin,
+    SessionPolicyParameters, VerifiedSessionPolicy,
 };
 
 use std::fmt;

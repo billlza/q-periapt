@@ -63,8 +63,9 @@ impl AnchorSubject {
     pub fn for_device(
         journal: JournalIdentity,
         device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
     ) -> Result<Self, Error> {
+        let policy = policy.as_ref();
         if device.description.family != policy.family() {
             return Err(Error::Scope);
         }

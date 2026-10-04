@@ -185,10 +185,15 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
                 check(updated.phase == EnrollmentPhase.REFRESHING && updated.refresh == RosterTransition(previous, next.checkpoint))
             }
             "enrollment-activate-error" -> {
-                require(args.size == 3 && args[2] in setOf("216", "218"))
+                require(args.size == 3 && args[2] in setOf("216", "218", "702"))
                 val wanted = args[2].toInt()
                 val failure = refusal(wanted) { it.activate().use { error("refused registration released a device") } }
-                check(records.retain(if (wanted == 218) "enrollment-authority-refusal" else "enrollment-required-refusal",
+                val name = when (wanted) {
+                    218 -> "enrollment-authority-refusal"
+                    216 -> "enrollment-required-refusal"
+                    else -> "enrollment-activation-refusal"
+                }
+                check(records.retain(name,
                     failure.diagnostic.toByteArray(), true))
                 refused(setOf(2)) { it.status() }
                 refused(setOf(2)) { it.activate() }

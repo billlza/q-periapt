@@ -29,7 +29,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_test_reports(root)
             good = report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 23)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 24)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):

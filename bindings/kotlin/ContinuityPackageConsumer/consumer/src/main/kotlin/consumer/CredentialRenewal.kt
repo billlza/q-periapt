@@ -43,6 +43,31 @@ private fun renewalStatus(value: CredentialRenewalStatus): String {
 internal fun credentialEnrollment(owner: ContinuityEnrollment, records: FixtureRecords, mode: String,
                                    original: EnrollmentStatus): String {
     val status = when (mode) {
+        "enrollment-credential-witness-commit-no-sdk" -> {
+            val operation = renewalOperation(records)
+            val statement = CredentialRenewalStatementID(records.enrollmentExact("credential-statement", 32))
+            refused(setOf(702)) { owner.commitWitnessedCredentialRenewal(operation, statement) }
+            refused(setOf(2)) { owner.credentialRenewalStatus() }
+            return "credential-witness-commit-refused:702"
+        }
+        "enrollment-credential-witness-prepare" -> {
+            val proposal = owner.prepareWitnessedCredentialRenewal()
+            check(proposal == owner.prepareWitnessedCredentialRenewal()) { "witness preparation changed original target" }
+            check(records.retain("credential-proposal", proposal.encoded(), true)) { "proposal output already exists" }
+            check(owner.status() == original) { "witness preparation replaced registration" }
+            return "credential-witness-prepared"
+        }
+        "enrollment-credential-witness-commit", "enrollment-credential-witness-close", "enrollment-credential-witness-reconcile" -> {
+            val operation = renewalOperation(records)
+            val statement = CredentialRenewalStatementID(records.enrollmentExact("credential-statement", 32))
+            val result = when (mode) {
+                "enrollment-credential-witness-commit" -> owner.commitWitnessedCredentialRenewal(operation, statement)
+                "enrollment-credential-witness-close" -> owner.closeWitnessedCredentialRenewal(operation, statement)
+                else -> owner.reconcileWitnessedCredentialRenewal(operation, statement)
+            }
+            check(owner.status() == original) { "witness reconciliation replaced registration" }
+            result
+        }
         "enrollment-credential-activate-refused" -> {
             refused(setOf(104)) { owner.activate().use { error("expired target published a device") } }
             refused(setOf(2)) { owner.credentialRenewalStatus() }

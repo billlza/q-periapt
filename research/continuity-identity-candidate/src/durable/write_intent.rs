@@ -348,9 +348,10 @@ impl DeviceJournal {
         path: &Path,
         key: JournalKey,
         original: &crate::VerifiedDevice,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         expected_id: JournalIdentity,
     ) -> Result<Option<crate::AnchorCredentialRenewalProposal>, DurableError> {
+        let policy = policy.as_ref();
         let db = open_private_database(path)?;
         let owner = bootstrap::storage_owner(original);
         let (image, pending) =
@@ -379,11 +380,12 @@ impl DeviceJournal {
         path: &Path,
         key: JournalKey,
         original: &crate::VerifiedDevice,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         expected_id: JournalIdentity,
         proposal: crate::AnchorCredentialRenewalProposal,
         client: &mut crate::AnchorClient,
     ) -> Result<crate::AnchorCredentialRenewalState, DurableError> {
+        let policy = policy.as_ref();
         let db = open_private_database(path)?;
         recover_credential_renewal(&db, &key, original, policy, expected_id, proposal, client)
     }
@@ -393,12 +395,13 @@ pub(super) fn recover_credential_renewal(
     db: &Database,
     key: &JournalKey,
     original: &crate::VerifiedDevice,
-    policy: &crate::VerifiedSessionPolicy,
+    policy: &impl AsRef<crate::HistoricalSessionPolicy>,
     expected_id: JournalIdentity,
     proposal: crate::AnchorCredentialRenewalProposal,
     client: &mut crate::AnchorClient,
 ) -> Result<crate::AnchorCredentialRenewalState, DurableError> {
     use crate::{AnchorCredentialRenewalState as State, AnchorOperation};
+    let policy = policy.as_ref();
     let owner = bootstrap::storage_owner(original);
     let (image, pending) = load_snapshot_as(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
     if image.id != expected_id.0 || image.local_account != original.account_id() {
@@ -455,11 +458,12 @@ impl DeviceJournal {
         path: &Path,
         key: JournalKey,
         original: &crate::VerifiedDevice,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         expected_id: JournalIdentity,
         terminal: &crate::enrollment::PersistedRenewalTerminal,
         client: &mut crate::AnchorClient,
     ) -> Result<(), DurableError> {
+        let policy = policy.as_ref();
         let db = open_private_database(path)?;
         Self::retire_witnessed_credential_intent_in_database(
             &db,
@@ -475,12 +479,13 @@ impl DeviceJournal {
         db: &Database,
         key: &JournalKey,
         original: &crate::VerifiedDevice,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         expected_id: JournalIdentity,
         terminal: &crate::enrollment::PersistedRenewalTerminal,
         client: &mut crate::AnchorClient,
     ) -> Result<(), DurableError> {
         use crate::{AnchorCredentialRenewalState as State, AnchorOperation};
+        let policy = policy.as_ref();
         let (proposal, terminal) = terminal.parts();
         let expected = match terminal {
             State::Applied => proposal.target_head(),

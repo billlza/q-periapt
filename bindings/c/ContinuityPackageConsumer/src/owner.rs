@@ -103,6 +103,17 @@ pub(crate) fn configured_policy(
         q_periapt_sdk::Limits::default(),
     )?;
     crate::opening::check(cancel, deadline)?;
+    let (pin, family) = configured_policy_pin(directory)?;
+    let policy = Arc::new(pin.verify(
+        &read(directory, "protocol-policy", 8192)?,
+        store.runtime()?,
+        now().map_err(Failure::configuration)?,
+    )?);
+    crate::opening::check(cancel, deadline)?;
+    Ok((store, policy, family))
+}
+
+fn configured_policy_pin(directory: &OwnedPrivateDirectory) -> Result<(p::PolicyPin, [u8; 32])> {
     let family = array(directory, "family")?;
     let pin = p::PolicyPin::new(
         family,
@@ -112,13 +123,21 @@ pub(crate) fn configured_policy(
             array(directory, "policy-digest")?,
         )?,
     )?;
-    let policy = Arc::new(pin.verify(
-        &read(directory, "protocol-policy", 8192)?,
-        store.runtime()?,
-        now().map_err(Failure::configuration)?,
-    )?);
+    Ok((pin, family))
+}
+// Signature-verified original metadata only: no SDK runtime or current-time
+// substitution. The native original enrollment checks its durable policy digest.
+pub(crate) fn configured_historical_policy(
+    path: &Path,
+    cancel: &Cancellation,
+    deadline: Instant,
+) -> Result<p::HistoricalSessionPolicy> {
     crate::opening::check(cancel, deadline)?;
-    Ok((store, policy, family))
+    let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+    let (pin, _) = configured_policy_pin(&directory)?;
+    let policy = pin.verify_historical(&read(&directory, "protocol-policy", 8192)?)?;
+    crate::opening::check(cancel, deadline)?;
+    Ok(policy)
 }
 
 pub(crate) enum Admission {

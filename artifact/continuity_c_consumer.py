@@ -41,7 +41,9 @@ EXPORTS |= {"qpc_setup_v1_" + name for name in
 EXPORTS |= {"qpc_enrollment_v1_" + name for name in
             ("provision_wrapping_key", "prepare_create", "prepare_resume", "status", "request", "accept",
              "prepare_storage", "refresh_roster", "activate", "credential_renewal_status",
-             "stage_credential_renewal", "reconcile_expired_credential_renewal")}
+             "stage_credential_renewal", "reconcile_expired_credential_renewal",
+             "prepare_witnessed_credential_renewal", "commit_witnessed_credential_renewal",
+             "close_witnessed_credential_renewal", "reconcile_witnessed_credential_renewal")}
 EXPORTS |= {"qpc_device_v1_next_account", "qpc_device_v1_account_status",
             "qpc_device_v1_send_account_member", "qpc_device_v1_admit_peer_credential_renewal"}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_begin", "account_status",
@@ -451,6 +453,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             result["execution"][profile]["enrollment_witness"][carrier] = witnessed
         sdk.require(sdk.snapshot(enrollment_witness_binary, maximum=MAX_BINARY).sha256 == enrollment_witness_identity.sha256,
                     "C witnessed enrollment test binary changed")
+        from continuity_witnessed_renewal import qualify as qualify_witnessed_renewal
+        result["execution"][profile]["witnessed_credential_renewal"] = qualify_witnessed_renewal(
+            outside, output, profile, runtime, enrollment_witness_binary, run)
         device_evidence = outside / ("c-" + profile + "-device-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
         tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)

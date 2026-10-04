@@ -119,7 +119,7 @@ def witness_fixture(root, carrier):
     return ("C_ENROLLMENT_WITNESS_COMPLETE carrier=" + carrier + " journal=" + journal.hex()
             + " next_account=" + activated.splitlines()[1].decode() + "\n"
             + "test " + enrollment.WITNESS_TESTS[carrier] + " ... ok\n"
-            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
 
 
 class CEnrollmentEvidenceTests(unittest.TestCase):

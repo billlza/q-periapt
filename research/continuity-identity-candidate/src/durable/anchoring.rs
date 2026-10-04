@@ -48,7 +48,11 @@ impl Protection {
             _ => Err(DurableError::Corrupt),
         }
     }
-    pub(super) fn check_policy(self, policy: &VerifiedSessionPolicy) -> Result<(), DurableError> {
+    pub(super) fn check_policy(
+        self,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+    ) -> Result<(), DurableError> {
+        let policy = policy.as_ref();
         match (self, policy.anchor_requirement().binding()) {
             (Self::Local, None) => Ok(()),
             (
@@ -198,7 +202,11 @@ impl DeviceJournal {
         }
         result
     }
-    pub(super) fn check_policy(&self, policy: &VerifiedSessionPolicy) -> Result<(), DurableError> {
+    pub(super) fn check_policy(
+        &self,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+    ) -> Result<(), DurableError> {
+        let policy = policy.as_ref();
         self.active
             .as_ref()
             .ok_or(DurableError::Closed)?

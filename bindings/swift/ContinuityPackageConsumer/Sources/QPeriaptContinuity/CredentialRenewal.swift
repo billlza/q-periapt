@@ -21,6 +21,37 @@ public struct CredentialRenewalStatementID: Sendable, Equatable {
     }
 }
 
+/// Exact persisted public proposal for independent witness approval. These bytes
+/// are metadata, not a capability or current operational permission.
+public struct CredentialRenewalProposal: Sendable, Equatable {
+    public let bytes: [UInt8]
+    public let operation: CredentialRenewalID
+    public let statement: CredentialRenewalStatementID
+
+    init(nativeBytes bytes: [UInt8]) throws {
+        guard bytes.count == 296, Array(bytes[0..<8]) == Array("QPCRNP01".utf8) else {
+            throw ContinuityBoundaryError.malformedOutput
+        }
+        for offset in [8, 40, 72, 104, 136, 168, 216, 264] {
+            guard bytes[offset..<(offset + 32)].contains(where: { $0 != 0 }) else {
+                throw ContinuityBoundaryError.malformedOutput
+            }
+        }
+        func counter(_ offset: Int) -> UInt64 {
+            bytes[offset..<(offset + 8)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
+        }
+        let fence = counter(200), revision = counter(208), target = counter(256)
+        guard fence > 0, fence < UInt64.max, counter(248) == fence,
+              revision > 0, revision < UInt64.max - 1, target == revision + 1,
+              bytes[216..<248] != bytes[264..<296] else {
+            throw ContinuityBoundaryError.malformedOutput
+        }
+        self.bytes = bytes
+        operation = try CredentialRenewalID(bytes: Array(bytes[136..<168]))
+        statement = try CredentialRenewalStatementID(bytes: Array(bytes[168..<200]))
+    }
+}
+
 /// Historical progress only. No case supplies current operational permission.
 public enum CredentialRenewalStatus: Sendable, Equatable {
     case absent

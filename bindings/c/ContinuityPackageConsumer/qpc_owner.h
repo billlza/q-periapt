@@ -377,7 +377,8 @@ int32_t qpc_enrollment_v1_activate(uint64_t handle, qpc_error_v1 *error);
  * Never replace local-* files or provision to recover this operation.
  * wire is nonempty and at most 65536 bytes. pin is obtained independently of it;
  * operation[32] is retained before submission. The exact configured policy is used.
- * Required-witness LOCAL renewal remains explicitly refused, with no fallback.
+ * Required-witness renewal must use the witnessed preparation/terminal functions
+ * below before activation; staging alone supplies no witness approval.
  * New mutations use enrollment's existing consume-on-admitted-failure rule.
  */
 int32_t qpc_enrollment_v1_credential_renewal_status(uint64_t handle,
@@ -394,6 +395,31 @@ int32_t qpc_enrollment_v1_stage_credential_renewal(uint64_t handle,
  * Passive renewal_status needs no live policy or TLS configuration.
  */
 int32_t qpc_enrollment_v1_reconcile_expired_credential_renewal(uint64_t handle,
+    const uint8_t operation[32], const uint8_t statement[32],
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Canonical QPCRNP01 proposal, exactly 296 public bytes for independent approval.
+ * Retrying preparation recovers the original persisted target. It never reseals
+ * an existing target, nor treats possession of these bytes as approval.
+ */
+typedef struct { uint8_t bytes[296]; } qpc_credential_renewal_proposal_v1;
+int32_t qpc_enrollment_v1_prepare_witnessed_credential_renewal(uint64_t handle,
+    qpc_credential_renewal_proposal_v1 *proposal, qpc_error_v1 *error);
+/* All operations bind the original enrollment, configured witness and exact
+ * operation/statement. They borrow the owner and publish no Device. Commit of a
+ * new target requires current valid authority; historical reconciliation and
+ * exact terminal cleanup may use an expired, independently pinned signed policy.
+ * Close can lose to Applied and then returns Committed. Reconcile sends neither
+ * Commit nor Close. Pending/transport failure never proves NoCommit. Only the
+ * existing consuming activate releases a Device under fresh operational checks.
+ * The same owner cancellation/deadline and admitted-failure rules apply.
+ */
+int32_t qpc_enrollment_v1_commit_witnessed_credential_renewal(uint64_t handle,
+    const uint8_t operation[32], const uint8_t statement[32],
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_close_witnessed_credential_renewal(uint64_t handle,
+    const uint8_t operation[32], const uint8_t statement[32],
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_reconcile_witnessed_credential_renewal(uint64_t handle,
     const uint8_t operation[32], const uint8_t statement[32],
     qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
 /* Admit a remote grant on the same Device service. It cannot renew the local

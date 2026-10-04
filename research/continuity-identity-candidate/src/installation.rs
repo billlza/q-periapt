@@ -133,8 +133,9 @@ fn scope(
     id: JournalIdentity,
     key_binding: [u8; 32],
     device: &VerifiedDevice,
-    policy: &VerifiedSessionPolicy,
+    policy: &impl AsRef<crate::HistoricalSessionPolicy>,
 ) -> Result<Vec<u8>, DurableError> {
+    let policy = policy.as_ref();
     scope_for_owner(
         paths,
         id,
@@ -148,8 +149,9 @@ fn scope_for_owner(
     id: JournalIdentity,
     key_binding: [u8; 32],
     owner: [u8; 32],
-    policy: &VerifiedSessionPolicy,
+    policy: &impl AsRef<crate::HistoricalSessionPolicy>,
 ) -> Result<Vec<u8>, DurableError> {
+    let policy = policy.as_ref();
     let mut bytes = TAG.to_vec();
     for value in [
         *id.as_bytes(),
@@ -307,8 +309,9 @@ impl DeviceInstallation {
         paths: InstallationPaths,
         key: &JournalKey,
         device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
     ) -> Result<Self, DurableError> {
+        let policy = policy.as_ref();
         let db = open_private_database(&paths.configuration)?;
         let (identity, saved, _) = read(&db)?;
         let key_binding = key.installation_binding();

@@ -184,6 +184,208 @@ fn activate(f: &Fixture, at: u64) -> Result<EnrolledDevice, DurableError> {
     let anchor = client(f, &mut owner, at);
     owner.activate(&f.c.policy, at, Some(anchor))
 }
+fn historical(f: &Fixture) -> crate::HistoricalSessionPolicy {
+    let (authority, issued, _, _) = crate::tests::session_policy_fixture_with_anchor(
+        &[PrekeyQuality::OneTimeBoth],
+        crate::AnchorRequirement::required(&f.pin),
+    );
+    assert_eq!(issued.checkpoint(), f.c.policy.checkpoint());
+    crate::PolicyPin::new(
+        f.c.policy.family(),
+        authority.public_key().expect("independent root"),
+        f.c.policy.checkpoint(),
+    )
+    .expect("exact independent pin")
+    .verify_historical(issued.as_bytes())
+    .expect("signed historical metadata")
+}
+#[test]
+fn preparation_configuration_sync_failures_recover_exact_bytes_after_policy_expiry_without_dispatch(
+) {
+    let staged = || {
+        let f = fixture();
+        let proof = grant(&f, &f.original, 2, 190);
+        open(&f.c)
+            .stage_credential_renewal(&proof, proof.operation(), &f.c.policy, 150)
+            .expect("stage only");
+        (f, proof)
+    };
+    let (f, _) = staged();
+    let (mut owner, _, count) = faulty(&f.c, false);
+    let anchor = client(&f, &mut owner, 150);
+    count.store(0, Ordering::SeqCst);
+    owner
+        .prepare_witnessed_credential_renewal(&f.c.policy, 150, anchor)
+        .expect("calibrate");
+    let syncs = count.load(Ordering::SeqCst);
+    owner.close();
+    assert!((1..=4).contains(&syncs));
+    let mut cuts = 0;
+    for after in [false, true] {
+        for cut in 1..=syncs {
+            let (f, proof) = staged();
+            let historical = historical(&f);
+            let (mut owner, remaining, _) = faulty(&f.c, after);
+            let anchor = client(&f, &mut owner, 150);
+            remaining.store(cut, Ordering::SeqCst);
+            assert_sync_failure(
+                owner.prepare_witnessed_credential_renewal(&f.c.policy, 150, anchor),
+                after,
+            );
+            assert_eq!(remaining.load(Ordering::SeqCst), 0);
+            assert!(owner.active.is_none());
+            let saved = disk(&f);
+            assert!(saved.1.is_some());
+            let exact = DeviceJournal::inspect_credential_renewal_preparation(
+                f.c.paths.installation.files()[1],
+                JournalKey::open(&f.c.paths.wrapping).expect("key"),
+                &f.original,
+                &historical,
+                f.id,
+            )
+            .expect("authenticated durable proposal")
+            .expect("present despite config failure");
+            f.c.policy.close();
+            f.c.policy.runtime.close();
+            assert!(historical.validity().until() <= 250);
+            let requests = f.carrier.requests.lock().expect("requests").len();
+            let mut owner = open(&f.c);
+            for _ in 0..2 {
+                assert_eq!(
+                    owner
+                        .recover_witnessed_credential_renewal_preparation(&historical, 250)
+                        .expect("historical preparation"),
+                    Some(exact)
+                );
+                assert_eq!(
+                    owner.credential_renewal_status().expect("same pending"),
+                    renewal::pending(&proof)
+                );
+            }
+            owner.close();
+            assert_eq!(
+                disk(&f),
+                saved,
+                "recovery must never reseal or remove the original intent"
+            );
+            assert_eq!(f.carrier.requests.lock().expect("requests").len(), requests);
+            cuts += 1;
+        }
+    }
+    eprintln!("witness preparation configuration cuts={cuts}");
+}
+#[test]
+fn missing_preparation_is_pending_but_missing_intent_under_retained_coordination_is_conflict() {
+    let f = fixture();
+    let proof = grant(&f, &f.original, 2, 190);
+    let historical = historical(&f);
+    let mut owner = open(&f.c);
+    owner
+        .stage_credential_renewal(&proof, proof.operation(), &f.c.policy, 150)
+        .expect("stage");
+    let saved = disk(&f);
+    assert!(saved.1.is_none());
+    let requests = f.carrier.requests.lock().expect("requests").len();
+    assert_eq!(
+        owner
+            .recover_witnessed_credential_renewal_preparation(&historical, 250)
+            .expect("no proposal"),
+        None
+    );
+    assert_eq!(
+        owner.credential_renewal_status().expect("pending"),
+        renewal::pending(&proof)
+    );
+    assert_eq!(disk(&f), saved);
+    assert_eq!(f.carrier.requests.lock().expect("requests").len(), requests);
+    let anchor = client(&f, &mut owner, 150);
+    owner
+        .prepare_witnessed_credential_renewal(&f.c.policy, 150, anchor)
+        .expect("prepare");
+    owner.close();
+    // Opening redb changes its own recovery metadata. Compare the authenticated
+    // enrollment record, whose bytes must remain untouched on this refusal.
+    let configuration = || {
+        let db = open_private_database(&f.c.paths.configuration).expect("configuration");
+        let read = db.begin_read().expect("read");
+        let table = read.open_table(TABLE).expect("table");
+        let value = table.get("enrollment").expect("record").expect("present");
+        value.value().to_vec()
+    };
+    let original_configuration = configuration();
+    {
+        let db = open_private_database(f.c.paths.installation.files()[1]).expect("journal");
+        let write = db.begin_write().expect("write");
+        write
+            .open_table(JOURNAL)
+            .expect("table")
+            .remove("pending")
+            .expect("remove fixture intent");
+        write.commit().expect("commit fixture corruption");
+    }
+    let saved = disk(&f);
+    let mut owner = open(&f.c);
+    assert!(matches!(
+        owner.recover_witnessed_credential_renewal_preparation(&historical, 250),
+        Err(DurableError::Conflict)
+    ));
+    assert!(owner.active.is_none());
+    assert_eq!(disk(&f), saved);
+    assert_eq!(configuration(), original_configuration);
+}
+#[test]
+fn historical_recovery_does_not_authorize_new_commit_when_only_current_policy_is_invalid() {
+    for boundary in ["expiry", "policy-close", "runtime-close"] {
+        let f = fixture();
+        let proof = grant(&f, &f.original, 2, 400);
+        let proposal = prepare(&f, &proof, 150);
+        let at = match boundary {
+            "expiry" => 250,
+            "policy-close" => {
+                f.c.policy.close();
+                150
+            }
+            "runtime-close" => {
+                f.c.policy.runtime.close();
+                150
+            }
+            _ => unreachable!("fixed cases"),
+        };
+        assert!(proof.successor_device().description.validity.until() > at);
+        let saved = disk(&f);
+        let requests = f.carrier.requests.lock().expect("requests").len();
+        let mut owner = open(&f.c);
+        let mut anchor = client(&f, &mut owner, at);
+        assert_eq!(
+            owner
+                .recover_witnessed_credential_renewal_preparation(f.c.policy.historical(), at)
+                .expect("history still recoverable"),
+            Some(proposal)
+        );
+        assert!(owner
+            .commit_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                at,
+                &mut anchor
+            )
+            .is_err());
+        assert!(owner.active.is_none());
+        assert!(
+            !f.carrier
+                .requests
+                .lock()
+                .expect("requests")
+                .get(requests..)
+                .expect("retained request prefix")
+                .contains(&5),
+            "new Commit escaped {boundary}"
+        );
+        assert_eq!(disk(&f), saved);
+        assert!(activate(&f, at).is_err());
+    }
+}
 #[test]
 fn original_required_enrollment_commits_twice_without_resealing_a_completed_target() {
     let f = fixture();
@@ -526,6 +728,23 @@ fn enrollment_crash_child() -> Result<(), &'static str> {
     fs::write(root.join("witness-id"), f.pin.identity().as_bytes()).expect("witness identity");
     fs::write(root.join("trusted-root"), f.c.intent.root.encode()).expect("account root");
     fs::write(root.join("proposal"), proposal.to_bytes()).expect("proposal");
+    let (authority, issued, _, _) = crate::tests::session_policy_fixture_with_anchor(
+        &[PrekeyQuality::OneTimeBoth],
+        crate::AnchorRequirement::required(&f.pin),
+    );
+    assert_eq!(issued.checkpoint(), f.c.policy.checkpoint());
+    fs::write(
+        root.join("trusted-policy-root"),
+        authority.public_key().expect("policy root").encode(),
+    )
+    .expect("root");
+    fs::write(root.join("protocol-policy"), issued.as_bytes()).expect("original signed policy");
+    fs::write(root.join("trusted-family"), f.c.policy.family()).expect("family");
+    let checkpoint = issued.checkpoint();
+    let mut exact_policy = checkpoint.version().to_be_bytes().to_vec();
+    exact_policy.extend_from_slice(&checkpoint.digest());
+    fs::write(root.join("trusted-policy-checkpoint"), exact_policy).expect("independent exact pin");
+
     let checkpoint = proof.successor_device().roster().checkpoint();
     let mut bytes = checkpoint.version().to_be_bytes().to_vec();
     bytes.extend_from_slice(&checkpoint.digest());
@@ -621,13 +840,30 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
             )
             .expect("same witness");
             let pin = store.pin().expect("pin");
-            let (_, issued, policy_pin, runtime) = crate::tests::session_policy_fixture_with_anchor(
-                &[PrekeyQuality::OneTimeBoth],
-                crate::AnchorRequirement::required(&pin),
-            );
+            // Reconstruct only signed historical metadata. No SDK runtime is
+            // opened and no past verification time is substituted after restart.
+            let expected = fs::read(root.join("trusted-policy-checkpoint")).expect("pin");
+            let mut d = Decoder::new(&expected);
+            let checkpoint = crate::PolicyCheckpoint::from_trusted_state(
+                d.u64().expect("version"),
+                d.array().expect("digest"),
+            )
+            .expect("checkpoint");
+            d.finish().expect("complete pin");
+            let policy_pin = crate::PolicyPin::new(
+                fs::read(root.join("trusted-family"))
+                    .expect("family")
+                    .try_into()
+                    .expect("width"),
+                PublicKey::decode(&fs::read(root.join("trusted-policy-root")).expect("root"))
+                    .expect("public"),
+                checkpoint,
+            )
+            .expect("independent policy pin");
             let policy = policy_pin
-                .verify(issued.as_bytes(), runtime, 150)
-                .expect("original policy");
+                .verify_historical(&fs::read(root.join("protocol-policy")).expect("wire"))
+                .expect("historical metadata only");
+            assert!(policy.validity().until() <= 250);
             let intent = EnrollmentIntent::new(
                 PublicKey::decode(&fs::read(root.join("trusted-root")).expect("root"))
                     .expect("root"),
@@ -656,7 +892,6 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
             )
             .expect("target");
             d.finish().expect("complete");
-            policy.close();
             let mut owner =
                 DeviceEnrollment::open(paths(&client_path), intent).expect("original owner");
             let mut anchor = owner
@@ -692,7 +927,8 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
                     }
                 }
             );
-            assert!(owner.activate(&policy, 250, Some(anchor)).is_err());
+            owner.close();
+            // HistoricalSessionPolicy cannot be passed to activate (compile-fail doctest).
             cuts += 1;
         }
     }

@@ -83,7 +83,8 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
         reference.call { owner -> owner.call { ContinuityNative.credentialRenewalStatus(it) } }
     /** Persist a same-key target under the independently current pin and original
      * configured policy. Close/join the device first, then resume this original
-     * enrollment. Required-witness local renewal is still refused natively.
+     * enrollment. Required-witness targets need witnessed preparation and terminal
+     * reconciliation before activation.
      */
     fun stageCredentialRenewal(wire: ByteArray, pin: AccountPin, operation: CredentialRenewalID): CredentialRenewalStatus =
         reference.call { owner -> owner.call { ContinuityNative.stageCredentialRenewal(it, wire, pin, operation) } }
@@ -93,6 +94,24 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     fun reconcileExpiredCredentialRenewal(operation: CredentialRenewalID,
                                          statement: CredentialRenewalStatementID): CredentialRenewalStatus =
         reference.call { owner -> owner.call { ContinuityNative.reconcileExpiredCredentialRenewal(it, operation, statement) } }
+    /** Recover or prepare the exact original target for independent witness approval. */
+    fun prepareWitnessedCredentialRenewal(): CredentialRenewalProposal =
+        reference.call { owner -> owner.call { ContinuityNative.prepareWitnessedCredentialRenewal(it) } }
+    /** New Commit requires current authority; terminal history releases no device. */
+    fun commitWitnessedCredentialRenewal(operation: CredentialRenewalID,
+                                        statement: CredentialRenewalStatementID): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.witnessedCredentialRenewal(it, operation, statement,
+            ContinuityNative.WitnessRenewalAction.COMMIT) } }
+    /** Close can lose to Applied, in which case the result remains Committed. */
+    fun closeWitnessedCredentialRenewal(operation: CredentialRenewalID,
+                                       statement: CredentialRenewalStatementID): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.witnessedCredentialRenewal(it, operation, statement,
+            ContinuityNative.WitnessRenewalAction.CLOSE) } }
+    /** Historical recovery sends neither Commit nor Close and releases no device. */
+    fun reconcileWitnessedCredentialRenewal(operation: CredentialRenewalID,
+                                           statement: CredentialRenewalStatementID): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.witnessedCredentialRenewal(it, operation, statement,
+            ContinuityNative.WitnessRenewalAction.RECONCILE) } }
     /** Move the sole owning reference after native activation. On failure, close
      * this wrapper and resume the original state, which may already be Active.
      */

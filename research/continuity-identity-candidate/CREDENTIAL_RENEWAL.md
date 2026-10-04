@@ -45,10 +45,9 @@ request and journal/archive identities. Do not provision replacement files.
    Admit them through `service.admit_peer` before ordinary protocol operations.
 
 The sequence above is for an explicit local-only policy. A required-witness
-policy uses the separate native coordinator below; no failure selects local
-fallback. The C/Swift/Kotlin facade still refuses required-witness staging before
-writing intent until it exposes the complete proposal/approval/coordinator path.
-Its historical status codecs include Closed without claiming that integration.
+policy uses the separate coordinator below; no failure selects local fallback.
+The candidate C/Swift/Kotlin facade exposes its proposal and original-owner
+operations; independent witness approval remains a separate authority input.
 Peer renewal cannot be used to renew the owning local device.
 
 ### Required-witness original enrollment coordinator
@@ -78,6 +77,47 @@ this device workflow.
    ambiguous result retains the original operation for reopening.
 6. Historical status returns no device owner. `activate` requires coordination
    to be complete, live local admission and an exact fresh witness AdmitAuthority.
+
+Historical recovery can reconstruct `HistoricalSessionPolicy` with
+`PolicyPin::verify_historical` using the original signed policy and an independently
+retained exact checkpoint/root/family. This verifies both signatures and canonical
+scope without opening an SDK runtime or substituting an earlier time. The immutable
+snapshot cannot be passed to activation or a new Commit. Those operations retain
+`VerifiedSessionPolicy` and its current time, closed-state and runtime checks.
+
+`recover_witnessed_credential_renewal_preparation` reads the exact authenticated
+local proposal and repairs missing enrollment coordination after a configuration
+write fails. It sends no witness request and does not reseal or erase journal
+bytes. A retained coordination with a missing/mismatched intent is a conflict.
+When only the staged grant exists and no proposal was ever persisted, recovery
+returns `None` and leaves Pending intact. Closing that unprepared expired grant
+still requires a separate independent control-plane construction; neither this
+absence nor an unavailable witness establishes NoCommit.
+
+The candidate C facade exposes preparation, Commit, Close and reconciliation on
+the original enrollment owner, with Swift and Kotlin wrappers. Preparation returns
+the canonical 296-byte public proposal for independent approval. A fresh Commit
+first resolves original history and requires live policy only if a new Commit is
+needed. Historical terminal cleanup can load the separately pinned policy without
+reopening SDK state. These operations borrow the owner; only consuming activation
+can release a Device. Current source facade checks do not qualify installed
+release archives or physical-device recovery.
+
+The archive collectors require a separate four-case witnessed-renewal workload
+for C, Swift and Kotlin: signed TCP and mutual TLS, each with Applied and Closed.
+The public reader binds original registration, root statement, exact policy,
+proposal and image commitments across all command outputs. For both carriers the
+no-SDK Pending interval contains only two exact historical Status/Prepared
+exchanges; it cannot hide a new Commit behind a final Pending output. The first
+terminal response must answer the unique Commit or Close before Status and ACK.
+
+TLS evidence uses `AnchorTlsServer::serve_recorded`, an additive entry point on
+the existing TLS/admission/store driver. It returns immutable public signed bytes
+only after server-side send and close succeed; no observer callback or alternate
+engine is introduced. The original `serve` keeps its `Result<()>` contract. A
+record is not peer consumption, current authority or evidence that other attempts
+did not commit. An error returns no record and preserves unknown-commit handling.
+The evidence export excludes databases and all wrapping, signing and TLS keys.
 
 Conditional QPENST04 retains the complete proposal while coordinating, Applied or
 Closed terminal disposition, bounded Closed history and the permanent signed
@@ -271,6 +311,6 @@ remains v21; older readers refuse unknown extended records rather than reset the
 After using these records, downgrading to a reader that lacks them is unsupported.
 
 Bootstrap/message/KEM bytes, existing purposes, product ABI 2 and implicit rejection
-are unchanged by this native addition. The separate candidate owner ABI and language
-packages need their own integration/qualification; this source document does not
-claim they already expose renewal or that the candidate protocol is frozen.
+are unchanged by this addition. The separate candidate owner ABI and language
+packages expose renewal but still require exact-source installed-package and
+platform qualification. This candidate protocol is not frozen.

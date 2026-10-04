@@ -14,9 +14,12 @@ parent service. Existing-session children use the service's historical-bundle pa
 so current journal grants can authorize an original expired credential. Fresh
 children retain ordinary current verification. Reopen a child after its grant
 changes; cached views are never updated into new permission. Original registration,
-policy, signer, journal and archive leases remain authoritative. Required-witness
-local credential adoption is not enabled by these C entries. Native/API source
-integration is not yet an installed C/Swift/Kotlin renewal qualification.
+policy, signer, journal and archive leases remain authoritative. For a required
+witness, use the four `*_witnessed_credential_renewal` entries before activation:
+prepare the exact proposal, obtain independent witness approval, then Commit,
+Close or reconcile the original operation. Historical cleanup uses an independently
+pinned signed policy snapshot; new Commit and activation require current authority.
+Native/API source integration is not an installed archive qualification.
 
 The C renewal workload uses actual host-clock expiry. It checks exact pending and
 terminal fields, preserves Committed after expiry, queries status in a new process
@@ -48,9 +51,9 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Registering an original device
 
-The registration route has twelve `qpc_enrollment_v1_*` exports. Together with
+The registration route has sixteen `qpc_enrollment_v1_*` exports. Together with
 peer-grant admission on the existing Device parent, this unpublished candidate
-interface now declares 68 exports. The new renewal route still requires its own
+interface now declares 72 exports. The new renewal route still requires its own
 installed-package qualification. It retains the whole native
 `EnrolledDevice`, including its exclusive enrollment lease, inside the existing
 device parent. It does not reopen a preconfigured installation to bypass that

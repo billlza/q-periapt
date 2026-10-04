@@ -374,8 +374,7 @@ returns no device. Only a separately authorized new grant can resume current use
 `ContinuityDevice.admitPeerCredentialRenewal` installs a peer grant under the
 original service. Reopen the exact existing peer/session afterward; cached children
 are not silently upgraded to new authority. Fresh bootstrap still requires current
-public inputs. Required-witness local renewal and policy/root/key replacement remain
-separate, unsupported transitions in this candidate route.
+public inputs. Policy/root/key replacement remains a separate unsupported transition.
 
 The renewal workload covers host-clock expiry, complete status-field readback,
 original registration identity, failed-owner disposal, historical peer reopening
@@ -383,4 +382,12 @@ and rejection of a cached child after another grant. A native readback checks th
 unchanged original ciphertext. This does not establish post-renewal TLS delivery,
 physical-device qualification, independent protocol implementation or a stable ABI.
 
-`Closed` is an exact historical witness refusal of the rejected target; the preceding credential may remain live. Required-witness renewal staging remains refused by this foreign facade until its complete proposal and coordinator operations are exposed.
+For required-witness renewal, call `prepareWitnessedCredentialRenewal` and retain
+the exact public proposal for independent witness approval. Then use
+`commitWitnessedCredentialRenewal`, `closeWitnessedCredentialRenewal` or
+`reconcileWitnessedCredentialRenewal` with the original operation and statement.
+These borrow the enrollment owner and return no Device. New Commit requires current
+authority; terminal history can be recovered without an SDK runtime through the
+original pinned signed policy. `Closed` rejects only the exact target and may leave
+the preceding credential live. The source TCP/TLS Applied/Closed workload is
+separate from installed archives, expiry/fault coverage and physical platforms.
