@@ -373,6 +373,19 @@ pub(super) fn after_credential_preparation() {
     });
 }
 
+pub(super) fn after_credential_recovery() {
+    let Some(path) = std::env::var_os("QPERIAPT_CREDENTIAL_RECOVERY_CRASH_DIR") else {
+        return;
+    };
+    let path = Path::new(&path);
+    fs::write(path.join("recovery-ready.tmp"), b"target committed").expect("marker");
+    fs::rename(path.join("recovery-ready.tmp"), path.join("recovery-ready"))
+        .expect("publish marker");
+    loop {
+        std::thread::park();
+    }
+}
+
 pub(super) fn after_intent(pending: &PendingWrite, image: &Image) {
     let Ok(phase) = std::env::var("QPERIAPT_WRITE_INTENT_CRASH_PHASE") else {
         return;

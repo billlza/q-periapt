@@ -80,8 +80,9 @@ reads back its exact wire, and closes the journal on success or failure. It does
 not send Advance or change the local image or witness authority. Ordinary pending
 writes retain `QPWINT01`; renewal preparations use `QPWINT02`, binding the original
 operation and statement to the sealed target's verified root grant and receipt.
-Ordinary `open_anchored`, cleanup recovery and local apply refuse this intent with
-`Suspended` before dispatch. This prevents a restart before witness preparation
+Ordinary `open_anchored`, cleanup recovery and ordinary local apply refuse this
+intent before dispatch (`Suspended` at the old image, `Conflict` at an already
+installed target with retained intent). This prevents a restart before witness preparation
 from advancing the head without adopting the target authority.
 
 `inspect_credential_renewal_preparation` authenticates the existing protected
@@ -95,6 +96,24 @@ Pending bytes must remain intact until the dedicated joint transaction protocol
 can establish a terminal outcome; this preparation API alone is not a usable
 end-to-end enrollment renewal path.
 
+`recover_credential_renewal` performs the dedicated local half under the original
+journal lease. It checks the complete retained proposal, original identity,
+policy/witness binding and client signer before sending a fresh CredentialStatus.
+Only a typed Applied observation installs the already-sealed target. The write
+transaction rechecks the exact pending bytes and expected image; it changes only
+the image and keeps QPWINT02. Authenticated readback precedes success. On an exact
+retry, the target and original intent are read without another commit. Inspection
+accepts either original image or byte-identical target with that same intent;
+the ordinary QPWINT01 loader is unchanged.
+
+Prepared/Closed/Unavailable are read-only historical observations. A local target
+with Prepared or Closed is an explicit conflict. Unavailable never undoes a
+target or establishes NoCommit. This method sends no Commit, Close, ACK or ordinary
+Advance and returns no operational owner, even while credential/policy admission
+is live. After expiry or policy closure it can still reconcile historical Applied.
+Original enrollment must retain an authenticated exact terminal before the later
+witness ACK and local pending removal; that coordinator remains open.
+
 Fresh, exact preparation and
 closure observations are also required: Query confirms only the journal head;
 AdmitAuthority returning Denied is not evidence of an unapplied renewal.
@@ -102,7 +121,7 @@ AdmitAuthority returning Denied is not evidence of an unapplied renewal.
 Cancellation/expiry closure must be mutually exclusive with applying the exact
 transition. A closed preparation cannot later become an ordinary Advance, and
 late control-plane retries cannot recreate a pruned preparation. The bounded
-retention/floor and acknowledgement contract must be fixed before implementation;
+retention/floor and acknowledgement contract is implemented at the witness;
 absence of a retained record cannot become NoCommit. Device pending bytes may
 be removed only after its corresponding terminal outcome is durably retained.
 
@@ -114,16 +133,18 @@ and byte-identical pending recovery. Database drop performs additional syncs aft
 the durable reservation; the fault census above describes the reservation commit.
 
 Remaining native/process tests include lost witness preparation reply,
-atomic witness commit before local apply followed by expiry,
-and races among closure, ordinary Advance, writer Fence and renewal commit.
+original enrollment/config terminal commit before and after local apply,
+and cross-store races among closure, acknowledgement and renewal commit.
 Each must check original sealed bytes, command/head/authority identities and
 owner-release refusal, followed by installed C/Swift/Kotlin and real-carrier
 qualification. The native witness now implements exact prepare/apply/close/status,
 a permanent signed-successor-version floor, and bounded terminal acknowledgement;
 see [the joint witness contract](ANCHOR_WITNESS.md#joint-credential-renewal-and-bounded-terminal-retention).
 A real required journal's sealed target is bound through a committed-but-lost
-witness reply. Dedicated local apply, terminal coordination and original enrollment
-recovery remain unimplemented; enrollment's `AnchorRequired` guards remain in place.
+witness reply. Dedicated local apply now passes stale/lost reply, scope, all six
+before/after sync failures across three measured commit syncs, and actual process
+kill/reopen tests. Terminal/config coordination and original enrollment recovery
+remain unimplemented; enrollment's `AnchorRequired` guards remain in place.
 
 `credential_renewal_status` reports historical progress, never traffic permission:
 

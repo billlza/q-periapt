@@ -176,8 +176,17 @@ before/after-sync cut (22 fault injections), five process kills after commit bef
 reply, same-version conflicts, delayed acknowledgement, legacy control-plane bypass,
 expiry, fresh reply scope and explicit storage upgrade. A real required journal
 supplies the original sealed target in an additional lost-reply test; its pending
-bytes remain unchanged and generic reopen remains suspended. Dedicated local apply,
-close/ack coordination and original enrollment recovery are not yet integrated.
+bytes remain unchanged and generic reopen remains suspended. The dedicated
+`DeviceJournal::recover_credential_renewal` now checks the complete retained
+proposal and original signer before obtaining a fresh typed CredentialStatus.
+Applied installs only the exact sealed target while retaining QPWINT02; an exact
+retry reads it without another commit. Prepared, Closed and Unavailable preserve
+local bytes. A local target paired with Prepared or Closed is a conflict. This
+works after credential expiry and policy-instance closure and returns no owner.
+Inspection recognizes either original or exact target image with the same intent;
+ordinary QPWINT01 recovery remains strict. Tests cover all six before/after cuts
+at three measured local commit syncs and an actual kill after commit before return.
+Close/ack coordination and original enrollment recovery are not yet integrated.
 The public enrollment `AnchorRequired` guards remain; these tests do not qualify
 an installed end-to-end required-witness renewal or an independent implementation.
 

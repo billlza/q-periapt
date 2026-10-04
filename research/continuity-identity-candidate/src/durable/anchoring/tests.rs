@@ -151,10 +151,15 @@ fn case() -> Case {
     case_with_budget(1024)
 }
 fn case_with_budget(budget: u16) -> Case {
+    case_with_witness_signer(
+        budget,
+        AnchorSigningKey::generate().expect("witness signer"),
+    )
+}
+fn case_with_witness_signer(budget: u16, signer: AnchorSigningKey) -> Case {
     let folder = directory();
     let path = folder.path().canonicalize().expect("path");
     let wrapping = JournalKey::provision(&path.join("witness-key")).expect("wrapping");
-    let signer = AnchorSigningKey::generate().expect("witness signer");
     let store = AnchorStore::provision(
         &path.join("witness.redb"),
         wrapping,
@@ -1600,7 +1605,7 @@ mod credential_preparation {
     };
     use std::sync::atomic::Ordering;
 
-    fn grant(c: &Case) -> VerifiedCredentialRenewal {
+    pub(super) fn grant(c: &Case) -> VerifiedCredentialRenewal {
         let original = c.peer.initiator_device();
         let root = RootSigningKey::deterministic([90; 32], [91; 32]).expect("original root");
         let certificate = root
@@ -1616,7 +1621,7 @@ mod credential_preparation {
             c.peer.initiator.policy().checkpoint().digest(),
         )
     }
-    fn prepare(
+    pub(super) fn prepare(
         c: &mut Case,
         grant: &VerifiedCredentialRenewal,
     ) -> Result<AnchorCredentialRenewalProposal, DurableError> {
@@ -1628,7 +1633,9 @@ mod credential_preparation {
             150,
         )
     }
-    fn inspect(c: &Case) -> Result<Option<AnchorCredentialRenewalProposal>, DurableError> {
+    pub(super) fn inspect(
+        c: &Case,
+    ) -> Result<Option<AnchorCredentialRenewalProposal>, DurableError> {
         DeviceJournal::inspect_credential_renewal_preparation(
             &c.path.join("state.redb"),
             JournalKey::open(&c.path.join("key")).expect("key"),
@@ -1637,7 +1644,7 @@ mod credential_preparation {
             c.identity,
         )
     }
-    fn disk(c: &Case) -> (Vec<u8>, Option<Vec<u8>>) {
+    pub(super) fn disk(c: &Case) -> (Vec<u8>, Option<Vec<u8>>) {
         let db = open_private_database(&c.path.join("state.redb")).expect("original database");
         let read = db.begin_read().expect("read");
         let table = read.open_table(TABLE).expect("table");
@@ -1653,7 +1660,7 @@ mod credential_preparation {
             .map(|v| v.value().to_vec());
         (image, pending)
     }
-    fn request_operation(wire: &[u8]) -> AnchorOperation {
+    pub(super) fn request_operation(wire: &[u8]) -> AnchorOperation {
         // The real AnchorStore already verified each captured signature.
         let (body, _) = crate::crypto::open_envelope(wire).expect("request envelope");
         assert_eq!(body.len(), 297);
@@ -2218,3 +2225,6 @@ mod credential_preparation {
         }
     }
 }
+
+#[path = "credential_recovery_tests.rs"]
+mod credential_recovery;
