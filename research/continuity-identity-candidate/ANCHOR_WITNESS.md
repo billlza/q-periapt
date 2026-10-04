@@ -132,6 +132,55 @@ the witness control plane only. Original enrollment activation, expired-intent
 recovery and installed foreign consumers under required-witness credential
 renewal remain gated until their complete cross-store flow is integrated.
 
+### Joint credential renewal and bounded terminal retention
+
+`prepare_credential_renewal(proposal, grant, policy, now)` independently admits the
+exact `QPCRNP01` journal proposal and verified root grant. It requires the original
+subject/policy/operation/statement, exact current predecessor credential and roster,
+and original expected head. One retained slot binds that proposal to target owner,
+roster authority, effective validity and signed successor roster version. Preparation
+changes neither the head nor the credential. An exact existing slot is historical
+readback; it does not grant current operational authority.
+
+Only device-signed `CredentialCommit` applies a prepared slot. In one witness
+transaction it changes head, credential owner, authority and validity, recording
+the complete commit command ID. A root-approved target may replace an expired
+predecessor, but the target must still be live. An already-applied exact slot can
+be recovered after expiry; it does not revive an expired owner. `CredentialClose`
+closes the exact preparation or reports its prior Applied outcome. The independent
+control-plane `close_credential_renewal` can also close an original verified target
+before preparation, including after expiry or local policy-instance closure.
+Neither close path can turn an Applied outcome into Closed.
+
+Every terminal consumes its root-signed successor roster version as a permanent
+per-subject floor. After durably retaining the terminal locally, the client may
+acknowledge the exact proposal. The provider removes the full slot and retains
+only the last acknowledgement binding plus the floor. Retrying that acknowledgement
+cannot erase a newer slot. A different or older unavailable proposal is reported
+Unavailable; a lower/equal version cannot be prepared or closed as new work. Same
+version never means same operation, statement or proposal. The next independently
+approved target must use a higher successor roster version. Absence, a floor, a
+normal head Query or AuthorityDenied never proves that an original renewal did
+not commit.
+
+While a slot is retained, ordinary Advance, Fence and roster refresh are refused.
+Once a subject has used this protocol, the legacy authority-only credential renewal
+method stays disabled even after terminal acknowledgement. Later roster refreshes
+preserve the floor and must advance beyond it. Exact genesis enrollment retries
+never reset the slot or floor. The witness still commits opaque encrypted-image
+expectations: it does not verify arbitrary encrypted application state or authorize
+an operational owner merely because a hash was observed.
+
+The native store tests cover all five mutating transition types with every measured
+before/after-sync cut (22 fault injections), five process kills after commit before
+reply, same-version conflicts, delayed acknowledgement, legacy control-plane bypass,
+expiry, fresh reply scope and explicit storage upgrade. A real required journal
+supplies the original sealed target in an additional lost-reply test; its pending
+bytes remain unchanged and generic reopen remains suspended. Dedicated local apply,
+close/ack coordination and original enrollment recovery are not yet integrated.
+The public enrollment `AnchorRequired` guards remain; these tests do not qualify
+an installed end-to-end required-witness renewal or an independent implementation.
+
 ## Heads, commands and attempts
 
 An `AnchorHead` is `fence:u64 || revision:u64 || encrypted_image_digest[32]`.
@@ -203,6 +252,19 @@ does not yield `applied_head`; an internally contradictory signed outcome fails.
 `has_last=0` requires zero last-command bytes and fence/revision 1/1. Later states
 require `has_last=1`. No trailing bytes or unknown discriminants are accepted.
 
+Joint commands 5/6/7/8 are CredentialCommit, CredentialStatus, CredentialClose
+and CredentialAcknowledge. Each encodes `kind:u8 || proposal_binding[32] || zero[64]`.
+The binding is the domain-separated hash of the complete canonical `QPCRNP01`
+proposal. Outcomes 7/8/9/10/11 are Prepared, Applied, Closed, Unavailable and
+Acknowledged. Status accepts 7/8/9/10; Commit and Close accept 8/9/10; Acknowledge
+accepts 10/11. They retain the same request/reply sizes and fresh dual signatures.
+`credential_renewal_state` additionally checks the caller's exact proposal scope:
+Prepared/Closed require its expected head, Applied requires its target head and
+complete CredentialCommit command ID. Generic `applied_head` rejects every joint
+outcome. Older endpoints reject these new commands; there is no ordinary-Advance
+fallback. Acknowledged retires already-retained history; it is not an owner-release
+or NoCommit observation.
+
 ## Persistent witness state
 
 The private, bounded host-store backend provides an exclusive database lease. The
@@ -221,6 +283,16 @@ next ordinary transaction writes the complete `QPANC002` image under the existin
 durable commit and unknown-outcome recovery contract. An old reader rejects the
 new tag; rolling back software must not silently recreate or reinterpret that
 store. This is witness-image compatibility, not a redb file-format migration.
+
+A subject with a joint slot or terminal floor selects `QPANC003`. After each
+2306-byte base entry it adds `floor:u64 || has_ack:u8 || last_ack_binding[32] || phase:u8`.
+Phase 0 has no slot; phases 1/2/3 (Prepared/Applied/Closed) add the 296-byte proposal,
+target owner[32], target authority[32], validity[16], and successor version:u64.
+The complete extension is at most 426 bytes per entry. Opening older 001/002 state
+uses an empty slot and zero floor without writing. A joint transition upgrades it
+atomically; terminal retirement preserves 003 and its nonzero floor. Older readers
+reject 003. Encoders and decoders reject inconsistent floor, slot, head, credential
+or last-command relationships. The redb file-format contract is unchanged.
 
 There are at most 256 entries, a 1 MiB authenticated-image cap
 and the shared 64 MiB database cap. No eviction resets a head. The image contains
@@ -262,8 +334,10 @@ conflicts, role-component reuse, malformed and contradictory signed messages,
 cancelled/duplicate/concurrent receipt admission, storage corruption and bounds.
 An OpenSSL/Python oracle independently checks 12 witness envelopes, 60 signature
 negative controls, canonical scope/command/attempt hashes and six transitions. The
-existing bootstrap oracle separately authenticates the same enrollment fixtures;
-the hosted macOS lane runs both and archives both results.
+existing bootstrap oracle separately authenticates the same enrollment fixtures.
+These oracle vectors cover the earlier command set; independent public-vector
+verification of the joint-renewal commands remains an open qualification gate. The
+hosted macOS lane runs both and archives both results.
 
 The witness must retain its own state independently of client journal snapshots.
 A retained counterexample restores the witness database itself and obtains an old

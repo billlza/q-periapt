@@ -82,9 +82,10 @@ impl RetainedInstallationAuthority {
 mod tests;
 
 pub use anchor::{
-    AnchorClient, AnchorClientError, AnchorCredentialRenewalProposal, AnchorError, AnchorGenesis,
-    AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome, AnchorPin, AnchorReply,
-    AnchorRequest, AnchorStore, AnchorSubject, AnchorTcpTransport, AnchorTransport,
+    AnchorClient, AnchorClientError, AnchorCredentialRenewalProposal, AnchorCredentialRenewalState,
+    AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
+    AnchorPin, AnchorReply, AnchorRequest, AnchorStore, AnchorSubject, AnchorTcpTransport,
+    AnchorTransport,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,

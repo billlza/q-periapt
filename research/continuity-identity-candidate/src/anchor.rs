@@ -274,6 +274,10 @@ impl AnchorCredentialRenewalProposal {
 enum Command {
     Query,
     AdmitAuthority([u8; 32]),
+    CredentialCommit([u8; 32]),
+    CredentialStatus([u8; 32]),
+    CredentialClose([u8; 32]),
+    CredentialAcknowledge([u8; 32]),
     Advance(AnchorHead, AnchorHead),
     Fence(AnchorHead, AnchorHead),
 }
@@ -307,6 +311,33 @@ impl AnchorOperation {
         nonzero(&expected)?;
         Ok(Self(Command::AdmitAuthority(expected)))
     }
+    /// Apply only the independently prepared exact joint head/credential target.
+    pub fn commit_credential_renewal(proposal: &AnchorCredentialRenewalProposal) -> Self {
+        Self(Command::CredentialCommit(proposal.binding()))
+    }
+    /// Read an exact renewal slot. Unavailable never proves non-commit.
+    pub fn credential_renewal_status(proposal: &AnchorCredentialRenewalProposal) -> Self {
+        Self(Command::CredentialStatus(proposal.binding()))
+    }
+    /// Close an existing exact preparation, mutually exclusively with apply.
+    /// Closing before preparation requires the independent root control plane.
+    pub fn close_credential_renewal(proposal: &AnchorCredentialRenewalProposal) -> Self {
+        Self(Command::CredentialClose(proposal.binding()))
+    }
+    /// Retire an exact terminal only after retaining its disposition durably.
+    /// The permanent floor still rejects old targets after the slot is removed.
+    pub fn acknowledge_credential_renewal(proposal: &AnchorCredentialRenewalProposal) -> Self {
+        Self(Command::CredentialAcknowledge(proposal.binding()))
+    }
+    fn credential_binding(self) -> Option<[u8; 32]> {
+        match self.0 {
+            Command::CredentialCommit(binding)
+            | Command::CredentialStatus(binding)
+            | Command::CredentialClose(binding)
+            | Command::CredentialAcknowledge(binding) => Some(binding),
+            _ => None,
+        }
+    }
     /// Advance exactly one journal revision under the current writer fence.
     pub fn advance(expected: AnchorHead, next_digest: [u8; 32]) -> Result<Self, Error> {
         nonzero(&next_digest)?;
@@ -337,8 +368,18 @@ impl AnchorOperation {
                 out.push(1);
                 out.extend_from_slice(&[0; 96]);
             }
-            Command::AdmitAuthority(expected) => {
-                out.push(4);
+            Command::AdmitAuthority(expected)
+            | Command::CredentialCommit(expected)
+            | Command::CredentialStatus(expected)
+            | Command::CredentialClose(expected)
+            | Command::CredentialAcknowledge(expected) => {
+                out.push(match self.0 {
+                    Command::CredentialCommit(_) => 5,
+                    Command::CredentialStatus(_) => 6,
+                    Command::CredentialClose(_) => 7,
+                    Command::CredentialAcknowledge(_) => 8,
+                    _ => 4,
+                });
                 out.extend_from_slice(&expected);
                 out.extend_from_slice(&[0; 64]);
             }
@@ -361,12 +402,20 @@ impl AnchorOperation {
             }
             return Ok(Self::query());
         }
-        if kind == 4 {
+        if (4..=8).contains(&kind) {
             let expected = d.array()?;
+            nonzero(&expected)?;
             if d.take(64)?.iter().any(|byte| *byte != 0) {
                 return Err(Error::Encoding);
             }
-            return Self::admit_authority(expected);
+            return match kind {
+                4 => Self::admit_authority(expected),
+                5 => Ok(Self(Command::CredentialCommit(expected))),
+                6 => Ok(Self(Command::CredentialStatus(expected))),
+                7 => Ok(Self(Command::CredentialClose(expected))),
+                8 => Ok(Self(Command::CredentialAcknowledge(expected))),
+                _ => Err(Error::Encoding),
+            };
         }
         let before = AnchorHead::decode(d)?;
         let after = AnchorHead::decode(d)?;
@@ -382,7 +431,12 @@ impl AnchorOperation {
     }
     fn next(self) -> Option<AnchorHead> {
         match self.0 {
-            Command::Query | Command::AdmitAuthority(_) => None,
+            Command::Query
+            | Command::AdmitAuthority(_)
+            | Command::CredentialCommit(_)
+            | Command::CredentialStatus(_)
+            | Command::CredentialClose(_)
+            | Command::CredentialAcknowledge(_) => None,
             Command::Advance(_, next) | Command::Fence(_, next) => Some(next),
         }
     }
@@ -452,6 +506,11 @@ impl AnchorPin {
             4 => AnchorOutcome::Conflict,
             5 => AnchorOutcome::AuthorityCurrent,
             6 => AnchorOutcome::AuthorityDenied,
+            7 => AnchorOutcome::CredentialPrepared,
+            8 => AnchorOutcome::CredentialApplied,
+            9 => AnchorOutcome::CredentialClosed,
+            10 => AnchorOutcome::CredentialUnavailable,
+            11 => AnchorOutcome::CredentialAcknowledged,
             _ => return Err(Error::Encoding),
         };
         let head = AnchorHead::decode(&mut d)?;
@@ -462,6 +521,23 @@ impl AnchorPin {
             (
                 Command::AdmitAuthority(_),
                 AnchorOutcome::AuthorityCurrent | AnchorOutcome::AuthorityDenied,
+            ) => {}
+            (
+                Command::CredentialStatus(_),
+                AnchorOutcome::CredentialPrepared
+                | AnchorOutcome::CredentialApplied
+                | AnchorOutcome::CredentialClosed
+                | AnchorOutcome::CredentialUnavailable,
+            ) => {}
+            (
+                Command::CredentialCommit(_) | Command::CredentialClose(_),
+                AnchorOutcome::CredentialApplied
+                | AnchorOutcome::CredentialClosed
+                | AnchorOutcome::CredentialUnavailable,
+            ) => {}
+            (
+                Command::CredentialAcknowledge(_),
+                AnchorOutcome::CredentialAcknowledged | AnchorOutcome::CredentialUnavailable,
             ) => {}
             (
                 Command::Advance(_, next) | Command::Fence(_, next),
@@ -479,6 +555,9 @@ impl AnchorPin {
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .map_err(|_| Error::Closed)?;
         Ok(AnchorReply {
+            authority: self.binding,
+            subject: request.subject,
+            operation: request.operation,
             outcome,
             head,
             command: request.command,
@@ -602,9 +681,37 @@ pub enum AnchorOutcome {
     /// Authenticated refusal: the requested authority is not current or not valid.
     /// This never authorizes traffic or an unanchored fallback.
     AuthorityDenied = 6,
+    /// Exact joint renewal is durably prepared, not committed.
+    CredentialPrepared = 7,
+    /// Exact joint head and credential transition is durably applied.
+    CredentialApplied = 8,
+    /// Exact preparation is durably closed without that joint transition.
+    CredentialClosed = 9,
+    /// No exact retained disposition is available; never infer NoCommit.
+    CredentialUnavailable = 10,
+    /// Exact terminal was retired, or its last acknowledgement was retried.
+    CredentialAcknowledged = 11,
+}
+
+/// Exact joint-renewal disposition. Historical states confer no traffic authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AnchorCredentialRenewalState {
+    /// Prepared target retained; no joint transition committed.
+    Prepared,
+    /// Joint transition committed; local recovery may still be pending.
+    Applied,
+    /// Joint transition is closed and cannot later be applied.
+    Closed,
+    /// Exact terminal acknowledgement was observed; retain its local outcome.
+    Acknowledged,
+    /// Absent, conflicting or retired exact history; not proof of non-commit.
+    Unavailable,
 }
 /// A reply authenticated against the caller's fresh attempt and pinned witness.
 pub struct AnchorReply {
+    authority: [u8; 32],
+    subject: AnchorSubject,
+    operation: AnchorOperation,
     outcome: AnchorOutcome,
     head: AnchorHead,
     command: [u8; 32],
@@ -624,6 +731,41 @@ impl AnchorReply {
         match self.outcome {
             AnchorOutcome::Advanced | AnchorOutcome::AlreadyAppliedExact => Ok(self.head),
             AnchorOutcome::Conflict => Err(Error::Conflict),
+            _ => Err(Error::State),
+        }
+    }
+    /// Interpret only an exact fresh reply under the independently retained
+    /// proposal. Generic head or authority observations cannot stand in for it.
+    pub fn credential_renewal_state(
+        &self,
+        proposal: &AnchorCredentialRenewalProposal,
+    ) -> Result<AnchorCredentialRenewalState, Error> {
+        if self.authority != proposal.witness
+            || self.subject != proposal.subject
+            || self.operation.credential_binding() != Some(proposal.binding())
+        {
+            return Err(Error::Scope);
+        }
+        match self.outcome {
+            AnchorOutcome::CredentialPrepared if self.head == proposal.expected => {
+                Ok(AnchorCredentialRenewalState::Prepared)
+            }
+            AnchorOutcome::CredentialClosed if self.head == proposal.expected => {
+                Ok(AnchorCredentialRenewalState::Closed)
+            }
+            AnchorOutcome::CredentialApplied
+                if self.head == proposal.target
+                    && self.last
+                        == Some(command_id(
+                            &proposal.witness,
+                            proposal.subject,
+                            AnchorOperation::commit_credential_renewal(proposal),
+                        )) =>
+            {
+                Ok(AnchorCredentialRenewalState::Applied)
+            }
+            AnchorOutcome::CredentialAcknowledged => Ok(AnchorCredentialRenewalState::Acknowledged),
+            AnchorOutcome::CredentialUnavailable => Ok(AnchorCredentialRenewalState::Unavailable),
             _ => Err(Error::State),
         }
     }

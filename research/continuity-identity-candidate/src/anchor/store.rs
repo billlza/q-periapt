@@ -18,6 +18,9 @@ const MAX_IMAGE: usize = 1024 * 1024;
 #[cfg(all(test, unix))]
 mod tests;
 
+mod renewal;
+use renewal::CredentialRenewalRecord;
+
 struct Entry {
     subject: AnchorSubject,
     device: PublicKey,
@@ -27,6 +30,9 @@ struct Entry {
     genesis: [u8; 32],
     head: AnchorHead,
     last: Option<[u8; 32]>,
+    renewal_floor: u64,
+    renewal_ack: Option<[u8; 32]>,
+    renewal: Option<CredentialRenewalRecord>,
 }
 struct Image {
     revision: u64,
@@ -165,6 +171,9 @@ impl AnchorStore {
                 genesis,
                 head,
                 last: None,
+                renewal_floor: 0,
+                renewal_ack: None,
+                renewal: None,
             },
         );
         self.persist(&mut image)
@@ -249,6 +258,12 @@ impl AnchorStore {
         let id = subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
+        if entry.renewal.is_some() {
+            return Err(DurableError::Suspended);
+        }
+        if entry.renewal_floor != 0 && next.checkpoint.version() <= entry.renewal_floor {
+            return Err(Error::Retired.into());
+        }
         if entry.credential_owner != storage_owner(next) {
             return Err(Error::Scope.into());
         }
@@ -298,6 +313,11 @@ impl AnchorStore {
         let id = subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
+        // Once this subject uses joint renewal, terminal retirement must never
+        // reopen the legacy authority-only path for an old signed target.
+        if entry.renewal.is_some() || entry.renewal_floor != 0 {
+            return Err(DurableError::Suspended);
+        }
         if entry.subject != subject || entry.device != next.key || entry.device != previous.key {
             return Err(DurableError::Conflict);
         }
@@ -337,6 +357,7 @@ impl AnchorStore {
         entry
             .device
             .verify(Purpose::AnchorRequest, request.body, request.signature)?;
+        let mut changed = false;
         let outcome = match request.operation.0 {
             Command::Query => AnchorOutcome::Current,
             Command::AdmitAuthority(expected) => {
@@ -351,7 +372,20 @@ impl AnchorStore {
                     AnchorOutcome::AuthorityDenied
                 }
             }
+            Command::CredentialCommit(_)
+            | Command::CredentialStatus(_)
+            | Command::CredentialClose(_)
+            | Command::CredentialAcknowledge(_) => {
+                let (outcome, mutation) = entry.handle_renewal(&request, now)?;
+                changed = mutation;
+                outcome
+            }
             Command::Advance(expected, next) | Command::Fence(expected, next) => {
+                // Neither ordinary commands nor a writer fence may bypass an
+                // unacknowledged joint transition, including its terminal state.
+                if entry.renewal.is_some() {
+                    return Err(Error::State.into());
+                }
                 if entry.head == next && entry.last == Some(request.command) {
                     // Exact last-command confirmation is read-only after expiry too.
                     AnchorOutcome::AlreadyAppliedExact
@@ -368,7 +402,7 @@ impl AnchorStore {
             }
         };
         let (head, last) = (entry.head, entry.last);
-        if outcome == AnchorOutcome::Advanced {
+        if changed || outcome == AnchorOutcome::Advanced {
             self.persist(&mut image)?;
         }
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
@@ -454,11 +488,20 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
-    let mut bytes = b"QPANC002".to_vec();
+    let joint = image
+        .entries
+        .values()
+        .any(|entry| entry.renewal_floor != 0 || entry.renewal.is_some());
+    let mut bytes = if joint {
+        b"QPANC003".to_vec()
+    } else {
+        b"QPANC002".to_vec()
+    };
     bytes.extend_from_slice(&pin.binding);
     bytes.extend_from_slice(&image.revision.to_be_bytes());
     bytes.extend_from_slice(&(image.entries.len() as u16).to_be_bytes());
     for (id, entry) in &image.entries {
+        entry.check_renewal_state(pin)?;
         bytes.extend_from_slice(id);
         entry.subject.encode(&mut bytes);
         bytes.extend_from_slice(&entry.device.encode());
@@ -468,6 +511,16 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
         bytes.extend_from_slice(&entry.genesis);
         entry.head.encode(&mut bytes);
         encode_last(entry.last, &mut bytes);
+        if joint {
+            bytes.extend_from_slice(&entry.renewal_floor.to_be_bytes());
+            bytes.push(u8::from(entry.renewal_ack.is_some()));
+            bytes.extend_from_slice(&entry.renewal_ack.unwrap_or([0; 32]));
+            if let Some(record) = &entry.renewal {
+                record.encode(&mut bytes);
+            } else {
+                bytes.push(0);
+            }
+        }
     }
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
@@ -489,7 +542,9 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
         let version = d.array::<8>()?;
-        if (version != *b"QPANC001" && version != *b"QPANC002") || d.array::<32>()? != pin.binding {
+        if ![*b"QPANC001", *b"QPANC002", *b"QPANC003"].contains(&version)
+            || d.array::<32>()? != pin.binding
+        {
             return Err(DurableError::Conflict);
         }
         let revision = d.u64()?;
@@ -509,7 +564,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             previous = Some(id);
             let subject = AnchorSubject::decode(&mut d)?;
             let device = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
-            let credential_owner = if version == *b"QPANC002" {
+            let credential_owner = if version != *b"QPANC001" {
                 let owner = d.array()?;
                 nonzero(&owner)?;
                 owner
@@ -523,6 +578,22 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             nonzero(&genesis)?;
             let head = AnchorHead::decode(&mut d)?;
             let last = decode_last(&mut d, head)?;
+            let (renewal_floor, renewal_ack, renewal) = if version == *b"QPANC003" {
+                let floor = d.u64()?;
+                let [present] = d.array()?;
+                let binding = d.array()?;
+                let ack = match present {
+                    0 if binding == [0; 32] => None,
+                    1 => {
+                        nonzero(&binding)?;
+                        Some(binding)
+                    }
+                    _ => return Err(DurableError::Corrupt),
+                };
+                (floor, ack, CredentialRenewalRecord::decode(&mut d)?)
+            } else {
+                (0, None, None)
+            };
             if id != subject.id(&pin.binding)
                 || device.shares_component(&pin.key)
                 || !owners.insert(subject.owner)
@@ -530,19 +601,21 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             {
                 return Err(DurableError::Corrupt);
             }
-            entries.insert(
-                id,
-                Entry {
-                    subject,
-                    device,
-                    credential_owner,
-                    authority,
-                    validity,
-                    genesis,
-                    head,
-                    last,
-                },
-            );
+            let entry = Entry {
+                subject,
+                device,
+                credential_owner,
+                authority,
+                validity,
+                genesis,
+                head,
+                last,
+                renewal_floor,
+                renewal_ack,
+                renewal,
+            };
+            entry.check_renewal_state(pin)?;
+            entries.insert(id, entry);
         }
         d.finish()?;
         Ok(Image {

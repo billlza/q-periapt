@@ -1874,3 +1874,6 @@ fn credential_authority_renewal_process_loss_recovers_original_grant_before_any_
     );
     eprintln!("ANCHOR_CREDENTIAL_RENEWAL_PROCESS original_grant=true original_subject=true original_head=true original_last_command=true result_not_returned=true");
 }
+
+#[path = "renewal_tests.rs"]
+mod joint;

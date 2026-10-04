@@ -2133,4 +2133,88 @@ mod credential_preparation {
             proposal.expected_head().digest()
         );
     }
+
+    #[test]
+    fn actual_sealed_journal_target_is_the_exact_joint_witness_commit_after_a_lost_reply() {
+        for apply in [true, false] {
+            let mut c = case();
+            let grant = grant(&c);
+            let p = prepare(&mut c, &grant).expect("actual protected journal preparation");
+            let saved = disk(&c);
+            {
+                let db = open_private_database(&c.path.join("state.redb")).expect("original db");
+                let key = JournalKey::open(&c.path.join("key")).expect("key");
+                let owner = bootstrap::storage_owner(c.peer.initiator_device());
+                let (old, intent) =
+                    write_intent::load_snapshot(&db, &key, owner).expect("authenticated intent");
+                let target = intent
+                    .expect("original preparation")
+                    .authenticated_target(&key, owner)
+                    .expect("exact target");
+                assert_eq!(p.expected_head().digest(), old.digest);
+                assert_eq!(p.target_head().digest(), target.digest);
+                assert_eq!(target.owner, old.owner);
+                rosters::check_credential_renewal_intent(
+                    &target,
+                    grant.operation(),
+                    grant.statement_digest(),
+                )
+                .expect("same root operation in sealed target");
+            }
+            {
+                let mut server = c.server.lock().expect("server");
+                assert_eq!(
+                    server
+                        .store
+                        .prepare_credential_renewal(p, &grant, c.peer.initiator.policy(), 150)
+                        .expect("independent witness approval"),
+                    crate::AnchorCredentialRenewalState::Prepared
+                );
+                server.fail = Some((server.requests.len() + 1, true));
+            }
+            let operation = if apply {
+                AnchorOperation::commit_credential_renewal(&p)
+            } else {
+                AnchorOperation::close_credential_renewal(&p)
+            };
+            assert!(matches!(
+                client(&c.pin, &c.server, true).exchange(c.subject, operation),
+                Err(AnchorClientError::Transport(_))
+            ));
+            {
+                let mut server = c.server.lock().expect("server");
+                server.fail = None;
+                server.now = 301;
+            }
+            c.peer.initiator.policy().close();
+            let reply = client(&c.pin, &c.server, true)
+                .exchange(c.subject, AnchorOperation::credential_renewal_status(&p))
+                .expect("fresh historical witness observation");
+            assert_eq!(
+                reply.credential_renewal_state(&p).expect("exact proposal"),
+                if apply {
+                    crate::AnchorCredentialRenewalState::Applied
+                } else {
+                    crate::AnchorCredentialRenewalState::Closed
+                }
+            );
+            assert_eq!(
+                reply.observed_head(),
+                if apply {
+                    p.target_head()
+                } else {
+                    p.expected_head()
+                }
+            );
+            let count = c.server.lock().expect("server").requests.len();
+            assert!(matches!(reopen(&c), Err(DurableError::Suspended)));
+            assert_eq!(c.server.lock().expect("server").requests.len(), count);
+            assert_eq!(inspect(&c).expect("retained original metadata"), Some(p));
+            assert_eq!(
+                disk(&c),
+                saved,
+                "generic reopen must neither apply nor discard joint state"
+            );
+        }
+    }
 }

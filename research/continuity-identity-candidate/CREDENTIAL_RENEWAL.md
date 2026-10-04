@@ -118,9 +118,12 @@ atomic witness commit before local apply followed by expiry,
 and races among closure, ordinary Advance, writer Fence and renewal commit.
 Each must check original sealed bytes, command/head/authority identities and
 owner-release refusal, followed by installed C/Swift/Kotlin and real-carrier
-qualification. Witness prepare/apply/close, bounded terminal retention and their
-device recovery integration remain unimplemented; enrollment's `AnchorRequired`
-guards remain in place.
+qualification. The native witness now implements exact prepare/apply/close/status,
+a permanent signed-successor-version floor, and bounded terminal acknowledgement;
+see [the joint witness contract](ANCHOR_WITNESS.md#joint-credential-renewal-and-bounded-terminal-retention).
+A real required journal's sealed target is bound through a committed-but-lost
+witness reply. Dedicated local apply, terminal coordination and original enrollment
+recovery remain unimplemented; enrollment's `AnchorRequired` guards remain in place.
 
 `credential_renewal_status` reports historical progress, never traffic permission:
 
