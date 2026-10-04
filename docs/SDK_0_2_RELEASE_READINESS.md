@@ -4888,3 +4888,25 @@ and ACK. Strict all-target Clippy passes on the exact consumer source.
 records both binary identities and the three synthetic-clock fixture profiles.
 P0 remains current; this does not qualify joint policy renewal, installed foreign
 archives, independent-host transport or the full 0.2.0 upgrade/release contract.
+
+Hosted source `4126bb5b`, run `37236532231`, completed 42 jobs successfully but
+retains the Android 16 KiB framework failure and a separate installed-foreign
+job cancellation. GitHub reports that the latter exceeded its two-hour limit.
+Its completed collector outputs cover C at 22:25 UTC and Swift at 22:51;
+Kotlin Release/G1 policy expiry completes at 23:40:58, 118m32s after the first
+Rust command record. All 303 retained command results are either successful or
+explicit negative controls. Kotlin's remaining cancellation, commit-loss and
+later Release workloads lack completion evidence. The Kotlin and whole-package
+summaries and final source/tool/archive recheck are absent, so this run does not
+qualify the complete installed package.
+
+The installed foreign job now runs separate Swift and Kotlin matrix legs. Each
+retains the complete Rust/C archive prerequisite, all language profiles, original
+command/runtime deadlines, the 120-minute job bound and full artifact whitelist.
+One leg cannot cancel the other. Local validation passes 47 collector/workflow
+checks and Bash syntax; actionlint reports the same two existing `ubuntu-26.04`
+label diagnostics as the baseline and no new diagnostics. The
+[CI split evidence](../research/sdk-alpha1/evidence/20261005-installed-foreign-ci-split-33a795cf/QUALIFICATION.json)
+retains the timeout, incomplete coverage and original failed local invocations.
+The new matrix still requires hosted execution; runtime and protocol behavior
+are unchanged by this CI split.
