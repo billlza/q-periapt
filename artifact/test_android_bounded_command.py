@@ -3687,6 +3687,73 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         self.assertEqual(result, BoundedResult(0, b"retryable:bytes-mismatch\n"))
         self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
 
+    def test_installed_apk_copy_mismatch_precedes_later_unavailable_path(self) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+        original = self.apk.read_bytes()
+        for copied in (b"", original[:-1], bytes(value ^ 1 for value in original)):
+            with self.subTest(copied_size=len(copied)):
+                result, capture, write = self._invoke_installed_apk_observation(
+                    path_results=[BoundedResult(0, path), BoundedResult(1, b"device offline\n")],
+                    copied_bytes=copied,
+                )
+                self.assertEqual(result, BoundedResult(0, b"retryable:bytes-mismatch\n"))
+                capture.assert_called_once()
+                write.assert_called_once()
+                self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_rechecks_copy_after_the_final_path_observation(self) -> None:
+        path = b"package:/data/app/run/base.apk\n"
+        original = self.apk.read_bytes()
+        capture_count = 0
+
+        def capture(*_args, **_kwargs):
+            nonlocal capture_count
+            capture_count += 1
+            if capture_count == 2:
+                (self.work / commands.INSTALLED_APK_COPY_LEAF).write_bytes(bytes(value ^ 1 for value in original))
+            return BoundedResult(0, path)
+
+        def write(*_args, **_kwargs):
+            output = self.work / commands.INSTALLED_APK_COPY_LEAF
+            output.write_bytes(original)
+            output.chmod(0o600)
+            return BoundedResult(0)
+
+        with (
+            mock.patch.object(commands, "capture_stdout", side_effect=capture),
+            mock.patch.object(commands, "write_stdout_at", side_effect=write),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+        ):
+            result = commands.invoke_operation(
+                commands.AndroidOperation.OBSERVE_INSTALLED_APK,
+                run_id=self.layout.run_id,
+                timeout_seconds=30,
+            )
+        self.assertEqual(capture_count, 2)
+        self.assertEqual(result, BoundedResult(0, b"retryable:bytes-mismatch\n"))
+        self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_copy_mismatch_diagnostic_excludes_physical_device_data(self) -> None:
+        for kind, serial in (("emulator", "emulator-5584"), ("physical", "SERIAL123")):
+            self.create_capability(device_kind=kind, expected_serial=serial)
+            errors = io.StringIO()
+            with contextlib.redirect_stderr(errors):
+                result, capture, _write = self._invoke_installed_apk_observation(
+                    path_results=[BoundedResult(0, b"package:/data/app/run/base.apk\n")],
+                    copied_bytes=b"",
+                )
+            self.assertEqual(result, BoundedResult(0, b"retryable:bytes-mismatch\n"))
+            capture.assert_called_once()
+            if kind == "physical":
+                self.assertEqual(errors.getvalue(), "")
+            else:
+                self.assertEqual(json.loads(errors.getvalue()), {
+                    "operation": "installed-apk-copy", "failure": "bytes-mismatch",
+                    "observed_bytes": 0, "observed_sha256": hashlib.sha256(b"").hexdigest(),
+                    "expected_bytes": self.apk.stat().st_size,
+                    "expected_sha256": hashlib.sha256(self.apk.read_bytes()).hexdigest(),
+                })
+
     def test_installed_apk_observation_retries_path_change_without_copy(self) -> None:
         result, _capture, _write = self._invoke_installed_apk_observation(
             path_results=[

@@ -3653,6 +3653,35 @@ def _observe_installed_apk(
             f"retryable:{InstalledApkRetryReason.PULL_FAILED.value}\n".encode("ascii"),
         )
 
+    # Raw exec-out can return zero after a truncated stream. Establish that
+    # failure before a later package query can replace it with "unavailable".
+    # This is an early rejection only: the final snapshot below must still
+    # recheck the copy after the path observation before admitting exact bytes.
+    copied = consume_regular_snapshot(
+        layout.work / INSTALLED_APK_COPY_LEAF,
+        maximum=runtime_state.MAX_APK_BYTES,
+        label="installed Android smoke APK copy",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    if not (
+        copied.size == capability.signed_apk_size
+        and copied.sha256 == capability.signed_apk_sha256
+    ):
+        if capability.device_kind == "emulator":
+            print(json.dumps({
+                "operation": "installed-apk-copy",
+                "failure": "bytes-mismatch",
+                "observed_bytes": copied.size,
+                "observed_sha256": copied.sha256,
+                "expected_bytes": capability.signed_apk_size,
+                "expected_sha256": capability.signed_apk_sha256,
+            }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.BYTES_MISMATCH.value}\n".encode("ascii"),
+        )
+
     after_timeout = _remaining_observation_timeout(deadline)
     if after_timeout is None:
         _remove_installed_apk_copy(layout)
