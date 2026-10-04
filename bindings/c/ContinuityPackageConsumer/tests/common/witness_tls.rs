@@ -64,7 +64,7 @@ pub(crate) struct TlsWitness {
     pub(crate) admitted: Arc<AtomicUsize>,
     pub(crate) records: Arc<Mutex<Vec<p::anchor_tls::AnchorTlsRecord>>>,
     pub(crate) failed_admissions: Arc<Mutex<Vec<Option<usize>>>>,
-    worker: Option<thread::JoinHandle<Result<Vec<String>>>>,
+    worker: Option<thread::JoinHandle<Result<Vec<io::Error>>>>,
 }
 impl TlsWitness {
     pub(crate) fn start<const N: usize>(
@@ -97,7 +97,7 @@ impl TlsWitness {
         let observed = Arc::clone(&records);
         let failed_admissions = Arc::new(Mutex::new(Vec::new()));
         let failed = Arc::clone(&failed_admissions);
-        let worker = thread::spawn(move || -> Result<Vec<String>> {
+        let worker = thread::spawn(move || -> Result<Vec<io::Error>> {
             let mut failures = Vec::new();
             while !control.load(Ordering::Acquire) {
                 let stream = match listener.accept() {
@@ -131,7 +131,9 @@ impl TlsWitness {
                     Err(error) => {
                         // Retain expected negative-control failures; assert their
                         // exact count at normal completion instead of swallowing.
-                        failures.push(format!("{:?}: {error}", error.kind()));
+                        // Keep the typed cause: a display string cannot identify
+                        // the native closed-socket timeout error on Darwin.
+                        failures.push(error);
                         if failures.len() > 8 {
                             return Err("unexpected TLS failure capacity".into());
                         }
@@ -153,7 +155,7 @@ impl TlsWitness {
             worker: Some(worker),
         })
     }
-    pub(crate) fn finish(&mut self) -> Result<Vec<String>> {
+    pub(crate) fn finish(&mut self) -> Result<Vec<io::Error>> {
         self.stop.store(true, Ordering::Release);
         let failures = self
             .worker

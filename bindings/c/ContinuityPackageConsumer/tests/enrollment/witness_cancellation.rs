@@ -17,6 +17,44 @@ use std::{
 };
 
 const POLICY_SECONDS: u64 = 120;
+
+fn require_cut_tls_failures(
+    failures: &[io::Error],
+    failed_admissions: &[Option<usize>],
+    cut_index: usize,
+) -> Result<()> {
+    // Classify only the connection whose real foreign owner was killed and
+    // reaped before releasing its admission barrier. Other failures remain fatal.
+    if failures.len() > 1 || failed_admissions != vec![Some(cut_index); failures.len()] {
+        return Err("TLS failure is not the single killed-owner admission".into());
+    }
+    for error in failures {
+        let cause_raw = error
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<io::Error>())
+            .and_then(io::Error::raw_os_error);
+        // Native anchor TLS maps Darwin's positive timeout setter EINVAL to
+        // ConnectionAborted and preserves the OS cause. A real killed-peer
+        // experiment reproduces this in close_notify after the ACK reply write.
+        // Neither arbitrary ConnectionAborted nor raw InvalidInput is accepted.
+        let closed_timeout = cfg!(target_vendor = "apple")
+            && error.kind() == io::ErrorKind::ConnectionAborted
+            && cause_raw == Some(22);
+        if !closed_timeout
+            && !matches!(
+                error.kind(),
+                io::ErrorKind::BrokenPipe
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::UnexpectedEof
+                    | io::ErrorKind::TimedOut
+            )
+        {
+            return Err(format!("unexpected killed-owner TLS failure: {error:?}").into());
+        }
+    }
+    Ok(())
+}
+
 struct Pause {
     remaining: AtomicUsize,
     released: AtomicBool,
@@ -468,18 +506,6 @@ fn exercise(
     let (transcript, admitted, failures) = if let Some(server) = tls_witness.as_mut() {
         assert!(tcp.is_empty(), "TLS used plaintext fallback");
         let failures = server.finish()?;
-        assert!(
-            failures.len() <= 1
-                && failures.iter().all(|e| [
-                    "BrokenPipe:",
-                    "ConnectionReset:",
-                    "UnexpectedEof:",
-                    "TimedOut:"
-                ]
-                .iter()
-                .any(|kind| e.starts_with(kind))),
-            "unexpected TLS failure: {failures:?}"
-        );
         let records = server.records.lock().map_err(|_| "TLS records")?;
         assert_eq!(
             records.len() + failures.len(),
@@ -489,7 +515,10 @@ fn exercise(
             .failed_admissions
             .lock()
             .map_err(|_| "TLS failure lock")?;
-        assert_eq!(*failed, vec![Some(cut_index); failures.len()]);
+        require_cut_tls_failures(&failures, &failed, cut_index)?;
+        if !failures.is_empty() {
+            eprintln!("TLS_CANCELLATION_CUT_FAILURE index={cut_index} errors={failures:?}");
+        }
         let mut wire = Vec::new();
         for record in records.iter() {
             wire.push(1);
@@ -626,6 +655,58 @@ fn export(path: &Path, output: &Path) -> Result<()> {
 }
 #[test]
 fn grant_only_cancellation_recovers_original_foreign_owner_after_process_loss() -> Result<()> {
+    require_cut_tls_failures(&[], &[], 7)?;
+    for kind in [
+        io::ErrorKind::BrokenPipe,
+        io::ErrorKind::ConnectionReset,
+        io::ErrorKind::UnexpectedEof,
+        io::ErrorKind::TimedOut,
+    ] {
+        require_cut_tls_failures(&[kind.into()], &[Some(7)], 7)?;
+    }
+    let closed_timeout = || {
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            io::Error::from_raw_os_error(22),
+        )
+    };
+    assert_eq!(
+        require_cut_tls_failures(&[closed_timeout()], &[Some(7)], 7).is_ok(),
+        cfg!(target_vendor = "apple")
+    );
+    for indices in [vec![], vec![None], vec![Some(6)], vec![Some(7), Some(7)]] {
+        assert!(
+            require_cut_tls_failures(&[io::ErrorKind::BrokenPipe.into()], &indices, 7).is_err()
+        );
+        assert!(require_cut_tls_failures(&[closed_timeout()], &indices, 7).is_err());
+    }
+    assert!(require_cut_tls_failures(
+        &[
+            io::ErrorKind::BrokenPipe.into(),
+            io::ErrorKind::ConnectionReset.into()
+        ],
+        &[Some(7), Some(7)],
+        7
+    )
+    .is_err());
+    for error in [
+        io::Error::from(io::ErrorKind::ConnectionAborted),
+        io::Error::from_raw_os_error(22),
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            "Invalid argument (os error 22)",
+        ),
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            io::Error::from_raw_os_error(5),
+        ),
+        io::Error::other(io::Error::from_raw_os_error(22)),
+        io::Error::from(io::ErrorKind::PermissionDenied),
+        io::Error::from(io::ErrorKind::InvalidData),
+        io::Error::from(io::ErrorKind::WouldBlock),
+    ] {
+        assert!(require_cut_tls_failures(&[error], &[Some(7)], 7).is_err());
+    }
     witness::require_held_peer_disconnect(Ok(0))?;
     witness::require_held_peer_disconnect(Err(io::Error::from(io::ErrorKind::ConnectionReset)))?;
     assert_eq!(
