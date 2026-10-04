@@ -1,0 +1,8 @@
+test_protocol_logcat_uses_inherited_bounded_stderr_not_a_second_stdio_device (test_android_platform_probe.PlatformProbeTests.test_protocol_logcat_uses_inherited_bounded_stderr_not_a_second_stdio_device) ... ok
+test_protocol_log_bound_is_explicit_and_saturation_is_not_a_transport_failure (test_android_platform_probe.PlatformProbeTests.test_protocol_log_bound_is_explicit_and_saturation_is_not_a_transport_failure) ... ok
+test_fresh_checkout_records_a_failed_driver_without_a_target_directory (test_android_platform_probe.PlatformProbeTests.test_fresh_checkout_records_a_failed_driver_without_a_target_directory) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.053s
+
+OK

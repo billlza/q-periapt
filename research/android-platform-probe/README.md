@@ -154,3 +154,16 @@ unchanged. Output saturation is a supervisor failure, never natural-disconnect
 or successful-transport evidence. No emulator file-size limit is added. Captured
 chunks are flushed so the live marker check can observe them. Guest and host
 clocks remain uncalibrated and cannot alone establish causal ordering.
+
+
+Run `37237344003` at `1fb2df29` produced no copy observations: all four arms
+failed before boot because combining kernel output and logcat attempted to bind
+two QEMU character devices to stdio. The retained original logs report
+`cannot use stdio by multiple character devices`; no blob was staged or package
+installed. This was an instrumentation defect, not another bulk-copy failure.
+The corrected launch keeps kernel serial on stdio and directs logcat through
+`-logcat-output /proc/self/fd/2`. Its file backend opens the owned inherited stderr
+pipe, which is already captured by the bounded supervisor; no unbounded regular
+log file or emulator file-size signal is introduced. Help support is checked
+before launch, and the guest marker must still be observed before any copying.
+Actual backend startup and stream capture remain hosted validation obligations.

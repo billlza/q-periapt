@@ -151,6 +151,23 @@ class PlatformProbeTests(unittest.TestCase):
                 self.assertEqual(result["failure_kind"],"output_limit")
                 self.assertFalse(result["release_claim_eligible"])
 
+    def test_protocol_logcat_uses_inherited_bounded_stderr_not_a_second_stdio_device(self):
+        script=(PROBE/"run.sh").read_text()
+        start=script.index('kernel_observation=()')
+        end=script.index('ANDROID_ADB_SERVER_PORT=5586',start)
+        with tempfile.TemporaryDirectory() as directory:
+            driver=Path(directory)/"options.sh"
+            driver.write_text('set -euo pipefail\nexperiment=$1\nemulator=/bin/echo\n'+script[start:end]
+                              +'printf \'OPTION:%s\\n\' "${kernel_observation[@]}"\n')
+            for mode in ("uninstalled-pipe-copy","uninstalled-shell-copy"):
+                result=capture_stdout(["/bin/bash",str(driver),mode],timeout_seconds=5,maximum_bytes=4096)
+                self.assertEqual(result.returncode,0,result.stdout)
+                options=[line[7:] for line in result.stdout.splitlines() if line.startswith(b"OPTION:")]
+                self.assertEqual(options.count(b"-show-kernel"),1)
+                self.assertEqual(options.count(b"-logcat-output"),1)
+                self.assertEqual(options[options.index(b"-logcat-output")+1],b"/proc/self/fd/2")
+                self.assertIn(b"-no-window -help-logcat-output",result.stdout)
+
     def test_actual_cleanup_reaps_children_and_preserves_driver_failure(self):
         script = (PROBE / "run.sh").read_text()
         start = script.index("cleanup() {")

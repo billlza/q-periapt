@@ -1,0 +1,85 @@
+{
+  "total_count": 4,
+  "artifacts": [
+    {
+      "id": 11316297016,
+      "node_id": "MDg6QXJ0aWZhY3QxMTMxNjI5NzAxNg==",
+      "name": "android-apk-transport-uninstalled-shell-copy-1",
+      "size_in_bytes": 4548,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316297016",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316297016/zip",
+      "expired": false,
+      "digest": "sha256:7dd684fa2ba91002584f9f5b1c7100dbdfc7b4ea91ad518e39332411b14de1e4",
+      "created_at": "2026-10-04T21:49:25Z",
+      "updated_at": "2026-10-04T21:49:25Z",
+      "expires_at": "2027-01-02T21:45:05Z",
+      "workflow_run": {
+        "id": 37237344003,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "lza/android-apk-transport-probe",
+        "head_sha": "1fb2df294b81266ca3caf8691aefcf29f6f33744"
+      }
+    },
+    {
+      "id": 11316227097,
+      "node_id": "MDg6QXJ0aWZhY3QxMTMxNjIyNzA5Nw==",
+      "name": "android-apk-transport-uninstalled-pipe-copy-2",
+      "size_in_bytes": 4540,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316227097",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316227097/zip",
+      "expired": false,
+      "digest": "sha256:56df4faf084dab576875822547c172aa50b73818d99a48d81e48f7d39e7eb346",
+      "created_at": "2026-10-04T21:49:17Z",
+      "updated_at": "2026-10-04T21:49:17Z",
+      "expires_at": "2027-01-02T21:45:05Z",
+      "workflow_run": {
+        "id": 37237344003,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "lza/android-apk-transport-probe",
+        "head_sha": "1fb2df294b81266ca3caf8691aefcf29f6f33744"
+      }
+    },
+    {
+      "id": 11316112590,
+      "node_id": "MDg6QXJ0aWZhY3QxMTMxNjExMjU5MA==",
+      "name": "android-apk-transport-uninstalled-shell-copy-2",
+      "size_in_bytes": 4545,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316112590",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316112590/zip",
+      "expired": false,
+      "digest": "sha256:ccd994b86754c84e072f49c32ad6c737a083ea0c880793a914202a60b2cc3746",
+      "created_at": "2026-10-04T21:49:33Z",
+      "updated_at": "2026-10-04T21:49:33Z",
+      "expires_at": "2027-01-02T21:45:05Z",
+      "workflow_run": {
+        "id": 37237344003,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "lza/android-apk-transport-probe",
+        "head_sha": "1fb2df294b81266ca3caf8691aefcf29f6f33744"
+      }
+    },
+    {
+      "id": 11316028131,
+      "node_id": "MDg6QXJ0aWZhY3QxMTMxNjAyODEzMQ==",
+      "name": "android-apk-transport-uninstalled-pipe-copy-1",
+      "size_in_bytes": 4540,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316028131",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11316028131/zip",
+      "expired": false,
+      "digest": "sha256:abcf4e3864d46745d6ce107b4883afa342a5924ae332ebfad5684222d2fafaa4",
+      "created_at": "2026-10-04T21:49:17Z",
+      "updated_at": "2026-10-04T21:49:17Z",
+      "expires_at": "2027-01-02T21:45:05Z",
+      "workflow_run": {
+        "id": 37237344003,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "lza/android-apk-transport-probe",
+        "head_sha": "1fb2df294b81266ca3caf8691aefcf29f6f33744"
+      }
+    }
+  ]
+}

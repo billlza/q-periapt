@@ -1,0 +1,68 @@
+{
+  "completed": false,
+  "release_claim_eligible": false,
+  "failed_run": 37237344003,
+  "failed_source": "1fb2df294b81266ca3caf8691aefcf29f6f33744",
+  "arms": {
+    "android-apk-transport-uninstalled-shell-copy-1": {
+      "artifact_id": 11316297016,
+      "zip_sha256": "7dd684fa2ba91002584f9f5b1c7100dbdfc7b4ea91ad518e39332411b14de1e4",
+      "status": "observation_failed",
+      "copy_attempted": false,
+      "emulator_stdio_conflict": true
+    },
+    "android-apk-transport-uninstalled-pipe-copy-2": {
+      "artifact_id": 11316227097,
+      "zip_sha256": "56df4faf084dab576875822547c172aa50b73818d99a48d81e48f7d39e7eb346",
+      "status": "observation_failed",
+      "copy_attempted": false,
+      "emulator_stdio_conflict": true
+    },
+    "android-apk-transport-uninstalled-shell-copy-2": {
+      "artifact_id": 11316112590,
+      "zip_sha256": "ccd994b86754c84e072f49c32ad6c737a083ea0c880793a914202a60b2cc3746",
+      "status": "observation_failed",
+      "copy_attempted": false,
+      "emulator_stdio_conflict": true
+    },
+    "android-apk-transport-uninstalled-pipe-copy-1": {
+      "artifact_id": 11316028131,
+      "zip_sha256": "abcf4e3864d46745d6ce107b4883afa342a5924ae332ebfad5684222d2fafaa4",
+      "status": "observation_failed",
+      "copy_attempted": false,
+      "emulator_stdio_conflict": true
+    }
+  },
+  "root_cause": "Diagnostic instrumentation routed both kernel serial andlogcat virtconsole toQEMUstdio; emulator37.2.12 terminatedbeforeboot. ZeroAPI/copyobservations, notareproductionofoldbulkcopyfailure.",
+  "correction": "Keepkernelstdio; select -logcat-output /proc/self/fd/2 filebackendontheowned inheritedstderrpipe. Sameouter16MiBbound, no unboundedregularfile/newprocess/globalADB. Recordactual -help-logcat-output beforelaunch; guestlogmarker remainsmandatory.",
+  "source_reference": {
+    "url": "https://android.googlesource.com/platform/external/qemu/+/ba29194f97e72ffe770bd56e4e5c5c620598004b/android-qemu2-glue/main.cpp#2128",
+    "sha256": "1f4d2103c9a5892ae7c6ae851d1457527bafc3beefa5fcc84b2c846c664e6688",
+    "installed_emulator_source_revision_unproven": true
+  },
+  "focused_controls": {
+    "completed": true,
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_android_platform_probe.PlatformProbeTests.test_protocol_logcat_uses_inherited_bounded_stderr_not_a_second_stdio_device",
+      "test_android_platform_probe.PlatformProbeTests.test_protocol_log_bound_is_explicit_and_saturation_is_not_a_transport_failure",
+      "test_android_platform_probe.PlatformProbeTests.test_fresh_checkout_records_a_failed_driver_without_a_target_directory"
+    ],
+    "returncode": 0,
+    "tests": 3,
+    "seconds": 0.5946542910533026,
+    "log_sha256": "fde2cc6f78fa05bedcf807755129205ee13c1573ba1366237ace1f4ea53a3e3d",
+    "source_hashes": {
+      "research/android-platform-probe/run.sh": "9cfa991e154683124cc74820ee26e0b27e53e5f2cbbf5716cd0a33a1905fd53b",
+      "research/android-platform-probe/run.py": "7b41c5decab7505fc39ac11045c35d749d7dee7e7fffbd1756f95fc5fe757a84",
+      "artifact/test_android_platform_probe.py": "e0828babcfd7b07a65cff97b78a263172278c853b66e5003749ee82dd8a1c4af"
+    },
+    "scope": "Focused shell argument and bounded log controls; actual emulator/file-backend startup pending hosted validation"
+  },
+  "prior_controls": "26localcontrols passedat1fb2df29; only3affected focusedcontrols rerun locally. New hosted controls runall27.",
+  "pending": "Actual correctedemulatorstartup/independentlog/ADBprotocol/copy/cleanup; underlyingAndroiddisconnect remainsopen"
+}

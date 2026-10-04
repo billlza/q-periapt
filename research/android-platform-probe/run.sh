@@ -115,7 +115,12 @@ kernel_observation=()
 if [ "$experiment" != file-integrity ]; then kernel_observation=(-show-kernel); fi
 case "$experiment" in
     uninstalled-pipe-copy|uninstalled-shell-copy)
-        kernel_observation+=(-logcat 'QPeriaptProbe:I adbd:D adb:D AndroidRuntime:E libc:F DEBUG:F *:S')
+        # Kernel serial already owns QEMU's stdio character device. The file
+        # backend opens this process's inherited stderr pipe instead, so both
+        # streams remain inside the outer supervisor's finite output budget.
+        "$emulator" -no-window -help-logcat-output
+        kernel_observation+=(-logcat 'QPeriaptProbe:I adbd:D adb:D AndroidRuntime:E libc:F DEBUG:F *:S'
+                             -logcat-output /proc/self/fd/2)
         ;;
 esac
 ANDROID_ADB_SERVER_PORT=5586 "$emulator" -avd PlatformProbe35 -port 5584 \

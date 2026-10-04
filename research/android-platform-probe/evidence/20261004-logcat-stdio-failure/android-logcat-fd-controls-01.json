@@ -1,0 +1,23 @@
+{
+  "completed": true,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_android_platform_probe.PlatformProbeTests.test_protocol_logcat_uses_inherited_bounded_stderr_not_a_second_stdio_device",
+    "test_android_platform_probe.PlatformProbeTests.test_protocol_log_bound_is_explicit_and_saturation_is_not_a_transport_failure",
+    "test_android_platform_probe.PlatformProbeTests.test_fresh_checkout_records_a_failed_driver_without_a_target_directory"
+  ],
+  "returncode": 0,
+  "tests": 3,
+  "seconds": 0.5946542910533026,
+  "log_sha256": "fde2cc6f78fa05bedcf807755129205ee13c1573ba1366237ace1f4ea53a3e3d",
+  "source_hashes": {
+    "research/android-platform-probe/run.sh": "9cfa991e154683124cc74820ee26e0b27e53e5f2cbbf5716cd0a33a1905fd53b",
+    "research/android-platform-probe/run.py": "7b41c5decab7505fc39ac11045c35d749d7dee7e7fffbd1756f95fc5fe757a84",
+    "artifact/test_android_platform_probe.py": "e0828babcfd7b07a65cff97b78a263172278c853b66e5003749ee82dd8a1c4af"
+  },
+  "scope": "Focused shell argument and bounded log controls; actual emulator/file-backend startup pending hosted validation"
+}
