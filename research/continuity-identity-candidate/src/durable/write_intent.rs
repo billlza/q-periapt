@@ -7,9 +7,10 @@ use sha2::Sha256;
 
 const INTENT_HEADER: usize = 8 + 32 + 32 + 8 + 32 + 8 + 32 + 4;
 const MAX_TARGET: usize = HEADER + MAX_IMAGE + 16;
+const RENEWAL_BINDING_BYTES: usize = 64;
 
 #[cfg(all(test, unix))]
-mod tests;
+pub(super) mod tests;
 
 pub(super) struct PendingWrite {
     expected_revision: u64,
@@ -20,6 +21,7 @@ pub(super) struct PendingWrite {
     wire: Vec<u8>,
     protection: Protection,
     local_account: [u8; 32],
+    renewal: Option<(crate::CredentialRenewalId, [u8; 32])>,
 }
 impl PendingWrite {
     pub(super) fn authenticated_target(
@@ -31,8 +33,24 @@ impl PendingWrite {
     }
 
     fn new(active: &Active, image: &Image, target: &[u8]) -> Result<Self, DurableError> {
+        Self::new_bound(active, image, target, None)
+    }
+    fn new_bound(
+        active: &Active,
+        image: &Image,
+        target: &[u8],
+        renewal: Option<(crate::CredentialRenewalId, [u8; 32])>,
+    ) -> Result<Self, DurableError> {
         let expected_revision = image.revision.checked_sub(1).ok_or(DurableError::Corrupt)?;
-        let mut wire = b"QPWINT01".to_vec();
+        let mut wire = if renewal.is_some() {
+            b"QPWINT02".to_vec()
+        } else {
+            b"QPWINT01".to_vec()
+        };
+        if let Some((operation, statement)) = renewal {
+            wire.extend_from_slice(operation.as_bytes());
+            wire.extend_from_slice(&statement);
+        }
         wire.extend_from_slice(&active.id);
         wire.extend_from_slice(&active.owner);
         wire.extend_from_slice(&expected_revision.to_be_bytes());
@@ -64,7 +82,8 @@ impl PendingWrite {
         id: [u8; 32],
         wire: &[u8],
     ) -> Result<Self, DurableError> {
-        if !(INTENT_HEADER + HEADER + 16 + 115 + 32..=INTENT_HEADER + MAX_TARGET + 32)
+        if !(INTENT_HEADER + HEADER + 16 + 115 + 32
+            ..=INTENT_HEADER + RENEWAL_BINDING_BYTES + MAX_TARGET + 32)
             .contains(&wire.len())
         {
             return Err(DurableError::Corrupt);
@@ -75,9 +94,16 @@ impl PendingWrite {
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPWINT01" {
-            return Err(DurableError::Corrupt);
-        }
+        let renewal = match d.array::<8>()? {
+            tag if tag == *b"QPWINT01" => None,
+            tag if tag == *b"QPWINT02" => {
+                let operation = crate::CredentialRenewalId::from_trusted_state(d.array()?)?;
+                let statement = d.array()?;
+                crate::codec::nonzero(&statement)?;
+                Some((operation, statement))
+            }
+            _ => return Err(DurableError::Corrupt),
+        };
         if d.array::<32>()? != id || d.array::<32>()? != owner {
             return Err(DurableError::Conflict);
         }
@@ -102,6 +128,9 @@ impl PendingWrite {
         if next.id != id || next.revision != next_revision {
             return Err(DurableError::Conflict);
         }
+        if let Some((operation, statement)) = renewal {
+            rosters::check_credential_renewal_intent(&next, operation, statement)?;
+        }
         Ok(Self {
             expected_revision,
             expected_digest,
@@ -111,6 +140,7 @@ impl PendingWrite {
             wire: wire.to_vec(),
             protection: next.protection,
             local_account: next.local_account,
+            renewal,
         })
     }
     fn check_current(&self, current: &Image) -> Result<(), DurableError> {
@@ -123,6 +153,36 @@ impl PendingWrite {
         } else {
             Err(DurableError::Conflict)
         }
+    }
+    fn credential_proposal(
+        &self,
+        current: &Image,
+    ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
+        self.check_current(current)?;
+        let (operation, statement) = self.renewal.ok_or(DurableError::Conflict)?;
+        let Protection::Required {
+            policy,
+            witness,
+            fence,
+        } = current.protection
+        else {
+            return Err(DurableError::AnchorRequired);
+        };
+        let mut subject = current.id.to_vec();
+        subject.extend_from_slice(&current.owner);
+        subject.extend_from_slice(&policy);
+        Ok(crate::AnchorCredentialRenewalProposal::from_journal(
+            witness,
+            crate::AnchorSubject::from_trusted_state(&subject)?,
+            operation,
+            statement,
+            crate::AnchorHead::from_trusted_state(
+                fence,
+                self.expected_revision,
+                self.expected_digest,
+            )?,
+            crate::AnchorHead::from_trusted_state(fence, self.next_revision, self.next_digest)?,
+        )?)
     }
 }
 
@@ -160,6 +220,11 @@ pub(super) fn load_snapshot(
 // The writer lease is held throughout. The expected image and exact intent are
 // still checked inside the write transaction, not from a cached pre-lock read.
 fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
+    // No ordinary recovery path may commit a credential transition without its
+    // separate, exact witness head-and-authority transaction.
+    if pending.renewal.is_some() {
+        return Err(DurableError::Suspended);
+    }
     let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
@@ -205,6 +270,9 @@ pub(super) fn commit(
 }
 
 pub(super) fn reconcile(active: &mut Active, pending: &PendingWrite) -> Result<(), DurableError> {
+    if pending.renewal.is_some() {
+        return Err(DurableError::Suspended);
+    }
     if pending.protection != active.protection {
         return Err(DurableError::Conflict);
     }
@@ -214,6 +282,56 @@ pub(super) fn reconcile(active: &mut Active, pending: &PendingWrite) -> Result<(
         pending.next_digest,
     )?;
     apply(&active.db, pending)
+}
+
+pub(super) fn reserve_credential_renewal(
+    active: &Active,
+    image: &Image,
+    target: &[u8],
+    operation: crate::CredentialRenewalId,
+    statement: [u8; 32],
+) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
+    let pending = PendingWrite::new_bound(active, image, target, Some((operation, statement)))?;
+    reserve(active, &pending)?;
+    #[cfg(all(test, unix))]
+    {
+        tests::after_credential_preparation();
+        tests::after_intent(&pending, image);
+    }
+    let (current, readback) = load_snapshot(&active.db, &active.key, active.owner)?;
+    let readback = readback.ok_or(DurableError::Conflict)?;
+    if readback.wire != pending.wire {
+        return Err(DurableError::Conflict);
+    }
+    readback.credential_proposal(&current)
+}
+
+impl DeviceJournal {
+    /// Read original authenticated preparation metadata without applying its
+    /// target, dispatching to a witness, or claiming current authority. `None`
+    /// means no local pending record; it is never evidence of witness NoCommit.
+    /// A different pending operation is explicitly rejected.
+    pub fn inspect_credential_renewal_preparation(
+        path: &Path,
+        key: JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &crate::VerifiedSessionPolicy,
+        expected_id: JournalIdentity,
+    ) -> Result<Option<crate::AnchorCredentialRenewalProposal>, DurableError> {
+        let db = open_private_database(path)?;
+        let owner = bootstrap::storage_owner(original);
+        let (image, pending) = load_snapshot(&db, &key, owner)?;
+        if image.id != expected_id.0 || image.local_account != original.account_id() {
+            return Err(DurableError::Conflict);
+        }
+        image.protection.check_policy(policy)?;
+        if !matches!(image.protection, Protection::Required { .. }) {
+            return Err(DurableError::AnchorRequired);
+        }
+        pending
+            .map(|intent| intent.credential_proposal(&image))
+            .transpose()
+    }
 }
 
 fn reserve(active: &Active, pending: &PendingWrite) -> Result<(), DurableError> {

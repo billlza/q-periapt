@@ -12,7 +12,7 @@ pub(crate) struct LocalRenewalCommit {
     pub(crate) credential: [u8; 32],
 }
 impl LocalRenewalCommit {
-    fn for_grant(grant: &VerifiedCredentialRenewal) -> Self {
+    pub(super) fn for_grant(grant: &VerifiedCredentialRenewal) -> Self {
         Self {
             operation: grant.operation(),
             statement: grant.statement_digest(),
@@ -56,6 +56,55 @@ pub(crate) enum LocalRenewalResolution {
     Uncommitted(RosterCheckpoint),
 }
 impl DeviceJournal {
+    /// Reserve the exact root-authorized local credential target for an explicit
+    /// required-witness transaction, without sending Advance or changing authority.
+    /// This closes the journal on success or failure. After an unknown result,
+    /// inspect the original protected preparation before proposing another target.
+    /// The returned metadata grants no current authority or operational owner.
+    pub fn prepare_local_credential_renewal(
+        &mut self,
+        original: &crate::VerifiedDevice,
+        grant: &VerifiedCredentialRenewal,
+        operation: CredentialRenewalId,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
+        let result = (|| {
+            if policy.anchor_requirement().binding().is_none() {
+                return Err(DurableError::AnchorRequired);
+            }
+            let authority =
+                crate::RetainedInstallationAuthority::active_installation(original, policy);
+            let (mut image, saved, receipt) =
+                self.local_renewal_state(&authority, grant, operation, policy)?;
+            if saved.local_commit.is_some() {
+                return Err(DurableError::Conflict);
+            }
+            self.check_release(&image)?;
+            crate::installation::admit(grant.successor_device(), policy, now)?;
+            let mut updated =
+                saved.advance_with_renewal(grant.successor_device().roster(), Some(grant))?;
+            updated.local_commit = Some(receipt);
+            image
+                .records
+                .insert(id(&image.local_account), updated.record()?);
+            let sealed = self.seal_next_image(&mut image)?;
+            let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let proposal = write_intent::reserve_credential_renewal(
+                active,
+                &image,
+                &sealed,
+                operation,
+                grant.statement_digest(),
+            )?;
+            // Preserve the preparation if authority closes during persistence,
+            // but withhold a fresh successful return from that closed runtime.
+            crate::installation::admit(grant.successor_device(), policy, now)?;
+            Ok(proposal)
+        })();
+        self.close();
+        result
+    }
     fn local_renewal_state(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,

@@ -74,12 +74,28 @@ atomically change the witness head and authority. Only an already-applied exact
 transition may be recovered after target expiry, and historical recovery must
 still refuse an expired operational owner.
 
-This requires a durable renewal-intent discriminator and separate recovery path.
-Today `write_intent::commit` immediately dispatches after reservation, and
-`open_anchored` automatically reconciles every pending write as ordinary Advance.
-Reusing that path after a crash before witness preparation could advance the
-journal head without adopting the target authority. Ordinary Advance/Fence must
-never accidentally consume a renewal preparation. Fresh, exact preparation and
+The journal preparation stage now has a durable renewal-intent discriminator.
+`prepare_local_credential_renewal` authenticates and reserves one sealed target,
+reads back its exact wire, and closes the journal on success or failure. It does
+not send Advance or change the local image or witness authority. Ordinary pending
+writes retain `QPWINT01`; renewal preparations use `QPWINT02`, binding the original
+operation and statement to the sealed target's verified root grant and receipt.
+Ordinary `open_anchored`, cleanup recovery and local apply refuse this intent with
+`Suspended` before dispatch. This prevents a restart before witness preparation
+from advancing the head without adopting the target authority.
+
+`inspect_credential_renewal_preparation` authenticates the existing protected
+image, independent journal identity, original credential and policy binding. It
+returns the original 296-byte `QPCRNP01` proposal: witness binding, immutable
+subject, operation/statement and exact adjacent heads. It remains available after
+expiry or policy closure and never reseals the target. The metadata is not a
+witness receipt, current authority or permission to release an operational owner.
+`None` describes only absence of a local intent; it is never witness NoCommit.
+Pending bytes must remain intact until the dedicated joint transaction protocol
+can establish a terminal outcome; this preparation API alone is not a usable
+end-to-end enrollment renewal path.
+
+Fresh, exact preparation and
 closure observations are also required: Query confirms only the journal head;
 AdmitAuthority returning Denied is not evidence of an unapplied renewal.
 
@@ -90,12 +106,21 @@ retention/floor and acknowledgement contract must be fixed before implementation
 absence of a retained record cannot become NoCommit. Device pending bytes may
 be removed only after its corresponding terminal outcome is durably retained.
 
-Required native/process tests include reservation before preparation, lost
-preparation reply, atomic witness commit before local apply followed by expiry,
+Native tests cover exact preparation before witness adoption, authenticated marker
+changes, scope refusals, all four before/after cuts at the two measured reservation
+syncs, policy closure after persistence, and an actual process kill before return.
+They check unchanged original image/authority, refusal without ordinary dispatch,
+and byte-identical pending recovery. Database drop performs additional syncs after
+the durable reservation; the fault census above describes the reservation commit.
+
+Remaining native/process tests include lost witness preparation reply,
+atomic witness commit before local apply followed by expiry,
 and races among closure, ordinary Advance, writer Fence and renewal commit.
 Each must check original sealed bytes, command/head/authority identities and
 owner-release refusal, followed by installed C/Swift/Kotlin and real-carrier
-qualification. This construction and these integration tests remain unimplemented.
+qualification. Witness prepare/apply/close, bounded terminal retention and their
+device recovery integration remain unimplemented; enrollment's `AnchorRequired`
+guards remain in place.
 
 `credential_renewal_status` reports historical progress, never traffic permission:
 

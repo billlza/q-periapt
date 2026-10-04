@@ -12,6 +12,33 @@ use crate::contract::MAX_DEVICE_HISTORY_PER_ACCOUNT as MAX_DEVICE_HISTORY;
 mod local_renewal;
 pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution};
 
+pub(super) fn check_credential_renewal_intent(
+    image: &Image,
+    operation: CredentialRenewalId,
+    statement: [u8; 32],
+) -> Result<(), DurableError> {
+    let Protection::Required { policy, .. } = image.protection else {
+        return Err(DurableError::AnchorRequired);
+    };
+    let saved = get(image, &image.local_account)?;
+    let receipt = saved.local_commit.as_ref().ok_or(DurableError::Corrupt)?;
+    if receipt.operation != operation
+        || receipt.statement != statement
+        || receipt.owner != image.owner
+        || receipt.policy != policy
+        || receipt.target != saved.roster.checkpoint()
+        || saved
+            .renewals
+            .values()
+            .filter(|grant| LocalRenewalCommit::for_grant(grant) == *receipt)
+            .count()
+            != 1
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+
 #[cfg(all(test, unix))]
 pub(crate) mod tests;
 

@@ -167,6 +167,109 @@ impl AnchorHead {
     }
 }
 
+/// Public proposal read back from an authenticated original journal intent.
+/// These bytes describe expected states; they are neither a witness receipt nor
+/// authority to commit or release an operational device.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AnchorCredentialRenewalProposal {
+    witness: [u8; 32],
+    subject: AnchorSubject,
+    operation: crate::CredentialRenewalId,
+    statement: [u8; 32],
+    expected: AnchorHead,
+    target: AnchorHead,
+}
+impl AnchorCredentialRenewalProposal {
+    pub(crate) fn from_journal(
+        witness: [u8; 32],
+        subject: AnchorSubject,
+        operation: crate::CredentialRenewalId,
+        statement: [u8; 32],
+        expected: AnchorHead,
+        target: AnchorHead,
+    ) -> Result<Self, Error> {
+        let value = Self {
+            witness,
+            subject,
+            operation,
+            statement,
+            expected,
+            target,
+        };
+        Self::from_trusted_state(&value.to_bytes())
+    }
+    /// Canonical public metadata for authenticated retention and explicit approval.
+    pub fn to_bytes(self) -> Vec<u8> {
+        let mut bytes = b"QPCRNP01".to_vec();
+        bytes.extend_from_slice(&self.witness);
+        self.subject.encode(&mut bytes);
+        bytes.extend_from_slice(self.operation.as_bytes());
+        bytes.extend_from_slice(&self.statement);
+        self.expected.encode(&mut bytes);
+        self.target.encode(&mut bytes);
+        bytes
+    }
+    /// Restore exact expected metadata, never a remote-selected authorization.
+    /// The witness must independently compare its actual state and root grant.
+    pub fn from_trusted_state(bytes: &[u8]) -> Result<Self, Error> {
+        let mut d = Decoder::new(bytes);
+        if d.array::<8>()? != *b"QPCRNP01" {
+            return Err(Error::Encoding);
+        }
+        let witness = d.array()?;
+        nonzero(&witness)?;
+        let subject = AnchorSubject::decode(&mut d)?;
+        let operation = crate::CredentialRenewalId::from_trusted_state(d.array()?)?;
+        let statement = d.array()?;
+        nonzero(&statement)?;
+        let expected = AnchorHead::decode(&mut d)?;
+        let target = AnchorHead::decode(&mut d)?;
+        d.finish()?;
+        let Command::Advance(_, next) = AnchorOperation::advance(expected, target.digest)?.0 else {
+            return Err(Error::State);
+        };
+        if target != next {
+            return Err(Error::Encoding);
+        }
+        Ok(Self {
+            witness,
+            subject,
+            operation,
+            statement,
+            expected,
+            target,
+        })
+    }
+    /// Pinned witness instance/key binding from the protected journal policy.
+    pub fn witness_binding(self) -> [u8; 32] {
+        self.witness
+    }
+    /// Original immutable journal/device/policy subject.
+    pub fn subject(self) -> AnchorSubject {
+        self.subject
+    }
+    /// Original root-authorized operation identity.
+    pub fn operation(self) -> crate::CredentialRenewalId {
+        self.operation
+    }
+    /// Exact root authorization statement commitment.
+    pub fn statement(self) -> [u8; 32] {
+        self.statement
+    }
+    /// Expected original head; this is not a signed currentness claim.
+    pub fn expected_head(self) -> AnchorHead {
+        self.expected
+    }
+    /// Head of the exact retained sealed target, not a freshly resealed copy.
+    pub fn target_head(self) -> AnchorHead {
+        self.target
+    }
+    /// Domain-separated identity of this complete public proposal.
+    pub fn binding(self) -> [u8; 32] {
+        digest(b"Q-PERIAPT-ANCHOR-CREDENTIAL-PROPOSAL/v1", &self.to_bytes())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Command {
     Query,

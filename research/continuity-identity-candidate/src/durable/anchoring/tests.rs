@@ -1591,3 +1591,546 @@ fn roster_authority_refresh_recovers_the_original_anchored_roster_write_and_outb
     ));
     eprintln!("ANCHOR_ROSTER_REFRESH_JOURNAL original_journal=true retained_intent=true original_outbox=true exactly_one_roster_commit=true revoked_replay_refused=true");
 }
+
+mod credential_preparation {
+    use super::*;
+    use crate::{
+        AnchorCredentialRenewalProposal, CredentialRenewalId, RootSigningKey,
+        VerifiedCredentialRenewal,
+    };
+    use std::sync::atomic::Ordering;
+
+    fn grant(c: &Case) -> VerifiedCredentialRenewal {
+        let original = c.peer.initiator_device();
+        let root = RootSigningKey::deterministic([90; 32], [91; 32]).expect("original root");
+        let certificate = root
+            .issue_device(original.description.clone(), original.key.clone())
+            .expect("original body");
+        crate::durable::rosters::tests::renewal::grant(
+            &root,
+            &certificate,
+            original,
+            300,
+            2,
+            [219; 32],
+            c.peer.initiator.policy().checkpoint().digest(),
+        )
+    }
+    fn prepare(
+        c: &mut Case,
+        grant: &VerifiedCredentialRenewal,
+    ) -> Result<AnchorCredentialRenewalProposal, DurableError> {
+        c.journal.prepare_local_credential_renewal(
+            c.peer.initiator_device(),
+            grant,
+            grant.operation(),
+            c.peer.initiator.policy(),
+            150,
+        )
+    }
+    fn inspect(c: &Case) -> Result<Option<AnchorCredentialRenewalProposal>, DurableError> {
+        DeviceJournal::inspect_credential_renewal_preparation(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.peer.initiator_device(),
+            c.peer.initiator.policy(),
+            c.identity,
+        )
+    }
+    fn disk(c: &Case) -> (Vec<u8>, Option<Vec<u8>>) {
+        let db = open_private_database(&c.path.join("state.redb")).expect("original database");
+        let read = db.begin_read().expect("read");
+        let table = read.open_table(TABLE).expect("table");
+        let image = table
+            .get("image")
+            .expect("image lookup")
+            .expect("image")
+            .value()
+            .to_vec();
+        let pending = table
+            .get("pending")
+            .expect("pending lookup")
+            .map(|v| v.value().to_vec());
+        (image, pending)
+    }
+    fn request_operation(wire: &[u8]) -> AnchorOperation {
+        // The real AnchorStore already verified each captured signature.
+        let (body, _) = crate::crypto::open_envelope(wire).expect("request envelope");
+        assert_eq!(body.len(), 297);
+        assert_eq!(body.get(..8).expect("request tag"), b"QPANRQ01");
+        AnchorOperation::from_trusted_state(body.get(200..).expect("request command"))
+            .expect("complete command")
+    }
+    fn only_queries(c: &Case, start: usize) {
+        let server = c.server.lock().expect("server");
+        assert!(server
+            .requests
+            .get(start..)
+            .expect("preparation requests")
+            .iter()
+            .all(|wire| request_operation(wire) == AnchorOperation::query()));
+    }
+    fn fault_owner(
+        c: &mut Case,
+        after: bool,
+    ) -> (
+        Arc<std::sync::atomic::AtomicUsize>,
+        Arc<std::sync::atomic::AtomicUsize>,
+    ) {
+        let attached = c.journal.active.as_mut().expect("active").anchor.take();
+        c.journal.close();
+        let (mut journal, remaining, count, _) =
+            crate::durable::tests::fault_store(&c.path, c.peer.initiator_device(), after);
+        journal.active.as_mut().expect("active").anchor = attached;
+        c.journal = journal;
+        (remaining, count)
+    }
+
+    #[test]
+    fn exact_preparation_survives_expiry_without_ordinary_replay_or_authority_change() {
+        let mut c = case();
+        let grant = grant(&c);
+        let before = c.journal.image().expect("original");
+        let start = c.server.lock().expect("server").requests.len();
+        let proposal = prepare(&mut c, &grant).expect("prepare exact target");
+        assert!(c.journal.active.is_none());
+        assert_eq!(proposal.subject(), c.subject);
+        assert_eq!(proposal.witness_binding(), c.pin.binding());
+        assert_eq!(proposal.operation(), grant.operation());
+        assert_eq!(proposal.statement(), grant.statement_digest());
+        assert_eq!(
+            proposal.expected_head(),
+            before
+                .protection
+                .head(before.revision, before.digest)
+                .expect("head")
+        );
+        assert_eq!(proposal.target_head().revision(), before.revision + 1);
+        let saved = disk(&c);
+        assert_eq!(image_hash(&saved.0), before.digest);
+        assert_eq!(
+            saved
+                .1
+                .as_ref()
+                .expect("pending")
+                .get(..8)
+                .expect("intent tag"),
+            b"QPWINT02"
+        );
+        assert_eq!(inspect(&c).expect("read original"), Some(proposal));
+        let count = c.server.lock().expect("server").requests.len();
+        assert!(matches!(reopen(&c), Err(DurableError::Suspended)));
+        assert!(matches!(
+            crate::BootstrapCancellationJournal::open_anchored(
+                &c.path.join("state.redb"),
+                JournalKey::open(&c.path.join("key")).expect("key"),
+                c.identity,
+                client(&c.pin, &c.server, true)
+            ),
+            Err(DurableError::Suspended)
+        ));
+        assert_eq!(
+            c.server.lock().expect("server").requests.len(),
+            count,
+            "ordinary reopen dispatched work"
+        );
+        let old = client(&c.pin, &c.server, true)
+            .exchange(
+                c.subject,
+                AnchorOperation::admit_authority(c.peer.initiator_device().authority_binding())
+                    .expect("old authority"),
+            )
+            .expect("old still current");
+        assert_eq!(old.outcome(), AnchorOutcome::AuthorityCurrent);
+        let target = client(&c.pin, &c.server, true)
+            .exchange(
+                c.subject,
+                AnchorOperation::admit_authority(grant.successor_device().authority_binding())
+                    .expect("target authority"),
+            )
+            .expect("target query");
+        assert_eq!(target.outcome(), AnchorOutcome::AuthorityDenied);
+        assert_eq!(old.observed_head(), proposal.expected_head());
+        assert_eq!(target.observed_head(), proposal.expected_head());
+        // Both policy and credential are expired/closed. Metadata recovery must
+        // remain available, while it never returns an operational owner.
+        c.server.lock().expect("server").now = 301;
+        c.peer.initiator.policy().close();
+        assert_eq!(inspect(&c).expect("historical metadata"), Some(proposal));
+        assert!(matches!(reopen(&c), Err(DurableError::Suspended)));
+        assert_eq!(disk(&c), saved, "recovery must never reseal a target");
+        // The only preparation traffic before explicit admission probes was Query.
+        let server = c.server.lock().expect("server");
+        assert!(server
+            .requests
+            .get(start..count)
+            .expect("preparation request interval")
+            .iter()
+            .all(|wire| request_operation(wire) == AnchorOperation::query()));
+    }
+
+    #[test]
+    fn every_reservation_sync_cut_preserves_original_image_and_never_dispatches_advance() {
+        let mut baseline = case();
+        let grant = grant(&baseline);
+        let (_, count) = fault_owner(&mut baseline, false);
+        count.store(0, Ordering::SeqCst);
+        let measured = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let readback = Arc::clone(&measured);
+        let persisted_count = Arc::clone(&count);
+        write_intent::tests::on_credential_preparation(move || {
+            readback.store(persisted_count.load(Ordering::SeqCst), Ordering::SeqCst);
+        });
+        prepare(&mut baseline, &grant).expect("measured reservation");
+        let barriers = measured.load(Ordering::SeqCst);
+        eprintln!(
+            "preparation reservation syncs: {barriers}; including database drop: {}",
+            count.load(Ordering::SeqCst)
+        );
+        assert!((2..=16).contains(&barriers));
+        let mut retained = 0;
+        let mut absent = 0;
+        for after in [false, true] {
+            for cut in 1..=barriers {
+                let mut c = case();
+                let grant = self::grant(&c);
+                let before = c.journal.image().expect("original");
+                let start = c.server.lock().expect("server").requests.len();
+                let (remaining, _) = fault_owner(&mut c, after);
+                remaining.store(cut, Ordering::SeqCst);
+                crate::durable::tests::assert_sync_failure(prepare(&mut c, &grant), after);
+                assert!(c.journal.active.is_none());
+                assert_eq!(image_hash(&disk(&c).0), before.digest);
+                if let Some(proposal) = inspect(&c).expect("authenticated disposition") {
+                    retained += 1;
+                    assert_eq!(proposal.expected_head().digest(), before.digest);
+                    assert_eq!(proposal.operation(), grant.operation());
+                    assert!(matches!(reopen(&c), Err(DurableError::Suspended)));
+                } else {
+                    absent += 1;
+                    c.journal = reopen(&c).expect("no local intent, original state");
+                    c.journal.close();
+                }
+                only_queries(&c, start);
+            }
+        }
+        assert!(
+            retained > 0 && absent > 0,
+            "both durability outcomes must be observed"
+        );
+    }
+
+    #[test]
+    fn preparation_rejects_wrong_operation_and_inspection_rejects_wrong_scope() {
+        let mut c = case();
+        let grant = grant(&c);
+        assert!(matches!(
+            c.journal.prepare_local_credential_renewal(
+                c.peer.initiator_device(),
+                &grant,
+                CredentialRenewalId::from_trusted_state([220; 32]).expect("other operation"),
+                c.peer.initiator.policy(),
+                150
+            ),
+            Err(DurableError::Conflict)
+        ));
+        assert!(c.journal.active.is_none());
+        assert!(inspect(&c).expect("no local reservation").is_none());
+        c.journal = reopen(&c).expect("unchanged");
+        prepare(&mut c, &grant).expect("original operation");
+        let saved = disk(&c);
+        assert!(matches!(
+            DeviceJournal::inspect_credential_renewal_preparation(
+                &c.path.join("state.redb"),
+                JournalKey::open(&c.path.join("key")).expect("key"),
+                c.peer.initiator_device(),
+                c.peer.initiator.policy(),
+                JournalIdentity::from_trusted_state([222; 32]).expect("other journal")
+            ),
+            Err(DurableError::Conflict)
+        ));
+        assert!(DeviceJournal::inspect_credential_renewal_preparation(
+            &c.path.join("state.redb"),
+            JournalKey::open(&c.path.join("key")).expect("key"),
+            c.peer.local_device(),
+            c.peer.initiator.policy(),
+            c.identity
+        )
+        .is_err());
+        assert!(DeviceJournal::inspect_credential_renewal_preparation(
+            &c.path.join("state.redb"),
+            JournalKey::provision(&c.path.join("wrong-key")).expect("other key"),
+            c.peer.initiator_device(),
+            c.peer.initiator.policy(),
+            c.identity
+        )
+        .is_err());
+        assert_eq!(disk(&c), saved);
+    }
+
+    #[test]
+    fn canonical_proposal_rejects_truncation_zero_binding_and_nonadjacent_heads() {
+        let mut c = case();
+        let grant = grant(&c);
+        let proposal = prepare(&mut c, &grant).expect("proposal");
+        let bytes = proposal.to_bytes();
+        assert_eq!(bytes.len(), 296);
+        assert_eq!(
+            AnchorCredentialRenewalProposal::from_trusted_state(&bytes).expect("canonical"),
+            proposal
+        );
+        for length in 0..bytes.len() {
+            assert!(AnchorCredentialRenewalProposal::from_trusted_state(
+                bytes.get(..length).expect("truncated prefix")
+            )
+            .is_err());
+        }
+        for range in [
+            0..8,
+            8..40,
+            136..168,
+            168..200,
+            248..256,
+            256..264,
+            264..296,
+        ] {
+            let mut changed = bytes.clone();
+            changed.get_mut(range).expect("metadata field").fill(0);
+            assert!(AnchorCredentialRenewalProposal::from_trusted_state(&changed).is_err());
+        }
+        let mut changed = bytes.clone();
+        changed.extend_from_slice(&[0]);
+        assert!(AnchorCredentialRenewalProposal::from_trusted_state(&changed).is_err());
+        let mut changed = bytes.clone();
+        changed
+            .get_mut(256..264)
+            .expect("target revision")
+            .copy_from_slice(&(proposal.target_head().revision() + 1).to_be_bytes());
+        assert!(AnchorCredentialRenewalProposal::from_trusted_state(&changed).is_err());
+    }
+
+    #[test]
+    fn runtime_closure_after_reservation_withholds_fresh_result_and_keeps_exact_intent() {
+        let mut c = case();
+        let grant = grant(&c);
+        let policy_owner = Arc::clone(&c.peer.initiator);
+        write_intent::tests::on_credential_preparation(move || policy_owner.policy().close());
+        assert!(matches!(
+            prepare(&mut c, &grant),
+            Err(DurableError::Protocol(Error::Closed))
+        ));
+        assert!(c.journal.active.is_none());
+        let original = inspect(&c)
+            .expect("historical preparation")
+            .expect("retained exact intent");
+        assert_eq!(original.operation(), grant.operation());
+        assert_eq!(original.statement(), grant.statement_digest());
+        assert!(matches!(reopen(&c), Err(DurableError::Suspended)));
+        assert_eq!(inspect(&c).expect("same preparation"), Some(original));
+    }
+
+    #[test]
+    fn authenticated_marker_changes_cannot_rebind_the_sealed_target() {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let mut c = case();
+        let grant = grant(&c);
+        let proposal = prepare(&mut c, &grant).expect("original preparation");
+        let (image, pending) = disk(&c);
+        let pending = pending.expect("retained wire");
+        for index in [8, 40, 72, pending.len() - 33] {
+            let mut changed = pending
+                .get(..pending.len() - 32)
+                .expect("authenticated body")
+                .to_vec();
+            *changed.get_mut(index).expect("changed field") ^= 1;
+            let key = JournalKey::open(&c.path.join("key")).expect("key");
+            let derived = key.write_intent_key().expect("auth key");
+            let mut auth =
+                <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(derived.as_bytes()).expect("MAC");
+            auth.update(&changed);
+            changed.extend_from_slice(&auth.finalize().into_bytes());
+            {
+                let db = open_private_database(&c.path.join("state.redb")).expect("db");
+                let tx = transaction(&db).expect("transaction");
+                tx.open_table(TABLE)
+                    .expect("table")
+                    .insert("pending", changed.as_slice())
+                    .expect("authenticated adversarial fixture");
+                tx.commit().expect("persist fixture");
+            }
+            assert!(
+                inspect(&c).is_err(),
+                "authenticated change at {index} accepted"
+            );
+            assert_eq!(disk(&c).0, image);
+        }
+        {
+            let db = open_private_database(&c.path.join("state.redb")).expect("db");
+            let tx = transaction(&db).expect("transaction");
+            tx.open_table(TABLE)
+                .expect("table")
+                .insert("pending", pending.as_slice())
+                .expect("restore original intent");
+            tx.commit().expect("restore fixture");
+        }
+        assert_eq!(
+            inspect(&c).expect("original still recoverable"),
+            Some(proposal)
+        );
+    }
+
+    #[test]
+    fn local_only_policy_cannot_create_required_witness_preparation() {
+        let c = case();
+        let grant = grant(&c);
+        let f = crate::bootstrap::tests::fixture(PrekeyQuality::OneTimeBoth);
+        let folder = directory();
+        let path = folder.path().canonicalize().expect("path");
+        let mut journal = crate::durable::tests::new_store(&path, f.initiator_device());
+        assert!(matches!(
+            journal.prepare_local_credential_renewal(
+                f.initiator_device(),
+                &grant,
+                grant.operation(),
+                f.initiator.policy(),
+                150
+            ),
+            Err(DurableError::AnchorRequired)
+        ));
+        assert!(journal.active.is_none());
+        let db = open_private_database(&path.join("state.redb")).expect("db");
+        let key = JournalKey::open(&path.join("key")).expect("key");
+        let (_, pending) =
+            write_intent::load_snapshot(&db, &key, bootstrap::storage_owner(f.initiator_device()))
+                .expect("original local image");
+        assert!(pending.is_none());
+    }
+
+    #[test]
+    fn preparation_crash_child() {
+        let Some(coordination) = std::env::var_os("QPERIAPT_CREDENTIAL_PREPARATION_CHILD") else {
+            return;
+        };
+        let coordination = PathBuf::from(coordination);
+        let mut c = case();
+        assert!(
+            c.path.starts_with(&coordination),
+            "test must own the entire child directory"
+        );
+        fs::write(
+            coordination.join("state-path"),
+            c.path.as_os_str().as_encoded_bytes(),
+        )
+        .expect("private path");
+        fs::write(coordination.join("witness-id"), c.pin.identity().as_bytes())
+            .expect("public pin ID");
+        fs::write(
+            coordination.join("witness-public"),
+            c.pin.public_key().encode(),
+        )
+        .expect("public pin key");
+        let grant = grant(&c);
+        prepare(&mut c, &grant).expect("must be killed before return");
+        fs::write(coordination.join("returned"), b"unexpected").expect("return marker");
+        assert!(
+            !coordination.join("returned").exists(),
+            "crash hook did not stop the original preparation"
+        );
+    }
+
+    #[test]
+    fn process_kill_after_reservation_recovers_exact_target_without_resealing() {
+        use crate::durable::tests::ChildGuard;
+        use std::process::{Command, Stdio};
+        let folder = directory();
+        let root = folder.path().canonicalize().expect("owned parent");
+        let log = fs::File::create(root.join("child.log")).expect("child log");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "durable::anchoring::tests::credential_preparation::preparation_crash_child",
+                    "--nocapture",
+                ])
+                .env("TMPDIR", &root)
+                .env("QPERIAPT_CREDENTIAL_PREPARATION_CHILD", &root)
+                .env("QPERIAPT_JOURNAL_CRASH_DIR", &root)
+                .env("QPERIAPT_WRITE_INTENT_CRASH_PHASE", "credential-renewal")
+                .stdout(Stdio::from(log.try_clone().expect("log clone")))
+                .stderr(Stdio::from(log))
+                .spawn()
+                .expect("owned child"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !root.join("ready").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "child failed before durable marker: {}",
+                fs::read_to_string(root.join("child.log")).expect("log")
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!root.join("returned").exists());
+        child.0.kill().expect("kill original process");
+        assert!(!child.0.wait().expect("reap").success());
+        let path = PathBuf::from(fs::read_to_string(root.join("state-path")).expect("child path"));
+        assert!(path.starts_with(&root));
+        let pin = AnchorPin::new(
+            AnchorIdentity::from_trusted_state(
+                fs::read(root.join("witness-id"))
+                    .expect("ID")
+                    .try_into()
+                    .expect("width"),
+            )
+            .expect("pin ID"),
+            crate::PublicKey::decode(&fs::read(root.join("witness-public")).expect("key"))
+                .expect("pin key"),
+        );
+        let f = fixture_with_anchor_and_budget(
+            PrekeyQuality::OneTimeBoth,
+            AnchorRequirement::required(&pin),
+            crate::ApplicationSendBudget::new(1024).expect("budget"),
+        );
+        let identity = crate::durable::tests::identity(&path);
+        let inspect = || {
+            DeviceJournal::inspect_credential_renewal_preparation(
+                &path.join("state.redb"),
+                JournalKey::open(&path.join("key")).expect("key"),
+                f.initiator_device(),
+                f.initiator.policy(),
+                identity,
+            )
+            .expect("authenticated original")
+            .expect("retained proposal")
+        };
+        let proposal = inspect();
+        assert_eq!(
+            proposal.target_head().digest(),
+            image_hash(&fs::read(root.join("saved-target-image")).expect("sealed target"))
+        );
+        f.initiator.policy().close();
+        assert_eq!(inspect(), proposal);
+        let db = open_private_database(&path.join("state.redb")).expect("db");
+        let read = db.begin_read().expect("read");
+        let table = read.open_table(TABLE).expect("table");
+        assert_eq!(
+            table
+                .get("pending")
+                .expect("lookup")
+                .expect("pending")
+                .value(),
+            fs::read(root.join("saved-write-intent")).expect("original intent")
+        );
+        assert_eq!(
+            image_hash(
+                table
+                    .get("image")
+                    .expect("lookup")
+                    .expect("old image")
+                    .value()
+            ),
+            proposal.expected_head().digest()
+        );
+    }
+}

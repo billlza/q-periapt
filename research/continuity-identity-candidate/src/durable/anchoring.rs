@@ -48,7 +48,7 @@ impl Protection {
             _ => Err(DurableError::Corrupt),
         }
     }
-    fn check_policy(self, policy: &VerifiedSessionPolicy) -> Result<(), DurableError> {
+    pub(super) fn check_policy(self, policy: &VerifiedSessionPolicy) -> Result<(), DurableError> {
         match (self, policy.anchor_requirement().binding()) {
             (Self::Local, None) => Ok(()),
             (

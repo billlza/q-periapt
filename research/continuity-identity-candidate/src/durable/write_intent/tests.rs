@@ -357,14 +357,31 @@ fn intent_authentication_and_full_prior_digest_prevent_grafts_and_forked_writes(
     assert_eq!(disk_image(&active.db), pending.target);
 }
 
+thread_local! {
+    static CREDENTIAL_PREPARATION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+}
+pub(in crate::durable) fn on_credential_preparation(action: impl FnOnce() + 'static) {
+    CREDENTIAL_PREPARATION_HOOK.with(|hook| {
+        assert!(hook.borrow_mut().replace(Box::new(action)).is_none());
+    });
+}
+pub(super) fn after_credential_preparation() {
+    CREDENTIAL_PREPARATION_HOOK.with(|hook| {
+        if let Some(action) = hook.borrow_mut().take() {
+            action();
+        }
+    });
+}
+
 pub(super) fn after_intent(pending: &PendingWrite, image: &Image) {
     let Ok(phase) = std::env::var("QPERIAPT_WRITE_INTENT_CRASH_PHASE") else {
         return;
     };
-    if !image
-        .records
-        .values()
-        .any(|record| phase == (record.phase as u8).to_string())
+    if !(phase == "credential-renewal" && pending.renewal.is_some())
+        && !image
+            .records
+            .values()
+            .any(|record| phase == (record.phase as u8).to_string())
     {
         return;
     }

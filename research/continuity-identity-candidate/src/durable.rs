@@ -702,20 +702,8 @@ impl DeviceJournal {
     }
     fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
         let result = (|| {
-            cancellation::validate_image(image)?;
-            prekeys::validate_image(image)?;
-            messages::validate_image(image)?;
-            rosters::validate_image(image)?;
+            let sealed = self.seal_next_image(image)?;
             let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-            if image.protection != active.protection || image.id != active.id {
-                return Err(DurableError::Conflict);
-            }
-            image.revision = image
-                .revision
-                .checked_add(1)
-                .filter(|v| *v != u64::MAX)
-                .ok_or(DurableError::Capacity)?;
-            let sealed = seal(&active.key, image)?;
             write_intent::commit(active, image, &sealed)?;
             image.digest = image_hash(&sealed);
             active.check_current(image)?;
@@ -727,6 +715,22 @@ impl DeviceJournal {
             self.close();
         }
         result
+    }
+    fn seal_next_image(&self, image: &mut Image) -> Result<Vec<u8>, DurableError> {
+        cancellation::validate_image(image)?;
+        prekeys::validate_image(image)?;
+        messages::validate_image(image)?;
+        rosters::validate_image(image)?;
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        if image.protection != active.protection || image.id != active.id {
+            return Err(DurableError::Conflict);
+        }
+        image.revision = image
+            .revision
+            .checked_add(1)
+            .filter(|v| *v != u64::MAX)
+            .ok_or(DurableError::Capacity)?;
+        seal(&active.key, image)
     }
     fn admission(
         &self,
