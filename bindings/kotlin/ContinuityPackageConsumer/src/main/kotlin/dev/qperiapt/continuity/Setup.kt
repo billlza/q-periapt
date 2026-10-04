@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 package dev.qperiapt.continuity
 
-import java.lang.ref.Reference
-
 internal enum class SetupIntent { CREATE, RESUME }
 class JournalID(bytes: ByteArray) : ContinuityID(bytes)
 enum class InstallationPhase { CREATING, ACTIVE }
@@ -14,76 +12,11 @@ sealed interface InstallationPreparation {
     data class RequiresEnrollment(val genesis: WitnessGenesis) : InstallationPreparation
 }
 
-/** Move the existing owning reference, preserving its one Cleaner and immutable
- * handle. No native call or release runs under this cell's monitor.
- */
-private class SetupReference(private var native: NativeOwner?) {
-    private val monitor = Any()
-    private var borrowed = 0
-    private var transferring = false
-    private var transferred = false
-    private fun closed() = ContinuityFailure("setup", 2, "setup owner is closed or transferred", false)
-    private fun busy() = ContinuityFailure("setup", 3, "setup owner has an active call or transfer", false)
-    fun <T> call(cancellation: Boolean = false, body: (NativeOwner) -> T): T {
-        val owner = synchronized(monitor) {
-            val owner = native ?: throw closed()
-            if (transferring && !cancellation) throw busy()
-            borrowed += 1
-            owner
-        }
-        try { return body(owner) } finally {
-            synchronized(monitor) { borrowed -= 1 }
-            Reference.reachabilityFence(owner)
-            Reference.reachabilityFence(this)
-        }
-    }
-    fun <T> transfer(body: (NativeOwner) -> T): T {
-        val owner = synchronized(monitor) {
-            val owner = native ?: throw closed()
-            if (transferring || borrowed != 0) throw busy()
-            transferring = true
-            owner
-        }
-        try {
-            val successor = body(owner)
-            synchronized(monitor) {
-                native = null
-                transferred = true
-            }
-            return successor
-        } finally {
-            synchronized(monitor) { transferring = false }
-            Reference.reachabilityFence(owner)
-            Reference.reachabilityFence(this)
-        }
-    }
-    fun close() {
-        val owner = synchronized(monitor) {
-            if (transferred) return
-            val owner = native ?: throw closed()
-            if (transferring) throw busy()
-            borrowed += 1
-            owner
-        }
-        try {
-            try { owner.close() } catch (failure: ContinuityFailure) {
-                if (failure.code == 2) synchronized(monitor) { native = null }
-                throw failure
-            }
-            synchronized(monitor) { native = null }
-        } finally {
-            synchronized(monitor) { borrowed -= 1 }
-            Reference.reachabilityFence(owner)
-            Reference.reachabilityFence(this)
-        }
-    }
-}
-
 /** Explicit original installation setup over independently prepared key,
  * credential, policy and TLS inputs. It grants no peer/message authority.
  */
 class ContinuitySetup private constructor(native: NativeOwner) : AutoCloseable {
-    private val reference = SetupReference(native)
+    private val reference = OwnerTransfer(native, "setup")
     companion object {
         private fun prepare(path: String, witness: WitnessCarrier, intent: SetupIntent): ContinuitySetup =
             NativeOwner.prepare(path, 3, 0, witness, ::ContinuitySetup, setup = intent)

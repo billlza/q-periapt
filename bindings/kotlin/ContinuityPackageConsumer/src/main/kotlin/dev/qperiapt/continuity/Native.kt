@@ -14,6 +14,7 @@ import java.lang.foreign.ValueLayout.JAVA_LONG
 import java.lang.foreign.ValueLayout.JAVA_SHORT
 import java.lang.invoke.MethodHandles
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
@@ -45,6 +46,14 @@ internal object ContinuityNative {
     private val setupStatusLayout = struct("phase" to JAVA_INT, "journal" to array(32))
     private val setupPreparationLayout = struct("protection" to JAVA_INT, "journal" to array(32),
         "subject" to array(96), "image_digest" to array(32))
+    private val enrollmentIntentLayout = struct("root" to ADDRESS, "root_length" to JAVA_LONG,
+        "device" to array(16), "generation" to JAVA_LONG, "family" to array(32), "valid_from" to JAVA_LONG, "valid_until" to JAVA_LONG)
+    private val checkpointLayout = struct("version" to JAVA_LONG, "digest" to array(32))
+    private val enrollmentPinLayout = struct("account" to array(32), "root" to ADDRESS, "root_length" to JAVA_LONG,
+        "family" to array(32), "checkpoint" to checkpointLayout)
+    private val enrollmentStatusLayout = struct("phase" to JAVA_INT, "signing" to array(32), "journal" to array(32),
+        "previous" to checkpointLayout, "next" to checkpointLayout)
+    private val enrollmentRequestLayout = struct("length" to JAVA_INT, "bytes" to array(8192))
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -90,9 +99,18 @@ internal object ContinuityNative {
     private val prepareReopen = function("qpc_owner_v1_prepare_reopen", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val prepareCreateSetup = function("qpc_setup_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val prepareResumeSetup = function("qpc_setup_v1_prepare_resume", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val prepareCreateEnrollment = function("qpc_enrollment_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
+    private val prepareResumeEnrollment = function("qpc_enrollment_v1_prepare_resume", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
+        "enrollment_key" to function("qpc_enrollment_v1_provision_wrapping_key", ADDRESS, JAVA_LONG, ADDRESS),
+        "enrollment_status" to function("qpc_enrollment_v1_status", JAVA_LONG, ADDRESS, ADDRESS),
+        "enrollment_request" to function("qpc_enrollment_v1_request", JAVA_LONG, ADDRESS, ADDRESS),
+        "enrollment_accept" to function("qpc_enrollment_v1_accept", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "enrollment_storage" to function("qpc_enrollment_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
+        "enrollment_refresh" to function("qpc_enrollment_v1_refresh_roster", JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "enrollment_activate" to function("qpc_enrollment_v1_activate", JAVA_LONG, ADDRESS),
         "setup_status" to function("qpc_setup_v1_status", JAVA_LONG, ADDRESS, ADDRESS),
         "setup_storage" to function("qpc_setup_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
         "setup_activate" to function("qpc_setup_v1_activate", JAVA_LONG, ADDRESS),
@@ -183,8 +201,12 @@ internal object ContinuityNative {
         if (it !in 1..8) malformed("native exchange count differs")
     }
     @JvmSynthetic internal fun prepare(path: String, kind: Int, quality: Int, carrier: WitnessCarrier,
-                                       session: SessionID? = null, setup: SetupIntent? = null): Long {
+                                       session: SessionID? = null, setup: SetupIntent? = null,
+                                       enrollment: EnrollmentPreparation? = null): Long {
         require(setup == null || session == null) { "setup cannot select a session" }
+        require(enrollment == null || (session == null && setup == null && kind == 3 && quality == 0)) {
+            "registration requires its own original device preparation"
+        }
         val encoded = text(path, 4096)
         return Arena.ofConfined().use { arena ->
             val options = arena.allocate(optionsLayout)
@@ -213,12 +235,18 @@ internal object ContinuityNative {
             options.set(ADDRESS, offset(optionsLayout, "witness"), witness)
             val output = arena.allocate(JAVA_LONG)
             val error = arena.allocate(errorLayout)
-            val operation = when (setup) {
+            val operation = if (enrollment != null) {
+                if (enrollment.action == SetupIntent.CREATE) "enrollment_prepare_create" else "enrollment_prepare_resume"
+            } else when (setup) {
                 SetupIntent.CREATE -> "setup_prepare_create"
                 SetupIntent.RESUME -> "setup_prepare_resume"
                 null -> if (session == null) "prepare_open" else "prepare_reopen"
             }
-            val code = if (setup != null) {
+            val code = if (enrollment != null) {
+                val intent = encodeEnrollmentIntent(arena, enrollment.intent)
+                val selected = if (enrollment.action == SetupIntent.CREATE) prepareCreateEnrollment else prepareResumeEnrollment
+                selected.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), intent, options, output, error) as Int
+            } else if (setup != null) {
                 val selected = if (setup == SetupIntent.CREATE) prepareCreateSetup else prepareResumeSetup
                 selected.invokeWithArguments(arena.bytes(encoded), encoded.size.toLong(), options, output, error) as Int
             } else if (session == null) {
@@ -266,6 +294,106 @@ internal object ContinuityNative {
     }
     @JvmSynthetic internal fun setupStorage(handle: Long): InstallationPreparation = record(handle, "setup_storage", setupPreparationLayout) {
         decodeSetupPreparation(it.integer("protection"), it.bytes("journal", 32), it.bytes("subject", 96), it.bytes("image_digest", 32))
+    }
+    private fun MemorySegment.put(layout: MemoryLayout, field: String, value: ByteArray) {
+        asSlice(offset(layout, field), value.size.toLong()).copyFrom(MemorySegment.ofArray(value))
+    }
+    private fun encodeEnrollmentIntent(arena: Arena, intent: EnrollmentIntent): MemorySegment =
+        arena.allocate(enrollmentIntentLayout).also { output ->
+            val root = intent.root.encoded()
+            output.set(ADDRESS, offset(enrollmentIntentLayout, "root"), arena.bytes(root))
+            output.set(JAVA_LONG, offset(enrollmentIntentLayout, "root_length"), root.size.toLong())
+            output.put(enrollmentIntentLayout, "device", intent.device.encoded())
+            output.set(JAVA_LONG, offset(enrollmentIntentLayout, "generation"), intent.generation.bits())
+            output.put(enrollmentIntentLayout, "family", intent.family.encoded())
+            output.set(JAVA_LONG, offset(enrollmentIntentLayout, "valid_from"), intent.validFrom.bits())
+            output.set(JAVA_LONG, offset(enrollmentIntentLayout, "valid_until"), intent.validUntil.bits())
+        }
+    private fun encodeCheckpoint(arena: Arena, checkpoint: RosterCheckpoint): MemorySegment = arena.allocate(checkpointLayout).also {
+        it.set(JAVA_LONG, offset(checkpointLayout, "version"), checkpoint.version.bits())
+        it.put(checkpointLayout, "digest", checkpoint.digest.encoded())
+    }
+    private fun encodeAccountPin(arena: Arena, pin: AccountPin): MemorySegment = arena.allocate(enrollmentPinLayout).also {
+        val root = pin.root.encoded()
+        it.put(enrollmentPinLayout, "account", pin.account.encoded())
+        it.set(ADDRESS, offset(enrollmentPinLayout, "root"), arena.bytes(root))
+        it.set(JAVA_LONG, offset(enrollmentPinLayout, "root_length"), root.size.toLong())
+        it.put(enrollmentPinLayout, "family", pin.family.encoded())
+        it.asSlice(offset(enrollmentPinLayout, "checkpoint"), checkpointLayout.byteSize()).copyFrom(encodeCheckpoint(arena, pin.checkpoint))
+    }
+    @JvmSynthetic internal fun enrollmentKey(path: String) {
+        val encoded = text(path, 4096)
+        Arena.ofConfined().use { invoke(it, "enrollment_key", it.bytes(encoded), encoded.size.toLong()) }
+    }
+    @JvmSynthetic internal fun decodeEnrollmentStatus(phase: Int, signing: ByteArray, journal: ByteArray,
+                                                      previous: ByteArray, next: ByteArray): EnrollmentStatus {
+        if (signing.size != 32 || signing.all { it == 0.toByte() } || journal.size != 32
+            || previous.size != 40 || next.size != 40) malformed("native enrollment status width or signing ID differs")
+        val selected = when (phase) {
+            1 -> EnrollmentPhase.PREPARING
+            2 -> EnrollmentPhase.REQUESTED
+            3 -> EnrollmentPhase.ACCEPTED
+            4 -> EnrollmentPhase.ACTIVATING
+            5 -> EnrollmentPhase.ACTIVE
+            6 -> EnrollmentPhase.REFRESHING
+            else -> malformed("native enrollment phase differs")
+        }
+        val hasJournal = journal.any { it != 0.toByte() }
+        if (hasJournal != (phase >= 3)) malformed("native enrollment journal presence differs")
+        val transition = if (phase == 6) {
+            fun checkpoint(bytes: ByteArray): RosterCheckpoint {
+                val version = Counter64.fromBits(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).long)
+                val digest = bytes.copyOfRange(8, 40)
+                if (version == Counter64.ZERO || version.bits() == -1L || digest.all { it == 0.toByte() }) {
+                    malformed("native enrollment checkpoint differs")
+                }
+                return RosterCheckpoint(version, digest)
+            }
+            val before = checkpoint(previous); val after = checkpoint(next)
+            if (before.version >= after.version) malformed("native enrollment refresh is not increasing")
+            RosterTransition(before, after)
+        } else {
+            if (previous.any { it != 0.toByte() } || next.any { it != 0.toByte() }) malformed("unexpected native roster transition")
+            null
+        }
+        return EnrollmentStatus(selected, SigningKeyID(signing), if (hasJournal) JournalID(journal) else null, transition)
+    }
+    private fun decodeEnrollmentStatus(fields: Fields): EnrollmentStatus = decodeEnrollmentStatus(
+        fields.integer("phase"), fields.bytes("signing", 32), fields.bytes("journal", 32),
+        fields.bytes("previous", 40), fields.bytes("next", 40))
+    @JvmSynthetic internal fun enrollmentStatus(handle: Long): EnrollmentStatus =
+        record(handle, "enrollment_status", enrollmentStatusLayout, decode = ::decodeEnrollmentStatus)
+    @JvmSynthetic internal fun decodeEnrollmentRequest(length: Int, bytes: ByteArray): PublicBytes {
+        if (bytes.size != 8192 || length !in 1..8192 || bytes.drop(length).any { it != 0.toByte() }) {
+            malformed("native enrollment request length or unused tail differs")
+        }
+        return PublicBytes(bytes.copyOfRange(0, length))
+    }
+    @JvmSynthetic internal fun enrollmentRequest(handle: Long): PublicBytes = record(handle, "enrollment_request", enrollmentRequestLayout) {
+        decodeEnrollmentRequest(it.integer("length"), it.bytes("bytes", 8192))
+    }
+    @JvmSynthetic internal fun enrollmentAccept(handle: Long, certificate: ByteArray, roster: ByteArray, pin: AccountPin): JournalID {
+        require(certificate.size in 1..8192 && roster.size in 1..8192) { "invalid enrollment response length" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(32)
+            invoke(arena, "enrollment_accept", handle, arena.bytes(certificate), certificate.size.toLong(),
+                   arena.bytes(roster), roster.size.toLong(), encodeAccountPin(arena, pin), output)
+            val journal = output.toArray(JAVA_BYTE)
+            if (journal.all { it == 0.toByte() }) malformed("native enrollment accepted a zero journal")
+            JournalID(journal)
+        }
+    }
+    @JvmSynthetic internal fun enrollmentStorage(handle: Long): InstallationPreparation = record(handle, "enrollment_storage", setupPreparationLayout) {
+        decodeSetupPreparation(it.integer("protection"), it.bytes("journal", 32), it.bytes("subject", 96), it.bytes("image_digest", 32))
+    }
+    @JvmSynthetic internal fun enrollmentRefresh(handle: Long, previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin): EnrollmentStatus {
+        require(roster.size in 1..8192) { "invalid enrollment roster length" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(enrollmentStatusLayout)
+            invoke(arena, "enrollment_refresh", handle, encodeCheckpoint(arena, previous), arena.bytes(roster),
+                   roster.size.toLong(), encodeAccountPin(arena, pin), output)
+            decodeEnrollmentStatus(Fields(output, enrollmentStatusLayout))
+        }
     }
     @JvmSynthetic internal fun preparePeer(parent: Long, path: String, quality: PrekeyQuality,
                                            role: BootstrapRole, session: SessionID?): Long {
@@ -639,6 +767,8 @@ internal object ContinuityNative {
         }
     @JvmSynthetic internal fun layouts(): Map<String, Pair<Long, Long>> = mapOf(
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
+        "enrollment_intent" to enrollmentIntentLayout, "checkpoint" to checkpointLayout, "enrollment_pin" to enrollmentPinLayout,
+        "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,
         "setup_status" to setupStatusLayout, "setup_preparation" to setupPreparationLayout,
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,

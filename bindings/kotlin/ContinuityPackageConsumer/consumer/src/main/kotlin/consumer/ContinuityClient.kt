@@ -51,11 +51,24 @@ private fun run(arguments: List<String>): String {
             else WitnessCarrier.MutualTLS(args[1], 3000)
         args = args.drop(2)
     }
+    val enrolled = if (args.firstOrNull() == "--enrollment-parent") {
+        require(args.size >= 6) { "registered parent arguments" }
+        val role = when (args[2]) {
+            "1" -> BootstrapRole.INITIATOR
+            "2" -> BootstrapRole.RESPONDER
+            else -> error("invalid registered parent role")
+        }
+        (args[1] to role).also { args = args.drop(3) }
+    } else null
     val existing = if (args.firstOrNull() == "--session") {
         require(args.size >= 4) { "existing session arguments" }
         SessionID(decode(args[1])).also { args = args.drop(2) }
     } else null
     require(args.isNotEmpty()) { "command required" }
+    require(enrolled == null || (!inFlightGC && !interruptOpening && args[0] in setOf(
+        "connect", "next", "send", "uncertain-send", "status", "rekey", "serve", "serve-rekey",
+        "busy-cancel", "cancel-send", "reject-open", "witness-failed-send"))) { "registered parent requires an ordinary peer operation" }
+
     require(existing == null || (!inFlightGC && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
         "existing session requires an ordinary operational command"
     }
@@ -79,6 +92,10 @@ private fun run(arguments: List<String>): String {
         return serveUnrooted(args[1], args[2], args.getOrNull(3), witness)
     }
     if (args[0].startsWith("opening-")) return opening(args, witness, interruptOpening, existing)
+    if (args[0].startsWith("enrollment-")) {
+        require(existing == null && enrolled == null)
+        return enrollment(args, witness)
+    }
     if (args[0].startsWith("setup-")) {
         require(existing == null)
         return setup(args, witness)
@@ -88,7 +105,15 @@ private fun run(arguments: List<String>): String {
         require(existing == null)
         return account(args, witness)
     }
-    fun openConfigured(): ContinuityOwner = if (existing == null) {
+    return if (enrolled == null) ordinary(args, witness, existing)
+        else enrollmentParent(enrolled.first, witness).use { ordinary(args, witness, existing, it, enrolled.second) }
+}
+private fun ordinary(args: List<String>, witness: WitnessCarrier, existing: SessionID?,
+                     device: ContinuityDevice? = null, role: BootstrapRole = BootstrapRole.INITIATOR): String {
+    fun openConfigured(): ContinuityOwner = if (device != null) {
+        if (existing == null) device.openPeer(args[1], PrekeyQuality.ONE_TIME_BOTH, role)
+        else device.reopenPeer(args[1], PrekeyQuality.ONE_TIME_BOTH, role, existing)
+    } else if (existing == null) {
         ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness)
     } else {
         ContinuityOwner.reopen(args[1], PrekeyQuality.ONE_TIME_BOTH, existing, witness)
@@ -162,7 +187,7 @@ private fun run(arguments: List<String>): String {
         }
     }.let { result ->
         if (result == "cancelled-committed") {
-            ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness).use {
+            openConfigured().use {
                 check(it.messageStatus(SessionID(decode(args[3])), MessageID(decode(args[4]))) == MessageStatus.COMMITTED)
             }
             "cancelled-committed-reopened"

@@ -7,6 +7,40 @@ or an addition to ABI 2. The manifest declares a macOS 13 source floor; executio
 qualifies only the actual host. Minimum OS, iOS and Linux runtime coverage need
 their own results.
 
+`ContinuityEnrollment` exposes the native original registration transaction.
+First provision the wrapping key explicitly, then call `prepareCreate` with an
+independently approved `EnrollmentIntent`, followed by `finishOpen` and `request`.
+The request is owned public proof-of-possession bytes; the application must
+separately authenticate enrollment with its authority. Pass the signed credential
+and roster to `accept(certificate:roster:pin:)` with a separately trusted current
+`AccountPin`. `prepareStorage` returns the original witness genesis when required;
+the operator must enroll or refresh that witness independently.
+
+`status` preserves all six phases and the original `SigningKeyID`. Its journal is
+absent only in Preparing/Requested; previous/next roster checkpoints exist only
+in Refreshing. Active is a durable observation, not a live authorization receipt.
+`refreshRoster` retains one same-credential target and requires `activate` to finish
+its journal and witness checks. It cannot replace credentials, keys, roots or
+policies, or renew an expired credential. Status/request require no SDK policy or
+TLS files; acceptance needs policy and activation additionally needs TLS inputs.
+
+Successful enrollment activation transfers the same `NativeOwner` to
+`ContinuityDevice`. Closing or releasing the old registration cannot close its
+successor. Keep using that device's peer creation/reopen methods; opening a legacy
+installation is not registration recovery. An admitted failure can leave committed
+state but returns no device: close the retained registration reference and use
+`prepareResume` with the exact original intent. Never regenerate keys or IDs after
+an unknown result. Input-shape and admission Busy/Capacity refusals preserve the
+handle. Pre-admission cancellation may retain its lease until close. Cancellation
+during transfer stays concurrent and may affect a successful successor; join it
+before use. The shared transfer cell performs no native call while holding its lock.
+
+The registration bridge's local tests cover C layouts, strict phase/request
+decoding, owned input bytes, shared capacity, real protected request persistence,
+and disposal/reopen after failed activation. Installed Swift connection, successful
+ARC transfer, witness cancellation and full registration qualification require
+their separate execution evidence; these tests do not establish those gates.
+
 `ContinuityOwner.prepare` snapshots bounded original-installation configuration
 without opening storage. `finishOpen` activates that same owner synchronously.
 Another thread can cancel while it is opening. Failed activation leaves only

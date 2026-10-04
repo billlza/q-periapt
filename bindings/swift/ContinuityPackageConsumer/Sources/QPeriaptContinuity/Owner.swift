@@ -14,6 +14,7 @@ public struct ContinuityFailure: Error, Sendable, Equatable, CustomStringConvert
 
 public enum ContinuityBoundaryError: Error, Sendable, Equatable {
     case inputLength, invalidText, invalidCommitStatus, malformedDiagnostic, malformedOutput
+    case invalidEnrollmentInput
 }
 
 func checked(_ code: Int32, _ error: inout qpc_error_v1) throws {
@@ -117,7 +118,11 @@ final class NativeOwner: Sendable {
     /// operations. A cancelled or failed activation never gains operational authority.
     static func prepare(path: String, kind: UInt32, quality: UInt32,
                         witness: WitnessCarrier, session: SessionID? = nil,
-                        setup: SetupIntent? = nil) throws -> NativeOwner {
+                        setup: SetupIntent? = nil,
+                        enrollment: (SetupIntent, EnrollmentIntent)? = nil) throws -> NativeOwner {
+        guard [session != nil, setup != nil, enrollment != nil].filter({ $0 }).count <= 1 else {
+            throw ContinuityBoundaryError.invalidEnrollmentInput
+        }
         let pathBytes = try textBytes(path, maximum: 4096)
         var handle: UInt64 = 0
         var error = qpc_error_v1()
@@ -125,6 +130,18 @@ final class NativeOwner: Sendable {
             var options = qpc_open_options_v1(kind: kind, quality: quality,
                                              carrier: carrier, witness: witness)
             let code = pathBytes.withUnsafeBufferPointer { path in
+                if let (selection, approved) = enrollment {
+                    return approved.withNative { intent in
+                        switch selection {
+                        case .create:
+                            return qpc_enrollment_v1_prepare_create(path.baseAddress, path.count, intent,
+                                &options, &handle, &error)
+                        case .resume:
+                            return qpc_enrollment_v1_prepare_resume(path.baseAddress, path.count, intent,
+                                &options, &handle, &error)
+                        }
+                    }
+                }
                 if let setup {
                     switch setup {
                     case .create:

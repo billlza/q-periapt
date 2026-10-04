@@ -108,12 +108,12 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_gc_execution(changed)
 
     def test_every_owner_test_must_execute_without_skips_or_diagnostics(self):
-        suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="15",
+        suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="19",
                            failures="0", errors="0", skipped="0")
         for name in sorted(kotlin.TEST_NAMES):
             ET.SubElement(suite, "testcase", name=name + "()", classname=suite.get("name"))
         data = ET.tostring(suite)
-        self.assertEqual(kotlin.verify_tests(data)["tests"], 15)
+        self.assertEqual(kotlin.verify_tests(data)["tests"], 19)
         suite.remove(suite[0])
         with self.assertRaisesRegex(ValueError, "did not all execute"):
             kotlin.verify_tests(ET.tostring(suite))

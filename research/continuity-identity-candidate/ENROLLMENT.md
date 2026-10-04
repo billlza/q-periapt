@@ -101,7 +101,7 @@ explicit first-use intent, before any released request or active identity. A
 published configuration is always reopened; an active missing identity is never
 replaced. Unpublished staging may survive either an error or process interruption. See [signing-owner recovery](SIGNING_OWNERS.md).
 Hardware key storage, orphan maintenance, independent authority transport,
-Swift/Kotlin registration, Android/WASM persistence, current device runs and
+all-language archive qualification, Android/WASM persistence, current device runs and
 complete replacement/upgrade remain open.
 
 The regression suite covers actual signature/policy checks, real SDK prekey work,
@@ -191,3 +191,13 @@ committed Active. SDK policy/store, application TLS configuration and independen
 authority transport remain application integration inputs. See
 [the C entry sequence](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device)
 and its header for input lifetimes, exact disposal and cancellation behavior.
+
+Swift and Kotlin wrap this same C transaction with immutable public inputs and
+six-phase status validation. Their setup/registration transfer cell moves one
+native owning reference into the device only after successful activation; neither
+ARC nor Cleaner owns a second wrapper for the same raw handle. On failed transfer,
+the original language reference remains available for disposal. Successful transfer
+makes closing an old registration alias harmless to the device. The package gate
+requires observed old-wrapper release, separate-process lease exclusion, original
+session retry and both witness carriers. These finite checks do not provide
+Android/browser persistence or credential/root/policy replacement.

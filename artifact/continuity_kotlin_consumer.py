@@ -48,6 +48,10 @@ TEST_NAMES = frozenset({
     "pendingSetupSharesCapacityAndCannotActivateAfterCancellation",
     "installationStatusRejectsUnknownPhaseAndZeroJournal",
     "originalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata",
+    "enrollmentCopiesApprovedInputsAndRejectsInvalidScope",
+    "enrollmentPhaseAndRequestDecodingRefuseContradictoryNativeOutput",
+    "pendingEnrollmentSharesCapacityAndCancellationConsumesOnlyAdmission",
+    "originalEnrollmentRequestPersistsWithoutPolicyOrTlsConfiguration",
 })
 
 
@@ -407,6 +411,21 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 exported = export_selected(checked, evidence, output / "kotlin-public" / label / profile, SCOPE,
                                             replay=lambda path: verify(stdout, path))
                 traces[label] = {"execution": checked, "public_files": exported}
+            from continuity_c_enrollment import qualify_foreign as qualify_enrollment
+            enrollment = {}
+            for collector in ("Serial", "G1"):
+                enrollment_launcher = installed / ("client-enrollment-" + collector.lower())
+                command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC", *argv[1:]]
+                with enrollment_launcher.open("x") as stream:
+                    stream.write("#!/bin/sh\nexec " + shlex.join(command) + ' "$@"\n')
+                enrollment_launcher.chmod(0o700)
+                enrollment_digest = sdk.snapshot(enrollment_launcher).sha256
+                enrollment_runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(enrollment_launcher),
+                                          QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin")
+                enrollment[collector] = qualify_enrollment(outside, output, profile, enrollment_runtime, row, run,
+                                                           language="Kotlin", collector=collector)
+                sdk.require(sdk.snapshot(enrollment_launcher).sha256 == enrollment_digest,
+                            "Kotlin enrollment launcher changed during execution")
             accounts = {}
             for collector in ("Serial", "G1"):
                 account_launcher = installed / ("client-account-" + collector.lower())
@@ -581,6 +600,13 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuitySetup(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuitySetup")
             sdk.require(not (installed / "negative-setup-classes/RawSetupProbe.class").exists(),
                         "raw-setup negative control produced an executable class")
+            raw_enrollment = installed / "RawEnrollmentProbe.java"
+            sdk.copy(consumer / "negative/RawEnrollmentProbe.java.txt", raw_enrollment)
+            run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                 "-d", str(installed / "negative-enrollment-classes"), str(raw_enrollment)], "negative-raw-enrollment-" + profile,
+                rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityEnrollment")
+            sdk.require(not list((installed / "negative-enrollment-classes").glob("**/*.class")),
+                        "raw-enrollment negative control produced an executable class")
             raw_native = installed / "RawNativeOwnerProbe.java"
             sdk.copy(consumer / "negative/RawNativeOwnerProbe.java.txt", raw_native)
             run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
@@ -605,7 +631,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "native_library_sha256": library.sha256, "runtime_closure": resolved,
                 "jars": jar_files, "launcher": {"path": str(launcher), "sha256": launcher_sha}, "traces": traces,
-                "owner_tests": owner_tests, "witnessed": witnessed,
+                "owner_tests": owner_tests, "witnessed": witnessed, "enrollment": enrollment,
                 "restoration": {"execution": restored, "public_files": restored_files},
                 "restoration_opening": {"execution": restore_opening, "public_files": restore_opening_files},
                 "prepared_owner_gc": gc_execution,
@@ -613,7 +639,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,
-                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-setup-construction", "raw-native-owner-construction"]}
+                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-setup-construction", "raw-enrollment-construction", "raw-native-owner-construction"]}
         sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
                     "Kotlin sources or tool installation changed during qualification")
         result["completed"] = True

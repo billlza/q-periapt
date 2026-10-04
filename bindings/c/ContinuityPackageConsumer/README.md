@@ -69,8 +69,9 @@ Mandatory package workloads check original request/identity retention, separate
 process lease exclusion, child/parent disposal, real TLS delivery with a lost
 application receipt, same-session roster continuation, signed-TCP cancellation
 and current-authority denial over both TCP and mutual TLS. Public readback is
-structural; native endpoints verify signatures. Swift/Kotlin registration,
-Android/WASM persistence and complete replacement/upgrade remain open.
+structural; native endpoints verify signatures. Swift/Kotlin add typed owners over
+this registration contract, with their own archive/ARC/GC gates. Current-source
+devices, Android/WASM persistence and complete replacement/upgrade remain open.
 
 ## Preconfigured installation and peer owners
 

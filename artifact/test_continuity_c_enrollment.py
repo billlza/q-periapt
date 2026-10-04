@@ -1,5 +1,6 @@
 """Synthetic parser controls; real signatures and execution are separate gates."""
 from pathlib import Path
+import json
 import tempfile
 import unittest
 
@@ -215,6 +216,57 @@ class CWitnessEnrollmentEvidenceTests(unittest.TestCase):
                     with self.subTest(name=name), self.assertRaises(ValueError):
                         enrollment.verify_witness(stdout, root, carrier)
                     path.write_bytes(saved)
+
+
+class ForeignEnrollmentEvidenceTests(unittest.TestCase):
+    def test_language_cannot_be_inferred_from_the_common_native_test_name(self):
+        for carrier in ("local", "signed-tcp", "mutual-tls"):
+            for language, marker in (("Swift", b"old-registration-released original-device-live\n"),
+                                     ("Kotlin", b"old-registration-collected original-device-live\n")):
+                with self.subTest(carrier=carrier, language=language), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    if carrier == "local":
+                        fixture(root); stdout = STDOUT; prefix = "enrolled"
+                        verify = lambda path, selected: enrollment.verify_execution(stdout, path, language=selected)
+                    else:
+                        stdout = witness_fixture(root, carrier); prefix = "enrolled-witness"
+                        verify = lambda path, selected: enrollment.verify_witness(stdout, path, carrier, language=selected)
+                    verify(root, "C")
+                    with self.assertRaises(ValueError): verify(root, language)
+                    path = root / prefix / (language.lower() + "-enrollment-transfer")
+                    path.write_bytes(marker)
+                    result = verify(root, language)
+                    self.assertEqual(result["language"], language)
+                    self.assertTrue(result["original_owner_transfer"])
+                    self.assertIn(language, result["scope"])
+                    self.assertIn(str(path.relative_to(root)), result["public_readbacks"])
+                    if carrier == "local":
+                        exported = enrollment.export(stdout, root, root / "export", language=language)
+                    else:
+                        exported = enrollment.export_witness(stdout, root, root / "export", carrier, language=language)
+                    self.assertEqual(exported, result)
+                    self.assertEqual(verify(root / "export", language), result)
+                    path.write_bytes(b"device-created\n")
+                    with self.assertRaises(ValueError): verify(root, language)
+                    with self.assertRaises(ValueError): verify(root, "unknown")
+
+    def test_changed_native_harness_refuses_before_executing_foreign_client(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(); outside = root / "outside"; output = root / "output"
+            output.mkdir(); build = outside / "build/debug"; (build / "deps").mkdir(parents=True)
+            consumer = outside / "c-consumer"
+            binary = build / "deps/enrollment-exact"; binary.write_bytes(b"x")
+            message = dict(reason="compiler-artifact", target=dict(name="enrollment", kind=["test"],
+                src_path=str(consumer / "tests/enrollment.rs")), executable=str(binary))
+            (output / "c-enrollment-build-debug.stdout").write_text(json.dumps(message) + "\n")
+            def forbidden(*args, **kwargs):
+                self.fail("changed harness was executed")
+            with self.assertRaisesRegex(ValueError, "harness changed before execution"):
+                enrollment.qualify_foreign(outside, output, "debug", {},
+                    {"enrollment": {"binary": {"sha256": "0" * 64, "bytes": 1}}}, forbidden, language="Swift")
+            for language, collector in (("C", ""), ("Kotlin", ""), ("Swift", "G1"), ("Kotlin", "unknown")):
+                with self.subTest(language=language, collector=collector), self.assertRaisesRegex(ValueError, "unqualified"):
+                    enrollment.qualify_foreign(outside, output, "debug", {}, {}, forbidden, language=language, collector=collector)
 
 
 if __name__ == "__main__": unittest.main()

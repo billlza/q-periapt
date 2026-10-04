@@ -60,11 +60,17 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "DeviceTests.testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes",
              "SetupTests.testPendingSetupSharesCapacityAndCannotActivateAfterCancellation",
              "SetupTests.testInstallationStatusRejectsUnknownPhaseAndZeroJournal",
-             "SetupTests.testOriginalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata"}
+             "SetupTests.testOriginalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata",
+             "EnrollmentTests.testNativeEnrollmentLayoutsMatchHeader",
+             "EnrollmentTests.testSixPhasesRejectImpossibleIdentityAndCheckpointCombinations",
+             "EnrollmentTests.testRequestRejectsTruncationAndUnexpectedTail",
+             "EnrollmentTests.testApprovedValuesOwnBytesAndPreserveUnsignedCounters",
+             "EnrollmentTests.testPreparationCopiesIntentAndNativeRequestSurvivesFailedActivation",
+             "EnrollmentTests.testPendingRegistrationSharesQuotaAndPreservesCloseAfterRefusal"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
-                and "Executed 18 tests, with 0 failures" in text,
+                and f"Executed {len(tests)} tests, with 0 failures" in text,
                 "Swift owner tests did not all execute")
 
 
@@ -173,6 +179,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             from continuity_c_witness import export_selected
             public_files = export_selected(checked, evidence, exported, SCOPE,
                                            replay=lambda path: verify_execution(stdout, path))
+            from continuity_c_enrollment import qualify_foreign as qualify_enrollment
+            enrollment = qualify_enrollment(outside, output, profile, runtime, row, run, language="Swift")
             from continuity_c_account import TEST as ACCOUNT_TEST, SCOPE as ACCOUNT_SCOPE, verify_execution as verify_account
             account_evidence = outside / ("swift-" + profile + "-account-runtime")
             runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(account_evidence)
@@ -282,7 +290,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             result["profiles"][profile] = {"archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
-                "execution": checked, "public_files": public_files,
+                "execution": checked, "public_files": public_files, "enrollment": enrollment,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned, "setup": configured, "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,

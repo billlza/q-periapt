@@ -77,6 +77,18 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+A subsequent Swift/Kotlin integration adds typed original registration,
+independent trust inputs and same-credential roster continuation. It reuses the
+existing owner-transfer mechanism: successful activation retains the whole native
+enrollment owner in the device while the old language wrapper can be released.
+Current development checks cover 24 Swift and 19 Kotlin tests, plus local,
+signed-TCP and mutual-TLS authority traces; Kotlin executes these under both
+Serial and G1. The archive gate now requires these three traces per profile,
+language-specific ARC/GC readback and Java refusal of raw enrollment construction.
+Those development runs do not replace fresh installed-package qualification,
+supported-version devices, Android/WASM persistence or the complete replacement
+and upgrade lifecycle.
+
 A subsequent C integration exposes original native enrollment through nine
 additional exports (64 in the unpublished `qpc-owner/1` interface). It persists
 its own signer/request, accepts independently supplied trust, retains the whole
@@ -86,11 +98,15 @@ real C-to-Rust TLS delivery after receiver exit, signed-TCP activation cancellat
 and required-witness authority refusal over TCP and mutual TLS. A cancelled failed
 activation initially masked its consumed handle as Cancelled; checking the empty
 slot before cancellation now returns Closed in the same real TCP test. The package
-collector requires all three traces in debug and release. These development results
-do not themselves qualify the fresh archive; SDK policy/store, TLS configuration,
-authority transport, Swift/Kotlin registration and complete replacement/upgrade
-remain separate obligations. Product ABI 2 and legacy KAT behavior are unchanged
-by this C adapter increment.
+collector requires all three traces in debug and release. The separate clean
+`76fb13b7` checkpoint passed the complete Rust/C archive run, including legacy
+connections, sync/EIO cuts and OpenSSL interoperability; the source/compiler
+identities remained unchanged. Minimum Rust 1.90 also ran the real C registration
+traces. See [the C enrollment record](../research/sdk-alpha1/evidence/20261004-c-enrollment-c28cc7d5/RESULTS.json).
+That cohort does not qualify the later Swift/Kotlin increment. SDK policy/store,
+TLS configuration, authority transport and complete replacement/upgrade remain
+separate obligations. Product ABI 2 and legacy KAT behavior are unchanged by this
+C adapter increment.
 
 A subsequent native enrollment increment adds `DeviceEnrollment` before
 credential-dependent installation. The original signing ID/request, accepted

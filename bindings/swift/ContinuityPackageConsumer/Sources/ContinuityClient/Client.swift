@@ -108,18 +108,33 @@ func waitMarker(_ path: String) throws {
         try verifyLoadedLibrary()
         var args = arguments
         var witness: WitnessCarrier = .local
-        if args.first == "--witness" || args.first == "--witness-tls" {
-            try require(args.count >= 4, "witness arguments")
-            witness = args[0] == "--witness" ? .signedTCP(address: args[1], timeoutMilliseconds: 3000) :
-                .mutualTLS(address: args[1], timeoutMilliseconds: 3000)
-            args.removeFirst(2)
-        }
         var existing: SessionID?
-        if args.first == "--session" {
-            try require(args.count >= 4, "existing session arguments")
-            existing = try decode(args[1]); args.removeFirst(2)
+        var enrollmentParent: EnrollmentParentSelection?
+        var selectedWitness = false
+        while let option = args.first, option.hasPrefix("--") {
+            switch option {
+            case "--witness", "--witness-tls":
+                try require(!selectedWitness && args.count >= 4, "witness arguments")
+                witness = option == "--witness" ? .signedTCP(address: args[1], timeoutMilliseconds: 3000) :
+                    .mutualTLS(address: args[1], timeoutMilliseconds: 3000)
+                selectedWitness = true
+                args.removeFirst(2)
+            case "--session":
+                try require(existing == nil && args.count >= 4, "existing session arguments")
+                existing = try decode(args[1]); args.removeFirst(2)
+            case "--enrollment-parent":
+                try require(enrollmentParent == nil && args.count >= 5, "enrollment parent arguments")
+                guard let number = UInt32(args[2]), String(number) == args[2],
+                      let role = BootstrapRole(rawValue: number) else { throw ProbeFailure.contract("enrollment parent role") }
+                enrollmentParent = EnrollmentParentSelection(path: args[1], role: role)
+                args.removeFirst(3)
+            default: throw ProbeFailure.contract("unknown option")
+            }
         }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
+        try require(enrollmentParent == nil || ["serve", "connect", "next", "status", "rekey", "send", "uncertain-send",
+            "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open"].contains(command),
+            "enrollment parent requires an operational command")
         try require(existing == nil || (!command.hasPrefix("recover-") && command != "self-check"),
                     "existing session requires an operational command")
         if command == "self-check" {
@@ -129,6 +144,11 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command.hasPrefix("enrollment-") {
+            try require(existing == nil, "enrollment cannot select a session")
+            try await enrollmentCommand(args, witness: witness)
+            return
+        }
         if command.hasPrefix("setup-") {
             try require(existing == nil, "setup cannot select a session")
             try await setupCommand(args, witness: witness)
@@ -147,115 +167,128 @@ func waitMarker(_ path: String) throws {
             try recover(args, witness: witness)
             return
         }
-        func openConfigured() throws -> ContinuityOwner {
-            if let existing {
-                return try ContinuityOwner.reopen(path: args[1], quality: .oneTimeBoth, session: existing, witness: witness)
+        func openConfigured() throws -> ConfiguredClientOwner {
+            if let enrollmentParent {
+                return try enrollmentParent.openPeer(path: args[1], session: existing, witness: witness)
             }
-            return try ContinuityOwner.open(path: args[1], quality: .oneTimeBoth, witness: witness)
+            if let existing {
+                return try ConfiguredClientOwner(peer: ContinuityOwner.reopen(path: args[1], quality: .oneTimeBoth,
+                    session: existing, witness: witness), parent: nil)
+            }
+            return try ConfiguredClientOwner(peer: ContinuityOwner.open(path: args[1], quality: .oneTimeBoth,
+                witness: witness), parent: nil)
         }
         if command == "reject-open" {
             try require(args.count == 2, "reject arguments")
             do {
                 let owner = try openConfigured()
-                try close(owner)
+                try owner.dispose()
             } catch let error as ContinuityFailure {
                 try output("rejected:\(error.code)")
                 return
             }
             throw ProbeFailure.contract("invalid binding admitted")
         }
-        var owner = try openConfigured()
-        let response: String
-        switch command {
-        case "serve":
-            try require(args.count >= 3, "serve arguments")
-            try require(args.count == (args[2] == "rekey" ? 4 : 3), "serve arguments")
-            try serve(owner, path: args[1], mode: args[2], sessionText: args.count == 4 ? args[3] : nil)
-            try close(owner)
-            return
-        case "connect":
-            try require(args.count == 4, "connect arguments")
-            let result = try owner.establish(peer: args[2], request: decode(args[3]))
-            response = hex(result.session)
-        case "next":
-            try require(args.count == 3, "next arguments")
-            response = try hex(owner.nextMessage(session: decode(args[2])))
-        case "status":
-            try require(args.count == 4, "status arguments")
-            response = try String(owner.status(session: decode(args[2]), message: decode(args[3])).rawValue)
-        case "rekey":
-            try require(args.count == 4, "rekey arguments")
-            try require(owner.rekey(peer: args[2], session: decode(args[3]), target: 1) == 1, "target epoch")
-            response = "rekey-1-confirmed"
-        case "send", "uncertain-send", "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send":
-            let busy = command == "busy-cancel"
-            let witnessCancel = command == "cancel-witness-send"
-            let witnessFailed = command == "witness-failed-send"
-            let cancelled = command == "cancel-send"
-            let uncertain = command == "uncertain-send"
-            try require(args.count == (busy || witnessCancel ? 6 : 5), "send arguments")
-            if witnessCancel || witnessFailed {
-                if case .local = witness { throw ProbeFailure.contract("missing explicit witness") }
-            }
-            let session: SessionID = try decode(args[3])
-            let message: MessageID = try decode(args[4])
-            let peer = args[2]
-            let current = owner
-            let send: @Sendable () throws -> SendResult = {
-                try current.send(peer: peer, session: session, message: message,
-                    plaintext: Array("persisted before process exit".utf8), associatedData: Array("owned-service".utf8))
-            }
-            if cancelled { try owner.cancel() }
-            if busy || witnessCancel {
-                let worker = Task.detached(operation: send)
-                let beforeCancellation: ContinuousClock.Instant
-                do {
-                    try waitMarker(args[5])
-                    try failure([3]) { try owner.close() }
-                    beforeCancellation = ContinuousClock.now
-                    try owner.cancel()
-                } catch {
-                    // Join the owned invocation even when the test barrier fails.
-                    let original = error
-                    let cancellation = Result { try owner.cancel() }
-                    let outcome = await worker.result
-                    throw ProbeFailure.contract("barrier: \(original); cancellation: \(cancellation); worker: \(outcome)")
-                }
-                let result = await worker.result
-                switch result {
-                case let .failure(error):
-                    guard let error = error as? ContinuityFailure, error.code == (witnessCancel ? 218 : 302) else { throw error }
-                case .success: throw ProbeFailure.contract("cancelled call reported success")
-                }
-                if witnessCancel {
-                    let milliseconds = try observedCancellationMilliseconds(beforeCancellation.duration(to: ContinuousClock.now))
-                    try close(owner)
-                    try output("witness-cancelled-outcome-unavailable:\(milliseconds)")
-                    return
-                }
-            } else if witnessFailed {
-                try failure([218], send)
-                try close(owner)
-                try output("witness-outcome-unavailable")
+        var configured = try openConfigured()
+        var owner: ContinuityOwner { configured.peer }
+        do {
+            let response: String
+            switch command {
+            case "serve":
+                try require(args.count >= 3, "serve arguments")
+                try require(args.count == (args[2] == "rekey" ? 4 : 3), "serve arguments")
+                try serve(owner, path: args[1], mode: args[2], sessionText: args.count == 4 ? args[3] : nil)
+                try configured.dispose()
                 return
-            } else if cancelled || uncertain {
-                try failure(cancelled ? [302] : [303, 309, 310, 311], send)
-            } else {
-                let result = try send()
-                try require(result.consumption == .confirmed, "unconfirmed consumption")
+            case "connect":
+                try require(args.count == 4, "connect arguments")
+                let result = try owner.establish(peer: args[2], request: decode(args[3]))
+                response = hex(result.session)
+            case "next":
+                try require(args.count == 3, "next arguments")
+                response = try hex(owner.nextMessage(session: decode(args[2])))
+            case "status":
+                try require(args.count == 4, "status arguments")
+                response = try String(owner.status(session: decode(args[2]), message: decode(args[3])).rawValue)
+            case "rekey":
+                try require(args.count == 4, "rekey arguments")
+                try require(owner.rekey(peer: args[2], session: decode(args[3]), target: 1) == 1, "target epoch")
+                response = "rekey-1-confirmed"
+            case "send", "uncertain-send", "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send":
+                let busy = command == "busy-cancel"
+                let witnessCancel = command == "cancel-witness-send"
+                let witnessFailed = command == "witness-failed-send"
+                let cancelled = command == "cancel-send"
+                let uncertain = command == "uncertain-send"
+                try require(args.count == (busy || witnessCancel ? 6 : 5), "send arguments")
+                if witnessCancel || witnessFailed {
+                    if case .local = witness { throw ProbeFailure.contract("missing explicit witness") }
+                }
+                let session: SessionID = try decode(args[3])
+                let message: MessageID = try decode(args[4])
+                let peer = args[2]
+                let current = owner
+                let send: @Sendable () throws -> SendResult = {
+                    try current.send(peer: peer, session: session, message: message,
+                        plaintext: Array("persisted before process exit".utf8), associatedData: Array("owned-service".utf8))
+                }
+                if cancelled { try owner.cancel() }
+                if busy || witnessCancel {
+                    let worker = Task.detached(operation: send)
+                    let beforeCancellation: ContinuousClock.Instant
+                    do {
+                        try waitMarker(args[5])
+                        try failure([3]) { try owner.close() }
+                        beforeCancellation = ContinuousClock.now
+                        try owner.cancel()
+                    } catch {
+                        // Join the owned invocation even when the test barrier fails.
+                        let original = error
+                        let cancellation = Result { try owner.cancel() }
+                        let outcome = await worker.result
+                        throw ProbeFailure.contract("barrier: \(original); cancellation: \(cancellation); worker: \(outcome)")
+                    }
+                    let result = await worker.result
+                    switch result {
+                    case let .failure(error):
+                        guard let error = error as? ContinuityFailure, error.code == (witnessCancel ? 218 : 302) else { throw error }
+                    case .success: throw ProbeFailure.contract("cancelled call reported success")
+                    }
+                    if witnessCancel {
+                        let milliseconds = try observedCancellationMilliseconds(beforeCancellation.duration(to: ContinuousClock.now))
+                        try configured.dispose()
+                        try output("witness-cancelled-outcome-unavailable:\(milliseconds)")
+                        return
+                    }
+                } else if witnessFailed {
+                    try failure([218], send)
+                    try configured.dispose()
+                    try output("witness-outcome-unavailable")
+                    return
+                } else if cancelled || uncertain {
+                    try failure(cancelled ? [302] : [303, 309, 310, 311], send)
+                } else {
+                    let result = try send()
+                    try require(result.consumption == .confirmed, "unconfirmed consumption")
+                }
+                let expected: MessageStatus = cancelled ? .absent : (busy || uncertain ? .committed : .acknowledged)
+                try require(owner.status(session: session, message: message) == expected, "durable message status")
+                if busy {
+                    try configured.dispose()
+                    configured = try openConfigured()
+                    try require(owner.status(session: session, message: message) == .committed, "reopen lost committed work")
+                }
+                response = cancelled ? "cancelled-absent" :
+                    (busy ? "cancelled-committed-reopened" : (uncertain ? "delivery-unknown-committed" : "consumed"))
+            default: throw ProbeFailure.contract("unknown command")
             }
-            let expected: MessageStatus = cancelled ? .absent : (busy || uncertain ? .committed : .acknowledged)
-            try require(owner.status(session: session, message: message) == expected, "durable message status")
-            if busy {
-                try close(owner)
-                owner = try openConfigured()
-                try require(owner.status(session: session, message: message) == .committed, "reopen lost committed work")
-            }
-            response = cancelled ? "cancelled-absent" :
-                (busy ? "cancelled-committed-reopened" : (uncertain ? "delivery-unknown-committed" : "consumed"))
-        default: throw ProbeFailure.contract("unknown command")
+            try configured.dispose()
+            try output(response)
+        } catch {
+            let original = error
+            do { try configured.dispose() }
+            catch { throw ProbeFailure.contract("configured operation failed: \(original); disposal failed: \(error)") }
+            throw original
         }
-        try close(owner)
-        try output(response)
     }
 }

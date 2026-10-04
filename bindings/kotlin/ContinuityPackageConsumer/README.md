@@ -22,6 +22,32 @@ cause. No method exposes a raw handle or converts recovery authority into an
 operational owner. IDs and public byte records own immutable copies. `Counter64`
 represents the entire native unsigned range without signed truncation.
 
+`ContinuityEnrollment` adds original key registration using the matching native
+library's nine enrollment exports. Explicitly provision the wrapping key once,
+then `prepareCreate(path, intent)` and `finishOpen`; restart uses only
+`prepareResume` with the original `EnrollmentIntent`. `request` returns the exact
+committed public proof of possession. `accept` takes certificate/roster bytes and
+an independently supplied `AccountPin`, never trust derived from those response
+bytes. Opening/status/request need no SDK policy or TLS files. Acceptance and
+storage require the separately provisioned policy/store; activation also requires
+TLS configuration and any policy-required witness. Authority transport and account
+authentication remain host responsibilities.
+
+Registration and installation setup share one owner-transfer implementation.
+`activate` transfers the same `NativeOwner` to `ContinuityDevice`, preserving its
+Cleaner and native enrollment lease. Closing a successfully transferred registration
+does not close the device. Failed admitted work may leave durable Active while no
+device was returned; close this wrapper and resume its original identity.
+`refreshRoster` only continues the same credential under an independently pinned
+roster, with separate operator witness authorization. Restore the original session
+through the returned device; no missing-state fallback or key replacement occurs.
+Six-phase `EnrollmentStatus` distinguishes a missing pre-acceptance journal and a
+pending roster transition. Its Active phase is never a live authorization receipt.
+
+This registration increment requires its own installed-consumer, GC, cancellation
+and connection qualification; earlier setup/package receipts do not cover it.
+It is not Android integration or a complete credential/root/upgrade lifecycle.
+
 `ContinuitySetup.prepareCreate/prepareResume` explicitly selects creation or
 original-intent restart. `finishOpen` acquires setup authority; `status` retains
 Creating/Active and the original `JournalID`. `prepareStorage` returns local

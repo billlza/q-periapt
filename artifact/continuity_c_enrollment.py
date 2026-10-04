@@ -22,6 +22,17 @@ WITNESS_TESTS = {
 }
 
 
+def owner_transfer(read, prefix: str, language: str) -> dict:
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported enrollment language")
+    if language == "C":
+        return {}
+    wanted = (b"old-registration-released original-device-live\n" if language == "Swift"
+              else b"old-registration-collected original-device-live\n")
+    sdk.require(read(prefix + "/" + language.lower() + "-enrollment-transfer", 128) == wanted,
+                "foreign enrollment owner transfer was not observed")
+    return dict(language=language, original_owner_transfer=True)
+
+
 def registration_readback(read, prefix, signing, journal):
     intent = read(prefix + "/enrollment-intent", 72)
     sdk.require(len(intent) == 72, "C original approved intent width")
@@ -59,7 +70,7 @@ def registration_readback(read, prefix, signing, journal):
     return registration
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
@@ -132,24 +143,26 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     effect = "responder/application-" + message.hex()
     sdk.require(read(effect, 65536) == session + message + PAYLOAD, "C enrollment application readback differs")
     sdk.require(len(list((directory / "responder").glob("application-*"))) == 1, "C enrollment repeated application effect")
-    return dict(scope=SCOPE, completed=True, release_claim_eligible=False, registration=registration,
+    transfer = owner_transfer(read, "enrolled", language)
+    return dict(scope=SCOPE.replace("C registration", language + " registration"), completed=True,
+                release_claim_eligible=False, registration=registration, **transfer,
                 refreshed_roster_version=2, session=session.hex(), message=message.hex(),
-                independent_lease_processes=dict(C_owner=child, Rust_contender=parent), public_readbacks=public)
+                independent_lease_processes={language + "_owner": child, "Rust_contender": parent}, public_readbacks=public)
 
 
-def export(stdout: bytes, directory: Path, destination: Path) -> dict:
+def export(stdout: bytes, directory: Path, destination: Path, *, language: str = "C") -> dict:
     """Copy the exact public closure; no wrapping, signer, TLS key or database files."""
-    checked = verify_execution(stdout, directory)
+    checked = verify_execution(stdout, directory, language=language)
     destination.mkdir(mode=0o700, parents=True)
     for name in checked["public_readbacks"]:
         sdk.copy(directory / name, destination / name)
-    sdk.require(verify_execution(stdout, destination) == checked, "C enrollment evidence changed during export")
+    sdk.require(verify_execution(stdout, destination, language=language) == checked, "C enrollment evidence changed during export")
     sdk.require({p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()}
                 == set(checked["public_readbacks"]), "C enrollment public inventory differs")
     return checked
 
 
-def verify_witness(stdout: bytes, directory: Path, carrier: str) -> dict:
+def verify_witness(stdout: bytes, directory: Path, carrier: str, *, language: str = "C") -> dict:
     from continuity_c_witness import RECORD_BYTES, transcript
     sdk.require(carrier in WITNESS_TESTS, "unsupported C enrollment witness carrier")
     text = stdout.decode()
@@ -240,16 +253,62 @@ def verify_witness(stdout: bytes, directory: Path, carrier: str) -> dict:
                     "witness enrollment TLS peer identity differs")
         detail['TLS_admissions'] = int.from_bytes(admissions,'big')
         detail['TLS_denial_admissions'] = [int.from_bytes(denied[:8],'big'),int.from_bytes(denied[8:],'big')]
-    return dict(scope="actual C original registration with " + carrier + "; same-host native witness, independent control-plane authorization, no independent witness engine",
+    transfer = owner_transfer(read, prefix, language)
+    return dict(scope="actual " + language + " original registration with " + carrier + "; same-host native witness, independent control-plane authorization, no independent witness engine",
                 completed=True, release_claim_eligible=False, carrier=carrier, registration=registration,
-                next_account=match[1].decode(), **detail, public_readbacks=public)
+                next_account=match[1].decode(), **transfer, **detail, public_readbacks=public)
 
 
-def export_witness(stdout: bytes, directory: Path, destination: Path, carrier: str) -> dict:
-    checked = verify_witness(stdout, directory, carrier)
+def export_witness(stdout: bytes, directory: Path, destination: Path, carrier: str, *, language: str = "C") -> dict:
+    checked = verify_witness(stdout, directory, carrier, language=language)
     destination.mkdir(mode=0o700, parents=True)
     for name in checked["public_readbacks"]: sdk.copy(directory / name, destination / name)
-    sdk.require(verify_witness(stdout, destination, carrier) == checked, "C witness enrollment evidence changed during export")
+    sdk.require(verify_witness(stdout, destination, carrier, language=language) == checked, "C witness enrollment evidence changed during export")
     sdk.require({p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()}
                 == set(checked["public_readbacks"]), "C witness enrollment public inventory differs")
     return checked
+
+
+def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
+                    native: dict, run, *, language: str, collector: str = "") -> dict:
+    """Execute the selected installed foreign client against the exact C cohort's
+    archive-derived authority harness. The native build log and binary receipt
+    must agree; a matching test name cannot substitute for that provenance.
+    """
+    import continuity_c_consumer as c
+    sdk.require(profile in {"debug", "release"} and
+                ((language == "Swift" and collector == "") or
+                 (language == "Kotlin" and collector in {"Serial", "G1"})),
+                "unqualified foreign registration profile")
+    binaries = {}
+    for target in ("enrollment", "enrollment_witness"):
+        label = target.replace("_", "-")
+        build_log = sdk.snapshot(output / ("c-" + label + "-build-" + profile + ".stdout"), maximum=32 * 1024**2)
+        binary = c.built_artifact(build_log.data, outside / "c-consumer", outside / "build" / profile,
+                                  library=False, test_name=target)
+        expected = (native["enrollment"]["binary"] if target == "enrollment"
+                    else native["enrollment_witness"]["signed-tcp"]["binary"])
+        if target == "enrollment_witness":
+            sdk.require(expected == native["enrollment_witness"]["mutual-tls"]["binary"],
+                        "witnessed registration traces used different native harnesses")
+        observed = sdk.snapshot(binary, maximum=c.MAX_BINARY)
+        sdk.require(observed.sha256 == expected["sha256"] and observed.size == expected["bytes"],
+                    "foreign registration native harness changed before execution")
+        binaries[target] = (binary, observed.sha256)
+    variant = "-" + collector.lower() if collector else ""
+    result = {}
+    for carrier, test in {"local": TEST, **WITNESS_TESTS}.items():
+        target = "enrollment" if carrier == "local" else "enrollment_witness"
+        binary, identity = binaries[target]
+        label = "enrollment-" + carrier + "-" + profile + variant
+        evidence = outside / (language.lower() + "-" + label + "-runtime")
+        selected = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+        stdout = run([str(binary), "--exact", test, "--nocapture"], label, runtime=selected)
+        destination = output / (language.lower() + "-enrollment-public") / (profile + variant) / carrier
+        checked = (export(stdout, evidence, destination, language=language) if carrier == "local"
+                   else export_witness(stdout, evidence, destination, carrier, language=language))
+        sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == identity,
+                    "foreign registration native harness changed during execution")
+        result[carrier] = dict(execution=checked, native_harness_sha256=identity)
+    sdk.write_json(output / (language.upper() + "_ENROLLMENT_" + (profile + variant).replace("-", "_").upper() + ".json"), result)
+    return result

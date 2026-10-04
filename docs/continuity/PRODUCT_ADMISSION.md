@@ -34,6 +34,16 @@ release an owner after denial or an unavailable reply. The C interface now has
 authority transport and final provisioning remain independently supplied inputs;
 see [the C integration path](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device).
 
+Swift and Kotlin now expose this registration route through `ContinuityEnrollment`,
+typed approved intents/checkpoints and independent account pins. Their shared
+setup/registration transfer cell moves one owning reference into `ContinuityDevice`;
+it never creates another owner from an integer handle. Old aliases cannot operate
+after transfer, and closing them cannot close the successor. The installed-package
+gate requires local connection/restoration and signed-TCP/mutual-TLS authority
+traces plus observed old-wrapper ARC/GC release. Kotlin runs both Serial and G1
+and rejects direct Java construction of the enrollment owner. These are scoped
+same-host checks, not the complete device/platform or authority lifecycle.
+
 The additive C [`device owner`](../../bindings/c/ContinuityPackageConsumer/src/device.rs)
 now opens an Active installation from independently retained local identity,
 policy and private-owner configuration. It checks the controlled signer against
@@ -69,14 +79,14 @@ now reuse the native transaction through all three bindings. Installed cohorts
 exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
-binds each result to its source and carrier. Swift/Kotlin enrollment,
-Android/WASM Continuity adapters, replacement/renewal beyond the same credential
+binds each result to its source and carrier. Current-source registration package
+qualification, Android/WASM Continuity adapters, replacement/renewal beyond the same credential
 and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | Native `DeviceEnrollment` and C registration owner commit the original signer/request, accept independent trust inputs and retain the enrollment lease; legacy setup owners delegate Creating/Active transitions with original configured inputs | Swift/Kotlin enrollment, Android/WASM persistence, authority transport, broader creation faults and final product provisioning |
+| Explicit new lineage and exact restart | Native `DeviceEnrollment`, C registration and typed Swift/Kotlin owners commit the original signer/request, accept independent trust inputs and retain the enrollment lease; legacy setup owners delegate Creating/Active transitions with original configured inputs | Current-source archive/device qualification, Android/WASM persistence, authority transport, broader creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks, original installation/policy/witness bindings, native/C same-credential enrolled roster continuation and explicit witness authority refresh | Complete product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |

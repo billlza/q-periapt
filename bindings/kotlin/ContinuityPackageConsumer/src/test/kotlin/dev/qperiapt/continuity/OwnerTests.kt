@@ -2,6 +2,10 @@
 package dev.qperiapt.continuity
 
 import java.nio.charset.CharacterCodingException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -39,12 +43,132 @@ class OwnerTests {
         assertEquals(mapOf(
             "error" to (524L to 4L), "witness" to (24L to 8L), "options" to (24L to 8L),
             "setup_status" to (36L to 4L), "setup_preparation" to (164L to 4L),
+            "enrollment_intent" to (88L to 8L), "checkpoint" to (40L to 8L), "enrollment_pin" to (120L to 8L),
+            "enrollment_status" to (152L to 8L), "enrollment_request" to (8196L to 4L),
             "served" to (72L to 4L), "header" to (200L to 8L), "epoch" to (104L to 8L),
             "reserved" to (48L to 8L), "unconfirmed" to (64L to 1L),
             "delivery" to (48L to 8L), "status" to (36L to 4L),
             "account_target" to (40L to 8L), "account_delivery" to (88L to 4L),
             "account_cleanup_header" to (72L to 4L), "account_cleanup_member" to (136L to 8L),
         ), ContinuityNative.layouts())
+    }
+    private fun enrollmentRoot(): ByteArray {
+        val point = "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"
+        return ByteArray(1952) { 1 } + point.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    }
+    private fun enrollmentIntent(): EnrollmentIntent = EnrollmentIntent(enrollmentRoot(), ByteArray(16) { 2 },
+        Counter64.of(1), ByteArray(32) { 3 }, Counter64.ZERO, Counter64.parse("18446744073709551614"))
+    @Test fun enrollmentCopiesApprovedInputsAndRejectsInvalidScope() {
+        val root = enrollmentRoot(); val device = ByteArray(16) { 2 }; val family = ByteArray(32) { 3 }
+        val original = root.clone()
+        val intent = EnrollmentIntent(root, device, Counter64.parse("9223372036854775808"), family,
+            Counter64.ZERO, Counter64.parse("18446744073709551614"))
+        root.fill(0); device.fill(0); family.fill(0)
+        intent.root.encoded().fill(0)
+        assertContentEquals(original, intent.root.encoded())
+        assertContentEquals(ByteArray(16) { 2 }, intent.device.encoded())
+        assertContentEquals(ByteArray(32) { 3 }, intent.family.encoded())
+        for (version in listOf(Counter64.ZERO, Counter64.parse("18446744073709551615"))) {
+            assertFailsWith<IllegalArgumentException> { RosterCheckpoint(version, ByteArray(32) { 1 }) }
+        }
+        assertFailsWith<IllegalArgumentException> { RosterCheckpoint(Counter64.of(1), ByteArray(32)) }
+        assertFailsWith<IllegalArgumentException> {
+            EnrollmentIntent(original, ByteArray(16), Counter64.of(1), intent.family.encoded(), Counter64.ZERO, Counter64.of(1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EnrollmentIntent(original, intent.device.encoded(), Counter64.of(1), intent.family.encoded(), Counter64.of(1), Counter64.of(1))
+        }
+    }
+    @Test fun enrollmentPhaseAndRequestDecodingRefuseContradictoryNativeOutput() {
+        val signing = ByteArray(32) { 4 }; val journal = ByteArray(32) { 5 }; val empty = ByteArray(40)
+        fun checkpoint(version: Long) = ByteBuffer.allocate(40).order(ByteOrder.nativeOrder())
+            .putLong(version).put(ByteArray(32) { 6 }).array()
+        for (phase in 1..5) {
+            val selectedJournal = if (phase < 3) ByteArray(32) else journal
+            val status = ContinuityNative.decodeEnrollmentStatus(phase, signing, selectedJournal, empty, empty)
+            assertEquals(EnrollmentPhase.entries[phase - 1], status.phase)
+            assertEquals(phase >= 3, status.journal != null)
+            assertEquals(null, status.refresh)
+            assertFailsWith<ContinuityBoundaryFailure> {
+                ContinuityNative.decodeEnrollmentStatus(phase, signing, if (phase < 3) journal else ByteArray(32), empty, empty)
+            }
+            assertFailsWith<ContinuityBoundaryFailure> {
+                ContinuityNative.decodeEnrollmentStatus(phase, signing, selectedJournal, checkpoint(1), empty)
+            }
+        }
+        val status = ContinuityNative.decodeEnrollmentStatus(6, signing, journal, checkpoint(Long.MAX_VALUE), checkpoint(Long.MIN_VALUE))
+        assertEquals(Counter64.parse("9223372036854775808"), status.refresh?.next?.version)
+        for ((previous, next) in listOf(empty to empty, checkpoint(2) to checkpoint(1), checkpoint(1) to checkpoint(1))) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeEnrollmentStatus(6, signing, journal, previous, next) }
+        }
+        for (phase in listOf(0, 7, -1)) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeEnrollmentStatus(phase, signing, journal, empty, empty) }
+        }
+        assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeEnrollmentStatus(1, ByteArray(32), ByteArray(32), empty, empty) }
+        val request = ByteArray(8192).also { it[0] = 1 }
+        assertContentEquals(byteArrayOf(1), ContinuityNative.decodeEnrollmentRequest(1, request).encoded())
+        for (length in listOf(0, -1, 8193)) {
+            assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeEnrollmentRequest(length, request) }
+        }
+        request[1] = 2
+        assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeEnrollmentRequest(1, request) }
+    }
+    @Test fun pendingEnrollmentSharesCapacityAndCancellationConsumesOnlyAdmission() {
+        val owners = mutableListOf<ContinuityEnrollment>()
+        try {
+            repeat(64) { owners.add(ContinuityEnrollment.prepareCreate("/unused", enrollmentIntent())) }
+            fails(4) { ContinuitySetup.prepareCreate("/unused") }
+            while (owners.isNotEmpty()) {
+                val owner = owners.removeAt(0)
+                owner.use {
+                    fails(6) { it.status() }
+                    fails(6) { it.activate() }
+                    it.cancel()
+                    fails(302) { it.finishOpen() }
+                    fails(2) { it.activate() }
+                }
+                fails(2) { owner.status() }
+            }
+            ContinuityDevice.prepare("/unused").use { it.cancel() }
+        } finally {
+            var failure: Throwable? = null
+            for (owner in owners) try { owner.close() } catch (error: Throwable) {
+                if (failure == null) failure = error else failure.addSuppressed(error)
+            }
+            failure?.let { throw it }
+        }
+    }
+    @Test fun originalEnrollmentRequestPersistsWithoutPolicyOrTlsConfiguration() {
+        val directory = Files.createTempDirectory("qperiapt-enrollment-unit-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))).toRealPath()
+        val path = directory.toString(); val intent = enrollmentIntent()
+        try {
+            ContinuityEnrollment.provisionWrappingKey(path)
+            lateinit var signing: SigningKeyID
+            lateinit var request: PublicBytes
+            ContinuityEnrollment.create(path, intent).use { owner ->
+                assertEquals(EnrollmentPhase.PREPARING, owner.status().phase)
+                request = owner.request()
+                val state = owner.status(); signing = state.signing
+                assertEquals(EnrollmentPhase.REQUESTED, state.phase)
+                assertEquals(null, state.journal)
+                assertEquals(5506, request.encoded().size)
+                assertEquals(request, owner.request())
+                val pin = AccountPin(AccountID(ByteArray(32) { 1 }), intent.root.encoded(), intent.family.encoded(),
+                    RosterCheckpoint(Counter64.of(1), ByteArray(32) { 2 }))
+                assertFailsWith<IllegalArgumentException> { owner.accept(ByteArray(0), byteArrayOf(1), pin) }
+                assertEquals(state, owner.status())
+            }
+            ContinuityEnrollment.resume(path, intent).use { owner ->
+                assertEquals(signing, owner.status().signing)
+                assertEquals(request, owner.request())
+            }
+            fails(211) { ContinuityEnrollment.provisionWrappingKey(path) }
+            fails(211) { ContinuityEnrollment.create(path, intent) }
+            assertTrue(!Files.exists(directory.resolve("installation.redb")))
+        } finally {
+            Files.walk(directory).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach { Files.delete(it) } }
+        }
     }
     @Test fun pendingOwnersRejectWorkAndCancellationNeverActivates() {
         val owners = listOf(
