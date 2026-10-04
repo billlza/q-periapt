@@ -4755,3 +4755,33 @@ a concurrently closed policy withholds the owner without resetting its genesis.
 This is local native implementation and validation. Fresh SDK/Continuity archive
 consumers, current Linux/device runs, final-source full qualification and the wider
 lifecycle/recovery/performance/security requirements remain independent gates.
+
+### Foreign credential Commit result loss (source candidates, 2026-10-04)
+
+The current source exercises the original registered C, Swift and Kotlin owners
+through two distinct failure boundaries. At `dc1c2fd1`, the actual foreign Commit
+reaches durable witness Applied, its TCP/TLS result is withheld, and SIGKILL is
+reaped before an unchanged local Pending state and fresh signed Applied Status
+are checked. The reopened foreign owner completes historical recovery after the
+original signed policy really expires. The component cohort contains 12 cases,
+including the retained Closed controls, and 936 public-file readbacks.
+
+At `2a1d5ada`, the live foreign call instead receives transport error 218. The
+same handle must return Closed, C output remains untouched, and explicit close
+must complete before a normal process exit. Fresh reopening preserves the
+original operation, signer, journal and Pending bytes. Independent original-signer
+Status verifies Applied before actual foreign recovery under live or really
+expired policy. Exactly one Commit and ACK are recorded; retry is read-only.
+C/Swift/Kotlin cover 12 cases and 780 public files. The original killed-Commit and
+target-free cancellation regressions add 12 cases and 856 checked public files.
+The native engine, product ABI 2 and candidate 73-export library are unchanged.
+
+[Commit-error evidence](../research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/QUALIFICATION.json)
+and [killed-Commit evidence](../research/sdk-alpha1/evidence/20261004-foreign-commit-loss-dc1c2fd1/QUALIFICATION.json)
+retain source/binary identities, bounded public transcripts and actual commands.
+These are Apple Silicon development-consumer results with the same native engine;
+they are not exact-source installed archives, physical-platform qualification or
+an independent protocol implementation. Current hosted package/CodeQL checks,
+remaining lifecycle/concurrency boundaries, authority renewal, device/root
+replacement, upgrades, recovery analysis, controlled performance and external
+review remain open. The full 0.2.0 release objective is not complete.
