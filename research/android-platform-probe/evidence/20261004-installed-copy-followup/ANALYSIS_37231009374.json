@@ -1,0 +1,280 @@
+{
+  "run": 37231009374,
+  "probe_head": "1c1cd04e3b3cab60ac2cb45a40d315204c05457d",
+  "results_sha256": "693414a663542b26da7c917436f052ef472ff3169d71d66aaa560e246f2c2d69",
+  "requested_samples": 144,
+  "completed_samples": 83,
+  "copy_attempts": 38,
+  "exact_copies": 35,
+  "cases": {
+    "android-apk-transport-apk-file-copy-1": {
+      "artifact_id": 11314540423,
+      "zip_file": "11314540423-android-apk-transport-apk-file-copy-1.zip",
+      "zip_sha256": "5fe50db473b169bb1cf7524c3f322d54300aa6ba801954e45ad4d3de08972252",
+      "completed_samples": 1,
+      "requested_samples": 24,
+      "copy_attempts": 2,
+      "exact_copies": 1,
+      "short_copy_events": [
+        {
+          "label": "sample-02-copy",
+          "wall_time_ns": 1791144738995715991,
+          "monotonic_ns": 264747651329,
+          "elapsed_ns": 511528216,
+          "returncode": 0,
+          "client_pid": 3925,
+          "client_process_group": 3170,
+          "bytes": 12492288,
+          "sha256": "011189604740a0b248ab377e0daaf25b3af7490249b293eb29949403442057ea",
+          "exact": false,
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_prefix": "",
+          "stderr_truncated": false
+        }
+      ],
+      "first_offline": [
+        {
+          "label": "sample-02-after",
+          "wall_time_ns": 1791144739060163764,
+          "monotonic_ns": 264812098921,
+          "elapsed_ns": 64059890,
+          "returncode": 1,
+          "stdout": "adb: device offline\n",
+          "output_bytes": 20,
+          "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f"
+        }
+      ],
+      "failure_events": [
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791144739060307059,
+          "monotonic_ns": 264812242206,
+          "failure_type": "RuntimeError",
+          "failure": "package-path command failed: sample-02-after"
+        }
+      ],
+      "kills": [
+        "3896  1791144744.139494 kill(-3930, SIGKILL) = 0",
+        "3896  1791144749.159196 kill(-3933, SIGKILL) = 0"
+      ],
+      "diagnostics": {
+        "final-state": {
+          "returncode": 1
+        },
+        "final-logcat": {
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds"
+        },
+        "final-crash": {
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds"
+        }
+      }
+    },
+    "android-apk-transport-apk-path-only-1": {
+      "artifact_id": 11314285275,
+      "zip_file": "11314285275-android-apk-transport-apk-path-only-1.zip",
+      "zip_sha256": "1ee445b5d470ae3e0229f77b364b2537f684ac5473a76818eb1816b46a9c876d",
+      "completed_samples": 24,
+      "requested_samples": 24,
+      "copy_attempts": 0,
+      "exact_copies": 0,
+      "short_copy_events": [],
+      "first_offline": [],
+      "failure_events": [],
+      "kills": [],
+      "diagnostics": {
+        "final-state": {
+          "returncode": 0
+        },
+        "final-logcat": {
+          "returncode": 0
+        },
+        "final-crash": {
+          "returncode": 0
+        }
+      }
+    },
+    "android-apk-transport-apk-pipe-copy-1": {
+      "artifact_id": 11314091304,
+      "zip_file": "11314091304-android-apk-transport-apk-pipe-copy-1.zip",
+      "zip_sha256": "8e497eceeabef99bf36f02f776e8fa5877ac6dabf29fe9b781db51f25f649a1b",
+      "completed_samples": 24,
+      "requested_samples": 24,
+      "copy_attempts": 24,
+      "exact_copies": 24,
+      "short_copy_events": [],
+      "first_offline": [],
+      "failure_events": [],
+      "kills": [],
+      "diagnostics": {
+        "final-state": {
+          "returncode": 0
+        },
+        "final-logcat": {
+          "returncode": 0
+        },
+        "final-crash": {
+          "returncode": 0
+        }
+      }
+    },
+    "android-apk-transport-apk-file-copy-2": {
+      "artifact_id": 11313841731,
+      "zip_file": "11313841731-android-apk-transport-apk-file-copy-2.zip",
+      "zip_sha256": "b790609d488d0040af0297b3319bd20a1330aaee3c6baaf2625d3e7077b85376",
+      "completed_samples": 5,
+      "requested_samples": 24,
+      "copy_attempts": 6,
+      "exact_copies": 5,
+      "short_copy_events": [
+        {
+          "label": "sample-06-copy",
+          "wall_time_ns": 1791144786154921674,
+          "monotonic_ns": 257077266953,
+          "elapsed_ns": 71991680,
+          "returncode": 0,
+          "client_pid": 3711,
+          "client_process_group": 2930,
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exact": false,
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_prefix": "",
+          "stderr_truncated": false
+        }
+      ],
+      "first_offline": [
+        {
+          "label": "sample-06-after",
+          "wall_time_ns": 1791144786173765546,
+          "monotonic_ns": 257096110485,
+          "elapsed_ns": 18561669,
+          "returncode": 1,
+          "stdout": "adb: device offline\n",
+          "output_bytes": 20,
+          "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f"
+        }
+      ],
+      "failure_events": [
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791144786173945996,
+          "monotonic_ns": 257096291125,
+          "failure_type": "RuntimeError",
+          "failure": "package-path command failed: sample-06-after"
+        }
+      ],
+      "kills": [
+        "3609  1791144791.197726 kill(-3716, SIGKILL) = 0",
+        "3609  1791144796.208539 kill(-3725, SIGKILL) = 0"
+      ],
+      "diagnostics": {
+        "final-state": {
+          "returncode": 1
+        },
+        "final-logcat": {
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds"
+        },
+        "final-crash": {
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds"
+        }
+      }
+    },
+    "android-apk-transport-apk-pipe-copy-2": {
+      "artifact_id": 11313727124,
+      "zip_file": "11313727124-android-apk-transport-apk-pipe-copy-2.zip",
+      "zip_sha256": "8c107fb8f30db15e96754eabcf36ec5d35de734d61770cee698af1b177ba7151",
+      "completed_samples": 5,
+      "requested_samples": 24,
+      "copy_attempts": 6,
+      "exact_copies": 5,
+      "short_copy_events": [
+        {
+          "label": "sample-06-copy",
+          "wall_time_ns": 1791144767827191078,
+          "monotonic_ns": 160008522259,
+          "elapsed_ns": 273371696,
+          "returncode": 0,
+          "bytes": 2168320,
+          "sha256": "c35ed76636370e9988550058c15990ae9433f27a42f35caafb5d5dd254be1aa2",
+          "exact": false,
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_prefix": "",
+          "stderr_truncated": false
+        }
+      ],
+      "first_offline": [
+        {
+          "label": "sample-06-after",
+          "wall_time_ns": 1791144767887328053,
+          "monotonic_ns": 160068659093,
+          "elapsed_ns": 59505844,
+          "returncode": 1,
+          "stdout": "adb: device offline\n",
+          "output_bytes": 20,
+          "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f"
+        }
+      ],
+      "failure_events": [
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791144767887471419,
+          "monotonic_ns": 160068802479,
+          "failure_type": "RuntimeError",
+          "failure": "package-path command failed: sample-06-after"
+        }
+      ],
+      "kills": [
+        "3865  1791144772.934200 kill(-3971, SIGKILL) = 0",
+        "3865  1791144777.943734 kill(-3977, SIGKILL) = 0"
+      ],
+      "diagnostics": {
+        "final-state": {
+          "returncode": 1
+        },
+        "final-logcat": {
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds"
+        },
+        "final-crash": {
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds"
+        }
+      }
+    },
+    "android-apk-transport-apk-path-only-2": {
+      "artifact_id": 11313627580,
+      "zip_file": "11313627580-android-apk-transport-apk-path-only-2.zip",
+      "zip_sha256": "8a96995502101b92401385ea883938afc61ca8413579c319fc23edd060f64d76",
+      "completed_samples": 24,
+      "requested_samples": 24,
+      "copy_attempts": 0,
+      "exact_copies": 0,
+      "short_copy_events": [],
+      "first_offline": [],
+      "failure_events": [],
+      "kills": [],
+      "diagnostics": {
+        "final-state": {
+          "returncode": 0
+        },
+        "final-logcat": {
+          "returncode": 0
+        },
+        "final-crash": {
+          "returncode": 0
+        }
+      }
+    }
+  },
+  "root_cause_established": false,
+  "scope": "Host copy accounting and original diagnostic events from six fixed historical installed APK trials; no cross-clock causal inference or stability/SDK qualification.",
+  "next_discriminating_experiment": "Same pinned bytes from an uninstalled ordinary file, both output strategies, compared with installed direct-copy reference; tests whether package installation is necessary.",
+  "release_claim_eligible": false
+}

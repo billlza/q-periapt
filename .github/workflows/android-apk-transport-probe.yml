@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [apk-path-only, apk-pipe-copy, apk-file-copy]
+        mode: [uninstalled-pipe-copy, uninstalled-file-copy, apk-file-copy]
         trial: [1, 2]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0

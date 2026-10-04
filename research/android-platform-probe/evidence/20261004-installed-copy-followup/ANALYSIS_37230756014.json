@@ -1,0 +1,702 @@
+{
+  "schema_version": 1,
+  "scope": "Read-only evidence review of exactly apk-pipe-copy-2 and apk-file-copy-2 in run37230756014. No live-device experiment and no product-source modification.",
+  "run_id": 37230756014,
+  "probe_head": "6a4da6bf4357bad4bbb97ea1e0e78ccb2822cf75",
+  "hosted_status": "completed",
+  "hosted_conclusion": "failure",
+  "inputs": {
+    "ANDROID_APK_TRANSPORT_RESULTS_37230756014.json": {
+      "bytes": 794255,
+      "sha256": "7cef4ddb591b7dd69fc3dd966ab0f6172146467554c2f3d637395000d6da3e6f"
+    },
+    "ANDROID_APK_TRANSPORT_HOSTED_37230756014.json": {
+      "bytes": 26116,
+      "sha256": "c5243e845e3d3248809dcd09e700b1f1f2beba031385279d6cd9a3a1dcc30cb9"
+    }
+  },
+  "clock_domains": {
+    "host_recorded_utc": "Derived exactly from event wall_time_ns; this is event-recording time, not necessarily operation start.",
+    "host_adb": "commands.log native host ADB timestamps, millisecond resolution.",
+    "guest_logcat": "Guest wall clock; do not assume equality with host UTC.",
+    "kernel": "Guest boot-relative printk timestamps; serial output continues independently of failed ADB queries."
+  },
+  "cases": {
+    "apk-pipe-copy-2": {
+      "artifact_id": 11313766647,
+      "zip_file": "11313766647-android-apk-transport-apk-pipe-copy-2.zip",
+      "zip_bytes": 223134,
+      "zip_sha256": "a5b23f2f188b18b634a06fc7351e898adf04688a223c67ae3aa32d1272f68d6a",
+      "zip_sha256_matches_manifest": true,
+      "members": {
+        "observation.json": {
+          "bytes": 1114,
+          "sha256": "a139c9b8c7df8a0a5a4f98954fecba00dbd6179c56b7cf3af33a726845191c0d"
+        },
+        "commands.log": {
+          "bytes": 896985,
+          "sha256": "bf40b3e9f35243f0b179a27561b1964fa8c80fac2351c98b40f0afc783466735"
+        },
+        "samples.json": {
+          "bytes": 45926,
+          "sha256": "dff933234251410f637fd3d04e62ba7655a01029c807236e477e1d5f4dd29f2f"
+        },
+        "syscalls.log": {
+          "bytes": 1249941,
+          "sha256": "d8834bb4da683a4033ae648e626abf38d4305a4157c678000c907c87cb620099"
+        }
+      },
+      "aggregate_matches_raw_samples_and_observation": true,
+      "probe_source_commit": "6a4da6bf4357bad4bbb97ea1e0e78ccb2822cf75",
+      "completed_samples": 14,
+      "requested_samples": 24,
+      "host_timeline": [
+        {
+          "label": "sample-14-copy",
+          "wall_time_ns": 1791144546819103224,
+          "monotonic_ns": 164628843732,
+          "elapsed_ns": 325384667,
+          "returncode": 0,
+          "bytes": 13608912,
+          "sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+          "exact": true,
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_truncated": false,
+          "host_recorded_utc": "2026-10-04T20:09:06.819103224Z",
+          "source": {
+            "member": "samples.json",
+            "line": 986
+          }
+        },
+        {
+          "label": "sample-14-identity",
+          "wall_time_ns": 1791144546962575172,
+          "monotonic_ns": 164772315409,
+          "elapsed_ns": 94199788,
+          "returncode": 0,
+          "output_bytes": 56,
+          "output_sha256": "5fbf0ba95a097adbd3c2a891abbf3b528113231a3b5014d0557787a1885a6280",
+          "host_recorded_utc": "2026-10-04T20:09:06.962575172Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1018
+          }
+        },
+        {
+          "label": "sample-14-identity-adbd-stat",
+          "wall_time_ns": 1791144547011974218,
+          "monotonic_ns": 164821714386,
+          "elapsed_ns": 49190785,
+          "returncode": 0,
+          "output_bytes": 187,
+          "output_sha256": "db1c541255f3547074afc5abb54bd61cb8db6a99fb3f7c3b8f95ee10ee5719d9",
+          "host_recorded_utc": "2026-10-04T20:09:07.011974218Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1028
+          }
+        },
+        {
+          "label": "sample-14-identity-system_server-stat",
+          "wall_time_ns": 1791144547104198130,
+          "monotonic_ns": 164913938548,
+          "elapsed_ns": 92071766,
+          "returncode": 0,
+          "output_bytes": 198,
+          "output_sha256": "5acf7ccb63535cb903caad49d66657e3e846f15356ac94478434e16d83099f1c",
+          "host_recorded_utc": "2026-10-04T20:09:07.104198130Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1038
+          }
+        },
+        {
+          "label": "sample-15-before",
+          "wall_time_ns": 1791144547316433181,
+          "monotonic_ns": 165126173409,
+          "elapsed_ns": 211986934,
+          "returncode": 0,
+          "output_bytes": 105,
+          "output_sha256": "71f4600d31ee6e4681417dba1228b478b56fa15805d2153c36ae6dea6566d9b7",
+          "host_recorded_utc": "2026-10-04T20:09:07.316433181Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1048
+          }
+        },
+        {
+          "label": "sample-15-copy",
+          "wall_time_ns": 1791144547569728276,
+          "monotonic_ns": 165379468814,
+          "elapsed_ns": 252410290,
+          "returncode": 0,
+          "bytes": 2569728,
+          "sha256": "5d8c67ae8c4e7c67899b862cd82e006ca331ebbaec6e9d3a2715e5e8984bd32a",
+          "exact": false,
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_truncated": false,
+          "host_recorded_utc": "2026-10-04T20:09:07.569728276Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1058
+          }
+        },
+        {
+          "label": "sample-15-after",
+          "wall_time_ns": 1791144547598023452,
+          "monotonic_ns": 165407763760,
+          "elapsed_ns": 28045968,
+          "returncode": 1,
+          "output_bytes": 20,
+          "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f",
+          "host_recorded_utc": "2026-10-04T20:09:07.598023452Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1072
+          },
+          "public_diagnostic": "adb: device offline"
+        },
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791144547598176480,
+          "monotonic_ns": 165407916848,
+          "failure_type": "RuntimeError",
+          "failure": "package-path command failed: sample-15-after",
+          "host_recorded_utc": "2026-10-04T20:09:07.598176480Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1082
+          }
+        },
+        {
+          "label": "final-state",
+          "wall_time_ns": 1791144547622419123,
+          "monotonic_ns": 165432159451,
+          "elapsed_ns": 24072764,
+          "returncode": 1,
+          "output_bytes": 20,
+          "output_sha256": "a7d0391f2b9ecc7dc302d6ca042251f413b26e1f1ee29d396e7db3df0701640f",
+          "host_recorded_utc": "2026-10-04T20:09:07.622419123Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1089
+          },
+          "public_diagnostic": "adb: device offline"
+        },
+        {
+          "label": "final-logcat",
+          "wall_time_ns": 1791144552637559900,
+          "monotonic_ns": 170447300107,
+          "elapsed_ns": 5015015741,
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds",
+          "host_recorded_utc": "2026-10-04T20:09:12.637559900Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1099
+          }
+        },
+        {
+          "label": "final-crash",
+          "wall_time_ns": 1791144557651760506,
+          "monotonic_ns": 175461500773,
+          "elapsed_ns": 5014092112,
+          "failure_type": "BoundedProcessError",
+          "failure": "command timed out after 5 seconds",
+          "host_recorded_utc": "2026-10-04T20:09:17.651760506Z",
+          "source": {
+            "member": "samples.json",
+            "line": 1107
+          }
+        }
+      ],
+      "observed_process_identity_fields": {
+        "baseline-identity-adbd-stat": {
+          "pid": 431,
+          "name": "adbd",
+          "state": "S",
+          "ppid": 1,
+          "start_ticks": 1110
+        },
+        "baseline-identity-system_server-stat": {
+          "pid": 555,
+          "name": "system_server",
+          "state": "S",
+          "ppid": 352,
+          "start_ticks": 1389
+        },
+        "sample-14-identity-adbd-stat": {
+          "pid": 431,
+          "name": "adbd",
+          "state": "S",
+          "ppid": 1,
+          "start_ticks": 1110
+        },
+        "sample-14-identity-system_server-stat": {
+          "pid": 555,
+          "name": "system_server",
+          "state": "S",
+          "ppid": 352,
+          "start_ticks": 1389
+        }
+      },
+      "traced_signal_syscalls": [
+        {
+          "member": "syscalls.log",
+          "line": 11414,
+          "text": "3822  1791144552.633850 kill(-4148, SIGKILL) = 0"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11523,
+          "text": "3822  1791144557.649355 kill(-4158, SIGKILL) = 0"
+        }
+      ],
+      "explicit_kernel_fatal_marker_observed": false,
+      "explicit_oom_kill_marker_observed": false,
+      "negative_scan_scope": "Raw bounded commands.log including emulator -show-kernel output; searches exclude embedded JSON records and require whole fatal marker names, so ramoops/binder_debug are not mistaken for Oops/BUG. This does not prove absence outside the captured window.",
+      "apk_source": {
+        "apk_bytes": 13608912,
+        "apk_sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+        "archive_sha256": "1cf08883b24b280288b5c964d3e05e9dcac47f62b455b97dc026bf7299851084",
+        "artifact_id": 11309464232,
+        "failed_push_apk_identity_proven": false,
+        "producer_checkout": "9830732a8bfdafe98b70fce7efce085d7085b1f1",
+        "producer_run": 37219996163
+      },
+      "missing_apk_bytes": 11039184,
+      "selected_evidence": [
+        {
+          "member": "commands.log",
+          "line": 6968,
+          "text": "10-04 20:09:07.559  3174  3341 I adb     : transport.cpp:1222 emulator-5584: connection terminated: read failed"
+        },
+        {
+          "member": "commands.log",
+          "line": 6977,
+          "text": "10-04 20:09:07.810  3174  3176 D adb     : transport.cpp:274 cancelling reconnection attempt to emulator-5584."
+        },
+        {
+          "member": "commands.log",
+          "line": 6979,
+          "text": "10-04 20:09:07.810  3174  3174 D adb     : transport_emulator.cpp:260 remote_close, local_port = 5585"
+        },
+        {
+          "member": "commands.log",
+          "line": 6991,
+          "text": "ERROR        | DisplaySurfaceGlContextHelper context was preempted by others, current=0x3, needed=0x3, thread=0x559c615525a8"
+        },
+        {
+          "member": "commands.log",
+          "line": 6992,
+          "text": "ERROR        | Failed to restore previous context: 12297"
+        },
+        {
+          "member": "commands.log",
+          "line": 7016,
+          "text": "[   66.515177] init: Control message: Processed ctl.start for 'idmap2d' from pid: 555 (system_server)"
+        },
+        {
+          "member": "commands.log",
+          "line": 7056,
+          "text": "[   71.388613] binder: 4803:4824 ioctl c0306201 764cd288c750 returned -14"
+        },
+        {
+          "member": "commands.log",
+          "line": 7084,
+          "text": "INFO         | Wait for emulator (pid 3177) 20 seconds to shutdown gracefully before kill;you can set environment variable ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL(in seconds) to change the default value (20 seconds)"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11080,
+          "text": "4141  1791144547.560038 exit_group(0)   = ?"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11087,
+          "text": "3822  1791144547.561188 wait4(4141, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], WNOHANG, NULL) = 4141"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11389,
+          "text": "4148  1791144547.630031 execve(\"/usr/local/lib/android/sdk/platform-tools/adb\", [\"/usr/local/lib/android/sdk/platf\"..., \"-L\", \"localfilesystem:/home/runner/wor\"..., \"-s\", \"emulator-5584\", \"logcat\", \"-d\", \"-b\", \"main\", \"-b\", \"system\", \"-b\", \"crash\", \"-t\", \"200\", \"-v\", \"threadtime\"], 0x7f4cb0262e80 /* 25 vars */ <unfinished ...>"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11414,
+          "text": "3822  1791144552.633850 kill(-4148, SIGKILL) = 0"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11499,
+          "text": "4158  1791144552.644678 execve(\"/usr/local/lib/android/sdk/platform-tools/adb\", [\"/usr/local/lib/android/sdk/platf\"..., \"-L\", \"localfilesystem:/home/runner/wor\"..., \"-s\", \"emulator-5584\", \"logcat\", \"-d\", \"-b\", \"crash\", \"-t\", \"200\", \"-v\", \"threadtime\"], 0x7f4cb02630f0 /* 25 vars */ <unfinished ...>"
+        },
+        {
+          "member": "syscalls.log",
+          "line": 11523,
+          "text": "3822  1791144557.649355 kill(-4158, SIGKILL) = 0"
+        }
+      ],
+      "observed_facts": [
+        "Fourteen samples completed. The fifteenth copy exited 0 with empty stderr but contained 2569728 of 13608912 expected bytes; its SHA256 differs.",
+        "Host ADB logged emulator transport read failure at 20:09:07.559; client PID4141 exited 0 at host epoch1791144547.560038. The next path query returned device offline.",
+        "The last recorded process-identity tuple before failure remained adbd PID431/PPID1/start1110 and system_server PID555/PPID352/start1389 with the same guest boot ID.",
+        "After host transport loss, direct emulator kernel output continued through uptime71.388613, and init logged ctl.start from PID555 at uptime66.515177.",
+        "Final process-state query returned offline; both final-logcat and final-crash timed out. Their later SIGKILLs targeted diagnostic clients4148 and4158, not the copy client.",
+        "Emulator GL context errors were printed after the disconnect in the captured stream; they are not a captured fatal emulator exit. The run subsequently performed planned emulator shutdown."
+      ],
+      "classification": {
+        "transport_failure": "observed",
+        "guest_framework_crash": "not established; crash buffer unavailable",
+        "guest_kernel_panic": "not observed in captured serial output",
+        "oom": "not established",
+        "emulator_host_crash": "not established",
+        "post_failure_full_process_identity": "unavailable"
+      },
+      "causal_limits": [
+        "Do not infer the framework ClassCastException seen in the other arm occurred in this arm.",
+        "Continued kernel output argues against a whole-guest halt at the initial disconnect but does not identify the transport failure cause.",
+        "Later same-PID kernel activity is not a post-failure PID/start-time identity revalidation.",
+        "The two traced kills occur after failure and clean diagnostic processes; no captured signal explains the initial disconnect."
+      ]
+    },
+    "apk-file-copy-2": {
+      "artifact_id": 11314325395,
+      "zip_file": "11314325395-android-apk-transport-apk-file-copy-2.zip",
+      "zip_bytes": 110575,
+      "zip_sha256": "8d057fd1e810f5981b9915ed65aa9b3c3551cc7b91c3d0b65dc5d8e1eaf9f3c9",
+      "zip_sha256_matches_manifest": true,
+      "members": {
+        "observation.json": {
+          "bytes": 1114,
+          "sha256": "57622ebb1dd37de93e76281854bc482fd633e5a1c423892d0622564345168b20"
+        },
+        "commands.log": {
+          "bytes": 492614,
+          "sha256": "ca29835da190a7512dd9055a2343671b9bb990a7181f4ed7a6bed9b73f4c3e5d"
+        },
+        "samples.json": {
+          "bytes": 67838,
+          "sha256": "0a70fd52ba1012106eafbc4910cc19ea3b68d70d359e9c459faaef277b8422e2"
+        },
+        "syscalls.log": {
+          "bytes": 157138,
+          "sha256": "1c159e2f9aa6cb7e95f0cc320c15f4503505a9aee3a5f13c928f09fa05c25ff5"
+        }
+      },
+      "aggregate_matches_raw_samples_and_observation": true,
+      "probe_source_commit": "6a4da6bf4357bad4bbb97ea1e0e78ccb2822cf75",
+      "completed_samples": 0,
+      "requested_samples": 24,
+      "host_timeline": [
+        {
+          "label": "baseline-identity",
+          "wall_time_ns": 1791144518491387603,
+          "monotonic_ns": 141769693486,
+          "elapsed_ns": 155374711,
+          "returncode": 0,
+          "output_bytes": 56,
+          "output_sha256": "1710fa9ea8ae7985e9f49ed00bf09e3d9b362fe1d74ca505cf7356f4f2f1ba2c",
+          "host_recorded_utc": "2026-10-04T20:08:38.491387603Z",
+          "source": {
+            "member": "samples.json",
+            "line": 10
+          }
+        },
+        {
+          "label": "baseline-identity-adbd-stat",
+          "wall_time_ns": 1791144518581300174,
+          "monotonic_ns": 141859605696,
+          "elapsed_ns": 89271048,
+          "returncode": 0,
+          "output_bytes": 182,
+          "output_sha256": "7154341d75f836aeda9a31809d237643a0fa3d2824d28c8fb626f196182c8e5c",
+          "host_recorded_utc": "2026-10-04T20:08:38.581300174Z",
+          "source": {
+            "member": "samples.json",
+            "line": 20
+          }
+        },
+        {
+          "label": "baseline-identity-system_server-stat",
+          "wall_time_ns": 1791144518651240569,
+          "monotonic_ns": 141929546001,
+          "elapsed_ns": 69798950,
+          "returncode": 0,
+          "output_bytes": 198,
+          "output_sha256": "34b3f9666a40445d23c74ec327058faa490181279a97fcb009e1c0fad98b38e2",
+          "host_recorded_utc": "2026-10-04T20:08:38.651240569Z",
+          "source": {
+            "member": "samples.json",
+            "line": 30
+          }
+        },
+        {
+          "label": "sample-01-before",
+          "wall_time_ns": 1791144518744167376,
+          "monotonic_ns": 142022472738,
+          "elapsed_ns": 92760194,
+          "returncode": 0,
+          "output_bytes": 105,
+          "output_sha256": "dab8718eafbe6e380d0fa4cbf26169bf61561b828d124f091126e59c3f4fe782",
+          "host_recorded_utc": "2026-10-04T20:08:38.744167376Z",
+          "source": {
+            "member": "samples.json",
+            "line": 40
+          }
+        },
+        {
+          "label": "sample-01-copy",
+          "wall_time_ns": 1791144519209383236,
+          "monotonic_ns": 142487688899,
+          "elapsed_ns": 464150562,
+          "returncode": 0,
+          "client_pid": 3878,
+          "client_process_group": 3102,
+          "bytes": 13608912,
+          "sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+          "exact": true,
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_truncated": false,
+          "host_recorded_utc": "2026-10-04T20:08:39.209383236Z",
+          "source": {
+            "member": "samples.json",
+            "line": 50
+          }
+        },
+        {
+          "label": "sample-01-after",
+          "wall_time_ns": 1791144519274729349,
+          "monotonic_ns": 142553034982,
+          "elapsed_ns": 65039717,
+          "returncode": 0,
+          "output_bytes": 105,
+          "output_sha256": "dab8718eafbe6e380d0fa4cbf26169bf61561b828d124f091126e59c3f4fe782",
+          "host_recorded_utc": "2026-10-04T20:08:39.274729349Z",
+          "source": {
+            "member": "samples.json",
+            "line": 66
+          }
+        },
+        {
+          "label": "sample-01-result",
+          "wall_time_ns": 1791144519274907383,
+          "monotonic_ns": 142553213166,
+          "path_unchanged": true,
+          "copy_exact": true,
+          "copy_returncode": 0,
+          "host_recorded_utc": "2026-10-04T20:08:39.274907383Z",
+          "source": {
+            "member": "samples.json",
+            "line": 76
+          }
+        },
+        {
+          "label": "sample-01-identity",
+          "wall_time_ns": 1791144519408913563,
+          "monotonic_ns": 142687218965,
+          "elapsed_ns": 131814317,
+          "returncode": 0,
+          "output_bytes": 52,
+          "output_sha256": "8bb18dbb68379d876c43d36a9f3ebfb868a8b66d36cc45a23fcaa8f2e631c6b6",
+          "host_recorded_utc": "2026-10-04T20:08:39.408913563Z",
+          "source": {
+            "member": "samples.json",
+            "line": 84
+          }
+        },
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791144519409046562,
+          "monotonic_ns": 142687352185,
+          "failure_type": "RuntimeError",
+          "failure": "guest identity unavailable or malformed",
+          "host_recorded_utc": "2026-10-04T20:08:39.409046562Z",
+          "source": {
+            "member": "samples.json",
+            "line": 94
+          }
+        },
+        {
+          "label": "final-state",
+          "wall_time_ns": 1791144519513052892,
+          "monotonic_ns": 142791358414,
+          "elapsed_ns": 103857320,
+          "returncode": 0,
+          "output_bytes": 26809,
+          "output_sha256": "ab8028a6fb329e9c289e7a2e23fe8da9ab5cb1d08eadf616a3386ab134785cec",
+          "host_recorded_utc": "2026-10-04T20:08:39.513052892Z",
+          "source": {
+            "member": "samples.json",
+            "line": 101
+          }
+        },
+        {
+          "label": "final-logcat",
+          "wall_time_ns": 1791144519626434299,
+          "monotonic_ns": 142904739762,
+          "elapsed_ns": 112953104,
+          "returncode": 0,
+          "output_bytes": 32955,
+          "output_sha256": "f7e7a453cf9196e87181bebf2b1f115f87052db802672caaa7f57417202dd521",
+          "host_recorded_utc": "2026-10-04T20:08:39.626434299Z",
+          "source": {
+            "member": "samples.json",
+            "line": 111
+          }
+        },
+        {
+          "label": "final-crash",
+          "wall_time_ns": 1791144519676632250,
+          "monotonic_ns": 142954937733,
+          "elapsed_ns": 49763415,
+          "returncode": 0,
+          "output_bytes": 2428,
+          "output_sha256": "581881e32aba717830ca60681cf13da5f301462e250699abbf014b7fa3366a41",
+          "host_recorded_utc": "2026-10-04T20:08:39.676632250Z",
+          "source": {
+            "member": "samples.json",
+            "line": 121
+          }
+        }
+      ],
+      "observed_process_identity_fields": {
+        "baseline-identity-adbd-stat": {
+          "pid": 435,
+          "name": "adbd",
+          "state": "S",
+          "ppid": 1,
+          "start_ticks": 1121
+        },
+        "baseline-identity-system_server-stat": {
+          "pid": 561,
+          "name": "system_server",
+          "state": "R",
+          "ppid": 357,
+          "start_ticks": 1395
+        }
+      },
+      "traced_signal_syscalls": [],
+      "explicit_kernel_fatal_marker_observed": false,
+      "explicit_oom_kill_marker_observed": false,
+      "negative_scan_scope": "Raw bounded commands.log including emulator -show-kernel output; searches exclude embedded JSON records and require whole fatal marker names, so ramoops/binder_debug are not mistaken for Oops/BUG. This does not prove absence outside the captured window.",
+      "apk_source": {
+        "apk_bytes": 13608912,
+        "apk_sha256": "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724",
+        "archive_sha256": "1cf08883b24b280288b5c964d3e05e9dcac47f62b455b97dc026bf7299851084",
+        "artifact_id": 11309464232,
+        "failed_push_apk_identity_proven": false,
+        "producer_checkout": "9830732a8bfdafe98b70fce7efce085d7085b1f1",
+        "producer_run": 37219996163
+      },
+      "selected_evidence": [
+        {
+          "member": "samples.json",
+          "event": "final-state",
+          "stdout_line": 201,
+          "text": "root           357     1   16967972 181684 0                   0 S zygote64"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-state",
+          "stdout_line": 235,
+          "text": "shell          435     1   10865508  10336 0                   0 S adbd"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-state",
+          "stdout_line": 253,
+          "text": "system         561   357          0      0 0                   0 Z [system_server]"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-state",
+          "stdout_line": 292,
+          "text": "MemFree:          243752 kB"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-state",
+          "stdout_line": 293,
+          "text": "MemAvailable:    1407872 kB"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-state",
+          "stdout_line": 306,
+          "text": "SwapFree:        1898272 kB"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-crash",
+          "stdout_line": 2,
+          "text": "10-04 20:08:38.216   561   621 E AndroidRuntime: *** FATAL EXCEPTION IN SYSTEM PROCESS: PackageManager"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-crash",
+          "stdout_line": 3,
+          "text": "10-04 20:08:38.216   561   621 E AndroidRuntime: java.lang.ClassCastException: com.android.server.pm.PackageMonitorCallbackHelper$RegisterUser cannot be cast to com.android.server.pm.PackageMonitorCallbackHelper$RegisterUser"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-crash",
+          "stdout_line": 4,
+          "text": "10-04 20:08:38.216   561   621 E AndroidRuntime: \tat com.android.server.pm.PackageMonitorCallbackHelper.lambda$doNotifyCallbacks$0(PackageMonitorCallbackHelper.java:241)"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-crash",
+          "stdout_line": 17,
+          "text": "10-04 20:08:38.521  1413  1464 E AndroidRuntime: FATAL EXCEPTION: GoogleApiHandler"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-crash",
+          "stdout_line": 18,
+          "text": "10-04 20:08:38.521  1413  1464 E AndroidRuntime: Process: com.google.android.apps.wellbeing, PID: 1413"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-crash",
+          "stdout_line": 19,
+          "text": "10-04 20:08:38.521  1413  1464 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause"
+        },
+        {
+          "member": "samples.json",
+          "event": "final-logcat",
+          "stdout_line": 140,
+          "text": "10-04 20:08:38.239   561   621 I DropBoxManagerService: add tag=system_server_crash isTagEnabled=true flags=0x2"
+        }
+      ],
+      "observed_facts": [
+        "Zero full samples completed because identity validation failed after sample1, not because its APK copy failed.",
+        "The first copy returned0 with all13608912 bytes and the expected SHA256. Before/after pm path queries both returned0 with the same path.",
+        "The following census retained the same boot ID and adbd PID435 but omitted system_server. Final ps showed original system_server PID561/PPID357 as Z [system_server], while adbd435 and zygote64 PID357 remained present.",
+        "The guest crash buffer recorded FATAL EXCEPTION IN SYSTEM PROCESS: PackageManager for PID561/TID621 at guest logcat time10-04 20:08:38.216, with ClassCastException in PackageMonitorCallbackHelper.lambda$doNotifyCallbacks$0 line241.",
+        "The same guest buffer reported wellbeing PID1413 DeadSystemException at20:08:38.521; final-logcat recorded system_server_crash DropBox at20:08:38.239.",
+        "All final diagnostic queries returned0. There is no after-copy offline error, no traced kill syscall, and no captured explicit kernel panic or OOM-kill marker for this arm."
+      ],
+      "classification": {
+        "guest_framework_crash": "observed and corroborated by original PID zombie",
+        "system_server_restart": "not demonstrated; no replacement PID observed",
+        "transport_failure": "not observed at this failure boundary",
+        "guest_kernel_panic": "not observed",
+        "oom": "not established",
+        "emulator_host_crash": "not established"
+      },
+      "causal_limits": [
+        "The stack identifies the observed failure site, not why a same-name ClassCastException occurred.",
+        "No inference that SDK code, APK file copying, memory pressure, or emulator corruption caused this exception.",
+        "Guest logcat wall times are a separate clock domain from host event timestamps; the capture contains no calibrated clock offset sufficient for precise cross-domain causal ordering.",
+        "Memory availability in the final snapshot cannot rule out earlier pressure or prove an OOM event."
+      ]
+    }
+  },
+  "conclusion": "The pipe arm reproduces short-copy/zero-exit followed by transport loss, with no captured specific fatal cause. The direct-file arm captures a distinct guest system_server PackageManager fatal exception and zombie process after an exact copy; it is not another demonstrated copy/offline event. These two failures must not be assigned one root cause.",
+  "privacy": "Only public artifact hashes, timestamps, process identity fields and selected crash/transport text are retained. No full /proc dumps, boot UUIDs, random remote APK paths, keys or private application state are copied.",
+  "release_claim_eligible": false
+}

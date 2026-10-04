@@ -15,13 +15,15 @@ import zipfile
 from bounded_process import capture_stdout, write_stdout_at
 
 ROOT = Path(__file__).resolve().parent.parent
-MODES = ("apk-path-only", "apk-pipe-copy", "apk-file-copy")
+UNINSTALLED_MODES = ("uninstalled-pipe-copy", "uninstalled-file-copy")
+MODES = ("apk-path-only", "apk-pipe-copy", "apk-file-copy", *UNINSTALLED_MODES)
 ARCHIVE_SHA256 = "1cf08883b24b280288b5c964d3e05e9dcac47f62b455b97dc026bf7299851084"
 APK_MEMBER = "agp_sdk_full_release--runtime--artifacts--qperiapt-android-smoke.apk"
 APK_SHA256 = "e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724"
 APK_BYTES = 13608912
 APK_SOURCE_COMMIT = "9830732a8bfdafe98b70fce7efce085d7085b1f1"
 PACKAGE = "dev.qperiapt.androidsmoke"
+BLOB_PATH = "/data/local/tmp/qperiapt-transport-probe.bin"
 
 
 def digest(path: Path) -> str:
@@ -145,6 +147,12 @@ class Experiment:
         return result
 
     def path(self, label):
+        if self.mode in UNINSTALLED_MODES:
+            program = f"test -f {BLOB_PATH} && test ! -L {BLOB_PATH} && stat -c %s {BLOB_PATH}"
+            result = self.query(label, ["shell", "sh", "-c", shlex.quote(program)])
+            if result.returncode or result.stdout != str(APK_BYTES).encode() + b"\n":
+                raise RuntimeError("uninstalled blob identity unavailable or changed: " + label)
+            return BLOB_PATH
         result = self.query(label, ["shell", "pm", "path", PACKAGE])
         if result.returncode:
             raise RuntimeError("package-path command failed: " + label)
@@ -158,7 +166,7 @@ class Experiment:
             destination, errors = self.work / (prefix + ".apk"), self.work / (prefix + ".err")
             start = time.monotonic_ns()
             command = self.adb + ["exec-out", "cat", before]
-            if self.mode == "apk-pipe-copy":
+            if self.mode in ("apk-pipe-copy", "uninstalled-pipe-copy"):
                 descriptor = os.open(self.work, os.O_RDONLY | os.O_DIRECTORY)
                 try:
                     with errors.open("xb") as diagnostic:
@@ -225,6 +233,10 @@ class Experiment:
         primary = None
         completed = 0
         try:
+            if self.mode in UNINSTALLED_MODES:
+                absent = self.query("package-absence-before", ["shell", "pm", "list", "packages", "dev.qperiapt"])
+                if absent.returncode or absent.stdout != b"":
+                    raise RuntimeError("uninstalled experiment package absence unconfirmed")
             self.identity("baseline-identity")
             for number in range(1, 25):
                 self.sample(number)
@@ -234,17 +246,23 @@ class Experiment:
             self.record("experiment-failed", failure_type=type(error).__name__, failure=str(error))
         finally:
             diagnostics = {}
-            for name, args in [("final-state", ["shell", "sh", "-c", shlex.quote("ps -A; cat /proc/meminfo; cat /proc/uptime")]),
+            queries = [("final-state", ["shell", "sh", "-c", shlex.quote("ps -A; cat /proc/meminfo; cat /proc/uptime")]),
                                ("final-logcat", ["logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-t", "200", "-v", "threadtime"]),
-                               ("final-crash", ["logcat", "-d", "-b", "crash", "-t", "200", "-v", "threadtime"])]:
+                               ("final-crash", ["logcat", "-d", "-b", "crash", "-t", "200", "-v", "threadtime"])]
+            if self.mode in UNINSTALLED_MODES:
+                queries.append(("package-absence-after", ["shell", "pm", "list", "packages", "dev.qperiapt"]))
+            for name, args in queries:
                 try:
                     result = self.query(name, args, diagnostic=True)
+                    if name == "package-absence-after" and (result.returncode or result.stdout != b""):
+                        raise RuntimeError("uninstalled experiment final package absence unconfirmed")
                     diagnostics[name] = dict(returncode=result.returncode)
                 except Exception as error:
                     diagnostics[name] = dict(failure_type=type(error).__name__, failure=str(error))
             diagnostics_ok = all(item.get("returncode") == 0 for item in diagnostics.values())
             report = dict(schema_version=1, mode=self.mode, status="observations_completed" if primary is None and diagnostics_ok else "observation_failed",
                           completed_samples=completed, requested_samples=24, apk_sha256=APK_SHA256,
+                          source_kind="uninstalled_same_bytes" if self.mode in UNINSTALLED_MODES else "installed_apk",
                           events=self.events, diagnostics=diagnostics, release_claim_eligible=False)
             with (self.output / "samples.json").open("x") as stream:
                 json.dump(report, stream, indent=2);stream.write("\n")

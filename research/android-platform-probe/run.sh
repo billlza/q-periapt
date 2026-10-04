@@ -7,7 +7,7 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)
 experiment=${1:-file-integrity}
 case "$experiment" in
     file-integrity) output=$root/target/android-platform-probe ;;
-    apk-path-only|apk-pipe-copy|apk-file-copy) output=$root/target/android-apk-transport-probe ;;
+    apk-path-only|apk-pipe-copy|apk-file-copy|uninstalled-pipe-copy|uninstalled-file-copy) output=$root/target/android-apk-transport-probe ;;
     *) exit 2 ;;
 esac
 test -f "$output/commands.log"
@@ -181,8 +181,21 @@ if [ "$experiment" != file-integrity ]; then
     sha256sum "$sdk/system-images/android-35/google_apis_ps16k/x86_64/kernel-ranchu" \
         "$sdk/system-images/android-35/google_apis_ps16k/x86_64/system.img"
     ps -o pid,ppid,pgid,etimes,args -p "$adb_pid,$emulator_pid"
-    printf 'APK_TRANSPORT_INSTALL_ATTEMPT\n'
-    timeout --foreground 120 "$adb" -L "$socket" -s "$serial" install --no-incremental "$output/probe.apk"
+    case "$experiment" in
+        uninstalled-pipe-copy|uninstalled-file-copy)
+            blob=/data/local/tmp/qperiapt-transport-probe.bin
+            guest test ! -e "$blob"
+            printf 'APK_TRANSPORT_BLOB_STAGE\n'
+            timeout --foreground 120 "$adb" -L "$socket" -s "$serial" push "$output/probe.apk" "$blob"
+            observed_blob=$(guest sha256sum "$blob")
+            test "$observed_blob" = 'e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724  /data/local/tmp/qperiapt-transport-probe.bin'
+            confirm_no_sdk_package
+            ;;
+        *)
+            printf 'APK_TRANSPORT_INSTALL_ATTEMPT\n'
+            timeout --foreground 120 "$adb" -L "$socket" -s "$serial" install --no-incremental "$output/probe.apk"
+            ;;
+    esac
     # One bounded syscall log, no reads/writes or payload contents. The private
     # server remains outside this trace; only the owned experiment's children
     # are traced. The file limit also bounds direct-copy comparison output.

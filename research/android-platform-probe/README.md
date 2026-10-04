@@ -42,7 +42,7 @@ That observation proves `exec-out cat` returned zero without a bounded-writer
 error. Its size/hash check would have followed the failed `pm path`, so complete
 APK transfer has not been established for the failed attempt.
 
-Three arms use fresh private instances of the same API35/16KiB image: package
+The initial three arms used fresh private instances of the same API35/16KiB image: package
 path queries alone, the existing bounded PIPE writer, and the same copy command
 with stdout connected directly to a file. Each arm runs 24 samples in each of
 two hosted trials. Copy commands have the same 15-second maximum and APK size
@@ -51,7 +51,7 @@ query; incomplete zero-exit copies remain failures. The direct-file comparison
 uses an OS file-size limit and an owned child timeout. It does not replace the
 production writer or change package admission/recovery budgets.
 
-All arms install the same signed public APK, SHA-256
+Those arms installed the same signed public APK, SHA-256
 `e2548ac0343802f35bc880804805d60448bf131e436dd0e7e0fb859d0f900724`,
 from artifact `11309464232` of successful PR run `37219996163`. The entire ZIP
 and selected APK are pinned before use. This is the corresponding PR producer's
@@ -86,3 +86,28 @@ Kernel output is captured outside the ADB channel, and the crash log buffer is
 read separately so ordinary framework traffic cannot displace its final records.
 These observations strengthen diagnosis without changing SDK admission or retry
 policy; the earlier failed trials remain part of the evidence.
+
+## Copying without package installation
+
+The current matrix compares `uninstalled-pipe-copy`, `uninstalled-file-copy`
+and the installed `apk-file-copy` reference, with two fresh boots per arm and
+24 samples per boot. The uninstalled arms push the exact same pinned bytes to
+`/data/local/tmp/qperiapt-transport-probe.bin`, verify the guest file hash, and
+never invoke package installation, an activity or instrumentation. Copy commands
+still use `adb exec-out cat`; size limits, hashes, deadlines and both host output
+strategies are unchanged. Before/after queries check the fixed regular file's
+size instead of asking PackageManager for an installed path. Package absence
+requires a successful empty query before and after the run; missing diagnostics
+remain failures. The supervisor records staging and installation separately and
+refuses an installation marker in an uninstalled experiment.
+
+This comparison tests whether an installed package is necessary for the observed
+bulk-transfer failure. It does not identify a failing host/guest transport layer
+or establish that finite successful samples are stable. The earlier installed
+trials remain evidence: run `37230756014` includes both an exit-zero short PIPE
+copy followed by offline and a separate full, exact copy with a captured fatal
+PackageManager exception and original `system_server` observed as a zombie.
+Guest logcat and host timestamps were not calibrated, so those records do not
+establish copy/crash ordering or a shared cause. Run `37231009374` retained three
+further short or empty exit-zero copies followed by offline, including both
+host output strategies. No SDK gate, automatic recovery or retry budget changes.

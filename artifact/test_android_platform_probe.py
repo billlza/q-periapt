@@ -68,6 +68,33 @@ class PlatformProbeTests(unittest.TestCase):
                                             timeout_seconds=5, maximum_bytes=4096)
                     self.assertEqual(result.returncode, expected, result.stdout)
 
+    def test_uninstalled_supervisor_preserves_installation_contradiction(self):
+        spec = importlib.util.spec_from_file_location("android_platform_probe_uninstalled", PROBE / "run.py")
+        module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        for attempted in (False,True):
+            with tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                def command(argv,**options):
+                    if argv[-1]=="HEAD" and "rev-parse" in argv:return BoundedResult(0,b"a"*40+b"\n")
+                    if "diff" in argv:return BoundedResult(0)
+                    self.assertEqual(argv[-1],"uninstalled-file-copy")
+                    options["output_sink"](b"APK_TRANSPORT_INSTALL_ATTEMPT\n" if attempted else b"APK_TRANSPORT_BLOB_STAGE\n")
+                    return BoundedResult(0)
+                old_umask=os.umask(0o077)
+                try:
+                    with mock.patch.dict(os.environ,{"GITHUB_ACTIONS":"true","RUNNER_OS":"Linux","GITHUB_SHA":"a"*40,"JAVA_HOME":directory}), \
+                         mock.patch.object(module.sys,"platform","linux"),mock.patch.object(module,"ROOT",root), \
+                         mock.patch.object(module,"prepare_archive",return_value={"test_source_only":True}), \
+                         mock.patch.object(module,"capture_stdout",side_effect=command):
+                        if attempted:
+                            with self.assertRaisesRegex(RuntimeError,"attempted package installation"):module.main("uninstalled-file-copy")
+                        else:self.assertEqual(module.main("uninstalled-file-copy"),0)
+                finally:os.umask(old_umask)
+                result=json.loads((root/"target/android-apk-transport-probe/observation.json").read_text())
+                self.assertFalse(result["sdk_installation_requested"])
+                self.assertEqual(result["sdk_installation_attempted"],attempted)
+                self.assertEqual(result["status"],"supervisor_failed" if attempted else "observations_completed")
+
     def test_local_invocation_refuses_before_creating_state(self):
         spec = importlib.util.spec_from_file_location("android_platform_probe", PROBE / "run.py")
         module = importlib.util.module_from_spec(spec)

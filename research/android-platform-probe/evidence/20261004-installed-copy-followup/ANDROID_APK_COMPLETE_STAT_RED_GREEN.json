@@ -1,0 +1,28 @@
+{
+  "head": "1c1cd04e3b3cab60ac2cb45a40d315204c05457d",
+  "old_head": "6a4da6bf",
+  "cases": [
+    {
+      "case": 0,
+      "old_accepted": true,
+      "new_rejected": true,
+      "input_sha256": "da715dda254f4cf4253b28ca6515c244953d4b69586eacbb6bbe4c878a3cea37"
+    },
+    {
+      "case": 1,
+      "old_accepted": true,
+      "new_rejected": true,
+      "input_sha256": "b987ed1269a04c753ee65e35afea8adc000327dec28cc1919ac41b13a63ae1c9"
+    },
+    {
+      "case": 2,
+      "old_accepted": true,
+      "new_rejected": true,
+      "input_sha256": "742f73bb12b1df6c6cbcb13b5fe12cf1750b585f973015e7460231dd4b1d2c9e"
+    }
+  ],
+  "local_tests": 10,
+  "log_sha256": "b96413efa2e2b6cb5b549e5f4610dcd3eef3fbd9ea4ceae83d06b331f307cc11",
+  "kernel_source": "https://android.googlesource.com/kernel/common/+/refs/heads/android15-6.6/fs/proc/array.c",
+  "kernel_source_sha256": "1aff380e04778d6e21291b896e71ac9f43764eb3415fbf0b33ba1880a534b672"
+}

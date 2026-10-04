@@ -180,5 +180,35 @@ class ApkTransportProbeTests(unittest.TestCase):
                         experiment.identity("bad-stat")
                 self.assertIsNone(experiment.guest_identity)
 
+    def test_uninstalled_blob_path_requires_exact_successful_size(self):
+        for mode in probe.UNINSTALLED_MODES:
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment=self.experiment(temporary,mode)
+                valid=str(probe.APK_BYTES).encode()+b"\n"
+                with mock.patch.object(experiment,"query",return_value=BoundedResult(0,valid)) as query:
+                    self.assertEqual(experiment.path("before"),probe.BLOB_PATH)
+                    self.assertNotIn("pm",query.call_args.args[1])
+                    self.assertIn(probe.BLOB_PATH,query.call_args.args[1][-1])
+                for result in (BoundedResult(1,valid),BoundedResult(0,b""),BoundedResult(0,b"1\n"),
+                               BoundedResult(0,valid+valid),BoundedResult(0,valid[:-1])):
+                    with mock.patch.object(experiment,"query",return_value=result),self.assertRaises(RuntimeError):
+                        experiment.path("invalid")
+
+    def test_uninstalled_run_refuses_unknown_or_present_packages_before_and_after(self):
+        for before in (True,False):
+            for result in (BoundedResult(1,b""),BoundedResult(0,b"package:dev.qperiapt.androidsmoke\n")):
+                with tempfile.TemporaryDirectory() as temporary:
+                    experiment=self.experiment(temporary,"uninstalled-file-copy")
+                    def query(label,args,**options):
+                        return result if label==("package-absence-before" if before else "package-absence-after") else BoundedResult(0,b"")
+                    with mock.patch.object(experiment,"query",side_effect=query), \
+                         mock.patch.object(experiment,"sample") as sample, mock.patch.object(experiment,"identity"), \
+                         contextlib.redirect_stdout(io.StringIO()),self.assertRaises(RuntimeError):
+                        experiment.run()
+                    self.assertEqual(sample.call_count,0 if before else 24)
+                    report=json.loads((Path(temporary)/"samples.json").read_text())
+                    self.assertEqual(report["status"],"observation_failed")
+                    self.assertEqual(report["source_kind"],"uninstalled_same_bytes")
+
 
 if __name__ == "__main__": unittest.main()
